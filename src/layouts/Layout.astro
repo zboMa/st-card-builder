@@ -296,6 +296,10 @@ const { title } = Astro.props;
           inset 0 1px 0 rgba(255, 255, 255, 0.07);
       }
 
+      .area-worldbook {
+        height: min(720px, calc(100vh - 112px));
+      }
+
       .panel h2 {
         margin: 0 0 16px 0;
         color: #e0e7ff;
@@ -726,8 +730,16 @@ const { title } = Astro.props;
         margin-bottom: 8px;
         display: flex;
         flex-direction: column;
+        height: 154px;
+        overflow: hidden;
         border: 1px solid transparent;
         transition: border-color 0.2s ease;
+      }
+      .entry-item.is-expanded,
+      .entry-item.is-creating {
+        height: auto;
+        min-height: 154px;
+        overflow: visible;
       }
       .entry-item:hover {
         border-color: #334155;
@@ -735,11 +747,20 @@ const { title } = Astro.props;
       .entry-item-header {
         display: flex;
         justify-content: space-between;
-        align-items: center;
+        align-items: flex-start;
         width: 100%;
+        gap: 10px;
+        flex-shrink: 0;
       }
+      .entry-info { min-width: 0; flex: 1; }
       .entry-info h4 { margin: 0 0 4px 0; font-size: 0.88rem; }
       .entry-info p { margin: 0; font-size: 0.72rem; color: #94a3b8; }
+      .entry-info h4,
+      .entry-info p {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
       .wb-inline-editor {
         margin-top: 12px;
         padding: 14px;
@@ -792,6 +813,7 @@ const { title } = Astro.props;
         color: #cbd5e1;
         font-size: 0.75rem;
         line-height: 1.55;
+        min-height: calc(0.75rem * 1.55 * 3);
         display: -webkit-box;
         -webkit-line-clamp: 3;
         -webkit-box-orient: vertical;

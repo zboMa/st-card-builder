@@ -71,6 +71,132 @@ import GsapAnimations from '../components/GsapAnimations.astro';
 
   <GsapAnimations />
 
+  <style is:global>
+    .app-confirm-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: grid;
+      place-items: center;
+      padding: 18px;
+      background:
+        radial-gradient(circle at 50% 32%, rgba(56, 189, 248, 0.14), transparent 34%),
+        rgba(2, 6, 23, 0.72);
+      backdrop-filter: blur(10px);
+      animation: appConfirmFade 0.16s ease;
+    }
+
+    .app-confirm-dialog {
+      width: min(420px, 100%);
+      border: 1px solid rgba(248, 113, 113, 0.28);
+      border-radius: 18px;
+      background:
+        linear-gradient(145deg, rgba(15, 23, 42, 0.98), rgba(7, 12, 24, 0.98)),
+        radial-gradient(circle at top left, rgba(239, 68, 68, 0.15), transparent 40%);
+      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.48), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+      overflow: hidden;
+      animation: appConfirmPop 0.18s ease;
+    }
+
+    .app-confirm-head {
+      display: flex;
+      gap: 12px;
+      padding: 18px 18px 12px;
+      align-items: center;
+    }
+
+    .app-confirm-icon {
+      width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      border-radius: 14px;
+      border: 1px solid rgba(248, 113, 113, 0.32);
+      background: rgba(127, 29, 29, 0.34);
+      color: #fecaca;
+      font-size: 1.25rem;
+      flex: 0 0 auto;
+    }
+
+    .app-confirm-title {
+      margin: 0 0 4px;
+      color: #fee2e2;
+      font-size: 0.98rem;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+    }
+
+    .app-confirm-message {
+      margin: 0;
+      color: #94a3b8;
+      font-size: 0.76rem;
+      line-height: 1.6;
+    }
+
+    .app-confirm-body {
+      margin: 0 18px 16px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(51, 65, 85, 0.72);
+      background: rgba(2, 6, 23, 0.44);
+      color: #cbd5e1;
+      font-size: 0.74rem;
+      line-height: 1.55;
+    }
+
+    .app-confirm-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      padding: 14px 18px 18px;
+      border-top: 1px solid rgba(51, 65, 85, 0.5);
+      background: rgba(2, 6, 23, 0.26);
+    }
+
+    .app-confirm-btn {
+      min-width: 92px;
+      min-height: 36px;
+      padding: 0 14px;
+      border-radius: 10px;
+      border: 1px solid rgba(71, 85, 105, 0.75);
+      background: rgba(15, 23, 42, 0.84);
+      color: #cbd5e1;
+      font: inherit;
+      font-size: 0.78rem;
+      font-weight: 800;
+      cursor: pointer;
+      transition: all 0.18s ease;
+    }
+
+    .app-confirm-btn:hover {
+      transform: translateY(-1px);
+      border-color: rgba(148, 163, 184, 0.7);
+      color: #f8fafc;
+    }
+
+    .app-confirm-btn.danger {
+      border-color: rgba(248, 113, 113, 0.42);
+      background: linear-gradient(135deg, rgba(185, 28, 28, 0.86), rgba(127, 29, 29, 0.92));
+      color: #fff1f2;
+      box-shadow: 0 10px 24px rgba(127, 29, 29, 0.24);
+    }
+
+    .app-confirm-btn.danger:hover {
+      border-color: rgba(252, 165, 165, 0.7);
+      box-shadow: 0 12px 28px rgba(185, 28, 28, 0.32);
+    }
+
+    @keyframes appConfirmFade {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes appConfirmPop {
+      from { opacity: 0; transform: translateY(8px) scale(0.98); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+  </style>
+
   <script is:inline>
     // ============================================================
     //  字段注释字典
@@ -221,7 +347,6 @@ import GsapAnimations from '../components/GsapAnimations.astro';
     var parsedPresetList     = [];
     var editingIndex         = -1;
     var isCreatingEntry      = false;
-    var statusBarActive      = true;
     var cachedSearchResults  = null;
 
     if (!window.__altGreetings__) window.__altGreetings__ = [];
@@ -230,21 +355,58 @@ import GsapAnimations from '../components/GsapAnimations.astro';
     var CURRENT_KEY = "st_v3_builder_current_id";
     var AI_KEY      = "st_v3_builder_ai_config";
 
+    function escapeHTML(str) {
+      return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function showConfirmDialog(options) {
+      var opts = options || {};
+      return new Promise(function(resolve) {
+        var overlay = document.createElement('div');
+        overlay.className = 'app-confirm-overlay';
+        overlay.setAttribute('role', 'presentation');
+        overlay.innerHTML =
+          '<div class="app-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="appConfirmTitle">' +
+            '<div class="app-confirm-head">' +
+              '<div class="app-confirm-icon">' + escapeHTML(opts.icon || '⚠️') + '</div>' +
+              '<div>' +
+                '<h3 id="appConfirmTitle" class="app-confirm-title">' + escapeHTML(opts.title || '确认操作') + '</h3>' +
+                '<p class="app-confirm-message">' + escapeHTML(opts.message || '这个操作需要确认。') + '</p>' +
+              '</div>' +
+            '</div>' +
+            (opts.detail ? '<div class="app-confirm-body">' + escapeHTML(opts.detail) + '</div>' : '') +
+            '<div class="app-confirm-actions">' +
+              '<button type="button" class="app-confirm-btn" data-confirm="cancel">' + escapeHTML(opts.cancelText || '取消') + '</button>' +
+              '<button type="button" class="app-confirm-btn danger" data-confirm="ok">' + escapeHTML(opts.okText || '确认') + '</button>' +
+            '</div>' +
+          '</div>';
+
+        function close(value) {
+          document.removeEventListener('keydown', onKeydown);
+          overlay.remove();
+          resolve(value);
+        }
+
+        function onKeydown(event) {
+          if (event.key === 'Escape') close(false);
+          if (event.key === 'Enter') close(true);
+        }
+
+        overlay.addEventListener('click', function(event) {
+          if (event.target === overlay) close(false);
+        });
+        overlay.querySelector('[data-confirm="cancel"]').addEventListener('click', function() { close(false); });
+        overlay.querySelector('[data-confirm="ok"]').addEventListener('click', function() { close(true); });
+        document.addEventListener('keydown', onKeydown);
+        document.body.appendChild(overlay);
+        overlay.querySelector('[data-confirm="cancel"]').focus();
+      });
+    }
+
     // ============================================================
     //  全局桥接
     // ============================================================
     window.triggerGlobalUpdate = function() { debouncedUpdateAndSave(); };
-
-    window.injectStatusBarGlobal = function(wbEntry, regexOrArray) {
-      var idx = -1;
-      for (var i = 0; i < worldbookEntries.length; i++) {
-        if (worldbookEntries[i].comment === wbEntry.comment) { idx = i; break; }
-      }
-      if (idx >= 0) worldbookEntries[idx] = wbEntry; else worldbookEntries.push(wbEntry);
-      regexScripts = Array.isArray(regexOrArray) ? regexOrArray : [regexOrArray];
-      renderEntriesList();
-      debouncedUpdateAndSave();
-    };
 
     // ★ 变量卡生成器 — 批量注入世界书条目 & 正则脚本
     window.__injectMvuEntries__ = function(entries, newRegexScripts) {
@@ -303,6 +465,44 @@ import GsapAnimations from '../components/GsapAnimations.astro';
       return Array.isArray(tavernHelperScripts) ? tavernHelperScripts.slice() : [];
     };
 
+    window.__deleteMvuArtifacts__ = function(options) {
+      options = options || {};
+      var comments = Array.isArray(options.comments) ? options.comments : [];
+      var regexNames = Array.isArray(options.regexNames) ? options.regexNames : [];
+      var helperNames = Array.isArray(options.helperNames) ? options.helperNames : [];
+
+      if (comments.length) {
+        worldbookEntries = worldbookEntries.filter(function(entry) {
+          return comments.indexOf(entry && entry.comment) < 0;
+        });
+      }
+      if (regexNames.length && Array.isArray(regexScripts)) {
+        regexScripts = regexScripts.filter(function(script) {
+          return regexNames.indexOf(script && script.scriptName) < 0;
+        });
+      }
+      if (helperNames.length && Array.isArray(tavernHelperScripts)) {
+        tavernHelperScripts = tavernHelperScripts.filter(function(script) {
+          return helperNames.indexOf(script && script.name) < 0;
+        });
+      }
+
+      renderEntriesList();
+      debouncedUpdateAndSave();
+      window.dispatchEvent(new CustomEvent('card-builder-data-changed'));
+    };
+
+    window.__getCurrentDraftId__ = function() {
+      return currentDraftId || '';
+    };
+
+    window.__setWorldbookEntries__ = function(entries) {
+      if (!Array.isArray(entries)) return;
+      worldbookEntries = entries.slice();
+      renderEntriesList();
+      debouncedUpdateAndSave();
+    };
+
     window.__getCardExtension__ = function(key) {
       if (!key) return cardBuilderExtensions || {};
       return cardBuilderExtensions ? cardBuilderExtensions[key] : undefined;
@@ -315,11 +515,6 @@ import GsapAnimations from '../components/GsapAnimations.astro';
       else cardBuilderExtensions[key] = value;
       debouncedUpdateAndSave();
       window.dispatchEvent(new CustomEvent('card-builder-data-changed'));
-    };
-
-    window.setStatusBarActiveState = function(active) {
-      statusBarActive = active;
-      debouncedUpdateAndSave();
     };
 
 window.applyJSONFromEditor = function(json) {
@@ -587,10 +782,6 @@ window.__setImportedAvatar__ = function(base64) {
       currentAvatarBase64 = d.avatarBase64    || '';
       window.__altGreetings__ = d.altGreetings || [];
       if (window.__renderAltGreetings__) window.__renderAltGreetings__();
-      // ★ 恢复状态栏数据
-      if (d.statusBarData && window.__loadStatusBarData__) {
-        window.__loadStatusBarData__(d.statusBarData);
-      }
       resetWBForm();
       if (currentAvatarBase64) {
         avatarImg.src = currentAvatarBase64; avatarImg.style.display = 'block'; avatarPlaceholder.style.display = 'none';
@@ -598,6 +789,7 @@ window.__setImportedAvatar__ = function(base64) {
         avatarImg.style.display = 'none'; avatarPlaceholder.style.display = 'block';
       }
       updateDraftDropdown(); renderEntriesList(); updatePreview();
+      window.dispatchEvent(new CustomEvent('card-builder-data-changed'));
     }
 
     function saveCurrentDraft() {
@@ -615,7 +807,6 @@ window.__setImportedAvatar__ = function(base64) {
         cardBuilderExtensions: cardBuilderExtensions,
         avatarBase64:    currentAvatarBase64,
         altGreetings:    window.__altGreetings__ || [],
-        statusBarData:   window.__getStatusBarData__ ? window.__getStatusBarData__() : null,  // ★ 保存状态栏
         updatedAt:       new Date().toLocaleTimeString('zh-CN', { hour12: false })
       };
       try {
@@ -638,14 +829,25 @@ window.__setImportedAvatar__ = function(base64) {
       avatarImg.style.display = 'none'; avatarPlaceholder.style.display = 'block';
       window.__altGreetings__ = [];
       if (window.__renderAltGreetings__) window.__renderAltGreetings__();
-      // ★ 新建草稿时重置状态栏
-      if (window.__loadStatusBarData__) window.__loadStatusBarData__(null);
       resetWBForm(); saveCurrentDraft(); updateDraftDropdown(); renderEntriesList(); updatePreview();
+      window.dispatchEvent(new CustomEvent('card-builder-data-changed'));
     });
 
-    btnDeleteDraft.addEventListener('click', function() {
-      if (!currentDraftId || !confirm("确定删除？")) return;
-      var dr = getAllDrafts(); delete dr[currentDraftId];
+    btnDeleteDraft.addEventListener('click', async function() {
+      if (!currentDraftId) return;
+      var dr = getAllDrafts();
+      var currentDraft = dr[currentDraftId] || {};
+      var draftName = currentDraft.charName || charName.value.trim() || '未命名草稿';
+      var ok = await showConfirmDialog({
+        icon: '🗑️',
+        title: '删除草稿？',
+        message: '这会从多卡片草稿箱中移除当前草稿。',
+        detail: '即将删除：' + draftName + '。此操作不会影响已下载到本地的卡片文件。',
+        okText: '删除草稿',
+        cancelText: '再想想'
+      });
+      if (!ok) return;
+      delete dr[currentDraftId];
       localStorage.setItem(DRAFTS_KEY, JSON.stringify(dr));
       var ks = Object.keys(dr);
       ks.length > 0 ? loadDraft(ks[0]) : btnNewDraft.click();
@@ -1218,15 +1420,13 @@ window.__setImportedAvatar__ = function(base64) {
 
     function renderEntriesList() {
       entriesList.innerHTML = '';
+      entriesList.style.display = (isCreatingEntry || worldbookEntries.length) ? 'block' : 'none';
       var posMap = ["0前","1后","2前EM","3后EM","4深度","5前AN","6后AN"];
       if (isCreatingEntry) {
         var createDiv = document.createElement('div');
-        createDiv.className = 'entry-item fade-in';
+        createDiv.className = 'entry-item fade-in is-creating';
         createDiv.innerHTML = renderInlineEditor(-1, getDefaultWBEntry(), true);
         entriesList.appendChild(createDiv);
-      }
-      if (!worldbookEntries.length && !isCreatingEntry) {
-        entriesList.innerHTML = '<span style="color:#475569;font-size:0.8rem;">暂无条目</span>';
       }
       worldbookEntries.forEach(function(entry, index) {
         entry = normalizeWBEntry(entry);
@@ -1235,7 +1435,7 @@ window.__setImportedAvatar__ = function(base64) {
         var safeKeys = escapeHtml((entry.keys || []).join(', ') || '无');
         var preview = entry.content ? '<div class="wb-entry-preview">' + escapeHtml(entry.content) + '</div>' : '';
         var skBadge = isSk ? '<span style="font-size:0.6rem;background:rgba(245,158,11,0.15);color:#f59e0b;padding:1px 6px;border-radius:99px;margin-left:6px;border:1px solid rgba(245,158,11,0.25);">🦴 骨架</span>' : '';
-        var div = document.createElement('div'); div.className = 'entry-item fade-in';
+        var div = document.createElement('div'); div.className = 'entry-item fade-in' + (editingIndex === index ? ' is-expanded' : '');
         div.innerHTML = '<div class="entry-item-header"><div class="entry-info"><h4>' + safeComment + ' <span style="color:#8b5cf6;font-size:0.7rem;opacity:0.8;">[' + entry.strategy + ']</span>' + skBadge + '</h4><p>位置: ' + (posMap[entry.position] || entry.position) + ' | 顺序: ' + entry.order + ' | 深度: ' + entry.depth + ' | 概率: ' + entry.prob + '%</p><p>触发词: ' + safeKeys + '</p>' + (isSk ? '<p style="color:#f59e0b;font-size:0.7rem;margin-top:4px;">💡 点击「✨ AI重写」展开为完整设定</p>' : '') + '</div><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;max-width:160px;"><button class="btn btn-edit" data-index="' + index + '" style="width:auto;padding:4px 8px;font-size:0.75rem;background-color:#3b82f6;">✏️ 编辑</button><button class="btn btn-toggle-reroll" data-index="' + index + '" style="width:auto;padding:4px 8px;font-size:0.75rem;background:linear-gradient(135deg,#8b5cf6,#6d28d9);">✨ AI重写</button><button class="btn btn-delete" data-index="' + index + '" style="width:auto;padding:4px 8px;font-size:0.75rem;">🗑️</button></div></div>' + preview + (editingIndex === index ? renderInlineEditor(index, entry, false) : '') + '<div id="reroll_area_' + index + '" style="display:none;width:100%;margin-top:12px;padding-top:12px;border-top:1px dashed #334155;"><input type="text" id="reroll_prompt_' + index + '" placeholder="' + (isSk ? '可留空直接展开，或输入额外要求...' : '怎么修改？') + '" style="width:100%;padding:8px;margin-bottom:8px;" /><button class="btn btn-submit-reroll" data-index="' + index + '" style="background:linear-gradient(135deg,#8b5cf6,#6d28d9);padding:8px;font-size:0.85rem;">' + (isSk ? '🦴→📖 展开为完整设定' : '🎲 确定覆盖重写') + '</button></div>';
         div.querySelector('.entry-info h4').title = entry.comment || '';
         entriesList.appendChild(div);
@@ -1244,7 +1444,7 @@ window.__setImportedAvatar__ = function(base64) {
       document.querySelectorAll('.btn-edit').forEach(function(b) { b.addEventListener('click', function(e) { editEntry(parseInt(e.currentTarget.getAttribute('data-index'))); }); });
       document.querySelectorAll('.btn-save-inline').forEach(function(b) { b.addEventListener('click', function(e) { saveInlineEntry(parseInt(e.currentTarget.getAttribute('data-index'))); }); });
       document.querySelectorAll('.btn-cancel-inline').forEach(function(b) { b.addEventListener('click', function() { cancelInlineEdit(); }); });
-      document.querySelectorAll('.btn-toggle-reroll').forEach(function(b) { b.addEventListener('click', function(e) { var a = document.getElementById('reroll_area_' + e.currentTarget.getAttribute('data-index')); a.style.display = a.style.display === 'none' ? 'block' : 'none'; }); });
+      document.querySelectorAll('.btn-toggle-reroll').forEach(function(b) { b.addEventListener('click', function(e) { var a = document.getElementById('reroll_area_' + e.currentTarget.getAttribute('data-index')); var item = e.currentTarget.closest('.entry-item'); var open = a.style.display === 'none'; a.style.display = open ? 'block' : 'none'; if (item) item.classList.toggle('is-expanded', open); }); });
       document.querySelectorAll('.btn-submit-reroll').forEach(function(b) { b.addEventListener('click', async function(e) { var idx = parseInt(e.currentTarget.getAttribute('data-index')); var req = document.getElementById('reroll_prompt_' + idx).value.trim(); var isSk = worldbookEntries[idx].content.length < 60; if (!isSk && !req) return alert('请填写修改要求！'); await aiRewriteEntry(idx, req, e.currentTarget); }); });
       document.querySelectorAll('.btn-delete').forEach(function(b) { b.addEventListener('click', function(e) { var idx = parseInt(e.currentTarget.getAttribute('data-index')); worldbookEntries.splice(idx, 1); if (editingIndex === idx) resetWBForm(); else if (editingIndex > idx) editingIndex--; renderEntriesList(); debouncedUpdateAndSave(); }); });
       // 通知审计官：世界书条目已变化
@@ -1611,7 +1811,7 @@ window.__setImportedAvatar__ = function(base64) {
       var wn  = wbName.value.trim()   || "无名世界书";
       var ext = Object.assign({}, cardBuilderExtensions || {});
       ext.world = wn;
-      if (statusBarActive && regexScripts && regexScripts.length > 0) ext.regex_scripts = regexScripts;
+      if (regexScripts && regexScripts.length > 0) ext.regex_scripts = regexScripts;
       else delete ext.regex_scripts;
       // ★ 酒馆助手脚本（ScriptTree[] 格式，直接输出原始数组）
       if (tavernHelperScripts.length > 0) {

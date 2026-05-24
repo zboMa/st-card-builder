@@ -565,6 +565,14 @@
     letter-spacing: 0.4px;
     word-break: break-word;
   }
+  .cvu-stat-note {
+    display: block;
+    margin-top: 6px;
+    color: #fde68a;
+    font-size: 0.62rem;
+    line-height: 1.5;
+    word-break: break-word;
+  }
   .cvu-empty {
     padding: 0 14px 12px;
     color: #cbd5e1;
@@ -783,6 +791,7 @@
     var allText = text.toLowerCase();
 
     entries.forEach(function(entry) {
+      if (entry.enabled === false) return;
       var isTriggered = false;
       if (entry.strategy === 'constant') {
         isTriggered = true;
@@ -986,18 +995,46 @@
     return compactPatchValue(item.value);
   }
 
+  function getMvuVariableMetaMap() {
+    if (!window.__getCardExtension__) return {};
+    var data = window.__getCardExtension__('zmer_mvu_design');
+    var vars = data && Array.isArray(data.variables) ? data.variables : [];
+    var map = {};
+    vars.forEach(function(v) {
+      var path = String(v && v.path || '').trim();
+      if (!path) return;
+      var patchPath = '/' + path.split('.').filter(Boolean).map(function(part) {
+        return String(part).replace(/~/g, '~0').replace(/\//g, '~1');
+      }).join('/');
+      map[patchPath] = {
+        description: String(v.description || '').trim(),
+        check: Array.isArray(v.check) ? v.check.map(String).filter(Boolean) : []
+      };
+    });
+    return map;
+  }
+
   function parsePatchCards(patchText) {
     try {
       var parsed = JSON.parse(patchText);
       if (!Array.isArray(parsed)) return [];
+      var metaMap = getMvuVariableMetaMap();
       return parsed.map(function(item) {
-        var pathParts = splitPatchPath(item.path || item.to || '');
+        var rawPath = item.path || item.to || '';
+        var pathParts = splitPatchPath(rawPath);
         var leaf = pathParts[pathParts.length - 1] || item.op || '变量';
         var group = pathParts.slice(0, -1).join(' / ') || '根节点';
+        var matched = metaMap[String(rawPath || '').trim()] || null;
+        var note = '';
+        if (matched) {
+          note = matched.description || (matched.check && matched.check[0]) || '';
+          if (!note && matched.check && matched.check.length) note = matched.check[0];
+        }
         return {
           label: leaf,
           value: patchDisplayValue(item),
-          meta: patchOpLabel(item.op) + ' · ' + group
+          meta: patchOpLabel(item.op) + ' · ' + group,
+          note: note
         };
       });
     } catch (err) {
@@ -1054,6 +1091,12 @@
         stat.appendChild(label);
         stat.appendChild(value);
         stat.appendChild(meta);
+        if (item.note) {
+          var note = document.createElement('span');
+          note.className = 'cvu-stat-note';
+          note.textContent = item.note;
+          stat.appendChild(note);
+        }
         grid.appendChild(stat);
       });
       body.appendChild(grid);

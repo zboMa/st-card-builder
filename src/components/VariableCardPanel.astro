@@ -262,6 +262,8 @@
     <!-- 底栏 -->
     <div class="vc-bottom">
       <span class="vc-summary" id="vcSummary"></span>
+      <button id="btnVcClear" class="btn vc-clear-btn" type="button">🧹 清除变量</button>
+      <button id="btnVcDelete" class="btn vc-delete-btn" type="button">🗑️ 删除组件</button>
       <button id="btnVcExport" class="btn vc-export-btn">💾 导出变量卡包</button>
     </div>
   </div>
@@ -836,6 +838,20 @@
     flex-wrap: wrap;
     gap: 4px;
   }
+  .vc-varmap-desc {
+    margin-top: 6px;
+    color: #dbeafe;
+    font-size: 0.64rem;
+    line-height: 1.45;
+    word-break: break-word;
+  }
+  .vc-varmap-check {
+    margin-top: 5px;
+    color: #94a3b8;
+    font-size: 0.58rem;
+    line-height: 1.45;
+    word-break: break-word;
+  }
   .vc-varmap-chip {
     max-width: 100%;
     padding: 2px 5px;
@@ -1099,6 +1115,20 @@
     border-radius: 7px; cursor: pointer; transition: all 0.2s;
   }
   .vc-export-btn:hover { background: rgba(56,189,248,0.18) !important; border-color: rgba(56,189,248,0.45) !important; }
+  .vc-clear-btn {
+    background: rgba(239,68,68,0.08) !important; color: #fca5a5 !important;
+    border: 1px solid rgba(239,68,68,0.22) !important;
+    font-weight: 600; padding: 7px 14px !important; font-size: 0.72rem !important;
+    border-radius: 7px; cursor: pointer; transition: all 0.2s;
+  }
+  .vc-clear-btn:hover { background: rgba(239,68,68,0.16) !important; border-color: rgba(239,68,68,0.45) !important; }
+  .vc-delete-btn {
+    background: rgba(127,29,29,0.18) !important; color: #fecaca !important;
+    border: 1px solid rgba(248,113,113,0.28) !important;
+    font-weight: 600; padding: 7px 14px !important; font-size: 0.72rem !important;
+    border-radius: 7px; cursor: pointer; transition: all 0.2s;
+  }
+  .vc-delete-btn:hover { background: rgba(127,29,29,0.34) !important; border-color: rgba(248,113,113,0.55) !important; }
 
   .vc-node textarea,
   .vc-node button {
@@ -1149,6 +1179,8 @@
   var singleRequirement = document.getElementById('vcSingleRequirement');
   var btnAddOne = document.getElementById('btnVcAddOne');
   var summaryEl   = document.getElementById('vcSummary');
+  var btnClear    = document.getElementById('btnVcClear');
+  var btnDelete   = document.getElementById('btnVcDelete');
   var btnExport   = document.getElementById('btnVcExport');
 
   var codeEls = {
@@ -1906,6 +1938,62 @@
     });
   }
 
+  function clearInjectedMvuArtifacts() {
+    if (window.__injectMvuEntries__) {
+      suppressAutoSyncUntil = Date.now() + 700;
+      window.__injectMvuEntries__([
+        { comment:'[initvar]变量初始化勿开', content:'', keys:[], strategy:'selective', position:0, depth:0, role:0, order:1000, prob:100, enabled:false },
+        { comment:'变量列表', content:'', keys:[], strategy:'constant', position:4, depth:1, role:0, order:950, prob:100, enabled:false },
+        { comment:'[mvu_update]变量更新规则', content:'', keys:[], strategy:'constant', position:4, depth:4, role:0, order:900, prob:100, enabled:false },
+        { comment:'[mvu_update]变量输出格式', content:'', keys:[], strategy:'constant', position:4, depth:0, role:0, order:890, prob:100, enabled:false }
+      ], REGEX_SCRIPTS.map(function(rx) {
+        return Object.assign({}, rx, { disabled:true });
+      }));
+    }
+    if (window.__setTavernHelperScript__) {
+      window.__setTavernHelperScript__('MVU', '', false);
+      window.__setTavernHelperScript__((cardData.name || '角色') + 'zod', '', false);
+    }
+  }
+
+  function mvuArtifactNames() {
+    return {
+      comments: [
+        '[initvar]变量初始化勿开',
+        '变量列表',
+        '[mvu_update]变量更新规则',
+        '[mvu_update]变量输出格式'
+      ],
+      regexNames: REGEX_SCRIPTS.map(function(rx) { return rx.scriptName; }),
+      helperNames: ['MVU', (cardData.name || '角色') + 'zod']
+    };
+  }
+
+  function clearAllVariables() {
+    if (!confirm('清除当前变量卡？\n这会清空变量预览，并禁用已注入的 MVU 世界书条目、正则和助手脚本。')) return;
+    clearMvuPreview();
+    if (window.__setCardExtension__) window.__setCardExtension__('zmer_mvu_design', null);
+    clearInjectedMvuArtifacts();
+    lastSyncFingerprint = '';
+    setStatus('✅ 已清除变量卡并禁用已注入的 MVU 组件', '#34d399');
+    scheduleRefreshSync(true);
+  }
+
+  function deleteAllVariables() {
+    if (!confirm('彻底删除当前卡片中的 MVU 组件？\n这会移除变量世界书条目、正则脚本和助手脚本。')) return;
+    clearMvuPreview();
+    if (window.__setCardExtension__) window.__setCardExtension__('zmer_mvu_design', null);
+    if (window.__deleteMvuArtifacts__) {
+      suppressAutoSyncUntil = Date.now() + 700;
+      window.__deleteMvuArtifacts__(mvuArtifactNames());
+    } else {
+      clearInjectedMvuArtifacts();
+    }
+    lastSyncFingerprint = '';
+    setStatus('✅ 已删除当前卡片中的 MVU 变量组件', '#34d399');
+    scheduleRefreshSync(true);
+  }
+
   function refreshSync(options) {
     options = options || {};
     var name = (document.getElementById('charName') || {}).value || '';
@@ -1950,6 +2038,8 @@
   }
 
   syncBtn.addEventListener('click', function() { refreshSync({ force:true }); });
+  if (btnClear) btnClear.addEventListener('click', clearAllVariables);
+  if (btnDelete) btnDelete.addEventListener('click', deleteAllVariables);
   setTimeout(function() { refreshSync({ force:true }); }, 600);
   setInterval(function() { refreshSync(); }, 1200);
   window.addEventListener('worldbook-changed', function() {
@@ -2025,6 +2115,46 @@
     var text = typeof value === 'string' ? value : JSON.stringify(value);
     if (text == null) text = '';
     return text.length > 80 ? text.slice(0, 77) + '...' : text;
+  }
+
+  function lastPathPart(path) {
+    var parts = String(path || '').split('.').filter(Boolean);
+    return parts.length ? parts[parts.length - 1] : '';
+  }
+
+  function buildFallbackDescription(path, type) {
+    var leaf = lastPathPart(path) || '变量';
+    var top = String(path || '').split('.').filter(Boolean)[0] || '';
+    var typeLabelMap = {
+      string: '文本状态',
+      number: '数值状态',
+      boolean: '布尔状态',
+      enum: '枚举状态',
+      array: '列表状态',
+      object: '对象状态'
+    };
+    var typeLabel = typeLabelMap[String(type || '').toLowerCase()] || '状态';
+    if (top === '世界') return '用于记录世界层面的' + leaf + '，属于' + typeLabel + '。';
+    if (top === '主角') return '用于记录主角当前的' + leaf + '，属于' + typeLabel + '。';
+    if (top === 'NPC') return '用于记录角色相关的' + leaf + '，属于' + typeLabel + '。';
+    if (top === '记忆') return '用于记录长期记忆中的' + leaf + '，属于' + typeLabel + '。';
+    if (top === '任务') return '用于记录任务系统中的' + leaf + '，属于' + typeLabel + '。';
+    return '用于记录“' + leaf + '”这个' + typeLabel + '。';
+  }
+
+  function buildFallbackChecks(path, type) {
+    var leaf = lastPathPart(path) || '变量';
+    var normalizedType = String(type || '').toLowerCase();
+    if (normalizedType === 'number') {
+      return ['仅当剧情明确导致' + leaf + '增减时更新；无变化不要输出操作'];
+    }
+    if (normalizedType === 'boolean') {
+      return ['仅当剧情中明确满足或取消“' + leaf + '”条件时切换 true/false'];
+    }
+    if (normalizedType === 'object' || normalizedType === 'array') {
+      return ['仅当剧情明确新增、移除或修改“' + leaf + '”内容时更新'];
+    }
+    return ['仅当剧情明确导致“' + leaf + '”变化时更新；无变化不要输出操作'];
   }
 
   function jsonPatchPath(path) {
@@ -2164,6 +2294,9 @@
     if (['string', 'number', 'boolean', 'enum', 'array', 'object'].indexOf(type) < 0) type = 'string';
     var checks = Array.isArray(v.check) ? v.check : (Array.isArray(v.rules) ? v.rules : (v.check ? [v.check] : []));
     var options = Array.isArray(v.options) ? v.options.map(String).filter(Boolean).slice(0, 16) : [];
+    var normalizedPath = sanitizePath(v.path || v.name);
+    var normalizedChecks = checks.map(String).filter(Boolean).slice(0, 6);
+    var description = String(v.description || v.desc || '').trim();
     var def = v.default;
     if (def === undefined) {
       if (type === 'number') def = 0;
@@ -2174,15 +2307,15 @@
       else def = '';
     }
     return {
-      path: sanitizePath(v.path || v.name),
+      path: normalizedPath,
       type: type,
       default: def,
       min: v.min,
       max: v.max,
       options: options,
       format: v.format || '',
-      description: String(v.description || v.desc || '').trim(),
-      check: checks.map(String).filter(Boolean).slice(0, 6),
+      description: description || buildFallbackDescription(normalizedPath, type),
+      check: normalizedChecks.length ? normalizedChecks : buildFallbackChecks(normalizedPath, type),
     };
   }
 
@@ -2441,6 +2574,8 @@
         + '<span class="vc-varmap-chip">' + escapeHtml(statDataPath(path)) + '</span>'
         + '<span class="vc-varmap-chip update">' + escapeHtml(jsonPatchPath(path)) + '</span>'
         + '</div>'
+        + '<div class="vc-varmap-desc">' + escapeHtml(v.description || buildFallbackDescription(path, v.type)) + '</div>'
+        + '<div class="vc-varmap-check">更新条件：' + escapeHtml(((v.check && v.check[0]) || buildFallbackChecks(path, v.type)[0])) + '</div>'
         + '</div>';
       graphSpace.appendChild(node);
       var dynConn = { from: 'varmap:out', to: 'var:' + i + ':in', className: 'vc-wire-var', dynamicVar: true, stableKey: 'varmap:out=>varpath:' + path };
@@ -2505,6 +2640,20 @@
     gen.summary = summaryTxt;
     design.source = options.source || design.source || 'generated';
     gen.design = design;
+
+    if (window.__setCardExtension__) {
+      window.__setCardExtension__('zmer_mvu_design', {
+        summary: summaryTxt,
+        variables: design.variables.map(function(v) {
+          return {
+            path: v.path,
+            type: v.type,
+            description: v.description,
+            check: Array.isArray(v.check) ? v.check.slice(0, 3) : []
+          };
+        })
+      });
+    }
 
     codeEls.schema.textContent = gen.schema;
     codeEls.initvar.textContent = gen.initvar;
@@ -2794,6 +2943,26 @@
       + '  ]\n'
       + '}\n';
   }
+
+  window.__applyExternalVariableDesign__ = function(payload) {
+    payload = payload || {};
+    var rawDesign = payload.design || payload;
+    var rawVars = Array.isArray(rawDesign.variables) ? rawDesign.variables : [];
+    if (!rawVars.length) throw new Error('没有可用的变量设计');
+    var design = {
+      variables: uniqueByPath(rawVars.map(normalizeVariableItem)),
+      summary: String(rawDesign.summary || payload.summary || '已导入外部 MVU 变量设计').slice(0, 80),
+      source: String(payload.source || rawDesign.source || 'external')
+    };
+    rebuildOutputsFromDesign(design, {
+      message: payload.message || '已从外部工坊刷新 MVU 变量卡',
+      inject: payload.inject !== false
+    });
+    return {
+      count: design.variables.length,
+      summary: design.summary
+    };
+  };
 
   /* ============================================================
    *  导出
