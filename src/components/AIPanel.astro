@@ -28,6 +28,14 @@
     </div>
   </div>
 
+  <div class="ai-debug-box">
+    <label class="ai-debug-toggle" for="aiDebugEnable">
+      <input type="checkbox" id="aiDebugEnable" />
+      <span>🐞 AI Debug 模式</span>
+    </label>
+    <div id="aiDebugStatus" class="ai-debug-status">关闭：仅显示常规错误。开启后可在 F12 Console 查看请求摘要、原始响应和 JSON 解析失败细节。</div>
+  </div>
+
   <hr class="divider" />
 
   <!-- 联网搜索配置 -->
@@ -169,6 +177,30 @@
 </div>
 
 <style>
+  .ai-debug-box {
+    margin: -2px 0 16px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(139, 92, 246, 0.18);
+    background: linear-gradient(135deg, rgba(76, 29, 149, 0.12), rgba(15, 23, 42, 0.35));
+  }
+  .ai-debug-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    color: #c4b5fd;
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .ai-debug-status {
+    margin-top: 8px;
+    font-size: 0.68rem;
+    line-height: 1.5;
+    color: #64748b;
+  }
+
   /* ── 协议提示条 ── */
   #apiUrlHint {
     width: 100%;

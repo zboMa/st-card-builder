@@ -1,0 +1,451 @@
+---
+---
+<!-- ★ 悬浮留言板 -->
+<div id="chatWidget" class="cw-root cw-collapsed">
+  <button id="cwToggle" class="cw-fab" title="留言板" aria-label="留言板">
+    <svg class="cw-fab-icon" viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+    </svg>
+    <span id="cwBadge" class="cw-badge" style="display:none;"></span>
+  </button>
+
+  <div id="cwPanel" class="cw-panel">
+    <div class="cw-header">
+      <div class="cw-header-info">
+        <strong>留言板</strong>
+        <span id="cwUsername" class="cw-username">加载中…</span>
+      </div>
+      <button id="cwClose" class="cw-close" title="收起">✕</button>
+    </div>
+    <div id="cwMessages" class="cw-messages">
+      <div class="cw-empty">还没有留言，来说点什么吧～</div>
+    </div>
+    <div class="cw-input-area">
+      <textarea id="cwInput" class="cw-input" placeholder="说点什么... (Enter 发送, Shift+Enter 换行)" rows="2"></textarea>
+      <button id="cwSend" class="cw-send">发送</button>
+    </div>
+    <div id="cwStatus" class="cw-status"></div>
+  </div>
+</div>
+
+<style>
+  .cw-root {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 99999;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --cw-accent: #8b5cf6;
+    --cw-bg: rgba(15, 23, 42, 0.97);
+    --cw-border: rgba(139, 92, 246, 0.25);
+  }
+
+  .cw-fab {
+    width: 54px;
+    height: 54px;
+    border-radius: 50%;
+    border: none;
+    background: linear-gradient(135deg, #8b5cf6, #6366f1);
+    color: #fff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 20px rgba(139, 92, 246, 0.4);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    position: relative;
+  }
+  .cw-fab:hover {
+    transform: scale(1.08);
+    box-shadow: 0 6px 28px rgba(139, 92, 246, 0.55);
+  }
+  .cw-fab:active { transform: scale(0.95); }
+
+  .cw-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 18px;
+    height: 18px;
+    border-radius: 9px;
+    background: #ef4444;
+    color: #fff;
+    font-size: 0.6rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+    border: 2px solid #1e293b;
+  }
+
+  .cw-panel {
+    position: absolute;
+    bottom: 66px;
+    right: 0;
+    width: 340px;
+    max-width: calc(100vw - 40px);
+    height: 440px;
+    max-height: calc(100vh - 100px);
+    background: var(--cw-bg);
+    border: 1px solid var(--cw-border);
+    border-radius: 16px;
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255,255,255,0.03) inset;
+    backdrop-filter: blur(12px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transform-origin: bottom right;
+    transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease;
+  }
+  .cw-collapsed .cw-panel {
+    transform: scale(0.5) translateY(20px);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .cw-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(99, 102, 241, 0.08));
+    border-bottom: 1px solid rgba(139, 92, 246, 0.15);
+    flex-shrink: 0;
+  }
+  .cw-header-info { min-width: 0; }
+  .cw-header strong {
+    display: block;
+    color: #e0e7ff;
+    font-size: 0.88rem;
+    font-weight: 700;
+  }
+  .cw-username {
+    display: block;
+    color: #a78bfa;
+    font-size: 0.68rem;
+    margin-top: 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .cw-close {
+    background: rgba(71, 85, 105, 0.4);
+    border: none;
+    color: #94a3b8;
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.72rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+  }
+  .cw-close:hover {
+    background: rgba(100, 116, 139, 0.6);
+    color: #f1f5f9;
+  }
+
+  .cw-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    scroll-behavior: smooth;
+  }
+  .cw-messages::-webkit-scrollbar { width: 5px; }
+  .cw-messages::-webkit-scrollbar-track { background: transparent; }
+  .cw-messages::-webkit-scrollbar-thumb {
+    background: rgba(139, 92, 246, 0.3);
+    border-radius: 3px;
+  }
+
+  .cw-empty {
+    text-align: center;
+    color: #64748b;
+    font-size: 0.78rem;
+    padding: 40px 12px;
+  }
+
+  .cw-msg {
+    max-width: 82%;
+    padding: 7px 11px;
+    border-radius: 12px;
+    font-size: 0.78rem;
+    line-height: 1.5;
+    word-break: break-word;
+    animation: cw-fade-in 0.25s ease-out;
+  }
+  @keyframes cw-fade-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .cw-msg-other {
+    align-self: flex-start;
+    background: rgba(51, 65, 85, 0.5);
+    color: #e2e8f0;
+    border-bottom-left-radius: 4px;
+  }
+  .cw-msg-mine {
+    align-self: flex-end;
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.3), rgba(99, 102, 241, 0.2));
+    color: #f1f5f9;
+    border-bottom-right-radius: 4px;
+  }
+  .cw-msg-author {
+    font-size: 0.62rem;
+    color: #a78bfa;
+    margin-bottom: 3px;
+    font-weight: 600;
+  }
+  .cw-msg-other .cw-msg-author { color: #7dd3fc; }
+  .cw-msg-time {
+    font-size: 0.56rem;
+    color: #64748b;
+    margin-top: 3px;
+    text-align: right;
+  }
+
+  .cw-input-area {
+    display: flex;
+    gap: 6px;
+    padding: 10px;
+    border-top: 1px solid rgba(139, 92, 246, 0.12);
+    flex-shrink: 0;
+  }
+  .cw-input {
+    flex: 1;
+    background: rgba(13, 18, 32, 0.7);
+    border: 1px solid rgba(139, 92, 246, 0.2);
+    border-radius: 10px;
+    color: #e2e8f0;
+    padding: 8px 10px;
+    font-size: 0.78rem;
+    font-family: inherit;
+    resize: none;
+    outline: none;
+    transition: border-color 0.2s ease;
+    min-height: 38px;
+    max-height: 80px;
+  }
+  .cw-input:focus {
+    border-color: rgba(139, 92, 246, 0.5);
+  }
+  .cw-input::placeholder { color: #64748b; }
+
+  .cw-send {
+    background: linear-gradient(135deg, #8b5cf6, #6366f1);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 0 14px;
+    font-size: 0.76rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+  }
+  .cw-send:hover { filter: brightness(1.15); }
+  .cw-send:active { transform: scale(0.95); }
+  .cw-send:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .cw-status {
+    padding: 0 12px 8px;
+    font-size: 0.62rem;
+    color: #64748b;
+    min-height: 16px;
+    flex-shrink: 0;
+  }
+
+  @media (max-width: 480px) {
+    .cw-root { bottom: 12px; right: 12px; }
+    .cw-panel { width: calc(100vw - 24px); height: 60vh; }
+  }
+</style>
+
+<script is:inline>
+(function () {
+  var API = '/api/chat';
+  var widget = document.getElementById('chatWidget');
+  var toggle = document.getElementById('cwToggle');
+  var panel = document.getElementById('cwPanel');
+  var closeBtn = document.getElementById('cwClose');
+  var messagesEl = document.getElementById('cwMessages');
+  var input = document.getElementById('cwInput');
+  var sendBtn = document.getElementById('cwSend');
+  var usernameEl = document.getElementById('cwUsername');
+  var statusEl = document.getElementById('cwStatus');
+  var badge = document.getElementById('cwBadge');
+
+  var username = '';
+  var lastMsgId = 0;
+  var unreadCount = 0;
+  var polling = null;
+  var sending = false;
+
+  function escapeHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  function formatTime(ts) {
+    var d = new Date(ts * 1000);
+    var now = new Date();
+    var hh = String(d.getHours()).padStart(2, '0');
+    var mm = String(d.getMinutes()).padStart(2, '0');
+    if (d.toDateString() === now.toDateString()) return hh + ':' + mm;
+    var mo = String(d.getMonth() + 1).padStart(2, '0');
+    var dd = String(d.getDate()).padStart(2, '0');
+    return mo + '/' + dd + ' ' + hh + ':' + mm;
+  }
+
+  function renderMessage(msg, animate) {
+    var div = document.createElement('div');
+    div.className = 'cw-msg ' + (msg.is_mine ? 'cw-msg-mine' : 'cw-msg-other');
+    if (!animate) div.style.animation = 'none';
+    var html = '';
+    if (!msg.is_mine) html += '<div class="cw-msg-author">' + escapeHtml(msg.username) + '</div>';
+    html += '<div>' + escapeHtml(msg.content) + '</div>';
+    html += '<div class="cw-msg-time">' + formatTime(msg.created_at) + '</div>';
+    div.innerHTML = html;
+    return div;
+  }
+
+  function scrollToBottom() {
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  function isNearBottom() {
+    return messagesEl.scrollHeight - messagesEl.scrollTop - messagesEl.clientHeight < 80;
+  }
+
+  async function fetchJSON(url, opts) {
+    var r = await fetch(url, opts);
+    return r.json();
+  }
+
+  async function loadWhoami() {
+    try {
+      var data = await fetchJSON(API + '/whoami');
+      if (data.username) {
+        username = data.username;
+        usernameEl.textContent = '身份: ' + username;
+      }
+    } catch (e) {}
+  }
+
+  async function loadMessages(animate) {
+    try {
+      var data = await fetchJSON(API + '/messages');
+      var msgs = data.messages || [];
+      var wasNearBottom = isNearBottom();
+      var hadMessages = messagesEl.querySelector('.cw-msg');
+      var newCount = 0;
+
+      if (!hadMessages && msgs.length === 0) {
+        messagesEl.innerHTML = '<div class="cw-empty">还没有留言，来说点什么吧～</div>';
+        return;
+      }
+      if (msgs.length === 0) return;
+
+      messagesEl.innerHTML = '';
+      msgs.forEach(function(m) {
+        messagesEl.appendChild(renderMessage(m, false));
+        if (m.id > lastMsgId) newCount++;
+      });
+      if (msgs.length) lastMsgId = msgs[msgs.length - 1].id;
+
+      if (wasNearBottom || animate) scrollToBottom();
+
+      if (newCount > 0 && !animate && hadMessages && widget.classList.contains('cw-collapsed')) {
+        unreadCount += newCount;
+        badge.textContent = unreadCount > 99 ? '99+' : String(unreadCount);
+        badge.style.display = 'flex';
+      }
+    } catch (e) {}
+  }
+
+  async function sendMessage() {
+    if (sending) return;
+    var content = input.value.trim();
+    if (!content) return;
+    sending = true;
+    sendBtn.disabled = true;
+    sendBtn.textContent = '...';
+    statusEl.textContent = '';
+
+    try {
+      var data = await fetchJSON(API + '/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: content })
+      });
+      if (data.error) {
+        if (data.error === 'rate_limited') {
+          statusEl.textContent = '⏳ 发送太快了，请稍等几秒…';
+        } else if (data.error === 'too_long') {
+          statusEl.textContent = '⚠️ 消息太长（最多 500 字）';
+        } else {
+          statusEl.textContent = '⚠️ 发送失败: ' + data.error;
+        }
+      } else if (data.ok) {
+        input.value = '';
+        await loadMessages(true);
+      }
+    } catch (e) {
+      statusEl.textContent = '⚠️ 网络错误';
+    } finally {
+      sending = false;
+      sendBtn.disabled = false;
+      sendBtn.textContent = '发送';
+    }
+  }
+
+  function openPanel() {
+    widget.classList.remove('cw-collapsed');
+    unreadCount = 0;
+    badge.style.display = 'none';
+    setTimeout(function() { input.focus(); }, 300);
+    if (!polling) {
+      loadMessages(false);
+      polling = setInterval(function() { loadMessages(false); }, 5000);
+    }
+  }
+
+  function closePanel() {
+    widget.classList.add('cw-collapsed');
+    if (polling) {
+      clearInterval(polling);
+      polling = null;
+    }
+  }
+
+  toggle.addEventListener('click', function() {
+    if (widget.classList.contains('cw-collapsed')) openPanel();
+    else closePanel();
+  });
+  closeBtn.addEventListener('click', closePanel);
+
+  input.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+  sendBtn.addEventListener('click', sendMessage);
+
+  loadWhoami();
+  loadMessages(false);
+  polling = setInterval(function() { loadMessages(false); }, 10000);
+})();
+</script>

@@ -11,6 +11,7 @@ import VariableCardPanel from '../components/VariableCardPanel.astro';
 import WorkspaceFooterPanel from '../components/WorkspaceFooterPanel.astro';
 import ParticleCanvas from '../components/ParticleCanvas.astro';
 import GsapAnimations from '../components/GsapAnimations.astro';
+import ChatWidget from '../components/ChatWidget.astro';
 ---
 
 <Layout title="SillyTavern V4 卡片构建器">
@@ -308,6 +309,8 @@ import GsapAnimations from '../components/GsapAnimations.astro';
     var apiKey               = document.getElementById('apiKey');
     var btnFetchModels       = document.getElementById('btnFetchModels');
     var modelSelect          = document.getElementById('modelSelect');
+    var aiDebugEnable        = document.getElementById('aiDebugEnable');
+    var aiDebugStatus        = document.getElementById('aiDebugStatus');
     var presetInput          = document.getElementById('presetInput');
     var presetListContainer  = document.getElementById('presetListContainer');
     var presetStatus         = document.getElementById('presetStatus');
@@ -354,6 +357,8 @@ import GsapAnimations from '../components/GsapAnimations.astro';
     var DRAFTS_KEY  = "st_v3_builder_drafts";
     var CURRENT_KEY = "st_v3_builder_current_id";
     var AI_KEY      = "st_v3_builder_ai_config";
+
+    if (!window.__aiDebugLog__) window.__aiDebugLog__ = [];
 
     function escapeHTML(str) {
       return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -659,6 +664,7 @@ window.__setImportedAvatar__ = function(base64) {
         url:        apiUrl.value.trim(),
         key:        apiKey.value.trim(),
         model:      modelSelect.value,
+        debug:      !!(aiDebugEnable && aiDebugEnable.checked),
         presetList: parsedPresetList,   // ★ 保存预设列表
       }));
     }
@@ -673,17 +679,35 @@ window.__setImportedAvatar__ = function(base64) {
           modelSelect.innerHTML = '<option value="' + c.model + '">' + c.model + '</option>';
           modelSelect.value = c.model;
         }
+        if (aiDebugEnable) aiDebugEnable.checked = !!c.debug;
         // ★ 恢复预设列表
         if (c.presetList && Array.isArray(c.presetList) && c.presetList.length > 0) {
           parsedPresetList = c.presetList;
           renderPresetList();
         }
       } catch(e) {}
+      updateAIDebugStatus();
+    }
+
+    function isAIDebugEnabled() {
+      return !!(aiDebugEnable && aiDebugEnable.checked);
+    }
+
+    function updateAIDebugStatus(detail, isError) {
+      if (!aiDebugStatus) return;
+      if (!isAIDebugEnabled()) {
+        aiDebugStatus.textContent = '关闭：仅显示常规错误。开启后可在 F12 Console 查看请求摘要、原始响应和 JSON 解析失败细节。';
+        aiDebugStatus.style.color = '#64748b';
+        return;
+      }
+      aiDebugStatus.textContent = detail || '已开启：本次 AI 请求会在 Console 输出调试信息；解析失败时会保留原始响应。';
+      aiDebugStatus.style.color = isError ? '#fca5a5' : '#c4b5fd';
     }
 
     apiUrl.addEventListener('input', saveAIConfig);
     apiKey.addEventListener('input', saveAIConfig);
     modelSelect.addEventListener('change', saveAIConfig);
+    if (aiDebugEnable) aiDebugEnable.addEventListener('change', function() { updateAIDebugStatus(); saveAIConfig(); });
     // ============================================================
     //  PNG 工具
     // ============================================================
@@ -937,16 +961,137 @@ window.__setImportedAvatar__ = function(base64) {
     // ============================================================
     //  工具函数
     // ============================================================
-    function extractJsonObj(text) {
-      var m = text.match(/```json\s*([\s\S]*?)\s*```/);
-      var o = m ? JSON.parse(m[1]) : JSON.parse(text);
-      return (Array.isArray(o) && o.length > 0) ? o[0] : o;
+    function safeDebugSlice(text) {
+      var raw = String(text == null ? '' : text);
+      return raw.length > 2400 ? raw.substring(0, 2400) + '\n...<truncated ' + (raw.length - 2400) + ' chars>' : raw;
     }
-    function extractJsonArray(text) {
-      var m = text.match(/```json\s*([\s\S]*?)\s*```/);
-      var raw = m ? m[1].trim() : text.trim();
-      var p = JSON.parse(raw);
-      return Array.isArray(p) ? p : [p];
+    function pushAIDebugLog(entry) {
+      window.__aiDebugLog__.push(entry);
+      if (window.__aiDebugLog__.length > 50) window.__aiDebugLog__.shift();
+    }
+    function logAIDebug(stage, payload) {
+      var entry = {
+        stage: stage,
+        time: new Date().toISOString(),
+        payload: payload || {}
+      };
+      pushAIDebugLog(entry);
+      if (isAIDebugEnabled()) console.log('[AI Debug][' + stage + ']', entry);
+      return entry;
+    }
+    function buildJSONCandidates(text) {
+      var raw = String(text == null ? '' : text);
+      var candidates = [];
+      var fenced = raw.match(/```json\s*([\s\S]*?)\s*```/i);
+      if (fenced && fenced[1]) candidates.push({ source: 'fenced_json', raw: fenced[1].trim() });
+      var fencedAny = raw.match(/```\s*([\s\S]*?)\s*```/);
+      if (fencedAny && fencedAny[1]) candidates.push({ source: 'fenced_any', raw: fencedAny[1].trim() });
+      var trimmed = raw.trim();
+      if (trimmed) candidates.push({ source: 'full_text', raw: trimmed });
+      var objStart = raw.indexOf('{');
+      var objEnd = raw.lastIndexOf('}');
+      if (objStart >= 0 && objEnd > objStart) candidates.push({ source: 'first_object_span', raw: raw.slice(objStart, objEnd + 1).trim() });
+      var arrStart = raw.indexOf('[');
+      var arrEnd = raw.lastIndexOf(']');
+      if (arrStart >= 0 && arrEnd > arrStart) candidates.push({ source: 'first_array_span', raw: raw.slice(arrStart, arrEnd + 1).trim() });
+      var seen = {};
+      return candidates.filter(function(item) {
+        if (!item.raw) return false;
+        var key = item.source + '::' + item.raw;
+        if (seen[key]) return false;
+        seen[key] = true;
+        return true;
+      });
+    }
+    function parseJSONWithDebug(text, expectType, context) {
+      var candidates = buildJSONCandidates(text);
+      var errors = [];
+      for (var i = 0; i < candidates.length; i++) {
+        var item = candidates[i];
+        try {
+          var parsed = JSON.parse(item.raw);
+          var normalized = expectType === 'array'
+            ? (Array.isArray(parsed) ? parsed : [parsed])
+            : ((Array.isArray(parsed) && parsed.length > 0) ? parsed[0] : parsed);
+          logAIDebug('json_parse_success', {
+            context: context || 'unknown',
+            candidateSource: item.source,
+            expectType: expectType,
+            rawPreview: safeDebugSlice(text),
+            candidatePreview: safeDebugSlice(item.raw),
+            parsed: normalized
+          });
+          return normalized;
+        } catch (err) {
+          errors.push({ source: item.source, error: err.message, candidatePreview: safeDebugSlice(item.raw) });
+        }
+      }
+      var payload = {
+        context: context || 'unknown',
+        expectType: expectType,
+        rawPreview: safeDebugSlice(text),
+        candidates: errors
+      };
+      logAIDebug('json_parse_failed', payload);
+      updateAIDebugStatus('最近一次解析失败：' + (context || 'unknown') + '。请打开 F12 Console 查看原始响应。', true);
+      var detail = errors.length ? errors.map(function(it) { return it.source + ': ' + it.error; }).join(' | ') : '无可解析 JSON 候选';
+      throw new Error('AI 返回中没有有效 JSON 对象。' + detail);
+    }
+    function extractJsonObj(text, context) {
+      return parseJSONWithDebug(text, 'object', context || 'extractJsonObj');
+    }
+    function extractJsonArray(text, context) {
+      return parseJSONWithDebug(text, 'array', context || 'extractJsonArray');
+    }
+    async function fetchAIContent(options) {
+      var opts = options || {};
+      var requestBody = {
+        model: opts.model,
+        messages: opts.messages || [],
+        temperature: opts.temperature
+      };
+      if (opts.extraBody && typeof opts.extraBody === 'object') {
+        Object.keys(opts.extraBody).forEach(function(key) { requestBody[key] = opts.extraBody[key]; });
+      }
+      logAIDebug('request', {
+        context: opts.context || 'unknown',
+        url: opts.url,
+        model: opts.model,
+        temperature: opts.temperature,
+        messages: requestBody.messages,
+        hasAuth: !!(opts.headers && opts.headers.Authorization)
+      });
+      var res = await fetch(opts.url, {
+        method: 'POST',
+        headers: opts.headers,
+        body: JSON.stringify(requestBody)
+      });
+      if (!res.ok) {
+        logAIDebug('http_error', { context: opts.context || 'unknown', status: res.status, statusText: res.statusText });
+        throw new Error((opts.httpErrorPrefix || '请求失败 HTTP ') + res.status);
+      }
+      var responseText = await res.text();
+      var data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (err) {
+        logAIDebug('api_json_parse_failed', {
+          context: opts.context || 'unknown',
+          error: err.message,
+          responsePreview: safeDebugSlice(responseText)
+        });
+        updateAIDebugStatus('最近一次接口响应不是合法 JSON：' + (opts.context || 'unknown') + '。请打开 F12 Console 查看详情。', true);
+        throw new Error('AI 接口返回了非 JSON 响应');
+      }
+      var content = (((data || {}).choices || [])[0] || {}).message ? (((data || {}).choices || [])[0].message.content || '') : '';
+      logAIDebug('response', {
+        context: opts.context || 'unknown',
+        apiResponsePreview: safeDebugSlice(responseText),
+        contentPreview: safeDebugSlice(content),
+        usage: data && data.usage ? data.usage : null,
+        finishReason: (((data || {}).choices || [])[0] || {}).finish_reason || null
+      });
+      return { data: data, content: content };
     }
     function getActivePresetsStr() {
       return parsedPresetList.filter(function(p) { return p.enabled; })
@@ -1061,9 +1206,16 @@ window.__setImportedAvatar__ = function(base64) {
           + (presetsStr ? '\n【文风要求】：\n' + presetsStr : '')
           + searchInjection;
 
-        var r1 = await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify({ model: model, messages: [{ role: "system", content: p1Sys }, { role: "user", content: aiPrompt.value.trim() }], temperature: 0.85 }) });
-        if (!r1.ok) throw new Error('角色生成失败 HTTP ' + r1.status);
-        var charData = extractJsonObj((await r1.json()).choices[0].message.content);
+        var aiResp1 = await fetchAIContent({
+          context: '角色生成/阶段1',
+          url: url,
+          headers: headers,
+          model: model,
+          messages: [{ role: "system", content: p1Sys }, { role: "user", content: aiPrompt.value.trim() }],
+          temperature: 0.85,
+          httpErrorPrefix: '角色生成失败 HTTP '
+        });
+        var charData = extractJsonObj(aiResp1.content, '角色生成/阶段1');
 
         charName.value     = charData.charName     || '';
         wbName.value       = charData.wbName       || '';
@@ -1102,11 +1254,18 @@ window.__setImportedAvatar__ = function(base64) {
             + '\n要求：极简、不重复、覆盖多维度（地点/人物/组织/物品/事件/规则）';
 
           try {
-            var r2 = await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify({ model: model, messages: [{ role: "system", content: skSys }, { role: "user", content: '生成' + batchSize + '条骨架' }], temperature: 0.9 }) });
-            if (!r2.ok) throw new Error('HTTP ' + r2.status);
-            var rawC = (await r2.json()).choices[0].message.content;
+            var aiResp2 = await fetchAIContent({
+              context: '世界书骨架/批次' + batchIndex,
+              url: url,
+              headers: headers,
+              model: model,
+              messages: [{ role: "system", content: skSys }, { role: "user", content: '生成' + batchSize + '条骨架' }],
+              temperature: 0.9,
+              httpErrorPrefix: 'HTTP '
+            });
+            var rawC = aiResp2.content;
             var skeletons;
-            try { skeletons = extractJsonArray(rawC); } catch(pe) { try { skeletons = [extractJsonObj(rawC)]; } catch(e2) { throw new Error('返回格式异常'); } }
+            try { skeletons = extractJsonArray(rawC, '世界书骨架/批次' + batchIndex); } catch(pe) { try { skeletons = [extractJsonObj(rawC, '世界书骨架/批次' + batchIndex + '/fallback')]; } catch(e2) { throw new Error('返回格式异常'); } }
             skeletons.forEach(function(sk) {
               if (!sk || !sk.comment) return;
               worldbookEntries.push({ comment: sk.comment || '未命名', content: sk.content || '(待展开)', keys: Array.isArray(sk.keys) ? sk.keys : [], strategy: sk.strategy || 'selective', position: 4, depth: 4, role: 0, order: 100, prob: 100 });
@@ -1163,9 +1322,16 @@ window.__setImportedAvatar__ = function(base64) {
       var userPrompt  = customDirection ? '【方向】：' + customDirection : '【自由发挥，拒绝重复】';
       var headers     = { 'Content-Type': 'application/json' };
       if (key) headers['Authorization'] = 'Bearer ' + key;
-      var res = await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify({ model: model, messages: [{ role: "system", content: sysPrompt }, { role: "user", content: userPrompt }], temperature: 0.8 }) });
-      if (!res.ok) throw new Error('请求失败 HTTP ' + res.status);
-      var entry = extractJsonObj((await res.json()).choices[0].message.content);
+      var aiResp3 = await fetchAIContent({
+        context: '世界书单条生成',
+        url: url,
+        headers: headers,
+        model: model,
+        messages: [{ role: "system", content: sysPrompt }, { role: "user", content: userPrompt }],
+        temperature: 0.8,
+        httpErrorPrefix: '请求失败 HTTP '
+      });
+      var entry = extractJsonObj(aiResp3.content, '世界书单条生成');
       worldbookEntries.push({ comment: entry.comment || '拓展设定', content: entry.content || '', keys: Array.isArray(entry.keys) ? entry.keys : [], strategy: entry.strategy || 'selective', position: parseInt(entry.position) || 4, depth: 4, role: 0, order: 100, prob: 100 });
     }
 
@@ -1411,9 +1577,16 @@ window.__setImportedAvatar__ = function(base64) {
       var sys = '你是一个 SillyTavern 词条润色大师。修改一个【已存在的词条】。\n【原词条】: 标题: ' + old.comment + ' | 策略: ' + old.strategy + ' | 触发词: ' + old.keys.join(',') + '\n内容: ' + old.content + (presetsStr ? '\n【文风】：\n' + presetsStr : '') + expandHint + searchInjection + '\n【任务】：重写。输出JSON：{ "comment": "标题", "content": "详细设定", "keys": ["触发词"], "strategy": "selective 或 constant", "position": ' + old.position + ' }';
       try {
         var h = { 'Content-Type': 'application/json' }; if (key) h['Authorization'] = 'Bearer ' + key;
-        var res = await fetch(url, { method: 'POST', headers: h, body: JSON.stringify({ model: model, messages: [{ role: "system", content: sys }, { role: "user", content: isSkeleton ? '将骨架展开为完整设定。' + (req ? ' 额外要求：' + req : '') : '修改要求：' + req }], temperature: 0.8 }) });
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        var ed = extractJsonObj((await res.json()).choices[0].message.content);
+        var aiResp4 = await fetchAIContent({
+          context: '世界书重写/索引' + index,
+          url: url,
+          headers: h,
+          model: model,
+          messages: [{ role: "system", content: sys }, { role: "user", content: isSkeleton ? '将骨架展开为完整设定。' + (req ? ' 额外要求：' + req : '') : '修改要求：' + req }],
+          temperature: 0.8,
+          httpErrorPrefix: 'HTTP '
+        });
+        var ed = extractJsonObj(aiResp4.content, '世界书重写/索引' + index);
         worldbookEntries[index].comment = ed.comment || old.comment;
         worldbookEntries[index].content = ed.content || old.content;
         if (ed.keys) worldbookEntries[index].keys = Array.isArray(ed.keys) ? ed.keys : [];
@@ -1701,26 +1874,24 @@ window.__setImportedAvatar__ = function(base64) {
         + '\n\n请为以下世界书条目生成更合适的触发词：\n'
         + JSON.stringify(compactEntries, null, 2);
 
-      var res = await fetch(url, {
-        method: 'POST',
+      var aiResp5 = await fetchAIContent({
+        context: '世界书触发词批次',
+        url: url,
         headers: headers,
-        body: JSON.stringify({
-          model: model,
-          messages: [
-            { role: 'system', content: sysPrompt },
-            { role: 'user', content: userPrompt },
-          ],
-          temperature: 0.4,
-        }),
+        model: model,
+        messages: [
+          { role: 'system', content: sysPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        temperature: 0.4,
+        httpErrorPrefix: 'HTTP '
       });
-
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      var raw = (await res.json()).choices[0].message.content;
+      var raw = aiResp5.content;
       var arr;
       try {
-        arr = extractJsonArray(raw);
+        arr = extractJsonArray(raw, '世界书触发词批次');
       } catch(pe) {
-        arr = [extractJsonObj(raw)];
+        arr = [extractJsonObj(raw, '世界书触发词批次/fallback')];
       }
 
       if (!Array.isArray(arr)) throw new Error('AI 返回格式异常');
@@ -1897,11 +2068,18 @@ window.__setImportedAvatar__ = function(base64) {
       try {
         var headers = { 'Content-Type': 'application/json' };
         if (key) headers['Authorization'] = 'Bearer ' + key;
-        var res = await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify({ model: model, messages: [{ role: 'system', content: sysPrompt }, { role: 'user', content: userPrompt }], temperature: 0.3 }) });
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        var rawContent = (await res.json()).choices[0].message.content;
+        var aiResp6 = await fetchAIContent({
+          context: '世界书整理参数优化',
+          url: url,
+          headers: headers,
+          model: model,
+          messages: [{ role: 'system', content: sysPrompt }, { role: 'user', content: userPrompt }],
+          temperature: 0.3,
+          httpErrorPrefix: 'HTTP '
+        });
+        var rawContent = aiResp6.content;
         var suggestions;
-        try { suggestions = extractJsonArray(rawContent); } catch(pe) { suggestions = [extractJsonObj(rawContent)]; }
+        try { suggestions = extractJsonArray(rawContent, '世界书整理参数优化'); } catch(pe) { suggestions = [extractJsonObj(rawContent, '世界书整理参数优化/fallback')]; }
         if (!Array.isArray(suggestions) || suggestions.length === 0) throw new Error('AI 返回格式异常');
         suggestions = suggestions.map(normalizeOrganizeSuggestion).filter(Boolean);
         if (suggestions.length === 0) throw new Error('AI 返回中没有有效条目');
@@ -2078,4 +2256,6 @@ window.__setImportedAvatar__ = function(base64) {
     else btnNewDraft.click();
 
   </script>
+
+  <ChatWidget />
 </Layout>
