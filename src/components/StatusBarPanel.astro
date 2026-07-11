@@ -2,18 +2,14 @@
 ---
 <div class="panel sb-panel novel-workshop-panel">
   <div class="novel-hero">
-    <div class="novel-hero-badge">NOVEL LORE WORKSHOP</div>
+    <div class="novel-hero-badge">NOVEL LORE WORKSHOP V2</div>
     <div class="novel-hero-main">
       <div class="novel-hero-copy">
-        <h2>📚 小说世界书工坊</h2>
-        <p>把长篇小说整理成可控的世界书包，同时生成真正用于管理解锁状态的 MVU 变量。</p>
-      </div>
-      <div class="novel-hero-orbit">
-        <span class="novel-orbit-ring"></span>
-        <span class="novel-orbit-core">MVU</span>
+        <h2>📚 小说转角色卡/世界书工坊</h2>
+        <p>基于新版 facts-only schema，并行抽取高质量设定，并在应用前提供草稿预览和严格校验。</p>
       </div>
     </div>
-  <div class="novel-stats" id="novelStatsBar">
+    <div class="novel-stats" id="novelStatsBar">
       <span class="novel-stat-chip">等待导入文本</span>
     </div>
   </div>
@@ -21,13 +17,13 @@
   <section class="novel-card novel-import-dock">
     <div class="novel-card-head">
       <strong>原始资料</strong>
-      <span>先导入小说，再配置门控</span>
+      <span>支持按章节自动切片并行处理</span>
     </div>
     <div class="novel-card-body">
       <label id="novelDropzone" class="novel-dropzone" for="novelSourceFile">
         <span class="novel-dropzone-icon">📥</span>
         <span class="novel-dropzone-title">点击或拖拽导入小说文件</span>
-        <span class="novel-dropzone-subtitle">全文只在内存里参与生成，不会直接渲染到输入框，适合 txt / md / json</span>
+        <span class="novel-dropzone-subtitle">适合 txt / md / json</span>
       </label>
       <div class="novel-upload-row">
         <label class="novel-upload-btn" for="novelSourceFile">选择文件</label>
@@ -39,141 +35,100 @@
       <div class="novel-source-layout">
         <div class="novel-editor-block">
           <div class="novel-editor-head">
-            <label for="novelSourceText">手动补充摘录</label>
-            <span>这里适合补少量片段、章节摘要或人工备注，不再直接显示整本小说全文。</span>
+            <label for="novelSourceText">手动补充文本</label>
           </div>
-          <textarea id="novelSourceText" class="novel-textarea novel-source-text" placeholder="贴入章节原文、人物设定表、卷纲摘要，或已经切片过的知识抽取结果。"></textarea>
+          <textarea id="novelSourceText" class="novel-textarea novel-source-text" placeholder="贴入章节原文、人物设定表等。"></textarea>
         </div>
         <div class="novel-editor-block">
           <div class="novel-editor-head">
-            <label for="novelContextText">补充说明</label>
-            <span>告诉 AI 这次抽取应该避开什么、重点抓什么</span>
+            <label for="novelContextText">补充说明 (AI Context)</label>
           </div>
-          <textarea id="novelContextText" class="novel-textarea novel-context-text" placeholder="例如：只做公开信息；不要提前泄露真相；优先抽人物、地点、势力；这是卷一到卷三的资料。"></textarea>
+          <textarea id="novelContextText" class="novel-textarea novel-context-text" placeholder="例如：优先抽取男主设定，忽略路人。"></textarea>
         </div>
       </div>
-    </div>
-  </section>
-
-  <section class="novel-card novel-pipeline-card">
-    <div class="novel-card-head">
-      <strong>处理步骤</strong>
-      <span>生成前先看预估调用次数</span>
-    </div>
-    <div class="novel-card-body">
-      <div id="novelEstimateBar" class="novel-estimate-bar"></div>
-      <div id="novelWorkflowSteps" class="novel-workflow-steps"></div>
     </div>
   </section>
 
   <div class="novel-grid">
-
     <section class="novel-card novel-config-card">
       <div class="novel-card-head">
-        <strong>门控设计</strong>
-        <span>世界书 + 变量联动</span>
+        <strong>处理配置</strong>
+        <span>并行与质量控制</span>
       </div>
       <div class="novel-card-body">
         <div class="grid-2" style="margin-bottom: 12px;">
           <div class="form-group" style="margin-bottom: 0;">
-            <label>门控模式</label>
-            <select id="novelGateMode">
-              <option value="stage_flags">阶段 + 揭露标记</option>
-              <option value="stage_only">仅剧情阶段</option>
-              <option value="public_only">仅公开资料</option>
-            </select>
-          </div>
-          <div class="form-group" style="margin-bottom: 0;">
-            <label>条目预算</label>
-            <input id="novelEntryBudget" type="number" min="1" value="18" />
-          </div>
-        </div>
-
-        <div class="grid-2" style="margin-bottom: 12px;">
-          <div class="form-group" style="margin-bottom: 0;">
-            <label>整理模式</label>
+            <label>处理模式</label>
             <select id="novelNarrativeMode">
-              <option value="story">按剧情推进</option>
-              <option value="lore_only">只做世界观</option>
+              <option value="story">剧情延续</option>
+              <option value="worldbuilding">世界观重建</option>
             </select>
           </div>
           <div class="form-group" style="margin-bottom: 0;">
-            <label>模式说明</label>
-            <div id="novelNarrativeHint" class="novel-inline-note">按剧情推进：允许保留阶段性关系变化、关键事件后果和阅读顺序。只做世界观：尽量剥离时间线，只保留稳定设定。</div>
+            <label>单片字数</label>
+            <select id="novelChunkSize">
+              <option value="4000">4,000 字</option>
+              <option value="8000" selected>8,000 字</option>
+              <option value="12000">12,000 字</option>
+            </select>
           </div>
         </div>
 
         <div class="grid-2" style="margin-bottom: 12px;">
           <div class="form-group" style="margin-bottom: 0;">
-            <label>单次分片字数</label>
-            <select id="novelChunkSize">
-              <option value="12000">12,000 字</option>
-              <option value="20000" selected>20,000 字</option>
-              <option value="32000">32,000 字</option>
-              <option value="50000">50,000 字</option>
-              <option value="80000">80,000 字</option>
-            </select>
+            <label>并行任务数</label>
+            <input id="novelConcurrency" type="number" min="1" step="1" value="3" />
           </div>
           <div class="form-group" style="margin-bottom: 0;">
-            <label>上下文提醒</label>
-            <div class="novel-inline-note">模型限制按 token 算，不按字数算。这里是经验字数上限，用来做稳妥分片。</div>
+            <label style="display:flex; align-items:center; gap:8px;">
+              <input id="novelStrictQuality" type="checkbox" />
+              <span>严格质量检查</span>
+            </label>
           </div>
         </div>
 
         <div class="novel-focus-wrap">
-          <label class="novel-focus-label">抽取重点</label>
+          <label class="novel-focus-label">输出类别</label>
           <div id="novelFocusTags" class="novel-focus-tags"></div>
         </div>
 
-        <div class="novel-stage-preview">
-          <div class="novel-stage-preview-head">
-            <span>默认解锁路径</span>
-            <strong>公开 → 前期 → 中期 → 后期 → 终局</strong>
-          </div>
-          <div class="novel-stage-preview-track">
-            <span>公开</span>
-            <span>前期</span>
-            <span>中期</span>
-            <span>后期</span>
-            <span>终局</span>
-          </div>
-        </div>
-
         <div class="novel-action-stack">
-          <button id="btnNovelGenerate" class="btn novel-primary-btn">🧬 生成并注入小说世界书</button>
-          <button id="btnNovelReset" class="btn novel-secondary-btn">重置工坊</button>
+          <button id="btnNovelGenerate" class="btn novel-primary-btn">🧬 生成世界书草稿</button>
+          <button id="btnNovelReset" class="btn novel-secondary-btn">重置任务</button>
         </div>
         <div id="novelStatusText" class="status-text novel-status-text"></div>
+        
+        <div id="novelTaskQueue" class="novel-task-queue" style="display:none; margin-top:12px;">
+            <div class="novel-queue-head">
+                <span>任务队列进度</span>
+                <span id="novelQueueProgress">0/0</span>
+            </div>
+            <div id="novelQueueList" class="novel-queue-list"></div>
+        </div>
       </div>
     </section>
   </div>
 
-  <section id="novelManager" class="novel-manager" style="display:none;">
+  <section id="novelDraftPreview" class="novel-manager" style="display:none;">
     <div class="novel-manager-head">
       <div>
-        <strong>🧭 世界书解锁管理</strong>
-        <p id="novelSummaryText">尚未生成。</p>
+        <strong>🧭 世界书草稿预览</strong>
+        <p id="novelDraftSummaryText">检查并应用生成的草稿条目。</p>
       </div>
-      <div class="novel-manager-actions">
-        <button id="btnNovelSyncVariables" class="btn novel-sync-btn">同步到 MVU 变量节点</button>
-      </div>
-    </div>
-
-    <div class="novel-manager-grid">
-      <div class="novel-manager-block">
-        <div class="novel-block-title">当前阶段</div>
-        <div id="novelStageButtons" class="novel-stage-buttons"></div>
-      </div>
-      <div class="novel-manager-block">
-        <div class="novel-block-title">揭露标记</div>
-        <div id="novelFlagList" class="novel-flag-list"></div>
+      <div class="novel-manager-actions" style="display:flex; flex-direction:column; gap:8px;">
+        <button id="btnApplyAll" class="btn novel-sync-btn">应用全部有效</button>
+        <button id="btnApplyGreen" class="btn novel-sync-btn" style="color:#34d399; border-color:#34d39940;">仅应用实体(绿灯)</button>
+        <button id="btnApplyBlue" class="btn novel-sync-btn" style="color:#60a5fa; border-color:#60a5fa40;">仅应用规则(蓝灯)</button>
+        <button id="btnApplySelected" class="btn novel-sync-btn">应用选中条目</button>
+        <button id="btnUndoApply" class="btn novel-secondary-btn" style="display:none;">撤销本次注入</button>
+        <button id="btnCancelDraft" class="btn novel-secondary-btn">取消</button>
       </div>
     </div>
-
+    
     <div class="novel-preview-shell">
       <div class="novel-preview-head">
-        <strong>实体索引预览</strong>
-        <span id="novelEntityCount">0 个实体</span>
+        <strong>条目预览</strong>
+        <span id="novelEntityCount">0 个条目</span>
       </div>
       <div id="novelEntityPreview" class="novel-entity-preview"></div>
     </div>
@@ -239,61 +194,6 @@
     line-height: 1.55;
   }
 
-  .novel-hero-orbit {
-    position: relative;
-    flex-shrink: 0;
-    width: 78px;
-    height: 78px;
-    display: grid;
-    place-items: center;
-  }
-
-  .novel-orbit-ring {
-    position: absolute;
-    inset: 0;
-    border-radius: 50%;
-    border: 1px solid rgba(56, 189, 248, 0.26);
-    box-shadow: 0 0 24px rgba(56, 189, 248, 0.14), inset 0 0 16px rgba(14, 165, 233, 0.06);
-  }
-
-  .novel-orbit-ring::before,
-  .novel-orbit-ring::after {
-    content: '';
-    position: absolute;
-    inset: 8px;
-    border-radius: 50%;
-    border: 1px dashed rgba(245, 158, 11, 0.28);
-    animation: novel-orbit-spin 14s linear infinite;
-  }
-
-  .novel-orbit-ring::after {
-    inset: 18px;
-    border-color: rgba(103, 232, 249, 0.22);
-    animation-direction: reverse;
-    animation-duration: 10s;
-  }
-
-  @keyframes novel-orbit-spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-  }
-
-  .novel-orbit-core {
-    position: relative;
-    z-index: 1;
-    width: 42px;
-    height: 42px;
-    border-radius: 50%;
-    display: grid;
-    place-items: center;
-    background: linear-gradient(135deg, rgba(245, 158, 11, 0.94), rgba(6, 182, 212, 0.76));
-    color: #082f49;
-    font-size: 0.8rem;
-    font-weight: 900;
-    letter-spacing: 0.06em;
-    box-shadow: 0 0 24px rgba(245, 158, 11, 0.2);
-  }
-
   .novel-stats {
     position: relative;
     z-index: 1;
@@ -323,10 +223,6 @@
   }
 
   .novel-import-dock {
-    margin-bottom: 14px;
-  }
-
-  .novel-pipeline-card {
     margin-bottom: 14px;
   }
 
@@ -378,7 +274,7 @@
     align-items: center;
     justify-content: center;
     gap: 6px;
-    min-height: 138px;
+    min-height: 100px;
     margin-bottom: 12px;
     padding: 18px 16px;
     border-radius: 14px;
@@ -487,109 +383,11 @@
     line-height: 1.5;
   }
 
-  .novel-estimate-bar {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 10px;
-    margin-bottom: 12px;
-  }
-
-  .novel-estimate-card {
-    padding: 11px 12px;
-    border-radius: 12px;
-    border: 1px solid rgba(51, 65, 85, 0.7);
-    background: linear-gradient(180deg, rgba(15, 23, 42, 0.66), rgba(2, 6, 23, 0.4));
-  }
-
-  .novel-estimate-card strong {
-    display: block;
-    margin-bottom: 5px;
-    color: #e2e8f0;
-    font-size: 0.9rem;
-    line-height: 1.2;
-  }
-
-  .novel-estimate-card span {
-    display: block;
-    color: #64748b;
-    font-size: 0.66rem;
-    line-height: 1.45;
-  }
-
-  .novel-estimate-card.is-accent {
-    border-color: rgba(245, 158, 11, 0.28);
-    background: linear-gradient(135deg, rgba(120, 53, 15, 0.22), rgba(8, 47, 73, 0.28));
-  }
-
-  .novel-workflow-steps {
-    display: grid;
-    gap: 10px;
-  }
-
-  .novel-workflow-step {
-    display: grid;
-    grid-template-columns: 34px minmax(0, 1fr);
-    gap: 10px;
-    align-items: flex-start;
-    padding: 11px 12px;
-    border-radius: 12px;
-    border: 1px solid rgba(51, 65, 85, 0.7);
-    background: rgba(2, 6, 23, 0.34);
-    transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
-  }
-
-  .novel-workflow-step.is-active {
-    border-color: rgba(56, 189, 248, 0.3);
-    background: linear-gradient(135deg, rgba(8, 47, 73, 0.28), rgba(15, 23, 42, 0.74));
-    transform: translateY(-1px);
-  }
-
-  .novel-workflow-step.is-done {
-    border-color: rgba(52, 211, 153, 0.22);
-    background: linear-gradient(135deg, rgba(6, 78, 59, 0.2), rgba(15, 23, 42, 0.72));
-  }
-
-  .novel-workflow-index {
-    display: grid;
-    place-items: center;
-    width: 34px;
-    height: 34px;
-    border-radius: 50%;
-    border: 1px solid rgba(56, 189, 248, 0.2);
-    background: rgba(8, 47, 73, 0.46);
-    color: #7dd3fc;
-    font-size: 0.78rem;
-    font-weight: 900;
-  }
-
-  .novel-workflow-copy strong {
-    display: block;
-    color: #e2e8f0;
-    font-size: 0.78rem;
-    line-height: 1.3;
-  }
-
-  .novel-workflow-copy span {
-    display: block;
-    margin-top: 4px;
-    color: #94a3b8;
-    font-size: 0.68rem;
-    line-height: 1.5;
-  }
-
   .novel-textarea {
-    min-height: 120px;
+    min-height: 80px;
     resize: vertical;
     background: linear-gradient(180deg, rgba(2, 6, 23, 0.7), rgba(15, 23, 42, 0.82));
     border-color: rgba(56, 189, 248, 0.16);
-  }
-
-  .novel-source-text {
-    min-height: 120px;
-  }
-
-  .novel-context-text {
-    min-height: 110px;
   }
 
   .novel-source-layout {
@@ -618,25 +416,8 @@
     letter-spacing: 0.02em;
   }
 
-  .novel-editor-head span {
-    color: #64748b;
-    font-size: 0.68rem;
-    line-height: 1.45;
-  }
-
   .novel-focus-wrap {
     margin-bottom: 14px;
-  }
-
-  .novel-inline-note {
-    min-height: 42px;
-    padding: 9px 10px;
-    border-radius: 10px;
-    border: 1px solid rgba(51, 65, 85, 0.7);
-    background: rgba(2, 6, 23, 0.28);
-    color: #64748b;
-    font-size: 0.68rem;
-    line-height: 1.5;
   }
 
   .novel-focus-label {
@@ -681,46 +462,6 @@
     background: linear-gradient(135deg, rgba(146, 64, 14, 0.34), rgba(12, 74, 110, 0.28));
     color: #fcd34d;
     box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.08);
-  }
-
-  .novel-stage-preview {
-    margin-bottom: 14px;
-    padding: 12px;
-    border-radius: 12px;
-    border: 1px solid rgba(245, 158, 11, 0.18);
-    background: linear-gradient(135deg, rgba(120, 53, 15, 0.16), rgba(8, 47, 73, 0.12));
-  }
-
-  .novel-stage-preview-head {
-    display: flex;
-    justify-content: space-between;
-    gap: 10px;
-    margin-bottom: 10px;
-    font-size: 0.7rem;
-    color: #94a3b8;
-  }
-
-  .novel-stage-preview-head strong {
-    color: #fef3c7;
-    font-size: 0.72rem;
-  }
-
-  .novel-stage-preview-track {
-    display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 8px;
-  }
-
-  .novel-stage-preview-track span {
-    display: grid;
-    place-items: center;
-    min-height: 34px;
-    border-radius: 999px;
-    border: 1px solid rgba(56, 189, 248, 0.16);
-    background: rgba(2, 6, 23, 0.32);
-    color: #cbd5e1;
-    font-size: 0.68rem;
-    font-weight: 700;
   }
 
   .novel-action-stack {
@@ -792,95 +533,6 @@
     min-width: 180px;
   }
 
-  .novel-manager-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 12px;
-    margin-bottom: 14px;
-  }
-
-  .novel-manager-block {
-    padding: 12px;
-    border-radius: 12px;
-    border: 1px solid rgba(51, 65, 85, 0.72);
-    background: rgba(2, 6, 23, 0.34);
-  }
-
-  .novel-block-title {
-    margin-bottom: 10px;
-    color: #94a3b8;
-    font-size: 0.7rem;
-    font-weight: 800;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-  }
-
-  .novel-stage-buttons {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-
-  .novel-stage-btn {
-    min-height: 34px;
-    padding: 0 14px;
-    border-radius: 999px;
-    border: 1px solid rgba(71, 85, 105, 0.72);
-    background: rgba(15, 23, 42, 0.62);
-    color: #cbd5e1;
-    font-size: 0.72rem;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.2s ease;
-  }
-
-  .novel-stage-btn.active {
-    border-color: rgba(56, 189, 248, 0.38);
-    background: linear-gradient(135deg, rgba(8, 47, 73, 0.76), rgba(56, 189, 248, 0.26));
-    color: #e0f2fe;
-    box-shadow: 0 6px 18px rgba(14, 165, 233, 0.14);
-  }
-
-  .novel-flag-list {
-    display: grid;
-    gap: 8px;
-  }
-
-  .novel-flag-empty {
-    color: #64748b;
-    font-size: 0.72rem;
-  }
-
-  .novel-flag-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 9px 10px;
-    border-radius: 10px;
-    border: 1px solid rgba(51, 65, 85, 0.68);
-    background: rgba(15, 23, 42, 0.56);
-  }
-
-  .novel-flag-copy {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .novel-flag-copy strong {
-    display: block;
-    color: #e2e8f0;
-    font-size: 0.74rem;
-    line-height: 1.35;
-  }
-
-  .novel-flag-copy span {
-    display: block;
-    margin-top: 3px;
-    color: #64748b;
-    font-size: 0.67rem;
-    line-height: 1.45;
-  }
-
   .novel-preview-shell {
     padding: 12px;
     border-radius: 12px;
@@ -911,6 +563,8 @@
     display: grid;
     grid-template-columns: 1fr;
     gap: 10px;
+    max-height: 400px;
+    overflow-y: auto;
   }
 
   .novel-entity-card {
@@ -919,6 +573,26 @@
     border-radius: 12px;
     border: 1px solid rgba(56, 189, 248, 0.14);
     background: linear-gradient(180deg, rgba(15, 23, 42, 0.7), rgba(2, 6, 23, 0.48));
+    display: flex;
+    gap: 12px;
+  }
+
+  .novel-entity-card.green {
+    border-color: rgba(52, 211, 153, 0.3);
+  }
+  .novel-entity-card.blue {
+    border-color: rgba(96, 165, 250, 0.3);
+  }
+  .novel-entity-card.has-warning {
+    border-color: rgba(248, 113, 113, 0.5);
+  }
+
+  .novel-entity-card input[type="checkbox"] {
+    margin-top: 4px;
+  }
+
+  .novel-entity-content {
+    flex: 1;
   }
 
   .novel-entity-card strong {
@@ -947,51 +621,48 @@
   }
 
   .novel-entity-card p {
-    margin: 0;
+    margin: 0 0 6px 0;
     color: #94a3b8;
     font-size: 0.7rem;
     line-height: 1.5;
     word-break: break-word;
   }
-
-  .novel-entity-empty {
+  
+  .novel-entity-keys {
+    font-size: 0.65rem;
     color: #64748b;
-    font-size: 0.72rem;
   }
 
-  @media (max-width: 1180px) {
-    .novel-manager-grid {
-      grid-template-columns: 1fr;
-    }
+  .novel-entity-warning {
+    font-size: 0.65rem;
+    color: #f87171;
+    margin-top: 4px;
   }
 
+  .novel-queue-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 200px;
+      overflow-y: auto;
+  }
+  .novel-queue-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 10px;
+      border-radius: 6px;
+      background: rgba(2, 6, 23, 0.4);
+      font-size: 0.7rem;
+      color: #94a3b8;
+  }
+  .novel-queue-item.running { color: #60a5fa; background: rgba(96, 165, 250, 0.1); }
+  .novel-queue-item.success { color: #34d399; background: rgba(52, 211, 153, 0.1); }
+  .novel-queue-item.failed { color: #f87171; background: rgba(248, 113, 113, 0.1); }
+  
   @media (max-width: 720px) {
-    .novel-estimate-bar {
-      grid-template-columns: 1fr;
-    }
-
-    .novel-card-head {
-      align-items: flex-start;
-      flex-direction: column;
-    }
-
-    .novel-card-head span {
-      text-align: left;
-    }
-
-    .novel-hero-main {
-      flex-direction: column;
-      align-items: flex-start;
-    }
-
-    .novel-stage-preview-track {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
     .novel-manager-head {
       flex-direction: column;
     }
-
     .novel-manager-actions {
       width: 100%;
       min-width: 0;
@@ -1001,30 +672,35 @@
 
 <script is:inline>
 (function () {
-  var STORAGE_KEY = 'novelWorkshop';
-  var RAW_STORAGE_PREFIX = 'novelWorkshopRaw::';
-  var CHECKPOINT_PREFIX = 'novelWorkshopCheckpoint::';
-  var DEFAULT_CHUNK_CHAR_LIMIT = 20000;
-  var DEFAULT_SAFE_PROMPT_TOKENS = 50000;
-  var LONG_CONTEXT_SAFE_PROMPT_TOKENS = 1000000;
-  var MERGE_BATCH_SIZE = 6;
-  var MAX_WORKFLOW_CALLS = 80;
-  var DEFAULT_STAGE_ORDER = ['公开', '前期', '中期', '后期', '终局'];
+  var STORAGE_KEY = 'novelWorkshopV2';
+  var DRAFT_KEY = 'novelWorkshopDraftV2';
+  var SNAPSHOT_KEY = 'novelWorkshopSnapshotV2';
+  
   var FOCUS_OPTIONS = [
     { id: 'character', label: '人物' },
     { id: 'location', label: '地点' },
     { id: 'faction', label: '势力' },
+    { id: 'item', label: '物品' },
     { id: 'rule', label: '规则' },
-    { id: 'item', label: '物品' }
+    { id: 'event', label: '事件' },
+    { id: 'relation', label: '关系' }
   ];
-  var CATEGORY_LABELS = {
-    character: '人物',
-    location: '地点',
-    faction: '势力',
-    rule: '规则',
-    item: '物品',
-    event: '事件'
+
+  var state = {
+    sourceText: '',
+    contextText: '',
+    narrativeMode: 'story',
+    chunkSize: 8000,
+    concurrency: 3,
+    strictQuality: false,
+    focus: ['character', 'location', 'faction', 'item', 'rule'],
+    tasks: [],
+    signature: '',
+    drafts: []
   };
+
+  var importedFileText = '';
+  var importedFileMeta = null;
 
   var sourceTextEl = document.getElementById('novelSourceText');
   var contextTextEl = document.getElementById('novelContextText');
@@ -1033,1523 +709,427 @@
   var fileHintEl = document.getElementById('novelFileHint');
   var fileSummaryEl = document.getElementById('novelFileSummary');
   var btnClearFileEl = document.getElementById('btnNovelClearFile');
-  var gateModeEl = document.getElementById('novelGateMode');
+  
   var narrativeModeEl = document.getElementById('novelNarrativeMode');
-  var narrativeHintEl = document.getElementById('novelNarrativeHint');
-  var entryBudgetEl = document.getElementById('novelEntryBudget');
   var chunkSizeEl = document.getElementById('novelChunkSize');
+  var concurrencyEl = document.getElementById('novelConcurrency');
+  var strictQualityEl = document.getElementById('novelStrictQuality');
   var focusTagsEl = document.getElementById('novelFocusTags');
-  var estimateBarEl = document.getElementById('novelEstimateBar');
-  var workflowStepsEl = document.getElementById('novelWorkflowSteps');
-  var statusTextEl = document.getElementById('novelStatusText');
-  var statsBarEl = document.getElementById('novelStatsBar');
-  var managerEl = document.getElementById('novelManager');
-  var stageButtonsEl = document.getElementById('novelStageButtons');
-  var flagListEl = document.getElementById('novelFlagList');
-  var entityPreviewEl = document.getElementById('novelEntityPreview');
-  var entityCountEl = document.getElementById('novelEntityCount');
-  var summaryTextEl = document.getElementById('novelSummaryText');
+  
   var btnGenerateEl = document.getElementById('btnNovelGenerate');
   var btnResetEl = document.getElementById('btnNovelReset');
-  var btnSyncVariablesEl = document.getElementById('btnNovelSyncVariables');
+  var statusTextEl = document.getElementById('novelStatusText');
+  var statsBarEl = document.getElementById('novelStatsBar');
+  
+  var taskQueueEl = document.getElementById('novelTaskQueue');
+  var queueProgressEl = document.getElementById('novelQueueProgress');
+  var queueListEl = document.getElementById('novelQueueList');
 
-  var state = createDefaultState();
-  var suppressReload = false;
-  var rawSaveTimer = 0;
-  var importedFileText = '';
-  var importedFileMeta = null;
-  var workflowRunState = {
-    phase: 'idle',
-    extractionDone: 0,
-    extractionTotal: 0,
-    mergeDone: 0,
-    mergeTotal: 0
-  };
+  var draftPreviewEl = document.getElementById('novelDraftPreview');
+  var entityPreviewEl = document.getElementById('novelEntityPreview');
+  var entityCountEl = document.getElementById('novelEntityCount');
+  
+  var btnApplyAll = document.getElementById('btnApplyAll');
+  var btnApplyGreen = document.getElementById('btnApplyGreen');
+  var btnApplyBlue = document.getElementById('btnApplyBlue');
+  var btnApplySelected = document.getElementById('btnApplySelected');
+  var btnUndoApply = document.getElementById('btnUndoApply');
+  var btnCancelDraft = document.getElementById('btnCancelDraft');
 
-  function createDefaultState() {
-    return {
-      sourceText: '',
-      contextText: '',
-      gateMode: 'stage_flags',
-      narrativeMode: 'story',
-      entryBudget: 18,
-      chunkCharLimit: DEFAULT_CHUNK_CHAR_LIMIT,
-      focus: ['character', 'location', 'faction', 'rule'],
-      summary: '',
-      stageOrder: DEFAULT_STAGE_ORDER.slice(),
-      currentStage: '公开',
-      flags: [],
-      entityIndex: [],
-      generatedEntries: [],
-      generatedVariables: [],
-      generatedAt: '',
-      lastFileName: ''
-    };
+  function saveState() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch(e){}
+  }
+  function loadState() {
+    try { 
+        var s = JSON.parse(localStorage.getItem(STORAGE_KEY)); 
+        if(s) state = Object.assign(state, s);
+    } catch(e){}
+    renderAll();
   }
 
-  function getRawStorageKey() {
-    var draftId = window.__getCurrentDraftId__ ? window.__getCurrentDraftId__() : '';
-    return RAW_STORAGE_PREFIX + (draftId || 'global');
-  }
-
-  function getCheckpointStorageKey() {
-    var draftId = window.__getCurrentDraftId__ ? window.__getCurrentDraftId__() : '';
-    return CHECKPOINT_PREFIX + (draftId || 'global');
-  }
-
-  function saveRawState() {
-    try {
-      localStorage.setItem(getRawStorageKey(), JSON.stringify({
-        sourceText: state.sourceText,
-        contextText: state.contextText,
-        gateMode: state.gateMode,
-        narrativeMode: state.narrativeMode,
-        entryBudget: state.entryBudget,
-        chunkCharLimit: state.chunkCharLimit,
-        focus: state.focus
-      }));
-    } catch (err) {}
-  }
-
-  function clearRawState() {
-    try { localStorage.removeItem(getRawStorageKey()); } catch (err) {}
-  }
-
-  function clearCheckpoint() {
-    try { localStorage.removeItem(getCheckpointStorageKey()); } catch (err) {}
-  }
-
-  function saveCheckpoint(checkpoint) {
-    try { localStorage.setItem(getCheckpointStorageKey(), JSON.stringify(checkpoint)); } catch (err) {}
-  }
-
-  function loadCheckpoint(signature) {
-    try {
-      var checkpoint = JSON.parse(localStorage.getItem(getCheckpointStorageKey()) || 'null');
-      if (!checkpoint || checkpoint.signature !== signature) return null;
-      if (!Array.isArray(checkpoint.partials)) return null;
-      if (checkpoint.phase === 'merge' && !Array.isArray(checkpoint.pending)) checkpoint.phase = 'extract';
-      return checkpoint;
-    } catch (err) {
-      return null;
-    }
-  }
-
-  function scheduleRawStateSave() {
-    clearTimeout(rawSaveTimer);
-    rawSaveTimer = setTimeout(saveRawState, 350);
-  }
-
-  function loadRawState() {
-    try {
-      var raw = JSON.parse(localStorage.getItem(getRawStorageKey()) || 'null');
-      if (!raw || typeof raw !== 'object') return;
-      state.sourceText = String(raw.sourceText || '').trim();
-      state.contextText = String(raw.contextText || '').trim();
-      if (['stage_flags', 'stage_only', 'public_only'].indexOf(raw.gateMode) >= 0) state.gateMode = raw.gateMode;
-      if (['story', 'lore_only'].indexOf(raw.narrativeMode) >= 0) state.narrativeMode = raw.narrativeMode;
-      if (raw.entryBudget) state.entryBudget = Number(raw.entryBudget) || state.entryBudget;
-      if (raw.chunkCharLimit) state.chunkCharLimit = Number(raw.chunkCharLimit) || state.chunkCharLimit;
-      if (Array.isArray(raw.focus)) {
-        state.focus = uniqueStrings(raw.focus).filter(function(id) {
-          return FOCUS_OPTIONS.some(function(option) { return option.id === id; });
-        });
-        if (!state.focus.length) state.focus = ['character', 'location', 'faction', 'rule'];
-      }
-    } catch (err) {}
-  }
-
-  function cloneJSON(value) {
-    return JSON.parse(JSON.stringify(value));
-  }
-
-  function uniqueStrings(list) {
-    var seen = {};
-    var out = [];
-    (list || []).forEach(function(item) {
-      var key = String(item || '').trim();
-      if (!key || seen[key]) return;
-      seen[key] = true;
-      out.push(key);
-    });
-    return out;
-  }
-
-  function clampNumber(value, min, max, fallback) {
-    var num = Number(value);
-    if (!Number.isFinite(num)) num = fallback;
-    return Math.max(min, Math.min(max, num));
-  }
-
-  function stableId(prefix, value, index) {
-    var base = sanitizeSegment(value || (prefix + '_' + index));
-    if (!/^[A-Za-z_\u4e00-\u9fa5]/.test(base)) base = prefix + '_' + base;
-    return base || (prefix + '_' + index);
-  }
-
-  function hashString(value) {
-    var text = String(value || '');
+  function hashString(str) {
     var hash = 0;
-    for (var i = 0; i < text.length; i++) {
-      hash = ((hash << 5) - hash) + text.charCodeAt(i);
+    for (var i = 0; i < str.length; i++) {
+      hash = ((hash << 5) - hash) + str.charCodeAt(i);
       hash |= 0;
     }
     return String(hash >>> 0);
   }
 
-  function buildWorkflowSignature(source, chunks) {
-    return hashString([
-      source.length,
-      hashString(source),
-      Number(state.chunkCharLimit) || DEFAULT_CHUNK_CHAR_LIMIT,
-      state.gateMode,
-      state.narrativeMode,
-      state.entryBudget,
-      state.focus.join(','),
-      hashString(state.contextText || ''),
-      chunks.length
-    ].join('|'));
-  }
-
-  function sanitizeSegment(value) {
-    return String(value || '')
-      .replace(/[^\u4e00-\u9fa5A-Za-z0-9_]+/g, '_')
-      .replace(/^_+|_+$/g, '')
-      .slice(0, 40) || 'flag';
-  }
-
-  function categoryLabel(category) {
-    return CATEGORY_LABELS[String(category || '').toLowerCase()] || '条目';
-  }
-
-  function narrativeModeLabel(mode) {
-    return mode === 'lore_only' ? '只做世界观' : '按剧情推进';
-  }
-
-  function buildNarrativeModeRules() {
-    if (state.narrativeMode === 'lore_only') {
-      return [
-        '叙事模式规则：',
-        '1. 当前任务只做世界观设定包，尽量剥离剧情先后顺序。',
-        '2. 除非某个事件本身已经固化成世界规则、历史背景或长期关系变化，否则不要单独做事件条目。',
-        '3. 优先保留稳定信息：人物身份、阵营立场、地点性质、力量体系、社会规则、关键物品用途。',
-        '4. 条目正文避免写“后来”“之后”“这一阶段”等时间线表达，改写成静态设定描述。',
-        '5. 若原文包含阶段性秘密，只保留不剧透的稳定世界观部分；剧透部分宁可省略也不要强行编排时间线。'
-      ].join('\n');
-    }
-    return [
-      '叙事模式规则：',
-      '1. 当前任务按剧情推进整理知识包，可以保留会影响扮演的阶段性关系变化、重要真相揭露和关键事件后果。',
-      '2. 事件信息不是流水账，而是“到这个阶段后人物/势力/地点发生了什么变化”。',
-      '3. 如果同一实体在不同阶段认知不同，可以拆成公开、前期、中期等层次条目。',
-      '4. 条目正文仍然要像世界书，不要写章节复述；重点写状态变化、认知边界和行为约束。'
-    ].join('\n');
-  }
-
-  function getStageIndex(stageOrder, stage) {
-    var idx = stageOrder.indexOf(stage);
-    return idx >= 0 ? idx : 0;
-  }
-
-  function stageOptionsForMode(mode, incoming) {
-    if (mode === 'public_only') return ['公开'];
-    if (Array.isArray(incoming) && incoming.length) return uniqueStrings(incoming);
-    return DEFAULT_STAGE_ORDER.slice();
-  }
-
-  function buildEntryComment(entry) {
-    var name = String(entry.name || '未命名').trim();
-    var stage = String(entry.stage || '公开').trim();
-    var aspect = String(entry.aspect || '').trim();
-    var label = '[小说' + categoryLabel(entry.category) + ']' + '[' + stage + '] ' + name;
-    if (aspect && aspect !== '基础设定' && aspect !== '公开资料') label += '·' + aspect;
-    return label;
-  }
-
-  function normalizeFlags(flags, prevFlags) {
-    var prevMap = {};
-    (prevFlags || []).forEach(function(flag) { prevMap[flag.id] = flag; });
-    return (flags || []).map(function(flag, index) {
-      var id = stableId('flag', flag.id || flag.key || flag.label, index);
-      var prev = prevMap[id];
-      return {
-        id: id,
-        label: String(flag.label || flag.name || id).trim(),
-        description: String(flag.description || flag.desc || '').trim(),
-        value: prev ? !!prev.value : flag.default === true
-      };
-    }).filter(function(flag, index, list) {
-      return list.findIndex(function(item) { return item.id === flag.id; }) === index;
-    }).slice(0, 16);
-  }
-
-  function normalizeEntries(entries, stageOrder) {
-    return (entries || []).map(function(entry, index) {
-      var stage = stageOrder.indexOf(entry.stage) >= 0 ? entry.stage : stageOrder[0];
-      var name = String(entry.name || entry.title || '未命名条目').trim();
-      var category = String(entry.category || 'rule').toLowerCase();
-      var strategy = String(entry.strategy || '').toLowerCase();
-      if (['constant', 'selective'].indexOf(strategy) < 0) strategy = category === 'rule' ? 'constant' : 'selective';
-      return {
-        id: stableId('entry', entry.id || name, index),
-        entityId: stableId('entity', entry.entity_id || entry.entityId || name, index),
-        category: category,
-        name: name,
-        aspect: String(entry.aspect || entry.slot || '').trim(),
-        content: String(entry.content || '').trim(),
-        keys: uniqueStrings((entry.keys || []).concat(entry.aliases || [], entry.name ? [entry.name] : [])),
-        stage: stage,
-        requiredFlags: uniqueStrings(entry.required_flags || entry.requiredFlags || []).map(sanitizeSegment),
-        strategy: strategy,
-        priority: clampNumber(entry.priority, 100, 1000, 700)
-      };
-    }).filter(function(entry) {
-      return entry.name && entry.content;
-    }).filter(function(entry, index, list) {
-      var key = [entry.entityId, entry.category, entry.stage, entry.aspect || entry.name].join('|');
-      return list.findIndex(function(item) {
-        return [item.entityId, item.category, item.stage, item.aspect || item.name].join('|') === key;
-      }) === index;
-    });
-  }
-
-  function normalizeEntityIndex(entityIndex) {
-    return (entityIndex || []).map(function(entity, index) {
-      var name = String(entity.name || '未命名实体').trim();
-      return {
-        id: stableId('entity', entity.id || name, index),
-        name: name,
-        category: String(entity.category || 'character').toLowerCase(),
-        aliases: uniqueStrings(entity.aliases || []),
-        summary: String(entity.public_summary || entity.summary || '').trim()
-      };
-    }).filter(function(entity) {
-      return entity.id && entity.name;
-    }).filter(function(entity, index, list) {
-      return list.findIndex(function(item) { return item.id === entity.id || item.name === entity.name; }) === index;
-    });
-  }
-
-  function normalizeVariables(vars) {
-    return (vars || []).map(function(v) {
-      var copy = cloneJSON(v || {});
-      if (!copy.path) copy.path = copy.name || '';
-      return copy;
-    }).filter(function(v) {
-      return String(v.path || '').trim();
-    });
-  }
-
-  function normalizePackage(pkg, prevState) {
-    var stageOrder = stageOptionsForMode(prevState.gateMode, pkg.stage_order || pkg.stageOrder);
-    var flags = prevState.gateMode === 'stage_flags'
-      ? normalizeFlags(pkg.reveal_flags || pkg.revealFlags || [], prevState.flags)
-      : [];
-    var currentStage = stageOrder.indexOf(prevState.currentStage) >= 0 ? prevState.currentStage : stageOrder[0];
-    var entries = normalizeEntries(pkg.entries || [], stageOrder)
-      .sort(function(a, b) { return b.priority - a.priority; });
-    return {
-      summary: String(pkg.summary || '已生成小说世界书包').trim(),
-      stageOrder: stageOrder,
-      currentStage: currentStage,
-      flags: flags,
-      entityIndex: normalizeEntityIndex(pkg.entity_index || pkg.entityIndex || []),
-      generatedEntries: entries,
-      generatedVariables: normalizeVariables(pkg.variables || []),
-      generatedAt: new Date().toLocaleString('zh-CN', { hour12: false })
-    };
-  }
-
-  function combinePartialPackages(partials) {
-    var combined = {
-      summary: '正在分片抽取小说世界书包，已保留可用的中间结果。',
-      stage_order: state.stageOrder.slice(),
-      reveal_flags: [],
-      entity_index: [],
-      variables: [],
-      entries: []
-    };
-    (partials || []).forEach(function(pkg) {
-      if (!pkg || typeof pkg !== 'object') return;
-      if (pkg.summary && combined.summary.indexOf('已处理') < 0) combined.summary = String(pkg.summary || combined.summary).trim();
-      combined.stage_order = uniqueStrings(combined.stage_order.concat(pkg.stage_order || pkg.stageOrder || []));
-      combined.reveal_flags = combined.reveal_flags.concat(pkg.reveal_flags || pkg.revealFlags || []);
-      combined.entity_index = combined.entity_index.concat(pkg.entity_index || pkg.entityIndex || []);
-      combined.variables = combined.variables.concat(pkg.variables || []);
-      combined.entries = combined.entries.concat(pkg.entries || []);
-    });
-    return combined;
-  }
-
-  function applyWorkshopPackageSnapshot(pkg, previousEntries, options) {
-    var opts = options || {};
-    var normalized = normalizePackage(pkg, state);
-    state.summary = opts.summary || normalized.summary;
-    state.stageOrder = normalized.stageOrder;
-    state.currentStage = normalized.currentStage;
-    state.flags = normalized.flags;
-    state.entityIndex = normalized.entityIndex;
-    state.generatedEntries = normalized.generatedEntries;
-    state.generatedVariables = normalized.generatedVariables;
-    state.generatedAt = normalized.generatedAt;
-    persistState();
-    replaceNovelWorldbookEntries(previousEntries);
-    applyActivationOnly();
-    renderAll();
-    return normalized;
-  }
-
-  function writePartialSnapshot(partials, previousEntries, processedCount, totalCount) {
-    if (!partials.length) return;
-    var snapshot = combinePartialPackages(partials);
-    applyWorkshopPackageSnapshot(snapshot, previousEntries, {
-      summary: '分片处理中：已处理 ' + processedCount + ' / ' + totalCount + ' 片，当前世界书为临时快照。'
-    });
-  }
-
-  function buildGateRuleEntry(workshop) {
-    var lines = [
-      '你正在使用小说世界书工坊导出的知识包。',
-      '只允许依据当前已解锁的资料继续扮演，不得主动补完或提前暴露未解锁的剧情真相。',
-      '当前阶段：' + workshop.currentStage + '。'
-    ];
-    if (workshop.flags.length) {
-      lines.push('已开启的揭露标记：' + workshop.flags.filter(function(flag) { return flag.value; }).map(function(flag) { return flag.label; }).join('、') + '。');
-      lines.push('未开启的揭露标记保持未知，不得自行推断。');
-    }
-    return {
-      comment: '===小说世界书：阅读边界===',
-      content: lines.join('\n'),
-      keys: [],
-      strategy: 'constant',
-      position: 4,
-      depth: 1,
-      role: 0,
-      order: 980,
-      prob: 100,
-      enabled: true
-    };
-  }
-
-  function isEntryUnlocked(entry, workshop) {
-    var currentStageIndex = getStageIndex(workshop.stageOrder, workshop.currentStage);
-    var entryStageIndex = getStageIndex(workshop.stageOrder, entry.stage);
-    if (entryStageIndex > currentStageIndex) return false;
-    if (!entry.requiredFlags.length) return true;
-    var flagMap = {};
-    workshop.flags.forEach(function(flag) { flagMap[flag.id] = !!flag.value; });
-    return entry.requiredFlags.every(function(flagId) { return flagMap[flagId] === true; });
-  }
-
-  function buildWorldbookEntry(entry, workshop) {
-    var strategy = entry.strategy;
-    if (!strategy) strategy = entry.category === 'rule' ? 'constant' : 'selective';
-    return {
-      comment: buildEntryComment(entry),
-      content: entry.content,
-      keys: strategy === 'constant' ? [] : uniqueStrings(entry.keys.length ? entry.keys : [entry.name]),
-      strategy: strategy,
-      position: 4,
-      depth: entry.category === 'rule' ? 2 : 4,
-      role: 0,
-      order: entry.priority,
-      prob: 100,
-      enabled: isEntryUnlocked(entry, workshop)
-    };
-  }
-
-  function mergeVariableBlueprint(workshop) {
-    var variables = [];
-    var stageOptions = workshop.stageOrder.slice();
-    if (stageOptions.length > 1) {
-      variables.push({
-        path: '世界书控制.阶段',
-        type: 'enum',
-        options: stageOptions,
-        default: workshop.currentStage,
-        description: '小说世界书当前允许暴露到哪一层知识阶段',
-        check: ['仅在阅读进度推进、手动解锁新阶段或导入新版知识包时更新']
-      });
-    } else {
-      variables.push({
-        path: '世界书控制.阶段',
-        type: 'string',
-        default: workshop.currentStage,
-        description: '小说世界书当前阶段',
-        check: ['仅在重新导入或手动切换时更新']
-      });
-    }
-
-    variables.push({
-      path: '世界书控制.摘要',
-      type: 'string',
-      default: workshop.summary || '暂无摘要',
-      description: '当前导入的小说知识包摘要',
-      check: ['仅在重建小说世界书知识包时更新']
-    });
-
-    variables.push({
-      path: '世界书控制.实体数',
-      type: 'number',
-      default: workshop.entityIndex.length,
-      min: 0,
-      description: '当前知识包里的实体数量',
-      check: ['仅在导入新知识包后更新']
-    });
-
-    workshop.flags.forEach(function(flag) {
-      variables.push({
-        path: '世界书控制.标记.' + sanitizeSegment(flag.id),
-        type: 'boolean',
-        default: !!flag.value,
-        description: flag.description || ('小说揭露标记：' + flag.label),
-        check: ['仅当对应真相、关系或设定在剧情内被正式揭露时切换为 true']
-      });
-    });
-
-    return normalizeVariables(variables.concat(workshop.generatedVariables || []));
-  }
-
-  function getWorkshopStateFromExtension() {
-    if (!window.__getCardExtension__) return null;
-    return window.__getCardExtension__(STORAGE_KEY) || null;
-  }
-
-  function persistState() {
-    if (!window.__setCardExtension__) return;
-    suppressReload = true;
-    window.__setCardExtension__(STORAGE_KEY, cloneJSON({
-      summary: state.summary,
-      stageOrder: state.stageOrder,
-      currentStage: state.currentStage,
-      flags: state.flags,
-      entityIndex: state.entityIndex,
-      generatedEntries: state.generatedEntries,
-      generatedVariables: state.generatedVariables,
-      generatedAt: state.generatedAt
-    }));
-    suppressReload = false;
-    saveRawState();
-  }
-
-  function loadState(data) {
-    var next = createDefaultState();
-    if (data && typeof data === 'object') {
-      next.summary = String(data.summary || '').trim();
-      next.stageOrder = stageOptionsForMode(next.gateMode, data.stageOrder);
-      next.currentStage = next.stageOrder.indexOf(data.currentStage) >= 0 ? data.currentStage : next.stageOrder[0];
-      next.flags = normalizeFlags(data.flags || [], []);
-      next.entityIndex = normalizeEntityIndex(data.entityIndex || []);
-      next.generatedEntries = normalizeEntries(data.generatedEntries || [], next.stageOrder);
-      next.generatedVariables = normalizeVariables(data.generatedVariables || []);
-      next.generatedAt = String(data.generatedAt || '').trim();
-    }
-    state = next;
-    loadRawState();
-    state.stageOrder = stageOptionsForMode(state.gateMode, state.stageOrder);
-    if (state.stageOrder.indexOf(state.currentStage) < 0) state.currentStage = state.stageOrder[0];
-    renderAll();
-  }
-
-  function loadFromExtension() {
-    if (suppressReload) return;
-    var data = getWorkshopStateFromExtension();
-    loadState(data);
-  }
-
-  function renderStats() {
-    var chips = [];
-    if (state.generatedEntries.length) chips.push('📖 条目 ' + state.generatedEntries.length);
-    if (state.entityIndex.length) chips.push('🧬 实体 ' + state.entityIndex.length);
-    if (state.flags.length) chips.push('🔐 标记 ' + state.flags.length);
-    if (state.generatedVariables.length) chips.push('🧠 AI 变量蓝图 ' + state.generatedVariables.length);
-    if (!chips.length) chips.push('等待导入文本');
-    statsBarEl.innerHTML = chips.map(function(label) {
-      return '<span class="novel-stat-chip">' + escapeHtml(label) + '</span>';
-    }).join('');
-  }
-
   function renderFocusTags() {
-    focusTagsEl.innerHTML = FOCUS_OPTIONS.map(function(option) {
-      var active = state.focus.indexOf(option.id) >= 0;
-      return '<button type="button" class="novel-focus-tag' + (active ? ' active' : '') + '" data-focus="' + option.id + '">' + option.label + '</button>';
+    focusTagsEl.innerHTML = FOCUS_OPTIONS.map(function(opt) {
+      var active = state.focus.indexOf(opt.id) >= 0;
+      return '<button type="button" class="novel-focus-tag' + (active ? ' active' : '') + '" data-focus="' + opt.id + '">' + opt.label + '</button>';
     }).join('');
-    focusTagsEl.querySelectorAll('[data-focus]').forEach(function(btn) {
+    focusTagsEl.querySelectorAll('button').forEach(function(btn) {
       btn.addEventListener('click', function() {
         var id = btn.getAttribute('data-focus');
         var idx = state.focus.indexOf(id);
-        if (idx >= 0) state.focus.splice(idx, 1);
+        if(idx >= 0) state.focus.splice(idx, 1);
         else state.focus.push(id);
-        if (!state.focus.length) state.focus = ['character'];
-        persistState();
-        renderAll();
+        saveState();
+        renderFocusTags();
       });
     });
-  }
-
-  function renderManager() {
-    var hasPackage = state.generatedEntries.length > 0;
-    managerEl.style.display = hasPackage ? 'block' : 'none';
-    if (!hasPackage) return;
-
-    summaryTextEl.textContent = state.summary || '已生成小说世界书包。';
-    entityCountEl.textContent = state.entityIndex.length + ' 个实体';
-
-    stageButtonsEl.innerHTML = state.stageOrder.map(function(stage) {
-      return '<button type="button" class="novel-stage-btn' + (stage === state.currentStage ? ' active' : '') + '" data-stage="' + escapeAttr(stage) + '">' + escapeHtml(stage) + '</button>';
-    }).join('');
-    stageButtonsEl.querySelectorAll('[data-stage]').forEach(function(btn) {
-      btn.addEventListener('click', function() {
-        state.currentStage = btn.getAttribute('data-stage');
-        persistState();
-        applyActivationOnly();
-        renderAll();
-      });
-    });
-
-    if (!state.flags.length) {
-      flagListEl.innerHTML = '<div class="novel-flag-empty">当前工坊没有额外揭露标记，阶段本身就是唯一门控。</div>';
-    } else {
-      flagListEl.innerHTML = state.flags.map(function(flag) {
-        return '<label class="novel-flag-item">' +
-          '<input type="checkbox" data-flag-id="' + escapeAttr(flag.id) + '"' + (flag.value ? ' checked' : '') + ' />' +
-          '<div class="novel-flag-copy">' +
-            '<strong>' + escapeHtml(flag.label) + '</strong>' +
-            '<span>' + escapeHtml(flag.description || '达到条件后才允许解锁这组资料。') + '</span>' +
-          '</div>' +
-        '</label>';
-      }).join('');
-      flagListEl.querySelectorAll('[data-flag-id]').forEach(function(input) {
-        input.addEventListener('change', function() {
-          var id = input.getAttribute('data-flag-id');
-          state.flags.forEach(function(flag) {
-            if (flag.id === id) flag.value = input.checked;
-          });
-          persistState();
-          applyActivationOnly();
-          renderAll();
-        });
-      });
-    }
-
-    if (!state.entityIndex.length) {
-      entityPreviewEl.innerHTML = '<div class="novel-entity-empty">当前还没有实体索引。</div>';
-    } else {
-      entityPreviewEl.innerHTML = state.entityIndex.slice(0, 12).map(function(entity) {
-        return '<article class="novel-entity-card">' +
-          '<span class="novel-entity-meta">' + escapeHtml(categoryLabel(entity.category)) + '</span>' +
-          '<strong>' + escapeHtml(entity.name) + '</strong>' +
-          '<p>' + escapeHtml(entity.summary || '暂无摘要') + '</p>' +
-        '</article>';
-      }).join('');
-    }
-  }
-
-  function formatNumber(num) {
-    return Number(num || 0).toLocaleString('zh-CN');
-  }
-
-  function estimateTokenCount(text) {
-    var value = String(text || '');
-    if (!value) return 0;
-    var cjkCount = (value.match(/[\u3400-\u9fff]/g) || []).length;
-    var otherCount = Math.max(0, value.length - cjkCount);
-    return Math.ceil(cjkCount * 1.35 + otherCount / 4);
-  }
-
-  function getCombinedSourceText() {
-    var parts = [];
-    if (importedFileText) parts.push(importedFileText);
-    if (state.sourceText) parts.push(state.sourceText);
-    return parts.join('\n\n').trim();
-  }
-
-  function splitTextIntoChunks(text, maxChars) {
-    var clean = String(text || '').trim();
-    if (!clean) return [];
-    if (clean.length <= maxChars) return [clean];
-
-    var chunks = [];
-    var current = '';
-    var parts = clean
-      .replace(/\r\n/g, '\n')
-      .split(/\n{2,}|(?=第[^\n]{1,20}[章节卷回部篇])|(?=chapter\s+\d+)/i)
-      .map(function(part) { return String(part || '').trim(); })
-      .filter(Boolean);
-
-    parts.forEach(function(part) {
-      if (part.length > maxChars) {
-        if (current) {
-          chunks.push(current.trim());
-          current = '';
-        }
-        for (var start = 0; start < part.length; start += maxChars) {
-          chunks.push(part.slice(start, start + maxChars));
-        }
-        return;
-      }
-      if (!current) {
-        current = part;
-        return;
-      }
-      if ((current.length + 2 + part.length) <= maxChars) {
-        current += '\n\n' + part;
-      } else {
-        chunks.push(current.trim());
-        current = part;
-      }
-    });
-    if (current) chunks.push(current.trim());
-    return chunks.filter(Boolean);
-  }
-
-  function countMergeCalls(itemCount, batchSize) {
-    var calls = 0;
-    var current = itemCount;
-    while (current > 1) {
-      current = Math.ceil(current / batchSize);
-      calls += current;
-    }
-    return calls;
-  }
-
-  function countSequentialMergeCalls(itemCount) {
-    return Math.max(0, Number(itemCount || 0) - 1);
-  }
-
-  function buildCallEstimate() {
-    var source = getCombinedSourceText();
-    var sourceChars = source.length;
-    if (!sourceChars) {
-      return {
-        sourceChars: 0,
-        chunkCount: 0,
-        mergeCalls: 0,
-        totalCalls: 0,
-        chunkSize: Number(state.chunkCharLimit) || DEFAULT_CHUNK_CHAR_LIMIT
-      };
-    }
-    var chunkLimit = Number(state.chunkCharLimit) || DEFAULT_CHUNK_CHAR_LIMIT;
-    var chunks = splitTextIntoChunks(source, chunkLimit);
-    var chunkCount = Math.max(1, chunks.length);
-    var mergeCalls = chunkCount > 1 ? Math.min(
-      countMergeCalls(chunkCount, MERGE_BATCH_SIZE),
-      countSequentialMergeCalls(chunkCount)
-    ) : 0;
-    return {
-      sourceChars: sourceChars,
-      chunkCount: chunkCount,
-      mergeCalls: mergeCalls,
-      totalCalls: chunkCount + mergeCalls,
-      chunkSize: chunkLimit
-    };
-  }
-
-  function renderCallRisk(estimate) {
-    if (!estimate.totalCalls) return '先导入文件或补一段摘录，这里才会给出调用预估。';
-    if (estimate.totalCalls > MAX_WORKFLOW_CALLS) {
-      return '预计调用次数过高，发布版会阻止直接运行。建议按卷/章节分批导入，或提高单次分片字数。';
-    }
-    if (estimate.totalCalls > 40) {
-      return '调用次数偏高，建议先用较小范围试跑，确认模型质量后再处理完整文本。';
-    }
-    return '调用量处于可控范围，可以生成。';
-  }
-
-  function renderFileState() {
-    if (importedFileMeta && importedFileText) {
-      fileHintEl.textContent = '已载入内存文件：' + importedFileMeta.name;
-      fileSummaryEl.style.display = 'block';
-      fileSummaryEl.innerHTML =
-        '<strong>' + escapeHtml(importedFileMeta.name) + '</strong>' +
-        '<span>已加载 ' + escapeHtml(formatNumber(importedFileMeta.charCount)) + ' 字符到内存。生成时会使用全文，但不会把全文渲染到前端输入框里。</span>';
-      btnClearFileEl.style.display = 'inline-flex';
-      return;
-    }
-    fileHintEl.textContent = state.sourceText ? '当前仅使用手动摘录 / 摘要' : '支持 txt / md / json';
-    fileSummaryEl.style.display = 'none';
-    fileSummaryEl.innerHTML = '';
-    btnClearFileEl.style.display = 'none';
-  }
-
-  function renderEstimate() {
-    var estimate = buildCallEstimate();
-    estimateBarEl.innerHTML = [
-      '<div class="novel-estimate-card is-accent"><strong>' + escapeHtml(estimate.totalCalls ? (estimate.totalCalls + ' 次') : '0 次') + '</strong><span>低调用模式预估总调用次数</span></div>',
-      '<div class="novel-estimate-card"><strong>' + escapeHtml(estimate.chunkCount ? (estimate.chunkCount + ' 片') : '未分片') + '</strong><span>按每片约 ' + escapeHtml(formatNumber(estimate.chunkSize)) + ' 字预切分</span></div>',
-      '<div class="novel-estimate-card"><strong>' + escapeHtml(estimate.sourceChars ? (formatNumber(estimate.sourceChars) + ' 字') : '未载入') + '</strong><span>导入全文与手动摘录合计字符数</span></div>'
-    ].join('');
-
-    var steps = [
-      {
-        title: '准备资料',
-        detail: estimate.sourceChars ? ('已就绪 ' + formatNumber(estimate.sourceChars) + ' 字。' + renderCallRisk(estimate)) : renderCallRisk(estimate)
-      },
-      {
-        title: '分片抽取',
-        detail: estimate.chunkCount ? ('预计调用 ' + formatNumber(estimate.chunkCount) + ' 次 AI，把长文本拆成片段抽人物、地点、势力与规则。') : '暂无文本，暂不需要分片抽取。'
-      },
-      {
-        title: '合并去重',
-        detail: estimate.mergeCalls ? ('预计再调用 ' + formatNumber(estimate.mergeCalls) + ' 次 AI，把重复实体并回同一知识包。') : '当前文本量可直接整合，不需要额外合并。'
-      },
-      {
-        title: '注入世界书',
-        detail: '最后把整合结果写进世界书，并同步真正可管理的 MVU 控制变量。'
-      }
-    ];
-
-    workflowStepsEl.innerHTML = steps.map(function(step, index) {
-      var classes = ['novel-workflow-step'];
-      if (workflowRunState.phase === 'idle') {
-        if (index === 0 && estimate.sourceChars) classes.push('is-active');
-      } else {
-        if ((workflowRunState.phase === 'extract' && index === 1) ||
-            (workflowRunState.phase === 'merge' && index === 2) ||
-            (workflowRunState.phase === 'inject' && index === 3)) classes.push('is-active');
-        if ((workflowRunState.phase === 'extract' || workflowRunState.phase === 'merge' || workflowRunState.phase === 'inject' || workflowRunState.phase === 'done') && index === 0) classes.push('is-done');
-        if ((workflowRunState.phase === 'merge' || workflowRunState.phase === 'inject' || workflowRunState.phase === 'done') && index === 1) classes.push('is-done');
-        if ((workflowRunState.phase === 'inject' || workflowRunState.phase === 'done') && index === 2) classes.push('is-done');
-        if (workflowRunState.phase === 'done' && index === 3) classes.push('is-done');
-      }
-      var detail = step.detail;
-      if (index === 1 && workflowRunState.phase === 'extract' && workflowRunState.extractionTotal) {
-        detail = '正在处理第 ' + formatNumber(workflowRunState.extractionDone + 1) + ' / ' + formatNumber(workflowRunState.extractionTotal) + ' 片。';
-      }
-      if (index === 2 && workflowRunState.phase === 'merge' && workflowRunState.mergeTotal) {
-        detail = '正在执行第 ' + formatNumber(workflowRunState.mergeDone + 1) + ' / ' + formatNumber(workflowRunState.mergeTotal) + ' 次合并。';
-      }
-      if (index === 3 && workflowRunState.phase === 'inject') {
-        detail = '正在写入世界书条目并同步 MVU 管理变量。';
-      }
-      return '<div class="' + classes.join(' ') + '">' +
-        '<div class="novel-workflow-index">' + (index + 1) + '</div>' +
-        '<div class="novel-workflow-copy"><strong>' + escapeHtml(step.title) + '</strong><span>' + escapeHtml(detail) + '</span></div>' +
-      '</div>';
-    }).join('');
-  }
-
-  function renderNarrativeHint() {
-    if (!narrativeHintEl) return;
-    narrativeHintEl.textContent = state.narrativeMode === 'lore_only'
-      ? '只做世界观：尽量去掉剧情时间线，不强调先后推进，优先保留稳定设定。'
-      : '按剧情推进：允许保留阶段性关系变化、关键事件后果和阅读顺序。';
-  }
-
-  function renderAll() {
-    sourceTextEl.value = state.sourceText;
-    contextTextEl.value = state.contextText;
-    gateModeEl.value = state.gateMode;
-    narrativeModeEl.value = state.narrativeMode;
-    entryBudgetEl.value = String(state.entryBudget);
-    chunkSizeEl.value = String(state.chunkCharLimit || DEFAULT_CHUNK_CHAR_LIMIT);
-    renderFileState();
-    renderStats();
-    renderEstimate();
-    renderNarrativeHint();
-    renderFocusTags();
-    renderManager();
-  }
-
-  function syncInputsIntoState() {
-    state.sourceText = sourceTextEl.value.trim();
-    state.contextText = contextTextEl.value.trim();
-    state.gateMode = gateModeEl.value;
-    state.narrativeMode = narrativeModeEl.value === 'lore_only' ? 'lore_only' : 'story';
-    state.entryBudget = Number(entryBudgetEl.value) || 18;
-    state.chunkCharLimit = Number(chunkSizeEl.value) || DEFAULT_CHUNK_CHAR_LIMIT;
-    state.stageOrder = stageOptionsForMode(state.gateMode, state.stageOrder);
-    if (state.stageOrder.indexOf(state.currentStage) < 0) state.currentStage = state.stageOrder[0];
-    if (state.gateMode !== 'stage_flags') state.flags = [];
-  }
-
-  function buildExistingPackageSummary() {
-    return {
-      entity_index: state.entityIndex.map(function(entity) {
-        return {
-          id: entity.id,
-          name: entity.name,
-          category: entity.category,
-          aliases: entity.aliases,
-          public_summary: entity.summary
-        };
-      }),
-      entries: state.generatedEntries.map(function(entry) {
-        return {
-          id: entry.id,
-          entity_id: entry.entityId,
-          category: entry.category,
-          name: entry.name,
-          aspect: entry.aspect,
-          stage: entry.stage,
-          required_flags: entry.requiredFlags
-        };
-      })
-    };
-  }
-
-  function buildPromptEnvelope(lines) {
-    return lines.join('\n');
-  }
-
-  function buildFinalOutputFormat(budgetHint) {
-    return [
-      '{',
-      '  "summary": "一句中文摘要，80字以内",',
-      '  "stage_order": ["公开","前期","中期","后期","终局"],',
-      '  "reveal_flags": [',
-      '    { "id": "flag_id", "label": "揭露标记名", "description": "何时开启", "default": false }',
-      '  ],',
-      '  "entity_index": [',
-      '    { "id": "char_linmo", "name": "林墨", "category": "character", "aliases": ["墨哥"], "public_summary": "公开可知的身份与定位" }',
-      '  ],',
-      '  "variables": [',
-      '    { "path": "世界书控制.阶段", "type": "enum", "options": ["公开","前期","中期","后期","终局"], "default": "公开", "description": "当前可见阶段", "check": ["仅在阅读推进或手动解锁时更新"] }',
-      '  ],',
-      '  "entries": [',
-      '    {',
-      '      "id": "char_linmo_public",',
-      '      "entity_id": "char_linmo",',
-      '      "category": "character",',
-      '      "name": "林墨",',
-      '      "aspect": "公开资料",',
-      '      "content": "适合直接注入世界书的正文",',
-      '      "keys": ["林墨","墨哥","林先生","调查员林墨","林墨医生"],',
-      '      "stage": "公开",',
-      '      "required_flags": [],',
-      '      "strategy": "selective",',
-      '      "priority": 820',
-      '    }',
-      '  ]',
-      '}',
-      '',
-      '要求：',
-      '1. entity_index 必须是去重后的实体索引。',
-      '2. entries 是整合后的完整快照，而不是增量补丁。',
-      '3. 如果某个实体已经在现有知识包里出现，优先复用它的 id。',
-      '4. rule 类条目适合 constant，其它条目优先 selective。',
-      '5. 条目内容禁止写“根据剧情可能”“也许”等模糊措辞。',
-      '6. 如果门控模式不是 stage_flags，就让 reveal_flags 为空数组。',
-      '7. 不要为了压缩数量而删除有效条目；只删除明显重复、空泛或无法用于世界书触发的条目。' + (budgetHint ? '当前数字只作为单次抽取密度参考：' + budgetHint + '。' : ''),
-      '8. keys 和 comment 只能使用原文中的专有名词或别名，不要写 {{char}}、{{user}} 等宏。',
-      '8.1 selective 条目的 keys 要尽量充足：人物条目优先给 4-8 个姓名、别名、称号、身份称呼、关系称呼；地点/势力/物品条目优先给 3-6 个全称、简称、别称、相关地名或组织名。',
-      '8.2 keys 不要只写一个名称；除非原文确实没有别名，否则至少给 3 个可触发词。不要编造原文没有依据的现代网络梗或泛词。',
-      '9. content 可以自然使用 SillyTavern 宏，但不要为了使用宏刻意插入 {{char}} 或 {{user}}；专有名词、地名、组织名不要宏化。',
-      '10. id、entity_id、required_flags 只能使用稳定短标识，不要包含空格、标点或宏。'
-    ].join('\n');
-  }
-
-  function buildExtractionRules() {
-    return [
-      '抽取规则：',
-      '1. 优先保留与角色扮演直接相关的信息：人物关系、行事准则、地点规则、势力立场、关键物品。',
-      '2. 事件流水账只在会影响当前扮演或触发世界书时保留，否则并入摘要。',
-      '3. 公开信息和剧透信息必须分层；不确定是否剧透时放到更晚阶段。',
-      '4. 不要把同一实体拆成多个近似实体；同名、别名、称号应合并。',
-      '5. 条目正文要短而密，适合直接放入 SillyTavern 世界书。',
-      '6. 为每个 selective 条目整理更多触发词：原名、别名、称号、身份、关系称呼、地点简称、势力简称、关键物品名都可以进入 keys。'
-    ].join('\n');
-  }
-
-  function buildDirectPrompt(sourceBody) {
-    var gateMode = state.gateMode;
-    var allowedCategories = state.focus.map(categoryLabel).join('、');
-    var stageGuide = gateMode === 'public_only'
-      ? '只允许输出公开资料，不要设计任何揭露标记。'
-      : gateMode === 'stage_only'
-        ? '可以按阶段拆条目，但不要设计额外揭露标记。'
-        : '可以同时使用阶段与揭露标记；揭露标记只在真正需要时创建。';
-
-    return {
-      system: [
-        '你是小说世界书架构师，负责把小说资料整理成可管理的 SillyTavern 世界书工坊包。',
-        '你的目标是输出一个“整合后的快照”，不是追加式聊天回答。',
-        '必须避免重复人物、重复地点、重复势力；如果当前文本是在补充旧实体，请复用已有 entity_id，并把新增信息整合进同一实体。',
-        '如果信息是否会剧透不确定，优先把它放在更晚的阶段或需要揭露标记的条目里。',
-        '条目内容要适合放入世界书：短而密，强调身份、行为准则、关系、用途与触发关键词。',
-        '不要输出章节复述；只保留能让角色卡稳定扮演的设定与约束。',
-        '只输出严格 JSON 对象，不要包裹 markdown。'
-      ].join('\n'),
-      user: [
-        '【整理模式】' + narrativeModeLabel(state.narrativeMode),
-        '【门控模式】' + gateMode,
-        '【抽取重点】' + allowedCategories,
-        '【条目预算】最多 ' + state.entryBudget + ' 条',
-        '【门控要求】' + stageGuide,
-        '',
-        buildExtractionRules(),
-        '',
-        buildNarrativeModeRules(),
-        '',
-        '【现有知识包摘要】',
-        JSON.stringify(buildExistingPackageSummary(), null, 2),
-        '',
-        '【角色卡当前名称】' + (document.getElementById('charName') ? document.getElementById('charName').value.trim() : ''),
-        '【世界书当前名称】' + (document.getElementById('wbName') ? document.getElementById('wbName').value.trim() : ''),
-        '',
-        '【补充说明】',
-        state.contextText || '无',
-        '',
-        '【原始资料】',
-        sourceBody || '无',
-        '',
-        '【输出格式】',
-        buildFinalOutputFormat(state.entryBudget)
-      ].join('\n')
-    };
-  }
-
-  function buildChunkExtractPrompt(chunkText, chunkIndex, chunkTotal) {
-    var gateMode = state.gateMode;
-    var focusText = state.focus.map(categoryLabel).join('、');
-    var localBudget = Math.max(1, Number(state.entryBudget) || 18);
-    return {
-      system: buildPromptEnvelope([
-        '你是小说知识抽取器，负责从单个小说片段中抽取实体与世界书候选，不要输出解释。',
-        '你只处理当前片段，但要尽量给出稳定命名、别名、关系和公开/阶段性信息。',
-        '如果片段里出现明显剧透信息，在门控允许时放到更晚阶段或 required_flags。',
-        '不要总结整段剧情，只抽取后续合并需要的实体事实、关系变化和世界规则。',
-        '只输出严格 JSON 对象，不要包裹 markdown。'
-      ]),
-      user: buildPromptEnvelope([
-        '【当前任务】第 ' + chunkIndex + ' / ' + chunkTotal + ' 片知识抽取',
-        '【整理模式】' + narrativeModeLabel(state.narrativeMode),
-        '【门控模式】' + gateMode,
-        '【抽取重点】' + focusText,
-        '【单片预算】最多 ' + localBudget + ' 条候选 entries',
-        '',
-        buildExtractionRules(),
-        '',
-        buildNarrativeModeRules(),
-        '【补充说明】',
-        state.contextText || '无',
-        '',
-        '【片段原文】',
-        chunkText,
-        '',
-        '【输出格式】',
-        buildFinalOutputFormat(localBudget)
-      ])
-    };
-  }
-
-  function buildMergePrompt(packages, options) {
-    var opts = options || {};
-    var finalPass = !!opts.finalPass;
-    var budgetHint = finalPass ? 0 : Math.max(state.entryBudget, Math.min(48, packages.length * 8));
-    var normalizedPackages = (packages || []).map(function(pkg) {
-      return {
-        summary: String(pkg && pkg.summary || '').trim().slice(0, 120),
-        stage_order: uniqueStrings((pkg && (pkg.stage_order || pkg.stageOrder)) || []),
-        reveal_flags: Array.isArray(pkg && (pkg.reveal_flags || pkg.revealFlags)) ? (pkg.reveal_flags || pkg.revealFlags) : [],
-        entity_index: Array.isArray(pkg && (pkg.entity_index || pkg.entityIndex)) ? (pkg.entity_index || pkg.entityIndex) : [],
-        variables: Array.isArray(pkg && pkg.variables) ? pkg.variables : [],
-        entries: Array.isArray(pkg && pkg.entries) ? pkg.entries : []
-      };
-    });
-    var sections = [
-      '【当前任务】' + (finalPass ? '最终合并并生成完整世界书包' : '中间合并去重'),
-      '【整理模式】' + narrativeModeLabel(state.narrativeMode),
-      '【门控模式】' + state.gateMode,
-      '【合并要求】只做去重、统一 entity_id、整理阶段与触发词；不要把有效 entries 压缩到固定数量。合并时要主动补全 keys，保留同一实体的别名、称号、简称和关系称呼。',
-      buildNarrativeModeRules(),
-      '【补充说明】',
-      state.contextText || '无',
-      ''
-    ];
-    if (finalPass) {
-      sections.push('【现有知识包摘要】');
-      sections.push(JSON.stringify(buildExistingPackageSummary()));
-      sections.push('');
-    }
-    sections.push('【待合并 JSON 包】');
-    sections.push(JSON.stringify(normalizedPackages));
-    sections.push('');
-    sections.push('【输出格式】');
-    sections.push(buildFinalOutputFormat(budgetHint));
-    return {
-      system: buildPromptEnvelope([
-        '你是小说知识包合并器，负责把多个局部 JSON 包合并成一个去重后的统一快照。',
-        '必须合并重复人物、地点、势力和规则，不要保留重复实体。',
-        '如果后面的包补充了旧实体的新信息，应该并入同一 entity_id。',
-        '合并时优先保留高信息密度条目，删除章节流水账，但不要过度删除触发词；同一实体的有效别名、称号、简称要合并进 keys。',
-        '只输出严格 JSON 对象，不要包裹 markdown。'
-      ]),
-      user: buildPromptEnvelope(sections)
-    };
-  }
-
-  function extractJsonObject(raw) {
-    var text = String(raw || '').trim();
-    try { return JSON.parse(text); } catch (err) {}
-    var fence = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
-    if (fence && fence[1]) {
-      try { return JSON.parse(fence[1].trim()); } catch (err) {}
-    }
-    var first = text.indexOf('{');
-    var last = text.lastIndexOf('}');
-    if (first >= 0 && last > first) return JSON.parse(text.slice(first, last + 1));
-    throw new Error('AI 返回中没有有效 JSON 对象');
-  }
-
-  function assertWorkflowAffordable(estimate) {
-    if (!estimate || !estimate.totalCalls) return;
-    if (estimate.totalCalls > MAX_WORKFLOW_CALLS) {
-      throw new Error(
-        '当前预计需要 ' + formatNumber(estimate.totalCalls) + ' 次调用，超过发布版安全上限 ' +
-        MAX_WORKFLOW_CALLS + ' 次。请提高“单次分片字数”、减少原文范围，或先按卷/章节分批生成。'
-      );
-    }
-  }
-
-  function normalizeApiErrorMessage(status, message) {
-    var text = String(message || '').trim();
-    var lower = text.toLowerCase();
-    if (lower.indexOf('prohibited_content') >= 0 || lower.indexOf('request blocked by gemini api') >= 0) {
-      return 'Gemini 安全策略拦截了本次小说内容。请减少露骨性描写、未成年相关、极端暴力/自残等片段，或改用更适合长篇创作整理的模型后重试。';
-    }
-    if (status === 400 && lower.indexOf('safety') >= 0) {
-      return '模型安全策略拒绝了本次请求。建议先缩小导入范围，删去高风险描写，或换用其他模型。';
-    }
-    if (status === 429) return '接口限流或额度不足，请稍后再试，或降低分片并发/调用频率。';
-    return text;
-  }
-
-  function getSafePromptTokenLimit(modelName) {
-    var name = String(modelName || '').toLowerCase();
-    if (name.indexOf('gemini') >= 0) return LONG_CONTEXT_SAFE_PROMPT_TOKENS;
-    if (name.indexOf('deepseek') >= 0) return 120000;
-    if (name.indexOf('claude-3') >= 0 || name.indexOf('claude-sonnet-4') >= 0 || name.indexOf('claude-opus-4') >= 0) return 180000;
-    if (name.indexOf('gpt-4.1') >= 0 || name.indexOf('gpt-4o') >= 0 || name.indexOf('o3') >= 0 || name.indexOf('o4') >= 0) return 120000;
-    return DEFAULT_SAFE_PROMPT_TOKENS;
-  }
-
-  function estimatePromptTokens(prompt) {
-    return estimateTokenCount((prompt && prompt.system) || '') + estimateTokenCount((prompt && prompt.user) || '');
-  }
-
-  function getSelectedModelName() {
-    var modelEl = document.getElementById('modelSelect');
-    return modelEl ? String(modelEl.value || '').trim() : '';
-  }
-
-  function selectMergeGroup(pending) {
-    var packages = Array.isArray(pending) ? pending : [];
-    if (packages.length < 2) {
-      return {
-        group: packages.slice(),
-        finalPass: packages.length <= 1,
-        promptTokens: 0,
-        safePromptTokenLimit: getSafePromptTokenLimit(getSelectedModelName())
-      };
-    }
-    var safePromptTokenLimit = getSafePromptTokenLimit(getSelectedModelName());
-    var softLimit = Math.max(12000, Math.floor(safePromptTokenLimit * 0.82));
-    var maxGroupSize = Math.min(MERGE_BATCH_SIZE, packages.length);
-    var lightest = null;
-    for (var size = maxGroupSize; size >= 2; size--) {
-      var group = packages.slice(0, size);
-      var finalPass = size === packages.length;
-      var prompt = buildMergePrompt(group, { finalPass: finalPass });
-      var promptTokens = estimatePromptTokens(prompt);
-      if (!lightest || promptTokens < lightest.promptTokens) {
-        lightest = {
-          group: group,
-          finalPass: finalPass,
-          promptTokens: promptTokens,
-          safePromptTokenLimit: safePromptTokenLimit
-        };
-      }
-      if (promptTokens <= softLimit) {
-        return {
-          group: group,
-          finalPass: finalPass,
-          promptTokens: promptTokens,
-          safePromptTokenLimit: safePromptTokenLimit
-        };
-      }
-    }
-    throw new Error(
-      '合并阶段最小 2 包仍预计约 ' + formatNumber(lightest ? lightest.promptTokens : 0) +
-      ' tokens，已经逼近当前模型安全阈值 ' + formatNumber(safePromptTokenLimit) +
-      '。请把“单次分片字数”继续调低，建议先降到 ' +
-      formatNumber(Math.max(4000, Math.floor((Number(state.chunkCharLimit) || DEFAULT_CHUNK_CHAR_LIMIT) * 0.6))) +
-      ' 字左右后重新生成。'
-    );
-  }
-
-  async function requestChatJson(prompt) {
-    var apiUrlEl = document.getElementById('apiUrl');
-    var apiKeyEl = document.getElementById('apiKey');
-    var modelEl = document.getElementById('modelSelect');
-    if (!apiUrlEl || !apiKeyEl || !modelEl || !modelEl.value) {
-      throw new Error('请先在 AI 引擎里配置接口并选择模型');
-    }
-    var promptTokens = estimatePromptTokens(prompt);
-    var safePromptTokenLimit = getSafePromptTokenLimit(modelEl.value);
-    if (promptTokens > safePromptTokenLimit) {
-      throw new Error(
-        '当前单次请求预计约 ' + formatNumber(promptTokens) + ' tokens，已经超过工坊安全阈值 ' +
-        formatNumber(safePromptTokenLimit) + '。请先把“单次分片字数”调低后再试。'
-      );
-    }
-    var headers = { 'Content-Type': 'application/json' };
-    var key = apiKeyEl.value.trim();
-    if (key) headers.Authorization = 'Bearer ' + key;
-    var res = await fetch(apiUrlEl.value.replace(/\/$/, '') + '/chat/completions', {
-      method: 'POST',
-      headers: headers,
-      body: JSON.stringify({
-        model: modelEl.value,
-        messages: [
-          { role: 'system', content: prompt.system },
-          { role: 'user', content: prompt.user }
-        ],
-        temperature: 0.2
-      })
-    });
-    if (!res.ok) {
-      var errText = '';
-      var errMessage = '';
-      try { errText = await res.text(); } catch (err) {}
-      if (errText) {
-        try {
-          var errJson = JSON.parse(errText);
-          if (errJson && errJson.error) {
-            errMessage = errJson.error.message || JSON.stringify(errJson.error);
-          }
-        } catch (err) {}
-        if (!errMessage) errMessage = errText.replace(/\s+/g, ' ').trim().slice(0, 240);
-      }
-      if (!errMessage && res.status >= 500) {
-        errMessage = '接口服务异常';
-      }
-      errMessage = normalizeApiErrorMessage(res.status, errMessage);
-      if (res.status >= 500 && promptTokens > 30000) {
-        errMessage += (errMessage ? '；' : '') + '当前请求体偏大，建议下调“单次分片字数”';
-      }
-      throw new Error('HTTP ' + res.status + (errMessage ? '：' + errMessage : ''));
-    }
-    var data = await res.json();
-    var raw = data && data.choices && data.choices[0] && data.choices[0].message ? data.choices[0].message.content : '';
-    return extractJsonObject(raw);
-  }
-
-  async function requestWorkshopPackage() {
-    return requestChatJson(buildDirectPrompt(getCombinedSourceText()));
-  }
-
-  async function requestChunkPackage(chunkText, chunkIndex, chunkTotal) {
-    return requestChatJson(buildChunkExtractPrompt(chunkText, chunkIndex, chunkTotal));
-  }
-
-  async function requestMergedPackage(packages, options) {
-    return requestChatJson(buildMergePrompt(packages, options));
-  }
-
-  async function runChunkedWorkflow(previousEntries) {
-    var source = getCombinedSourceText();
-    var chunks = splitTextIntoChunks(source, Number(state.chunkCharLimit) || DEFAULT_CHUNK_CHAR_LIMIT);
-    if (!chunks.length) throw new Error('没有可处理的小说资料');
-    assertWorkflowAffordable(buildCallEstimate());
-    var signature = buildWorkflowSignature(source, chunks);
-    if (chunks.length === 1) {
-      workflowRunState = { phase: 'extract', extractionDone: 0, extractionTotal: 1, mergeDone: 0, mergeTotal: 0 };
-      setStatus('🧬 当前资料较短，直接单次生成世界书包...', '#38bdf8');
-      renderAll();
-      var direct = await requestWorkshopPackage();
-      workflowRunState = { phase: 'inject', extractionDone: 1, extractionTotal: 1, mergeDone: 0, mergeTotal: 0 };
-      clearCheckpoint();
-      renderAll();
-      return direct;
-    }
-
-    var checkpoint = loadCheckpoint(signature);
-    var partials = checkpoint ? checkpoint.partials.slice() : [];
-    var resumedPending = checkpoint && checkpoint.phase === 'merge' && Array.isArray(checkpoint.pending) && checkpoint.pending.length
-      ? checkpoint.pending.slice()
-      : null;
-    var resumeFrom = partials.length;
-    var resumeMergeDone = checkpoint && checkpoint.phase === 'merge' ? clampNumber(checkpoint.mergeDone, 0, 9999, 0) : 0;
-    workflowRunState = {
-      phase: resumedPending ? 'merge' : 'extract',
-      extractionDone: resumeFrom,
-      extractionTotal: chunks.length,
-      mergeDone: resumeMergeDone,
-      mergeTotal: resumedPending ? (resumeMergeDone + countSequentialMergeCalls(resumedPending.length)) : countSequentialMergeCalls(chunks.length)
-    };
-    if (resumeFrom) writePartialSnapshot(partials, previousEntries, resumeFrom, chunks.length);
-    if (resumedPending) {
-      setStatus('🧠 检测到合并断点，继续处理剩余 ' + resumedPending.length + ' 个知识包...', '#38bdf8');
-    } else {
-      setStatus(resumeFrom ? ('🧩 检测到断点，继续处理第 ' + (resumeFrom + 1) + ' / ' + chunks.length + ' 片...') : ('🧩 已拆成 ' + chunks.length + ' 片，开始逐片抽取实体与条目...'), '#38bdf8');
-    }
-    renderAll();
-    for (var i = resumeFrom; i < chunks.length; i++) {
-      setStatus('🧩 正在抽取第 ' + (i + 1) + ' / ' + chunks.length + ' 片...', '#38bdf8');
-      var partial = await requestChunkPackage(chunks[i], i + 1, chunks.length);
-      partials.push(partial);
-      workflowRunState.extractionDone = i + 1;
-      saveCheckpoint({
-        signature: signature,
-        sourceHash: hashString(source),
-        chunkSize: Number(state.chunkCharLimit) || DEFAULT_CHUNK_CHAR_LIMIT,
-        totalChunks: chunks.length,
-        phase: 'extract',
-        partials: partials,
-        updatedAt: new Date().toISOString()
-      });
-      writePartialSnapshot(partials, previousEntries, i + 1, chunks.length);
-      setStatus('✅ 已写入第 ' + (i + 1) + ' / ' + chunks.length + ' 片的临时世界书快照。', '#34d399');
-      renderAll();
-    }
-
-    var pending = resumedPending ? resumedPending.slice() : partials.slice();
-    var mergeDone = resumeMergeDone;
-    while (pending.length > 1) {
-      workflowRunState.phase = 'merge';
-      workflowRunState.mergeTotal = Math.max(workflowRunState.mergeTotal, mergeDone + countSequentialMergeCalls(pending.length));
-      renderAll();
-      var mergePlan = selectMergeGroup(pending);
-      if (mergePlan.finalPass) setStatus('🧠 正在做最终合并去重并生成完整世界书包...', '#38bdf8');
-      else setStatus('🧠 正在合并 ' + mergePlan.group.length + ' 个知识分片，尽量压低单次 tokens...', '#38bdf8');
-      var merged = await requestMergedPackage(mergePlan.group, { finalPass: mergePlan.finalPass });
-      pending = [merged].concat(pending.slice(mergePlan.group.length));
-      mergeDone += 1;
-      workflowRunState.mergeDone = mergeDone;
-      workflowRunState.mergeTotal = Math.max(workflowRunState.mergeTotal, mergeDone + countSequentialMergeCalls(pending.length));
-      saveCheckpoint({
-        signature: signature,
-        sourceHash: hashString(source),
-        chunkSize: Number(state.chunkCharLimit) || DEFAULT_CHUNK_CHAR_LIMIT,
-        totalChunks: chunks.length,
-        phase: 'merge',
-        partials: partials,
-        pending: pending,
-        mergeDone: mergeDone,
-        mergeTotal: workflowRunState.mergeTotal,
-        updatedAt: new Date().toISOString()
-      });
-      renderAll();
-    }
-
-    workflowRunState.phase = 'inject';
-    clearCheckpoint();
-    renderAll();
-    return pending[0];
-  }
-
-  function replaceNovelWorldbookEntries(previousEntries) {
-    if (!window.__getWorldbookEntries__ || !window.__setWorldbookEntries__) return;
-    var previousComments = [buildGateRuleEntry(state).comment];
-    (previousEntries || []).forEach(function(entry) {
-      previousComments.push(buildEntryComment(entry));
-    });
-    var currentEntries = window.__getWorldbookEntries__();
-    var kept = currentEntries.filter(function(entry) {
-      var comment = String(entry.comment || '');
-      return previousComments.indexOf(comment) < 0 && !/^\[小说/.test(comment);
-    });
-    var nextEntries = [buildGateRuleEntry(state)].concat(state.generatedEntries.map(function(entry) {
-      return buildWorldbookEntry(entry, state);
-    }));
-    window.__setWorldbookEntries__(kept.concat(nextEntries));
-  }
-
-  function applyActivationOnly() {
-    if (!window.__getWorldbookEntries__ || !window.__setWorldbookEntries__) return;
-    var commentsToControl = {};
-    commentsToControl[buildGateRuleEntry(state).comment] = true;
-    state.generatedEntries.forEach(function(entry) {
-      commentsToControl[buildEntryComment(entry)] = isEntryUnlocked(entry, state);
-    });
-    var nextEntries = window.__getWorldbookEntries__().map(function(entry) {
-      if (commentsToControl.hasOwnProperty(entry.comment)) {
-        entry.enabled = commentsToControl[entry.comment];
-      }
-      return entry;
-    });
-    window.__setWorldbookEntries__(nextEntries);
-  }
-
-  function syncVariablesToMvu(message) {
-    if (!window.__applyExternalVariableDesign__) throw new Error('MVU 变量桥接尚未就绪');
-    var result = window.__applyExternalVariableDesign__({
-      source: 'novel-workshop',
-      message: message || '已从小说世界书工坊同步 MVU 变量节点',
-      design: {
-        summary: state.summary || '小说世界书门控变量',
-        variables: mergeVariableBlueprint(state)
-      }
-    });
-    return result;
-  }
-
-  function setStatus(text, color) {
-    statusTextEl.textContent = text;
-    statusTextEl.style.color = color || '#34d399';
   }
 
   function escapeHtml(text) {
-    return String(text || '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
+    return String(text || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
-  function escapeAttr(text) {
-    return escapeHtml(text).replace(/'/g, '&#39;');
+  function renderQueue() {
+      if(state.tasks.length === 0) {
+          taskQueueEl.style.display = 'none';
+          return;
+      }
+      taskQueueEl.style.display = 'block';
+      var done = state.tasks.filter(t => t.status === 'success' || t.status === 'failed').length;
+      queueProgressEl.textContent = done + '/' + state.tasks.length;
+      
+      queueListEl.innerHTML = state.tasks.map(t => {
+          return '<div class="novel-queue-item ' + t.status + '">' + 
+                 '<span>Chunk ' + t.chunk_id + '</span>' + 
+                 '<span>' + (t.status === 'running' ? '处理中...' : t.status === 'success' ? '完成' : t.status === 'failed' ? '失败' : '等待中') + '</span>' +
+                 '</div>';
+      }).join('');
   }
 
-  function handleTextFile(file) {
-    if (!file) return;
-    var reader = new FileReader();
-    reader.onload = function(event) {
-      importedFileText = String(event.target.result || '');
-      importedFileMeta = {
-        name: String(file.name || '未命名文件'),
-        charCount: importedFileText.length
+  function renderDrafts() {
+      if(!state.drafts || state.drafts.length === 0) {
+          draftPreviewEl.style.display = 'none';
+          return;
+      }
+      draftPreviewEl.style.display = 'block';
+      entityCountEl.textContent = state.drafts.length + ' 个条目';
+      
+      entityPreviewEl.innerHTML = state.drafts.map((d, i) => {
+          var colorClass = d.layer === 'blue' ? 'blue' : 'green';
+          var warningClass = d.warnings && d.warnings.length > 0 ? 'has-warning' : '';
+          var warningsHtml = d.warnings ? '<div class="novel-entity-warning">' + escapeHtml(d.warnings.join('; ')) + '</div>' : '';
+          return '<div class="novel-entity-card ' + colorClass + ' ' + warningClass + '">' +
+                 '<input type="checkbox" class="draft-checkbox" data-index="' + i + '" checked />' +
+                 '<div class="novel-entity-content">' +
+                 '<span class="novel-entity-meta">' + escapeHtml(d.category) + '</span>' +
+                 '<strong>' + escapeHtml(d.name) + '</strong>' +
+                 '<p>' + escapeHtml(d.content).substring(0, 100) + '...</p>' +
+                 '<div class="novel-entity-keys">Keys: ' + escapeHtml(d.keys.join(', ')) + '</div>' +
+                 warningsHtml +
+                 '</div></div>';
+      }).join('');
+  }
+
+  function renderAll() {
+      sourceTextEl.value = state.sourceText;
+      contextTextEl.value = state.contextText;
+      narrativeModeEl.value = state.narrativeMode;
+      chunkSizeEl.value = state.chunkSize;
+      concurrencyEl.value = state.concurrency;
+      strictQualityEl.checked = state.strictQuality;
+      
+      if (importedFileText) {
+          fileSummaryEl.style.display = 'block';
+          fileSummaryEl.innerHTML = '<strong>' + escapeHtml(importedFileMeta.name) + '</strong><span>' + importedFileText.length + ' 字符</span>';
+          btnClearFileEl.style.display = 'inline-block';
+      } else {
+          fileSummaryEl.style.display = 'none';
+          btnClearFileEl.style.display = 'none';
+      }
+      
+      renderFocusTags();
+      renderQueue();
+      renderDrafts();
+      
+      if(localStorage.getItem(SNAPSHOT_KEY)) {
+          btnUndoApply.style.display = 'block';
+      } else {
+          btnUndoApply.style.display = 'none';
+      }
+  }
+
+  function syncInputs() {
+      state.sourceText = sourceTextEl.value;
+      state.contextText = contextTextEl.value;
+      state.narrativeMode = narrativeModeEl.value;
+      state.chunkSize = parseInt(chunkSizeEl.value) || 8000;
+      state.concurrency = Math.max(1, parseInt(concurrencyEl.value) || 3);
+      state.strictQuality = strictQualityEl.checked;
+      saveState();
+  }
+  
+  [sourceTextEl, contextTextEl, narrativeModeEl, chunkSizeEl, concurrencyEl, strictQualityEl].forEach(el => {
+      el.addEventListener('change', syncInputs);
+      el.addEventListener('input', syncInputs);
+  });
+
+  sourceFileEl.addEventListener('change', function(e) {
+      var f = e.target.files[0];
+      if(!f) return;
+      var reader = new FileReader();
+      reader.onload = function(ev) {
+          importedFileText = ev.target.result;
+          importedFileMeta = { name: f.name };
+          renderAll();
       };
-      sourceFileEl.value = '';
-      renderAll();
-      setStatus('✅ 已载入文件：' + file.name + '，全文仅保留在内存中。', '#38bdf8');
-    };
-    reader.readAsText(file, 'utf-8');
-  }
-
-  sourceTextEl.addEventListener('input', function() {
-    syncInputsIntoState();
-    scheduleRawStateSave();
-  });
-
-  contextTextEl.addEventListener('input', function() {
-    syncInputsIntoState();
-    scheduleRawStateSave();
-  });
-
-  gateModeEl.addEventListener('change', function() {
-    syncInputsIntoState();
-    persistState();
-    renderAll();
-  });
-
-  narrativeModeEl.addEventListener('change', function() {
-    syncInputsIntoState();
-    scheduleRawStateSave();
-    renderAll();
-  });
-
-  entryBudgetEl.addEventListener('change', function() {
-    syncInputsIntoState();
-    scheduleRawStateSave();
-    renderAll();
-  });
-
-  chunkSizeEl.addEventListener('change', function() {
-    syncInputsIntoState();
-    scheduleRawStateSave();
-    renderAll();
-  });
-
-  sourceFileEl.addEventListener('change', function(event) {
-    var file = event.target.files && event.target.files[0];
-    handleTextFile(file);
+      reader.readAsText(f);
   });
 
   btnClearFileEl.addEventListener('click', function() {
-    importedFileText = '';
-    importedFileMeta = null;
-    sourceFileEl.value = '';
-    renderAll();
-    setStatus('已清空当前导入文件，保留手动摘录。', '#64748b');
+      importedFileText = '';
+      importedFileMeta = null;
+      sourceFileEl.value = '';
+      renderAll();
   });
 
-  ['dragenter', 'dragover'].forEach(function(eventName) {
-    dropzoneEl.addEventListener(eventName, function(event) {
-      event.preventDefault();
-      event.stopPropagation();
-      dropzoneEl.classList.add('is-dragover');
-    });
-  });
+  function splitText(text, size) {
+      var chunks = [];
+      var parts = text.split(/(?=第[^\n]{1,20}[章节卷回部篇])|(?=chapter\s+\d+)/i);
+      var current = "";
+      parts.forEach(p => {
+          if(p.length > size) {
+              if(current) { chunks.push(current); current = ""; }
+              for(var i=0; i<p.length; i+=size) chunks.push(p.substring(i, i+size));
+          } else {
+              if(current.length + p.length > size) {
+                  chunks.push(current);
+                  current = p;
+              } else {
+                  current += p;
+              }
+          }
+      });
+      if(current) chunks.push(current);
+      return chunks;
+  }
 
-  ['dragleave', 'dragend', 'drop'].forEach(function(eventName) {
-    dropzoneEl.addEventListener(eventName, function(event) {
-      event.preventDefault();
-      event.stopPropagation();
-      dropzoneEl.classList.remove('is-dragover');
-    });
-  });
+  function cleanKeys(keys, name) {
+      var blacklist = ['他','她','它','那个','这个','这','那','什么'];
+      var res = [];
+      (keys || []).concat([name]).forEach(k => {
+          if(!k) return;
+          var ks = String(k).trim();
+          if(ks.length > 0 && ks.length < 50 && blacklist.indexOf(ks) < 0 && res.indexOf(ks) < 0) {
+              res.push(ks);
+          }
+      });
+      return res;
+  }
+  
+  function validateDraft(entry) {
+      var warnings = [];
+      if(state.focus.indexOf(entry.category) < 0) warnings.push('未勾选的类别: ' + entry.category);
+      if(!entry.name) warnings.push('缺失名称');
+      if(!entry.content) warnings.push('缺失内容');
+      if(state.strictQuality && entry.content && entry.content.length < 20) warnings.push('内容过短');
+      return warnings;
+  }
 
-  dropzoneEl.addEventListener('drop', function(event) {
-    var file = event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0];
-    handleTextFile(file);
+  async function callAI(promptText) {
+      var apiUrlEl = document.getElementById('apiUrl');
+      var apiKeyEl = document.getElementById('apiKey');
+      var modelEl = document.getElementById('modelSelect');
+      if (!apiUrlEl || !modelEl || !modelEl.value) throw new Error('未配置AI模型');
+      
+      var res = await fetch(apiUrlEl.value.replace(/\/$/, '') + '/chat/completions', {
+          method: 'POST',
+          headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + (apiKeyEl ? apiKeyEl.value.trim() : '')
+          },
+          body: JSON.stringify({
+              model: modelEl.value,
+              messages: [{role: 'user', content: promptText}],
+              temperature: 0.2
+          })
+      });
+      if(!res.ok) {
+          if(res.status === 429) throw new Error('429');
+          throw new Error('HTTP ' + res.status);
+      }
+      var data = await res.json();
+      var text = data.choices[0].message.content;
+      try {
+          var fence = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+          if(fence) return JSON.parse(fence[1]);
+          var first = text.indexOf('{');
+          var last = text.lastIndexOf('}');
+          if(first >= 0 && last > first) return JSON.parse(text.slice(first, last + 1));
+          return JSON.parse(text);
+      } catch(e) {
+          throw new Error('JSON 解析失败');
+      }
+  }
+
+  async function processQueue() {
+      var pending = state.tasks.filter(t => t.status === 'pending' || t.status === 'failed');
+      var running = state.tasks.filter(t => t.status === 'running').length;
+      
+      while(pending.length > 0 && running < state.concurrency) {
+          var task = pending.shift();
+          task.status = 'running';
+          task.attempts = (task.attempts || 0) + 1;
+          running++;
+          renderQueue();
+          
+          (async function(t) {
+              try {
+                  var prompt = "Extract novel facts in strictly JSON format: { \"facts\": [ { \"category\": \"character/location/faction/item/rule\", \"name\": \"...\", \"aspect\": \"...\", \"content\": \"...\", \"keys\": [\"...\"] } ] }\n\n" + 
+                               "Focus: " + state.focus.join(',') + "\n" +
+                               "Mode: " + state.narrativeMode + "\n" +
+                               "Context: " + state.contextText + "\n" +
+                               "Text:\n" + t.text;
+                  var result = await callAI(prompt);
+                  t.result = result;
+                  t.status = 'success';
+              } catch(e) {
+                  t.status = 'failed';
+                  t.error = e.message;
+                  if(e.message === '429') {
+                      await new Promise(r => setTimeout(r, 2000));
+                  }
+              }
+              saveState();
+              renderQueue();
+              processQueue();
+          })(task);
+      }
+      
+      if(pending.length === 0 && state.tasks.every(t => t.status === 'success' || t.status === 'failed')) {
+          btnGenerateEl.disabled = false;
+          btnGenerateEl.textContent = '合并为世界书草稿';
+          statusTextEl.textContent = '提取完成，点击合并';
+      }
+  }
+
+  btnGenerateEl.addEventListener('click', async function() {
+      syncInputs();
+      var fullText = (importedFileText + '\n' + state.sourceText).trim();
+      if(!fullText) return alert('没有文本');
+      
+      var sig = hashString(fullText + state.chunkSize + state.narrativeMode + state.focus.join(','));
+      if(state.signature !== sig) {
+          state.signature = sig;
+          var chunks = splitText(fullText, state.chunkSize);
+          state.tasks = chunks.map((c, i) => ({
+              chunk_id: i,
+              text: c,
+              status: 'pending',
+              result: null
+          }));
+          state.drafts = [];
+          saveState();
+      }
+      
+      if(state.tasks.some(t => t.status === 'pending' || t.status === 'failed')) {
+          btnGenerateEl.disabled = true;
+          btnGenerateEl.textContent = '处理中...';
+          processQueue();
+      } else {
+          // Merge
+          btnGenerateEl.disabled = true;
+          btnGenerateEl.textContent = '合并中...';
+          var allFacts = [];
+          state.tasks.forEach(t => {
+              if(t.result && t.result.facts) allFacts = allFacts.concat(t.result.facts);
+          });
+          
+          try {
+              var prompt = "Merge and deduplicate these facts into a unified novel-worldbook-draft-v1 JSON: { \"entries\": [ { \"category\": \"...\", \"layer\": \"green/blue\", \"name\": \"...\", \"aspect\": \"...\", \"content\": \"...\", \"keys\": [\"...\"] } ] }\n\n" +
+                           "Facts:\n" + JSON.stringify(allFacts);
+              var result = await callAI(prompt);
+              if(result && result.entries) {
+                  state.drafts = result.entries.map(e => {
+                      e.keys = cleanKeys(e.keys, e.name);
+                      e.layer = e.category === 'rule' ? 'blue' : 'green';
+                      e.enabled = true;
+                      e.strategy = e.category === 'rule' ? 'constant' : 'selective';
+                      e.comment = '[小说' + e.category + '] ' + e.name;
+                      e.warnings = validateDraft(e);
+                      return e;
+                  });
+                  saveState();
+                  renderAll();
+                  statusTextEl.textContent = '生成完毕，请在下方预览';
+              }
+          } catch(e) {
+              alert('合并失败: ' + e.message);
+          }
+          btnGenerateEl.disabled = false;
+          btnGenerateEl.textContent = '重新合并';
+      }
   });
 
   btnResetEl.addEventListener('click', function() {
-    state = createDefaultState();
-    importedFileText = '';
-    importedFileMeta = null;
-    sourceFileEl.value = '';
-    workflowRunState = { phase: 'idle', extractionDone: 0, extractionTotal: 0, mergeDone: 0, mergeTotal: 0 };
-    clearRawState();
-    clearCheckpoint();
-    persistState();
-    renderAll();
-    setStatus('已重置小说世界书工坊。', '#64748b');
-  });
-
-  btnSyncVariablesEl.addEventListener('click', function() {
-    if (!state.generatedEntries.length) return;
-    try {
-      var result = syncVariablesToMvu('已按当前阶段与标记同步 MVU 世界书控制变量');
-      setStatus('✅ 已同步到 MVU：' + result.count + ' 个变量', '#34d399');
-    } catch (err) {
-      setStatus('❌ 同步失败：' + err.message, '#f87171');
-    }
-  });
-
-  btnGenerateEl.addEventListener('click', async function() {
-    syncInputsIntoState();
-    if (!importedFileText && !state.sourceText) {
-      setStatus('❌ 先导入小说文件或补一段手动摘录，再开始生成。', '#f87171');
-      return;
-    }
-    if (!state.focus.length) {
-      setStatus('❌ 至少选一个抽取重点。', '#f87171');
-      return;
-    }
-    try {
-      assertWorkflowAffordable(buildCallEstimate());
-    } catch (err) {
-      setStatus('❌ ' + err.message, '#f87171');
-      return;
-    }
-
-    btnGenerateEl.disabled = true;
-    btnGenerateEl.textContent = '⏳ 正在生成小说世界书包...';
-    setStatus('🧬 正在让 AI 整理实体、条目与门控变量...', '#38bdf8');
-
-    try {
-      var previousEntries = state.generatedEntries.slice();
-      var pkg = await runChunkedWorkflow(previousEntries);
-      applyWorkshopPackageSnapshot(pkg, previousEntries);
-      var result = syncVariablesToMvu('已根据小说世界书工坊生成新的 MVU 管理变量');
-      workflowRunState = { phase: 'done', extractionDone: 0, extractionTotal: 0, mergeDone: 0, mergeTotal: 0 };
+      state.tasks = [];
+      state.drafts = [];
+      state.signature = '';
+      saveState();
       renderAll();
-      setStatus('✅ 小说世界书包已注入：' + state.generatedEntries.length + ' 条条目，' + result.count + ' 个变量', '#34d399');
-    } catch (err) {
-      workflowRunState = { phase: 'idle', extractionDone: 0, extractionTotal: 0, mergeDone: 0, mergeTotal: 0 };
-      renderAll();
-      setStatus('❌ 生成失败：' + err.message, '#f87171');
-    } finally {
-      btnGenerateEl.disabled = false;
-      btnGenerateEl.textContent = '🧬 生成并注入小说世界书';
-    }
   });
 
-  window.addEventListener('card-builder-data-changed', loadFromExtension);
+  function applyDrafts(filterFn) {
+      if (!window.__getWorldbookEntries__ || !window.__setWorldbookEntries__) return alert('环境不支持');
+      
+      var current = window.__getWorldbookEntries__();
+      localStorage.setItem(SNAPSHOT_KEY, JSON.stringify(current));
+      
+      var kept = current.filter(e => !String(e.comment || '').startsWith('[小说'));
+      
+      var checkboxes = document.querySelectorAll('.draft-checkbox');
+      var toAdd = [];
+      checkboxes.forEach((cb, idx) => {
+          if(cb.checked) {
+              var d = state.drafts[idx];
+              if(filterFn(d)) {
+                  toAdd.push({
+                      comment: d.comment,
+                      content: d.content,
+                      keys: d.keys,
+                      strategy: d.strategy,
+                      position: 4,
+                      depth: d.layer === 'blue' ? 2 : 4,
+                      role: 0,
+                      order: 800,
+                      prob: 100,
+                      enabled: true
+                  });
+              }
+          }
+      });
+      
+      window.__setWorldbookEntries__(kept.concat(toAdd));
+      if(window.dispatchEvent) {
+          window.dispatchEvent(new Event('worldbook-changed'));
+          window.dispatchEvent(new Event('card-builder-data-changed'));
+      }
+      alert('已应用 ' + toAdd.length + ' 个条目');
+      renderAll();
+  }
 
-  loadState(getWorkshopStateFromExtension());
+  btnApplyAll.addEventListener('click', () => applyDrafts(d => !d.warnings || d.warnings.length === 0));
+  btnApplyGreen.addEventListener('click', () => applyDrafts(d => d.layer === 'green' && (!d.warnings || d.warnings.length === 0)));
+  btnApplyBlue.addEventListener('click', () => applyDrafts(d => d.layer === 'blue' && (!d.warnings || d.warnings.length === 0)));
+  btnApplySelected.addEventListener('click', () => applyDrafts(d => true));
+  
+  btnUndoApply.addEventListener('click', function() {
+      var snap = localStorage.getItem(SNAPSHOT_KEY);
+      if(snap && window.__setWorldbookEntries__) {
+          window.__setWorldbookEntries__(JSON.parse(snap));
+          localStorage.removeItem(SNAPSHOT_KEY);
+          if(window.dispatchEvent) {
+              window.dispatchEvent(new Event('worldbook-changed'));
+              window.dispatchEvent(new Event('card-builder-data-changed'));
+          }
+          alert('已撤销');
+          renderAll();
+      }
+  });
+
+  btnCancelDraft.addEventListener('click', function() {
+      state.drafts = [];
+      saveState();
+      renderAll();
+  });
+
+  loadState();
 })();
 </script>
