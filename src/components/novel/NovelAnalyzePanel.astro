@@ -1,0 +1,72 @@
+---
+/** 小说分析主入口：RAG 索引 + 统一分析 + 关系图谱（G6） */
+---
+<div class="panel novel-workshop-panel novel-extract-panel novel-analyze-panel" data-novel-panel="analyze">
+  <h2>小说分析</h2>
+  <p class="novel-panel-tip">
+    建索引 → 统一分析（骨架 / 丰满 / 关系）。结果在「人物列表 / 世界书条目」；本页为关系图谱。
+    向量检索需先在侧栏 <a href="#ai-config" class="novel-config-link">AI 配置</a> 填写 Embedding（可与主对话 API 分开配置），再点下方「重建索引」。
+  </p>
+  <p id="novelAnalyzeGate" class="novel-gate-hint" style="display:none;"></p>
+
+  <div class="novel-extract-body novel-analyze-body">
+    <div class="novel-extract-controls novel-analyze-controls">
+      <div class="grid-3 novel-analyze-grid">
+        <div class="form-group">
+          <label for="novelAnalyzeShardMode">分析分片方式</label>
+          <select id="novelAnalyzeShardMode">
+            <option value="chars" selected>按字数</option>
+            <option value="chapters">按章节</option>
+          </select>
+        </div>
+        <div class="form-group" id="novelAnalyzeChunkSizeWrap">
+          <label for="novelAnalyzeChunkSize">分片字数</label>
+          <select id="novelAnalyzeChunkSize">
+            <option value="4000">4,000 字</option>
+            <option value="8000" selected>8,000 字</option>
+            <option value="12000">12,000 字</option>
+            <option value="16000">16,000 字</option>
+            <option value="24000">24,000 字</option>
+            <option value="32000">32,000 字</option>
+            <option value="48000">48,000 字</option>
+            <option value="64000">64,000 字</option>
+          </select>
+        </div>
+        <div class="form-group" id="novelAnalyzeChaptersPerShardWrap" hidden>
+          <label for="novelAnalyzeChaptersPerShard">分片章节数</label>
+          <input id="novelAnalyzeChaptersPerShard" type="number" min="1" step="1" value="1" />
+        </div>
+      </div>
+
+      <div class="novel-toolbar novel-analyze-toolbar" aria-label="小说分析操作">
+        <button id="btnNovelRagIndex" type="button" class="btn btn-fetch novel-btn-sm" title="强制重建向量/关键词索引">重建索引</button>
+        <button id="btnNovelAnalyzeAll" type="button" class="btn btn-ai novel-btn-sm" title="骨架+丰满+关系（索引过期才重建）">开始完整分析</button>
+        <button id="btnNovelAnalyzeSkeleton" type="button" class="btn btn-fetch novel-btn-sm">仅骨架</button>
+        <button id="btnNovelAnalyzeEnrich" type="button" class="btn btn-fetch novel-btn-sm">仅丰满</button>
+        <button id="btnNovelRetryFailed" type="button" class="btn btn-fetch novel-btn-sm" title="仅重跑失败片" hidden>重跑失败</button>
+        <button id="btnGraphRelayout" type="button" class="btn btn-fetch novel-btn-sm" title="重新布局图谱">重新布局</button>
+        <button id="btnGraphClear" type="button" class="btn btn-fetch novel-btn-sm" title="清空关系与图谱，保留实体">清空图谱</button>
+        <button id="btnNovelNsfwStatusDraft" type="button" class="btn btn-fetch novel-btn-sm" title="从人物 NSFW 生成状态栏变量草案">NSFW→状态栏草案</button>
+      </div>
+
+      <div class="novel-analyze-status-row">
+        <p id="novelRagIndexInfo" class="novel-status-text">索引：未建</p>
+        <p id="novelFailedShardsInfo" class="novel-status-text" style="display:none;"></p>
+        <div id="novelAnalyzeQueue" class="novel-status-text" style="display:none;"></div>
+        <div id="novelAnalyzeStatus" class="novel-status-text"></div>
+        <pre id="novelNsfwStatusDraft" class="novel-status-text" style="display:none;white-space:pre-wrap;max-height:120px;overflow:auto;"></pre>
+      </div>
+    </div>
+
+    <!-- G6 关系图谱：占满中部剩余高度 -->
+    <div id="novelGraphCy" class="novel-graph-cy" role="img" aria-label="知识图谱可视化"></div>
+
+    <div class="novel-graph-footer">
+      <div class="novel-graph-footer-meta">
+        <p id="novelAnalyzeSummary" class="novel-analyze-summary" aria-live="polite">实体 0 · 关系 0</p>
+        <p id="novelGraphStats" class="novel-graph-stats" aria-live="polite">节点 0 · 边 0</p>
+      </div>
+      <div id="novelGraphDetail" class="novel-graph-detail">点击节点或边查看详情</div>
+    </div>
+  </div>
+</div>

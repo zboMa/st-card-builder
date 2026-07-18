@@ -1,34 +1,28 @@
 ---
+/** 角色设定：编辑当前卡字段；多卡切换在「角色卡管理」 */
 ---
 <div class="panel area-character">
-  <!-- 草稿管理 -->
-  <div class="draft-manager">
-    <label style="color: #34d399; font-size: 0.85rem; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
-      <span>💾 多卡片草稿箱</span>
-      <span id="saveIndicator" style="color: #3b82f6; font-size: 0.75rem; display: none; font-weight: 600;">✔️ 已保存</span>
-    </label>
-    <select id="draftSelect"></select>
-    <div class="draft-controls">
-      <button id="btnNewDraft" class="btn btn-add" style="flex: 1;">📄 新建</button>
-      <button id="btnDeleteDraft" class="btn btn-delete" style="flex: 1; width: 100%;">🗑️ 删除</button>
+  <div class="panel-header character-panel-head">
+    <h2>角色设定</h2>
+    <div class="panel-header__end">
+      <button type="button" id="btnOpenAiEngine" class="btn btn-toolbar">AI 引擎</button>
+      <span id="saveIndicator" class="panel-header__badge character-saved" style="display: none;">已保存</span>
     </div>
   </div>
 
-  <h2>🧑‍🎤 角色设定</h2>
-
   <!-- 头像上传 -->
-  <div style="display: flex; gap: 14px; margin-bottom: 16px; align-items: center;">
-    <div style="width: 56px; height: 56px; border-radius: 10px; background: #0a0f1e; border: 1px dashed #334155; overflow: hidden; display: flex; justify-content: center; align-items: center; flex-shrink: 0;">
-      <span id="avatarPlaceholder" style="font-size: 0.65rem; color: #475569;">无图</span>
-      <img id="avatarImg" style="width: 100%; height: 100%; object-fit: cover; display: none;" alt="avatar" />
+  <div class="avatar-upload">
+    <div class="avatar-upload__preview">
+      <span id="avatarPlaceholder" class="avatar-upload__placeholder">无图</span>
+      <img id="avatarImg" class="avatar-upload__img" style="display: none;" alt="avatar" />
     </div>
-    <div style="flex: 1; min-width: 0;">
-      <label style="font-size: 0.75rem; color: #64748b; margin-bottom: 4px; display: block;">上传头像（将嵌入 PNG 卡片）</label>
+    <div class="avatar-upload__meta">
+      <label class="avatar-upload__label">上传头像（将嵌入 PNG 卡片）</label>
       <input type="file" id="charImageInput" accept="image/*" />
     </div>
   </div>
 
-  <!-- 基础信息 -->
+  <!-- 基础信息；开场白已迁至「开场白」模块 -->
   <div class="grid-2">
     <div class="form-group">
       <label>角色名 (Name)</label>
@@ -40,27 +34,29 @@
     </div>
   </div>
 
+  <!-- 角色标签：对接 ST tags / data.tags -->
+  <div class="form-group char-tags-group">
+    <div class="char-tags-label-row">
+      <label for="charTagInput">角色标签 (Tags)</label>
+      <span class="ui-hint ui-hint--inline char-tags-tip">ST tags / data.tags</span>
+    </div>
+    <div class="form-section char-tags-section">
+      <div id="charTagsList" class="chip-list char-tags-list" aria-live="polite"></div>
+      <div class="toolbar-row char-tags-add-row">
+        <button type="button" id="btnAiGenCharTags" class="btn btn-toolbar char-tag-ai-btn">AI 生成</button>
+        <input type="text" id="charTagInput" class="toolbar-row__input char-tag-input" placeholder="输入标签，回车添加" autocomplete="off" />
+        <button type="button" id="btnAddCharTag" class="btn btn-add btn-sm char-tag-add-btn">添加</button>
+      </div>
+    </div>
+    <span id="charTagsAiTip" class="ui-status-tip char-tags-ai-tip" role="status" aria-live="polite"></span>
+  </div>
+
   <div class="form-group">
     <label>角色描述 (Description)</label>
     <textarea id="charDesc" style="min-height: 130px;" placeholder="角色的外貌、性格、背景故事..."></textarea>
   </div>
 
-  <div class="form-group">
-    <label>第一条消息 (First Message)</label>
-    <textarea id="firstMes" style="min-height: 130px;" placeholder="角色的开场白..."></textarea>
-  </div>
-
-  <!-- ★ 备选开场白 -->
-  <div class="alt-greetings-section">
-    <div class="alt-greetings-header">
-      <label style="color: #64748b; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin: 0;">
-        备选开场白 (Alternate Greetings)
-      </label>
-      <button id="btnAddGreeting" class="btn-alt-add" title="添加备选开场白">＋</button>
-    </div>
-    <p class="alt-greetings-tip">酒馆中用户可在多个开场白之间切换选择</p>
-    <div id="altGreetingsList"></div>
-  </div>
+  <p class="ui-hint character-greetings-hint">主开场白与备选开场请到侧栏「开场白」模块编辑。</p>
 
   <hr class="divider" />
 
@@ -70,243 +66,12 @@
   </div>
 </div>
 
-<style is:global>
-  /* ── 备选开场白区域 ── */
-  .alt-greetings-section {
-    margin-bottom: 14px;
-  }
-  .alt-greetings-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 4px;
-  }
-  .alt-greetings-tip {
-    font-size: 0.68rem;
-    color: #475569;
-    margin: 0 0 10px 0;
-  }
-
-  /* ＋ 添加按钮 */
-  .btn-alt-add {
-    width: 28px;
-    height: 28px;
-    border-radius: 6px;
-    border: 1px dashed #334155;
-    background: rgba(16, 185, 129, 0.06);
-    color: #34d399;
-    font-size: 1.1rem;
-    font-weight: 700;
-    cursor: pointer;
+<style>
+  /* 标题行右侧：AI 引擎入口 + 保存徽章 */
+  .panel-header__end {
     display: flex;
     align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease;
-    font-family: inherit;
-    line-height: 1;
-    padding: 0;
-  }
-  .btn-alt-add:hover {
-    background: rgba(16, 185, 129, 0.15);
-    border-color: #34d399;
-    transform: scale(1.1);
-  }
-
-  /* 条目动画 */
-  .alt-greeting-item {
-    position: relative;
-    margin-bottom: 8px;
-    animation: altIn 0.25s ease;
-  }
-  @keyframes altIn {
-    from { opacity: 0; transform: translateY(-6px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-  .alt-greeting-bar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 4px;
-  }
-  .alt-greeting-label {
-    font-size: 0.72rem;
-    color: #8b5cf6;
-    font-weight: 600;
-  }
-  .alt-greeting-actions {
-    display: flex;
-    gap: 4px;
-  }
-
-  /* ── 操作按钮基础 ── */
-  .btn-alt-action {
-    width: 26px;
-    height: 26px;
-    border-radius: 6px;
-    border: 1px solid rgba(99, 102, 241, 0.25);
-    background: rgba(99, 102, 241, 0.08);
-    color: #818cf8;
-    font-size: 0.78rem;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.18s ease;
-    padding: 0;
-    font-family: inherit;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-  }
-  .btn-alt-action:hover {
-    background: rgba(99, 102, 241, 0.2);
-    border-color: rgba(99, 102, 241, 0.5);
-    color: #c7d2fe;
-    transform: translateY(-1px);
-    box-shadow: 0 3px 8px rgba(99, 102, 241, 0.25);
-  }
-  .btn-alt-action:active {
-    transform: translateY(0);
-  }
-
-  /* 上移 — 蓝色 */
-  .btn-alt-action[data-action="up"] {
-    border-color: rgba(56, 189, 248, 0.25);
-    background: rgba(56, 189, 248, 0.08);
-    color: #7dd3fc;
-  }
-  .btn-alt-action[data-action="up"]:hover {
-    background: rgba(56, 189, 248, 0.18);
-    border-color: rgba(56, 189, 248, 0.5);
-    color: #bae6fd;
-    box-shadow: 0 3px 8px rgba(56, 189, 248, 0.2);
-    transform: translateY(-1px);
-  }
-
-  /* 下移 — 绿色 */
-  .btn-alt-action[data-action="down"] {
-    border-color: rgba(16, 185, 129, 0.25);
-    background: rgba(16, 185, 129, 0.08);
-    color: #6ee7b7;
-  }
-  .btn-alt-action[data-action="down"]:hover {
-    background: rgba(16, 185, 129, 0.18);
-    border-color: rgba(16, 185, 129, 0.5);
-    color: #a7f3d0;
-    box-shadow: 0 3px 8px rgba(16, 185, 129, 0.2);
-    transform: translateY(-1px);
-  }
-
-  /* 删除 — 红色 */
-  .btn-alt-action.btn-alt-del {
-    border-color: rgba(239, 68, 68, 0.25);
-    background: rgba(239, 68, 68, 0.08);
-    color: #fca5a5;
-  }
-  .btn-alt-action.btn-alt-del:hover {
-    background: rgba(239, 68, 68, 0.18);
-    border-color: rgba(239, 68, 68, 0.5);
-    color: #fecaca;
-    box-shadow: 0 3px 8px rgba(239, 68, 68, 0.2);
-    transform: translateY(-1px);
-  }
-
-  /* 条目文本框 */
-  .alt-greeting-item textarea {
-    width: 100%;
-    min-height: 80px;
-    resize: vertical;
-  }
-
-  /* 空状态 */
-  .alt-greetings-empty {
-    text-align: center;
-    padding: 16px;
-    border: 1px dashed #1e293b;
-    border-radius: 8px;
-    color: #334155;
-    font-size: 0.75rem;
+    gap: var(--space-2);
+    flex-shrink: 0;
   }
 </style>
-
-<script is:inline>
-(function() {
-  var btnAdd = document.getElementById('btnAddGreeting');
-  var listEl = document.getElementById('altGreetingsList');
-
-  // 全局存储
-  if (!window.__altGreetings__) window.__altGreetings__ = [];
-
-  function render() {
-    var greetings = window.__altGreetings__;
-    if (!greetings.length) {
-      listEl.innerHTML = '<div class="alt-greetings-empty">暂无备选开场白，点击右上角 ＋ 添加</div>';
-      return;
-    }
-    listEl.innerHTML = '';
-    greetings.forEach(function(text, i) {
-      var item = document.createElement('div');
-      item.className = 'alt-greeting-item';
-      item.innerHTML =
-        '<div class="alt-greeting-bar">' +
-          '<span class="alt-greeting-label">开场白 #' + (i + 2) + '</span>' +
-          '<div class="alt-greeting-actions">' +
-            (i > 0
-              ? '<button class="btn-alt-action" data-action="up" data-idx="' + i + '" title="上移">↑</button>'
-              : '') +
-            (i < greetings.length - 1
-              ? '<button class="btn-alt-action" data-action="down" data-idx="' + i + '" title="下移">↓</button>'
-              : '') +
-            '<button class="btn-alt-action btn-alt-del" data-action="del" data-idx="' + i + '" title="删除">✕</button>' +
-          '</div>' +
-        '</div>' +
-        '<textarea class="alt-greeting-ta" data-idx="' + i + '" placeholder="备选开场白 #' + (i + 2) + ' 的内容...">' +
-          escapeHTML(text) +
-        '</textarea>';
-      listEl.appendChild(item);
-    });
-
-    // 事件绑定
-    listEl.querySelectorAll('.alt-greeting-ta').forEach(function(ta) {
-      ta.addEventListener('input', function(e) {
-        var idx = parseInt(e.target.getAttribute('data-idx'));
-        window.__altGreetings__[idx] = e.target.value;
-        notifyChange();
-      });
-    });
-    listEl.querySelectorAll('.btn-alt-action').forEach(function(btn) {
-      btn.addEventListener('click', function(e) {
-        var action = e.currentTarget.getAttribute('data-action');
-        var idx    = parseInt(e.currentTarget.getAttribute('data-idx'));
-        var g      = window.__altGreetings__;
-        if (action === 'del') {
-          g.splice(idx, 1);
-        } else if (action === 'up' && idx > 0) {
-          var tmp = g[idx]; g[idx] = g[idx - 1]; g[idx - 1] = tmp;
-        } else if (action === 'down' && idx < g.length - 1) {
-          var tmp2 = g[idx]; g[idx] = g[idx + 1]; g[idx + 1] = tmp2;
-        }
-        render();
-        notifyChange();
-      });
-    });
-  }
-
-  btnAdd.addEventListener('click', function() {
-    window.__altGreetings__.push('');
-    render();
-    var tas = listEl.querySelectorAll('.alt-greeting-ta');
-    if (tas.length) tas[tas.length - 1].focus();
-    notifyChange();
-  });
-
-  function notifyChange() {
-    if (window.triggerGlobalUpdate) window.triggerGlobalUpdate();
-  }
-
-  function escapeHTML(str) {
-    return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  }
-
-  window.__renderAltGreetings__ = render;
-  render();
-})();
-</script>

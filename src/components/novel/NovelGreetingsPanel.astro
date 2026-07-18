@@ -1,0 +1,63 @@
+---
+/** 拆章后：按范围截取原文 → 生成开场白并写入 first_mes + alternate_greetings */
+---
+<div class="panel novel-workshop-panel novel-setup-panel novel-greetings-gen-panel" data-novel-panel="greetings">
+  <h2>开场白</h2>
+  <p class="novel-panel-tip">
+    依赖已拆章。优先实体库选人 + RAG 原文；无命中回退范围截取。按数量生成主开场 + 备选，写入当前卡开场白字段。
+  </p>
+  <p id="novelGreetGate" class="novel-gate-hint" style="display:none;"></p>
+
+  <div class="novel-setup-body">
+    <div class="novel-setup-controls">
+      <div class="form-group">
+        <label for="novelGreetEntityPick">从实体库选人（可选）</label>
+        <select id="novelGreetEntityPick">
+          <option value="">— 手填角色名 —</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="novelGreetCharName">角色名称</label>
+        <input type="text" id="novelGreetCharName" placeholder="例如：秦月" />
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label for="novelGreetRangeMode">范围方式</label>
+          <select id="novelGreetRangeMode">
+            <option value="chars" selected>按字数限制</option>
+            <option value="chapters">前 N 启用章</option>
+          </select>
+        </div>
+        <div class="form-group" id="novelGreetCharLimitWrap">
+          <label for="novelGreetCharLimit">字数上限</label>
+          <select id="novelGreetCharLimit">
+            <option value="4000">4,000 字</option>
+            <option value="8000">8,000 字</option>
+            <option value="12000">12,000 字</option>
+            <option value="16000" selected>16,000 字</option>
+            <option value="24000">24,000 字</option>
+            <option value="32000">32,000 字</option>
+            <option value="48000">48,000 字</option>
+            <option value="64000">64,000 字</option>
+          </select>
+        </div>
+        <div class="form-group" id="novelGreetChapterCountWrap" style="display:none;">
+          <label for="novelGreetChapterCount">前 N 章（启用）</label>
+          <input type="number" id="novelGreetChapterCount" min="1" max="999" value="3" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="novelGreetCount">开场白数量（含主开场）</label>
+        <input type="number" id="novelGreetCount" min="1" max="12" value="3" />
+      </div>
+      <button id="btnNovelGenGreetings" type="button" class="btn btn-ai" style="width:100%;margin-bottom:8px;">生成开场白</button>
+      <p id="novelGreetAiTip" class="novel-setup-ai-tip" role="status" aria-live="polite"></p>
+      <div id="novelGreetStatus" class="novel-status-text"></div>
+    </div>
+
+    <div class="novel-setup-preview-wrap">
+      <div class="novel-setup-preview-meta" id="novelGreetPreviewMeta">匹配原文 0 字 · 0 章</div>
+      <pre id="novelGreetPreview" class="novel-setup-preview" aria-live="polite"></pre>
+    </div>
+  </div>
+</div>

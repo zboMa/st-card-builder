@@ -1,0 +1,434 @@
+/**
+ * 侧栏菜单映射契约测试（与 AppSidebar / index 视图 id 对齐）
+ */
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+
+const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+
+/** 数据驱动侧栏在前端 matter 中的 view 契约 */
+function sidebarViewPattern(viewId) {
+  return new RegExp("view:\\s*'" + viewId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + "'");
+}
+
+function sidebarViewIndex(src, viewId) {
+  return src.search(sidebarViewPattern(viewId));
+}
+
+/** 侧栏最终菜单 → data-view 映射（顺序即契约） */
+const EXPECTED_MENU = {
+  '角色卡制作': ['card-manager', 'character', 'greetings', 'worldbook', 'statusbar', 'mvu', 'regex', 'tavern-scripts'],
+  '小说': [
+    'novel-source',
+    'novel-chapters',
+    'novel-character-setup',
+    'novel-greetings',
+    'novel-analyze',
+    'novel-characters',
+    'novel-worldbook',
+
+    'novel-style',
+  ],
+  '完成制作': ['chat', 'preview', 'auditor'],
+  '配置': ['ai-config', 'prompt-config'],
+};
+
+describe('sidebar navigation contract', function() {
+  it('AppSidebar 包含全部预期 data-view', function() {
+    const src = readFileSync(join(root, 'src/components/AppSidebar.astro'), 'utf8');
+    Object.values(EXPECTED_MENU).flat().forEach(function(viewId) {
+      assert.match(src, sidebarViewPattern(viewId), 'sidebar missing ' + viewId);
+    });
+    assert.match(src, /data-view=\{item\.view\}/);
+    assert.match(src, /角色卡制作/);
+    assert.match(src, /小说/);
+    assert.match(src, /完成制作/);
+    assert.match(src, /配置/);
+  });
+
+  // 校验「角色卡制作」内按钮出现顺序与契约一致
+  it('角色卡制作菜单顺序为 管理→设定→开场白→世界书→状态栏→MVU→正则→酒馆脚本', function() {
+    const src = readFileSync(join(root, 'src/components/AppSidebar.astro'), 'utf8');
+    let last = -1;
+    EXPECTED_MENU['角色卡制作'].forEach(function(viewId) {
+      const idx = sidebarViewIndex(src, viewId);
+      assert.ok(idx > last, 'order broken at ' + viewId);
+      last = idx;
+    });
+    assert.match(src, /DEFAULT_VIEW\s*=\s*'character'/);
+    assert.match(src, /角色卡管理/);
+  });
+
+  it('角色卡管理与角色设定职责分离', function() {
+    const mgr = readFileSync(join(root, 'src/components/CardManagerPanel.astro'), 'utf8');
+    assert.match(mgr, /id="cardManagerList"/);
+    assert.match(mgr, /id="btnNewDraft"/);
+    assert.match(mgr, /card-manager-list/);
+    assert.doesNotMatch(mgr, /id="draftSelect"/);
+    const charSrc = readFileSync(join(root, 'src/components/CharacterPanel.astro'), 'utf8');
+    assert.doesNotMatch(charSrc, /id="draftSelect"/);
+    assert.doesNotMatch(charSrc, /多卡片草稿箱/);
+    // 角色设定仅编辑表单，无当前卡摘要 / 回管理顶栏
+    assert.doesNotMatch(charSrc, /id="currentCardName"/);
+    assert.doesNotMatch(charSrc, /id="btnBackToCardManager"/);
+    assert.doesNotMatch(charSrc, /current-card-bar/);
+    assert.match(charSrc, /id="charName"/);
+    assert.match(charSrc, /id="saveIndicator"/);
+  });
+
+  // 导入在管理页顶栏；导出在每张卡底部；JSON 追踪仅预览
+  it('导入在角色卡管理顶栏，导出在卡片底部，JSON 追踪无导入导出按钮', function() {
+    const mgr = readFileSync(join(root, 'src/components/CardManagerPanel.astro'), 'utf8');
+    assert.match(mgr, /id="btnNewDraft"/);
+    assert.match(mgr, /id="btnImportCard"/);
+    assert.match(mgr, /id="importCardInput"/);
+    // 顶栏不再放全局导出
+    assert.doesNotMatch(mgr, /id="btnDownloadJson"/);
+    assert.doesNotMatch(mgr, /id="btnExportPNG"/);
+    assert.match(mgr, /card-manager-toolbar/);
+    const preview = readFileSync(join(root, 'src/components/PreviewPanel.astro'), 'utf8');
+    assert.doesNotMatch(preview, /id="btnImportCard"/);
+    assert.doesNotMatch(preview, /id="btnDownloadJson"/);
+    assert.doesNotMatch(preview, /id="btnExportPNG"/);
+    assert.doesNotMatch(preview, /id="importCardInput"/);
+    assert.match(preview, /id="annotatedPreview"/);
+    assert.match(preview, /id="toggleAnnotations"/);
+    const sidebar = readFileSync(join(root, 'src/components/AppSidebar.astro'), 'utf8');
+    assert.match(sidebar, /JSON 实时追踪/);
+    assert.doesNotMatch(sidebar, /JSON 实时追踪 \/ 导出/);
+  });
+
+  // 管理页网格渲染与点击切换契约（存储逻辑仍在 index）
+  it('角色卡管理为预览卡片网格且点击切换进设定', function() {
+    const mgr = readFileSync(join(root, 'src/components/CardManagerPanel.astro'), 'utf8');
+    // 默认一行 4 列，窄屏自适应减列
+    assert.match(mgr, /repeat\(4,\s*minmax\(0,\s*1fr\)\)/);
+    assert.match(mgr, /repeat\(3,\s*minmax\(0,\s*1fr\)\)/);
+    assert.match(mgr, /card-manager-item-actions__group/);
+    assert.match(mgr, /card-mgr-icon/);
+    assert.match(mgr, /id="btnImportCard"/);
+    const indexSrc = readFileSync(join(root, 'src/pages/index.astro'), 'utf8');
+    assert.match(indexSrc, /card-manager-cover/);
+    assert.match(indexSrc, /avatarInIdb/);
+    assert.match(indexSrc, /__avatarIdb__/);
+    assert.match(indexSrc, /hydrateManagerCoverThumb/);
+    assert.match(indexSrc, /applyAvatarFromImage/);
+    assert.match(indexSrc, /getDraftsForDisplay/);
+    assert.match(indexSrc, /buildDraftSnapshot/);
+    assert.match(indexSrc, /buildCardManagerActionsHtml/);
+    assert.match(indexSrc, /btn-icon--sm card-mgr-icon/);
+    assert.match(indexSrc, /card-manager-item-actions__group/);
+    assert.doesNotMatch(indexSrc, /btn-fetch.*export-json/);
+    assert.doesNotMatch(indexSrc, /btn-delete.*delete/);
+    assert.match(indexSrc, /exportDraftAsJson/);
+    assert.match(indexSrc, /exportDraftAsPng/);
+    assert.match(indexSrc, /buildCardJSONFromDraft/);
+    assert.match(indexSrc, /loadDraft\(id\);\s*goToView\('character'\)/);
+    assert.doesNotMatch(indexSrc, /currentCardName/);
+    assert.doesNotMatch(indexSrc, /btnBackToCardManager/);
+  });
+
+  it('角色设定含标签管理且导出写入 tags/data.tags', function() {
+    const charSrc = readFileSync(join(root, 'src/components/CharacterPanel.astro'), 'utf8');
+    assert.match(charSrc, /id="charTagsList"/);
+    assert.match(charSrc, /id="charTagInput"/);
+    assert.match(charSrc, /id="btnAddCharTag"/);
+    // 紧凑 UI：label 旁 tip + form-section 内 chip/工具条
+    assert.match(charSrc, /char-tags-tip/);
+    assert.match(charSrc, /form-section char-tags-section/);
+    assert.match(charSrc, /toolbar-row char-tags-add-row/);
+    assert.match(charSrc, /btn-toolbar char-tag-ai-btn/);
+    assert.match(charSrc, /btn-add btn-sm char-tag-add-btn/);
+    assert.doesNotMatch(charSrc, /char-tags-hint/);
+    const indexSrc = readFileSync(join(root, 'src/pages/index.astro'), 'utf8');
+    assert.match(indexSrc, /charTags/);
+    assert.match(indexSrc, /tagsFromImportJson|tagsFromCardJson/);
+    assert.match(indexSrc, /__getCharTags__/);
+    assert.match(indexSrc, /__setCharTags__/);
+    // generateFullJSON 同步顶层与 data.tags
+    assert.match(indexSrc, /tags:\s*tags/);
+    assert.match(indexSrc, /tags:\s*tags\.slice\(\)/);
+    const asst = readFileSync(join(root, 'src/components/AssistantPanel.astro'), 'utf8');
+    assert.match(asst, /__getCharTags__/);
+    assert.match(asst, /__setCharTags__/);
+  });
+
+  it('世界书条目面板 flex 占满且列表内部滚动', function() {
+    const layout = readFileSync(join(root, 'src/layouts/Layout.astro'), 'utf8');
+    // 选择器形如 .app-view[data-view="worldbook"].is-active
+    assert.match(layout, /\[data-view="worldbook"\]\.is-active/);
+    assert.match(layout, /\.area-worldbook\s*\{[^}]*display:\s*flex/s);
+    assert.match(layout, /#entriesList\s*\{[^}]*overflow-y:\s*auto/s);
+    // 列表行禁止 flex 压缩，避免条目叠扁
+    assert.match(layout, /\.entry-item\s*\{[^}]*flex-shrink:\s*0/s);
+    assert.match(layout, /\.entry-item\s*\{[^}]*height:\s*auto/s);
+    assert.match(layout, /\.entry-item\s*\{[^}]*min-height:\s*52px/s);
+    // 折叠时隐藏详情；展开可点收起
+    assert.match(layout, /\.entry-item:not\(\.is-expanded\):not\(\.is-creating\)\s+\.entry-detail/);
+    assert.match(layout, /\.entry-collapse-btn/);
+    const wb = readFileSync(join(root, 'src/components/WorldbookPanel.astro'), 'utf8');
+    assert.match(wb, /id="entriesList"/);
+    assert.match(wb, /wb-entries-list/);
+    // 标题行右上操作；下方仅搜索筛选（非双列预览卡）
+    assert.match(wb, /wb-panel-head/);
+    assert.match(wb, /wb-head-actions/);
+    assert.match(wb, /class="wb-toolbar"/);
+    assert.match(wb, /id="wbSearchInput"/);
+    assert.match(wb, /id="btnCreateEntry"[^>]*wb-entry-create-btn/);
+    assert.match(wb, />新建</);
+    assert.match(wb, /\.wb-entry-create-btn\s*\{[^}]*width:\s*auto/s);
+    assert.match(wb, /\.wb-search-results\s*\{[^}]*flex-direction:\s*column/s);
+    assert.match(wb, /\.wb-search-hit\s*\{/);
+    assert.doesNotMatch(wb, /wb-toolbar-actions|wb-search-card|grid-template-columns:\s*1fr\s+1fr/);
+    // 右上三小号按钮打开弹窗；执行按钮仍在弹窗内
+    assert.match(wb, /id="btnOpenWbAiSingle"/);
+    assert.match(wb, /id="btnOpenWbAiOrganize"/);
+    assert.match(wb, /id="btnOpenWbAiKeygen"/);
+    assert.match(wb, /wb-ai-open-btn/);
+    assert.match(wb, /id="wbModalSingle"/);
+    assert.match(wb, /id="wbModalOrganize"/);
+    assert.match(wb, /id="wbModalKeygen"/);
+    assert.match(wb, /id="btnAiSingleWb"/);
+    assert.match(wb, /id="btnAiOrganize"/);
+    assert.match(wb, /id="btnAiGenerateKeys"/);
+    // 真弹窗：fixed 全屏 + 遮罩 + aria-modal；配置控件仅在 modal 内
+    assert.match(wb, /\.wb-modal\s*\{[^}]*position:\s*fixed/s);
+    assert.match(wb, /\.wb-modal\s*\{[^}]*inset:\s*0/s);
+    assert.match(wb, /wb-modal-backdrop/);
+    assert.match(wb, /aria-modal="true"/);
+    assert.match(wb, /id="wbModalSingle"[\s\S]*id="wbSinglePrompt"/);
+    assert.match(wb, /id="wbModalSingle"[\s\S]*id="wbIncludeCharData"/);
+    assert.match(wb, /id="wbModalSingle"[\s\S]*id="wbIncludeOtherEntries"/);
+    // 已去掉「AI 工具」折叠块与旧全宽工具条 / 内嵌 details
+    assert.doesNotMatch(wb, /wb-ai-tools|wb-organize-wrap|wb-keygen-wrap|wb-entry-toolbar/);
+    assert.doesNotMatch(wb, /<details[\s\S]*AI/);
+    const indexSrc = readFileSync(join(root, 'src/pages/index.astro'), 'utf8');
+    assert.match(indexSrc, /wb-entries-empty/);
+    assert.match(indexSrc, /textContent = isCreatingEntry \? '取消新建' : '新建'/);
+    // 搜索：单列命中行 + 整行跳转编辑
+    assert.match(indexSrc, /wb-search-hit/);
+    assert.match(indexSrc, /buildWbHitSnippet/);
+    assert.match(indexSrc, /jumpToWbEntry/);
+    assert.match(indexSrc, /无命中/);
+    assert.doesNotMatch(indexSrc, /wb-search-card|两列展示/);
+    // 打开时挂 body，避免 panel transform 锁住 fixed；Esc / 遮罩关闭
+    assert.match(indexSrc, /document\.body\.appendChild\(el\)/);
+    assert.match(indexSrc, /wb-modal-open/);
+    assert.match(indexSrc, /e\.key\s*!==\s*'Escape'/);
+    assert.match(indexSrc, /data-wb-modal-close/);
+    // 点击标题/编辑按钮打开弹窗；危险操作 stopPropagation；右侧图标操作
+    assert.match(indexSrc, /editEntry/);
+    assert.match(indexSrc, /entry-title-btn/);
+    assert.match(indexSrc, /truncatePreviewLine|entry-preview-line/);
+    assert.doesNotMatch(indexSrc, /toggleEntryExpand|expandedEntries|data-toggle-index|entry-collapse-btn|entry-expand-hint/);
+    assert.match(indexSrc, /e\.stopPropagation\(\)/);
+    assert.match(indexSrc, /openWbModal\('wbModalSingle'\)/);
+    assert.match(indexSrc, /openWbModal\('wbModalEdit'\)|openWbEditModal/);
+    assert.match(indexSrc, /renderStrategyTag|wb-strategy-tag/);
+    assert.match(indexSrc, /strategyLabelZh/);
+    assert.match(indexSrc, /entry-icon-btn/);
+    assert.match(indexSrc, /btn-edit[\s\S]*title="编辑"|aria-label="编辑"/);
+    // 列表不再挂行内保存按钮
+    assert.doesNotMatch(indexSrc, /btn-save-inline/);
+    assert.match(wb, /id="wbModalEdit"/);
+    assert.match(layout, /wb-strategy-tag/);
+    assert.match(layout, /entry-preview-line/);
+    assert.match(layout, /wb-strategy-dot/);
+    assert.match(layout, /\.wb-strategy-tag\.is-constant/);
+    assert.match(layout, /\.wb-strategy-tag\.is-selective/);
+  });
+
+  it('完成制作菜单顺序为 试聊→JSON追踪→世界书监测', function() {
+    const src = readFileSync(join(root, 'src/components/AppSidebar.astro'), 'utf8');
+    let last = -1;
+    EXPECTED_MENU['完成制作'].forEach(function(viewId) {
+      const idx = sidebarViewIndex(src, viewId);
+      assert.ok(idx > last, 'finish order broken at ' + viewId);
+      last = idx;
+    });
+    assert.match(src, /角色试聊/);
+    assert.match(src, /JSON 实时追踪/);
+  });
+
+  it('角色试聊：标题行右上操作 + flex 占满 + 对话区内滚', function() {
+    const chat = readFileSync(join(root, 'src/components/ChatPlayground.astro'), 'utf8');
+    assert.match(chat, /chat-panel-header/);
+    assert.match(chat, /chat-header-actions/);
+    // 操作控件在标题行内（HTML 段，脚本前）
+    const htmlEnd = chat.indexOf('<style>');
+    const htmlPart = htmlEnd > 0 ? chat.slice(0, htmlEnd) : chat;
+    assert.match(htmlPart, /chat-header-actions[\s\S]*chatWbIndicator/);
+    assert.match(htmlPart, /chat-header-actions[\s\S]*chatTokenIndicator/);
+    assert.match(htmlPart, /chat-header-actions[\s\S]*chatShowPrompt/);
+    assert.match(htmlPart, /chat-header-actions[\s\S]*btnChatReset/);
+    assert.match(htmlPart, /chat-header-actions[\s\S]*btnChatRegenerate/);
+    // 重置/重生成在调试右侧（同一行顺序）
+    const debugIdx = htmlPart.indexOf('chatShowPrompt');
+    const resetIdx = htmlPart.indexOf('btnChatReset');
+    const regenIdx = htmlPart.indexOf('btnChatRegenerate');
+    assert.ok(debugIdx > 0 && resetIdx > debugIdx, '重置应在调试右侧');
+    assert.ok(regenIdx > resetIdx, '重新生成应在重置之后');
+    // 小号 ghost 按钮与指示器同行（宽度由 btn-sm / btn-ghost 承担）
+    assert.match(htmlPart, /btn-sm btn-ghost btn-chat-ctrl/);
+    // 配置区不含重置/调试开关
+    assert.doesNotMatch(htmlPart, /chat-controls[\s\S]*btnChatReset/);
+    assert.doesNotMatch(chat, /chat-setting-extra/);
+    assert.match(chat, /chat-controls/);
+    assert.match(chat, /id="chatMessages"/);
+    assert.match(chat, /chat-input-area/);
+    // 触发标签与消息同属可滚对话层，避免撑破面板
+    assert.match(htmlPart, /chat-conversation[\s\S]*chatWbTriggerBar[\s\S]*chatMessages/);
+    assert.match(chat, /\.chat-playground\s*\{[^}]*height:\s*100%/s);
+    assert.match(chat, /\.chat-playground\s*\{[^}]*max-height:\s*none/s);
+    assert.match(chat, /\.chat-conversation\s*\{[^}]*overflow-y:\s*auto/s);
+    assert.match(chat, /\.chat-conversation\s*\{[^}]*flex:\s*1/s);
+    assert.doesNotMatch(chat, /max-height:\s*600px/);
+    assert.doesNotMatch(chat, /max-height:\s*380px/);
+    const layout = readFileSync(join(root, 'src/layouts/Layout.astro'), 'utf8');
+    assert.match(layout, /\[data-view="chat"\]\.is-active/);
+    assert.match(layout, /\.panel\.chat-playground/);
+    assert.match(layout, /\.chat-playground\s+\.chat-conversation/);
+  });
+
+  it('小说菜单顺序为 资料→拆章→设定→开场白→分析→人物列表→世界书条目→文风', function() {
+    const src = readFileSync(join(root, 'src/components/AppSidebar.astro'), 'utf8');
+    let last = -1;
+    EXPECTED_MENU['小说'].forEach(function(viewId) {
+      const idx = sidebarViewIndex(src, viewId);
+      assert.ok(idx > last, 'novel order broken at ' + viewId);
+      last = idx;
+    });
+    assert.match(src, /原始资料/);
+    assert.match(src, /人物列表/);
+    assert.match(src, /世界书条目/);
+    assert.doesNotMatch(src, /novel-knowledge/);
+    assert.doesNotMatch(src, /知识库/);
+    // 小说模块 view id 勿与主卡 character/greetings 冲突
+    assert.match(src, sidebarViewPattern('novel-character-setup'));
+    assert.match(src, sidebarViewPattern('novel-greetings'));
+    assert.doesNotMatch(src, /view: 'novel-character'/);
+    // 菜单无产出浏览项；旧深链仍映射到人物列表
+    assert.doesNotMatch(src, /view: 'novel-outputs'/);
+    assert.doesNotMatch(src, /产出浏览/);
+    assert.match(src, /hash === 'novel-outputs'/);
+    assert.match(src, /novel-characters/);
+  });
+
+  it('index.astro 为每个菜单项提供 app-view', function() {
+    const src = readFileSync(join(root, 'src/pages/index.astro'), 'utf8');
+    Object.values(EXPECTED_MENU).flat().forEach(function(viewId) {
+      assert.match(
+        src,
+        new RegExp('class="app-view"[^>]*data-view="' + viewId + '"|data-view="' + viewId + '"'),
+        'index missing view ' + viewId
+      );
+    });
+    assert.match(src, /GreetingPanel/);
+    assert.match(src, /app-shell/);
+    assert.match(src, /PromptStoreBootstrap/);
+    assert.match(src, /PromptConfigPanel/);
+    assert.match(src, /AssistantPanel/);
+    // 全宽顶栏已移除，品牌区迁入侧栏
+    assert.doesNotMatch(src, /class="app-header"/);
+  });
+
+  it('侧栏顶部包含品牌区文案且无版本/访客 tag', function() {
+    const src = readFileSync(join(root, 'src/components/AppSidebar.astro'), 'utf8');
+    assert.match(src, /app-sidebar-brand/);
+    assert.match(src, /卡片构建器/);
+    assert.match(src, /一个简单的制卡器/);
+    // AI 任务进度入口在标题右侧
+    assert.match(src, /app-title-row/);
+    assert.match(src, /id="aiTaskBadge"/);
+    assert.doesNotMatch(src, /V4 BUILD/);
+    assert.doesNotMatch(src, /visitorNum|visitorCount|app-sidebar-brand-meta/);
+    const layout = readFileSync(join(root, 'src/layouts/Layout.astro'), 'utf8');
+    assert.match(layout, /\.app-sidebar-brand/);
+    assert.doesNotMatch(layout, /\.app-header\s*\{/);
+    assert.doesNotMatch(layout, /\.app-version-badge|\.app-visitor-badge|\.app-sidebar-brand-meta/);
+    const index = readFileSync(join(root, 'src/pages/index.astro'), 'utf8');
+    assert.doesNotMatch(index, /initVisitorCounter|increment_visitors|get_visitor_count/);
+  });
+
+  it('视口锁死：html/body 与主壳禁止整页滚动，栏内可滚', function() {
+    const layout = readFileSync(join(root, 'src/layouts/Layout.astro'), 'utf8');
+    assert.match(layout, /html\s*\{[^}]*overflow:\s*hidden/s);
+    assert.match(layout, /body\s*\{[^}]*overflow:\s*hidden/s);
+    assert.match(layout, /100dvh/);
+    assert.match(layout, /\.app-shell\s*\{[^}]*overflow:\s*hidden/s);
+    assert.match(layout, /\.app-shell\s*>\s*\*\s*\{[^}]*min-height:\s*0/s);
+    assert.match(layout, /\.app-container\s*\{[^}]*overflow-y:\s*auto/s);
+    // 侧栏仅中间菜单可滚；配置组底部固定
+    assert.match(layout, /\.app-sidebar-nav\s*\{[^}]*flex:\s*1/s);
+    assert.match(layout, /\.app-sidebar-nav\s*\{[^}]*overflow-y:\s*auto/s);
+    assert.match(layout, /\.app-sidebar-group-config\s*\{[^}]*flex-shrink:\s*0/s);
+    const panel = readFileSync(join(root, 'src/components/AssistantPanel.astro'), 'utf8');
+    assert.match(panel, /\.assistant-panel__messages\s*\{[^}]*overflow-y:\s*auto/s);
+    assert.match(panel, /\.assistant-panel\s*\{[^}]*height:\s*100%/s);
+    assert.doesNotMatch(panel, /calc\(100vh\s*-\s*32px\)/);
+  });
+
+  it('侧栏三段式：品牌顶固定、菜单中可滚、配置底固定且在 nav 外', function() {
+    const src = readFileSync(join(root, 'src/components/AppSidebar.astro'), 'utf8');
+    const brandIdx = src.indexOf('app-sidebar-brand');
+    const navOpen = src.indexOf('app-sidebar-nav');
+    const navClose = src.indexOf('</nav>');
+    const configIdx = src.indexOf('app-sidebar-group-config');
+    assert.ok(brandIdx > -1 && navOpen > brandIdx, '品牌区应在中间菜单之前');
+    assert.ok(configIdx > navClose && navClose > navOpen, '配置组应在 </nav> 之后');
+    assert.match(src, /id="appSidebarConfig"/);
+    assert.doesNotMatch(src, /app-sidebar-spacer/);
+    // 导航点击需覆盖 nav 外的配置项
+    assert.match(src, /sidebar\.querySelectorAll\('\.app-sidebar-item\[data-view\]'\)/);
+  });
+
+  it('开场白模块保留 firstMes 与备选开场 DOM', function() {
+    const src = readFileSync(join(root, 'src/components/GreetingPanel.astro'), 'utf8');
+    assert.match(src, /id="firstMes"/);
+    assert.match(src, /id="altGreetingsList"/);
+    assert.match(src, /id="btnAddGreeting"/);
+    assert.match(src, /__altGreetings__/);
+    assert.match(src, /__renderAltGreetings__/);
+    // 角色设定中不再承载开场白编辑
+    const charSrc = readFileSync(join(root, 'src/components/CharacterPanel.astro'), 'utf8');
+    assert.doesNotMatch(charSrc, /id="firstMes"/);
+    assert.doesNotMatch(charSrc, /id="altGreetingsList"/);
+  });
+
+  it('AIPanel 提供配置区；生成区在 AiEngineModal 弹窗', function() {
+    const cfg = readFileSync(join(root, 'src/components/AIPanel.astro'), 'utf8');
+    assert.match(cfg, /area-ai-config/);
+    assert.match(cfg, /AiEngineModal/);
+    assert.match(cfg, /id="apiUrl"/);
+    assert.match(cfg, /data-ai-config-tab="engine"/);
+    assert.match(cfg, /id="tagContextChars"/);
+    assert.doesNotMatch(cfg, /id="btnAiGenerate"/);
+
+    const modal = readFileSync(join(root, 'src/components/AiEngineModal.astro'), 'utf8');
+    assert.match(modal, /id="aiEngineModal"/);
+    assert.match(modal, /id="btnAiGenerate"/);
+    assert.match(modal, /id="greetingPrompt"/);
+    assert.match(modal, /\[阶段3\]/);
+    assert.match(modal, /__openAiEngineModal__/);
+  });
+
+  it('角色设定右上角含 AI 引擎入口', function() {
+    const charSrc = readFileSync(join(root, 'src/components/CharacterPanel.astro'), 'utf8');
+    assert.match(charSrc, /id="btnOpenAiEngine"/);
+    assert.match(charSrc, />AI 引擎</);
+  });
+
+  it('角色设定含标签 AI 生成按钮', function() {
+    const src = readFileSync(join(root, 'src/components/CharacterPanel.astro'), 'utf8');
+    assert.match(src, /id="btnAiGenCharTags"/);
+    assert.match(src, /id="btnAddCharTag"/);
+    assert.match(src, /id="charTagsAiTip"/);
+    // AI 生成在添加左侧
+    const aiIdx = src.indexOf('btnAiGenCharTags');
+    const addIdx = src.indexOf('btnAddCharTag');
+    assert.ok(aiIdx > -1 && addIdx > aiIdx);
+  });
+});

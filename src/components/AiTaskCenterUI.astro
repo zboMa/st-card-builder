@@ -1,0 +1,355 @@
+---
+/**
+ * 全局 AI 任务中心：注入 window.__aiTaskCenter__，绑定侧栏进度入口与居中任务弹窗
+ */
+---
+<!-- 居中任务列表弹窗（挂 body，避免侧栏 overflow 裁切） -->
+<div id="aiTaskModal" class="ai-task-modal" hidden aria-hidden="true">
+  <div class="ai-task-modal-backdrop" data-ai-task-close></div>
+  <div class="ai-task-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="aiTaskModalTitle">
+    <div class="ai-task-modal-head">
+      <strong id="aiTaskModalTitle">AI 任务中心</strong>
+      <span id="aiTaskModalCount" class="ai-task-modal-count">0/0</span>
+    </div>
+    <div id="aiTaskList" class="ai-task-list"></div>
+    <div class="ai-task-modal-actions">
+      <button type="button" class="btn btn-fetch ai-task-btn" id="aiTaskStopAll">停止全部进行中</button>
+      <button type="button" class="btn btn-fetch ai-task-btn" id="aiTaskClearDone">清除已完成</button>
+      <button type="button" class="btn ai-task-btn" data-ai-task-close>关闭</button>
+    </div>
+  </div>
+</div>
+
+<style is:global>
+  .app-title-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+  .app-title-row .app-title {
+    margin: 0;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  /* 标题右侧：已完成/全部 */
+  .ai-task-badge {
+    flex-shrink: 0;
+    border: 1px solid var(--color-accent-border);
+    background: var(--color-accent-soft);
+    color: var(--color-accent-hover);
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1;
+    padding: 3px 7px;
+    border-radius: var(--radius-pill);
+    cursor: pointer;
+    font-family: var(--font-mono);
+    letter-spacing: 0.02em;
+  }
+  .ai-task-badge:hover {
+    background: oklch(72% 0.14 305 / 0.22);
+    color: var(--color-text);
+  }
+  .ai-task-badge.is-busy {
+    border-color: var(--color-accent);
+    background: oklch(72% 0.14 305 / 0.2);
+    color: var(--color-text);
+    animation: ai-task-pulse 1.4s ease-in-out infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ai-task-badge.is-busy { animation: none; }
+  }
+  @keyframes ai-task-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.72; }
+  }
+
+  .ai-task-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 10040;
+    display: grid;
+    place-items: center;
+    padding: 18px;
+  }
+  .ai-task-modal[hidden] { display: none !important; }
+  .ai-task-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: var(--color-overlay);
+    backdrop-filter: blur(8px);
+  }
+  .ai-task-modal-dialog {
+    position: relative;
+    z-index: 1;
+    width: min(520px, 100%);
+    max-height: min(72vh, 640px);
+    display: flex;
+    flex-direction: column;
+    border-radius: 14px;
+    border: 1px solid var(--color-glass-border);
+    background: var(--color-glass); backdrop-filter: blur(20px) saturate(150%); -webkit-backdrop-filter: blur(20px) saturate(150%);
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
+    overflow: hidden;
+  }
+  .ai-task-modal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--color-border-subtle);
+  }
+  .ai-task-modal-count {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+    color: var(--color-text-muted);
+  }
+  .ai-task-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px 12px;
+    min-height: 120px;
+  }
+  .ai-task-empty {
+    padding: 28px 12px;
+    text-align: center;
+    color: var(--color-text-muted);
+    font-size: 13px;
+  }
+  .ai-task-item {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 6px 10px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    border-radius: 10px;
+    border: 1px solid rgba(100, 116, 139, 0.28);
+    background: var(--color-surface-inset);
+  }
+  .ai-task-item.is-running {
+    border-color: rgba(56, 189, 248, 0.4);
+    background: rgba(14, 165, 233, 0.08);
+  }
+  .ai-task-item-title {
+    font-size: 13px;
+    color: var(--color-text-secondary);
+    font-weight: 600;
+  }
+  .ai-task-item-meta {
+    font-size: 11px;
+    color: var(--color-text-muted);
+    grid-column: 1 / -1;
+  }
+  .ai-task-item-status {
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .ai-task-item-status.st-running { color: var(--color-accent-hover); }
+  .ai-task-item-status.st-queued { color: var(--color-accent-hover); }
+  .ai-task-item-status.st-success { color: var(--color-success); }
+  .ai-task-item-status.st-failed { color: var(--color-danger); }
+  .ai-task-item-status.st-cancelled { color: var(--color-text-muted); }
+  .ai-task-item-actions {
+    grid-column: 1 / -1;
+    display: flex;
+    gap: 6px;
+  }
+  .ai-task-item-actions .btn {
+    width: auto;
+    padding: 4px 10px;
+    font-size: 11px;
+  }
+  .ai-task-modal-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: flex-end;
+    padding: 12px 14px;
+    border-top: 1px solid rgba(148, 163, 184, 0.2);
+  }
+  .ai-task-btn {
+    width: auto !important;
+    padding: 6px 12px !important;
+    font-size: 12px !important;
+  }
+</style>
+
+<script>
+  import { createAiTaskCenter, AI_TASK_TYPES, isAbortError } from '../lib/aiTaskCenter.mjs';
+
+  (function bootAiTaskCenter() {
+    if (window.__aiTaskCenter__) return;
+
+    var center = createAiTaskCenter();
+    window.__aiTaskCenter__ = center;
+    window.__AI_TASK_TYPES__ = AI_TASK_TYPES;
+    window.__isAiAbortError__ = isAbortError;
+
+    var STATUS_LABEL = {
+      queued: '排队',
+      running: '进行中',
+      success: '成功',
+      failed: '失败',
+      cancelled: '已取消',
+    };
+
+    function $(id) { return document.getElementById(id); }
+
+    function ensureBadge() {
+      var badge = $('aiTaskBadge');
+      if (badge) return badge;
+      var title = document.querySelector('.app-sidebar-brand .app-title');
+      if (!title) return null;
+      var row = title.parentElement;
+      if (!row || !row.classList.contains('app-title-row')) {
+        var wrap = document.createElement('div');
+        wrap.className = 'app-title-row';
+        title.parentNode.insertBefore(wrap, title);
+        wrap.appendChild(title);
+        row = wrap;
+      }
+      badge = document.createElement('button');
+      badge.type = 'button';
+      badge.id = 'aiTaskBadge';
+      badge.className = 'ai-task-badge';
+      badge.title = '打开 AI 任务中心';
+      badge.setAttribute('aria-label', '打开 AI 任务中心');
+      badge.hidden = true;
+      badge.textContent = '0/0';
+      row.appendChild(badge);
+      return badge;
+    }
+
+    function openModal() {
+      var modal = $('aiTaskModal');
+      if (!modal) return;
+      if (!modal._aiTaskHome) modal._aiTaskHome = modal.parentNode;
+      document.body.appendChild(modal);
+      modal.hidden = false;
+      modal.setAttribute('aria-hidden', 'false');
+      document.body.classList.add('ai-task-modal-open');
+      renderList();
+    }
+
+    function closeModal() {
+      var modal = $('aiTaskModal');
+      if (!modal) return;
+      modal.hidden = true;
+      modal.setAttribute('aria-hidden', 'true');
+      document.body.classList.remove('ai-task-modal-open');
+      if (modal._aiTaskHome && modal.parentNode !== modal._aiTaskHome) {
+        modal._aiTaskHome.appendChild(modal);
+      }
+    }
+
+    function fmtTime(ts) {
+      if (!ts) return '—';
+      var d = new Date(ts);
+      return d.toLocaleTimeString();
+    }
+
+    function renderList() {
+      var snap = center.snapshot();
+      var listEl = $('aiTaskList');
+      var countEl = $('aiTaskModalCount');
+      if (countEl) countEl.textContent = snap.label;
+      if (!listEl) return;
+      if (!snap.tasks.length) {
+        listEl.innerHTML = '<div class="ai-task-empty">暂无任务</div>';
+        return;
+      }
+      listEl.innerHTML = snap.tasks.map(function(t) {
+        var canStop = t.status === 'running' || t.status === 'queued';
+        var progress = t.progressText
+          || (t.progress != null ? Math.round(t.progress * 100) + '%' : '');
+        var err = t.error ? (' · ' + t.error) : '';
+        var target = t.target ? (' · ' + t.target) : '';
+        return '<div class="ai-task-item' + (t.status === 'running' ? ' is-running' : '') + '" data-task-id="' + t.id + '">'
+          + '<div class="ai-task-item-title">' + escapeHtml(t.title) + '</div>'
+          + '<div class="ai-task-item-status st-' + t.status + '">' + (STATUS_LABEL[t.status] || t.status) + '</div>'
+          + '<div class="ai-task-item-meta">'
+          + escapeHtml(t.typeLabel || t.type)
+          + target
+          + (progress ? ' · ' + escapeHtml(progress) : '')
+          + ' · ' + fmtTime(t.startedAt || t.createdAt)
+          + (t.endedAt ? ' → ' + fmtTime(t.endedAt) : '')
+          + err
+          + '</div>'
+          + (canStop
+            ? '<div class="ai-task-item-actions"><button type="button" class="btn btn-fetch" data-ai-task-stop="' + t.id + '">停止</button></div>'
+            : '')
+          + '</div>';
+      }).join('');
+      listEl.querySelectorAll('[data-ai-task-stop]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          center.cancel(btn.getAttribute('data-ai-task-stop'));
+        });
+      });
+    }
+
+    function escapeHtml(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function syncBadge(snap) {
+      var badge = ensureBadge();
+      if (!badge) return;
+      badge.textContent = snap.label;
+      // 无任务隐藏；有任务始终显示已完成/全部
+      badge.hidden = snap.total === 0;
+      badge.classList.toggle('is-busy', snap.active > 0);
+    }
+
+    function bindUi() {
+      var badge = ensureBadge();
+      if (badge && !badge._bound) {
+        badge._bound = true;
+        badge.addEventListener('click', function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          openModal();
+        });
+      }
+      var modal = $('aiTaskModal');
+      if (modal && !modal._bound) {
+        modal._bound = true;
+        modal.querySelectorAll('[data-ai-task-close]').forEach(function(el) {
+          el.addEventListener('click', closeModal);
+        });
+        var stopAll = $('aiTaskStopAll');
+        if (stopAll) stopAll.addEventListener('click', function() { center.cancelAllRunning(); });
+        var clearDone = $('aiTaskClearDone');
+        if (clearDone) clearDone.addEventListener('click', function() { center.clearFinished(); });
+        document.addEventListener('keydown', function(e) {
+          if (e.key === 'Escape' && modal && !modal.hidden) closeModal();
+        });
+      }
+    }
+
+    center.subscribe(function(snap) {
+      syncBadge(snap);
+      var modal = $('aiTaskModal');
+      if (modal && !modal.hidden) renderList();
+    });
+
+    function init() {
+      bindUi();
+      syncBadge(center.snapshot());
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
+  })();
+</script>

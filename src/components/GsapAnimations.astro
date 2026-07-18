@@ -18,17 +18,17 @@
   // ============================================================
   //  1. 入场动画 — 变形金刚折叠展开
   // ============================================================
-  var header = q('.app-header');
+  // 品牌区已迁入侧栏顶部（原 .app-header）
+  var header = q('.app-sidebar-brand');
   var logo = q('.app-logo');
   var title = q('.app-title');
   var subtitle = q('.app-subtitle');
-  var badge = q('.app-version-badge');
 
   var master = gsap.timeline({ defaults: { ease: 'power3.out' } });
 
   if (header) {
-    gsap.set(header, { y: -40, opacity: 0 });
-    master.to(header, { y: 0, opacity: 1, duration: 0.8 }, 0);
+    gsap.set(header, { y: -20, opacity: 0 });
+    master.to(header, { y: 0, opacity: 1, duration: 0.7 }, 0);
   }
   if (logo) {
     gsap.set(logo, { scale: 0, rotation: -180 });
@@ -41,10 +41,6 @@
   if (subtitle) {
     gsap.set(subtitle, { x: -20, opacity: 0 });
     master.to(subtitle, { x: 0, opacity: 1, duration: 0.6 }, 0.55);
-  }
-  if (badge) {
-    gsap.set(badge, { scale: 0 });
-    master.to(badge, { scale: 1, duration: 0.5, ease: 'back.out(2)' }, 0.6);
   }
 
   // ── 面板：3D 展开 ── 点 → 线 → 面 → 内容依次滑出 ──
@@ -61,6 +57,76 @@
 
   function rgba(c, a) { return 'rgba(' + c.r + ',' + c.g + ',' + c.b + ',' + a + ')'; }
 
+  /** 与 AppSidebar readHashView 对齐（脚本执行时 is-active 可能尚未挂上） */
+  function getActiveViewId() {
+    var active = q('.app-view.is-active');
+    if (active) return active.getAttribute('data-view');
+    var hash = (location.hash || '').replace(/^#/, '');
+    if (hash === 'novel') hash = 'novel-source';
+    if (hash === 'novel-outputs') hash = 'novel-characters';
+    if (!hash) return 'character';
+    return q('.app-view[data-view="' + hash + '"]') ? hash : 'character';
+  }
+
+  function panelViewId(panel) {
+    var view = panel.closest('.app-view[data-view]');
+    return view ? view.getAttribute('data-view') : null;
+  }
+
+  /** 入场动画临时层（frame / sweep），pointer-events:none 但仍可能影响 clip 观感 */
+  function isUnfoldOverlay(el) {
+    if (!el || el.nodeType !== 1) return false;
+    var st = el.style;
+    return st.position === 'absolute' &&
+      st.pointerEvents === 'none' &&
+      (st.zIndex === '20' || st.zIndex === '21');
+  }
+
+  function collectPanelContentChildren(panel) {
+    var out = [];
+    var childNodes = panel.children;
+    for (var i = 0; i < childNodes.length; i++) {
+      var ch = childNodes[i];
+      if (ch.classList.contains('panel-hover-glow')) continue;
+      if (ch.classList.contains('unfold-scan-line') || ch.classList.contains('unfold-border-glow')) continue;
+      if (isUnfoldOverlay(ch)) continue;
+      out.push(ch);
+    }
+    return out;
+  }
+
+  /** 视图切换后立刻恢复可点击：清除 GSAP 残留的 opacity / clip-path */
+  function ensurePanelsInteractive(root) {
+    if (!root) return;
+    var list = root.querySelectorAll('.panel, .code-window');
+    for (var pi = 0; pi < list.length; pi++) {
+      var panel = list[pi];
+      gsap.killTweensOf(panel);
+      var children = collectPanelContentChildren(panel);
+      children.forEach(function (ch) { gsap.killTweensOf(ch); });
+      Array.prototype.slice.call(panel.children).forEach(function (ch) {
+        if (isUnfoldOverlay(ch) && ch.parentNode) ch.parentNode.removeChild(ch);
+      });
+      panel.style.clipPath = '';
+      panel.style.overflowX = '';
+      panel.style.filter = '';
+      gsap.set(panel, { clearProps: 'transform,opacity,scale,clipPath,filter,willChange' });
+      children.forEach(function (ch) {
+        gsap.set(ch, { clearProps: 'transform,opacity,scale,y,filter,willChange' });
+      });
+      panel.querySelectorAll('h2').forEach(function (h) {
+        gsap.killTweensOf(h);
+        gsap.set(h, { clearProps: 'opacity,transform,x,filter' });
+      });
+    }
+  }
+
+  window.addEventListener('app-view-changed', function (ev) {
+    var viewId = ev && ev.detail && ev.detail.view;
+    if (!viewId) return;
+    ensurePanelsInteractive(q('.app-view[data-view="' + viewId + '"]'));
+  });
+
   if (panels.length) {
     var container = q('.app-container');
     if (container) {
@@ -68,7 +134,12 @@
       container.style.perspectiveOrigin = '50% 30%';
     }
 
+    var initialViewId = getActiveViewId();
+
     panels.forEach(function (panel, idx) {
+      // 非首屏视图：跳过阻塞性入场（opacity:0 + clip-path 会导致切换后点击失效）
+      if (panelViewId(panel) !== initialViewId) return;
+
       var c = panelColors[idx % panelColors.length];
       var delay = 0.7 + idx * 0.4;
 
@@ -288,7 +359,13 @@
         }
       });
     }, { threshold: 0.3 });
-    h2s.forEach(function (h) { gsap.set(h, { opacity: 0 }); obs.observe(h); });
+    var h2ViewId = getActiveViewId();
+    h2s.forEach(function (h) {
+      var host = h.closest('.panel');
+      if (host && panelViewId(host) !== h2ViewId) return;
+      gsap.set(h, { opacity: 0 });
+      obs.observe(h);
+    });
   }
 
   // ============================================================
@@ -305,8 +382,9 @@
   }
 
   // ============================================================
-  //  5. Badge 呼吸光（可暂停）
+  //  5. AI 任务徽章呼吸光（可暂停）
   // ============================================================
+  var badge = q('.ai-task-badge');
   if (badge) {
     loopTweens.push(gsap.to(badge, {
       boxShadow: '0 0 12px rgba(139,92,246,0.4), inset 0 0 6px rgba(139,92,246,0.1)',
@@ -337,7 +415,7 @@
     }));
   }
 
-  createOrb('rgba(139,92,246,0.06)', 500, 10, 20, 12);
+  createOrb('var(--color-accent-soft)', 500, 10, 20, 12);
   createOrb('rgba(56,189,248,0.05)', 400, 80, 10, 15);
   createOrb('rgba(16,185,129,0.04)', 450, 50, 80, 18);
   createOrb('rgba(245,158,11,0.03)', 350, 25, 65, 14);
@@ -353,19 +431,7 @@
     );
   };
 
-  // ============================================================
-  //  8. Header 边框流光（可暂停）
-  // ============================================================
-  if (header) {
-    header.classList.add('header-glow-border');
-    var angle = { value: 0 };
-    loopTweens.push(gsap.to(angle, {
-      value: 360, duration: 8, ease: 'none', repeat: -1,
-      onUpdate: function () {
-        header.style.setProperty('--glow-angle', angle.value + 'deg');
-      },
-    }));
-  }
+  // Header 流光已移除（夜庭主题：品牌区保持静态细边）
 
   // ============================================================
   //  9. 世界书编辑 — 文字飞行动画（弧线 + 打字浮现）
@@ -430,14 +496,14 @@
     /* ── 构建文字碎片（带目标字段 ID） ── */
     var chips = [];
     if (data.comment)
-      chips.push({ t: '📌 ' + data.comment, c: '#c4b5fd', field: 'entryComment', val: data.comment });
+      chips.push({ t: '📌 ' + data.comment, c: 'var(--color-accent-hover)', field: 'entryComment', val: data.comment });
     if (data.content) {
       var preview = data.content.length > 28 ? data.content.slice(0, 28) + '…' : data.content;
       chips.push({ t: '📝 ' + preview, c: '#93c5fd', field: 'entryContent', val: data.content });
     }
     if (data.keys && data.keys.length)
-      chips.push({ t: '🔑 ' + data.keys.join(', '), c: '#6ee7b7', field: 'entryKeys', val: data.keys.join(', ') });
-    chips.push({ t: '⚙️ ' + (data.strategy || 'selective'), c: '#fcd34d', field: 'entryStrategy', val: data.strategy || 'selective' });
+      chips.push({ t: '🔑 ' + data.keys.join(', '), c: 'var(--color-success)', field: 'entryKeys', val: data.keys.join(', ') });
+    chips.push({ t: '⚙️ ' + (data.strategy || 'selective'), c: 'var(--color-warning)', field: 'entryStrategy', val: data.strategy || 'selective' });
     if (!chips.length) return;
 
     /* ── 坐标 ── */

@@ -1,76 +1,130 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import AIPanel from '../components/AIPanel.astro';
+import CardManagerPanel from '../components/CardManagerPanel.astro';
 import CharacterPanel from '../components/CharacterPanel.astro';
+import GreetingPanel from '../components/GreetingPanel.astro';
 import WorldbookPanel from '../components/WorldbookPanel.astro';
-import StatusBarPanel from '../components/StatusBarPanel.astro';
 import PreviewPanel from '../components/PreviewPanel.astro';
 import ChatPlayground from '../components/ChatPlayground.astro';
 import WorldbookAuditor from '../components/WorldbookAuditor.astro';
 import VariableCardPanel from '../components/VariableCardPanel.astro';
-import WorkspaceFooterPanel from '../components/WorkspaceFooterPanel.astro';
+import StatusBarPanel from '../components/StatusBarPanel.astro';
+import RegexPanel from '../components/RegexPanel.astro';
+import TavernScriptsPanel from '../components/TavernScriptsPanel.astro';
 import ParticleCanvas from '../components/ParticleCanvas.astro';
 import GsapAnimations from '../components/GsapAnimations.astro';
-import ChatWidget from '../components/ChatWidget.astro';
+import AppSidebar from '../components/AppSidebar.astro';
+import AssistantPanel from '../components/AssistantPanel.astro';
+import PromptConfigPanel from '../components/PromptConfigPanel.astro';
+import PromptStoreBootstrap from '../components/PromptStoreBootstrap.astro';
+import NovelWorkshopApp from '../components/novel/NovelWorkshopApp.astro';
+import NovelSourcePanel from '../components/novel/NovelSourcePanel.astro';
+import NovelChaptersPanel from '../components/novel/NovelChaptersPanel.astro';
+import NovelCharacterSetupPanel from '../components/novel/NovelCharacterSetupPanel.astro';
+import NovelGreetingsPanel from '../components/novel/NovelGreetingsPanel.astro';
+import NovelAnalyzePanel from '../components/novel/NovelAnalyzePanel.astro';
+import NovelCharactersPanel from '../components/novel/NovelCharactersPanel.astro';
+import NovelWorldbookPanel from '../components/novel/NovelWorldbookPanel.astro';
+import NovelStylePanel from '../components/novel/NovelStylePanel.astro';
+import AiTaskCenterUI from '../components/AiTaskCenterUI.astro';
 ---
 
-<Layout title="SillyTavern V4 卡片构建器">
+<Layout title="简陋的制卡工具">
+  <PromptStoreBootstrap />
+  <AiTaskCenterUI />
+  <NovelWorkshopApp />
   <ParticleCanvas />
-  <div class="app-header">
-    <div class="app-brand">
-      <span class="app-logo">
-        <svg class="logo-icon" viewBox="0 -1 24 26" width="22" height="22" fill="none">
-          <g transform="translate(0, 0)">
-          <path d="M12 2L14.09 8.26L20 9.27L15.55 13.97L16.91 20L12 16.9L7.09 20L8.45 13.97L4 9.27L9.91 8.26L12 2Z" fill="url(#logoGrad)" stroke="url(#logoStroke)" stroke-width="0.8" />
-          <path class="logo-spark" d="M12 2L14.09 8.26L20 9.27L15.55 13.97L16.91 20L12 16.9L7.09 20L8.45 13.97L4 9.27L9.91 8.26L12 2Z" fill="none" stroke="rgba(165,243,252,0.6)" stroke-width="0.6" />
-          <defs>
-            <linearGradient id="logoGrad" x1="4" y1="2" x2="20" y2="20">
-              <stop offset="0%" stop-color="#a78bfa" />
-              <stop offset="50%" stop-color="#6366f1" />
-              <stop offset="100%" stop-color="#38bdf8" />
-            </linearGradient>
-            <linearGradient id="logoStroke" x1="4" y1="2" x2="20" y2="20">
-              <stop offset="0%" stop-color="#c4b5fd" />
-              <stop offset="100%" stop-color="#67e8f9" />
-            </linearGradient>
-          </defs>
-          </g>
-        </svg>
-      </span>
-      <div>
-        <h1 class="app-title">V4 卡片构建器</h1>
-        <p class="app-subtitle">未完成版本</p>
+
+  <!-- 侧栏（含品牌区）+ 主内容 + 右栏 AI 助手；各 view 常驻 DOM，切换仅显隐 -->
+  <div class="app-shell">
+    <AppSidebar />
+    <div class="app-container">
+      <!-- 视图顺序与侧栏一致；显隐由 data-view 控制 -->
+      <div class="app-view" data-view="card-manager"><CardManagerPanel /></div>
+      <div class="app-view" data-view="character"><CharacterPanel /></div>
+      <div class="app-view" data-view="greetings"><GreetingPanel /></div>
+      <div class="app-view" data-view="worldbook"><WorldbookPanel /></div>
+      <div class="app-view" data-view="statusbar"><StatusBarPanel /></div>
+      <div class="app-view" data-view="mvu"><VariableCardPanel /></div>
+      <div class="app-view" data-view="regex"><RegexPanel /></div>
+      <div class="app-view" data-view="tavern-scripts"><TavernScriptsPanel /></div>
+      <div class="app-view" data-view="novel-source"><NovelSourcePanel /></div>
+      <div class="app-view" data-view="novel-chapters"><NovelChaptersPanel /></div>
+      <div class="app-view" data-view="novel-character-setup"><NovelCharacterSetupPanel /></div>
+      <div class="app-view" data-view="novel-greetings"><NovelGreetingsPanel /></div>
+      <div class="app-view" data-view="novel-analyze"><NovelAnalyzePanel /></div>
+      <div class="app-view" data-view="novel-characters"><NovelCharactersPanel /></div>
+      <div class="app-view" data-view="novel-worldbook"><NovelWorldbookPanel /></div>
+      <div class="app-view" data-view="novel-style"><NovelStylePanel /></div>
+      <div class="app-view" data-view="chat"><ChatPlayground /></div>
+      <div class="app-view" data-view="preview"><PreviewPanel /></div>
+      <div class="app-view" data-view="auditor"><WorldbookAuditor /></div>
+      <div class="app-view" data-view="ai-config">
+        <div class="app-view-slot" data-slot="ai-config"></div>
+      </div>
+      <div class="app-view" data-view="prompt-config"><PromptConfigPanel /></div>
+      <!-- 暂存 AI 双面板，脚本立即挂到对应 slot（避免重复拆组件导致脚本分叉） -->
+      <div id="aiPanelSource" hidden>
+        <AIPanel />
       </div>
     </div>
-    <div class="app-header-actions">
-      <span class="app-version-badge">V4 BUILD</span>
-      <span id="visitorCount" class="app-version-badge" style="margin-left:6px;background:rgba(139,92,246,0.13);border-color:rgba(139,92,246,0.3);color:#c4b5fd;min-width:60px;text-align:center;">
-        👥 <span id="visitorNum" style="font-variant-numeric:tabular-nums;">…</span>
-      </span>
-    </div>
+    <AssistantPanel />
   </div>
 
-  <div class="app-container">
-    <div class="app-stack app-stack-config">
-      <AIPanel />
-      <StatusBarPanel />
-    </div>
-    <div class="app-stack app-stack-lore">
-      <CharacterPanel />
-      <WorldbookPanel />
-    </div>
-    <div class="app-stack app-stack-play">
-      <ChatPlayground />
-      <VariableCardPanel />
-    </div>
-    <div class="app-stack app-stack-inspect">
-      <PreviewPanel />
-      <WorldbookAuditor />
-      <WorkspaceFooterPanel />
-    </div>
-  </div>
+  <script is:inline>
+  (function() {
+    var cfgSlot = document.querySelector('[data-slot="ai-config"]');
+    var cfgPanel = document.querySelector('.area-ai-config');
+    if (cfgSlot && cfgPanel) cfgSlot.appendChild(cfgPanel);
+    /* AI 引擎弹窗挂到 body，避免被主区 overflow 裁切 */
+    var modal = document.getElementById('aiEngineModal');
+    if (modal) document.body.appendChild(modal);
+    var src = document.getElementById('aiPanelSource');
+    if (src) src.remove();
+  })();
+  </script>
 
   <GsapAnimations />
+
+  <!-- 角色标签工具挂到 window，供草稿/导入导出内联脚本调用 -->
+  <script>
+    import {
+      normalizeCharTags,
+      tagsFromCardJson,
+      mergeCharTags,
+      buildTagGenContext,
+      parseTagsFromAiText,
+      clampTagContextChars,
+      DEFAULT_TAG_CONTEXT_CHARS,
+    } from '../lib/charTags.mjs';
+    window.__charTagsLib__ = {
+      normalizeCharTags: normalizeCharTags,
+      tagsFromCardJson: tagsFromCardJson,
+      mergeCharTags: mergeCharTags,
+      buildTagGenContext: buildTagGenContext,
+      parseTagsFromAiText: parseTagsFromAiText,
+      clampTagContextChars: clampTagContextChars,
+      DEFAULT_TAG_CONTEXT_CHARS: DEFAULT_TAG_CONTEXT_CHARS,
+    };
+  </script>
+
+  <!-- IndexedDB：头像高清图 + 小说大文本（草稿 JSON 仅存轻量标记） -->
+  <script>
+    import { openIdbDatabase } from '../lib/idbStore.mjs';
+    import * as avatarIdb from '../lib/avatarIdb.mjs';
+    import { removeNovelBucketIdb, copyNovelBucketIdb } from '../lib/novel/state.mjs';
+
+    window.__avatarIdb__ = avatarIdb;
+    window.__idbReady__ = openIdbDatabase().catch(function(err) {
+      console.warn('[idb] open failed', err);
+      return null;
+    });
+    window.__novelIdb__ = {
+      removeNovelBucketIdb: removeNovelBucketIdb,
+      copyNovelBucketIdb: copyNovelBucketIdb,
+    };
+  </script>
 
   <style is:global>
     .app-confirm-overlay {
@@ -129,7 +183,7 @@ import ChatWidget from '../components/ChatWidget.astro';
 
     .app-confirm-message {
       margin: 0;
-      color: #94a3b8;
+      color: var(--color-text-muted);
       font-size: 0.76rem;
       line-height: 1.6;
     }
@@ -140,7 +194,7 @@ import ChatWidget from '../components/ChatWidget.astro';
       border-radius: 12px;
       border: 1px solid rgba(51, 65, 85, 0.72);
       background: rgba(2, 6, 23, 0.44);
-      color: #cbd5e1;
+      color: var(--color-text-secondary);
       font-size: 0.74rem;
       line-height: 1.55;
     }
@@ -161,7 +215,7 @@ import ChatWidget from '../components/ChatWidget.astro';
       border-radius: 10px;
       border: 1px solid rgba(71, 85, 105, 0.75);
       background: rgba(15, 23, 42, 0.84);
-      color: #cbd5e1;
+      color: var(--color-text-secondary);
       font: inherit;
       font-size: 0.78rem;
       font-weight: 800;
@@ -236,7 +290,7 @@ import ChatWidget from '../components/ChatWidget.astro';
       "data.extensions.regex_scripts[].scriptName": { label: "脚本名称", tip: "显示名称", type: "string" },
       "data.extensions.regex_scripts[].findRegex": { label: "匹配正则", tip: "正则表达式字符串", type: "string" },
       "data.extensions.regex_scripts[].replaceString": { label: "替换内容", tip: "替换HTML，$1引用捕获组", type: "string" },
-      "data.extensions.regex_scripts[].placement": { label: "作用范围", tip: "1=AI输出 2=用户输入", type: "array" },
+      "data.extensions.regex_scripts[].placement": { label: "作用范围", tip: "1=用户输入 2=AI输出", type: "array" },
       "data.extensions.regex_scripts[].disabled": { label: "是否禁用", tip: "true则不生效", type: "boolean" },
       "data.extensions.regex_scripts[].runOnEdit": { label: "编辑时执行", tip: "编辑消息时重新执行", type: "boolean" },
       "data.character_book": { label: "内嵌世界书", tip: "嵌入角色卡的世界书", type: "object" },
@@ -316,14 +370,15 @@ import ChatWidget from '../components/ChatWidget.astro';
     var presetStatus         = document.getElementById('presetStatus');
     var aiPrompt             = document.getElementById('aiPrompt');
     var wbPrompt             = document.getElementById('wbPrompt');
+    var greetingPrompt       = document.getElementById('greetingPrompt');
     var btnAiGenerate        = document.getElementById('btnAiGenerate');
     var aiStatus             = document.getElementById('aiStatus');
     var wbSinglePrompt       = document.getElementById('wbSinglePrompt');
     var btnAiSingleWb        = document.getElementById('btnAiSingleWb');
     var wbIncludeCharData    = document.getElementById('wbIncludeCharData');
-    var draftSelect          = document.getElementById('draftSelect');
+    var wbIncludeOtherEntries = document.getElementById('wbIncludeOtherEntries');
+    var cardManagerList      = document.getElementById('cardManagerList');
     var btnNewDraft          = document.getElementById('btnNewDraft');
-    var btnDeleteDraft       = document.getElementById('btnDeleteDraft');
     var saveIndicator        = document.getElementById('saveIndicator');
     var charImageInput       = document.getElementById('charImageInput');
     var avatarImg            = document.getElementById('avatarImg');
@@ -333,10 +388,14 @@ import ChatWidget from '../components/ChatWidget.astro';
     var charDesc             = document.getElementById('charDesc');
     var firstMes             = document.getElementById('firstMes');
     var creatorNotes         = document.getElementById('creatorNotes');
+    var charTagsList         = document.getElementById('charTagsList');
+    var charTagInput         = document.getElementById('charTagInput');
+    var btnAddCharTag        = document.getElementById('btnAddCharTag');
+    var btnAiGenCharTags     = document.getElementById('btnAiGenCharTags');
+    var charTagsAiTip        = document.getElementById('charTagsAiTip');
+    var tagContextCharsEl    = document.getElementById('tagContextChars');
     var btnCreateEntry       = document.getElementById('btnCreateEntry');
     var entriesList          = document.getElementById('entriesList');
-    var btnDownloadJson      = document.getElementById('btnDownloadJson');
-    var btnExportPNG         = document.getElementById('btnExportPNG');
 
     // ============================================================
     //  状态
@@ -346,11 +405,73 @@ import ChatWidget from '../components/ChatWidget.astro';
     var tavernHelperScripts  = [];  // ScriptTree[] — 酒馆助手脚本
     var cardBuilderExtensions = {};
     var currentAvatarBase64  = "";
+    var currentAvatarInIdb   = false;
+    var managerThumbUrls     = [];
     var currentDraftId       = "";
+    var charTags             = [];  // ST tags / data.tags
     var parsedPresetList     = [];
     var editingIndex         = -1;
     var isCreatingEntry      = false;
     var cachedSearchResults  = null;
+
+    /** 规范化标签（优先用 lib，内联兜底） */
+    function normalizeTags(input) {
+      var lib = window.__charTagsLib__;
+      if (lib && lib.normalizeCharTags) return lib.normalizeCharTags(input);
+      var list = Array.isArray(input) ? input : [];
+      var seen = Object.create(null);
+      var out = [];
+      for (var i = 0; i < list.length; i++) {
+        var t = String(list[i] == null ? '' : list[i]).trim();
+        if (!t || seen[t]) continue;
+        seen[t] = true;
+        out.push(t);
+      }
+      return out;
+    }
+
+    function tagsFromImportJson(json) {
+      var lib = window.__charTagsLib__;
+      if (lib && lib.tagsFromCardJson) return lib.tagsFromCardJson(json);
+      if (!json || typeof json !== 'object') return [];
+      if (json.data && Array.isArray(json.data.tags)) return normalizeTags(json.data.tags);
+      if (Array.isArray(json.tags)) return normalizeTags(json.tags);
+      return [];
+    }
+
+    /** 渲染角色标签 chip 列表 */
+    function renderCharTags() {
+      if (!charTagsList) return;
+      charTags = normalizeTags(charTags);
+      charTagsList.innerHTML = charTags.map(function(tag, i) {
+        return (
+          '<span class="char-tag-chip" data-tag-index="' + i + '">' +
+            '<span class="char-tag-chip-text">' + escapeHTML(tag) + '</span>' +
+            '<button type="button" class="char-tag-chip-remove" data-tag-action="remove" data-tag-index="' + i + '" title="移除" aria-label="移除标签">×</button>' +
+          '</span>'
+        );
+      }).join('');
+    }
+
+    function setCharTags(next, opts) {
+      charTags = normalizeTags(next);
+      renderCharTags();
+      if (!opts || opts.save !== false) debouncedUpdateAndSave();
+    }
+
+    function addCharTagFromInput() {
+      if (!charTagInput) return;
+      var raw = charTagInput.value.trim();
+      if (!raw) return;
+      // 支持逗号一次添加多个
+      var parts = raw.split(/[,，]/).map(function(s) { return s.trim(); }).filter(Boolean);
+      setCharTags(charTags.concat(parts));
+      charTagInput.value = '';
+      charTagInput.focus();
+    }
+
+    window.__getCharTags__ = function() { return normalizeTags(charTags); };
+    window.__setCharTags__ = function(next) { setCharTags(next, { save: true }); };
 
     if (!window.__altGreetings__) window.__altGreetings__ = [];
 
@@ -434,6 +555,7 @@ import ChatWidget from '../components/ChatWidget.astro';
       }
       renderEntriesList();
       debouncedUpdateAndSave();
+      window.dispatchEvent(new CustomEvent('card-builder-data-changed'));
     };
 
     // ★ 变量卡生成器 — 设置酒馆助手脚本（完整 ScriptTree 格式）
@@ -464,10 +586,34 @@ import ChatWidget from '../components/ChatWidget.astro';
         });
       }
       debouncedUpdateAndSave();
+      window.dispatchEvent(new CustomEvent('card-builder-data-changed'));
     };
 
     window.__getTavernHelperScripts__ = function() {
       return Array.isArray(tavernHelperScripts) ? tavernHelperScripts.slice() : [];
+    };
+
+    // 正则面板：全量读写（导出仍走 regex_scripts）
+    window.__getRegexScripts__ = function() {
+      return Array.isArray(regexScripts) ? regexScripts.slice() : [];
+    };
+    window.__setRegexScripts__ = function(list, opts) {
+      opts = opts || {};
+      regexScripts = Array.isArray(list) ? list.slice() : [];
+      debouncedUpdateAndSave();
+      if (!opts.silent) {
+        window.dispatchEvent(new CustomEvent('card-builder-data-changed'));
+      }
+    };
+
+    // 酒馆脚本面板：全量替换 scripts；variables 等其它字段在导出时保留
+    window.__setTavernHelperScripts__ = function(list, opts) {
+      opts = opts || {};
+      tavernHelperScripts = Array.isArray(list) ? list.slice() : [];
+      debouncedUpdateAndSave();
+      if (!opts.silent) {
+        window.dispatchEvent(new CustomEvent('card-builder-data-changed'));
+      }
     };
 
     window.__deleteMvuArtifacts__ = function(options) {
@@ -513,13 +659,16 @@ import ChatWidget from '../components/ChatWidget.astro';
       return cardBuilderExtensions ? cardBuilderExtensions[key] : undefined;
     };
 
-    window.__setCardExtension__ = function(key, value) {
+    window.__setCardExtension__ = function(key, value, opts) {
+      opts = opts || {};
       if (!key) return;
       if (!cardBuilderExtensions || typeof cardBuilderExtensions !== 'object') cardBuilderExtensions = {};
       if (value === undefined || value === null) delete cardBuilderExtensions[key];
       else cardBuilderExtensions[key] = value;
       debouncedUpdateAndSave();
-      window.dispatchEvent(new CustomEvent('card-builder-data-changed'));
+      if (!opts.silent) {
+        window.dispatchEvent(new CustomEvent('card-builder-data-changed'));
+      }
     };
 
 window.applyJSONFromEditor = function(json) {
@@ -530,6 +679,8 @@ window.applyJSONFromEditor = function(json) {
   charDesc.value     = json.data.description || '';
   firstMes.value     = json.data.first_mes || '';
   creatorNotes.value = json.data.creator_notes || '';
+  // 标签：优先 data.tags，其次顶层 tags
+  setCharTags(tagsFromImportJson(json), { save: false });
   if (json.data.character_book && json.data.character_book.entries) {
     worldbookEntries = json.data.character_book.entries.map(function(e) {
       return {
@@ -573,13 +724,19 @@ window.applyJSONFromEditor = function(json) {
   window.dispatchEvent(new CustomEvent('card-builder-data-changed'));
 };
 
-// ★ 导入卡片时恢复头像（给 PreviewPanel 的 PNG 导入调用）
+// ★ 导入卡片时恢复头像（给角色卡管理的 PNG 导入调用；统一走 IndexedDB）
 window.__setImportedAvatar__ = function(base64) {
-  currentAvatarBase64 = base64;
-  avatarImg.src = base64;
-  avatarImg.style.display = 'block';
-  avatarPlaceholder.style.display = 'none';
-  debouncedUpdateAndSave();
+  if (!base64) return;
+  var img = new Image();
+  img.onload = function() { applyAvatarFromImage(img); };
+  img.onerror = function() {
+    currentAvatarBase64 = base64;
+    avatarImg.src = base64;
+    avatarImg.style.display = 'block';
+    avatarPlaceholder.style.display = 'none';
+    saveCurrentDraft({ reason: 'avatar' });
+  };
+  img.src = base64;
 };
 
     window.__getWorldbookEntries__ = function() {
@@ -665,9 +822,20 @@ window.__setImportedAvatar__ = function(base64) {
         key:        apiKey.value.trim(),
         model:      modelSelect.value,
         debug:      !!(aiDebugEnable && aiDebugEnable.checked),
+        // 标签 AI 上下文字数（默认 12k）
+        tagContextChars: window.__getTagContextChars__
+          ? window.__getTagContextChars__()
+          : (parseInt(tagContextCharsEl && tagContextCharsEl.value, 10) || 12000),
+        embeddingModel: (document.getElementById('embeddingModel') || {}).value || '',
+        embeddingApiUrl: (document.getElementById('embeddingApiUrl') || {}).value || '',
+        embeddingApiKey: (document.getElementById('embeddingApiKey') || {}).value || '',
+        novelRag: typeof window.__getNovelRagOptions__ === 'function'
+          ? window.__getNovelRagOptions__()
+          : { enabled: true, budget: 12000 },
         presetList: parsedPresetList,   // ★ 保存预设列表
       }));
     }
+    window.__persistAiConfig__ = saveAIConfig;
 
     function loadAIConfig() {
       try {
@@ -680,6 +848,35 @@ window.__setImportedAvatar__ = function(base64) {
           modelSelect.value = c.model;
         }
         if (aiDebugEnable) aiDebugEnable.checked = !!c.debug;
+        if (c.tagContextChars != null && window.__setTagContextChars__) {
+          window.__setTagContextChars__(c.tagContextChars);
+        } else if (c.tagContextChars != null && tagContextCharsEl) {
+          tagContextCharsEl.value = String(c.tagContextChars);
+        }
+        try {
+          if (c.embeddingApiUrl != null) {
+            localStorage.setItem('st_v3_builder_embedding_api_url', String(c.embeddingApiUrl || ''));
+            var embUrlEl = document.getElementById('embeddingApiUrl');
+            if (embUrlEl) embUrlEl.value = String(c.embeddingApiUrl || '');
+          }
+          if (c.embeddingApiKey != null) {
+            localStorage.setItem('st_v3_builder_embedding_api_key', String(c.embeddingApiKey || ''));
+            var embKeyEl = document.getElementById('embeddingApiKey');
+            if (embKeyEl) embKeyEl.value = String(c.embeddingApiKey || '');
+          }
+          if (c.embeddingModel != null) {
+            localStorage.setItem('st_v3_builder_embedding_model', String(c.embeddingModel || ''));
+            var embEl = document.getElementById('embeddingModel');
+            if (embEl) embEl.value = String(c.embeddingModel || '');
+          }
+          if (c.novelRag) {
+            localStorage.setItem('st_v3_builder_novel_rag', JSON.stringify(c.novelRag));
+            var en = document.getElementById('assistantNovelRagEnable');
+            var bu = document.getElementById('assistantNovelRagBudget');
+            if (en) en.checked = c.novelRag.enabled !== false;
+            if (bu && c.novelRag.budget) bu.value = String(c.novelRag.budget);
+          }
+        } catch (eRag) { /* ignore */ }
         // ★ 恢复预设列表
         if (c.presetList && Array.isArray(c.presetList) && c.presetList.length > 0) {
           parsedPresetList = c.presetList;
@@ -697,11 +894,11 @@ window.__setImportedAvatar__ = function(base64) {
       if (!aiDebugStatus) return;
       if (!isAIDebugEnabled()) {
         aiDebugStatus.textContent = '关闭：仅显示常规错误。开启后可在 F12 Console 查看请求摘要、原始响应和 JSON 解析失败细节。';
-        aiDebugStatus.style.color = '#64748b';
+        aiDebugStatus.style.color = 'var(--color-text-muted)';
         return;
       }
       aiDebugStatus.textContent = detail || '已开启：本次 AI 请求会在 Console 输出调试信息；解析失败时会保留原始响应。';
-      aiDebugStatus.style.color = isError ? '#fca5a5' : '#c4b5fd';
+      aiDebugStatus.style.color = isError ? 'var(--color-danger)' : 'var(--color-accent-hover)';
     }
 
     apiUrl.addEventListener('input', saveAIConfig);
@@ -730,67 +927,225 @@ window.__setImportedAvatar__ = function(base64) {
     }
 
     // ============================================================
-    //  头像
+    //  头像（高清 + 缩略图存 IndexedDB，草稿仅存 avatarInIdb 标记）
     // ============================================================
+    function ensureIdbReady() {
+      return window.__idbReady__ ? window.__idbReady__ : Promise.resolve(null);
+    }
+
+    function revokeManagerThumbs() {
+      managerThumbUrls.forEach(function(u) {
+        try { URL.revokeObjectURL(u); } catch (e) {}
+      });
+      managerThumbUrls = [];
+    }
+
+    /** 管理页封面：异步拉取 IDB 缩略图 */
+    function hydrateManagerCoverThumb(draftId, coverEl, placeholderEl) {
+      ensureIdbReady().then(function() {
+        if (!window.__avatarIdb__) return '';
+        return window.__avatarIdb__.loadAvatarThumbObjectUrl(draftId);
+      }).then(function(url) {
+        if (!url || !coverEl.isConnected) {
+          if (url) URL.revokeObjectURL(url);
+          return;
+        }
+        if (placeholderEl && placeholderEl.parentNode) placeholderEl.remove();
+        var coverImg = document.createElement('img');
+        coverImg.src = url;
+        coverImg.alt = '';
+        managerThumbUrls.push(url);
+        coverEl.insertBefore(coverImg, coverEl.firstChild);
+      }).catch(function() {});
+    }
+
+    /** 高清写入 IDB + 预览 + 落盘 */
+    async function applyAvatarFromImage(img) {
+      if (!currentDraftId) currentDraftId = genId();
+      try {
+        await ensureIdbReady();
+        if (!window.__avatarIdb__) throw new Error('IndexedDB 不可用');
+        await window.__avatarIdb__.saveAvatarFromImage(currentDraftId, img);
+        currentAvatarInIdb = true;
+        currentAvatarBase64 = '';
+        var url = await window.__avatarIdb__.loadAvatarFullDataUrl(currentDraftId);
+        if (url) {
+          avatarImg.src = url;
+          avatarImg.style.display = 'block';
+          avatarPlaceholder.style.display = 'none';
+        }
+        saveCurrentDraft({ reason: 'avatar' });
+      } catch (e) {
+        alert('头像保存失败：' + (e && e.message ? e.message : e));
+      }
+    }
+
     charImageInput.addEventListener('change', function(e) {
       var file = e.target.files[0]; if (!file) return;
       var reader = new FileReader();
       reader.onload = function(ev) {
         var img = new Image();
-        img.onload = function() {
-          var cv = document.createElement('canvas');
-          cv.width = img.width; cv.height = img.height;
-          cv.getContext('2d').drawImage(img, 0, 0);
-          currentAvatarBase64 = cv.toDataURL('image/png');
-          avatarImg.src = currentAvatarBase64;
-          avatarImg.style.display = 'block';
-          avatarPlaceholder.style.display = 'none';
-          debouncedUpdateAndSave();
-        };
+        img.onload = function() { applyAvatarFromImage(img); };
         img.src = ev.target.result;
       };
       reader.readAsDataURL(file);
     });
 
-    btnExportPNG.addEventListener('click', function() {
-      if (!currentAvatarBase64) return alert("❌ 请先上传头像！");
-      try {
-        var ch  = createTextChunk('chara', JSON.stringify(generateFullJSON()));
-        var raw = atob(currentAvatarBase64.split(',')[1]);
-        var bytes = new Uint8Array(raw.length);
-        for (var i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
-        var io  = bytes.length - 12;
-        var bef = bytes.slice(0, io); var ie = bytes.slice(io);
-        var fin = new Uint8Array(bef.length + ch.length + ie.length);
-        fin.set(bef, 0); fin.set(ch, bef.length); fin.set(ie, bef.length + ch.length);
-        var blob = new Blob([fin], { type: 'image/png' });
-        var a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = (charName.value.trim() || 'CharacterCard') + '.png';
-        a.click(); URL.revokeObjectURL(a.href);
-      } catch(err) { alert("❌ 导出失败: " + err.message); }
-    });
-
     // ============================================================
-    //  草稿系统
+    //  草稿系统（UI 在「角色卡管理」；存储键与字段语义不变）
     // ============================================================
     function genId() { return 'draft_' + Date.now(); }
     function getAllDrafts() { try { return JSON.parse(localStorage.getItem(DRAFTS_KEY)) || {}; } catch(e) { return {}; } }
 
-    function updateDraftDropdown() {
-      var dr = getAllDrafts(); draftSelect.innerHTML = '';
+    /** 通知小说工坊按 cardId 换桶（小说不进导出 JSON/PNG） */
+    function emitCardDraftChanged(cardId) {
+      window.dispatchEvent(new CustomEvent('card-draft-changed', {
+        detail: { cardId: cardId || currentDraftId || '' }
+      }));
+    }
+
+    function goToView(viewId) {
+      if (typeof window.__setAppView__ === 'function') window.__setAppView__(viewId);
+      else location.hash = '#' + viewId;
+    }
+
+    function draftDisplayName(d, fallback) {
+      var n = (d && d.charName) || fallback || '';
+      return n.trim() || '未命名';
+    }
+
+    /** 当前编辑态快照（管理页封面与落盘共用） */
+    function buildDraftSnapshot() {
+      return {
+        charName:        charName.value.trim(),
+        wbName:          wbName.value.trim(),
+        charDesc:        charDesc.value.trim(),
+        firstMes:        firstMes.value.trim(),
+        creatorNotes:    creatorNotes.value.trim(),
+        charTags:        normalizeTags(charTags),
+        worldbookEntries: worldbookEntries,
+        regexScripts:    regexScripts,
+        tavernHelperScripts: tavernHelperScripts,
+        cardBuilderExtensions: cardBuilderExtensions,
+        avatarInIdb:     !!currentAvatarInIdb,
+        avatarBase64:    currentAvatarInIdb ? '' : (currentAvatarBase64 || ''),
+        altGreetings:    window.__altGreetings__ || [],
+        updatedAt:     new Date().toLocaleTimeString('zh-CN', { hour12: false }),
+      };
+    }
+
+    /** 合并内存中的当前卡（存储失败时管理页封面仍可用） */
+    function getDraftsForDisplay(stored) {
+      var dr = stored ? Object.assign({}, stored) : getAllDrafts();
+      if (currentDraftId) {
+        dr[currentDraftId] = Object.assign({}, dr[currentDraftId] || {}, buildDraftSnapshot());
+      }
+      return dr;
+    }
+
+    /** 管理页卡片底栏：图标操作（左编辑 / 右导出·删除） */
+    function buildCardManagerActionsHtml() {
+      function iconBtn(action, label, extraClass) {
+        var cls = 'btn-icon btn-icon--sm card-mgr-icon' + (extraClass ? ' ' + extraClass : '');
+        var icons = {
+          dup: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>',
+          rename: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M15.5 5.5l3 3L8 19l-4 1 1-4 10.5-10.5z"/></svg>',
+          'export-json': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 8l-4 4 4 4M16 8l4 4-4 4M13 6l-2 12"/></svg>',
+          'export-png': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2"/><circle cx="9" cy="10" r="1.5"/><path d="M4 16l4.5-4.5 3 3L14 12l6 6"/></svg>',
+          delete: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><path d="M10 11v6M14 11v6"/><path d="M7 7l1 12a1 1 0 0 0 1 .9h6a1 1 0 0 0 1-.9l1-12"/></svg>',
+        };
+        return '<button type="button" class="' + cls + '" data-card-action="' + action + '" title="' + label + '" aria-label="' + label + '">' + (icons[action] || '') + '</button>';
+      }
+      return ''
+        + '<div class="card-manager-item-actions__group">'
+        + iconBtn('dup', '复制')
+        + iconBtn('rename', '重命名')
+        + '</div>'
+        + '<div class="card-manager-item-actions__group">'
+        + iconBtn('export-json', '导出 JSON', 'card-mgr-icon--export')
+        + iconBtn('export-png', '导出 PNG', 'card-mgr-icon--export')
+        + iconBtn('delete', '删除', 'card-mgr-icon--danger btn-icon--danger')
+        + '</div>';
+    }
+
+    /** 刷新管理页预览卡片网格（存储键与切换逻辑不变） */
+    function updateCardManagerUI(storedDrafts) {
+      if (!cardManagerList) return;
+      revokeManagerThumbs();
+      var dr = getDraftsForDisplay(storedDrafts);
       var ks = Object.keys(dr);
-      if (!ks.length) { draftSelect.innerHTML = '<option value="">(空草稿箱)</option>'; return; }
+      if (!ks.length) {
+        cardManagerList.innerHTML = '<p class="card-manager-empty">暂无角色卡，点击右上角「新建」</p>';
+        return;
+      }
+      cardManagerList.innerHTML = '';
       ks.forEach(function(id) {
-        var d = dr[id]; var o = document.createElement('option');
-        o.value = id;
-        o.textContent = d.charName ? (d.charName + ' (' + d.updatedAt + ')') : ('未命名 (' + d.updatedAt + ')');
-        if (id === currentDraftId) o.selected = true;
-        draftSelect.appendChild(o);
+        var d = dr[id] || {};
+        var active = id === currentDraftId;
+        var item = document.createElement('div');
+        item.className = 'card-manager-item' + (active ? ' is-active' : '');
+        item.setAttribute('data-draft-id', id);
+
+        var cover = document.createElement('div');
+        cover.className = 'card-manager-cover';
+        cover.setAttribute('data-card-action', 'open');
+        if (d.avatarBase64) {
+          var coverImg = document.createElement('img');
+          coverImg.src = d.avatarBase64;
+          coverImg.alt = '';
+          cover.appendChild(coverImg);
+        } else if (d.avatarInIdb) {
+          var loadingPh = document.createElement('span');
+          loadingPh.className = 'card-manager-cover-placeholder';
+          loadingPh.textContent = '…';
+          cover.appendChild(loadingPh);
+          hydrateManagerCoverThumb(id, cover, loadingPh);
+        } else {
+          var ph = document.createElement('span');
+          ph.className = 'card-manager-cover-placeholder';
+          ph.textContent = '无封面';
+          cover.appendChild(ph);
+        }
+        if (active) {
+          var badge = document.createElement('span');
+          badge.className = 'card-manager-badge';
+          badge.textContent = '当前';
+          cover.appendChild(badge);
+        }
+
+        var main = document.createElement('div');
+        main.className = 'card-manager-item-main';
+        main.setAttribute('data-card-action', 'open');
+        main.innerHTML =
+          '<div class="card-manager-item-name">' + escapeHTML(draftDisplayName(d)) + '</div>' +
+          '<div class="card-manager-item-meta">更新 ' + escapeHTML(d.updatedAt || '—') + '</div>';
+
+        var actions = document.createElement('div');
+        actions.className = 'card-manager-item-actions';
+        actions.innerHTML = buildCardManagerActionsHtml();
+
+        item.appendChild(cover);
+        item.appendChild(main);
+        item.appendChild(actions);
+        cardManagerList.appendChild(item);
       });
     }
 
-    function loadDraft(id) {
+    /** 旧 avatarBase64 迁入 IDB 并清理草稿内嵌图 */
+    async function migrateDraftAvatarToIdb(id, d, dr) {
+      if (!d || !d.avatarBase64 || d.avatarInIdb) return false;
+      await ensureIdbReady();
+      if (!window.__avatarIdb__) return false;
+      var ok = await window.__avatarIdb__.migrateAvatarBase64ToIdb(id, d.avatarBase64);
+      if (!ok) return false;
+      d.avatarInIdb = true;
+      d.avatarBase64 = '';
+      dr[id] = d;
+      try { localStorage.setItem(DRAFTS_KEY, JSON.stringify(dr)); } catch (e) {}
+      return true;
+    }
+
+    async function loadDraftAsync(id) {
       var dr = getAllDrafts(); if (!dr[id]) return;
       currentDraftId = id; localStorage.setItem(CURRENT_KEY, id);
       var d = dr[id];
@@ -799,85 +1154,312 @@ window.__setImportedAvatar__ = function(base64) {
       charDesc.value     = d.charDesc     || '';
       firstMes.value     = d.firstMes     || '';
       creatorNotes.value = d.creatorNotes || '';
+      setCharTags(d.charTags || d.tags || [], { save: false });
       worldbookEntries   = d.worldbookEntries || [];
       regexScripts       = d.regexScripts     || [];
       tavernHelperScripts = Array.isArray(d.tavernHelperScripts) ? d.tavernHelperScripts : [];
       cardBuilderExtensions = Object.assign({}, d.cardBuilderExtensions || {});
-      currentAvatarBase64 = d.avatarBase64    || '';
+      currentAvatarInIdb = !!d.avatarInIdb;
+      currentAvatarBase64 = d.avatarBase64 || '';
       window.__altGreetings__ = d.altGreetings || [];
       if (window.__renderAltGreetings__) window.__renderAltGreetings__();
       resetWBForm();
-      if (currentAvatarBase64) {
-        avatarImg.src = currentAvatarBase64; avatarImg.style.display = 'block'; avatarPlaceholder.style.display = 'none';
-      } else {
-        avatarImg.style.display = 'none'; avatarPlaceholder.style.display = 'block';
+      avatarImg.style.display = 'none'; avatarPlaceholder.style.display = 'block';
+      if (currentAvatarBase64 && !currentAvatarInIdb) {
+        var migrated = await migrateDraftAvatarToIdb(id, d, dr);
+        if (migrated) {
+          currentAvatarInIdb = true;
+          currentAvatarBase64 = '';
+        }
       }
-      updateDraftDropdown(); renderEntriesList(); updatePreview();
+      if (currentAvatarInIdb) {
+        await ensureIdbReady();
+        if (window.__avatarIdb__) {
+          var fullUrl = await window.__avatarIdb__.loadAvatarFullDataUrl(id);
+          if (fullUrl) {
+            avatarImg.src = fullUrl;
+            avatarImg.style.display = 'block';
+            avatarPlaceholder.style.display = 'none';
+          }
+        }
+      } else if (currentAvatarBase64) {
+        avatarImg.src = currentAvatarBase64;
+        avatarImg.style.display = 'block';
+        avatarPlaceholder.style.display = 'none';
+      }
+      updateCardManagerUI(); renderEntriesList(); updatePreview();
       window.dispatchEvent(new CustomEvent('card-builder-data-changed'));
+      emitCardDraftChanged(id);
     }
 
-    function saveCurrentDraft() {
+    function loadDraft(id) {
+      loadDraftAsync(id).catch(function(err) {
+        console.warn('[draft] loadDraft failed', err);
+      });
+    }
+
+    function saveCurrentDraft(opts) {
+      opts = opts || {};
       if (!currentDraftId) currentDraftId = genId();
       var dr = getAllDrafts();
-      dr[currentDraftId] = {
-        charName:        charName.value.trim(),
-        wbName:          wbName.value.trim(),
-        charDesc:        charDesc.value.trim(),
-        firstMes:        firstMes.value.trim(),
-        creatorNotes:    creatorNotes.value.trim(),
-        worldbookEntries: worldbookEntries,
-        regexScripts:    regexScripts,
-        tavernHelperScripts: tavernHelperScripts,
-        cardBuilderExtensions: cardBuilderExtensions,
-        avatarBase64:    currentAvatarBase64,
-        altGreetings:    window.__altGreetings__ || [],
-        updatedAt:       new Date().toLocaleTimeString('zh-CN', { hour12: false })
-      };
+      dr[currentDraftId] = buildDraftSnapshot();
+      var saved = false;
       try {
         localStorage.setItem(DRAFTS_KEY, JSON.stringify(dr));
         localStorage.setItem(CURRENT_KEY, currentDraftId);
-        var o = draftSelect.options[draftSelect.selectedIndex];
-        if (o) {
-          var dd = dr[currentDraftId];
-          o.textContent = dd.charName ? (dd.charName + ' (' + dd.updatedAt + ')') : ('未命名 (' + dd.updatedAt + ')');
+        saved = true;
+        if (saveIndicator) {
+          saveIndicator.style.display = 'inline';
+          setTimeout(function() { saveIndicator.style.display = 'none'; }, 1500);
         }
-        saveIndicator.style.display = 'inline';
-        setTimeout(function() { saveIndicator.style.display = 'none'; }, 1500);
-      } catch(e) {}
+      } catch (e) {
+        var tip = opts.reason === 'avatar'
+          ? '草稿元数据保存失败；头像已尝试写入 IndexedDB，请刷新后重试。'
+          : '草稿保存失败（内容可能过大），请减少世界书条目或启用 IndexedDB。';
+        alert(tip);
+      }
+      // 无论落盘是否成功，管理页用内存快照刷新（封面即时可见）
+      updateCardManagerUI(dr);
+      return saved;
     }
 
-    btnNewDraft.addEventListener('click', function() {
+    function createBlankDraft(opts) {
+      var jump = !opts || opts.jumpToCharacter !== false;
       currentDraftId = genId();
       charName.value = ''; wbName.value = ''; charDesc.value = ''; firstMes.value = ''; creatorNotes.value = '';
-      worldbookEntries = []; regexScripts = []; tavernHelperScripts = []; cardBuilderExtensions = {}; currentAvatarBase64 = ''; charImageInput.value = '';
+      setCharTags([], { save: false });
+      worldbookEntries = []; regexScripts = []; tavernHelperScripts = []; cardBuilderExtensions = {};
+      currentAvatarBase64 = ''; currentAvatarInIdb = false;
+      if (charImageInput) charImageInput.value = '';
       avatarImg.style.display = 'none'; avatarPlaceholder.style.display = 'block';
       window.__altGreetings__ = [];
       if (window.__renderAltGreetings__) window.__renderAltGreetings__();
-      resetWBForm(); saveCurrentDraft(); updateDraftDropdown(); renderEntriesList(); updatePreview();
+      resetWBForm(); saveCurrentDraft(); renderEntriesList(); updatePreview();
       window.dispatchEvent(new CustomEvent('card-builder-data-changed'));
-    });
+      emitCardDraftChanged(currentDraftId);
+      if (jump) goToView('character');
+    }
 
-    btnDeleteDraft.addEventListener('click', async function() {
-      if (!currentDraftId) return;
+    async function deleteDraftById(id, opts) {
+      if (!id) return { ok: false, error: '缺少 id' };
       var dr = getAllDrafts();
-      var currentDraft = dr[currentDraftId] || {};
-      var draftName = currentDraft.charName || charName.value.trim() || '未命名草稿';
-      var ok = await showConfirmDialog({
-        icon: '🗑️',
-        title: '删除草稿？',
-        message: '这会从多卡片草稿箱中移除当前草稿。',
-        detail: '即将删除：' + draftName + '。此操作不会影响已下载到本地的卡片文件。',
-        okText: '删除草稿',
-        cancelText: '再想想'
-      });
-      if (!ok) return;
-      delete dr[currentDraftId];
+      if (!dr[id]) return { ok: false, error: '卡不存在' };
+      var draftName = draftDisplayName(dr[id], id === currentDraftId ? charName.value : '');
+      // 助手 force 跳过 UI 确认（助手自身有 confirm 流）
+      if (!(opts && opts.force)) {
+        var ok = await showConfirmDialog({
+          icon: '🗑️',
+          title: '删除角色卡？',
+          message: '这会从本地多卡草稿箱中移除该卡。',
+          detail: '即将删除：' + draftName + '。此操作不会影响已下载到本地的卡片文件。',
+          okText: '删除',
+          cancelText: '再想想'
+        });
+        if (!ok) return { ok: false, cancelled: true };
+      }
+      delete dr[id];
       localStorage.setItem(DRAFTS_KEY, JSON.stringify(dr));
+      // 同步清理 IndexedDB：头像 + 小说桶（并移除 localStorage 同名键）
+      ensureIdbReady().then(function() {
+        if (window.__avatarIdb__) return window.__avatarIdb__.deleteAvatarDraft(id);
+      }).catch(function() {});
+      if (window.__novelIdb__) {
+        window.__novelIdb__.removeNovelBucketIdb(id, localStorage).catch(function() {});
+      }
       var ks = Object.keys(dr);
-      ks.length > 0 ? loadDraft(ks[0]) : btnNewDraft.click();
-    });
+      if (id === currentDraftId) {
+        if (ks.length > 0) loadDraft(ks[0]);
+        else createBlankDraft({ jumpToCharacter: false });
+      } else {
+        updateCardManagerUI();
+      }
+      return { ok: true, deleted: id, name: draftName };
+    }
 
-    draftSelect.addEventListener('change', function(e) { if (e.target.value) loadDraft(e.target.value); });
+    async function duplicateDraftById(id) {
+      var dr = getAllDrafts();
+      var src = dr[id];
+      if (!src) return;
+      var newId = genId();
+      // 深拷贝条目等引用字段，避免与源卡共享数组
+      var copy = JSON.parse(JSON.stringify(src));
+      copy.charName = draftDisplayName(src) + ' 副本';
+      copy.updatedAt = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+      copy.avatarInIdb = !!(src.avatarInIdb || src.avatarBase64);
+      if (copy.avatarInIdb) copy.avatarBase64 = '';
+      dr[newId] = copy;
+      localStorage.setItem(DRAFTS_KEY, JSON.stringify(dr));
+      await ensureIdbReady();
+      if (window.__avatarIdb__) {
+        if (src.avatarInIdb) {
+          await window.__avatarIdb__.copyAvatarDraft(id, newId);
+        } else if (src.avatarBase64) {
+          await window.__avatarIdb__.migrateAvatarBase64ToIdb(newId, src.avatarBase64);
+        }
+      }
+      if (window.__novelIdb__) {
+        await window.__novelIdb__.copyNovelBucketIdb(id, newId, localStorage);
+      }
+      loadDraft(newId);
+      goToView('character');
+    }
+
+    function renameDraftById(id, newName) {
+      var dr = getAllDrafts();
+      var d = dr[id];
+      if (!d) return { ok: false, error: '卡不存在' };
+      var next = newName != null ? String(newName) : window.prompt('重命名角色卡', draftDisplayName(d));
+      if (next === null) return { ok: false, cancelled: true };
+      next = String(next).trim();
+      if (!next) return { ok: false, error: '名称为空' };
+      d.charName = next;
+      d.updatedAt = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+      dr[id] = d;
+      localStorage.setItem(DRAFTS_KEY, JSON.stringify(dr));
+      if (id === currentDraftId) charName.value = next;
+      updateCardManagerUI();
+      if (id === currentDraftId) updatePreview();
+      return { ok: true, id: id, name: next };
+    }
+
+    /** 助手多卡 API（无代导出；import 仅接受已解析 JSON） */
+    window.__assistantCardApi__ = {
+      list: function() {
+        var dr = getAllDrafts();
+        return {
+          currentId: currentDraftId || '',
+          cards: Object.keys(dr).map(function(id) {
+            return {
+              id: id,
+              name: draftDisplayName(dr[id]),
+              updatedAt: dr[id].updatedAt || '',
+              current: id === currentDraftId,
+            };
+          }),
+        };
+      },
+      switchTo: function(idOrName) {
+        var key = String(idOrName || '').trim();
+        if (!key) throw new Error('缺少 id 或 name');
+        var dr = getAllDrafts();
+        if (dr[key]) {
+          loadDraft(key);
+          return { id: key, name: draftDisplayName(dr[key]) };
+        }
+        var found = Object.keys(dr).find(function(id) {
+          return draftDisplayName(dr[id]) === key;
+        });
+        if (!found) throw new Error('未找到卡片: ' + key);
+        loadDraft(found);
+        return { id: found, name: draftDisplayName(dr[found]) };
+      },
+      create: function(opts) {
+        opts = opts || {};
+        createBlankDraft({ jumpToCharacter: false });
+        if (opts.name) {
+          charName.value = String(opts.name);
+          saveCurrentDraft();
+          updateCardManagerUI();
+        }
+        return { id: currentDraftId, name: charName.value || '未命名' };
+      },
+      duplicate: function(id) {
+        var src = id || currentDraftId;
+        if (!src) throw new Error('无可复制卡片');
+        duplicateDraftById(src);
+        return { id: currentDraftId, name: charName.value || '副本' };
+      },
+      rename: function(id, name) {
+        return renameDraftById(id || currentDraftId, name);
+      },
+      delete: async function(id) {
+        return deleteDraftById(id || currentDraftId, { force: true });
+      },
+      importJson: function(cardJson) {
+        if (!cardJson || typeof cardJson !== 'object') throw new Error('需要已解析的 cardJson 对象');
+        if (typeof window.applyJSONFromEditor !== 'function') throw new Error('导入桥接未就绪');
+        // 导入到当前编辑区（与管理页导入一致）
+        window.applyJSONFromEditor(cardJson);
+        saveCurrentDraft();
+        updateCardManagerUI();
+        return { id: currentDraftId, name: charName.value || '导入卡' };
+      },
+      exportCheck: function() {
+        try {
+          var d = getAllDrafts()[currentDraftId] || {
+            charName: charName.value,
+            worldbookEntries: worldbookEntries,
+            firstMes: firstMes.value,
+            charDesc: charDesc.value,
+          };
+          var json = buildCardJSONFromDraft(d);
+          var issues = [];
+          if (!json || !json.data) issues.push({ level: 'critical', message: '无法生成导出结构' });
+          else {
+            if (!json.data.name) issues.push({ level: 'warning', message: '缺少角色名' });
+            if (!json.data.first_mes) issues.push({ level: 'warning', message: '缺少开场白' });
+            var ents = (json.data.character_book && json.data.character_book.entries) || [];
+            if (!ents.length) issues.push({ level: 'info', message: '世界书为空' });
+          }
+          return {
+            ok: issues.filter(function(i) { return i.level === 'critical'; }).length === 0,
+            issues: issues,
+            name: (json && json.data && json.data.name) || '',
+            worldbookCount: ((json && json.data && json.data.character_book && json.data.character_book.entries) || []).length,
+            note: '仅校验，不触发下载',
+          };
+        } catch (e) {
+          return { ok: false, issues: [{ level: 'critical', message: e.message }], note: '仅校验，不触发下载' };
+        }
+      },
+    };
+
+    if (btnNewDraft) {
+      btnNewDraft.addEventListener('click', function() { createBlankDraft({ jumpToCharacter: true }); });
+    }
+
+    if (cardManagerList) {
+      cardManagerList.addEventListener('click', function(e) {
+        var actionEl = e.target.closest('[data-card-action]');
+        var row = e.target.closest('.card-manager-item[data-draft-id]');
+        if (!row) return;
+        var id = row.getAttribute('data-draft-id');
+        var action = actionEl ? actionEl.getAttribute('data-card-action') : 'open';
+        if (action === 'delete') {
+          e.preventDefault();
+          e.stopPropagation();
+          deleteDraftById(id);
+          return;
+        }
+        if (action === 'dup') {
+          e.preventDefault();
+          e.stopPropagation();
+          duplicateDraftById(id);
+          return;
+        }
+        if (action === 'rename') {
+          e.preventDefault();
+          e.stopPropagation();
+          renameDraftById(id);
+          return;
+        }
+        if (action === 'export-json') {
+          e.preventDefault();
+          e.stopPropagation();
+          exportDraftAsJson(id);
+          return;
+        }
+        if (action === 'export-png') {
+          e.preventDefault();
+          e.stopPropagation();
+          exportDraftAsPng(id);
+          return;
+        }
+        // 点击封面/卡名区域：切换并进入角色设定
+        loadDraft(id);
+        goToView('character');
+      });
+    }
 
     var autoSaveTimer;
     function debouncedUpdateAndSave() {
@@ -909,7 +1491,7 @@ window.__setImportedAvatar__ = function(base64) {
         } else if (nm.indexOf('jailbreak') >= 0 || nm.indexOf('nsfw') >= 0 || nm.indexOf('越狱') >= 0) {
           typeBadge = ' <span style="font-size:0.6rem;color:#f59e0b;background:rgba(245,158,11,0.1);padding:1px 5px;border-radius:4px;">JB</span>';
         } else {
-          typeBadge = ' <span style="font-size:0.6rem;color:#94a3b8;background:rgba(100,116,139,0.1);padding:1px 5px;border-radius:4px;">system</span>';
+          typeBadge = ' <span style="font-size:0.6rem;color:var(--color-text-muted);background:rgba(100,116,139,0.1);padding:1px 5px;border-radius:4px;">system</span>';
         }
         return '<div class="preset-item"><input type="checkbox" id="preset_chk_' + i + '" data-index="' + i + '"' + (it.enabled ? ' checked' : '') + ' /><label for="preset_chk_' + i + '">' + it.name + typeBadge + '</label></div>';
       }).join('');
@@ -1064,7 +1646,8 @@ window.__setImportedAvatar__ = function(base64) {
       var res = await fetch(opts.url, {
         method: 'POST',
         headers: opts.headers,
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify(requestBody),
+        signal: opts.signal
       });
       if (!res.ok) {
         logAIDebug('http_error', { context: opts.context || 'unknown', status: res.status, statusText: res.statusText });
@@ -1093,6 +1676,21 @@ window.__setImportedAvatar__ = function(base64) {
       });
       return { data: data, content: content };
     }
+    // 右栏助手复用同一 AI 请求通道
+    window.__assistantFetchAI__ = fetchAIContent;
+
+    /** 经任务中心登记后执行 AI（支持 AbortController） */
+    function runAiTask(meta, fn) {
+      var center = window.__aiTaskCenter__;
+      if (center && typeof center.run === 'function') return center.run(meta, fn);
+      return fn({ signal: undefined, id: null, setProgress: function() {} });
+    }
+    function isAiAbort(err) {
+      if (window.__isAiAbortError__) return window.__isAiAbortError__(err);
+      return !!(err && (err.name === 'AbortError' || /abort|取消|已停止/i.test(String(err.message || ''))));
+    }
+    window.__runAiTask__ = runAiTask;
+
     function getActivePresetsStr() {
       return parsedPresetList.filter(function(p) { return p.enabled; })
         .map(function(p) { return '[规则: ' + p.name + ']\n' + p.content; }).join('\n\n');
@@ -1124,12 +1722,16 @@ window.__setImportedAvatar__ = function(base64) {
       return { searchText: buildAINativeSearchPrompt(query), searchResults: null, mode: 'ai_native' };
     }
 
+    /** 读取可配置提示词（优先 localStorage，否则默认） */
+    function promptText(id, vars) {
+      var ps = window.__promptStore__;
+      if (!ps) return '';
+      var text = ps.get(id);
+      return vars ? ps.applyTemplate(text, vars) : text;
+    }
+
     function buildAINativeSearchPrompt(query) {
-      return '\n\n【🌐 联网搜索指令】：\n'
-        + '请使用你的联网搜索能力，搜索以下关键词相关的资料作为创作参考：\n'
-        + '搜索词：「' + query + '」\n'
-        + '请基于搜索到的真实信息（如果有的话）来丰富你的创作，使设定更加真实、有深度。\n'
-        + '如果你不具备联网能力，请忽略此指令，直接基于你的知识库创作。\n';
+      return promptText('aiNativeSearch', { query: query });
     }
 
     // ============================================================
@@ -1158,8 +1760,31 @@ window.__setImportedAvatar__ = function(base64) {
     });
 
     // ============================================================
-    //  AI 一键生成
+    //  AI 一键生成（三阶段；后续阶段注入前序结果作参考）
     // ============================================================
+
+    /** 阶段1 角色 JSON 摘要，供阶段2/3 参考 */
+    function formatCharRefForPrompt(charData) {
+      if (!charData) return '';
+      return '\n【阶段1已生成角色参考】\n'
+        + JSON.stringify({
+          charName: charData.charName || '',
+          wbName: charData.wbName || '',
+          charDesc: String(charData.charDesc || '').substring(0, 600),
+          creatorNotes: String(charData.creatorNotes || '').substring(0, 240),
+          tags: charData.tags || charData.charTags || [],
+        });
+    }
+
+    /** 世界书骨架摘要，供阶段3 参考 */
+    function formatWbSkeletonRef(entries) {
+      if (!entries || !entries.length) return '';
+      var lines = entries.map(function(e) {
+        return '- ' + (e.comment || '未命名') + ': ' + String(e.content || '').substring(0, 100);
+      }).join('\n');
+      return '\n【阶段2已生成世界书骨架参考（勿重复，可补充关联）】\n' + lines;
+    }
+
     btnAiGenerate.addEventListener('click', async function() {
       var url   = apiUrl.value.replace(/\/$/, '') + '/chat/completions';
       var key   = apiKey.value.trim();
@@ -1169,14 +1794,25 @@ window.__setImportedAvatar__ = function(base64) {
 
       var skeletonCount = window.__getSkeletonCount__ ? window.__getSkeletonCount__() : 6;
       var searchEnabled = window.__searchConfig__ && window.__searchConfig__.isEnabled();
-      var totalSteps    = (searchEnabled ? 1 : 0) + 1 + Math.ceil(skeletonCount / 5);
+      /* 阶段：搜索(可选) + 角色 + 骨架批次 + 开场白 */
+      var totalSteps    = (searchEnabled ? 1 : 0) + 1 + Math.ceil(skeletonCount / 5) + 1;
       var currentStep   = 0;
       var hacker        = window.__hackerAnim__;
+      var charData      = null;
 
       btnAiGenerate.disabled = true;
       cachedSearchResults = null;
 
       if (hacker) { hacker.start(); hacker.setPhase('⚡ 初始化引擎...'); hacker.setProgress(0, totalSteps); hacker.setDetail(hacker.randomMsg()); }
+
+      // 登记全局任务，支持侧栏停止
+      var aiCenter = window.__aiTaskCenter__;
+      var engineTask = aiCenter ? aiCenter.create({
+        type: 'engine_generate',
+        title: 'AI 引擎一键生成',
+        target: (aiPrompt.value.trim() || '').slice(0, 40),
+      }) : null;
+      var engineSignal = engineTask && engineTask.signal;
 
       try {
         var headers = { 'Content-Type': 'application/json' };
@@ -1186,7 +1822,9 @@ window.__setImportedAvatar__ = function(base64) {
 
         // 阶段0：联网搜索
         if (searchEnabled) {
+          if (engineSignal && engineSignal.aborted) throw new DOMException('已取消', 'AbortError');
           currentStep++;
+          if (aiCenter && engineTask) aiCenter.setProgress(engineTask.id, currentStep / totalSteps, '联网搜索');
           if (hacker) { hacker.setPhase('🌐 [阶段 ' + currentStep + '/' + totalSteps + '] 联网搜索资料...'); hacker.setProgress(currentStep, totalSteps); hacker.setDetail('正在扫描互联网数据节点...'); }
           aiStatus.textContent = '🌐 联网搜索中...'; aiStatus.style.color = '#38bdf8';
           var searchResult = await performSearchIfEnabled(aiPrompt.value.trim());
@@ -1197,12 +1835,14 @@ window.__setImportedAvatar__ = function(base64) {
           await sleep(400);
         }
 
-        // 阶段1：生成角色
+        // 阶段1：生成角色（不含开场白，阶段3 专责）
+        if (engineSignal && engineSignal.aborted) throw new DOMException('已取消', 'AbortError');
         currentStep++;
+        if (aiCenter && engineTask) aiCenter.setProgress(engineTask.id, currentStep / totalSteps, '构建角色');
         if (hacker) { hacker.setPhase('🧬 [阶段 ' + currentStep + '/' + totalSteps + '] 构建角色灵魂...'); hacker.setProgress(currentStep, totalSteps); hacker.setDetail(hacker.randomMsg()); }
         aiStatus.textContent = '⏳ [阶段 1] 构思角色设定...'; aiStatus.style.color = '#38bdf8';
 
-        var p1Sys = '生成角色基础属性，仅输出JSON对象。格式：{ "charName": "角色名", "wbName": "世界书名", "charDesc": "详细的角色描述(至少200字，包含外貌、性格、背景、能力)", "firstMes": "沉浸感强的开场白(至少150字)", "creatorNotes": "给使用者的说明", "altGreetings": ["备选开场白1(不同场景或氛围)", "备选开场白2"] }'
+        var p1Sys = promptText('charGen')
           + (presetsStr ? '\n【文风要求】：\n' + presetsStr : '')
           + searchInjection;
 
@@ -1213,38 +1853,44 @@ window.__setImportedAvatar__ = function(base64) {
           model: model,
           messages: [{ role: "system", content: p1Sys }, { role: "user", content: aiPrompt.value.trim() }],
           temperature: 0.85,
-          httpErrorPrefix: '角色生成失败 HTTP '
+          httpErrorPrefix: '角色生成失败 HTTP ',
+          signal: engineSignal
         });
-        var charData = extractJsonObj(aiResp1.content, '角色生成/阶段1');
+        charData = extractJsonObj(aiResp1.content, '角色生成/阶段1');
 
         charName.value     = charData.charName     || '';
         wbName.value       = charData.wbName       || '';
         charDesc.value     = charData.charDesc     || '';
-        firstMes.value     = charData.firstMes     || '';
         creatorNotes.value = charData.creatorNotes || '';
-        window.__altGreetings__ = (charData.altGreetings && Array.isArray(charData.altGreetings)) ? charData.altGreetings : [];
-        if (window.__renderAltGreetings__) window.__renderAltGreetings__();
+        // AI 若返回 tags 则写入；否则保留当前标签不清空
+        if (Array.isArray(charData.tags) || Array.isArray(charData.charTags)) {
+          setCharTags(charData.tags || charData.charTags, { save: false });
+        }
         worldbookEntries = [];
         debouncedUpdateAndSave();
         if (hacker) hacker.setDetail('✅ 角色「' + (charData.charName || '???') + '」锻造完成');
         await sleep(500);
 
-        // 阶段2+：批量生成世界书骨架
+        var charRef = formatCharRefForPrompt(charData);
+
+        // 阶段2+：批量生成世界书骨架（注入阶段1参考）
         var wbGoal    = wbPrompt.value.trim();
         var remaining = skeletonCount;
         var batchIndex = 0;
 
         while (remaining > 0) {
+          if (engineSignal && engineSignal.aborted) throw new DOMException('已取消', 'AbortError');
           var batchSize = Math.min(remaining, 5);
           batchIndex++; currentStep++;
+          if (aiCenter && engineTask) aiCenter.setProgress(engineTask.id, currentStep / totalSteps, '骨架批次 ' + batchIndex);
           if (hacker) { hacker.setPhase('🦴 [阶段 ' + currentStep + '/' + totalSteps + '] 世界书骨架 (批次 ' + batchIndex + ')'); hacker.setProgress(currentStep, totalSteps); hacker.setDetail(hacker.randomMsg()); }
           aiStatus.textContent = '⏳ 生成世界书骨架... ' + worldbookEntries.length + '/' + skeletonCount;
 
           var existingTitles = worldbookEntries.map(function(e) { return e.comment; }).join('、');
-          var existingRef    = existingTitles ? '\n【已有条目(禁止重复)】：' + existingTitles : '';
+          var existingRef    = existingTitles ? '\n【本批次已有条目(禁止重复)】：' + existingTitles : '';
 
-          var skSys = '你是一个 SillyTavern 世界书骨架生成器。快速产出【' + batchSize + '条】简短骨架。'
-            + '\n每条只需：comment(标题)、content(一句话20-40字)、keys(1-3个触发词)、strategy("selective"或"constant")'
+          var skSys = promptText('wbSkeleton', { batchSize: batchSize })
+            + charRef
             + '\n【角色】：' + charName.value.trim() + ' | ' + charDesc.value.trim().substring(0, 300)
             + existingRef
             + (wbGoal ? '\n【方向】：' + wbGoal : '')
@@ -1261,7 +1907,8 @@ window.__setImportedAvatar__ = function(base64) {
               model: model,
               messages: [{ role: "system", content: skSys }, { role: "user", content: '生成' + batchSize + '条骨架' }],
               temperature: 0.9,
-              httpErrorPrefix: 'HTTP '
+              httpErrorPrefix: 'HTTP ',
+              signal: engineSignal
             });
             var rawC = aiResp2.content;
             var skeletons;
@@ -1274,34 +1921,76 @@ window.__setImportedAvatar__ = function(base64) {
             if (hacker) hacker.setDetail('✅ 批次 ' + batchIndex + ' 完成，已 ' + worldbookEntries.length + ' 条');
             await sleep(300);
           } catch(bErr) {
+            if (isAiAbort(bErr)) throw bErr;
             if (hacker) hacker.setDetail('⚠️ 批次 ' + batchIndex + ': ' + bErr.message);
             await sleep(500);
           }
           remaining -= batchSize;
         }
 
+        // 阶段3：开场白（始终执行；注入阶段1/2参考）
+        if (engineSignal && engineSignal.aborted) throw new DOMException('已取消', 'AbortError');
+        currentStep++;
+        if (aiCenter && engineTask) aiCenter.setProgress(engineTask.id, currentStep / totalSteps, '开场白');
+        if (hacker) { hacker.setPhase('💬 [阶段 ' + currentStep + '/' + totalSteps + '] 撰写开场白...'); hacker.setProgress(currentStep, totalSteps); hacker.setDetail(hacker.randomMsg()); }
+        aiStatus.textContent = '⏳ [阶段 3] 生成开场白...'; aiStatus.style.color = '#38bdf8';
+
+        var greetUserDir = (greetingPrompt && greetingPrompt.value.trim())
+          || '根据角色与世界书骨架，生成沉浸式主开场白与 2 条备选开场白';
+        var greetSys = promptText('greetingGen')
+          + charRef
+          + formatWbSkeletonRef(worldbookEntries)
+          + (presetsStr ? '\n【文风】：' + presetsStr.substring(0, 200) : '')
+          + searchInjection;
+
+        var aiResp3 = await fetchAIContent({
+          context: '开场白/阶段3',
+          url: url,
+          headers: headers,
+          model: model,
+          messages: [{ role: 'system', content: greetSys }, { role: 'user', content: greetUserDir }],
+          temperature: 0.88,
+          httpErrorPrefix: '开场白生成失败 HTTP ',
+          signal: engineSignal
+        });
+        var greetData = extractJsonObj(aiResp3.content, '开场白/阶段3');
+        firstMes.value = greetData.firstMes || '';
+        window.__altGreetings__ = (greetData.altGreetings && Array.isArray(greetData.altGreetings)) ? greetData.altGreetings : [];
+        if (window.__renderAltGreetings__) window.__renderAltGreetings__();
+        debouncedUpdateAndSave();
+        if (hacker) hacker.setDetail('✅ 开场白已写入（主 + ' + window.__altGreetings__.length + ' 备选）');
+        await sleep(400);
+
         // 完成
+        if (aiCenter && engineTask) aiCenter.succeed(engineTask.id);
         if (hacker) {
           hacker.stop(); hacker.setPhase('🎉 生成完毕！'); hacker.setProgress(totalSteps, totalSteps);
-          var doneMsg = '角色「' + charName.value.trim() + '」+ ' + worldbookEntries.length + ' 条骨架已就绪。';
+          var doneMsg = '角色「' + charName.value.trim() + '」+ ' + worldbookEntries.length + ' 条骨架 + 开场白已就绪。';
           if (searchEnabled && cachedSearchResults) doneMsg += ' (参考了 ' + cachedSearchResults.length + ' 条搜索结果)';
-          doneMsg += ' 请用「✨ AI重写」逐条展开。';
+          doneMsg += ' 请用「✨ AI重写」逐条展开骨架。';
           hacker.setDetail(doneMsg);
           setTimeout(function() { if (hacker) hacker.hide(); }, 5000);
         }
-        aiStatus.textContent = '✅ 完毕！' + worldbookEntries.length + ' 条骨架' + (searchEnabled ? ' (已联网)' : '') + '。请逐条展开。';
+        aiStatus.textContent = '✅ 完毕！' + worldbookEntries.length + ' 条骨架 + 开场白' + (searchEnabled ? ' (已联网)' : '') + '。请逐条展开骨架。';
         aiStatus.style.color = '#10b981';
 
       } catch(err) {
-        if (hacker) { hacker.stop(); hacker.setPhase('❌ 中止'); hacker.setDetail(err.message); setTimeout(function() { hacker.hide(); }, 3000); }
-        aiStatus.textContent = '❌ 中止: ' + err.message; aiStatus.style.color = '#ef4444';
+        if (isAiAbort(err)) {
+          if (aiCenter && engineTask && engineTask.status !== 'cancelled') aiCenter.cancel(engineTask.id);
+          if (hacker) { hacker.stop(); hacker.setPhase('⏹ 已取消'); hacker.setDetail('用户停止'); setTimeout(function() { if (hacker) hacker.hide(); }, 2000); }
+          aiStatus.textContent = '⏹ 已取消'; aiStatus.style.color = 'var(--color-text-muted)';
+        } else {
+          if (aiCenter && engineTask) aiCenter.fail(engineTask.id, err);
+          if (hacker) { hacker.stop(); hacker.setPhase('❌ 中止'); hacker.setDetail(err.message); setTimeout(function() { hacker.hide(); }, 3000); }
+          aiStatus.textContent = '❌ 中止: ' + err.message; aiStatus.style.color = '#ef4444';
+        }
       } finally { btnAiGenerate.disabled = false; }
     });
 
     // ============================================================
     //  AI 单条追加
     // ============================================================
-    async function generateContextAwareWBEntry(customDirection, stepInfo) {
+    async function generateContextAwareWBEntry(customDirection, stepInfo, signal) {
       if (!stepInfo) stepInfo = '';
       var url   = apiUrl.value.replace(/\/$/, '') + '/chat/completions';
       var key   = apiKey.value.trim();
@@ -1312,13 +2001,18 @@ window.__setImportedAvatar__ = function(base64) {
         var sr = await performSearchIfEnabled(sq);
         searchInjection = sr.searchText || '';
       }
-      var existingCtx = worldbookEntries.map(function(e) { return '[标题:' + e.comment + '] (策略:' + e.strategy + '): ' + e.content; }).join('\n-----\n');
-      var ctxStr      = existingCtx ? '\n【已有设定(不可重复)】：\n' + existingCtx : '\n【当前世界书为空】';
+      var includeOthers = !wbIncludeOtherEntries || wbIncludeOtherEntries.checked;
+      var existingCtx = includeOthers
+        ? worldbookEntries.map(function(e) { return '[标题:' + e.comment + '] (策略:' + e.strategy + '): ' + e.content; }).join('\n-----\n')
+        : '';
+      var ctxStr = includeOthers
+        ? (existingCtx ? '\n【已有设定(不可重复)】：\n' + existingCtx : '\n【当前世界书为空】')
+        : '\n【已跳过融合已有世界书条目】';
       var presetsStr  = getActivePresetsStr();
       var presetBlock = presetsStr ? '\n\n【文风约束】：\n' + presetsStr : '';
       var includeChar = wbIncludeCharData && wbIncludeCharData.checked;
       var charBlock   = includeChar ? '\n【角色】：' + charName.value.trim() + ' | ' + charDesc.value.trim() + '\n' : '';
-      var sysPrompt   = '你是一个 SillyTavern 世界书词条构建大师。请生成【仅仅1条】详细完整的设定。' + stepInfo + charBlock + '\n' + ctxStr + '\n' + presetBlock + searchInjection + '\n【输出】：1个JSON对象 { "comment": "标题", "content": "详细设定(至少100字)", "keys": ["触发词"], "strategy": "selective 或 constant", "position": 4 }';
+      var sysPrompt   = promptText('wbSingle') + stepInfo + charBlock + '\n' + ctxStr + '\n' + presetBlock + searchInjection + '\n【输出】：1个JSON对象 { "comment": "标题", "content": "详细设定(至少100字)", "keys": ["触发词"], "strategy": "selective 或 constant", "position": 4 }';
       var userPrompt  = customDirection ? '【方向】：' + customDirection : '【自由发挥，拒绝重复】';
       var headers     = { 'Content-Type': 'application/json' };
       if (key) headers['Authorization'] = 'Bearer ' + key;
@@ -1329,7 +2023,8 @@ window.__setImportedAvatar__ = function(base64) {
         model: model,
         messages: [{ role: "system", content: sysPrompt }, { role: "user", content: userPrompt }],
         temperature: 0.8,
-        httpErrorPrefix: '请求失败 HTTP '
+        httpErrorPrefix: '请求失败 HTTP ',
+        signal: signal
       });
       var entry = extractJsonObj(aiResp3.content, '世界书单条生成');
       worldbookEntries.push({ comment: entry.comment || '拓展设定', content: entry.content || '', keys: Array.isArray(entry.keys) ? entry.keys : [], strategy: entry.strategy || 'selective', position: parseInt(entry.position) || 4, depth: 4, role: 0, order: 100, prob: 100 });
@@ -1338,14 +2033,29 @@ window.__setImportedAvatar__ = function(base64) {
     btnAiSingleWb.addEventListener('click', async function() {
       if (!modelSelect.value) return alert('请先选择模型！');
       btnAiSingleWb.disabled = true; btnAiSingleWb.textContent = "⏳ Roll中...";
-      try { await generateContextAwareWBEntry(wbSinglePrompt.value.trim(), "单条补充。"); renderEntriesList(); debouncedUpdateAndSave(); wbSinglePrompt.value = ''; }
-      catch(err) { alert('生成失败: ' + err.message); }
-      finally { btnAiSingleWb.disabled = false; btnAiSingleWb.textContent = "🎲 生成 1 条"; }
+      try {
+        await runAiTask({
+          type: 'wb_single',
+          title: '世界书单条生成',
+          target: (wbSinglePrompt.value.trim() || '').slice(0, 40),
+        }, async function(task) {
+          await generateContextAwareWBEntry(wbSinglePrompt.value.trim(), "单条补充。", task.signal);
+        });
+        renderEntriesList();
+        debouncedUpdateAndSave();
+        wbSinglePrompt.value = '';
+        closeWbModal('wbModalSingle');
+      }
+      catch(err) {
+        if (!isAiAbort(err)) alert('生成失败: ' + err.message);
+      }
+      finally { btnAiSingleWb.disabled = false; btnAiSingleWb.textContent = "生成 1 条"; }
     });
 
     // ============================================================
     //  世界书条目管理
     // ============================================================
+
     function escapeHtml(value) {
       return String(value == null ? '' : value)
         .replace(/&/g, '&amp;')
@@ -1353,6 +2063,58 @@ window.__setImportedAvatar__ = function(base64) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
+    }
+
+    function truncatePreviewLine(text, maxLen) {
+      var cap = maxLen || 100;
+      var one = String(text || '').replace(/\s+/g, ' ').trim();
+      if (!one) return '';
+      return one.length > cap ? one.slice(0, cap) + '…' : one;
+    }
+
+    // 挂到 body，避免 .panel 的 transform/overflow 把 fixed 遮罩锁在面板内
+    var WB_MODAL_IDS = ['wbModalSingle', 'wbModalOrganize', 'wbModalKeygen', 'wbModalEdit'];
+    function openWbModal(id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      if (!el._wbModalHome) el._wbModalHome = el.parentNode;
+      document.body.appendChild(el);
+      el.hidden = false;
+      el.setAttribute('aria-hidden', 'false');
+      document.body.classList.add('wb-modal-open');
+    }
+
+    function closeWbModal(id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      el.hidden = true;
+      el.setAttribute('aria-hidden', 'true');
+      if (el._wbModalHome && el.parentNode !== el._wbModalHome) {
+        el._wbModalHome.appendChild(el);
+      }
+      // 关闭编辑弹窗时清编辑态
+      if (id === 'wbModalEdit') {
+        editingIndex = -1;
+        isCreatingEntry = false;
+        updateCreateEntryButtonState();
+      }
+      var anyOpen = WB_MODAL_IDS.some(function(mid) {
+        var m = document.getElementById(mid);
+        return m && !m.hidden;
+      });
+      if (!anyOpen) document.body.classList.remove('wb-modal-open');
+    }
+
+    function setStatusBar(el, text, color) {
+      if (!el) return;
+      if (!text) {
+        el.style.display = 'none';
+        el.textContent = '';
+        return;
+      }
+      el.style.display = 'flex';
+      el.innerHTML = text;
+      if (color) el.style.color = color;
     }
 
     function getDefaultWBEntry() {
@@ -1394,24 +2156,44 @@ window.__setImportedAvatar__ = function(base64) {
       return html;
     }
 
-    function renderInlineEditor(index, entry, isNew) {
+    /** UI 中文标签；导出仍用 constant / selective / vectorized */
+    function strategyLabelZh(strategy) {
+      if (strategy === 'constant') return '常驻';
+      if (strategy === 'vectorized') return '向量化';
+      return '可选';
+    }
+
+    function strategyTagClass(strategy) {
+      if (strategy === 'constant') return 'is-constant';
+      if (strategy === 'vectorized') return 'is-vectorized';
+      return 'is-selective';
+    }
+
+    function renderStrategyTag(strategy) {
+      var s = strategy || 'selective';
+      return '<span class="wb-strategy-tag ' + strategyTagClass(s) + '">'
+        + '<span class="wb-strategy-dot" aria-hidden="true"></span>'
+        + escapeHtml(strategyLabelZh(s))
+        + '</span>';
+    }
+
+    /** 弹窗表单字段（不含底部按钮；按钮在弹窗 actions） */
+    function renderWbEditorFields(index, entry, isNew) {
       entry = normalizeWBEntry(entry);
       var editorId = isNew ? 'wb_editor_new' : 'wb_editor_' + index;
-      var title = isNew ? '✍️ 新建世界书条目' : '✍️ 编辑当前条目';
-      var subtitle = isNew ? '手动录入会直接插入到条目列表里。' : '保存后会直接覆盖这条世界书条目。';
       var strategyOptions = renderSelectOptions([
         { value: 'constant', label: '常驻' },
-        { value: 'selective', label: '关键词' },
+        { value: 'selective', label: '可选' },
         { value: 'vectorized', label: '向量化' },
       ], entry.strategy);
       var positionOptions = renderSelectOptions([
-        { value: '0', label: '0 — 之前' },
-        { value: '1', label: '1 — 之后' },
-        { value: '2', label: '2 — 前 EM' },
-        { value: '3', label: '3 — 后 EM' },
-        { value: '4', label: '4 — 深度' },
-        { value: '5', label: '5 — 之前 AN' },
-        { value: '6', label: '6 — 之后 AN' },
+        { value: '0', label: '0 — 角色定义之前' },
+        { value: '1', label: '1 — 角色定义之后' },
+        { value: '2', label: '2 — 示例消息之前' },
+        { value: '3', label: '3 — 示例消息之后' },
+        { value: '4', label: '4 — 按深度插入' },
+        { value: '5', label: '5 — 作者注释之前' },
+        { value: '6', label: '6 — 作者注释之后' },
       ], entry.position);
       var roleOptions = renderSelectOptions([
         { value: '0', label: '系统' },
@@ -1420,12 +2202,6 @@ window.__setImportedAvatar__ = function(base64) {
       ], entry.role);
       return ''
         + '<div class="wb-inline-editor" id="' + editorId + '" data-editor-index="' + index + '">'
-        +   '<div class="wb-inline-editor-head">'
-        +     '<div>'
-        +       '<div class="wb-inline-editor-title">' + title + '</div>'
-        +       '<div class="wb-inline-editor-subtitle">' + subtitle + '</div>'
-        +     '</div>'
-        +   '</div>'
         +   '<div class="form-group">'
         +     '<label>条目标题</label>'
         +     '<input type="text" data-field="comment" placeholder="例如：===特殊武器===" value="' + escapeHtml(entry.comment) + '" />'
@@ -1466,10 +2242,6 @@ window.__setImportedAvatar__ = function(base64) {
         +     '<label>概率 (%)</label>'
         +     '<input type="number" data-field="prob" value="' + escapeHtml(entry.prob) + '" min="1" max="100" />'
         +   '</div>'
-        +   '<div class="wb-inline-editor-actions">'
-        +     '<button class="btn btn-add btn-save-inline" data-index="' + index + '">' + (isNew ? '➕ 保存新条目' : '💾 保存修改') + '</button>'
-        +     '<button class="btn wb-inline-cancel btn-cancel-inline" data-index="' + index + '">取消</button>'
-        +   '</div>'
         + '</div>';
     }
 
@@ -1497,19 +2269,35 @@ window.__setImportedAvatar__ = function(base64) {
       };
     }
 
-    function focusInlineEditor(editorId) {
+    function focusWbModalEditor() {
       setTimeout(function() {
-        var editor = document.getElementById(editorId);
-        if (!editor) return;
-        editor.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        var target = editor.querySelector('[data-field="comment"]');
+        var body = document.getElementById('wbModalEditBody');
+        if (!body) return;
+        var target = body.querySelector('[data-field="comment"]');
         if (target) target.focus();
       }, 0);
     }
 
+    /** 打开新建/编辑弹窗并填入表单 */
+    function openWbEditModal(index, entry, isNew) {
+      var titleEl = document.getElementById('wbModalEditTitle');
+      var tipEl = document.getElementById('wbModalEditTip');
+      var bodyEl = document.getElementById('wbModalEditBody');
+      var saveBtn = document.getElementById('btnWbModalSave');
+      if (!bodyEl) return;
+      if (titleEl) titleEl.textContent = isNew ? '新建世界书条目' : '编辑世界书条目';
+      if (tipEl) tipEl.textContent = isNew
+        ? '手动录入会插入到条目列表 · Esc / 遮罩关闭'
+        : '保存后覆盖本条 · Esc / 遮罩关闭';
+      if (saveBtn) saveBtn.textContent = isNew ? '保存新条目' : '保存修改';
+      bodyEl.innerHTML = renderWbEditorFields(index, entry, isNew);
+      openWbModal('wbModalEdit');
+      focusWbModalEditor();
+    }
+
     function updateCreateEntryButtonState() {
       if (!btnCreateEntry) return;
-      btnCreateEntry.textContent = isCreatingEntry ? '收起新建条目' : '➕ 新建手动条目';
+      btnCreateEntry.textContent = isCreatingEntry ? '取消新建' : '新建';
     }
 
     function resetWBForm() {
@@ -1520,33 +2308,28 @@ window.__setImportedAvatar__ = function(base64) {
 
     function toggleCreateEntryForm() {
       if (isCreatingEntry) {
-        resetWBForm();
-        renderEntriesList();
+        closeWbModal('wbModalEdit');
         return;
       }
       editingIndex = -1;
       isCreatingEntry = true;
-      renderEntriesList();
       updateCreateEntryButtonState();
-      focusInlineEditor('wb_editor_new');
+      openWbEditModal(-1, getDefaultWBEntry(), true);
     }
 
     function editEntry(index) {
       if (editingIndex === index && !isCreatingEntry) {
-        resetWBForm();
-        renderEntriesList();
+        closeWbModal('wbModalEdit');
         return;
       }
       editingIndex = index;
       isCreatingEntry = false;
-      renderEntriesList();
       updateCreateEntryButtonState();
-      focusInlineEditor('wb_editor_' + index);
+      openWbEditModal(index, worldbookEntries[index] || getDefaultWBEntry(), false);
     }
 
     function cancelInlineEdit() {
-      resetWBForm();
-      renderEntriesList();
+      closeWbModal('wbModalEdit');
     }
 
     function saveInlineEntry(index) {
@@ -1556,75 +2339,151 @@ window.__setImportedAvatar__ = function(base64) {
       if (!nextEntry.content.trim()) return alert('内容不能为空！');
       if (index >= 0) worldbookEntries[index] = nextEntry;
       else worldbookEntries.push(nextEntry);
-      resetWBForm();
+      closeWbModal('wbModalEdit');
       renderEntriesList();
       debouncedUpdateAndSave();
     }
 
     async function aiRewriteEntry(index, req, btn) {
       var url = apiUrl.value.replace(/\/$/, '') + '/chat/completions'; var key = apiKey.value.trim(); var model = modelSelect.value;
-      if (!model) return alert('请先选择模型！');
-      var old = worldbookEntries[index]; var oldText = btn.textContent; btn.disabled = true; btn.textContent = "⏳ 重铸中...";
-      var presetsStr = getActivePresetsStr();
-      var isSkeleton = old.content.length < 60;
-      var expandHint = isSkeleton ? '\n\n【重要】：原条目是骨架概要，请展开为完整详细的世界书设定词条（至少150字），保留方向但大幅扩充。' : '';
-      var searchInjection = '';
-      if (window.__searchConfig__ && window.__searchConfig__.isEnabled()) {
-        var sq = old.comment + ' ' + (req || '');
-        var sr = await performSearchIfEnabled(sq);
-        searchInjection = sr.searchText || '';
+      if (!model) {
+        alert('请先选择模型！');
+        throw new Error('请先选择模型');
       }
-      var sys = '你是一个 SillyTavern 词条润色大师。修改一个【已存在的词条】。\n【原词条】: 标题: ' + old.comment + ' | 策略: ' + old.strategy + ' | 触发词: ' + old.keys.join(',') + '\n内容: ' + old.content + (presetsStr ? '\n【文风】：\n' + presetsStr : '') + expandHint + searchInjection + '\n【任务】：重写。输出JSON：{ "comment": "标题", "content": "详细设定", "keys": ["触发词"], "strategy": "selective 或 constant", "position": ' + old.position + ' }';
+      var old = worldbookEntries[index];
+      var oldText = btn && btn.textContent;
+      if (btn) { btn.disabled = true; btn.textContent = '⏳ 重铸中...'; }
+      var isSkeleton = old.content.length < 60;
+      var taskType = isSkeleton ? 'wb_expand' : 'wb_rewrite';
       try {
-        var h = { 'Content-Type': 'application/json' }; if (key) h['Authorization'] = 'Bearer ' + key;
-        var aiResp4 = await fetchAIContent({
-          context: '世界书重写/索引' + index,
-          url: url,
-          headers: h,
-          model: model,
-          messages: [{ role: "system", content: sys }, { role: "user", content: isSkeleton ? '将骨架展开为完整设定。' + (req ? ' 额外要求：' + req : '') : '修改要求：' + req }],
-          temperature: 0.8,
-          httpErrorPrefix: 'HTTP '
+        await runAiTask({
+          type: taskType,
+          title: isSkeleton ? '世界书扩写' : '世界书重写',
+          target: old.comment || ('#' + index),
+        }, async function(task) {
+          var presetsStr = getActivePresetsStr();
+          var expandHint = isSkeleton ? '\n\n【重要】：原条目是骨架概要，请展开为完整详细的世界书设定词条（至少150字），保留方向但大幅扩充。' : '';
+          var searchInjection = '';
+          if (window.__searchConfig__ && window.__searchConfig__.isEnabled()) {
+            var sq = old.comment + ' ' + (req || '');
+            var sr = await performSearchIfEnabled(sq);
+            searchInjection = sr.searchText || '';
+          }
+          var sys = promptText('wbRewrite') + '\n【原词条】: 标题: ' + old.comment + ' | 策略: ' + old.strategy + ' | 触发词: ' + old.keys.join(',') + '\n内容: ' + old.content + (presetsStr ? '\n【文风】：\n' + presetsStr : '') + expandHint + searchInjection + '\n【任务】：重写。输出JSON：{ "comment": "标题", "content": "详细设定", "keys": ["触发词"], "strategy": "selective 或 constant", "position": ' + old.position + ' }';
+          var h = { 'Content-Type': 'application/json' }; if (key) h['Authorization'] = 'Bearer ' + key;
+          var aiResp4 = await fetchAIContent({
+            context: '世界书重写/索引' + index,
+            url: url,
+            headers: h,
+            model: model,
+            messages: [{ role: "system", content: sys }, { role: "user", content: isSkeleton ? '将骨架展开为完整设定。' + (req ? ' 额外要求：' + req : '') : '修改要求：' + req }],
+            temperature: 0.8,
+            httpErrorPrefix: 'HTTP ',
+            signal: task.signal
+          });
+          var ed = extractJsonObj(aiResp4.content, '世界书重写/索引' + index);
+          worldbookEntries[index].comment = ed.comment || old.comment;
+          worldbookEntries[index].content = ed.content || old.content;
+          if (ed.keys) worldbookEntries[index].keys = Array.isArray(ed.keys) ? ed.keys : [];
+          if (ed.strategy) worldbookEntries[index].strategy = ed.strategy;
+          renderEntriesList(); debouncedUpdateAndSave();
         });
-        var ed = extractJsonObj(aiResp4.content, '世界书重写/索引' + index);
-        worldbookEntries[index].comment = ed.comment || old.comment;
-        worldbookEntries[index].content = ed.content || old.content;
-        if (ed.keys) worldbookEntries[index].keys = Array.isArray(ed.keys) ? ed.keys : [];
-        if (ed.strategy) worldbookEntries[index].strategy = ed.strategy;
-        renderEntriesList(); debouncedUpdateAndSave();
-      } catch(err) { alert('重写失败: ' + err.message); }
-      finally { btn.disabled = false; btn.textContent = oldText || '✨ AI重写'; }
+      } catch(err) {
+        if (!isAiAbort(err)) {
+          alert('重写失败: ' + err.message);
+          throw err;
+        }
+      }
+      finally {
+        if (btn) { btn.disabled = false; btn.textContent = oldText || '✨ AI重写'; }
+      }
     }
 
     function renderEntriesList() {
       entriesList.innerHTML = '';
-      entriesList.style.display = (isCreatingEntry || worldbookEntries.length) ? 'block' : 'none';
-      var posMap = ["0前","1后","2前EM","3后EM","4深度","5前AN","6后AN"];
-      if (isCreatingEntry) {
-        var createDiv = document.createElement('div');
-        createDiv.className = 'entry-item fade-in is-creating';
-        createDiv.innerHTML = renderInlineEditor(-1, getDefaultWBEntry(), true);
-        entriesList.appendChild(createDiv);
+      // 始终显示列表容器以占满剩余高度；空态用占位避免主区下方大片空白
+      entriesList.style.display = '';
+      var posMap = ['角色前', '角色后', '示例前', '示例后', '按深度', '注释前', '注释后'];
+      if (!worldbookEntries.length) {
+        var empty = document.createElement('div');
+        empty.className = 'wb-entries-empty';
+        empty.textContent = '暂无世界书条目，点击右上「新建」或「单条生成」';
+        entriesList.appendChild(empty);
       }
       worldbookEntries.forEach(function(entry, index) {
         entry = normalizeWBEntry(entry);
-        var isSk = entry.content.length < 60;
+        var isSk = entry.content.length < 60 || String(entry.content || '').indexOf('待展开') >= 0;
         var safeComment = escapeHtml(entry.comment || '未命名');
-        var safeKeys = escapeHtml((entry.keys || []).join(', ') || '无');
-        var preview = entry.content ? '<div class="wb-entry-preview">' + escapeHtml(entry.content) + '</div>' : '';
-        var skBadge = isSk ? '<span style="font-size:0.6rem;background:rgba(245,158,11,0.15);color:#f59e0b;padding:1px 6px;border-radius:99px;margin-left:6px;border:1px solid rgba(245,158,11,0.25);">🦴 骨架</span>' : '';
-        var div = document.createElement('div'); div.className = 'entry-item fade-in' + (editingIndex === index ? ' is-expanded' : '');
-        div.innerHTML = '<div class="entry-item-header"><div class="entry-info"><h4>' + safeComment + ' <span style="color:#8b5cf6;font-size:0.7rem;opacity:0.8;">[' + entry.strategy + ']</span>' + skBadge + '</h4><p>位置: ' + (posMap[entry.position] || entry.position) + ' | 顺序: ' + entry.order + ' | 深度: ' + entry.depth + ' | 概率: ' + entry.prob + '%</p><p>触发词: ' + safeKeys + '</p>' + (isSk ? '<p style="color:#f59e0b;font-size:0.7rem;margin-top:4px;">💡 点击「✨ AI重写」展开为完整设定</p>' : '') + '</div><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;max-width:160px;"><button class="btn btn-edit" data-index="' + index + '" style="width:auto;padding:4px 8px;font-size:0.75rem;background-color:#3b82f6;">✏️ 编辑</button><button class="btn btn-toggle-reroll" data-index="' + index + '" style="width:auto;padding:4px 8px;font-size:0.75rem;background:linear-gradient(135deg,#8b5cf6,#6d28d9);">✨ AI重写</button><button class="btn btn-delete" data-index="' + index + '" style="width:auto;padding:4px 8px;font-size:0.75rem;">🗑️</button></div></div>' + preview + (editingIndex === index ? renderInlineEditor(index, entry, false) : '') + '<div id="reroll_area_' + index + '" style="display:none;width:100%;margin-top:12px;padding-top:12px;border-top:1px dashed #334155;"><input type="text" id="reroll_prompt_' + index + '" placeholder="' + (isSk ? '可留空直接展开，或输入额外要求...' : '怎么修改？') + '" style="width:100%;padding:8px;margin-bottom:8px;" /><button class="btn btn-submit-reroll" data-index="' + index + '" style="background:linear-gradient(135deg,#8b5cf6,#6d28d9);padding:8px;font-size:0.85rem;">' + (isSk ? '🦴→📖 展开为完整设定' : '🎲 确定覆盖重写') + '</button></div>';
-        div.querySelector('.entry-info h4').title = entry.comment || '';
+        var previewLine = truncatePreviewLine(entry.content);
+        var metaLine = '位置: ' + (posMap[entry.position] || entry.position) + ' | 顺序: ' + entry.order + ' | 深度: ' + entry.depth + ' | 概率: ' + entry.prob + '%';
+        var skBadge = isSk ? '<span style="font-size:0.6rem;background:rgba(245,158,11,0.15);color:#f59e0b;padding:1px 6px;border-radius:99px;border:1px solid rgba(245,158,11,0.25);">🦴 骨架</span>' : '';
+        var strategyBadge = renderStrategyTag(entry.strategy);
+        // 右侧图标操作：编辑 / AI重写 / 删除（骨架未扩展：金色提示可展开）
+        var aiTitle = isSk ? 'AI 展开（未扩展）' : 'AI 重写';
+        var actionsHtml =
+          '<div class="entry-actions">' +
+            '<button class="entry-icon-btn btn-edit" data-index="' + index + '" type="button" title="编辑" aria-label="编辑">✎</button>' +
+            '<button class="entry-icon-btn btn-toggle-reroll' + (isSk ? ' btn-ai-expand' : '') + '" data-index="' + index + '" type="button" title="' + aiTitle + '" aria-label="' + aiTitle + '">✦</button>' +
+            '<button class="entry-icon-btn is-danger btn-delete" data-index="' + index + '" type="button" title="删除" aria-label="删除">×</button>' +
+          '</div>';
+        var div = document.createElement('div');
+        div.className = 'entry-item fade-in';
+        div.setAttribute('data-entry-index', String(index));
+        div.innerHTML =
+          '<div class="entry-item-header">' +
+            '<div class="entry-info">' +
+              '<div class="entry-info-title-row"><button type="button" class="entry-title-btn btn-edit" data-index="' + index + '" title="编辑条目">' + safeComment + '</button>' + strategyBadge + skBadge + '</div>' +
+              (previewLine ? '<p class="entry-preview-line">' + escapeHtml(previewLine) + '</p>' : '') +
+              '<p class="entry-meta-line">' + escapeHtml(metaLine) + '</p>' +
+            '</div>' +
+            actionsHtml +
+          '</div>' +
+          '<div id="reroll_area_' + index + '" style="display:none;width:100%;margin-top:12px;padding-top:12px;border-top:1px dashed var(--color-surface-elevated);">' +
+            '<input type="text" id="reroll_prompt_' + index + '" placeholder="' + (isSk ? '可留空直接展开，或输入额外要求...' : '怎么修改？') + '" style="width:100%;padding:8px;margin-bottom:8px;" />' +
+            '<button class="btn btn-submit-reroll" data-index="' + index + '" type="button" style="background:linear-gradient(135deg,var(--color-accent),#6d28d9);padding:8px;font-size:0.85rem;">' +
+              (isSk ? '🦴→📖 展开为完整设定' : '🎲 确定覆盖重写') +
+            '</button>' +
+          '</div>';
         entriesList.appendChild(div);
       });
       updateCreateEntryButtonState();
-      document.querySelectorAll('.btn-edit').forEach(function(b) { b.addEventListener('click', function(e) { editEntry(parseInt(e.currentTarget.getAttribute('data-index'))); }); });
-      document.querySelectorAll('.btn-save-inline').forEach(function(b) { b.addEventListener('click', function(e) { saveInlineEntry(parseInt(e.currentTarget.getAttribute('data-index'))); }); });
-      document.querySelectorAll('.btn-cancel-inline').forEach(function(b) { b.addEventListener('click', function() { cancelInlineEdit(); }); });
-      document.querySelectorAll('.btn-toggle-reroll').forEach(function(b) { b.addEventListener('click', function(e) { var a = document.getElementById('reroll_area_' + e.currentTarget.getAttribute('data-index')); var item = e.currentTarget.closest('.entry-item'); var open = a.style.display === 'none'; a.style.display = open ? 'block' : 'none'; if (item) item.classList.toggle('is-expanded', open); }); });
-      document.querySelectorAll('.btn-submit-reroll').forEach(function(b) { b.addEventListener('click', async function(e) { var idx = parseInt(e.currentTarget.getAttribute('data-index')); var req = document.getElementById('reroll_prompt_' + idx).value.trim(); var isSk = worldbookEntries[idx].content.length < 60; if (!isSk && !req) return alert('请填写修改要求！'); await aiRewriteEntry(idx, req, e.currentTarget); }); });
-      document.querySelectorAll('.btn-delete').forEach(function(b) { b.addEventListener('click', function(e) { var idx = parseInt(e.currentTarget.getAttribute('data-index')); worldbookEntries.splice(idx, 1); if (editingIndex === idx) resetWBForm(); else if (editingIndex > idx) editingIndex--; renderEntriesList(); flushUpdateAndSave(); }); });
+
+      document.querySelectorAll('.btn-edit').forEach(function(b) {
+        b.addEventListener('click', function(e) {
+          e.stopPropagation();
+          editEntry(parseInt(e.currentTarget.getAttribute('data-index'), 10));
+        });
+      });
+      document.querySelectorAll('.btn-toggle-reroll').forEach(function(b) {
+        b.addEventListener('click', function(e) {
+          e.stopPropagation();
+          var idx = e.currentTarget.getAttribute('data-index');
+          var a = document.getElementById('reroll_area_' + idx);
+          a.style.display = a.style.display === 'none' ? 'block' : 'none';
+        });
+      });
+      document.querySelectorAll('.btn-submit-reroll').forEach(function(b) {
+        b.addEventListener('click', async function(e) {
+          e.stopPropagation();
+          var idx = parseInt(e.currentTarget.getAttribute('data-index'), 10);
+          var req = document.getElementById('reroll_prompt_' + idx).value.trim();
+          var isSk = worldbookEntries[idx].content.length < 60;
+          if (!isSk && !req) return alert('请填写修改要求！');
+          await aiRewriteEntry(idx, req, e.currentTarget);
+        });
+      });
+      document.querySelectorAll('.btn-delete').forEach(function(b) {
+        b.addEventListener('click', function(e) {
+          e.stopPropagation();
+          var idx = parseInt(e.currentTarget.getAttribute('data-index'), 10);
+          worldbookEntries.splice(idx, 1);
+          // 重建展开索引（删除后序号左移）
+          if (editingIndex === idx) closeWbModal('wbModalEdit');
+          else if (editingIndex > idx) editingIndex--;
+          renderEntriesList();
+          flushUpdateAndSave();
+        });
+      });
       // 通知审计官：世界书条目已变化
       window.dispatchEvent(new CustomEvent('worldbook-changed'));
       // 同步刷新搜索结果
@@ -1632,7 +2491,7 @@ window.__setImportedAvatar__ = function(base64) {
     }
 
     // ============================================================
-    //  世界书搜索（标题 / 触发词 / 内容，两列展示）
+    //  世界书搜索（标题 / 触发词 / 内容 → 单列紧凑命中行）
     // ============================================================
     var wbSearchInput   = document.getElementById('wbSearchInput');
     var wbSearchClear   = document.getElementById('wbSearchClear');
@@ -1655,6 +2514,19 @@ window.__setImportedAvatar__ = function(base64) {
       try { re = new RegExp(escapeRegex(safeQuery), 'gi'); }
       catch (e) { return safeText; }
       return safeText.replace(re, function(m) { return '<mark>' + m + '</mark>'; });
+    }
+
+    /** 围绕命中位置截取单行摘录 */
+    function buildWbHitSnippet(text, q, queryLen) {
+      var raw = String(text || '');
+      if (!raw) return '';
+      var idx = raw.toLowerCase().indexOf(q);
+      if (idx === -1) {
+        return raw.length > 72 ? raw.substring(0, 72) + '…' : raw;
+      }
+      var start = Math.max(0, idx - 24);
+      var end = Math.min(raw.length, idx + queryLen + 40);
+      return (start > 0 ? '…' : '') + raw.substring(start, end) + (end < raw.length ? '…' : '');
     }
 
     function renderWbSearchResults(query) {
@@ -1690,67 +2562,70 @@ window.__setImportedAvatar__ = function(base64) {
       });
 
       if (wbSearchCount) wbSearchCount.textContent = '命中 ' + matches.length + ' / ' + worldbookEntries.length + ' 条';
-      wbSearchResults.style.display = 'grid';
+      wbSearchResults.style.display = 'flex';
 
       if (matches.length === 0) {
-        wbSearchResults.innerHTML = '<div class="wb-search-empty">😿 没有命中条目</div>';
+        wbSearchResults.innerHTML = '<div class="wb-search-empty">无命中</div>';
         return;
       }
 
+      // 紧凑行：标题 + 策略 tag + 命中字段 + 一行高亮摘录；整行可点跳转
       var html = matches.map(function(m) {
         var entry = m.entry;
         var fields = [];
         if (m.titleMatch)   fields.push('<strong>标题</strong>');
         if (m.keysMatch)    fields.push('<strong>触发词</strong>');
         if (m.contentMatch) fields.push('<strong>内容</strong>');
-        var snippet = '';
-        if (m.contentMatch) {
-          var content = entry.content || '';
-          var idx = content.toLowerCase().indexOf(q);
-          if (idx !== -1) {
-            var start = Math.max(0, idx - 30);
-            var end = Math.min(content.length, idx + trimmed.length + 50);
-            snippet = (start > 0 ? '…' : '') + content.substring(start, end) + (end < content.length ? '…' : '');
-          }
-        } else {
-          snippet = (entry.content || '').substring(0, 80) + ((entry.content || '').length > 80 ? '…' : '');
-        }
+        var snippetSrc = '';
+        if (m.contentMatch) snippetSrc = entry.content || '';
+        else if (m.keysMatch) snippetSrc = m.keysText || '';
+        else snippetSrc = entry.content || m.keysText || '';
+        var snippet = buildWbHitSnippet(snippetSrc, q, trimmed.length);
         var titleHtml = highlightMatch(entry.comment || '未命名', trimmed);
-        var keysHtml = m.keysMatch ? highlightMatch(m.keysText, trimmed) : escapeHtml(m.keysText || '无');
         var snippetHtml = highlightMatch(snippet, trimmed);
-        return '<div class="wb-search-card" data-jump-index="' + m.index + '">' +
-          '<div class="wb-search-card-head">' +
-            '<span class="wb-search-card-title" title="' + escapeHtml(entry.comment || '') + '">' + titleHtml + '</span>' +
-            '<span class="wb-search-card-strategy">' + escapeHtml(entry.strategy || '') + '</span>' +
+        return '<div class="wb-search-hit" role="button" tabindex="0" data-jump-index="' + m.index + '" title="跳转并展开该条目">' +
+          '<div class="wb-search-hit-main">' +
+            '<span class="wb-search-hit-title" title="' + escapeHtml(entry.comment || '') + '">' + titleHtml + '</span>' +
+            renderStrategyTag(entry.strategy) +
+            '<span class="wb-search-hit-fields">' + fields.join(' · ') + '</span>' +
           '</div>' +
-          '<div class="wb-search-card-field">命中：' + fields.join(' · ') + '</div>' +
-          '<div class="wb-search-card-field">触发词：' + keysHtml + '</div>' +
-          '<div class="wb-search-card-snippet">' + snippetHtml + '</div>' +
-          '<div class="wb-search-card-jump">↗ 点击跳转到条目</div>' +
+          (snippet ? '<div class="wb-search-hit-snippet">' + snippetHtml + '</div>' : '') +
         '</div>';
       }).join('');
       wbSearchResults.innerHTML = html;
 
-      wbSearchResults.querySelectorAll('.wb-search-card').forEach(function(card) {
-        card.addEventListener('click', function() {
-          var idx = parseInt(card.getAttribute('data-jump-index'));
+      wbSearchResults.querySelectorAll('.wb-search-hit').forEach(function(row) {
+        function go() {
+          var idx = parseInt(row.getAttribute('data-jump-index'), 10);
           jumpToWbEntry(idx);
+        }
+        row.addEventListener('click', go);
+        row.addEventListener('keydown', function(e) {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            go();
+          }
         });
       });
     }
 
     function jumpToWbEntry(idx) {
       if (!Number.isFinite(idx) || idx < 0 || idx >= worldbookEntries.length) return;
-      var items = entriesList.querySelectorAll('.entry-item');
-      var targetDiv = items[idx];
+      renderEntriesList();
+      var targetDiv = entriesList.querySelector('.entry-item[data-entry-index="' + idx + '"]');
       if (targetDiv) {
         targetDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        targetDiv.classList.add('is-search-focus');
         targetDiv.style.transition = 'box-shadow 0.3s ease';
         targetDiv.style.boxShadow = '0 0 0 2px rgba(56, 189, 248, 0.6)';
-        setTimeout(function() { targetDiv.style.boxShadow = ''; }, 1800);
+        setTimeout(function() {
+          targetDiv.style.boxShadow = '';
+          targetDiv.classList.remove('is-search-focus');
+        }, 1800);
       } else {
         entriesList.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
+      editEntry(idx);
     }
 
     if (wbSearchInput) {
@@ -1772,6 +2647,29 @@ window.__setImportedAvatar__ = function(base64) {
     });
 
     if (btnCreateEntry) btnCreateEntry.addEventListener('click', toggleCreateEntryForm);
+
+    // 标题行右上 AI / 新建 → 打开配置弹窗；取消/遮罩关闭
+    var btnOpenWbAiSingle = document.getElementById('btnOpenWbAiSingle');
+    var btnOpenWbAiOrganize = document.getElementById('btnOpenWbAiOrganize');
+    var btnOpenWbAiKeygen = document.getElementById('btnOpenWbAiKeygen');
+    if (btnOpenWbAiSingle) btnOpenWbAiSingle.addEventListener('click', function() { openWbModal('wbModalSingle'); });
+    if (btnOpenWbAiOrganize) btnOpenWbAiOrganize.addEventListener('click', function() { openWbModal('wbModalOrganize'); });
+    if (btnOpenWbAiKeygen) btnOpenWbAiKeygen.addEventListener('click', function() { openWbModal('wbModalKeygen'); });
+    document.querySelectorAll('[data-wb-modal-close]').forEach(function(el) {
+      el.addEventListener('click', function() {
+        closeWbModal(el.getAttribute('data-wb-modal-close'));
+      });
+    });
+    var btnWbModalSave = document.getElementById('btnWbModalSave');
+    if (btnWbModalSave) {
+      btnWbModalSave.addEventListener('click', function() {
+        saveInlineEntry(isCreatingEntry ? -1 : editingIndex);
+      });
+    }
+    document.addEventListener('keydown', function(e) {
+      if (e.key !== 'Escape') return;
+      WB_MODAL_IDS.forEach(closeWbModal);
+    });
 
     // ============================================================
     //  AI 智能整理世界书参数
@@ -1842,7 +2740,7 @@ window.__setImportedAvatar__ = function(base64) {
       return batches;
     }
 
-    async function generateTriggerKeysBatch(batch) {
+    async function generateTriggerKeysBatch(batch, signal) {
       var url = apiUrl.value.replace(/\/$/, '') + '/chat/completions';
       var key = apiKey.value.trim();
       var model = modelSelect.value;
@@ -1859,16 +2757,7 @@ window.__setImportedAvatar__ = function(base64) {
 
       var compactEntries = buildKeygenCompactEntries(batch);
 
-      var sysPrompt = '你是 SillyTavern 世界书触发词设计器。你的任务是为每个世界书条目生成更自然、更容易在聊天中命中的 keys。'
-        + '\n规则：'
-        + '\n1. 只输出 JSON 数组，不要解释。'
-        + '\n2. 每项格式：{ "index": 序号, "keys": ["触发词1","触发词2"] }'
-        + '\n3. 每条生成 3 到 8 个 keys。'
-        + '\n4. 优先使用用户聊天里真的会说出来的词、简称、别称、常见叫法、直白描述。'
-        + '\n5. 可以保留原有合适 keys，也可以补充更自然的说法。'
-        + '\n6. 避免过于抽象、过于泛化的词，例如“设定”“事情”“系统”“存在”。'
-        + '\n7. 不要输出长句，不要输出整段说明。'
-        + '\n8. 输出必须能被 JSON.parse 直接解析。';
+      var sysPrompt = promptText('wbTriggerKeys');
 
       var userPrompt = '角色参考：\n' + JSON.stringify(charBlock, null, 2)
         + '\n\n请为以下世界书条目生成更合适的触发词：\n'
@@ -1884,7 +2773,8 @@ window.__setImportedAvatar__ = function(base64) {
           { role: 'user', content: userPrompt },
         ],
         temperature: 0.4,
-        httpErrorPrefix: 'HTTP '
+        httpErrorPrefix: 'HTTP ',
+        signal: signal
       });
       var raw = aiResp5.content;
       var arr;
@@ -1914,17 +2804,18 @@ window.__setImportedAvatar__ = function(base64) {
       return { applied: applied, matched: matched };
     }
 
-    async function completeTriggerKeysBatch(batch, batchIndex, batchCount, processed, totalTargets) {
+    async function completeTriggerKeysBatch(batch, batchIndex, batchCount, processed, totalTargets, signal) {
       var pending = batch.slice();
       var round = 0;
       var updated = 0;
       var matchedAny = {};
 
       while (pending.length > 0 && round < KEYGEN_MAX_RETRY_ROUNDS) {
+        if (signal && signal.aborted) throw new DOMException('已取消', 'AbortError');
         round++;
         var retryHint = round > 1 ? '，补跑第 ' + round + ' 轮（剩余 ' + pending.length + ' 条）' : '';
-        keygenStatus.textContent = '🧠 正在生成触发词... ' + processed + '/' + totalTargets + '（第 ' + (batchIndex + 1) + '/' + batchCount + ' 批' + retryHint + '）';
-        var suggestions = await generateTriggerKeysBatch(pending);
+        setStatusBar(keygenStatus, '🧠 正在生成触发词... ' + processed + '/' + totalTargets + '（第 ' + (batchIndex + 1) + '/' + batchCount + ' 批' + retryHint + '）', '#38bdf8');
+        var suggestions = await generateTriggerKeysBatch(pending, signal);
         var result = applyTriggerKeySuggestions(suggestions);
         updated += result.applied;
         Object.keys(result.matched).forEach(function(idx) { matchedAny[idx] = true; });
@@ -1949,46 +2840,58 @@ window.__setImportedAvatar__ = function(base64) {
 
       btnAiGenerateKeys.disabled = true;
       btnAiGenerateKeys.textContent = '⏳ 生成中...';
-      keygenStatus.textContent = '🧠 正在分析 ' + targets.length + ' 条条目的触发词...';
-      keygenStatus.style.color = '#38bdf8';
+      closeWbModal('wbModalKeygen');
+      setStatusBar(keygenStatus, '🧠 正在分析 ' + targets.length + ' 条条目的触发词...', '#38bdf8');
 
       try {
-        var charBlock = {
-          name: charName.value.trim() || '',
-          worldbook: wbName.value.trim() || '',
-          description_preview: (charDesc.value || '').trim().substring(0, 300),
-        };
-        var batches = splitTargetsForKeygen(targets, charBlock);
-        var updated = 0;
-        var processed = 0;
-        var unresolved = [];
-        for (var batchIndex = 0; batchIndex < batches.length; batchIndex++) {
-          var batch = batches[batchIndex];
-          processed += batch.length;
-          var batchResult = await completeTriggerKeysBatch(batch, batchIndex, batches.length, processed, targets.length);
-          updated += batchResult.updated;
-          if (batchResult.missing && batchResult.missing.length > 0) {
-            unresolved = unresolved.concat(batchResult.missing.map(function(item) {
-              return item.entry.comment || ('#' + item.index);
-            }));
+        await runAiTask({
+          type: 'wb_keygen',
+          title: '世界书补全触发词',
+          target: targets.length + ' 条',
+        }, async function(task) {
+          var charBlock = {
+            name: charName.value.trim() || '',
+            worldbook: wbName.value.trim() || '',
+            description_preview: (charDesc.value || '').trim().substring(0, 300),
+          };
+          var batches = splitTargetsForKeygen(targets, charBlock);
+          var updated = 0;
+          var processed = 0;
+          var unresolved = [];
+          for (var batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+            if (task.signal && task.signal.aborted) throw new DOMException('已取消', 'AbortError');
+            var batch = batches[batchIndex];
+            processed += batch.length;
+            if (window.__aiTaskCenter__) {
+              window.__aiTaskCenter__.setProgress(task.id, processed / targets.length, '批次 ' + (batchIndex + 1) + '/' + batches.length);
+            }
+            var batchResult = await completeTriggerKeysBatch(batch, batchIndex, batches.length, processed, targets.length, task.signal);
+            updated += batchResult.updated;
+            if (batchResult.missing && batchResult.missing.length > 0) {
+              unresolved = unresolved.concat(batchResult.missing.map(function(item) {
+                return item.entry.comment || ('#' + item.index);
+              }));
+            }
           }
-        }
 
-        renderEntriesList();
-        debouncedUpdateAndSave();
-        if (unresolved.length > 0) {
-          keygenStatus.innerHTML = '⚠️ 已为 <strong>' + updated + '</strong> 条世界书更新触发词，但仍有 <strong>' + unresolved.length + '</strong> 条未返回结果：' + unresolved.slice(0, 3).map(escapeHtml).join('、') + (unresolved.length > 3 ? '…' : '');
-          keygenStatus.style.color = '#fbbf24';
-        } else {
-          keygenStatus.innerHTML = '✅ 已为 <strong>' + updated + '</strong> 条世界书更新触发词';
-          keygenStatus.style.color = '#34d399';
-        }
+          renderEntriesList();
+          debouncedUpdateAndSave();
+          if (unresolved.length > 0) {
+            setStatusBar(
+              keygenStatus,
+              '⚠️ 已为 <strong>' + updated + '</strong> 条世界书更新触发词，但仍有 <strong>' + unresolved.length + '</strong> 条未返回结果：' + unresolved.slice(0, 3).map(escapeHtml).join('、') + (unresolved.length > 3 ? '…' : ''),
+              'var(--color-warning)'
+            );
+          } else {
+            setStatusBar(keygenStatus, '✅ 已为 <strong>' + updated + '</strong> 条世界书更新触发词', '#34d399');
+          }
+        });
       } catch(err) {
-        keygenStatus.textContent = '❌ 触发词生成失败: ' + err.message;
-        keygenStatus.style.color = '#fca5a5';
+        if (isAiAbort(err)) setStatusBar(keygenStatus, '⏹ 已取消', 'var(--color-text-muted)');
+        else setStatusBar(keygenStatus, '❌ 触发词生成失败: ' + escapeHtml(err.message), 'var(--color-danger)');
       } finally {
         btnAiGenerateKeys.disabled = false;
-        btnAiGenerateKeys.innerHTML = '<span class="btn-magic-icon">✨</span><span class="btn-magic-text">一键补触发词</span>';
+        btnAiGenerateKeys.textContent = '一键补触发词';
       }
     });
 
@@ -2054,46 +2957,52 @@ window.__setImportedAvatar__ = function(base64) {
       var key = apiKey.value.trim(); var model = modelSelect.value;
       if (!model) return alert('请先选择 AI 模型！');
       btnAiOrganize.disabled = true; btnAiOrganize.textContent = '⏳ AI 分析中...';
-      organizeStatus.textContent = '🔍 正在分析 ' + worldbookEntries.length + ' 条世界书条目...';
-      organizeStatus.style.color = '#38bdf8';
+      closeWbModal('wbModalOrganize');
+      setStatusBar(organizeStatus, '🔍 正在分析 ' + worldbookEntries.length + ' 条世界书条目...', '#38bdf8');
       organizePreview.style.display = 'none'; pendingOrganizeData = null;
 
       var entrySummaries = worldbookEntries.map(function(e, i) {
         return { index: i, title: e.comment || '未命名', content_preview: (e.content || '').substring(0, 150), strategy: e.strategy, keys: (e.keys || []).join(', '), current_position: e.position, current_role: e.role, current_depth: e.depth, current_order: e.order, current_prob: e.prob };
       });
 
-      var sysPrompt = '你是 SillyTavern 世界书参数优化专家。请根据每个条目的内容类型和重要性，为它们分配最佳的 position（插入位置）、role（深度消息角色）、depth（深度）、order（插入顺序）和 probability/prob（触发概率）。\n\n【插入位置 position】：\n0 = 角色定义前（↑ Char）：大世界观、时代背景、通用设定\n1 = 角色定义后（↓ Char）：角色强相关设定、人物关系、重要规则\n2 = 示例消息前（↑ EM）：少用；伪装成示例对话的格式训练\n3 = 示例消息后（↓ EM）：少用；偏格式/口吻示例\n4 = 插入深度 @D：按 depth 插入为消息，适合强规则、状态、运行法则\n5 = 作者注释前（↑ AN）：当前剧情提醒、写作方向、气氛要求\n6 = 作者注释后（↓ AN）：更靠近后文，影响通常更明显\n注意：锚点/命名出口当前网站不支持，不要选择。\n\n【role 仅在 position=4 时生效】：\n0 = 系统⚙：强规则、世界运行法则、禁止违背的设定\n1 = 用户👤：像用户补充的情报、当前状态\n2 = AI🤖：像 AI 曾经说过/承认过的内容\n\n【其他参数】：\n• depth（0-999）：数值越小越靠近最新对话。核心设定 depth=1-2，重要设定 depth=3-4，背景设定 depth=5-8，冷门/彩蛋 depth=8-15\n• order（0-999）：同深度时的优先级，数值越大越先处理。核心规则 order=900-1000，重要 order=500-800，普通 order=100-400，低优先 order=10-99\n• prob（1-100）：常驻条目建议100%，普通触发条目80-100%，氛围/随机事件50-80%，彩蛋/稀有事件10-40%\n\n【分类参考】：\n- 核心世界观/规则/系统 → position=4, role=0, depth=1, order=900+, prob=100\n- 大世界观/时代背景/通用设定 → position=0 或 4, role=0, depth=2-5, order=500-900, prob=100\n- 主要角色/重要关系 → position=1 或 4, role=0, depth=2-3, order=600-800, prob=100\n- 当前状态/剧情提醒/气氛要求 → position=5 或 6, order=300-700, prob=80-100\n- 地点/组织/势力 → position=4, role=0, depth=3-5, order=300-500, prob=90-100\n- 物品/技能/道具 → position=4, role=0, depth=4-6, order=200-400, prob=80-100\n- 事件/剧情/任务 → position=4 或 5, role=0, depth=4-6, order=200-400, prob=70-90\n- 格式/口吻示例 → position=2 或 3，但仅在内容像示例对话时使用\n- 彩蛋/隐藏内容 → depth=8-15, order=10-50, prob=10-30\n\n【输出格式】：JSON 数组，每个元素：\n{ "index": 条目序号, "position": 0到6, "role": 0到2, "depth": 新深度, "order": 新顺序, "prob": 新概率, "reason": "一句话理由" }\n\n仅输出 JSON 数组，不要其他文字。';
+      var sysPrompt = promptText('wbOrganize');
       var userPrompt = '以下是 ' + worldbookEntries.length + ' 条世界书条目，请分析并优化参数：\n\n' + JSON.stringify(entrySummaries, null, 2);
 
       try {
-        var headers = { 'Content-Type': 'application/json' };
-        if (key) headers['Authorization'] = 'Bearer ' + key;
-        var aiResp6 = await fetchAIContent({
-          context: '世界书整理参数优化',
-          url: url,
-          headers: headers,
-          model: model,
-          messages: [{ role: 'system', content: sysPrompt }, { role: 'user', content: userPrompt }],
-          temperature: 0.3,
-          httpErrorPrefix: 'HTTP '
+        await runAiTask({
+          type: 'wb_organize',
+          title: '世界书智能整理',
+          target: worldbookEntries.length + ' 条',
+        }, async function(task) {
+          var headers = { 'Content-Type': 'application/json' };
+          if (key) headers['Authorization'] = 'Bearer ' + key;
+          var aiResp6 = await fetchAIContent({
+            context: '世界书整理参数优化',
+            url: url,
+            headers: headers,
+            model: model,
+            messages: [{ role: 'system', content: sysPrompt }, { role: 'user', content: userPrompt }],
+            temperature: 0.3,
+            httpErrorPrefix: 'HTTP ',
+            signal: task.signal
+          });
+          var rawContent = aiResp6.content;
+          var suggestions;
+          try { suggestions = extractJsonArray(rawContent, '世界书整理参数优化'); } catch(pe) { suggestions = [extractJsonObj(rawContent, '世界书整理参数优化/fallback')]; }
+          if (!Array.isArray(suggestions) || suggestions.length === 0) throw new Error('AI 返回格式异常');
+          suggestions = suggestions.map(normalizeOrganizeSuggestion).filter(Boolean);
+          if (suggestions.length === 0) throw new Error('AI 返回中没有有效条目');
+          pendingOrganizeData = suggestions;
+          renderOrganizePreview(suggestions);
+          setStatusBar(organizeStatus, '✅ 分析完成！请检查下方预览，确认后点击「应用」', '#34d399');
         });
-        var rawContent = aiResp6.content;
-        var suggestions;
-        try { suggestions = extractJsonArray(rawContent, '世界书整理参数优化'); } catch(pe) { suggestions = [extractJsonObj(rawContent, '世界书整理参数优化/fallback')]; }
-        if (!Array.isArray(suggestions) || suggestions.length === 0) throw new Error('AI 返回格式异常');
-        suggestions = suggestions.map(normalizeOrganizeSuggestion).filter(Boolean);
-        if (suggestions.length === 0) throw new Error('AI 返回中没有有效条目');
-        pendingOrganizeData = suggestions;
-        renderOrganizePreview(suggestions);
-        organizeStatus.textContent = '✅ 分析完成！请检查下方预览，确认后点击「应用」';
-        organizeStatus.style.color = '#34d399';
       } catch(err) {
-        organizeStatus.textContent = '❌ 整理失败: ' + err.message;
-        organizeStatus.style.color = '#fca5a5';
+        if (isAiAbort(err)) setStatusBar(organizeStatus, '⏹ 已取消', 'var(--color-text-muted)');
+        else setStatusBar(organizeStatus, '❌ 整理失败: ' + escapeHtml(err.message), 'var(--color-danger)');
         organizePreview.style.display = 'none';
       } finally {
         btnAiOrganize.disabled = false;
-        btnAiOrganize.textContent = '⚡ 一键整理';
+        btnAiOrganize.textContent = '一键整理';
       }
     });
 
@@ -2156,37 +3065,286 @@ window.__setImportedAvatar__ = function(base64) {
         });
         renderEntriesList(); debouncedUpdateAndSave();
         organizePreview.style.display = 'none'; pendingOrganizeData = null;
-        organizeStatus.innerHTML = '🎉 已应用 <strong>' + applied + '</strong> 处优化！';
-        organizeStatus.style.color = '#34d399';
-        setTimeout(function() { organizeStatus.innerHTML = ''; }, 3000);
+        setStatusBar(organizeStatus, '🎉 已应用 <strong>' + applied + '</strong> 处优化！', '#34d399');
+        setTimeout(function() { setStatusBar(organizeStatus, ''); }, 3000);
       });
 
       document.getElementById('btnOrgCancel').addEventListener('click', function() {
         organizePreview.style.display = 'none'; pendingOrganizeData = null;
-        organizeStatus.innerHTML = '已取消'; organizeStatus.style.color = '#64748b';
-        setTimeout(function() { organizeStatus.innerHTML = ''; }, 2000);
+        setStatusBar(organizeStatus, '已取消', 'var(--color-text-muted)');
+        setTimeout(function() { setStatusBar(organizeStatus, ''); }, 2000);
       });
     }
+
+    /** 助手世界书 AI：复用面板逻辑，可 await，不代导出 */
+    window.__assistantWbAi__ = {
+      generateEntry: async function(opts) {
+        opts = opts || {};
+        var before = worldbookEntries.length;
+        await runAiTask({
+          type: 'wb_single',
+          title: '助手·世界书单条生成',
+          target: String(opts.direction || opts.instruction || '').slice(0, 40),
+        }, async function(task) {
+          await generateContextAwareWBEntry(opts.direction || opts.instruction || '', '助手单条补充。', task.signal);
+        });
+        renderEntriesList();
+        debouncedUpdateAndSave();
+        var last = worldbookEntries[worldbookEntries.length - 1];
+        return {
+          added: worldbookEntries.length - before,
+          total: worldbookEntries.length,
+          entry: last ? { comment: last.comment, contentLen: String(last.content || '').length } : null,
+        };
+      },
+      mutateEntry: async function(opts) {
+        opts = opts || {};
+        var idx = typeof opts.index === 'number' ? opts.index : -1;
+        if (idx < 0 || idx >= worldbookEntries.length) throw new Error('条目索引无效');
+        var mode = opts.mode || 'expand';
+        var instruction = opts.instruction || opts.direction || '';
+        if (mode === 'expand' && !instruction) instruction = '将骨架/短内容展开为完整详细设定';
+        if (mode === 'rewrite' && !instruction) instruction = '按原意重写，提升清晰度与可用性';
+        if (mode === 'patch' && instruction) instruction = '定向修改：' + instruction + '（保留未要求改动的部分）';
+        // 复用 UI 重写；传入伪按钮避免 NPE
+        var fakeBtn = { textContent: '', disabled: false };
+        await aiRewriteEntry(idx, instruction, fakeBtn);
+        var e = worldbookEntries[idx];
+        return { index: idx, comment: e.comment, contentLen: String(e.content || '').length, mode: mode };
+      },
+      organize: async function(opts) {
+        opts = opts || {};
+        if (worldbookEntries.length === 0) throw new Error('世界书为空');
+        var url = apiUrl.value.replace(/\/$/, '') + '/chat/completions';
+        var key = apiKey.value.trim();
+        var model = modelSelect.value;
+        if (!model) throw new Error('请先选择 AI 模型');
+        var entrySummaries = worldbookEntries.map(function(e, i) {
+          return {
+            index: i, title: e.comment || '未命名',
+            content_preview: (e.content || '').substring(0, 150),
+            strategy: e.strategy, keys: (e.keys || []).join(', '),
+            current_position: e.position, current_role: e.role,
+            current_depth: e.depth, current_order: e.order, current_prob: e.prob,
+          };
+        });
+        var headers = { 'Content-Type': 'application/json' };
+        if (key) headers.Authorization = 'Bearer ' + key;
+        var aiResp = await fetchAIContent({
+          context: '世界书整理参数优化/助手',
+          url: url,
+          headers: headers,
+          model: model,
+          messages: [
+            { role: 'system', content: promptText('wbOrganize') },
+            { role: 'user', content: '以下是 ' + worldbookEntries.length + ' 条世界书条目，请分析并优化参数：\n\n' + JSON.stringify(entrySummaries, null, 2) },
+          ],
+          temperature: 0.3,
+          httpErrorPrefix: 'HTTP ',
+        });
+        var suggestions;
+        try { suggestions = extractJsonArray(aiResp.content, '世界书整理/助手'); }
+        catch (pe) { suggestions = [extractJsonObj(aiResp.content, '世界书整理/助手/fallback')]; }
+        suggestions = (suggestions || []).map(normalizeOrganizeSuggestion).filter(Boolean);
+        if (!suggestions.length) throw new Error('AI 返回中没有有效条目');
+        var preview = suggestions.map(function(s) {
+          var e = worldbookEntries[s.index] || {};
+          return {
+            index: s.index, title: e.comment || '',
+            position: s.position, role: s.role, depth: s.depth, order: s.order, prob: s.prob,
+            reason: s.reason || '',
+          };
+        });
+        if (opts.apply === false) return { applied: false, preview: preview, changeCount: preview.length };
+        var applied = 0;
+        suggestions.forEach(function(s) {
+          var idx = s.index;
+          if (idx === undefined || idx < 0 || idx >= worldbookEntries.length) return;
+          var changed = false;
+          ['position', 'role', 'depth', 'order', 'prob'].forEach(function(k) {
+            if (s[k] !== undefined && s[k] !== worldbookEntries[idx][k]) {
+              worldbookEntries[idx][k] = s[k];
+              changed = true;
+            }
+          });
+          if (changed) applied++;
+        });
+        renderEntriesList();
+        debouncedUpdateAndSave();
+        return { applied: true, appliedCount: applied, preview: preview };
+      },
+      batchFillKeys: async function(opts) {
+        opts = opts || {};
+        if (!modelSelect.value) throw new Error('请先选择 AI 模型');
+        var targets = worldbookEntries
+          .map(function(entry, index) { return { entry: entry, index: index }; })
+          .filter(function(item) {
+            if (item.entry.strategy === 'constant') return false;
+            if (opts.onlyMissing) return !item.entry.keys || !item.entry.keys.length;
+            return true;
+          });
+        if (!targets.length) return { updated: 0, note: '无目标条目' };
+        var charBlock = {
+          name: charName.value.trim() || '',
+          worldbook: wbName.value.trim() || '',
+          description_preview: (charDesc.value || '').trim().substring(0, 300),
+        };
+        var batches = splitTargetsForKeygen(targets, charBlock);
+        var updated = 0;
+        var processed = 0;
+        for (var bi = 0; bi < batches.length; bi++) {
+          processed += batches[bi].length;
+          var br = await completeTriggerKeysBatch(batches[bi], bi, batches.length, processed, targets.length);
+          updated += br.updated;
+        }
+        renderEntriesList();
+        debouncedUpdateAndSave();
+        return { updated: updated, targets: targets.length };
+      },
+    };
 
     // ============================================================
     //  JSON 生成
     // ============================================================
-    function generateFullJSON() {
-      var fe = worldbookEntries.map(function(e, i) {
+    /**
+     * 由草稿对象生成 ST 角色卡 JSON（不含小说工坊分桶内容）
+     * @param {object} d 草稿
+     */
+    function buildCardJSONFromDraft(d) {
+      d = d || {};
+      var entries = Array.isArray(d.worldbookEntries) ? d.worldbookEntries : [];
+      var fe = entries.map(function(e, i) {
         return { id: i, keys: e.keys || [], secondary_keys: [], comment: e.comment, content: e.content, constant: e.strategy === 'constant', selective: e.strategy === 'selective' || e.strategy === 'vectorized', insertion_order: e.order || 100, enabled: e.enabled !== false, position: "before_char", use_regex: false, extensions: { position: e.position, exclude_recursion: false, display_index: i, probability: e.prob || 100, useProbability: true, depth: e.depth || 4, selectiveLogic: 0, outlet_name: "", group: "", group_override: false, group_weight: 100, prevent_recursion: false, delay_until_recursion: false, role: e.role || 0, vectorized: e.strategy === 'vectorized' } };
       });
-      var cn  = charName.value.trim() || "无名角色";
-      var wn  = wbName.value.trim()   || "无名世界书";
-      var ext = Object.assign({}, cardBuilderExtensions || {});
+      var cn = String(d.charName || '').trim() || '无名角色';
+      var wn = String(d.wbName || '').trim() || '无名世界书';
+      var ext = Object.assign({}, d.cardBuilderExtensions || {});
       ext.world = wn;
-      if (regexScripts && regexScripts.length > 0) ext.regex_scripts = regexScripts;
+      if (d.regexScripts && d.regexScripts.length > 0) ext.regex_scripts = d.regexScripts;
       else delete ext.regex_scripts;
-      // ★ 酒馆助手脚本（ScriptTree[] 格式，直接输出原始数组）
-      if (tavernHelperScripts.length > 0) {
-        ext.tavern_helper = { scripts: tavernHelperScripts, variables: {} };
-      } else delete ext.tavern_helper;
-      var altG = (window.__altGreetings__ || []).filter(function(g) { return g && g.trim(); });
-      return { name: cn, description: charDesc.value, personality: "", scenario: "", first_mes: firstMes.value, mes_example: "", creatorcomment: creatorNotes.value, avatar: "none", talkativeness: "0.5", fav: false, tags: [], spec: "chara_card_v3", spec_version: "3.0", data: { name: cn, description: charDesc.value, personality: "", scenario: "", first_mes: firstMes.value, mes_example: "", creator_notes: creatorNotes.value, system_prompt: "", post_history_instructions: "", tags: [], creator: "", character_version: "1.0", alternate_greetings: altG, extensions: ext, character_book: { name: wn, entries: fe } } };
+      // 覆盖 scripts，保留既有 variables 等其它 tavern_helper 字段
+      if (d.tavernHelperScripts && d.tavernHelperScripts.length > 0) {
+        var prevTh = (ext.tavern_helper && typeof ext.tavern_helper === 'object') ? ext.tavern_helper : {};
+        var thVars = (prevTh.variables && typeof prevTh.variables === 'object') ? prevTh.variables : {};
+        ext.tavern_helper = Object.assign({}, prevTh, {
+          scripts: d.tavernHelperScripts,
+          variables: thVars,
+        });
+      } else if (ext.tavern_helper && ext.tavern_helper.variables
+          && typeof ext.tavern_helper.variables === 'object'
+          && Object.keys(ext.tavern_helper.variables).length) {
+        // 无脚本但仍有 variables：保留扩展对象，scripts 置空
+        ext.tavern_helper = Object.assign({}, ext.tavern_helper, { scripts: [] });
+      } else {
+        delete ext.tavern_helper;
+      }
+      var altG = (d.altGreetings || []).filter(function(g) { return g && String(g).trim(); });
+      var tags = normalizeTags(d.charTags || d.tags || []);
+      return {
+        name: cn, description: d.charDesc || '', personality: '', scenario: '',
+        first_mes: d.firstMes || '', mes_example: '', creatorcomment: d.creatorNotes || '',
+        avatar: 'none', talkativeness: '0.5', fav: false, tags: tags,
+        spec: 'chara_card_v3', spec_version: '3.0',
+        data: {
+          name: cn, description: d.charDesc || '', personality: '', scenario: '',
+          first_mes: d.firstMes || '', mes_example: '', creator_notes: d.creatorNotes || '',
+          system_prompt: '', post_history_instructions: '', tags: tags.slice(),
+          creator: '', character_version: '1.0', alternate_greetings: altG,
+          extensions: ext, character_book: { name: wn, entries: fe }
+        }
+      };
+    }
+
+    /** 当前编辑态 → ST JSON（同样不含小说工坊） */
+    function generateFullJSON() {
+      return buildCardJSONFromDraft({
+        charName: charName.value,
+        wbName: wbName.value,
+        charDesc: charDesc.value,
+        firstMes: firstMes.value,
+        creatorNotes: creatorNotes.value,
+        charTags: charTags,
+        worldbookEntries: worldbookEntries,
+        regexScripts: regexScripts,
+        tavernHelperScripts: tavernHelperScripts,
+        cardBuilderExtensions: cardBuilderExtensions,
+        altGreetings: window.__altGreetings__ || []
+      });
+    }
+
+    /** 导出指定卡 JSON（非当前卡读草稿箱；不含小说） */
+    function exportDraftAsJson(id) {
+      if (!id) return;
+      var json;
+      var name;
+      if (id === currentDraftId) {
+        saveCurrentDraft();
+        json = generateFullJSON();
+        name = charName.value.trim() || 'card';
+      } else {
+        var d = getAllDrafts()[id];
+        if (!d) return alert('❌ 找不到该角色卡');
+        json = buildCardJSONFromDraft(d);
+        name = draftDisplayName(d) || 'card';
+      }
+      var a = document.createElement('a');
+      a.href = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(json, null, 2));
+      a.download = name + '.json';
+      a.click();
+    }
+
+    /** 导出指定卡 PNG（需该卡有头像；chara 块不含小说） */
+    async function exportDraftAsPng(id) {
+      if (!id) return;
+      var json;
+      var avatar;
+      var name;
+      if (id === currentDraftId) {
+        saveCurrentDraft();
+        json = generateFullJSON();
+        name = charName.value.trim() || 'CharacterCard';
+        if (currentAvatarInIdb) {
+          await ensureIdbReady();
+          avatar = window.__avatarIdb__
+            ? await window.__avatarIdb__.loadAvatarFullDataUrl(id)
+            : '';
+        } else {
+          avatar = currentAvatarBase64;
+        }
+      } else {
+        var d = getAllDrafts()[id];
+        if (!d) return alert('❌ 找不到该角色卡');
+        json = buildCardJSONFromDraft(d);
+        name = draftDisplayName(d) || 'CharacterCard';
+        if (d.avatarInIdb) {
+          await ensureIdbReady();
+          avatar = window.__avatarIdb__
+            ? await window.__avatarIdb__.loadAvatarFullDataUrl(id)
+            : '';
+        } else {
+          avatar = d.avatarBase64 || '';
+        }
+      }
+      if (!avatar) return alert('❌ 该卡尚未上传头像，无法导出 PNG');
+      try {
+        var ch = createTextChunk('chara', JSON.stringify(json));
+        var raw = atob(avatar.split(',')[1]);
+        var bytes = new Uint8Array(raw.length);
+        for (var i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+        var io = bytes.length - 12;
+        var bef = bytes.slice(0, io);
+        var ie = bytes.slice(io);
+        var fin = new Uint8Array(bef.length + ch.length + ie.length);
+        fin.set(bef, 0); fin.set(ch, bef.length); fin.set(ie, bef.length + ch.length);
+        var blob = new Blob([fin], { type: 'image/png' });
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = name + '.png';
+        a.click();
+        URL.revokeObjectURL(a.href);
+      } catch (err) {
+        alert('❌ 导出失败: ' + err.message);
+      }
     }
 
     // ============================================================
@@ -2201,61 +3359,128 @@ window.__setImportedAvatar__ = function(base64) {
       el.addEventListener('input', debouncedUpdateAndSave);
     });
 
-    btnDownloadJson.addEventListener('click', function() {
-      var j = JSON.stringify(generateFullJSON(), null, 2);
-      var a = document.createElement('a');
-      a.href = "data:text/json;charset=utf-8," + encodeURIComponent(j);
-      a.download = (charName.value || "card") + ".json";
-      a.click();
-    });
+    // 角色标签 chip：增删与输入回车
+    if (btnAddCharTag) btnAddCharTag.addEventListener('click', addCharTagFromInput);
+    if (charTagInput) {
+      charTagInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          addCharTagFromInput();
+        }
+      });
+    }
+    if (charTagsList) {
+      charTagsList.addEventListener('click', function(e) {
+        var btn = e.target.closest('[data-tag-action="remove"]');
+        if (!btn) return;
+        var idx = parseInt(btn.getAttribute('data-tag-index'), 10);
+        if (isNaN(idx) || idx < 0 || idx >= charTags.length) return;
+        var next = charTags.slice();
+        next.splice(idx, 1);
+        setCharTags(next);
+      });
+    }
+    renderCharTags();
 
-    // ★ 初始化顺序很重要：先加载 AI 配置（含预设），再加载草稿
+    /** 标签 AI tip：轻量提示，不打断表单 */
+    function setCharTagsAiTip(text, kind) {
+      if (!charTagsAiTip) return;
+      charTagsAiTip.textContent = text || '';
+      charTagsAiTip.classList.remove('is-warn', 'is-ok', 'is-err');
+      if (kind) charTagsAiTip.classList.add('is-' + kind);
+    }
+
+    // 角色标签 AI 生成：合并进现有 tags，可经任务中心停止
+    if (btnAiGenCharTags) {
+      btnAiGenCharTags.addEventListener('click', async function() {
+        var url = (apiUrl.value || '').replace(/\/$/, '');
+        var model = modelSelect.value;
+        if (!url || !model) {
+          setCharTagsAiTip('请先在「AI 配置」填写接口与模型', 'warn');
+          return;
+        }
+        var lib = window.__charTagsLib__ || {};
+        var maxChars = window.__getTagContextChars__
+          ? window.__getTagContextChars__()
+          : (lib.DEFAULT_TAG_CONTEXT_CHARS || 12000);
+        var ctxBuilder = lib.buildTagGenContext;
+        var ctx = ctxBuilder
+          ? ctxBuilder({
+              description: charDesc.value,
+              firstMes: firstMes ? firstMes.value : '',
+              altGreetings: window.__altGreetings__ || [],
+              worldbookEntries: worldbookEntries,
+            }, maxChars)
+          : String(charDesc.value || '');
+        if (!String(ctx || '').trim()) {
+          setCharTagsAiTip('请先填写角色设定或开场白等内容', 'warn');
+          return;
+        }
+
+        var key = apiKey.value.trim();
+        var headers = { 'Content-Type': 'application/json' };
+        if (key) headers['Authorization'] = 'Bearer ' + key;
+        var sysPrompt = promptText('charTagsGen')
+          || '根据角色设定与世界书，生成 5-12 个短中文分类标签。只输出 JSON 数组，例如 ["奇幻","恋爱"]。不要解释。';
+
+        btnAiGenCharTags.disabled = true;
+        var oldLabel = btnAiGenCharTags.textContent;
+        btnAiGenCharTags.textContent = '生成中…';
+        setCharTagsAiTip('正在生成标签…', null);
+
+        try {
+          await runAiTask({
+            type: 'char_tags_generate',
+            title: '角色标签 AI 生成',
+            target: (charName.value || '').trim().slice(0, 40) || '标签',
+          }, async function(task) {
+            var aiResp = await fetchAIContent({
+              context: '角色标签生成',
+              url: url + '/chat/completions',
+              headers: headers,
+              model: model,
+              messages: [
+                { role: 'system', content: sysPrompt },
+                { role: 'user', content: ctx },
+              ],
+              temperature: 0.4,
+              httpErrorPrefix: '标签生成失败 HTTP ',
+              signal: task && task.signal,
+            });
+            var parsed = lib.parseTagsFromAiText
+              ? lib.parseTagsFromAiText(aiResp.content)
+              : [];
+            if (!parsed.length) throw new Error('未解析到有效标签');
+            var merged = lib.mergeCharTags
+              ? lib.mergeCharTags(charTags, parsed)
+              : normalizeTags(charTags.concat(parsed));
+            var added = merged.length - normalizeTags(charTags).length;
+            setCharTags(merged);
+            setCharTagsAiTip(
+              added > 0 ? ('已合并 ' + added + ' 个新标签（共 ' + merged.length + '）') : '无新增（已与现有标签去重）',
+              'ok'
+            );
+          });
+        } catch (err) {
+          if (isAiAbort(err)) setCharTagsAiTip('已停止', 'warn');
+          else setCharTagsAiTip(String(err.message || err), 'err');
+        } finally {
+          btnAiGenCharTags.disabled = false;
+          btnAiGenCharTags.textContent = oldLabel || 'AI 生成';
+        }
+      });
+    }
+
+    // ★ 初始化顺序很重要：先加载 AI 配置（含预设），等 IDB 就绪后再加载草稿
     loadAIConfig();
 
-    // ★ Supabase 访客计数器
-    (function initVisitorCounter() {
-      var SUPABASE_URL = 'https://ccvskpgcbehhtdsnvtbd.supabase.co';
-      var SUPABASE_ANON_KEY = 'sb_publishable_pMtDNSU-27NxIDbIUYVxrQ_o-kIX6eU';
-
-      var numEl = document.getElementById('visitorNum');
-      var SESSION_KEY = 'st_v3_visited';
-      var alreadyCounted = sessionStorage.getItem(SESSION_KEY);
-
-      // 用 Supabase RPC 调用 increment_visitors 函数
-      // 如果本次会话已计数，则只读取不递增
-      var rpcName = alreadyCounted ? 'get_visitor_count' : 'increment_visitors';
-
-      fetch(SUPABASE_URL + '/rest/v1/rpc/' + rpcName, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': SUPABASE_ANON_KEY,
-          'Authorization': 'Bearer ' + SUPABASE_ANON_KEY
-        },
-        body: '{}'
-      })
-      .then(function(res) { return res.json(); })
-      .then(function(data) {
-        // RPC 返回的是一个数字
-        if (typeof data === 'number') {
-          numEl.textContent = data.toLocaleString();
-          sessionStorage.setItem(SESSION_KEY, '1');
-        } else {
-          numEl.textContent = '--';
-        }
-      })
-      .catch(function() {
-        numEl.textContent = '--';
-      });
-    })();
-
-    var drafts = getAllDrafts();
-    var lastId = localStorage.getItem(CURRENT_KEY);
-    if (lastId && drafts[lastId]) loadDraft(lastId);
-    else if (Object.keys(drafts).length > 0) loadDraft(Object.keys(drafts)[0]);
-    else btnNewDraft.click();
+    ensureIdbReady().then(function() {
+      var drafts = getAllDrafts();
+      var lastId = localStorage.getItem(CURRENT_KEY);
+      if (lastId && drafts[lastId]) loadDraft(lastId);
+      else if (Object.keys(drafts).length > 0) loadDraft(Object.keys(drafts)[0]);
+      else createBlankDraft({ jumpToCharacter: false });
+    });
 
   </script>
-
-  <ChatWidget />
 </Layout>

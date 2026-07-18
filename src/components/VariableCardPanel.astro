@@ -1,67 +1,17 @@
-﻿---
+---
 ---
 <div class="panel varcard-panel">
   <div class="vc-node-workbench">
     <div class="vc-workbench-head">
       <div>
-        <h2>🎛️ MVU 变量节点</h2>
-        <p>上方生成变量卡组件，下方手动编排 SillyTavern / MVU 的运行链路。</p>
+        <h2>MVU 变量节点</h2>
+        <!-- 整套生成在状态栏；本页负责链路与变量查看/编辑 -->
+        <p>节点编排与变量查看/编辑。整套变量请在「状态栏」生成并覆盖写入。</p>
       </div>
-      <span class="vc-mode-pill">手动链路模式</span>
-    </div>
-
-    <div class="vc-designer-panel">
-      <section class="vc-tool-card vc-tool-card-source">
-        <div class="vc-tool-head">
-          <strong>角色来源</strong>
-          <span>Card / Worldbook</span>
-        </div>
-        <p>读取当前导入的角色卡、世界书和已有 MVU 初始化变量。</p>
-        <div class="vc-sync-bar" id="vcSyncBar">
-          <span class="vc-sync-dot" id="vcSyncDot"></span>
-          <span class="vc-sync-text" id="vcSyncText">等待角色数据…</span>
-          <button class="vc-sync-btn" id="vcSyncBtn" title="刷新角色卡数据">🔄</button>
-        </div>
-      </section>
-
-      <section class="vc-tool-card vc-tool-card-require">
-        <div class="vc-tool-head">
-          <strong>变量需求</strong>
-          <span>可留空</span>
-        </div>
-        <label class="vc-label" for="varRequirements">想追踪什么状态？可留空交给 AI 设计。</label>
-        <textarea id="varRequirements" rows="3" placeholder="例：魔法契约、店铺经营、NPC 秘密、衣着变化、记忆线索、任务进度、关系网…"></textarea>
-        <div class="vc-quick-tags">
-          <button class="vc-tag" data-text="关系状态/信任/依赖/矛盾点">💗 关系</button>
-          <button class="vc-tag" data-text="物品栏(名称/描述/数量)">🎒 物品</button>
-          <button class="vc-tag" data-text="时间日期系统">⏰ 时间</button>
-          <button class="vc-tag" data-text="位置/场景追踪">📍 位置</button>
-          <button class="vc-tag" data-text="着装系统(上/下/内/袜/鞋/饰)">👗 着装</button>
-          <button class="vc-tag" data-text="属性面板(力/敏/体/智/感/魅)">📊 属性</button>
-          <button class="vc-tag" data-text="任务系统(名称/状态/奖励)">📜 任务</button>
-          <button class="vc-tag" data-text="长期记忆/重要线索/承诺">🧠 记忆</button>
-          <button class="vc-tag" data-text="隐藏秘密/暴露程度/风险">🕵️ 秘密</button>
-          <button class="vc-tag" data-text="剧情标记/阶段开关/一次性事件">🏷️ 标记</button>
-          <button class="vc-tag" data-text="店铺经营/收入/库存/客流">🏪 经营</button>
-          <button class="vc-tag" data-text="当前情绪/行动/体能">🎭 情绪</button>
-        </div>
-      </section>
-
-      <section class="vc-tool-card vc-tool-card-engine">
-        <div class="vc-tool-head">
-          <strong>AI 变量设计器</strong>
-          <span>本地组装模板</span>
-        </div>
-        <div class="vc-engine-core">
-          <span class="vc-engine-orb">AI</span>
-          <div>
-            <strong>结构化设计</strong>
-            <small>AI 只规划变量，本地生成 Zod、initvar、更新规则、正则美化。</small>
-          </div>
-        </div>
-        <button id="btnVcGenerate" class="btn vc-gen-btn">🧬 生成变量卡并注入</button>
-        <span id="vcStatus" class="vc-status"></span>
-      </section>
+      <div class="vc-workbench-meta">
+        <span class="vc-mode-pill">手动链路模式</span>
+        <span id="vcStatus" class="vc-status">自动同步角色卡中的 MVU…</span>
+      </div>
     </div>
 
     <div class="vc-node-canvas" id="vcNodeCanvas">
@@ -263,7 +213,9 @@
     <div class="vc-bottom">
       <span class="vc-summary" id="vcSummary"></span>
       <button id="btnVcClear" class="btn vc-clear-btn" type="button">🧹 清除变量</button>
-      <button id="btnVcDelete" class="btn vc-delete-btn" type="button">🗑️ 删除组件</button>
+      <button id="btnVcDelete" class="btn-icon btn-icon--danger vc-delete-btn" type="button" title="删除组件" aria-label="删除组件">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><path d="M10 11v6M14 11v6"/><path d="M7 7l1 12a1 1 0 0 0 1 .9h6a1 1 0 0 0 1-.9l1-12"/></svg>
+      </button>
       <button id="btnVcExport" class="btn vc-export-btn">💾 导出变量卡包</button>
     </div>
   </div>
@@ -300,15 +252,22 @@
   }
   .vc-workbench-head h2 {
     margin: 0 0 4px;
-    color: #e2e8f0;
+    color: var(--color-text-secondary);
     font-size: 1rem;
     letter-spacing: 0;
   }
   .vc-workbench-head p {
     margin: 0;
-    color: #94a3b8;
+    color: var(--color-text-muted);
     font-size: 0.72rem;
     line-height: 1.55;
+  }
+  .vc-workbench-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+    max-width: min(320px, 42%);
   }
   .vc-mode-pill {
     flex-shrink: 0;
@@ -321,54 +280,15 @@
     font-weight: 700;
     white-space: nowrap;
   }
-
-  .vc-designer-panel {
-    display: grid;
-    grid-template-columns: minmax(0, 0.88fr) minmax(0, 1.12fr);
-    gap: 10px;
-    margin-bottom: 12px;
-    align-items: stretch;
-  }
-  .vc-tool-card {
-    min-width: 0;
-    max-width: 100%;
-    border: 1px solid rgba(51,65,85,0.86);
-    border-radius: 8px;
-    background: linear-gradient(135deg, rgba(15,23,42,0.78), rgba(2,6,23,0.46));
-    overflow: hidden;
-  }
-  .vc-tool-card-require {
-    grid-column: 2;
-    grid-row: 1 / span 2;
-  }
-  .vc-tool-card-engine {
-    grid-column: 1;
-  }
-  .vc-tool-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    padding: 8px 10px;
-    border-bottom: 1px solid rgba(71,85,105,0.58);
-    background: rgba(30,41,59,0.72);
-  }
-  .vc-tool-head strong {
-    color: #e2e8f0;
-    font-size: 0.76rem;
-  }
-  .vc-tool-head span {
-    flex-shrink: 0;
-    color: #94a3b8;
-    font-size: 0.58rem;
-    font-weight: 800;
-  }
-  .vc-tool-card p {
-    margin: 0;
-    padding: 9px 10px 0;
-    color: #94a3b8;
-    font-size: 0.66rem;
-    line-height: 1.5;
+  .vc-workbench-meta .vc-status {
+    display: block;
+    min-height: 0;
+    padding: 0;
+    text-align: right;
+    font-size: 0.62rem;
+    color: var(--color-text-muted);
+    word-break: break-word;
+    line-height: 1.45;
   }
 
   .vc-node-canvas {
@@ -393,7 +313,7 @@
     content: "MVU 节点大屏编辑";
     flex: 0 0 auto;
     margin: 0 0 10px;
-    color: #e0f2fe;
+    color: var(--color-text-secondary);
     font-size: 0.86rem;
     font-weight: 900;
   }
@@ -430,7 +350,7 @@
     border-radius: 6px;
     border: 1px solid rgba(56,189,248,0.2);
     background: rgba(8,47,73,0.35);
-    color: #bae6fd;
+    color: var(--color-accent-hover);
     cursor: pointer;
     font-size: 0.68rem;
     font-weight: 700;
@@ -446,7 +366,7 @@
     border-color: rgba(52,211,153,0.46);
   }
   .vc-graph-hint {
-    color: #94a3b8;
+    color: var(--color-text-muted);
     font-size: 0.62rem;
     white-space: nowrap;
     padding: 0 4px;
@@ -511,16 +431,16 @@
     pointer-events: stroke;
     cursor: pointer;
   }
-  .vc-wire-source { stroke: #38bdf8; }
-  .vc-wire-require { stroke: #a78bfa; }
-  .vc-wire-output { stroke: #34d399; }
-  .vc-wire-var { stroke: #fbbf24; stroke-width: 2.4; opacity: 0.88; }
+  .vc-wire-source { stroke: var(--color-accent-hover); }
+  .vc-wire-require { stroke: var(--color-accent-hover); }
+  .vc-wire-output { stroke: var(--color-success); }
+  .vc-wire-var { stroke: var(--color-warning); stroke-width: 2.4; opacity: 0.88; }
   .vc-node-canvas.is-expanded .vc-wire-var {
     filter: none;
     opacity: 0.7;
   }
   .vc-wire-temp {
-    stroke: #fbbf24;
+    stroke: var(--color-warning);
     stroke-dasharray: 10 8;
     opacity: 0;
     pointer-events: none;
@@ -583,7 +503,7 @@
   .vc-node-title {
     flex: 1;
     min-width: 0;
-    color: #e2e8f0;
+    color: var(--color-text-secondary);
     font-size: 0.76rem;
     font-weight: 800;
     line-height: 1.28;
@@ -592,7 +512,7 @@
   .vc-node-desc {
     margin: 0;
     padding: 10px 12px 0;
-    color: #94a3b8;
+    color: var(--color-text-muted);
     font-size: 0.68rem;
     line-height: 1.5;
   }
@@ -610,7 +530,7 @@
     border-radius: 5px;
     border: 1px solid rgba(56,189,248,0.2);
     background: rgba(8,47,73,0.32);
-    color: #bae6fd;
+    color: var(--color-accent-hover);
     cursor: pointer;
     font-family: inherit;
     font-size: 0.58rem;
@@ -635,14 +555,14 @@
     border-radius: 6px;
     border: 1px solid rgba(71,85,105,0.74);
     background: rgba(2,6,23,0.72);
-    color: #cbd5e1;
+    color: var(--color-text-secondary);
     font-family: 'JetBrains Mono','Fira Code','Consolas',monospace;
     font-size: 0.56rem;
     line-height: 1.45;
   }
   .vc-node-code-hint {
     margin-top: 5px;
-    color: #64748b;
+    color: var(--color-text-muted);
     font-size: 0.52rem;
     line-height: 1.35;
   }
@@ -652,122 +572,17 @@
     border-radius: 50%;
     border: 2px solid rgba(15,23,42,0.95);
     box-shadow: 0 0 0 1px rgba(226,232,240,0.22), 0 0 10px currentColor;
-    color: #38bdf8;
+    color: var(--color-accent-hover);
     background: currentColor;
     flex-shrink: 0;
     cursor: crosshair;
     pointer-events: auto;
   }
   .vc-port:hover { transform: scale(1.22); }
-  .vc-port-in { color: #34d399; }
-  .vc-node-engine .vc-port-in { color: #38bdf8; }
-  .vc-node-engine .vc-port-out { color: #34d399; }
-  .vc-node-require .vc-port-out { color: #a78bfa; }
-
-  /* ── 同步栏 ── */
-  .vc-sync-bar {
-    display: flex; align-items: center; gap: 8px;
-    padding: 8px 12px; background: rgba(15,23,42,0.5);
-    border: 1px solid #1e293b; border-radius: 6px; margin: 10px;
-    font-size: 0.72rem;
-  }
-  .vc-sync-dot {
-    width: 8px; height: 8px; border-radius: 50%;
-    background: #475569; flex-shrink: 0; transition: background 0.3s;
-  }
-  .vc-sync-dot.ready { background: #34d399; box-shadow: 0 0 6px rgba(52,211,153,0.5); }
-  .vc-sync-dot.warn  { background: #fbbf24; }
-  .vc-sync-text { color: #94a3b8; flex: 1; min-width: 0; }
-  .vc-sync-btn {
-    background: none; border: none; cursor: pointer; font-size: 0.8rem;
-    padding: 2px 6px; border-radius: 4px; transition: background 0.2s;
-  }
-  .vc-sync-btn:hover { background: rgba(139,92,246,0.15); }
-
-  /* ── 输入 ── */
-  .vc-label {
-    display: block;
-    padding: 10px 12px 5px;
-    font-size: 0.7rem;
-    color: #94a3b8;
-    font-weight: 600;
-  }
-  #varRequirements {
-    display: block;
-    width: calc(100% - 24px);
-    min-height: 58px;
-    max-height: 110px;
-    margin: 0 12px;
-    resize: vertical;
-    font-size: 0.72rem;
-  }
-  .vc-quick-tags { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px 12px 12px; }
-  .vc-tag {
-    font-size: 0.58rem; padding: 2px 7px; border-radius: 99px;
-    border: 1px solid rgba(139,92,246,0.2); background: rgba(139,92,246,0.06);
-    color: #c4b5fd; cursor: pointer; transition: all 0.2s;
-    font-family: inherit; white-space: nowrap;
-  }
-  .vc-tag:hover { background: rgba(139,92,246,0.15); border-color: rgba(139,92,246,0.4); color: #e9d5ff; }
-  .vc-tag.picked { border-color: #34d399; color: #6ee7b7; }
-
-  .vc-engine-core {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 12px 8px;
-  }
-  .vc-engine-orb {
-    display: grid;
-    place-items: center;
-    width: 34px;
-    height: 34px;
-    border-radius: 50%;
-    background: radial-gradient(circle at 35% 28%, #f0abfc, #7c3aed 55%, #312e81);
-    color: #fff;
-    font-size: 0.76rem;
-    font-weight: 900;
-    box-shadow: 0 0 22px rgba(139,92,246,0.55);
-    flex-shrink: 0;
-  }
-  .vc-engine-core strong {
-    display: block;
-    color: #f8fafc;
-    font-size: 0.76rem;
-    margin-bottom: 2px;
-  }
-  .vc-engine-core small {
-    display: block;
-    color: #94a3b8;
-    font-size: 0.58rem;
-    line-height: 1.45;
-  }
-
-  /* ── 生成栏 ── */
-  .vc-gen-btn {
-    display: block;
-    width: calc(100% - 28px);
-    margin: 0 12px 8px;
-    background: linear-gradient(135deg,#8b5cf6,#6d28d9,#4f46e5) !important;
-    color: #fff !important; font-weight: 700;
-    padding: 8px 14px !important; font-size: 0.72rem !important;
-    border: none !important; border-radius: 8px; cursor: pointer;
-    transition: all 0.25s; box-shadow: 0 2px 12px rgba(139,92,246,0.3);
-  }
-  .vc-gen-btn:hover:not(:disabled) { box-shadow: 0 4px 20px rgba(139,92,246,0.5); transform: translateY(-1px); }
-  .vc-gen-btn:disabled { opacity: 0.6; cursor: wait; }
-  .vc-status {
-    display: block;
-    min-height: 18px;
-    padding: 0 12px 10px;
-    font-size: 0.62rem;
-    color: #94a3b8;
-    word-break: break-word;
-    line-height: 1.45;
-  }
-
-  .vc-tool-card-engine .vc-gen-btn { margin-top: 0; }
-  .vc-tool-card-engine .vc-status { padding-bottom: 10px; }
+  .vc-port-in { color: var(--color-success); }
+  .vc-node-engine .vc-port-in { color: var(--color-accent-hover); }
+  .vc-node-engine .vc-port-out { color: var(--color-success); }
+  .vc-node-require .vc-port-out { color: var(--color-accent-hover); }
 
   .vc-output-list {
     display: grid;
@@ -781,7 +596,7 @@
     border-radius: 6px;
     border: 1px solid rgba(56,189,248,0.16);
     background: rgba(8,47,73,0.22);
-    color: #cbd5e1;
+    color: var(--color-text-secondary);
     font-size: 0.68rem;
   }
   .vc-output-list span::before {
@@ -793,7 +608,7 @@
     height: 7px;
     border-radius: 50%;
     transform: translateY(-50%);
-    background: #34d399;
+    background: var(--color-success);
     box-shadow: 0 0 10px rgba(52,211,153,0.5);
   }
 
@@ -806,7 +621,7 @@
     background: rgba(2,6,23,0.18);
   }
   .vc-varmap-empty {
-    color: #64748b;
+    color: var(--color-text-muted);
     font-size: 0.66rem;
     line-height: 1.45;
     padding: 8px;
@@ -828,7 +643,7 @@
     background: linear-gradient(135deg, rgba(8,47,73,0.32), rgba(15,23,42,0.52));
   }
   .vc-varmap-path {
-    color: #e0f2fe;
+    color: var(--color-text-secondary);
     font-size: 0.64rem;
     font-weight: 800;
     word-break: break-all;
@@ -847,7 +662,7 @@
   }
   .vc-varmap-check {
     margin-top: 5px;
-    color: #94a3b8;
+    color: var(--color-text-muted);
     font-size: 0.58rem;
     line-height: 1.45;
     word-break: break-word;
@@ -858,14 +673,14 @@
     border-radius: 5px;
     background: rgba(15,23,42,0.7);
     border: 1px solid rgba(148,163,184,0.12);
-    color: #94a3b8;
+    color: var(--color-text-muted);
     font-family: 'JetBrains Mono','Fira Code','Consolas',monospace;
     font-size: 0.52rem;
     line-height: 1.35;
     word-break: break-all;
   }
   .vc-varmap-chip.update {
-    color: #a7f3d0;
+    color: var(--color-success);
     border-color: rgba(52,211,153,0.18);
   }
 
@@ -878,15 +693,15 @@
   .vc-check-item {
     display: flex; align-items: center; gap: 7px;
     padding: 7px 10px; border-radius: 6px;
-    background: rgba(15,23,42,0.5); border: 1px solid #1e293b;
-    font-size: 0.7rem; color: #cbd5e1; transition: border-color 0.3s;
+    background: rgba(15,23,42,0.5); border: 1px solid var(--color-surface);
+    font-size: 0.7rem; color: var(--color-text-secondary); transition: border-color 0.3s;
   }
   .vc-check-item.ok { border-color: rgba(52,211,153,0.3); }
   .vc-check-icon { flex-shrink: 0; }
   .vc-check-label { flex: 1; min-width: 0; }
   .vc-check-badge {
     font-size: 0.56rem; padding: 1px 6px; border-radius: 99px;
-    background: rgba(139,92,246,0.1); color: #a5b4fc;
+    background: rgba(139,92,246,0.1); color: var(--color-accent-hover);
     border: 1px solid rgba(139,92,246,0.2);
   }
 
@@ -909,7 +724,7 @@
     background: rgba(15,23,42,0.56);
   }
   .vc-preview-head strong {
-    color: #e0f2fe;
+    color: var(--color-text-secondary);
     font-size: 0.78rem;
   }
   .vc-preview-head span {
@@ -920,7 +735,7 @@
   }
   .vc-preview-sub {
     padding: 8px 12px 0;
-    color: #94a3b8;
+    color: var(--color-text-muted);
     font-size: 0.68rem;
     line-height: 1.5;
   }
@@ -936,7 +751,7 @@
     border-radius: 6px;
     border: 1px solid rgba(71,85,105,0.9);
     background: rgba(2,6,23,0.52);
-    color: #e2e8f0;
+    color: var(--color-text-secondary);
     padding: 0 10px;
     font-size: 0.7rem;
   }
@@ -945,7 +760,7 @@
     border-radius: 6px;
     border: 1px solid rgba(56,189,248,0.24);
     background: rgba(8,47,73,0.34);
-    color: #bae6fd;
+    color: var(--color-accent-hover);
     cursor: pointer;
     font-family: inherit;
     font-weight: 700;
@@ -987,7 +802,7 @@
     background: rgba(51,65,85,0.62);
   }
   .vc-var-group-title span {
-    color: #a5b4fc;
+    color: var(--color-accent-hover);
     font-size: 0.58rem;
     font-weight: 800;
   }
@@ -1007,7 +822,7 @@
     border: 1px solid rgba(148,163,184,0.1);
   }
   .vc-var-path {
-    color: #e2e8f0;
+    color: var(--color-text-secondary);
     font-size: 0.68rem;
     font-weight: 700;
     word-break: break-all;
@@ -1025,13 +840,13 @@
   .vc-var-desc,
   .vc-var-default {
     grid-column: 1;
-    color: #94a3b8;
+    color: var(--color-text-muted);
     font-size: 0.62rem;
     line-height: 1.45;
     word-break: break-word;
   }
   .vc-var-default code {
-    color: #c4b5fd;
+    color: var(--color-accent-hover);
     font-family: 'JetBrains Mono','Fira Code','Consolas',monospace;
   }
   .vc-var-actions {
@@ -1051,7 +866,7 @@
   .vc-var-action.danger {
     border-color: rgba(248,113,113,0.28);
     background: rgba(127,29,29,0.22);
-    color: #fca5a5;
+    color: var(--color-danger);
   }
   .vc-var-action.danger:hover {
     border-color: rgba(248,113,113,0.52);
@@ -1061,43 +876,43 @@
   /* ── 折叠详情 ── */
   .vc-details { margin-bottom: 12px; }
   .vc-details-toggle {
-    font-size: 0.72rem; color: #8b5cf6; cursor: pointer;
+    font-size: 0.72rem; color: var(--color-accent); cursor: pointer;
     padding: 6px 0; list-style: none; font-weight: 600; transition: color 0.2s;
   }
-  .vc-details-toggle:hover { color: #c4b5fd; }
+  .vc-details-toggle:hover { color: var(--color-accent-hover); }
   .vc-details-toggle::-webkit-details-marker { display: none; }
   .vc-details[open] .vc-details-toggle { margin-bottom: 10px; }
   .vc-details-body { display: flex; flex-direction: column; gap: 10px; }
 
   .vc-detail-block {
-    border: 1px solid #1e293b; border-radius: 6px;
+    border: 1px solid var(--color-surface); border-radius: 6px;
     background: rgba(2,6,23,0.4); overflow: hidden;
   }
   .vc-detail-head {
     display: flex; align-items: center; gap: 8px;
     padding: 8px 10px; background: rgba(15,23,42,0.6);
-    border-bottom: 1px solid #1e293b; flex-wrap: wrap;
+    border-bottom: 1px solid var(--color-surface); flex-wrap: wrap;
   }
-  .vc-detail-head strong { font-size: 0.72rem; color: #e2e8f0; }
+  .vc-detail-head strong { font-size: 0.72rem; color: var(--color-text-secondary); }
   .vc-badge {
     font-size: 0.54rem; padding: 1px 6px; border-radius: 99px; font-weight: 700; display: inline-block;
   }
-  .vc-badge.script { background: rgba(245,158,11,0.12); color: #fbbf24; border: 1px solid rgba(245,158,11,0.25); }
-  .vc-badge.wb-off { background: rgba(239,68,68,0.1);   color: #fca5a5; border: 1px solid rgba(239,68,68,0.2); }
-  .vc-badge.wb-on  { background: rgba(56,189,248,0.1);  color: #7dd3fc;  border: 1px solid rgba(56,189,248,0.2); }
+  .vc-badge.script { background: rgba(245,158,11,0.12); color: var(--color-warning); border: 1px solid rgba(245,158,11,0.25); }
+  .vc-badge.wb-off { background: rgba(239,68,68,0.1);   color: var(--color-danger); border: 1px solid rgba(239,68,68,0.2); }
+  .vc-badge.wb-on  { background: rgba(56,189,248,0.1);  color: var(--color-accent-hover);  border: 1px solid rgba(56,189,248,0.2); }
   .vc-badge.regex  { background: rgba(244,114,182,0.1); color: #f9a8d4; border: 1px solid rgba(244,114,182,0.2); }
 
   .vc-copy-btn {
     margin-left: auto; font-size: 0.66rem; padding: 2px 8px;
     border-radius: 5px; border: 1px solid rgba(139,92,246,0.2);
-    background: rgba(139,92,246,0.06); color: #c4b5fd;
+    background: var(--color-accent-soft); color: var(--color-accent-hover);
     cursor: pointer; transition: all 0.2s; font-family: inherit;
   }
   .vc-copy-btn:hover { background: rgba(139,92,246,0.18); border-color: rgba(139,92,246,0.4); }
 
   .vc-pre {
     margin: 0; padding: 10px; overflow-x: auto;
-    font-size: 0.68rem; line-height: 1.55; color: #cbd5e1;
+    font-size: 0.68rem; line-height: 1.55; color: var(--color-text-secondary);
     max-height: 260px; scrollbar-width: thin;
   }
   .vc-pre code { font-family: 'JetBrains Mono','Fira Code','Consolas',monospace; white-space: pre; }
@@ -1105,30 +920,26 @@
   /* ── 底栏 ── */
   .vc-bottom {
     display: flex; align-items: center; gap: 10px;
-    padding-top: 12px; border-top: 1px solid #1e293b; flex-wrap: wrap;
+    padding-top: 12px; border-top: 1px solid var(--color-surface); flex-wrap: wrap;
   }
-  .vc-summary { font-size: 0.7rem; color: #94a3b8; flex: 1; min-width: 0; line-height: 1.5; word-break: break-word; }
+  .vc-summary { font-size: 0.7rem; color: var(--color-text-muted); flex: 1; min-width: 0; line-height: 1.5; word-break: break-word; }
   .vc-export-btn {
-    background: rgba(56,189,248,0.08) !important; color: #7dd3fc !important;
+    background: rgba(56,189,248,0.08) !important; color: var(--color-accent-hover) !important;
     border: 1px solid rgba(56,189,248,0.2) !important;
     font-weight: 600; padding: 7px 14px !important; font-size: 0.72rem !important;
     border-radius: 7px; cursor: pointer; transition: all 0.2s;
   }
   .vc-export-btn:hover { background: rgba(56,189,248,0.18) !important; border-color: rgba(56,189,248,0.45) !important; }
   .vc-clear-btn {
-    background: rgba(239,68,68,0.08) !important; color: #fca5a5 !important;
+    background: rgba(239,68,68,0.08) !important; color: var(--color-danger) !important;
     border: 1px solid rgba(239,68,68,0.22) !important;
     font-weight: 600; padding: 7px 14px !important; font-size: 0.72rem !important;
     border-radius: 7px; cursor: pointer; transition: all 0.2s;
   }
   .vc-clear-btn:hover { background: rgba(239,68,68,0.16) !important; border-color: rgba(239,68,68,0.45) !important; }
   .vc-delete-btn {
-    background: rgba(127,29,29,0.18) !important; color: #fecaca !important;
-    border: 1px solid rgba(248,113,113,0.28) !important;
-    font-weight: 600; padding: 7px 14px !important; font-size: 0.72rem !important;
-    border-radius: 7px; cursor: pointer; transition: all 0.2s;
+    flex-shrink: 0;
   }
-  .vc-delete-btn:hover { background: rgba(127,29,29,0.34) !important; border-color: rgba(248,113,113,0.55) !important; }
 
   .vc-node textarea,
   .vc-node button {
@@ -1137,9 +948,8 @@
 
   @media (max-width: 1100px) {
     .vc-workbench-head { flex-direction: column; }
-    .vc-designer-panel { grid-template-columns: 1fr; }
-    .vc-tool-card-require,
-    .vc-tool-card-engine { grid-column: auto; grid-row: auto; }
+    .vc-workbench-meta { align-items: flex-start; max-width: none; }
+    .vc-workbench-meta .vc-status { text-align: left; }
     .vc-graph-hint { display: none; }
   }
 
@@ -1155,9 +965,6 @@
   /* ============================================================
    *  DOM
    * ============================================================ */
-  var syncDot     = document.getElementById('vcSyncDot');
-  var syncText    = document.getElementById('vcSyncText');
-  var syncBtn     = document.getElementById('vcSyncBtn');
   var graphViewport = document.getElementById('vcGraphViewport');
   var graphSpace    = document.getElementById('vcGraphSpace');
   var graphWires    = document.getElementById('vcGraphWires');
@@ -1167,8 +974,7 @@
   var zoomResetBtn  = document.getElementById('vcZoomReset');
   var graphArrangeBtn = document.getElementById('vcGraphArrange');
   var graphExpandBtn = document.getElementById('vcGraphExpand');
-  var reqArea     = document.getElementById('varRequirements');
-  var btnGen      = document.getElementById('btnVcGenerate');
+  // 整套生成在状态栏；本页自动同步 + 链路/变量编辑
   var statusEl    = document.getElementById('vcStatus');
   var resultDiv   = document.getElementById('vcResult');
   var checklistEl = document.getElementById('vcChecklist');
@@ -1883,8 +1689,8 @@
     + '.mvu-report:before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(180deg,rgba(245,158,11,.035),rgba(245,158,11,.035) 2px,transparent 2px,transparent 5px);pointer-events:none}'
     + '.mvu-body{position:relative;padding:16px 18px 18px}.mvu-kicker{margin:0 0 12px;color:#facc15;font-size:.76rem;font-weight:900;letter-spacing:1px}'
     + '.mvu-change-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.mvu-change-card{min-width:0;padding:13px 15px;border-radius:13px;border:1px solid rgba(245,158,11,.36);background:linear-gradient(145deg,rgba(86,55,16,.35),rgba(22,16,10,.82));box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}'
-    + '.mvu-change-card b{display:inline-flex;margin:0 0 8px;padding:3px 8px;border-radius:999px;background:rgba(245,158,11,.16);color:#fde68a;font-size:.68rem;font-style:normal}.mvu-change-card strong{display:block;color:#fef3c7;font-size:.88rem;line-height:1.45;word-break:break-word}.mvu-change-card em{display:block;margin-top:7px;color:#fff;font-size:.95rem;font-style:normal;font-weight:800;line-height:1.55;word-break:break-word}.mvu-change-card.is-insert{border-color:rgba(34,197,94,.42);background:linear-gradient(145deg,rgba(20,83,45,.32),rgba(14,18,12,.82))}.mvu-change-card.is-insert b{background:rgba(34,197,94,.18);color:#bbf7d0}.mvu-change-card.is-delta{border-color:rgba(56,189,248,.4);background:linear-gradient(145deg,rgba(8,47,73,.34),rgba(14,18,20,.82))}.mvu-change-card.is-delta b{background:rgba(56,189,248,.16);color:#bae6fd}.mvu-change-card.is-remove{opacity:.82;border-color:rgba(248,113,113,.4)}'
-    + '.mvu-raw{position:relative;margin-top:14px}.mvu-raw summary{cursor:pointer;color:#fbbf24;font-size:.74rem;font-weight:800}.mvu-raw pre{margin:10px 0 0;padding:12px 14px;border-radius:10px;background:rgba(2,6,23,.58);border:1px solid rgba(245,158,11,.16);color:#fde68a;font-size:.72rem;line-height:1.55;overflow-x:auto;white-space:pre-wrap}'
+    + '.mvu-change-card b{display:inline-flex;margin:0 0 8px;padding:3px 8px;border-radius:999px;background:rgba(245,158,11,.16);color:#fde68a;font-size:.68rem;font-style:normal}.mvu-change-card strong{display:block;color:#fef3c7;font-size:.88rem;line-height:1.45;word-break:break-word}.mvu-change-card em{display:block;margin-top:7px;color:#fff;font-size:.95rem;font-style:normal;font-weight:800;line-height:1.55;word-break:break-word}.mvu-change-card.is-insert{border-color:rgba(34,197,94,.42);background:linear-gradient(145deg,rgba(20,83,45,.32),rgba(14,18,12,.82))}.mvu-change-card.is-insert b{background:rgba(34,197,94,.18);color:#bbf7d0}.mvu-change-card.is-delta{border-color:rgba(56,189,248,.4);background:linear-gradient(145deg,rgba(8,47,73,.34),rgba(14,18,20,.82))}.mvu-change-card.is-delta b{background:rgba(56,189,248,.16);color:var(--color-accent-hover)}.mvu-change-card.is-remove{opacity:.82;border-color:rgba(248,113,113,.4)}'
+    + '.mvu-raw{position:relative;margin-top:14px}.mvu-raw summary{cursor:pointer;color:var(--color-warning);font-size:.74rem;font-weight:800}.mvu-raw pre{margin:10px 0 0;padding:12px 14px;border-radius:10px;background:rgba(2,6,23,.58);border:1px solid rgba(245,158,11,.16);color:#fde68a;font-size:.72rem;line-height:1.55;overflow-x:auto;white-space:pre-wrap}'
     + '@media(max-width:720px){.mvu-change-grid{grid-template-columns:1fr}.mvu-body{padding:14px}}'
     + '</style>'
     + '<div class="mvu-report">'
@@ -1975,7 +1781,7 @@
     if (window.__setCardExtension__) window.__setCardExtension__('zmer_mvu_design', null);
     clearInjectedMvuArtifacts();
     lastSyncFingerprint = '';
-    setStatus('✅ 已清除变量卡并禁用已注入的 MVU 组件', '#34d399');
+    setStatus('✅ 已清除变量卡并禁用已注入的 MVU 组件', 'var(--color-success)');
     scheduleRefreshSync(true);
   }
 
@@ -1990,7 +1796,7 @@
       clearInjectedMvuArtifacts();
     }
     lastSyncFingerprint = '';
-    setStatus('✅ 已删除当前卡片中的 MVU 变量组件', '#34d399');
+    setStatus('✅ 已删除当前卡片中的 MVU 变量组件', 'var(--color-success)');
     scheduleRefreshSync(true);
   }
 
@@ -2007,8 +1813,7 @@
     lastSyncFingerprint = fingerprint;
 
     if (!name.trim() && !desc.trim()) {
-      syncDot.className = 'vc-sync-dot warn';
-      syncText.textContent = '⚠️ 未检测到角色数据，请先在角色面板填写';
+      setStatus('⚠️ 未检测到角色数据，请先在角色面板填写', 'var(--color-warning)');
       clearMvuPreview();
       return false;
     }
@@ -2020,13 +1825,11 @@
       gen.design = existingDesign;
       gen.summary = existingDesign.summary;
       parts.push('🎛️ MVU ' + existingDesign.variables.length + '个');
-      syncDot.className = 'vc-sync-dot ready';
-      syncText.textContent = parts.join(' · ');
+      setStatus(parts.join(' · '), '#86efac');
       renderExistingMvuPreview(existingDesign);
     } else {
       parts.push('🎛️ 未读取到MVU');
-      syncDot.className = 'vc-sync-dot ready';
-      syncText.textContent = parts.join(' · ');
+      setStatus(parts.join(' · '), 'var(--color-text-muted)');
       clearMvuPreview();
     }
     return true;
@@ -2037,7 +1840,6 @@
     syncTimer = setTimeout(function() { refreshSync({ force: !!force }); }, 80);
   }
 
-  syncBtn.addEventListener('click', function() { refreshSync({ force:true }); });
   if (btnClear) btnClear.addEventListener('click', clearAllVariables);
   if (btnDelete) btnDelete.addEventListener('click', deleteAllVariables);
   setTimeout(function() { refreshSync({ force:true }); }, 600);
@@ -2049,7 +1851,8 @@
   window.addEventListener('card-builder-data-changed', function() {
     if (Date.now() < suppressAutoSyncUntil) return;
     setTimeout(applySavedGraphLayout, 120);
-    scheduleRefreshSync(true);
+    // 非 force：指纹未变则跳过，避免与扩展写入形成刷新循环
+    scheduleRefreshSync(false);
   });
   ['charName', 'charDesc', 'firstMes'].forEach(function(id) {
     var el = document.getElementById(id);
@@ -2062,18 +1865,6 @@
     if (_origTrigger) _origTrigger();
     scheduleRefreshSync(true);
   };
-
-  /* ============================================================
-   *  快捷标签
-   * ============================================================ */
-  document.querySelectorAll('.vc-tag').forEach(function(t) {
-    t.addEventListener('click', function() {
-      var txt = t.getAttribute('data-text');
-      if (reqArea.value.indexOf(txt) >= 0) return;
-      reqArea.value = (reqArea.value ? reqArea.value + '、' : '') + txt;
-      t.classList.add('picked'); reqArea.focus();
-    });
-  });
 
   /* ============================================================
    *  复制
@@ -2099,7 +1890,11 @@
     if (s >= 0 && e > s) raw = raw.substring(s, e + 1);
     return JSON.parse(raw);
   }
-  function setStatus(t, c) { statusEl.textContent = t; statusEl.style.color = c || '#94a3b8'; }
+  function setStatus(t, c) {
+    if (!statusEl) return;
+    statusEl.textContent = t;
+    statusEl.style.color = c || 'var(--color-text-muted)';
+  }
 
   function escapeHtml(value) {
     return String(value == null ? '' : value)
@@ -2593,7 +2388,7 @@
     renderChecklist([
       { label:'已读取角色卡变量', badge:design.variables.length + ' 个' },
       { label:'变量来源', badge:'已有 initvar' },
-      { label:'生成器状态', badge:'可继续覆盖生成' }
+      { label:'生成器状态', badge:'整套请用状态栏' }
     ]);
     rebuildOutputsFromDesign(design, { inject:false, message:'已从当前角色卡读取已有状态变量' });
   }
@@ -2641,8 +2436,9 @@
     design.source = options.source || design.source || 'generated';
     gen.design = design;
 
+    // 扩展摘要未变时不写，避免 card-builder-data-changed ↔ refreshSync 循环
     if (window.__setCardExtension__) {
-      window.__setCardExtension__('zmer_mvu_design', {
+      var extPayload = {
         summary: summaryTxt,
         variables: design.variables.map(function(v) {
           return {
@@ -2652,7 +2448,13 @@
             check: Array.isArray(v.check) ? v.check.slice(0, 3) : []
           };
         })
-      });
+      };
+      var prevExt = window.__getCardExtension__('zmer_mvu_design');
+      var extChanged = JSON.stringify(prevExt || null) !== JSON.stringify(extPayload);
+      if (extChanged) {
+        suppressAutoSyncUntil = Date.now() + 700;
+        window.__setCardExtension__('zmer_mvu_design', extPayload, { silent: true });
+      }
     }
 
     codeEls.schema.textContent = gen.schema;
@@ -2731,7 +2533,7 @@
         if (!confirm('删除变量「' + path + '」？')) return;
         gen.design.variables.splice(idx, 1);
         rebuildOutputsFromDesign(gen.design, { message:'已删除变量「' + path + '」并写回角色卡' });
-        setStatus('✅ 已删除变量：' + path, '#34d399');
+        setStatus('✅ 已删除变量：' + path, 'var(--color-success)');
         return;
       }
 
@@ -2739,12 +2541,12 @@
         var oldText = btn.textContent;
         btn.disabled = true;
         btn.textContent = '生成中...';
-        setStatus('🧬 正在单独重写变量：' + path, '#38bdf8');
+        setStatus('🧬 正在单独重写变量：' + path, 'var(--color-accent-hover)');
         try {
           var next = await requestSingleVariable('重写这个变量，保持同一主题，必要时优化路径、默认值和更新规则。', gen.design.variables[idx]);
           gen.design.variables[idx] = next;
           rebuildOutputsFromDesign(gen.design, { message:'已重写变量「' + path + '」并写回角色卡' });
-          setStatus('✅ 已重写变量：' + next.path, '#34d399');
+          setStatus('✅ 已重写变量：' + next.path, 'var(--color-success)');
         } catch(err) {
           setStatus('❌ 单条重写失败: ' + err.message, '#ef4444');
         } finally {
@@ -2764,7 +2566,7 @@
       btnAddOne.disabled = true;
       var oldText = btnAddOne.textContent;
       btnAddOne.textContent = '生成中...';
-      setStatus('🧬 正在生成单条变量…', '#38bdf8');
+      setStatus('🧬 正在生成单条变量…', 'var(--color-accent-hover)');
       try {
         var item = await requestSingleVariable(requirement, null);
         var exists = gen.design.variables.findIndex(function(v) { return v.path === item.path; });
@@ -2772,7 +2574,7 @@
         else gen.design.variables.push(item);
         rebuildOutputsFromDesign(gen.design, { message:'已追加变量「' + item.path + '」并写回角色卡' });
         if (singleRequirement) singleRequirement.value = '';
-        setStatus('✅ 已生成单条变量：' + item.path, '#34d399');
+        setStatus('✅ 已生成单条变量：' + item.path, 'var(--color-success)');
       } catch(err) {
         setStatus('❌ 单条生成失败: ' + err.message, '#ef4444');
       } finally {
@@ -2782,132 +2584,20 @@
     });
   }
 
-  /* ============================================================
-   *  ★ 核心：AI 生成 → 自动注入全部
-   * ============================================================ */
-  btnGen.addEventListener('click', async function() {
-    if (!refreshSync()) return alert('请先填写角色名和描述！');
-
-    var apiUrl   = document.getElementById('apiUrl');
-    var apiKey   = document.getElementById('apiKey');
-    var modelSel = document.getElementById('modelSelect');
-    if (!apiUrl || !apiKey || !modelSel) return alert('找不到 AI 配置面板！');
-    var url   = apiUrl.value.replace(/\/$/, '') + '/chat/completions';
-    var key   = apiKey.value.trim();
-    var model = modelSel.value;
-    if (!model) return alert('请先在 AI 面板拉取并选择模型！');
-
-    var reqText   = reqArea.value.trim();
-    var wbSummary = cardData.wb.slice(0, 12).map(function(e) {
-      return '「' + (e.comment || '?') + '」' + (e.content || '').substring(0, 60);
-    }).join('\n');
-
-    btnGen.disabled = true; btnGen.textContent = '⏳ 生成中…';
-    resultDiv.style.display = 'none';
-    setStatus('🧬 正在分析角色信息，设计变量系统…', '#38bdf8');
-
-    try {
-      var headers = { 'Content-Type': 'application/json' };
-      if (key) headers['Authorization'] = 'Bearer ' + key;
-
-      var sysPrompt = buildPrompt(cardData.name, cardData.desc, cardData.firstMes, wbSummary);
-      var userMsg = '请根据以上角色信息，生成完整的 MVU zod 变量卡。';
-      if (reqText) userMsg += '\n\n【用户额外需求】：' + reqText;
-
-      var res = await fetch(url, {
-        method: 'POST', headers: headers,
-        body: JSON.stringify({ model: model, messages: [
-          { role: 'system', content: sysPrompt },
-          { role: 'user', content: userMsg }
-        ], temperature: 0.25 })
-      });
-      if (!res.ok) throw new Error('API 返回 HTTP ' + res.status);
-      var aiData = extractJson((await res.json()).choices[0].message.content);
-      var design = normalizeVariableDesign(aiData);
-      design.source = 'generated';
-
-      var schemaBody = buildSchemaBody(design);
-      var initYaml   = buildInitYaml(design);
-      var updateYaml = buildUpdateRules(design);
-      var summaryTxt = design.summary || '';
-
-      setStatus('📥 正在注入到角色卡…', '#c4b5fd');
-
-      /* ── 组装 ── */
-      gen.runtime      = MVU_RUNTIME_SCRIPT;
-      gen.schema       = SCHEMA_HEAD + schemaBody + SCHEMA_TAIL;
-      gen.initvar      = initYaml;
-      gen.varlist      = VARLIST_TPL;
-      gen.updateRules  = updateYaml;
-      gen.outputFormat = FORMAT_TPL;
-      gen.regexScripts = REGEX_SCRIPTS;
-      gen.summary      = summaryTxt;
-      gen.design       = design;
-
-      /* ══════════════════════════════════════════════
-       *  自动注入 — 全部写入角色卡，无需手动操作
-       * ══════════════════════════════════════════════ */
-
-      var modules = runtimeModuleState();
-      if (window.__injectMvuEntries__) {
-        suppressAutoSyncUntil = Date.now() + 700;
-        window.__injectMvuEntries__(mvuWorldbookEntriesFromCurrent(), REGEX_SCRIPTS.map(function(rx) {
-          return Object.assign({}, rx, { disabled: !modules.regex });
-        }));
-      }
-
-      // 2) 注入酒馆助手脚本（tavern_helper.scripts）
-      if (window.__setTavernHelperScript__) {
-        window.__setTavernHelperScript__('MVU', gen.runtime, modules.zod);
-        window.__setTavernHelperScript__((cardData.name || '角色') + 'zod', gen.schema, modules.zod);
-      }
-
-      /* ── 渲染结果清单 ── */
-      renderChecklist([
-        { label:'状态向量预览',            badge:design.variables.length + ' 个' },
-        { label:'变量结构脚本',            badge:'自动注入' },
-        { label:'[initvar]变量初始化勿开', badge:'禁用条目' },
-        { label:'变量列表',                badge:'D1 常驻' },
-        { label:'[mvu_update]变量更新规则', badge:'AI 生成' },
-        { label:'[mvu_update]变量输出格式', badge:'D0 常驻' },
-        { label:'正则脚本 ×' + REGEX_SCRIPTS.length, badge:'自动注入' }
-      ]);
-      renderVariablePreview(design);
-
-      /* ── 填充详情 ── */
-      codeEls.schema.textContent  = gen.schema;
-      codeEls.initvar.textContent = gen.initvar;
-      codeEls.update.textContent  = gen.updateRules;
-      codeEls.format.textContent  = gen.outputFormat;
-      codeEls.varlist.textContent = gen.varlist;
-      codeEls.regex.textContent   = JSON.stringify(REGEX_SCRIPTS.map(function(r) {
-        return { scriptName:r.scriptName, findRegex:r.findRegex, replaceString:r.replaceString||'(空)' };
-      }), null, 2);
-
-      summaryEl.textContent = '🎉 已全部自动注入角色卡！共生成 ' + design.variables.length + ' 个变量。' + (summaryTxt ? ' — ' + summaryTxt : '');
-
-      resultDiv.style.display = 'block';
-      setStatus('✅ 变量卡生成完毕！6 个组件已自动写入角色卡，展开详情可查看/复制。', '#34d399');
-
-      if (window.gsap) {
-        window.gsap.fromTo(resultDiv, { y:15, opacity:0 }, { y:0, opacity:1, duration:0.4, ease:'power2.out' });
-      }
-
-    } catch (err) {
-      setStatus('❌ 生成失败: ' + err.message, '#ef4444');
-    } finally {
-      btnGen.disabled = false;
-      btnGen.textContent = '🧬 生成变量卡并注入';
-    }
-  });
+  /* 整套「生成变量卡并注入」已迁至状态栏模块；本页保留单条追加与 __assistantMvuApi__ */
 
   /* ============================================================
-   *  Prompt Builder
+   *  Prompt Builder（单条生成等仍可复用）
    * ============================================================ */
   function buildPrompt(name, desc, firstMes, wbSummary) {
+    var charBlock = '【角色信息】\n角色名：' + name + '\n描述：' + desc.substring(0, 1000) + '\n开场白：' + firstMes.substring(0, 500) + '\n'
+      + (wbSummary ? '世界书摘要：\n' + wbSummary.substring(0, 600) + '\n' : '');
+    var ps = window.__promptStore__;
+    if (ps) {
+      return ps.applyTemplate(ps.get('mvuDesign'), { charBlock: charBlock });
+    }
     return '你是 SillyTavern MVU 变量系统设计专家。请根据角色卡信息设计一套完整且实用的变量设计 JSON。注意：不要输出 zod 代码、不要输出 YAML、不要输出解释文字，代码和 YAML 会由网站本地生成。\n\n'
-      + '【角色信息】\n角色名：' + name + '\n描述：' + desc.substring(0, 1000) + '\n开场白：' + firstMes.substring(0, 500) + '\n'
-      + (wbSummary ? '世界书摘要：\n' + wbSummary.substring(0, 600) + '\n' : '')
+      + charBlock
       + '\n【设计原则】\n'
       + '1. 不要只生成好感度、金钱、经验。变量要覆盖剧情真实需要：世界时间/地点/场景、主角状态、NPC当前行动与情绪、关系状态、长期记忆、任务/承诺/线索、物品、特殊机制。\n'
       + '2. 每个变量必须能被剧情自然更新。不要设计纯摆设字段。\n'
@@ -2931,14 +2621,6 @@
       + '      "description": "当前剧情时间",\n'
       + '      "format": "HH:MM",\n'
       + '      "check": ["根据行动耗时、移动、等待或用户指定时间推进"]\n'
-      + '    },\n'
-      + '    {\n'
-      + '      "path": "NPC.角色名.当前情绪",\n'
-      + '      "type": "enum",\n'
-      + '      "options": ["平静","紧张","愉快","疲惫","愤怒","低落"],\n'
-      + '      "default": "平静",\n'
-      + '      "description": "NPC当前情绪",\n'
-      + '      "check": ["根据本轮互动、处境和压力更新"]\n'
       + '    }\n'
       + '  ]\n'
       + '}\n';
@@ -2964,11 +2646,66 @@
     };
   };
 
+  /** 助手 MVU：清空 / 按 path 补丁（跳过 UI confirm） */
+  window.__assistantMvuApi__ = {
+    clear: function() {
+      clearMvuPreview();
+      if (window.__setCardExtension__) window.__setCardExtension__('zmer_mvu_design', null);
+      if (window.__deleteMvuArtifacts__) {
+        suppressAutoSyncUntil = Date.now() + 700;
+        window.__deleteMvuArtifacts__(mvuArtifactNames());
+      } else {
+        clearInjectedMvuArtifacts();
+      }
+      lastSyncFingerprint = '';
+      scheduleRefreshSync(true);
+      return { cleared: true };
+    },
+    upsertDesign: function(payload) {
+      payload = payload || {};
+      return window.__applyExternalVariableDesign__({
+        design: payload.design || payload,
+        source: 'assistant',
+        inject: payload.inject === true,
+        message: '助手已写入 MVU 设计',
+      });
+    },
+    upsertVariables: function(payload) {
+      payload = payload || {};
+      return window.__applyExternalVariableDesign__({
+        design: payload.design || payload,
+        source: 'assistant',
+        inject: payload.inject !== false,
+        message: '助手已注入 MVU 变量卡',
+      });
+    },
+    patchNode: function(opts) {
+      opts = opts || {};
+      var path = String(opts.path || '').trim();
+      if (!path) throw new Error('缺少 path');
+      var design = window.__getCardExtension__ ? window.__getCardExtension__('zmer_mvu_design') : null;
+      if (!design || !Array.isArray(design.variables)) throw new Error('当前无 MVU 设计');
+      var vars = design.variables.slice();
+      var idx = vars.findIndex(function(v) {
+        return String((v && (v.path || v.name)) || '') === path;
+      });
+      if (idx < 0) throw new Error('未找到节点: ' + path);
+      vars[idx] = Object.assign({}, vars[idx], opts.patch || {});
+      var next = Object.assign({}, design, { variables: vars });
+      return window.__applyExternalVariableDesign__({
+        design: next,
+        source: 'assistant',
+        inject: opts.inject !== false,
+        message: '助手已补丁 MVU 节点 ' + path,
+      });
+    },
+  };
+
   /* ============================================================
    *  导出
    * ============================================================ */
   btnExport.addEventListener('click', function() {
-    if (!gen.schema) return alert('请先生成变量卡！');
+    if (!gen.schema) return alert('请先在「状态栏」生成变量设计，或从角色卡同步已有 MVU！');
     var pack = {
       _format:'st_v3_mvu_variable_card_pack', _version:'1.0',
       _generated_at: new Date().toISOString(),

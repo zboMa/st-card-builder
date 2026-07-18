@@ -1,487 +1,202 @@
 ---
 ---
 <div class="panel area-worldbook">
-  <h2>📖 世界书条目</h2>
-
-  <!-- AI 单条生成 -->
-  <div style="background: rgba(139, 92, 246, 0.06); border: 1px dashed rgba(139, 92, 246, 0.3); padding: 16px; border-radius: 10px; margin-bottom: 20px;">
-    <h4 style="margin: 0 0 8px 0; color: #c4b5fd; font-size: 0.9rem;">🤖 AI 单条生成（自动叠加）</h4>
-    <p style="font-size: 0.72rem; color: #64748b; margin: 0 0 12px 0;">AI 会自动读取已有词条，确保世界观连贯且不重复。</p>
-    <div style="display: flex; gap: 10px;">
-      <input type="text" id="wbSinglePrompt" placeholder="定向要求(可选)，如：写一把专属武器..." style="flex: 1;" />
-      <button id="btnAiSingleWb" class="btn" style="width: auto; margin: 0; background: linear-gradient(135deg, #8b5cf6, #6d28d9); white-space: nowrap;">🎲 生成 1 条</button>
-    </div>
-    <div style="display: flex; align-items: center; gap: 16px; margin-top: 12px; flex-wrap: wrap;">
-      <div style="display: flex; align-items: center; gap: 8px;">
-        <input type="checkbox" id="wbIncludeCharData" checked />
-        <label for="wbIncludeCharData" style="margin: 0; color: #94a3b8; font-size: 0.78rem; cursor: pointer; font-weight: normal;">融合【角色名与描述】</label>
-      </div>
-      <div style="display: flex; align-items: center; gap: 8px;">
-        <input type="checkbox" id="wbIncludeOtherEntries" checked />
-        <label for="wbIncludeOtherEntries" style="margin: 0; color: #94a3b8; font-size: 0.78rem; cursor: pointer; font-weight: normal;">融合【已有世界书条目】</label>
-      </div>
+  <!-- 标题行右上：小号操作按钮；下方仅搜索 + 列表 -->
+  <div class="wb-panel-head">
+    <h2>世界书条目</h2>
+    <div class="wb-head-actions">
+      <button id="btnOpenWbAiSingle" class="btn btn-ai wb-ai-open-btn" type="button" title="AI 单条生成">单条生成</button>
+      <button id="btnOpenWbAiOrganize" class="btn wb-ai-open-btn" type="button" title="AI 智能整理">智能整理</button>
+      <button id="btnOpenWbAiKeygen" class="btn wb-ai-open-btn" type="button" title="AI 补全触发词">补全触发词</button>
+      <button id="btnCreateEntry" class="btn btn-add wb-entry-create-btn" type="button">新建</button>
     </div>
   </div>
 
-  <!-- ★ AI 智能整理（美化版） -->
-  <div class="wb-organize-wrap">
-    <div class="organize-header-row">
-      <div class="organize-icon-wrap">
-        <span class="organize-icon">🧹</span>
+  <!-- 搜索筛选（结果为单列紧凑命中列表） -->
+  <div class="wb-toolbar">
+    <div class="wb-search-wrap">
+      <div class="wb-search-bar">
+        <span class="wb-search-icon" aria-hidden="true">🔍</span>
+        <input type="text" id="wbSearchInput" class="wb-search-input" placeholder="搜索标题 / 触发词 / 内容..." autocomplete="off" />
+        <button id="wbSearchClear" class="wb-search-clear" title="清空" type="button" style="display:none;">✕</button>
       </div>
-      <div class="organize-title-wrap">
-        <span class="organize-title">AI 智能整理</span>
-        <span class="organize-subtitle">自动优化插入位置 · 深度 · 顺序 · 概率</span>
+      <div class="wb-search-scope">
+        <label class="wb-scope-tag"><input type="checkbox" id="wbScopeTitle" checked /><span>标题</span></label>
+        <label class="wb-scope-tag"><input type="checkbox" id="wbScopeKeys" checked /><span>触发词</span></label>
+        <label class="wb-scope-tag"><input type="checkbox" id="wbScopeContent" checked /><span>内容</span></label>
+        <span id="wbSearchCount" class="wb-search-count"></span>
       </div>
-      <button id="btnAiOrganize" class="btn-organize-magic">
-        <span class="btn-magic-icon">⚡</span>
-        <span class="btn-magic-text">一键整理</span>
-      </button>
+      <div id="wbSearchResults" class="wb-search-results" style="display:none;"></div>
     </div>
-    <div id="organizeStatus" class="organize-status-bar"></div>
   </div>
+
+  <!-- AI 执行状态与整理预览（弹窗确认后在此展示） -->
+  <div id="organizeStatus" class="organize-status-bar" style="display:none;"></div>
+  <div id="keygenStatus" class="organize-status-bar" style="display:none;"></div>
   <div id="organizePreview" class="organize-preview-container" style="display: none;"></div>
 
-  <!-- ★ AI 触发词生成 -->
-  <div class="wb-keygen-wrap">
-    <div class="organize-header-row">
-      <div class="organize-icon-wrap wb-keygen-icon-wrap">
-        <span class="organize-icon">🗝️</span>
+  <!-- AI 单条生成配置弹窗 -->
+  <div id="wbModalSingle" class="wb-modal" hidden aria-hidden="true">
+    <div class="wb-modal-backdrop" data-wb-modal-close="wbModalSingle"></div>
+    <div class="wb-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="wbModalSingleTitle">
+      <div class="wb-modal-head">
+        <strong id="wbModalSingleTitle">AI 单条生成</strong>
+        <span class="wb-modal-tip">自动叠加，读取已有词条保持连贯</span>
       </div>
-      <div class="organize-title-wrap">
-        <span class="organize-title wb-keygen-title">AI 触发词生成</span>
-        <span class="organize-subtitle">为当前世界书条目批量补全更自然的触发词</span>
+      <div class="wb-modal-body">
+        <div class="wb-ai-row">
+          <input type="text" id="wbSinglePrompt" placeholder="定向要求(可选)，如：写一把专属武器..." />
+        </div>
+        <div class="wb-ai-checks">
+          <label class="wb-ai-check"><input type="checkbox" id="wbIncludeCharData" checked />融合【角色名与描述】</label>
+          <label class="wb-ai-check"><input type="checkbox" id="wbIncludeOtherEntries" checked />融合【已有世界书条目】</label>
+        </div>
       </div>
-      <button id="btnAiGenerateKeys" class="btn-organize-magic wb-keygen-btn">
-        <span class="btn-magic-icon">✨</span>
-        <span class="btn-magic-text">一键补触发词</span>
-      </button>
+      <div class="wb-modal-actions">
+        <button type="button" class="btn wb-modal-cancel" data-wb-modal-close="wbModalSingle">取消</button>
+        <button id="btnAiSingleWb" class="btn btn-ai wb-ai-action" type="button">生成 1 条</button>
+      </div>
     </div>
-    <div id="keygenStatus" class="organize-status-bar"></div>
   </div>
 
-  <div class="wb-entry-toolbar">
-    <button id="btnCreateEntry" class="btn btn-add wb-entry-create-btn">新建条目</button>
+  <!-- AI 智能整理配置弹窗 -->
+  <div id="wbModalOrganize" class="wb-modal" hidden aria-hidden="true">
+    <div class="wb-modal-backdrop" data-wb-modal-close="wbModalOrganize"></div>
+    <div class="wb-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="wbModalOrganizeTitle">
+      <div class="wb-modal-head">
+        <strong id="wbModalOrganizeTitle">AI 智能整理</strong>
+        <span class="wb-modal-tip">优化插入位置 · 深度 · 顺序 · 概率</span>
+      </div>
+      <div class="wb-modal-body">
+        <p class="wb-modal-desc">将对当前全部世界书条目做参数分析，完成后在列表上方展示预览，确认后再应用。</p>
+      </div>
+      <div class="wb-modal-actions">
+        <button type="button" class="btn wb-modal-cancel" data-wb-modal-close="wbModalOrganize">取消</button>
+        <button id="btnAiOrganize" class="btn wb-ai-action" type="button">一键整理</button>
+      </div>
+    </div>
   </div>
 
-  <!-- ★ 世界书搜索 -->
-  <div class="wb-search-wrap">
-    <div class="wb-search-bar">
-      <span class="wb-search-icon">🔍</span>
-      <input type="text" id="wbSearchInput" class="wb-search-input" placeholder="搜索标题 / 触发词 / 内容..." autocomplete="off" />
-      <button id="wbSearchClear" class="wb-search-clear" title="清空" type="button" style="display:none;">✕</button>
+  <!-- AI 补全触发词配置弹窗 -->
+  <div id="wbModalKeygen" class="wb-modal" hidden aria-hidden="true">
+    <div class="wb-modal-backdrop" data-wb-modal-close="wbModalKeygen"></div>
+    <div class="wb-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="wbModalKeygenTitle">
+      <div class="wb-modal-head">
+        <strong id="wbModalKeygenTitle">AI 补全触发词</strong>
+        <span class="wb-modal-tip">批量补全更自然的触发词</span>
+      </div>
+      <div class="wb-modal-body">
+        <p class="wb-modal-desc">将按批次为全部条目生成/补全触发词，结果直接写回各条目。</p>
+      </div>
+      <div class="wb-modal-actions">
+        <button type="button" class="btn wb-modal-cancel" data-wb-modal-close="wbModalKeygen">取消</button>
+        <button id="btnAiGenerateKeys" class="btn wb-ai-action" type="button">一键补触发词</button>
+      </div>
     </div>
-    <div class="wb-search-scope">
-      <label class="wb-scope-tag"><input type="checkbox" id="wbScopeTitle" checked /><span>标题</span></label>
-      <label class="wb-scope-tag"><input type="checkbox" id="wbScopeKeys" checked /><span>触发词</span></label>
-      <label class="wb-scope-tag"><input type="checkbox" id="wbScopeContent" checked /><span>内容</span></label>
-      <span id="wbSearchCount" class="wb-search-count"></span>
-    </div>
-    <div id="wbSearchResults" class="wb-search-results" style="display:none;"></div>
   </div>
 
-  <!-- 条目列表 -->
-  <div id="entriesList"></div>
+  <!-- 条目新建/编辑：居中弹窗（列表仅折叠预览） -->
+  <div id="wbModalEdit" class="wb-modal" hidden aria-hidden="true">
+    <div class="wb-modal-backdrop" data-wb-modal-close="wbModalEdit"></div>
+    <div class="wb-modal-dialog wb-modal-dialog-lg" role="dialog" aria-modal="true" aria-labelledby="wbModalEditTitle">
+      <div class="wb-modal-head">
+        <strong id="wbModalEditTitle">编辑世界书条目</strong>
+        <span class="wb-modal-tip" id="wbModalEditTip">保存后写回列表 · Esc / 遮罩关闭</span>
+      </div>
+      <div class="wb-modal-body wb-modal-body-scroll" id="wbModalEditBody"></div>
+      <div class="wb-modal-actions">
+        <button type="button" class="btn wb-modal-cancel" data-wb-modal-close="wbModalEdit">取消</button>
+        <button id="btnWbModalSave" class="btn btn-add wb-ai-action" type="button">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 条目列表占满剩余高度，内部滚动 -->
+  <div id="entriesList" class="wb-entries-list" aria-live="polite"></div>
 </div>
 
 <style>
-  /* ===== AI 智能整理美化版 ===== */
-
-
-@keyframes organize-shine {
-  0%   { background-position: 200% center; }
-  50%  { background-position: -200% center; }
-  100% { background-position: 200% center; }
-}
-
-
-  .organize-header-row {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    position: relative;
-    z-index: 1;
-  }
-
-  .organize-icon-wrap {
-    width: 40px;
-    height: 40px;
-    background: linear-gradient(145deg, #fbbf24, #f59e0b);
-    border-radius: 11px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 3px 10px rgba(251, 191, 36, 0.35), inset 0 1px 0 rgba(255,255,255,0.25);
-    flex-shrink: 0;
-  }
-  .organize-icon {
-    font-size: 1.2rem;
-    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.25));
-  }
-
-  .organize-title-wrap {
-    flex: 1;
-    min-width: 0;
-  }
-  .organize-title {
-    display: block;
-    font-size: 0.88rem;
-    font-weight: 700;
-    color: #fcd34d;
-    letter-spacing: 0.03em;
-    text-shadow: 0 0 20px rgba(251, 191, 36, 0.3);
-  }
-  .organize-subtitle {
-    display: block;
-    font-size: 0.68rem;
-    color: #94a3b8;
-    margin-top: 2px;
-  }
-
-  .btn-organize-magic {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    background: linear-gradient(145deg, #f59e0b 0%, #d97706 50%, #b45309 100%);
-    color: #fff;
-    padding: 10px 18px;
-    font-size: 0.8rem;
-    font-weight: 700;
-    border: none;
-    border-radius: 9px;
-    cursor: pointer;
-    transition: all 0.25s ease;
-    box-shadow: 0 3px 12px rgba(245, 158, 11, 0.4), inset 0 1px 0 rgba(255,255,255,0.2);
-    flex-shrink: 0;
-    font-family: inherit;
-    position: relative;
-    overflow: hidden;
-  }
-  .btn-organize-magic::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 50%;
-    background: linear-gradient(180deg, rgba(255,255,255,0.15), transparent);
-    pointer-events: none;
-    border-radius: 9px 9px 0 0;
-  }
-  .btn-organize-magic:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(245, 158, 11, 0.5), inset 0 1px 0 rgba(255,255,255,0.25);
-  }
-  .btn-organize-magic:active {
-    transform: translateY(0);
-  }
-  .btn-organize-magic:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    transform: none;
-    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.25);
-  }
-  .btn-magic-icon {
-    font-size: 1rem;
-    animation: magic-pulse 1.5s infinite;
-  }
-  @keyframes magic-pulse {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.7; transform: scale(0.95); }
-  }
-  .btn-magic-text {
-    position: relative;
-    z-index: 1;
-  }
-
-  .organize-status-bar {
-    font-size: 0.72rem;
-    color: #94a3b8;
-    margin-top: 10px;
-    padding: 8px 12px;
-    background: rgba(0,0,0,0.25);
-    border-radius: 8px;
-    min-height: 28px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    position: relative;
-    z-index: 1;
-    border: 1px solid rgba(51, 65, 85, 0.3);
-  }
-
-  .wb-entry-toolbar {
-    display: flex;
-    justify-content: stretch;
-    margin-bottom: 10px;
-  }
-
-  .wb-entry-create-btn {
-    width: 100%;
-    margin: 0;
-    white-space: nowrap;
-    padding: 8px 14px;
-    font-size: 0.8rem;
-    border-radius: 10px;
-    box-shadow: 0 6px 18px rgba(16, 185, 129, 0.14);
-  }
-
-  @media (max-width: 720px) {
-    .wb-entry-create-btn {
-      width: 100%;
-      min-width: 0;
-    }
-  }
-
-  .wb-keygen-wrap {
-    margin-bottom: 14px;
-    padding: 14px 16px;
-    border-radius: 12px;
-    position: relative;
-    overflow: hidden;
-    background: linear-gradient(135deg, rgba(56, 189, 248, 0.09), rgba(14, 165, 233, 0.04));
-    border: 1px solid rgba(56, 189, 248, 0.18);
-    box-shadow: 0 3px 16px rgba(56, 189, 248, 0.08);
-  }
-
-  .wb-keygen-icon-wrap {
-    background: linear-gradient(145deg, #38bdf8, #0284c7);
-    box-shadow: 0 3px 10px rgba(56, 189, 248, 0.28), inset 0 1px 0 rgba(255,255,255,0.25);
-  }
-
-  .wb-keygen-title {
-    color: #7dd3fc;
-    text-shadow: 0 0 18px rgba(56, 189, 248, 0.24);
-  }
-
-  .wb-keygen-btn {
-    background: linear-gradient(145deg, #0ea5e9 0%, #0284c7 52%, #0369a1 100%);
-    box-shadow: 0 3px 12px rgba(14, 165, 233, 0.32), inset 0 1px 0 rgba(255,255,255,0.2);
-  }
-
-  .wb-keygen-btn:hover {
-    box-shadow: 0 6px 20px rgba(14, 165, 233, 0.42), inset 0 1px 0 rgba(255,255,255,0.25);
-  }
-
-  /* ===== 预览容器 ===== */
-  .organize-preview-container {
-    background: linear-gradient(180deg, rgba(15, 23, 42, 0.97), rgba(8, 12, 28, 0.99));
-    border: 1px solid rgba(251, 191, 36, 0.25);
-    border-radius: 12px;
-    margin-top: 5px;
-    margin-bottom: 14px;
-    overflow: hidden;
-    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255,255,255,0.04);
-    animation: preview-slide-in 0.35s ease-out;
-  }
-  @keyframes preview-slide-in {
-    from { opacity: 0; transform: translateY(-12px); max-height: 0; }
-    to { opacity: 1; transform: translateY(0); max-height: 500px; }
-  }
-
-  .organize-preview-header {
-    background: linear-gradient(90deg, rgba(251, 191, 36, 0.15), rgba(139, 92, 246, 0.1));
-    padding: 12px 16px;
-    border-bottom: 1px solid rgba(251, 191, 36, 0.2);
+  /* 标题行：左标题 右小号操作横排 */
+  .wb-panel-head {
     display: flex;
     align-items: center;
     justify-content: space-between;
-  }
-  .preview-header-title {
-    font-size: 0.82rem;
-    font-weight: 700;
-    color: #fbbf24;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .preview-header-badge {
-    font-size: 0.64rem;
-    background: rgba(16, 185, 129, 0.15);
-    color: #34d399;
-    padding: 3px 10px;
-    border-radius: 99px;
-    font-weight: 600;
-    border: 1px solid rgba(16, 185, 129, 0.25);
-  }
-
-  .organize-table-wrap {
-    max-height: 260px;
-    overflow-y: auto;
-  }
-
-  .organize-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.72rem;
-  }
-  .organize-table th {
-    background: rgba(30, 41, 59, 0.9);
-    color: #94a3b8;
-    padding: 10px 12px;
-    text-align: left;
-    font-weight: 700;
-    font-size: 0.66rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    position: sticky;
-    top: 0;
-    z-index: 1;
-    border-bottom: 1px solid rgba(71, 85, 105, 0.4);
-  }
-  .organize-table td {
-    padding: 9px 12px;
-    border-bottom: 1px solid rgba(30, 41, 59, 0.6);
-    color: #e2e8f0;
-    transition: background 0.15s ease;
-  }
-  .organize-table tr:hover td {
-    background: rgba(251, 191, 36, 0.05);
-  }
-  .organize-table tr:last-child td {
-    border-bottom: none;
-  }
-
-  .org-name-cell {
-    max-width: 110px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-weight: 600;
-    color: #f1f5f9;
-  }
-
-  .org-value-cell {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.7rem;
-  }
-  .org-changed {
-    color: #34d399 !important;
-    font-weight: 700;
-    background: rgba(16, 185, 129, 0.12);
-    padding: 2px 6px;
-    border-radius: 4px;
-    border: 1px solid rgba(16, 185, 129, 0.2);
-  }
-  .org-old {
-    color: #64748b;
-    text-decoration: line-through;
-    font-size: 0.62rem;
-    margin-right: 5px;
-  }
-
-  .org-reason-cell {
-    max-width: 150px;
-    font-size: 0.64rem;
-    color: #64748b;
-    line-height: 1.4;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .organize-footer {
-    padding: 12px 16px;
-    background: rgba(0, 0, 0, 0.25);
-    border-top: 1px solid rgba(51, 65, 85, 0.4);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-  }
-  .organize-stats {
-    font-size: 0.7rem;
-    color: #64748b;
-  }
-  .organize-stats strong {
-    color: #34d399;
-    font-weight: 700;
-  }
-
-  .organize-actions {
-    display: flex;
     gap: 10px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
   }
-  .btn-org-apply {
-    background: linear-gradient(145deg, #10b981, #059669) !important;
-    color: #fff !important;
-    padding: 8px 18px !important;
-    font-size: 0.76rem !important;
-    font-weight: 700 !important;
-    border: none !important;
-    border-radius: 7px !important;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    font-family: inherit;
-    box-shadow: 0 2px 10px rgba(16, 185, 129, 0.35);
+  .wb-panel-head h2 {
+    margin: 0;
+    flex-shrink: 0;
   }
-  .btn-org-apply:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 14px rgba(16, 185, 129, 0.45);
+  .wb-head-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 5px;
+    margin-left: auto;
   }
-  .btn-org-cancel {
-    background: rgba(51, 65, 85, 0.5) !important;
-    color: #94a3b8 !important;
-    padding: 8px 16px !important;
-    font-size: 0.76rem !important;
-    font-weight: 600 !important;
-    border: 1px solid rgba(71, 85, 105, 0.5) !important;
-    border-radius: 7px !important;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    font-family: inherit;
-  }
-  .btn-org-cancel:hover {
-    background: rgba(71, 85, 105, 0.6) !important;
-    color: #e2e8f0 !important;
+  /* 小号横排：三 AI + 新建 */
+  .wb-ai-open-btn,
+  .wb-entry-create-btn {
+    width: auto !important;
+    margin: 0 !important;
+    padding: 4px 8px !important;
+    font-size: 0.66rem !important;
+    line-height: 1.2 !important;
+    white-space: nowrap;
+    flex-shrink: 0;
   }
 
-  /* ===== 世界书搜索 ===== */
+  /* 搜索区独占下方工具条 */
+  .wb-toolbar {
+    margin-bottom: 8px;
+  }
   .wb-search-wrap {
-    margin-bottom: 12px;
-    padding: 12px 14px;
-    border-radius: 12px;
-    background: linear-gradient(135deg, rgba(56, 189, 248, 0.06), rgba(139, 92, 246, 0.05));
-    border: 1px solid rgba(56, 189, 248, 0.18);
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: var(--color-surface-inset);
+    border: 1px solid var(--color-accent-border);
   }
   .wb-search-bar {
     display: flex;
     align-items: center;
-    gap: 8px;
-    background: rgba(8, 12, 28, 0.6);
+    gap: 6px;
+    background: rgba(8, 12, 28, 0.55);
     border: 1px solid rgba(71, 85, 105, 0.4);
-    border-radius: 9px;
-    padding: 0 10px;
+    border-radius: 8px;
+    padding: 0 8px;
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
   }
   .wb-search-bar:focus-within {
-    border-color: rgba(56, 189, 248, 0.5);
-    box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.12);
+    border-color: var(--color-accent-border);
+    box-shadow: 0 0 0 2px var(--color-accent-soft);
   }
-  .wb-search-icon { font-size: 0.9rem; opacity: 0.7; }
+  .wb-search-icon { font-size: 0.82rem; opacity: 0.7; }
   .wb-search-input {
     flex: 1;
     background: transparent !important;
     border: none !important;
     outline: none !important;
     box-shadow: none !important;
-    color: #e2e8f0;
-    font-size: 0.82rem;
-    padding: 10px 0 !important;
+    color: var(--color-text-secondary);
+    font-size: 0.8rem;
+    padding: 7px 0 !important;
     font-family: inherit;
     min-width: 0;
     border-radius: 0;
   }
-  .wb-search-input::placeholder { color: #64748b; }
+  .wb-search-input::placeholder { color: var(--color-text-muted); }
   .wb-search-clear {
     background: rgba(71, 85, 105, 0.4);
     border: none;
-    color: #94a3b8;
-    width: 22px;
-    height: 22px;
+    color: var(--color-text-muted);
+    width: 20px;
+    height: 20px;
     border-radius: 50%;
     cursor: pointer;
-    font-size: 0.7rem;
+    font-size: 0.68rem;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -490,25 +205,25 @@
   }
   .wb-search-clear:hover {
     background: rgba(100, 116, 139, 0.6);
-    color: #f1f5f9;
+    color: var(--color-text);
   }
   .wb-search-scope {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-top: 10px;
+    gap: 6px;
+    margin-top: 6px;
     flex-wrap: wrap;
   }
   .wb-scope-tag {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    padding: 4px 10px;
-    border-radius: 99px;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 6px;
     background: rgba(30, 41, 59, 0.6);
     border: 1px solid rgba(71, 85, 105, 0.4);
-    font-size: 0.7rem;
-    color: #94a3b8;
+    font-size: 0.68rem;
+    color: var(--color-text-muted);
     cursor: pointer;
     transition: all 0.2s ease;
     user-select: none;
@@ -516,118 +231,229 @@
     font-weight: normal;
   }
   .wb-scope-tag:hover {
-    border-color: rgba(56, 189, 248, 0.4);
-    color: #cbd5e1;
+    border-color: var(--color-accent-border);
+    color: var(--color-text-secondary);
   }
   .wb-scope-tag input { display: none; }
   .wb-scope-tag:has(input:checked) {
-    background: rgba(56, 189, 248, 0.15);
-    border-color: rgba(56, 189, 248, 0.45);
-    color: #7dd3fc;
+    background: var(--color-accent-soft);
+    border-color: var(--color-accent-border);
+    color: #c7d2fe;
   }
   .wb-search-count {
     margin-left: auto;
-    font-size: 0.68rem;
-    color: #64748b;
+    font-size: 0.66rem;
+    color: var(--color-text-muted);
     white-space: nowrap;
   }
+
+  /* 单列紧凑命中列表（非双列预览卡） */
   .wb-search-results {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    margin-top: 12px;
-    max-height: 460px;
-    overflow-y: auto;
-    padding-right: 4px;
-  }
-  .wb-search-empty {
-    grid-column: 1 / -1;
-    text-align: center;
-    color: #64748b;
-    font-size: 0.78rem;
-    padding: 24px 12px;
-  }
-  .wb-search-card {
-    background: rgba(15, 23, 42, 0.85);
-    border: 1px solid rgba(71, 85, 105, 0.4);
-    border-radius: 9px;
-    padding: 10px 12px;
-    cursor: pointer;
-    transition: all 0.2s ease;
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    gap: 2px;
+    margin-top: 8px;
+    max-height: 220px;
+    overflow-y: auto;
+    padding-right: 2px;
+  }
+  .wb-search-empty {
+    text-align: center;
+    color: var(--color-text-muted);
+    font-size: 0.74rem;
+    padding: 10px 8px;
+  }
+  .wb-search-hit {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    background: var(--color-surface-inset);
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
     min-width: 0;
   }
-  .wb-search-card:hover {
-    border-color: rgba(56, 189, 248, 0.55);
-    background: rgba(30, 41, 59, 0.9);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 14px rgba(56, 189, 248, 0.12);
+  .wb-search-hit:hover,
+  .wb-search-hit:focus-visible {
+    border-color: var(--color-accent-border);
+    background: rgba(30, 41, 59, 0.85);
+    outline: none;
   }
-  .wb-search-card-head {
+  .wb-search-hit-main {
     display: flex;
     align-items: center;
     gap: 6px;
+    min-width: 0;
     flex-wrap: wrap;
   }
-  .wb-search-card-title {
-    font-size: 0.82rem;
+  .wb-search-hit-title {
+    font-size: 0.76rem;
     font-weight: 700;
-    color: #f1f5f9;
+    color: var(--color-text);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    flex: 1;
     min-width: 0;
+    max-width: 100%;
   }
-  .wb-search-card-strategy {
-    font-size: 0.6rem;
-    color: #c4b5fd;
-    background: rgba(139, 92, 246, 0.15);
-    border: 1px solid rgba(139, 92, 246, 0.25);
-    padding: 1px 6px;
-    border-radius: 99px;
-    flex-shrink: 0;
-  }
-  .wb-search-card-field {
-    font-size: 0.66rem;
-    color: #94a3b8;
-    line-height: 1.4;
-    overflow: hidden;
-    text-overflow: ellipsis;
+  .wb-search-hit-fields {
+    font-size: 0.62rem;
+    color: var(--color-text-muted);
     white-space: nowrap;
   }
-  .wb-search-card-field strong {
-    color: #7dd3fc;
+  .wb-search-hit-fields strong {
+    color: var(--color-accent-hover);
     font-weight: 600;
   }
-  .wb-search-card-snippet {
-    font-size: 0.72rem;
-    color: #cbd5e1;
-    line-height: 1.5;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
+  .wb-search-hit-snippet {
+    font-size: 0.68rem;
+    color: var(--color-text-muted);
+    line-height: 1.35;
     overflow: hidden;
-    word-break: break-word;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
-  .wb-search-card mark {
+  .wb-search-hit mark {
     background: rgba(251, 191, 36, 0.28);
     color: #fde68a;
     padding: 0 2px;
     border-radius: 3px;
     font-weight: 600;
   }
-  .wb-search-card-jump {
-    font-size: 0.62rem;
-    color: #64748b;
-    margin-top: 2px;
+
+  /* AI 配置：真弹窗（fixed 全屏遮罩；打开时挂到 body） */
+  .wb-modal[hidden] { display: none !important; }
+  .wb-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 9200;
+    display: grid;
+    place-items: center;
+    padding: 18px;
   }
-  .wb-search-card:hover .wb-search-card-jump {
-    color: #7dd3fc;
+  :global(body.wb-modal-open) {
+    overflow: hidden;
   }
+  .wb-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(2, 6, 23, 0.66);
+    backdrop-filter: blur(6px);
+  }
+  .wb-modal-dialog {
+    position: relative;
+    z-index: 1;
+    width: min(480px, 100%);
+    border-radius: 12px;
+    border: 1px solid var(--color-accent-border);
+    background: linear-gradient(145deg, rgba(15, 23, 42, 0.98), rgba(7, 12, 24, 0.98));
+    box-shadow: 0 20px 56px rgba(0, 0, 0, 0.45);
+    overflow: hidden;
+  }
+  .wb-modal-dialog-lg { width: min(640px, 100%); }
+  .wb-modal-body-scroll {
+    max-height: min(62vh, 520px);
+    overflow-y: auto;
+  }
+  .wb-modal-head {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 14px 16px 10px;
+    border-bottom: 1px solid var(--color-accent-soft);
+  }
+  .wb-modal-head strong {
+    font-size: 0.9rem;
+    color: var(--color-text);
+  }
+  .wb-modal-tip {
+    font-size: 0.68rem;
+    color: var(--color-text-muted);
+  }
+  .wb-modal-body {
+    padding: 12px 16px 8px;
+  }
+  .wb-modal-desc {
+    margin: 0;
+    font-size: 0.78rem;
+    line-height: 1.55;
+    color: var(--color-text-muted);
+  }
+  .wb-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 12px 16px 14px;
+    border-top: 1px solid rgba(51, 65, 85, 0.45);
+  }
+  .wb-modal-cancel {
+    width: auto !important;
+    margin: 0 !important;
+    padding: 8px 12px !important;
+    font-size: 0.78rem !important;
+    background: linear-gradient(135deg, var(--color-surface-elevated), var(--color-surface));
+  }
+  .wb-ai-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .wb-ai-row input[type="text"] {
+    flex: 1;
+    min-width: 0;
+  }
+  .wb-ai-action {
+    width: auto !important;
+    margin: 0 !important;
+    padding: 8px 12px !important;
+    font-size: 0.78rem !important;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .wb-ai-checks {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+  }
+  .wb-ai-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: 0.74rem;
+    font-weight: normal;
+    cursor: pointer;
+  }
+
+  /* 列表占满剩余高度；条目不参与压缩 */
+  .wb-entries-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .wb-entries-empty {
+    margin: auto 0;
+    padding: 24px 14px;
+    text-align: center;
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+    border: 1px dashed var(--color-accent-border);
+    border-radius: 8px;
+    background: var(--color-accent-soft);
+  }
+
   @media (max-width: 720px) {
-    .wb-search-results { grid-template-columns: 1fr; }
+    .wb-panel-head {
+      align-items: flex-start;
+    }
+    .wb-head-actions {
+      width: 100%;
+      justify-content: flex-start;
+    }
   }
 </style>

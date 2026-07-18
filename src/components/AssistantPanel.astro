@@ -1,0 +1,1898 @@
+---
+/**
+ * 右栏 AI 辅助助手：多轮对话、工具轨迹、变更确认、会话持久化
+ * 占满右栏；快捷入口填入输入框；就绪以标题左侧绿点标识
+ */
+import { ASSISTANT_PRESET_CHIPS, ASSISTANT_TOOLS, formatToolsForPrompt } from '../lib/assistant/tools.mjs';
+
+const chipsJson = JSON.stringify(ASSISTANT_PRESET_CHIPS);
+const toolListText = formatToolsForPrompt(ASSISTANT_TOOLS);
+---
+
+<aside class="assistant-panel" id="assistantPanel" aria-label="AI 辅助助手">
+  <header class="assistant-panel__header">
+    <div class="assistant-panel__title-row">
+      <!-- 就绪态：绿点；忙碌/提示时变色，无独立「就绪」文案位 -->
+      <span class="assistant-ready-dot is-ready" id="assistantReadyDot" title="就绪" aria-label="就绪"></span>
+      <h2 class="assistant-panel__title">AI 助手</h2>
+      <span class="assistant-panel__tip" id="assistantStatusTip" hidden></span>
+    </div>
+    <p class="assistant-panel__sub">ReAct 工具调用 · 与卡片状态同步</p>
+  </header>
+
+  <div class="assistant-panel__messages" id="assistantMessages" role="log" aria-live="polite"></div>
+
+  <div class="assistant-panel__pending" id="assistantPendingBox" hidden>
+    <div class="assistant-panel__pending-summary" id="assistantPendingSummary">待确认变更</div>
+    <div class="assistant-panel__preview-wrap">
+      <pre class="assistant-panel__preview" id="assistantPendingPreview"></pre>
+    </div>
+    <div class="assistant-panel__pending-actions">
+      <button type="button" class="btn btn-sm btn-primary assistant-btn-apply" id="assistantApplyBtn">应用</button>
+      <button type="button" class="btn btn-sm btn-ghost assistant-btn-reject" id="assistantRejectBtn">拒绝</button>
+    </div>
+  </div>
+
+  <div class="assistant-panel__composer">
+    <textarea id="assistantInput" class="assistant-panel__input" rows="3" placeholder="问助手：检查世界书、润色人设、跳转模块…"></textarea>
+    <div class="composer-bar assistant-panel__composer-bar">
+      <div class="composer-bar__left assistant-panel__quick-wrap">
+        <button type="button" class="assistant-btn-quick" id="assistantQuickBtn" aria-haspopup="listbox" aria-expanded="false">快捷</button>
+        <button type="button" class="btn-icon btn-icon--sm assistant-btn-rag-preview" id="assistantRagPreviewBtn" title="查看当前匹配 RAG" aria-label="查看当前匹配 RAG">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/><path d="M8 11h6M11 8v6"/></svg>
+        </button>
+        <div class="assistant-quick-menu" id="assistantQuickMenu" role="listbox" hidden></div>
+      </div>
+      <span id="assistantTokenCount" class="assistant-token-count composer-bar__meta" aria-live="polite"></span>
+      <div class="composer-bar__actions assistant-panel__composer-actions">
+        <button type="button" class="btn-icon assistant-btn-undo" id="assistantUndoBtn" title="撤销上一补丁" aria-label="撤销上一补丁">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 7H5v4"/><path d="M5 11a7 7 0 1 1 2 5.2L5 11z"/></svg>
+        </button>
+        <button type="button" class="btn-icon assistant-btn-clear" id="assistantClearBtn" title="清空会话" aria-label="清空会话">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><path d="M10 11v6M14 11v6"/><path d="M7 7l1 12a1 1 0 0 0 1 .9h6a1 1 0 0 0 1-.9l1-12"/></svg>
+        </button>
+        <button type="button" class="btn-icon btn-icon--primary assistant-btn-action" id="assistantActionBtn" title="发送" aria-label="发送">
+          <svg class="btn-icon__glyph--send" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l14-7-7 14-2-5-5-2z"/></svg>
+          <svg class="btn-icon__glyph--stop" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="1.5"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<div id="assistantRagModal" class="assistant-rag-modal" hidden aria-hidden="true">
+  <div class="assistant-rag-modal__backdrop ui-modal-backdrop" data-assistant-rag-close aria-hidden="true"></div>
+  <div class="ui-modal-dialog assistant-rag-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="assistantRagModalTitle">
+    <div class="assistant-rag-modal__head">
+      <div>
+        <h2 id="assistantRagModalTitle">RAG 检索预览</h2>
+        <p class="assistant-rag-modal__meta" id="assistantRagModalMeta"></p>
+      </div>
+      <button type="button" class="btn-icon btn-icon--sm" id="assistantRagModalClose" aria-label="关闭 RAG 预览">×</button>
+    </div>
+    <div class="assistant-rag-modal__body">
+      <pre class="assistant-rag-modal__preview" id="assistantRagModalPreview"></pre>
+    </div>
+  </div>
+</div>
+
+<style is:global>
+  .assistant-panel {
+    height: 100%;
+    max-height: 100%;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    background: var(--color-glass);
+    backdrop-filter: blur(24px) saturate(130%);
+    -webkit-backdrop-filter: blur(24px) saturate(130%);
+    border: 1px solid var(--color-glass-border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-panel);
+  }
+  .assistant-panel__header {
+    padding: var(--space-3) 14px var(--space-2);
+    border-bottom: 1px solid var(--color-border-subtle);
+    flex-shrink: 0;
+  }
+  .assistant-panel__title-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+  .assistant-ready-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: var(--color-text-muted);
+    box-shadow: none;
+  }
+  .assistant-ready-dot.is-ready {
+    background: var(--color-success);
+    box-shadow: 0 0 6px oklch(72% 0.14 155 / 0.45);
+  }
+  .assistant-ready-dot.is-busy {
+    background: var(--color-warning);
+    box-shadow: 0 0 6px oklch(78% 0.12 85 / 0.4);
+  }
+  .assistant-ready-dot.is-warn {
+    background: oklch(70% 0.14 75);
+    box-shadow: 0 0 6px oklch(70% 0.14 75 / 0.35);
+  }
+  .assistant-panel__title {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--color-text);
+    flex-shrink: 0;
+    font-style: normal;
+  }
+  .assistant-panel__tip {
+    margin-left: auto;
+    font-size: 0.62rem;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 46%;
+  }
+  .assistant-panel__tip.is-warn {
+    color: var(--color-warning);
+  }
+  .assistant-panel__sub {
+    margin: 4px 0 0;
+    font-size: 0.68rem;
+    color: var(--color-text-muted);
+  }
+  .assistant-panel__messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 0;
+  }
+  .assistant-msg {
+    border-radius: 10px;
+    padding: 8px 10px;
+    font-size: 0.78rem;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    word-break: normal;
+    overflow-wrap: break-word;
+  }
+  .assistant-msg--user {
+    width: max-content;
+    max-width: 100%;
+    background: var(--color-accent-soft);
+    border: 1px solid var(--color-accent-border);
+    color: var(--color-text);
+  }
+  .assistant-msg--assistant {
+    align-self: stretch;
+    background: var(--color-surface-input);
+    border: 1px solid var(--color-border-subtle);
+    color: var(--color-text-secondary);
+  }
+  .assistant-msg--error {
+    border-color: oklch(62% 0.18 25 / 0.4);
+    color: var(--color-danger);
+  }
+  .assistant-msg-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .assistant-msg-wrap--user {
+    align-self: flex-end;
+    width: fit-content;
+    max-width: 85%;
+  }
+  .assistant-msg-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 2px;
+    align-self: stretch;
+    flex-shrink: 0;
+    min-height: 22px;
+    opacity: 0.72;
+  }
+  .assistant-msg-wrap--user:hover .assistant-msg-actions,
+  .assistant-msg-wrap--user:focus-within .assistant-msg-actions {
+    opacity: 1;
+  }
+  .assistant-msg-rag-btn {
+    width: 22px;
+    height: 22px;
+    padding: 0;
+  }
+  .assistant-msg-rag-btn svg {
+    width: 13px;
+    height: 13px;
+  }
+  .assistant-panel__quick-wrap {
+    position: relative;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .assistant-btn-rag-preview svg {
+    width: 15px;
+    height: 15px;
+  }
+  .assistant-rag-modal[hidden] {
+    display: none !important;
+  }
+  .assistant-rag-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 9100;
+    display: grid;
+    place-items: center;
+    padding: 18px;
+  }
+  :global(body.assistant-rag-modal-open) {
+    overflow: hidden;
+  }
+  .assistant-rag-modal__backdrop {
+    position: absolute;
+    inset: 0;
+    background: var(--color-overlay);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+  .assistant-rag-modal__dialog {
+    position: relative;
+    z-index: 1;
+    width: min(560px, 100%);
+    max-height: min(82vh, 720px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-glass-border);
+    background: var(--color-surface-elevated);
+    box-shadow: var(--shadow-panel);
+  }
+  .assistant-rag-modal__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 12px 14px 8px;
+    border-bottom: 1px solid var(--color-border-subtle);
+    flex-shrink: 0;
+  }
+  .assistant-rag-modal__head h2 {
+    margin: 0;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--color-text);
+  }
+  .assistant-rag-modal__meta {
+    margin: 4px 0 0;
+    font-size: 0.62rem;
+    line-height: 1.35;
+    color: var(--color-text-muted);
+  }
+  .assistant-rag-modal__body {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+    padding: 10px 12px 12px;
+  }
+  .assistant-rag-modal__preview {
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 0.68rem;
+    line-height: 1.45;
+    color: var(--color-text-secondary);
+    font-family: var(--font-mono);
+  }
+  .assistant-tool-card {
+    align-self: stretch;
+    border-radius: var(--radius-md);
+    border: 1px dashed oklch(72% 0.14 155 / 0.35);
+    background: oklch(72% 0.14 155 / 0.06);
+    font-size: 0.68rem;
+    color: oklch(78% 0.1 155);
+    overflow: clip;
+  }
+  .assistant-tool-card--error {
+    border-color: oklch(62% 0.18 25 / 0.4);
+    background: oklch(62% 0.18 25 / 0.06);
+    color: var(--color-danger);
+  }
+  .assistant-tool-card--pending {
+    border-style: solid;
+    border-color: oklch(78% 0.12 85 / 0.4);
+    background: oklch(78% 0.12 85 / 0.08);
+    color: var(--color-warning);
+  }
+  .assistant-tool-card__head {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 6px 8px;
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+  }
+  .assistant-tool-card__head::-webkit-details-marker {
+    display: none;
+  }
+  .assistant-tool-card__header-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    min-width: 0;
+  }
+  .assistant-tool-card__header-row::before {
+    content: '▸';
+    flex-shrink: 0;
+    font-size: 0.62rem;
+    opacity: 0.65;
+    transition: transform 0.15s ease;
+  }
+  .assistant-tool-card[open] > .assistant-tool-card__head .assistant-tool-card__header-row::before {
+    transform: rotate(90deg);
+  }
+  .assistant-tool-card__name {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .assistant-tool-card__risk {
+    flex-shrink: 0;
+    margin-left: auto;
+    font-size: 0.58rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    padding: 1px 5px;
+    border-radius: 999px;
+    border: 1px solid oklch(72% 0.14 155 / 0.35);
+    background: oklch(72% 0.14 155 / 0.12);
+    color: oklch(78% 0.1 155);
+    text-transform: uppercase;
+  }
+  .assistant-tool-card__risk--auto {
+    border-color: oklch(68% 0.12 240 / 0.35);
+    background: oklch(68% 0.12 240 / 0.12);
+    color: oklch(74% 0.1 240);
+  }
+  .assistant-tool-card__risk--confirm {
+    border-color: oklch(78% 0.12 85 / 0.45);
+    background: oklch(78% 0.12 85 / 0.14);
+    color: var(--color-warning);
+  }
+  .assistant-tool-card__risk--none {
+    opacity: 0.85;
+  }
+  .assistant-tool-card__summary {
+    width: 100%;
+    min-width: 0;
+    padding: 1px 0 2px 0.95rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--color-text-secondary);
+    font-family: inherit;
+    line-height: 1.5;
+    min-height: calc(1em * 1.5);
+  }
+  .assistant-tool-card__detail {
+    max-height: min(280px, 40vh);
+    overflow-x: hidden;
+    overflow-y: auto;
+    border-top: 1px solid oklch(72% 0.14 155 / 0.2);
+    overscroll-behavior: contain;
+  }
+  .assistant-tool-card__body {
+    margin: 0;
+    padding: 6px 8px 8px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-family: var(--font-mono);
+    font-size: 0.64rem;
+    line-height: 1.4;
+    color: var(--color-text-secondary);
+  }
+  .assistant-tool-card--error .assistant-tool-card__detail {
+    border-top-color: oklch(62% 0.18 25 / 0.25);
+  }
+  .assistant-tool-card--pending .assistant-tool-card__detail {
+    border-top-color: oklch(78% 0.12 85 / 0.25);
+  }
+  .assistant-panel__pending {
+    margin: 0 10px 8px;
+    padding: 8px 10px;
+    border-radius: var(--radius-md);
+    border: 1px solid oklch(78% 0.12 85 / 0.35);
+    background: oklch(78% 0.12 85 / 0.08);
+    font-size: 0.72rem;
+    color: var(--color-warning);
+    flex-shrink: 0;
+  }
+  .assistant-panel__pending-summary {
+    font-weight: 600;
+  }
+  .assistant-panel__preview-wrap {
+    margin: 8px 0;
+    max-height: min(240px, 35vh);
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border-radius: var(--radius-sm);
+    border: 1px solid oklch(78% 0.12 85 / 0.2);
+    background: oklch(0% 0 0 / 0.12);
+  }
+  .assistant-panel__preview {
+    margin: 0;
+    padding: 6px 8px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 0.66rem;
+    line-height: 1.4;
+    color: var(--color-text-secondary);
+    font-family: var(--font-mono);
+  }
+  .assistant-panel__pending-actions {
+    display: flex;
+    gap: 8px;
+  }
+  .assistant-panel__composer {
+    padding: 10px var(--space-3) var(--space-3);
+    border-top: 1px solid var(--color-border-subtle);
+    flex-shrink: 0;
+  }
+  .assistant-panel__input {
+    width: 100%;
+    resize: none;
+    min-height: 64px;
+    max-height: 120px;
+    overflow-y: auto;
+    background: var(--color-surface-input);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-md);
+    color: var(--color-text);
+    padding: var(--space-2) 10px;
+    font-size: 0.78rem;
+    font-family: inherit;
+  }
+  .assistant-panel__composer-bar {
+    margin-top: var(--space-2);
+  }
+  .assistant-panel__composer-actions {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: var(--space-1);
+  }
+  .assistant-token-count {
+    flex: 1;
+    min-width: 0;
+    text-align: center;
+    font-size: 0.62rem;
+    line-height: 1.2;
+    color: var(--color-text-muted);
+    font-variant-numeric: tabular-nums;
+    user-select: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .assistant-btn-quick {
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 5px 10px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-accent-border);
+    background: var(--color-accent-soft);
+    color: var(--color-accent-hover);
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .assistant-btn-quick:hover,
+  .assistant-btn-quick[aria-expanded="true"] {
+    border-color: var(--color-accent);
+    background: oklch(72% 0.14 305 / 0.2);
+    color: var(--color-text);
+  }
+  .assistant-quick-menu {
+    position: absolute;
+    left: 0;
+    bottom: calc(100% + 6px);
+    min-width: 168px;
+    max-width: 240px;
+    max-height: 240px;
+    overflow-y: auto;
+    padding: 6px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-accent-border);
+    background: var(--color-surface-elevated);
+    box-shadow: var(--shadow-panel);
+    z-index: 20;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .assistant-quick-menu:not([hidden]) {
+    display: flex;
+  }
+  .assistant-quick-menu[hidden] {
+    display: none !important;
+  }
+  .assistant-quick-item {
+    text-align: left;
+    font-size: 0.7rem;
+    padding: 6px 8px;
+    border-radius: 7px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--color-accent-hover);
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .assistant-quick-item:hover {
+    background: var(--color-accent-soft);
+    border-color: var(--color-accent-border);
+  }
+
+  @media (max-width: 1100px) {
+    .assistant-panel {
+      height: min(60dvh, 480px);
+      max-height: min(60dvh, 480px);
+      min-height: 280px;
+    }
+  }
+</style>
+
+<script define:vars={{ chipsJson, toolListText }}>
+  window.__assistantBoot__ = { chipsJson: chipsJson, toolListText: toolListText };
+</script>
+
+<script>
+  import { createToolExecutor } from '../lib/assistant/executor.mjs';
+  import { parseReactStep } from '../lib/assistant/reactParse.mjs';
+  import { createAssistantSessionStore, createSnapshotStack } from '../lib/assistant/session.mjs';
+  import { ASSISTANT_PRESET_CHIPS } from '../lib/assistant/tools.mjs';
+  import { normalizeCharacterFieldKey, normalizeCharacterPatch, CHARACTER_FIELD_HINT } from '../lib/assistant/characterFields.mjs';
+  import {
+    buildToolUiMessage,
+    summarizePendingConfirm,
+    toolMessageSummary,
+    parseToolNameFromLegacy,
+    parseRiskFromLegacy,
+  } from '../lib/assistant/toolTraceSummary.mjs';
+  import {
+    estimateAssistantContext,
+    formatAssistantContextLabel,
+    formatAssistantContextTitle,
+  } from '../lib/assistant/tokenEstimate.mjs';
+  import {
+    buildRagPreviewPayload,
+    buildUserModelContent,
+    collectSnippetKeys,
+    filterNewSnippets,
+    formatRagPreviewMeta,
+    messageContentForDisplay,
+    messageContentForModel,
+    pickRelatedEntities,
+    formatRelationContextLines,
+  } from '../lib/assistant/ragInject.mjs';
+
+  (function initAssistantPanel() {
+    var boot = window.__assistantBoot__ || {};
+    var toolListText = boot.toolListText || '';
+    var chips = ASSISTANT_PRESET_CHIPS;
+    try {
+      if (boot.chipsJson) chips = typeof boot.chipsJson === 'string' ? JSON.parse(boot.chipsJson) : boot.chipsJson;
+    } catch (e) {}
+
+    var panel = document.getElementById('assistantPanel');
+    var messagesEl = document.getElementById('assistantMessages');
+    var inputEl = document.getElementById('assistantInput');
+    var actionBtn = document.getElementById('assistantActionBtn');
+    var clearBtn = document.getElementById('assistantClearBtn');
+    var undoBtn = document.getElementById('assistantUndoBtn');
+    var readyDot = document.getElementById('assistantReadyDot');
+    var statusTip = document.getElementById('assistantStatusTip');
+    var quickBtn = document.getElementById('assistantQuickBtn');
+    var quickMenu = document.getElementById('assistantQuickMenu');
+    var ragPreviewBtn = document.getElementById('assistantRagPreviewBtn');
+    var ragModal = document.getElementById('assistantRagModal');
+    var ragModalMeta = document.getElementById('assistantRagModalMeta');
+    var ragModalPreview = document.getElementById('assistantRagModalPreview');
+    var ragModalClose = document.getElementById('assistantRagModalClose');
+    var pendingBox = document.getElementById('assistantPendingBox');
+    var pendingSummary = document.getElementById('assistantPendingSummary');
+    var pendingPreview = document.getElementById('assistantPendingPreview');
+    var applyBtn = document.getElementById('assistantApplyBtn');
+    var rejectBtn = document.getElementById('assistantRejectBtn');
+    var tokenCountEl = document.getElementById('assistantTokenCount');
+    var tokenCountTimer = null;
+
+    if (!panel || !messagesEl || !inputEl) return;
+
+    var sessionStore = createAssistantSessionStore(window.localStorage);
+    var snapStack = createSnapshotStack(window.localStorage);
+    var uiMessages = [];
+    var sessionRagInjected = new Set();
+    var busy = false;
+    var abortFlag = false;
+    var pending = null;
+    var ragPreviewBusy = false;
+    var MAX_REACT_STEPS = 8;
+
+    var ragSearchIconSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/><path d="M8 11h6M11 8v6"/></svg>';
+
+    /** 发送/停止同一按钮切换（最右圆形主操作） */
+    function syncActionBtn() {
+      if (!actionBtn) return;
+      if (busy) {
+        actionBtn.classList.add('is-stop');
+        actionBtn.setAttribute('aria-label', '停止');
+        actionBtn.title = '停止';
+      } else {
+        actionBtn.classList.remove('is-stop');
+        actionBtn.setAttribute('aria-label', '发送');
+        actionBtn.title = '发送';
+      }
+      var canSend = !busy && !!(inputEl.value || '').trim();
+      actionBtn.disabled = busy ? false : !canSend;
+      if (clearBtn) clearBtn.disabled = busy;
+      if (undoBtn) undoBtn.disabled = busy;
+      if (ragPreviewBtn) ragPreviewBtn.disabled = ragPreviewBusy;
+    }
+
+    /** 就绪绿点 + 非就绪时的轻量 tip（不占独立就绪文案位） */
+    function setStatus(text, isWarn) {
+      var tip = text || '';
+      var idle = !tip || tip === '就绪';
+      if (readyDot) {
+        readyDot.classList.remove('is-ready', 'is-busy', 'is-warn');
+        if (busy) {
+          readyDot.classList.add('is-busy');
+          readyDot.title = tip || '处理中';
+        } else if (isWarn) {
+          readyDot.classList.add('is-warn');
+          readyDot.title = tip || '提示';
+        } else {
+          readyDot.classList.add('is-ready');
+          readyDot.title = '就绪';
+        }
+        readyDot.setAttribute('aria-label', readyDot.title);
+      }
+      if (statusTip) {
+        if (idle && !isWarn) {
+          statusTip.hidden = true;
+          statusTip.textContent = '';
+          statusTip.classList.remove('is-warn');
+        } else {
+          statusTip.hidden = false;
+          statusTip.textContent = tip;
+          statusTip.classList.toggle('is-warn', !!isWarn);
+        }
+      }
+    }
+
+    function el(tag, cls, text) {
+      var n = document.createElement(tag);
+      if (cls) n.className = cls;
+      if (text != null) n.textContent = text;
+      return n;
+    }
+
+    function riskBadgeClass(risk) {
+      if (risk === 'auto') return 'assistant-tool-card__risk--auto';
+      if (risk === 'confirm') return 'assistant-tool-card__risk--confirm';
+      if (risk === 'none') return 'assistant-tool-card__risk--none';
+      return '';
+    }
+
+    function renderToolTraceNode(m) {
+      var toolName = m.toolName || parseToolNameFromLegacy(m.content) || 'tool';
+      var risk = m.risk || parseRiskFromLegacy(m.content) || '?';
+      var summaryText = toolMessageSummary(m);
+      var detailText = m.detail || m.content || '';
+
+      var cardCls = 'assistant-tool-card';
+      if (m.error) cardCls += ' assistant-tool-card--error';
+      else if (m.pendingConfirm) cardCls += ' assistant-tool-card--pending';
+
+      var card = document.createElement('details');
+      card.className = cardCls;
+
+      var head = document.createElement('summary');
+      head.className = 'assistant-tool-card__head';
+
+      var headerRow = el('div', 'assistant-tool-card__header-row');
+      var nameEl = el('span', 'assistant-tool-card__name', toolName);
+      var riskEl = el('span', 'assistant-tool-card__risk ' + riskBadgeClass(risk), risk);
+      headerRow.appendChild(nameEl);
+      headerRow.appendChild(riskEl);
+
+      var sumEl = el('div', 'assistant-tool-card__summary', summaryText);
+
+      head.appendChild(headerRow);
+      head.appendChild(sumEl);
+
+      var detail = el('div', 'assistant-tool-card__detail');
+      var body = el('pre', 'assistant-tool-card__body');
+      body.textContent = detailText;
+      detail.appendChild(body);
+
+      card.appendChild(head);
+      card.appendChild(detail);
+      if (m.pendingConfirm) card.open = true;
+      return card;
+    }
+
+    function renderUserMessageNode(m) {
+      var wrap = el('div', 'assistant-msg-wrap assistant-msg-wrap--user');
+      var node = el('div', 'assistant-msg assistant-msg--user', messageContentForDisplay(m));
+      wrap.appendChild(node);
+      var actions = el('div', 'assistant-msg-actions');
+      var ragBtn = el('button', 'btn-icon btn-icon--sm assistant-msg-rag-btn');
+      ragBtn.type = 'button';
+      ragBtn.title = '查看本回合 RAG';
+      ragBtn.setAttribute('aria-label', '查看本回合 RAG');
+      ragBtn.innerHTML = ragSearchIconSvg;
+      ragBtn.addEventListener('click', function() {
+        openRagPreviewForMessage(m);
+      });
+      actions.appendChild(ragBtn);
+      wrap.appendChild(actions);
+      return wrap;
+    }
+
+    function setRagModalOpen(open) {
+      if (!ragModal) return;
+      ragModal.hidden = !open;
+      ragModal.setAttribute('aria-hidden', open ? 'false' : 'true');
+      document.body.classList.toggle('assistant-rag-modal-open', open);
+      if (open && ragModalClose) ragModalClose.focus();
+    }
+
+    function showRagPreviewPayload(payload) {
+      if (!payload) {
+        setStatus('无 RAG 预览数据', true);
+        return;
+      }
+      if (ragModalMeta) ragModalMeta.textContent = formatRagPreviewMeta(payload);
+      if (ragModalPreview) ragModalPreview.textContent = payload.ragBody || '（未命中）';
+      setRagModalOpen(true);
+    }
+
+    function getComposerRagQuery() {
+      var text = (inputEl.value || '').trim();
+      if (text) return text;
+      for (var i = uiMessages.length - 1; i >= 0; i--) {
+        if (uiMessages[i].role === 'user') {
+          return String(uiMessages[i].content || '').trim();
+        }
+      }
+      return '';
+    }
+
+    function getNovelRagOptions() {
+      return typeof window.__getNovelRagOptions__ === 'function'
+        ? window.__getNovelRagOptions__()
+        : { enabled: true, budget: 12000 };
+    }
+
+    async function resolveAssistantRag(userText, previewOnly) {
+      var ragOpt = getNovelRagOptions();
+      if (ragOpt.enabled === false) return null;
+      if (!window.__novelWorkshopBridge__ || !window.__novelWorkshopBridge__.searchPassages) {
+        throw new Error('小说检索桥接未就绪');
+      }
+      var pass = await window.__novelWorkshopBridge__.searchPassages(userText, { budget: ragOpt.budget });
+      var allSnippets = pass.snippets || [];
+      var freshSnippets = previewOnly ? allSnippets : filterNewSnippets(allSnippets, sessionRagInjected);
+      if (!previewOnly) {
+        collectSnippetKeys(freshSnippets).forEach(function(k) { sessionRagInjected.add(k); });
+        persistSessionRagInjected();
+      }
+      var rawState = window.__novelWorkshopBridge__.getRawState
+        ? window.__novelWorkshopBridge__.getRawState()
+        : null;
+      var relations = rawState && Array.isArray(rawState.relations) ? rawState.relations : [];
+      var fullEntities = rawState && Array.isArray(rawState.entities) ? rawState.entities : [];
+      var ents = window.__novelWorkshopBridge__.listEntities
+        ? window.__novelWorkshopBridge__.listEntities({})
+        : fullEntities;
+      var related = pickRelatedEntities(userText, fullEntities.length ? fullEntities : ents, {
+        relations: relations,
+        limit: 12,
+      });
+      var relationLines = formatRelationContextLines(related, relations, fullEntities.length ? fullEntities : ents);
+      var ragHint = promptText('assistantNovelRagHint') || '';
+      var indexMeta = {
+        indexStatus: pass.indexStatus || 'idle',
+        indexStale: !!pass.indexStale,
+        indexReady: !!pass.indexReady,
+        chunkCount: pass.chunkCount || 0,
+        enabledChapterCount: pass.enabledChapterCount || 0,
+      };
+      return buildRagPreviewPayload({
+        snippets: freshSnippets,
+        allSnippets: allSnippets,
+        previewOnly: previewOnly,
+        mode: pass.mode || 'keyword',
+        relatedEntities: related,
+        relationLines: relationLines,
+        ragHint: ragHint,
+        indexMeta: indexMeta,
+        source: previewOnly ? 'preview' : 'injected',
+        query: userText,
+      });
+    }
+
+    async function openComposerRagPreview() {
+      if (ragPreviewBusy) return;
+      var query = getComposerRagQuery();
+      if (!query) {
+        setStatus('请输入内容或先发送一条消息', true);
+        return;
+      }
+      ragPreviewBusy = true;
+      syncActionBtn();
+      setStatus('检索 RAG 预览…');
+      try {
+        var payload = await resolveAssistantRag(query, true);
+        if (!payload) {
+          setStatus('RAG 已关闭', true);
+          return;
+        }
+        showRagPreviewPayload(payload);
+        setStatus('就绪');
+      } catch (err) {
+        setStatus((err && err.message) || 'RAG 预览失败', true);
+      } finally {
+        ragPreviewBusy = false;
+        syncActionBtn();
+      }
+    }
+
+    async function openRagPreviewForMessage(msg) {
+      if (ragPreviewBusy || !msg) return;
+      var query = String(msg.content || '').trim();
+      if (!query) {
+        setStatus('该消息无可用检索文本', true);
+        return;
+      }
+      ragPreviewBusy = true;
+      syncActionBtn();
+      setStatus('检索本回合 RAG…');
+      try {
+        var payload = await resolveAssistantRag(query, true);
+        if (!payload) {
+          setStatus('RAG 已关闭', true);
+          return;
+        }
+        showRagPreviewPayload(Object.assign({}, payload, { source: 'rerun' }));
+        setStatus('就绪');
+      } catch (err) {
+        setStatus((err && err.message) || 'RAG 预览失败', true);
+      } finally {
+        ragPreviewBusy = false;
+        syncActionBtn();
+      }
+    }
+
+    function renderMessages() {
+      messagesEl.innerHTML = '';
+      uiMessages.forEach(function(m) {
+        if (m.role === 'tool') {
+          messagesEl.appendChild(renderToolTraceNode(m));
+          return;
+        }
+        if (m.role === 'user') {
+          messagesEl.appendChild(renderUserMessageNode(m));
+          return;
+        }
+        var cls = 'assistant-msg assistant-msg--' + (m.role || 'assistant');
+        if (m.error) cls += ' assistant-msg--error';
+        var node = el('div', cls, messageContentForDisplay(m));
+        messagesEl.appendChild(node);
+      });
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+      updateTokenCount();
+    }
+
+    function persistSessionRagInjected() {
+      sessionStore.setRagInjectedIds(Array.from(sessionRagInjected));
+    }
+
+    function pushUi(msg) {
+      uiMessages.push(msg);
+      sessionStore.setMessages(uiMessages);
+      renderMessages();
+    }
+
+    function val(id) {
+      var n = document.getElementById(id);
+      return n && 'value' in n ? String(n.value || '') : '';
+    }
+    function setVal(id, v) {
+      var n = document.getElementById(id);
+      if (n && 'value' in n) n.value = v == null ? '' : String(v);
+    }
+
+    function getCharacter() {
+      return {
+        charName: val('charName'),
+        wbName: val('wbName'),
+        charDesc: val('charDesc'),
+        firstMes: val('firstMes'),
+        creatorNotes: val('creatorNotes'),
+        // 与 ST tags / data.tags 同步
+        tags: window.__getCharTags__ ? window.__getCharTags__() : [],
+        altGreetings: Array.isArray(window.__altGreetings__) ? window.__altGreetings__.slice() : [],
+      };
+    }
+
+    function setCharacter(fields) {
+      var norm = normalizeCharacterPatch(fields || {});
+      var f = norm.fields;
+      if (f.charName != null) setVal('charName', f.charName);
+      if (f.wbName != null) setVal('wbName', f.wbName);
+      if (f.charDesc != null) setVal('charDesc', f.charDesc);
+      if (f.firstMes != null) setVal('firstMes', f.firstMes);
+      if (f.creatorNotes != null) setVal('creatorNotes', f.creatorNotes);
+      if (Array.isArray(f.tags) || Array.isArray(f.charTags)) {
+        if (window.__setCharTags__) window.__setCharTags__(f.tags || f.charTags);
+      }
+      if (Array.isArray(f.altGreetings)) {
+        window.__altGreetings__ = f.altGreetings.slice();
+        if (window.__renderAltGreetings__) window.__renderAltGreetings__();
+      }
+      if (window.triggerGlobalUpdate) window.triggerGlobalUpdate();
+    }
+
+    function getWorldbook() {
+      return window.__getWorldbookEntries__ ? window.__getWorldbookEntries__() : [];
+    }
+    function setWorldbook(entries) {
+      if (window.__setWorldbookEntries__) window.__setWorldbookEntries__(entries);
+    }
+
+    function captureSnapshot() {
+      var novel = null;
+      try {
+        if (window.__novelWorkshopBridge__ && window.__novelWorkshopBridge__.captureBucket) {
+          novel = window.__novelWorkshopBridge__.captureBucket();
+        }
+      } catch (e) {}
+      return {
+        character: getCharacter(),
+        worldbook: getWorldbook(),
+        mvuDesign: window.__getCardExtension__ ? window.__getCardExtension__('zmer_mvu_design') : null,
+        novel: novel,
+        at: Date.now(),
+      };
+    }
+
+    function restoreSnapshot(snap) {
+      if (!snap) return;
+      if (snap.character) setCharacter(snap.character);
+      if (Array.isArray(snap.worldbook)) setWorldbook(snap.worldbook);
+      if (snap.mvuDesign !== undefined && window.__setCardExtension__) {
+        window.__setCardExtension__('zmer_mvu_design', snap.mvuDesign);
+      }
+      // 撤销时恢复小说桶
+      if (snap.novel && window.__novelWorkshopBridge__ && window.__novelWorkshopBridge__.restoreBucket) {
+        window.__novelWorkshopBridge__.restoreBucket(snap.novel);
+      }
+    }
+
+    function resolveWbIndex(args) {
+      var entries = getWorldbook();
+      var t = args && args.target != null ? args.target : args;
+      if (typeof t === 'number') return t;
+      if (t && typeof t.index === 'number') return t.index;
+      if (t && t.id) {
+        for (var i = 0; i < entries.length; i++) {
+          if (String(entries[i].uid || entries[i].id || '') === String(t.id)) return i;
+        }
+      }
+      var comment = (t && (t.comment || t.titleMatch || t.title)) || (args && args.comment);
+      if (comment) {
+        for (var j = 0; j < entries.length; j++) {
+          if ((entries[j].comment || '') === comment) return j;
+        }
+        var q = String(comment).toLowerCase();
+        for (var k = 0; k < entries.length; k++) {
+          if (String(entries[k].comment || '').toLowerCase().indexOf(q) >= 0) return k;
+        }
+      }
+      if (typeof args.index === 'number') return args.index;
+      return -1;
+    }
+
+    function getAiConfig() {
+      return {
+        url: (val('apiUrl') || '').replace(/\/$/, ''),
+        key: val('apiKey').trim(),
+        model: val('modelSelect'),
+      };
+    }
+
+    /** 发送前校验：未配置则仅 tip 提示，不发起对话 */
+    function ensureAiConfigured() {
+      var cfg = getAiConfig();
+      if (cfg.url && cfg.model) return true;
+      setStatus('请先在「AI 配置」填写接口与模型', true);
+      return false;
+    }
+
+    async function callChat(messages, temperature, signal) {
+      var cfg = getAiConfig();
+      if (!cfg.url || !cfg.model) throw new Error('请先在「AI 配置」填写接口与模型');
+      var headers = { 'Content-Type': 'application/json' };
+      if (cfg.key) headers.Authorization = 'Bearer ' + cfg.key;
+      // 复用主引擎封装（若已挂载）
+      if (window.__assistantFetchAI__) {
+        var r = await window.__assistantFetchAI__({
+          context: 'AI助手',
+          url: cfg.url + '/chat/completions',
+          headers: headers,
+          model: cfg.model,
+          messages: messages,
+          temperature: temperature == null ? 0.4 : temperature,
+          signal: signal,
+        });
+        return r.content || '';
+      }
+      var res = await fetch(cfg.url + '/chat/completions', {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify({ model: cfg.model, messages: messages, temperature: temperature == null ? 0.4 : temperature }),
+        signal: signal,
+      });
+      if (!res.ok) throw new Error('助手请求失败 HTTP ' + res.status);
+      var data = await res.json();
+      return ((((data || {}).choices || [])[0] || {}).message || {}).content || '';
+    }
+
+    function promptText(id, vars) {
+      var ps = window.__promptStore__;
+      if (!ps) return '';
+      var text = ps.get(id);
+      return vars ? ps.applyTemplate(text, vars) : text;
+    }
+
+    function localAudit() {
+      if (window.__runWorldbookQuickCheck__) return window.__runWorldbookQuickCheck__();
+      var entries = getWorldbook();
+      var issues = [];
+      var skeleton = entries.filter(function(e) { return String(e.content || '').length < 60; }).length;
+      var noKeys = entries.filter(function(e) { return e.strategy !== 'constant' && (!e.keys || !e.keys.length); }).length;
+      if (!entries.length) issues.push({ level: 'critical', title: '世界书为空' });
+      if (skeleton) issues.push({ level: 'warning', title: skeleton + ' 条骨架未展开' });
+      if (noKeys) issues.push({ level: 'critical', title: noKeys + ' 条缺少触发词' });
+      return { issues: issues, total: entries.length, skeleton: skeleton, noKeys: noKeys };
+    }
+
+    function lintCard() {
+      var issues = [];
+      var c = getCharacter();
+      if (!c.charName) issues.push({ level: 'critical', code: 'no_name', message: '缺少角色名' });
+      if (String(c.charDesc || '').length < 80) issues.push({ level: 'warning', code: 'short_desc', message: '角色描述偏短' });
+      if (!c.firstMes) issues.push({ level: 'warning', code: 'no_first_mes', message: '缺少开场白' });
+      var audit = localAudit();
+      (audit.issues || []).forEach(function(i) {
+        issues.push({ level: i.level || 'info', code: 'wb_' + (i.title || ''), message: i.title || i.desc || '' });
+      });
+      return { ok: issues.filter(function(x) { return x.level === 'critical'; }).length === 0, issues: issues };
+    }
+
+    function getExportPreview(opts) {
+      var maxChars = (opts && opts.maxChars) || 2000;
+      var c = getCharacter();
+      var wb = getWorldbook();
+      var preview = {
+        name: c.charName,
+        descriptionLen: String(c.charDesc || '').length,
+        firstMesLen: String(c.firstMes || '').length,
+        worldbookCount: wb.length,
+        sampleEntries: wb.slice(0, 5).map(function(e) { return e.comment; }),
+      };
+      try {
+        var rough = JSON.stringify({ data: { name: c.charName, description: c.charDesc, character_book: { entries: wb } } });
+        preview.jsonChars = rough.length;
+        preview.jsonPreview = rough.slice(0, maxChars);
+      } catch (e) {
+        preview.jsonError = e.message;
+      }
+      return preview;
+    }
+
+    var bridge = {
+      getCharacter: getCharacter,
+      setCharacter: setCharacter,
+      getWorldbook: getWorldbook,
+      setWorldbook: setWorldbook,
+      getMvu: function() {
+        return {
+          design: window.__getCardExtension__ ? window.__getCardExtension__('zmer_mvu_design') : null,
+          runtime: window.__getCardExtension__ ? window.__getCardExtension__('zmer_mvu_runtime_graph') : null,
+        };
+      },
+      upsertMvu: function(design) {
+        if (window.__assistantMvuApi__) {
+          return window.__assistantMvuApi__.upsertVariables({ design: design, inject: true });
+        }
+        if (!window.__applyExternalVariableDesign__) throw new Error('MVU 面板未就绪');
+        return window.__applyExternalVariableDesign__({ design: design, source: 'assistant', inject: true });
+      },
+      upsertMvuDesign: function(payload) {
+        if (!window.__assistantMvuApi__) throw new Error('MVU 面板未就绪');
+        return window.__assistantMvuApi__.upsertDesign(payload || {});
+      },
+      upsertMvuVariables: function(payload) {
+        if (!window.__assistantMvuApi__) throw new Error('MVU 面板未就绪');
+        return window.__assistantMvuApi__.upsertVariables(payload || {});
+      },
+      clearMvu: function() {
+        if (!window.__assistantMvuApi__) throw new Error('MVU 面板未就绪');
+        return window.__assistantMvuApi__.clear();
+      },
+      patchMvuNode: function(opts) {
+        if (!window.__assistantMvuApi__) throw new Error('MVU 面板未就绪');
+        return window.__assistantMvuApi__.patchNode(opts || {});
+      },
+      getNovel: function() {
+        return window.__novelWorkshopBridge__ ? window.__novelWorkshopBridge__.getState() : { available: false };
+      },
+      listNovelOutputs: function() {
+        if (!window.__novelWorkshopBridge__) return { available: false };
+        return window.__novelWorkshopBridge__.listOutputs
+          ? window.__novelWorkshopBridge__.listOutputs()
+          : window.__novelWorkshopBridge__.getState();
+      },
+      setNovelSource: function(payload) {
+        if (!window.__novelWorkshopBridge__) throw new Error('小说工坊未就绪');
+        return window.__novelWorkshopBridge__.setSource(payload || {});
+      },
+      runNovelExtract: async function(opts) {
+        if (!window.__novelWorkshopBridge__) throw new Error('小说工坊未就绪');
+        var r = await window.__novelWorkshopBridge__.runExtract(opts || {});
+        if (r && r.started && !r.chapterCount && !r.characterCount && !r.draftCount && !r.styleLen) {
+          throw new Error('小说抽取未真正 await 完成（started-only）');
+        }
+        return r;
+      },
+      searchNovelPassages: async function(query, opts) {
+        if (!window.__novelWorkshopBridge__ || !window.__novelWorkshopBridge__.searchPassages) {
+          throw new Error('小说检索桥接未就绪');
+        }
+        return window.__novelWorkshopBridge__.searchPassages(query, opts || {});
+      },
+      listNovelEntities: function(opts) {
+        if (!window.__novelWorkshopBridge__ || !window.__novelWorkshopBridge__.listEntities) {
+          throw new Error('知识库桥接未就绪');
+        }
+        return window.__novelWorkshopBridge__.listEntities(opts || {});
+      },
+      getNovelEntity: function(idOrName) {
+        if (!window.__novelWorkshopBridge__ || !window.__novelWorkshopBridge__.getEntity) {
+          throw new Error('知识库桥接未就绪');
+        }
+        return window.__novelWorkshopBridge__.getEntity(idOrName);
+      },
+      patchNovelEntity: function(opts) {
+        if (!window.__novelWorkshopBridge__ || !window.__novelWorkshopBridge__.patchEntity) {
+          throw new Error('知识库桥接未就绪');
+        }
+        return window.__novelWorkshopBridge__.patchEntity(opts || {});
+      },
+      mergeNovelEntities: function(opts) {
+        if (!window.__novelWorkshopBridge__ || !window.__novelWorkshopBridge__.mergeEntities) {
+          throw new Error('知识库桥接未就绪');
+        }
+        return window.__novelWorkshopBridge__.mergeEntities(opts || {});
+      },
+      runNovelRagIndex: async function(opts) {
+        if (!window.__novelWorkshopBridge__ || !window.__novelWorkshopBridge__.runRagIndex) {
+          throw new Error('RAG 索引桥接未就绪');
+        }
+        return window.__novelWorkshopBridge__.runRagIndex(opts || {});
+      },
+      runNovelAnalyze: async function(phase) {
+        if (!window.__novelWorkshopBridge__ || !window.__novelWorkshopBridge__.runAnalyze) {
+          throw new Error('小说分析桥接未就绪');
+        }
+        return window.__novelWorkshopBridge__.runAnalyze(phase);
+      },
+      enrichNovelEntity: async function(opts) {
+        if (!window.__novelWorkshopBridge__ || !window.__novelWorkshopBridge__.enrichEntity) {
+          throw new Error('实体丰满桥接未就绪');
+        }
+        return window.__novelWorkshopBridge__.enrichEntity(opts || {});
+      },
+      setNovelAdultMode: function(on) {
+        if (!window.__novelWorkshopBridge__ || !window.__novelWorkshopBridge__.setAdultMode) {
+          throw new Error('小说工坊未就绪');
+        }
+        return window.__novelWorkshopBridge__.setAdultMode(on);
+      },
+      setNovelNtlMode: function(on) {
+        if (!window.__novelWorkshopBridge__ || !window.__novelWorkshopBridge__.setNtlMode) {
+          throw new Error('小说工坊未就绪');
+        }
+        return window.__novelWorkshopBridge__.setNtlMode(on);
+      },
+      draftNsfwStatusBar: function(opts) {
+        if (!window.__novelWorkshopBridge__ || !window.__novelWorkshopBridge__.buildNsfwStatusDraft) {
+          throw new Error('小说工坊未就绪');
+        }
+        return window.__novelWorkshopBridge__.buildNsfwStatusDraft(opts || {});
+      },
+      syncNovelEntities: function(opts) {
+        if (!window.__novelWorkshopBridge__) throw new Error('小说工坊未就绪');
+        if (window.__novelWorkshopBridge__.syncEntities) {
+          return window.__novelWorkshopBridge__.syncEntities(opts || {});
+        }
+        return window.__novelWorkshopBridge__.syncOutputs(Object.assign({ target: 'entities' }, opts || {}));
+      },
+      patchNovelChapters: function(opts) {
+        if (!window.__novelWorkshopBridge__ || !window.__novelWorkshopBridge__.patchChapters) {
+          throw new Error('章节补丁未就绪');
+        }
+        return window.__novelWorkshopBridge__.patchChapters(opts || {});
+      },
+      mutateNovelCharacter: async function(opts) {
+        if (!window.__novelWorkshopBridge__) throw new Error('小说工坊未就绪');
+        var api = window.__novelWorkshopBridge__.mutateCharacter || window.__novelWorkshopBridge__.expandCharacter;
+        if (!api) throw new Error('人物扩展桥接未就绪');
+        return api(opts || {});
+      },
+      expandNovelWorldbook: async function(opts) {
+        if (!window.__novelWorkshopBridge__) throw new Error('小说工坊未就绪');
+        var api = window.__novelWorkshopBridge__.expandWorldbookEntry;
+        if (!api) throw new Error('世界书条目扩展桥接未就绪');
+        return api(opts || {});
+      },
+      syncNovelOutputs: function(opts) {
+        if (!window.__novelWorkshopBridge__) throw new Error('小说工坊未就绪');
+        if (window.__novelWorkshopBridge__.syncOutputs) {
+          return window.__novelWorkshopBridge__.syncOutputs(opts || {});
+        }
+        return window.__novelWorkshopBridge__.applyResult(opts || {});
+      },
+      applyNovel: function(opts) {
+        if (!window.__novelWorkshopBridge__) throw new Error('小说工坊未就绪');
+        return window.__novelWorkshopBridge__.applyResult(opts || {});
+      },
+      getExportPreview: getExportPreview,
+      exportCardCheck: function() {
+        if (window.__assistantCardApi__ && window.__assistantCardApi__.exportCheck) {
+          return window.__assistantCardApi__.exportCheck();
+        }
+        return getExportPreview({});
+      },
+      auditWorldbook: localAudit,
+      lintCard: lintCard,
+      getChatFeedback: function(opts) {
+        if (window.__getChatPlaygroundState__) return window.__getChatPlaygroundState__(opts || {});
+        return { messages: [], started: false, note: '试聊面板未暴露状态' };
+      },
+      analyzeChatFeedback: async function() {
+        var feedback = bridge.getChatFeedback({});
+        var char = getCharacter();
+        var wb = getWorldbook().slice(0, 40).map(function(e, i) {
+          return { index: i, comment: e.comment, keys: e.keys, contentLen: String(e.content || '').length };
+        });
+        var sys = promptText('assistantChatFeedback')
+          || '根据试聊与卡面诊断问题，输出 JSON：{ issues:[], fixes:[{tool,args,reason}] }。fixes 须可被 apply_chat_feedback_fixes 执行。';
+        var user = JSON.stringify({
+          character: {
+            charName: char.charName,
+            charDesc: String(char.charDesc || '').slice(0, 1200),
+            firstMes: String(char.firstMes || '').slice(0, 400),
+            altCount: (char.altGreetings || []).length,
+          },
+          worldbook: wb,
+          chat: (feedback.messages || []).slice(-16),
+        });
+        var raw = await callChat([
+          { role: 'system', content: sys + '\n只输出一个 JSON 对象。' },
+          { role: 'user', content: user },
+        ], 0.3);
+        var data = null;
+        try { data = JSON.parse(raw); } catch (e) {
+          var m = raw.match(/\{[\s\S]*\}/);
+          if (m) data = JSON.parse(m[0]);
+        }
+        if (!data) throw new Error('试聊分析未返回 JSON');
+        return {
+          messageCount: (feedback.messages || []).length,
+          issues: data.issues || [],
+          fixes: data.fixes || data.suggestedFixes || [],
+          summary: data.summary || '',
+          source: 'llm',
+        };
+      },
+      openModule: function(view) {
+        if (window.__setAppView__) window.__setAppView__(view);
+        else location.hash = view;
+      },
+      listCards: function() {
+        if (!window.__assistantCardApi__) throw new Error('多卡桥接未就绪');
+        return window.__assistantCardApi__.list();
+      },
+      manageCard: async function(action, args) {
+        var api = window.__assistantCardApi__;
+        if (!api) throw new Error('多卡桥接未就绪');
+        args = args || {};
+        if (action === 'switch_card') return api.switchTo(args.id || args.name);
+        if (action === 'create_card') return api.create(args);
+        if (action === 'duplicate_card') return api.duplicate(args.id);
+        if (action === 'rename_card') return api.rename(args.id, args.name);
+        if (action === 'delete_card') return api.delete(args.id);
+        if (action === 'import_card') return api.importJson(args.cardJson || args.json);
+        throw new Error('未知多卡操作: ' + action);
+      },
+      getEngineOptions: function() {
+        return {
+          skeletonCount: window.__getSkeletonCount__ ? window.__getSkeletonCount__() : 6,
+          tagContextChars: window.__getTagContextChars__ ? window.__getTagContextChars__() : 12000,
+          model: val('modelSelect') || '',
+          hasApiUrl: !!(val('apiUrl') || '').trim(),
+          note: '不含 API Key',
+        };
+      },
+      setEngineOptions: function(opts) {
+        opts = opts || {};
+        var out = {};
+        if (opts.skeletonCount != null && window.__setSkeletonCount__) {
+          out.skeleton = window.__setSkeletonCount__(opts.skeletonCount);
+        }
+        if (opts.tagContextChars != null && window.__setTagContextChars__) {
+          out.tagContext = window.__setTagContextChars__(opts.tagContextChars);
+          if (typeof window.__persistAiConfig__ === 'function') window.__persistAiConfig__();
+        }
+        return out;
+      },
+      getPromptIds: function() {
+        var ps = window.__promptStore__;
+        if (ps && typeof ps.listIds === 'function') return { ids: ps.listIds() };
+        if (ps && ps.defaults) return { ids: Object.keys(ps.defaults) };
+        return { ids: ['assistantSystem', 'assistantReactHint', 'assistantChatFeedback'] };
+      },
+      generateCharacter: async function(opts) {
+        if (window.__assistantGenerateCharacter__) {
+          return window.__assistantGenerateCharacter__(opts || {});
+        }
+        var prompt = (opts && opts.prompt) || val('aiPrompt') || (getCharacter().charName + ' 角色卡');
+        var sys = promptText('charGen');
+        var content = await callChat([
+          { role: 'system', content: sys },
+          { role: 'user', content: prompt },
+        ], 0.85);
+        var data = null;
+        try { data = JSON.parse(content); } catch (e) {
+          var m = content.match(/\{[\s\S]*\}/);
+          if (m) data = JSON.parse(m[0]);
+        }
+        if (!data) throw new Error('角色生成未返回合法 JSON');
+        setCharacter({
+          charName: data.charName || '',
+          wbName: data.wbName || '',
+          charDesc: data.charDesc || '',
+          firstMes: data.firstMes || '',
+          creatorNotes: data.creatorNotes || '',
+          altGreetings: Array.isArray(data.altGreetings) ? data.altGreetings : [],
+        });
+        return { charName: data.charName, note: '已写入角色字段（未清空世界书）' };
+      },
+      generateSkeleton: async function(opts) {
+        if (window.__assistantGenerateSkeleton__) {
+          return window.__assistantGenerateSkeleton__(opts || {});
+        }
+        var count = Math.min(Math.max((opts && opts.count) || (window.__getSkeletonCount__ ? window.__getSkeletonCount__() : 5), 1), 15);
+        var direction = (opts && opts.direction) || val('wbPrompt') || '';
+        var c = getCharacter();
+        var existing = getWorldbook();
+        var sys = promptText('wbSkeleton', { batchSize: count })
+          + '\n【角色】：' + c.charName + ' | ' + String(c.charDesc || '').slice(0, 300)
+          + (direction ? '\n【方向】：' + direction : '')
+          + '\n【输出】：JSON数组 [{ "comment","content","keys","strategy" }, ...]';
+        var content = await callChat([
+          { role: 'system', content: sys },
+          { role: 'user', content: '生成' + count + '条骨架' },
+        ], 0.9);
+        var arr = null;
+        try { arr = JSON.parse(content); } catch (e) {
+          var m = content.match(/\[[\s\S]*\]/);
+          if (m) arr = JSON.parse(m[0]);
+        }
+        if (!Array.isArray(arr)) throw new Error('骨架生成未返回数组');
+        var next = existing.slice();
+        arr.forEach(function(sk) {
+          if (!sk || !sk.comment) return;
+          next.push({
+            comment: sk.comment,
+            content: sk.content || '(待展开)',
+            keys: Array.isArray(sk.keys) ? sk.keys : [],
+            strategy: sk.strategy || 'selective',
+            position: 4, depth: 4, role: 0, order: 100, prob: 100, enabled: true,
+          });
+        });
+        setWorldbook(next);
+        return { added: arr.length, total: next.length };
+      },
+      generateWorldbookEntry: async function(opts) {
+        if (!window.__assistantWbAi__) throw new Error('世界书 AI 桥接未就绪');
+        return window.__assistantWbAi__.generateEntry(opts || {});
+      },
+      organizeWorldbook: async function(opts) {
+        if (!window.__assistantWbAi__) throw new Error('世界书 AI 桥接未就绪');
+        return window.__assistantWbAi__.organize(opts || {});
+      },
+      batchFillWorldbookKeys: async function(opts) {
+        if (!window.__assistantWbAi__) throw new Error('世界书 AI 桥接未就绪');
+        return window.__assistantWbAi__.batchFillKeys(opts || {});
+      },
+      mutateWorldbookEntry: async function(opts) {
+        opts = opts || {};
+        var idx = resolveWbIndex(opts);
+        if (idx < 0) throw new Error('条目未找到（请用 index / titleMatch / comment / id）');
+        if (window.__assistantWbAi__) {
+          return window.__assistantWbAi__.mutateEntry({
+            index: idx,
+            mode: opts.mode || 'expand',
+            instruction: opts.instruction || opts.direction || '',
+          });
+        }
+        return bridge.expandEntry(Object.assign({}, opts, { index: idx }));
+      },
+      expandEntry: async function(opts) {
+        opts = opts || {};
+        if (window.__assistantExpandEntry__) {
+          return window.__assistantExpandEntry__(opts);
+        }
+        var idx = resolveWbIndex(opts);
+        if (idx < 0) throw new Error('条目未找到');
+        if (window.__assistantWbAi__) {
+          return window.__assistantWbAi__.mutateEntry({
+            index: idx,
+            mode: opts.mode || 'expand',
+            instruction: opts.instruction || opts.direction || '',
+          });
+        }
+        // 无面板桥时本地 LLM 扩写
+        var entries = getWorldbook();
+        var target = entries[idx];
+        var c = getCharacter();
+        var sys = promptText('wbRewrite')
+          + '\n【角色】：' + c.charName
+          + '\n【原条目】：' + JSON.stringify(target)
+          + (opts.direction || opts.instruction ? '\n【方向】：' + (opts.instruction || opts.direction) : '')
+          + '\n【输出】：JSON对象 { comment, content, keys, strategy, position }';
+        var content = await callChat([
+          { role: 'system', content: sys },
+          { role: 'user', content: '请展开/重写该条目' },
+        ], 0.75);
+        var entry = null;
+        try { entry = JSON.parse(content); } catch (e) {
+          var m = content.match(/\{[\s\S]*\}/);
+          if (m) entry = JSON.parse(m[0]);
+        }
+        if (!entry) throw new Error('展开失败：无 JSON');
+        var next = entries.slice();
+        next[idx] = Object.assign({}, target, {
+          comment: entry.comment || target.comment,
+          content: entry.content || target.content,
+          keys: Array.isArray(entry.keys) ? entry.keys : target.keys,
+          strategy: entry.strategy || target.strategy,
+          position: entry.position != null ? entry.position : target.position,
+        });
+        setWorldbook(next);
+        return { index: idx, comment: next[idx].comment };
+      },
+      expandCharacterField: async function(opts) {
+        opts = opts || {};
+        var field = normalizeCharacterFieldKey(opts.field);
+        if (!field) throw new Error('未识别的角色字段: ' + opts.field);
+        var c = getCharacter();
+        var cur = c[field] != null ? String(c[field]) : '';
+        var mode = opts.mode || 'expand';
+        var sys = '你是角色卡文案助手。按字段「' + field + '」' + (mode === 'rewrite' ? '重写' : '扩写')
+          + '内容。只输出纯文本正文，不要 JSON/Markdown 围栏。';
+        var content = await callChat([
+          { role: 'system', content: sys },
+          {
+            role: 'user',
+            content: '角色名：' + (c.charName || '')
+              + '\n现有内容：\n' + cur
+              + (opts.instruction ? '\n要求：' + opts.instruction : '')
+              + '\n请输出改写后的完整字段文本。',
+          },
+        ], 0.7);
+        var patch = {};
+        patch[field] = String(content || '').trim();
+        setCharacter(patch);
+        return { field: field, mode: mode, length: patch[field].length };
+      },
+      mutateGreeting: async function(opts) {
+        opts = opts || {};
+        var mode = opts.mode || 'rewrite';
+        var c = getCharacter();
+        var target = opts.target;
+        var altIndex = null;
+        var isMain = target == null || target === 'main'
+          || (target && (target.main === true || target.kind === 'main'));
+        if (!isMain) {
+          if (typeof target === 'number') altIndex = target;
+          else if (target && typeof target.alternate === 'number') altIndex = target.alternate;
+          else if (target && typeof target.index === 'number') altIndex = target.index;
+          else if (typeof opts.index === 'number') altIndex = opts.index;
+          else isMain = true;
+        }
+        var cur = isMain ? String(c.firstMes || '') : String((c.altGreetings || [])[altIndex] || '');
+        if (!isMain && (altIndex < 0 || altIndex >= (c.altGreetings || []).length)) {
+          throw new Error('备选开场白序号越界');
+        }
+        var sys = '你是开场白写手。' + (mode === 'expand' ? '扩写' : '重写')
+          + '开场白，贴合人设，只输出正文。';
+        var text = await callChat([
+          { role: 'system', content: sys },
+          {
+            role: 'user',
+            content: '角色：' + (c.charName || '') + '\n人设摘要：' + String(c.charDesc || '').slice(0, 600)
+              + '\n当前开场白：\n' + cur
+              + (opts.instruction ? '\n要求：' + opts.instruction : '')
+              + '\n目标：' + (isMain ? '主开场白 firstMes' : ('备选第 ' + altIndex + ' 条')),
+          },
+        ], 0.75);
+        text = String(text || '').trim();
+        if (isMain) {
+          setCharacter({ firstMes: text });
+          return { target: 'main', mode: mode, length: text.length };
+        }
+        var alts = (c.altGreetings || []).slice();
+        alts[altIndex] = text;
+        setCharacter({ altGreetings: alts });
+        return { target: { alternate: altIndex }, mode: mode, length: text.length };
+      },
+      captureSnapshot: captureSnapshot,
+      restoreSnapshot: restoreSnapshot,
+    };
+
+    var executor = createToolExecutor(bridge, {
+      pushSnapshot: function(s) { return snapStack.push(s); },
+      popSnapshot: function() { return snapStack.pop(); },
+      peekSnapshot: function() { return snapStack.peek(); },
+    });
+
+    function showPending(p) {
+      pending = p;
+      if (!pendingBox) return;
+      pendingBox.hidden = !p;
+      if (p) {
+        if (pendingSummary) {
+          pendingSummary.textContent = summarizePendingConfirm(p.tool, p.args, p.preview);
+        }
+        pendingPreview.textContent = p.preview || JSON.stringify(p, null, 2);
+      } else {
+        if (pendingSummary) pendingSummary.textContent = '待确认变更';
+        pendingPreview.textContent = '';
+      }
+    }
+
+    async function runTool(toolName, args, force) {
+      var result = await executor.invoke(toolName, args || {}, { forceApply: !!force });
+      if (result.pendingConfirm) {
+        showPending({ tool: toolName, args: args || {}, preview: result.preview });
+        return result;
+      }
+      pushUi(buildToolUiMessage(toolName, args || {}, result));
+      return result;
+    }
+
+    function buildSystemPrompt(userExtra) {
+      var base = promptText('assistantSystem', {
+        toolList: toolListText,
+        characterFieldHint: CHARACTER_FIELD_HINT,
+      }) || (
+        '你是卡片构建助手。工具：\n' + toolListText + '\n输出 JSON：tool 或 final。'
+      );
+      if (userExtra) base += '\n\n' + userExtra;
+      return base;
+    }
+
+    function historyForModel() {
+      // 压缩：仅保留 user/assistant final 与简短 tool 摘要；user 含绑定 RAG 的 modelContent
+      var out = [];
+      uiMessages.forEach(function(m) {
+        if (m.role === 'user') out.push({ role: 'user', content: messageContentForModel(m) });
+        else if (m.role === 'assistant') out.push({ role: 'assistant', content: m.content });
+        else if (m.role === 'tool') {
+          var toolLine = m.summary || toolMessageSummary(m);
+          var toolBody = m.detail || m.content || '';
+          out.push({ role: 'user', content: '[工具结果]\n' + toolLine + '\n' + toolBody.slice(0, 1200) });
+        }
+      });
+      return out.slice(-24);
+    }
+
+    function updateTokenCount() {
+      if (!tokenCountEl) return;
+      var breakdown = estimateAssistantContext({
+        systemPrompt: buildSystemPrompt(''),
+        historyMessages: historyForModel(),
+        pendingInput: (inputEl.value || '').trim(),
+      });
+      tokenCountEl.textContent = formatAssistantContextLabel(breakdown.total);
+      tokenCountEl.title = formatAssistantContextTitle(breakdown);
+    }
+
+    function scheduleTokenCountUpdate() {
+      if (tokenCountTimer) clearTimeout(tokenCountTimer);
+      tokenCountTimer = setTimeout(updateTokenCount, 200);
+    }
+
+    async function reactLoop(userText) {
+      abortFlag = false;
+      busy = true;
+      syncActionBtn();
+      setStatus('思考中…');
+
+      pushUi({ role: 'user', content: userText, modelContent: userText });
+
+      var extra = '';
+      if (/试聊|回流|反馈/.test(userText)) {
+        extra = promptText('assistantChatFeedback') || '';
+      }
+      // 小说 RAG：检索原文 + 相关实体，绑定到本回合 user 消息（非 system extra）
+      try {
+        var ragOpt = getNovelRagOptions();
+        if (ragOpt.enabled !== false && window.__novelWorkshopBridge__ && window.__novelWorkshopBridge__.searchPassages) {
+          setStatus('检索小说原文…');
+          var ragPayload = await resolveAssistantRag(userText, false);
+          if (ragPayload) {
+            var ragBlock = ragPayload.ragBody;
+            var modelContent = buildUserModelContent(userText, ragBlock);
+            uiMessages[uiMessages.length - 1].modelContent = modelContent;
+            uiMessages[uiMessages.length - 1].ragPreview = ragPayload;
+            uiMessages[uiMessages.length - 1].ragInjectedIds = ragPayload.injectedKeys.slice();
+            sessionStore.setMessages(uiMessages);
+            renderMessages();
+          }
+        }
+      } catch (ragErr) {
+        console.warn('[assistant] novel RAG inject failed', ragErr);
+      }
+
+      var center = window.__aiTaskCenter__;
+      var reactTask = center ? center.create({
+        type: 'assistant_react',
+        title: 'AI 助手 ReAct',
+        target: String(userText || '').slice(0, 40),
+      }) : null;
+      var reactSignal = reactTask && reactTask.signal;
+
+      try {
+        for (var step = 0; step < MAX_REACT_STEPS; step++) {
+          if (abortFlag || (reactSignal && reactSignal.aborted)) {
+            pushUi({ role: 'assistant', content: '已停止。' });
+            if (center && reactTask && reactTask.status !== 'cancelled') center.cancel(reactTask.id);
+            break;
+          }
+          setStatus('ReAct 步骤 ' + (step + 1) + '/' + MAX_REACT_STEPS);
+          if (center && reactTask) center.setProgress(reactTask.id, (step + 1) / MAX_REACT_STEPS, '步骤 ' + (step + 1));
+          var messages = [{ role: 'system', content: buildSystemPrompt(extra) }].concat(historyForModel());
+          if (step > 0) {
+            messages.push({ role: 'system', content: promptText('assistantReactHint') || '继续：输出 tool 或 final JSON。' });
+          }
+          var raw = await callChat(messages, 0.35, reactSignal);
+          var parsed = parseReactStep(raw);
+
+          if (parsed.type === 'tool' && parsed.tool) {
+            if (parsed.thought) {
+              pushUi({ role: 'assistant', content: '💭 ' + parsed.thought });
+            }
+            var tr = await runTool(parsed.tool, parsed.args || {}, false);
+            if (tr.pendingConfirm) break;
+            continue;
+          }
+
+          if (parsed.type === 'final') {
+            pushUi({ role: 'assistant', content: parsed.final || raw });
+            break;
+          }
+
+          // 无法解析则把原文当回复
+          pushUi({ role: 'assistant', content: raw || '（无输出）' });
+          break;
+        }
+        if (center && reactTask && reactTask.status === 'running') center.succeed(reactTask.id);
+      } catch (err) {
+        var aborted = (window.__isAiAbortError__ && window.__isAiAbortError__(err))
+          || (err && err.name === 'AbortError')
+          || abortFlag;
+        if (aborted) {
+          pushUi({ role: 'assistant', content: '已停止。' });
+          if (center && reactTask && reactTask.status !== 'cancelled') center.cancel(reactTask.id);
+          setStatus('已停止');
+        } else {
+          // 运行期失败才写入对话；未配置已在发送前拦截
+          pushUi({ role: 'assistant', content: '错误：' + (err && err.message ? err.message : String(err)), error: true });
+          setStatus(err.message || '失败', true);
+          if (center && reactTask) center.fail(reactTask.id, err);
+        }
+      } finally {
+        busy = false;
+        syncActionBtn();
+        setStatus('就绪');
+      }
+    }
+
+    function sendCurrent() {
+      if (busy) return;
+      var text = (inputEl.value || '').trim();
+      if (!text) return;
+      if (!ensureAiConfigured()) return;
+      inputEl.value = '';
+      updateTokenCount();
+      reactLoop(text);
+    }
+
+    function setQuickOpen(open) {
+      if (!quickBtn || !quickMenu) return;
+      quickMenu.hidden = !open;
+      quickBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+
+    // 快捷：默认收起；点击展开；选中/点外/再点按钮关闭
+    if (quickBtn && quickMenu) {
+      setQuickOpen(false);
+      quickMenu.innerHTML = '';
+      chips.forEach(function(chip) {
+        var b = el('button', 'assistant-quick-item', chip.label);
+        b.type = 'button';
+        b.setAttribute('role', 'option');
+        if (chip.tool) b.setAttribute('data-tool', chip.tool);
+        b.addEventListener('click', function() {
+          // 挂真实工具：prompt 已点名；附带 preferredTool 供 ReAct 优先
+          var text = chip.prompt || '';
+          if (chip.tool && text.indexOf(chip.tool) < 0) {
+            text += '\n（请优先调用工具 ' + chip.tool
+              + (chip.args ? '，args=' + JSON.stringify(chip.args) : '') + '）';
+          }
+          inputEl.value = text;
+          inputEl.focus();
+          scheduleTokenCountUpdate();
+          setQuickOpen(false);
+        });
+        quickMenu.appendChild(b);
+      });
+      quickBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        setQuickOpen(quickMenu.hidden);
+      });
+      document.addEventListener('click', function(e) {
+        if (!quickMenu.hidden && !quickMenu.contains(e.target) && e.target !== quickBtn) {
+          setQuickOpen(false);
+        }
+      });
+    }
+
+    if (ragPreviewBtn) {
+      ragPreviewBtn.addEventListener('click', function() {
+        openComposerRagPreview();
+      });
+    }
+    if (ragModal) {
+      ragModal.querySelectorAll('[data-assistant-rag-close]').forEach(function(el) {
+        el.addEventListener('click', function() { setRagModalOpen(false); });
+      });
+      if (ragModalClose) {
+        ragModalClose.addEventListener('click', function() { setRagModalOpen(false); });
+      }
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && ragModal && !ragModal.hidden) setRagModalOpen(false);
+      });
+    }
+
+    if (actionBtn) {
+      actionBtn.addEventListener('click', function() {
+        if (busy) {
+          abortFlag = true;
+          setStatus('正在停止…');
+          var center = window.__aiTaskCenter__;
+          if (center) {
+            var snap = center.snapshot();
+            (snap.tasks || []).forEach(function(t) {
+              if (t.type === 'assistant_react' && (t.status === 'running' || t.status === 'queued')) {
+                center.cancel(t.id);
+              }
+            });
+          }
+          return;
+        }
+        sendCurrent();
+      });
+    }
+    inputEl.addEventListener('input', function() {
+      syncActionBtn();
+      scheduleTokenCountUpdate();
+    });
+    inputEl.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        if (!busy) sendCurrent();
+      }
+    });
+    if (clearBtn) clearBtn.addEventListener('click', function() {
+      uiMessages = [];
+      sessionRagInjected = new Set();
+      sessionStore.clear();
+      showPending(null);
+      renderMessages();
+      setStatus('会话已清空');
+      setTimeout(function() { if (!busy) setStatus('就绪'); }, 1200);
+    });
+    if (undoBtn) undoBtn.addEventListener('click', function() {
+      runTool('undo_last_bundle', {}, true).then(function(r) {
+        pushUi({
+          role: 'assistant',
+          content: r.ok ? '已撤销上一补丁包。' : ('撤销失败：' + (r.error || '')),
+          error: !r.ok,
+        });
+      });
+    });
+    applyBtn.addEventListener('click', async function() {
+      if (!pending) return;
+      var p = pending;
+      showPending(null);
+      var r = await runTool(p.tool, p.args, true);
+      if (!r.ok) {
+        pushUi({
+          role: 'assistant',
+          content: '应用失败：' + (r.error || ''),
+          error: true,
+        });
+      }
+    });
+    rejectBtn.addEventListener('click', function() {
+      showPending(null);
+      pushUi({ role: 'assistant', content: '已拒绝本次大改。' });
+    });
+
+    // 恢复会话
+    var saved = sessionStore.read();
+    if (saved.ragInjectedIds && saved.ragInjectedIds.length) {
+      sessionRagInjected = new Set(saved.ragInjectedIds);
+    }
+    if (saved.messages && saved.messages.length) {
+      uiMessages = saved.messages;
+      renderMessages();
+    }
+    setStatus('就绪');
+    syncActionBtn();
+
+    window.__assistantPanel__ = {
+      send: function(text) {
+        if (busy || !text) return;
+        if (!ensureAiConfigured()) return;
+        reactLoop(String(text));
+      },
+      invokeTool: function(name, args, force) { return runTool(name, args, force); },
+    };
+  })();
+</script>

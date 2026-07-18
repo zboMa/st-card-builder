@@ -1,0 +1,152 @@
+---
+/** 世界书条目：分析结果展示/编辑；AI 抽取为可选降级路径 */
+---
+<div class="panel novel-workshop-panel novel-extract-panel novel-worldbook-panel" data-novel-panel="worldbook">
+  <h2>世界书条目</h2>
+  <p class="novel-panel-tip">
+    展示分析或抽取得到的<strong>非人物实体</strong>（势力/地点/物品/事件等）。推荐在「小说分析」统一抽取后于此查看/丰满/同步；
+    也可在本页用「AI 抽取」走降级路径。折叠预览；点编辑弹窗修改；可同步到主世界书。
+  </p>
+  <p id="novelWbGate" class="novel-gate-hint" style="display:none;"></p>
+
+  <div class="novel-extract-body">
+    <div class="novel-extract-controls">
+      <div class="grid-3">
+        <div class="form-group">
+          <label for="novelWbShardMode">抽取分片方式（降级）</label>
+          <select id="novelWbShardMode">
+            <option value="chars" selected>按字数</option>
+            <option value="chapters">按章节</option>
+          </select>
+        </div>
+        <div class="form-group" id="novelWbChunkSizeWrap">
+          <label for="novelWbChunkSize">分片字数</label>
+          <select id="novelWbChunkSize">
+            <option value="4000">4,000 字</option>
+            <option value="8000" selected>8,000 字</option>
+            <option value="12000">12,000 字</option>
+            <option value="16000">16,000 字</option>
+            <option value="24000">24,000 字</option>
+            <option value="32000">32,000 字</option>
+            <option value="48000">48,000 字</option>
+            <option value="64000">64,000 字</option>
+          </select>
+        </div>
+        <div class="form-group" id="novelWbChaptersPerShardWrap" hidden>
+          <label for="novelWbChaptersPerShard">分片章节数</label>
+          <input id="novelWbChaptersPerShard" type="number" min="1" step="1" value="1" />
+        </div>
+        <div class="form-group">
+          <label for="novelWbConflictPolicy">同步冲突策略</label>
+          <select id="novelWbConflictPolicy">
+            <option value="merge">合并</option>
+            <option value="overwrite">覆盖</option>
+            <option value="skip">跳过</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>要生成的内容（降级抽取）</label>
+        <div id="novelWbFocusTags" class="novel-focus-tags"></div>
+      </div>
+
+      <div class="novel-toolbar" aria-label="世界书条目操作">
+        <button id="btnWbExtract" type="button" class="btn btn-ai novel-btn-sm" title="降级：分片抽取">AI 抽取</button>
+        <button id="btnWbCreateEntry" type="button" class="btn btn-add novel-btn-sm">新建</button>
+        <button id="btnWbEnrichSelected" type="button" class="btn btn-ai novel-btn-sm" title="按原文丰满所选条目">丰满所选</button>
+        <button id="btnWbClear" type="button" class="btn btn-fetch novel-btn-sm">清空</button>
+        <button id="btnSyncWbSelected" type="button" class="btn novel-btn-sm">同步所选 → 主世界书</button>
+      </div>
+
+      <div id="novelWbQueue" class="novel-status-text" style="display:none;"></div>
+      <div id="novelWbStatus" class="novel-status-text"></div>
+
+      <div class="wb-toolbar novel-wb-toolbar novel-wb-search-only">
+        <div class="wb-search-wrap">
+          <select id="novelWbTypeFilter" class="novel-inline-select" title="类型筛选">
+            <option value="">全部类型</option>
+            <option value="faction">势力</option>
+            <option value="location">地点</option>
+            <option value="item">物品</option>
+            <option value="event">事件</option>
+            <option value="worldview">世界观</option>
+            <option value="setting">设定</option>
+            <option value="history">历史</option>
+            <option value="nsfw">NSFW</option>
+          </select>
+          <div class="wb-search-bar">
+            <span class="wb-search-icon" aria-hidden="true">🔍</span>
+            <input type="text" id="novelWbSearchInput" class="wb-search-input" placeholder="搜索标题 / 触发词 / 内容..." autocomplete="off" />
+            <button id="novelWbSearchClear" class="wb-search-clear" title="清空" type="button" style="display:none;">✕</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="novelWbPreview" class="novel-entity-list wb-entries-list" aria-live="polite"></div>
+  </div>
+</div>
+
+<!-- 世界书草稿：居中弹窗编辑 -->
+<div id="novelModalWb" class="novel-modal" hidden aria-hidden="true">
+  <div class="novel-modal-backdrop" data-novel-modal-close="novelModalWb"></div>
+  <div class="novel-modal-dialog novel-modal-dialog-lg" role="dialog" aria-modal="true" aria-labelledby="novelModalWbTitle">
+    <div class="novel-modal-head">
+      <strong id="novelModalWbTitle">编辑世界书条目</strong>
+      <span class="novel-modal-tip">保存写回草稿列表 · Esc / 遮罩关闭</span>
+    </div>
+    <div class="novel-modal-body" id="novelModalWbBody"></div>
+    <div class="novel-modal-actions">
+      <button type="button" class="btn novel-modal-cancel" data-novel-modal-close="novelModalWb">取消</button>
+      <button type="button" class="btn btn-add" id="btnNovelWbModalSave">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 实体编辑（非人物）：从知识库迁入 -->
+<div id="novelModalEntity" class="novel-modal" hidden aria-hidden="true">
+  <div class="novel-modal-backdrop" data-novel-modal-close="novelModalEntity"></div>
+  <div class="novel-modal-dialog novel-modal-dialog-lg" role="dialog" aria-modal="true" aria-labelledby="novelModalEntityTitle">
+    <div class="novel-modal-head">
+      <strong id="novelModalEntityTitle">编辑实体</strong>
+      <span class="novel-modal-tip">名称 / 类型 / 摘要 / 正文；保存后写回实体库</span>
+    </div>
+    <div class="novel-modal-body">
+      <div class="form-group">
+        <label for="novelEntityName">名称</label>
+        <input id="novelEntityName" type="text" />
+      </div>
+      <div class="form-group">
+        <label for="novelEntityType">类型</label>
+        <select id="novelEntityType">
+          <option value="faction">势力</option>
+          <option value="location">地点</option>
+          <option value="item">物品</option>
+          <option value="event">事件</option>
+          <option value="lore">设定</option>
+          <option value="nsfw">NSFW</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="novelEntityAliases">别名（逗号分隔）</label>
+        <input id="novelEntityAliases" type="text" />
+      </div>
+      <div class="form-group">
+        <label for="novelEntitySummary">摘要</label>
+        <input id="novelEntitySummary" type="text" />
+      </div>
+      <div class="form-group">
+        <label for="novelEntityKeys">触发词（逗号分隔）</label>
+        <input id="novelEntityKeys" type="text" />
+      </div>
+      <div class="form-group">
+        <label for="novelEntityContent">正文</label>
+        <textarea id="novelEntityContent" class="novel-modal-textarea" rows="12"></textarea>
+      </div>
+    </div>
+    <div class="novel-modal-actions">
+      <button type="button" class="btn novel-modal-cancel" data-novel-modal-close="novelModalEntity">取消</button>
+      <button id="btnNovelEntitySave" type="button" class="btn btn-add">保存</button>
+    </div>
+  </div>
+</div>

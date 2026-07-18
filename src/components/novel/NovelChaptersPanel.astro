@@ -1,0 +1,67 @@
+---
+/** 模块2：拆章与章级操作；含拆章分片字数；列表内滚；正文居中弹窗预览 */
+---
+<div class="panel novel-workshop-panel novel-chapters-panel" data-novel-panel="chapters">
+  <h2>拆章</h2>
+  <p class="novel-panel-tip">按标题 / 空行 / 字数切分章节；结果供小说分析、人物列表、世界书条目与文风蒸馏使用。点击标题或预览图标打开正文弹窗。</p>
+  <p id="novelChapterGate" class="novel-gate-hint" style="display:none;"></p>
+
+  <div class="novel-chapters-body">
+    <div class="novel-chapters-controls">
+      <div class="novel-chapters-meta">
+        <strong>自动拆章</strong>
+        <span id="novelChapterCount">0 章</span>
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label for="novelChapterSplitMode">拆分规则</label>
+          <select id="novelChapterSplitMode">
+            <option value="title">章节标题优先</option>
+            <option value="blank">空行分段</option>
+            <option value="size">按单片字数</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="novelChunkSize">单片字数</label>
+          <select id="novelChunkSize">
+            <option value="4000">4,000 字</option>
+            <option value="8000" selected>8,000 字</option>
+            <option value="12000">12,000 字</option>
+            <option value="16000">16,000 字</option>
+            <option value="24000">24,000 字</option>
+            <option value="32000">32,000 字</option>
+            <option value="48000">48,000 字</option>
+            <option value="64000">64,000 字</option>
+          </select>
+        </div>
+      </div>
+      <div class="novel-toolbar" aria-label="批量操作">
+        <button id="btnNovelSplitChapters" type="button" class="btn novel-btn-sm">自动拆章</button>
+        <button id="btnChMerge" type="button" class="btn btn-fetch novel-btn-sm">合并所选</button>
+        <button id="btnChEnable" type="button" class="btn btn-fetch novel-btn-sm">启用所选</button>
+        <button id="btnChDisable" type="button" class="btn btn-fetch novel-btn-sm">禁用所选</button>
+        <button id="btnChExport" type="button" class="btn btn-fetch novel-btn-sm">导出选中</button>
+        <button id="btnChDelete" type="button" class="btn btn-delete novel-btn-sm">删除所选</button>
+      </div>
+      <div id="novelChapterStatus" class="novel-status-text"></div>
+    </div>
+    <div id="novelChapterList" class="novel-chapter-list" aria-live="polite"></div>
+  </div>
+</div>
+
+<!-- 章节正文：居中遮罩弹窗（打开时挂到 body） -->
+<div id="novelModalChapter" class="novel-modal" hidden aria-hidden="true">
+  <div class="novel-modal-backdrop" data-novel-modal-close="novelModalChapter"></div>
+  <div class="novel-modal-dialog novel-modal-dialog-lg" role="dialog" aria-modal="true" aria-labelledby="novelModalChapterTitle">
+    <div class="novel-modal-head">
+      <strong id="novelModalChapterTitle">章节预览</strong>
+      <span class="novel-modal-tip">只读预览 · Esc / 遮罩关闭</span>
+    </div>
+    <div class="novel-modal-body">
+      <pre id="novelModalChapterBody" class="novel-modal-pre"></pre>
+    </div>
+    <div class="novel-modal-actions">
+      <button type="button" class="btn novel-modal-cancel" data-novel-modal-close="novelModalChapter">关闭</button>
+    </div>
+  </div>
+</div>

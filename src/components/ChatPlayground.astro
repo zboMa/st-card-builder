@@ -1,28 +1,32 @@
 ---
 ---
+<!-- 试聊：标题行右上操作；配置固定 / 对话区（触发标签+消息）滚动 / 输入区固定 -->
 <div class="panel chat-playground">
-  <h2>💬 角色试聊</h2>
-
-  <!-- 控制栏 -->
-  <div class="chat-controls">
-    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px;">
-      <button id="btnChatReset" class="btn btn-chat-ctrl">🔄 重置</button>
-      <button id="btnChatRegenerate" class="btn btn-chat-ctrl">♻️ 重新生成</button>
-      <div style="flex: 1;"></div>
-      <span class="chat-indicator" id="chatWbIndicator" title="世界书触发状态">📖 0</span>
-      <span class="chat-indicator" id="chatTokenIndicator" title="估算 Token 数">🎫 ~0</span>
+  <div class="chat-panel-header panel-header">
+    <h2>角色试聊</h2>
+    <div class="chat-header-actions">
+      <span class="chat-indicator" id="chatWbIndicator" title="世界书触发状态">WB 0</span>
+      <span class="chat-indicator" id="chatTokenIndicator" title="估算 Token 数">~0 tok</span>
+      <label class="debug-toggle" title="调试模式">
+        <input type="checkbox" id="chatShowPrompt" />
+        <span>调试</span>
+      </label>
+      <button id="btnChatReset" class="btn btn-sm btn-ghost btn-chat-ctrl" type="button">重置</button>
+      <button id="btnChatRegenerate" class="btn btn-sm btn-ghost btn-chat-ctrl" type="button">重新生成</button>
     </div>
+  </div>
 
-    <!-- 醒目设置栏 -->
+  <!-- 配置区（固定） -->
+  <div class="chat-controls">
     <div class="chat-settings-bar">
       <div class="chat-setting-group">
         <div class="chat-setting-item">
           <div class="setting-label-row">
-            <span class="setting-icon">🌡️</span>
+            
             <span class="setting-label">温度</span>
             <span class="setting-value" id="chatTempValue">0.85</span>
           </div>
-          <input type="range" id="chatTemperature" min="0" max="2" step="0.05" value="0.85" class="setting-slider" />
+          <input type="range" id="chatTemperature" min="0" max="2" step="0.05" value="0.85" class="ui-slider setting-slider" />
           <div class="setting-hint-row">
             <span>精确</span>
             <span>狂野</span>
@@ -33,7 +37,7 @@
 
         <div class="chat-setting-item">
           <div class="setting-label-row">
-            <span class="setting-icon">📏</span>
+            
             <span class="setting-label">回复长度</span>
             <input type="number" id="chatMaxTokensInput" class="token-number-input" value="2000" min="100" max="16000" step="100" />
           </div>
@@ -47,36 +51,26 @@
           </select>
         </div>
       </div>
+    </div>
+  </div>
 
-      <div class="chat-setting-extra">
-        <label class="debug-toggle">
-          <input type="checkbox" id="chatShowPrompt" />
-          <span>🔬 调试模式</span>
-        </label>
+  <!-- 中间对话区：触发标签 / 调试 / 消息一并内滚，避免撑破面板 -->
+  <div class="chat-conversation" id="chatConversation">
+    <div id="chatWbTriggerBar" style="display: none;">
+      <div id="chatWbTriggerList"></div>
+    </div>
+    <div id="chatPromptDebug" style="display: none;"></div>
+    <div id="chatMessages" class="chat-messages">
+      <div class="chat-empty-hint">
+        <div style="color: var(--color-text-muted); font-size: 0.82rem;">点击「开始试聊」加载开场白</div>
+        <div style="color: var(--color-text-muted); font-size: 0.72rem; margin-top: 4px;">将使用当前角色设定 + 世界书 + 预设进行模拟对话</div>
       </div>
     </div>
   </div>
 
-  <!-- 世界书触发提示 -->
-  <div id="chatWbTriggerBar" style="display: none;">
-    <div id="chatWbTriggerList"></div>
-  </div>
-
-  <!-- Prompt 调试预览 -->
-  <div id="chatPromptDebug" style="display: none;"></div>
-
-  <!-- 聊天消息区 -->
-  <div id="chatMessages" class="chat-messages">
-    <div class="chat-empty-hint">
-      <div style="font-size: 2rem; margin-bottom: 8px;">💬</div>
-      <div style="color: #64748b; font-size: 0.82rem;">点击「▶️ 开始试聊」加载开场白</div>
-      <div style="color: #475569; font-size: 0.72rem; margin-top: 4px;">将使用当前角色设定 + 世界书 + 预设进行模拟对话</div>
-    </div>
-  </div>
-
-  <!-- 输入区 -->
+  <!-- 输入区（固定） -->
   <div class="chat-input-area">
-    <button id="btnChatStart" class="btn btn-chat-start">▶️ 开始试聊</button>
+    <button id="btnChatStart" class="btn btn-primary btn-chat-start">开始试聊</button>
     <div id="chatInputRow" style="display: none;">
       <div style="display: flex; gap: 8px;">
         <textarea id="chatInput" placeholder="说点什么..." rows="2" style="flex: 1; resize: none;"></textarea>
@@ -85,8 +79,8 @@
         </button>
       </div>
       <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
-        <span style="font-size: 0.65rem; color: #475569;">Enter 发送 · Shift+Enter 换行</span>
-        <span id="chatTypingIndicator" style="display: none; font-size: 0.7rem; color: #c4b5fd;">
+        <span style="font-size: 0.65rem; color: var(--color-text-muted);">Enter 发送 · Shift+Enter 换行</span>
+        <span id="chatTypingIndicator" style="display: none; font-size: 0.7rem; color: var(--color-accent-hover);">
           <span class="typing-dots">
             <span>.</span><span>.</span><span>.</span>
           </span>
@@ -98,55 +92,68 @@
 </div>
 
 <style>
+  /* 占满主区剩余高度：上配置 / 中消息滚动 / 下输入固定 */
   .chat-playground {
     display: flex;
     flex-direction: column;
-    max-height: 600px;
+    flex: 1 1 auto;
+    min-height: 0;
+    height: 100%;
+    max-height: none;
+    overflow: hidden;
   }
 
-  
-  .chat-controls {
-    padding-bottom: 10px;
-    border-bottom: 1px solid rgba(139, 92, 246, 0.15);
+  .chat-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-shrink: 0;
     margin-bottom: 10px;
   }
-  .btn-chat-ctrl {
-    background: rgba(139, 92, 246, 0.1);
-    border: 1px solid rgba(139, 92, 246, 0.2);
-    color: #c4b5fd;
-    padding: 4px 10px;
-    border-radius: 6px;
-    font-size: 0.72rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    font-family: inherit;
+  .chat-panel-header h2 {
+    margin: 0;
+    flex-shrink: 0;
   }
-  .btn-chat-ctrl:hover {
-    background: rgba(139, 92, 246, 0.2);
-    border-color: rgba(139, 92, 246, 0.4);
-    transform: translateY(-1px);
+  .chat-header-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+
+  .chat-controls {
+    flex-shrink: 0;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--color-accent-soft);
+    margin-bottom: 10px;
+  }
+  /* 顶栏小按钮：复用 btn-ghost，仅保证不换行 */
+  .chat-header-actions .btn.btn-chat-ctrl {
+    white-space: nowrap;
   }
 
   .chat-indicator {
-    font-size: 0.68rem;
-    background: rgba(30, 41, 59, 0.8);
-    padding: 3px 8px;
-    border-radius: 99px;
-    color: #64748b;
-    border: 1px solid rgba(51, 65, 85, 0.5);
+    font-size: 0.64rem;
+    background: var(--color-surface-inset);
+    padding: 2px 7px;
+    border-radius: var(--radius-pill);
+    color: var(--color-text-muted);
+    border: 1px solid var(--color-border-subtle);
     white-space: nowrap;
   }
   .chat-indicator.active {
-    color: #34d399;
-    border-color: rgba(16, 185, 129, 0.3);
-    background: rgba(16, 185, 129, 0.08);
+    color: var(--color-success);
+    border-color: oklch(72% 0.14 155 / 0.3);
+    background: oklch(72% 0.14 155 / 0.08);
   }
 
   
   .chat-settings-bar {
-    background: linear-gradient(135deg, rgba(139, 92, 246, 0.06), rgba(56, 189, 248, 0.04));
-    border: 1px solid rgba(139, 92, 246, 0.2);
+    background: var(--color-surface-inset);
+    border: 1px solid var(--color-border-subtle);
     border-radius: 10px;
     padding: 12px 14px;
     display: flex;
@@ -175,7 +182,7 @@
   }
   .setting-divider {
     width: 1px;
-    background: rgba(139, 92, 246, 0.15);
+    background: var(--color-accent-soft);
     align-self: stretch;
     flex-shrink: 0;
   }
@@ -192,57 +199,28 @@
   .setting-label {
     font-size: 0.72rem;
     font-weight: 700;
-    color: #c4b5fd;
+    color: var(--color-accent-hover);
     letter-spacing: 0.02em;
   }
   .setting-value {
     font-size: 0.75rem;
-    color: #38bdf8;
-    font-family: 'JetBrains Mono', monospace;
+    color: var(--color-accent-hover);
+    font-family: var(--font-mono);
     font-weight: 700;
     margin-left: auto;
-    background: rgba(56, 189, 248, 0.1);
-    padding: 1px 8px;
-    border-radius: 4px;
-    border: 1px solid rgba(56, 189, 248, 0.2);
+    background: var(--color-accent-soft);
+    padding: 1px var(--space-2);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-accent-border);
   }
   .setting-slider {
-    width: 100%;
-    height: 6px;
-    -webkit-appearance: none;
-    appearance: none;
-    background: rgba(51, 65, 85, 0.6);
-    border-radius: 99px;
-    outline: none;
-    cursor: pointer;
-  }
-  .setting-slider::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #8b5cf6, #c084fc);
-    border: 2px solid #0f172a;
-    cursor: pointer;
-    box-shadow: 0 0 8px rgba(139, 92, 246, 0.4);
-    transition: box-shadow 0.2s ease;
-  }
-  .setting-slider::-webkit-slider-thumb:hover {
-    box-shadow: 0 0 14px rgba(139, 92, 246, 0.6);
-  }
-  .setting-slider::-moz-range-thumb {
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #8b5cf6, #c084fc);
-    border: 2px solid #0f172a;
-    cursor: pointer;
+    /* ui-slider 提供 thumb/track */
   }
   .setting-hint-row {
     display: flex;
     justify-content: space-between;
     font-size: 0.58rem;
-    color: #475569;
+    color: var(--color-text-muted);
     margin-top: 3px;
     padding: 0 2px;
   }
@@ -252,19 +230,20 @@
     width: 58px;
     height: 20px;
     box-sizing: border-box;
-    background: rgba(56, 189, 248, 0.1);
-    border: 1px solid rgba(56, 189, 248, 0.2);
-    border-radius: 4px;
-    color: #38bdf8;
+    background: var(--color-accent-soft);
+    border: 1px solid var(--color-accent-border);
+    border-radius: var(--radius-sm);
+    color: var(--color-accent-hover);
     font-size: 0.75rem;
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--font-mono);
     font-weight: 700;
     text-align: center;
     outline: none;
     margin-left: auto;
     padding: 0 4px;
     line-height: 18px;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    transition: border-color var(--dur-fast) var(--ease-out),
+      box-shadow var(--dur-fast) var(--ease-out);
     -moz-appearance: textfield;
   }
   .token-number-input::-webkit-inner-spin-button,
@@ -273,47 +252,55 @@
     margin: 0;
   }
   .token-number-input:focus {
-    border-color: #38bdf8;
-    box-shadow: 0 0 8px rgba(56, 189, 248, 0.3);
+    border-color: var(--color-accent);
+    box-shadow: 0 0 8px var(--color-accent-glow);
   }
   .token-slider {
-    background: rgba(51, 65, 85, 0.6) !important;
+    background: var(--color-slider-track) !important;
   }
 
-  
-  .chat-setting-extra {
-    display: flex;
-    justify-content: flex-end;
-  }
   .debug-toggle {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 3px;
     cursor: pointer;
-    font-size: 0.68rem;
-    color: #475569;
+    font-size: 0.64rem;
+    color: var(--color-text-muted);
     margin: 0;
     font-weight: 500;
     text-transform: none;
     letter-spacing: 0;
     transition: color 0.2s;
-    padding: 2px 8px;
+    padding: 2px 6px;
     border-radius: 6px;
+    white-space: nowrap;
   }
   .debug-toggle:hover {
-    color: #94a3b8;
-    background: rgba(51, 65, 85, 0.3);
+    color: var(--color-text-muted);
+    background: var(--color-surface-inset);
   }
   .debug-toggle input {
     margin: 0;
   }
 
-  
+  /* 中间层吃满剩余高度并滚动：触发标签过长不撑破整页 */
+  .chat-conversation {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    scroll-behavior: smooth;
+    scrollbar-gutter: stable;
+    display: flex;
+    flex-direction: column;
+  }
+
   #chatWbTriggerBar {
-    background: rgba(16, 185, 129, 0.06);
-    border: 1px solid rgba(16, 185, 129, 0.15);
-    border-radius: 8px;
-    padding: 8px 10px;
+    flex-shrink: 0;
+    background: var(--color-success-soft);
+    border: 1px solid var(--color-success-border);
+    border-radius: var(--radius-sm);
+    padding: var(--space-2) 10px;
     margin-bottom: 10px;
   }
   #chatWbTriggerList {
@@ -329,55 +316,51 @@
     animation: wbTagPop 0.3s ease;
   }
   .wb-trigger-tag.active {
-    background: rgba(16, 185, 129, 0.15);
-    color: #34d399;
-    border: 1px solid rgba(16, 185, 129, 0.3);
+    background: oklch(72% 0.14 155 / 0.18);
+    color: var(--color-success);
+    border: 1px solid var(--color-success-border);
   }
   .wb-trigger-tag.inactive {
-    background: rgba(51, 65, 85, 0.3);
-    color: #475569;
-    border: 1px solid rgba(51, 65, 85, 0.3);
+    background: var(--color-surface-inset);
+    color: var(--color-text-muted);
+    border: 1px solid var(--color-border-subtle);
   }
   @keyframes wbTagPop {
     0% { transform: scale(0.8); opacity: 0; }
     100% { transform: scale(1); opacity: 1; }
   }
 
-  
+  /* 调试区随对话区滚动，不再单独占 flex 高度 */
   #chatPromptDebug {
-    background: rgba(0, 0, 0, 0.5);
-    border: 1px solid rgba(139, 92, 246, 0.25);
+    flex-shrink: 0;
+    background: var(--color-overlay);
+    border: 1px solid var(--color-accent-border);
     border-radius: 10px;
-    padding: 30px;
+    padding: 16px;
     margin-bottom: 10px;
-    max-height: 300px;
-    overflow-y: auto;
     font-family: 'JetBrains Mono', monospace;
     font-size: 0.72rem;
     line-height: 1.7;
-    color: #cbd5e1;
+    color: var(--color-text-secondary);
     white-space: pre-wrap;
     word-break: break-word;
     word-wrap: break-word;
     overflow-wrap: break-word;
   }
 
-
-  
+  /* 消息列表随内容增高，滚动由 .chat-conversation 承担 */
   .chat-messages {
-    flex: 1;
-    overflow-y: auto;
+    flex: 1 1 auto;
+    min-height: 0;
     padding: 8px 4px;
-    min-height: 200px;
-    max-height: 380px;
-    scroll-behavior: smooth;
   }
   .chat-empty-hint {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    min-height: 180px;
+    min-height: 140px;
+    height: 100%;
     text-align: center;
   }
 
@@ -406,12 +389,12 @@
     margin-top: 2px;
   }
   .chat-avatar.char {
-    background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(192, 132, 252, 0.15));
-    border: 1px solid rgba(139, 92, 246, 0.25);
+    background: var(--color-accent-soft);
+    border: 1px solid var(--color-accent-border);
   }
   .chat-avatar.user-av {
-    background: linear-gradient(135deg, rgba(56, 189, 248, 0.2), rgba(14, 165, 233, 0.15));
-    border: 1px solid rgba(56, 189, 248, 0.25);
+    background: var(--color-msg-user-bg);
+    border: 1px solid var(--color-msg-user-border);
   }
 
   .chat-bubble {
@@ -423,15 +406,15 @@
     position: relative;
   }
   .chat-bubble.char {
-    background: rgba(139, 92, 246, 0.08);
-    border: 1px solid rgba(139, 92, 246, 0.15);
-    color: #e2e8f0;
+    background: var(--color-msg-char-bg);
+    border: 1px solid var(--color-msg-char-border);
+    color: var(--color-text-secondary);
     border-top-left-radius: 4px;
   }
   .chat-bubble.user {
-    background: rgba(56, 189, 248, 0.08);
-    border: 1px solid rgba(56, 189, 248, 0.15);
-    color: #e2e8f0;
+    background: var(--color-msg-user-bg);
+    border: 1px solid var(--color-msg-user-border);
+    color: var(--color-text-secondary);
     border-top-right-radius: 4px;
   }
   .chat-bubble .chat-name {
@@ -440,8 +423,8 @@
     margin-bottom: 4px;
     display: block;
   }
-  .chat-bubble.char .chat-name { color: #c4b5fd; }
-  .chat-bubble.user .chat-name { color: #7dd3fc; }
+  .chat-bubble.char .chat-name { color: var(--color-accent-hover); }
+  .chat-bubble.user .chat-name { color: var(--color-accent-hover); }
   .chat-bubble .chat-text {
     white-space: pre-wrap;
     word-break: break-word;
@@ -451,8 +434,8 @@
   .chat-var-update {
     margin: 12px 0 6px;
     border-radius: 14px;
-    background: linear-gradient(180deg, rgba(30, 22, 15, 0.98), rgba(16, 11, 9, 0.98));
-    border: 1px solid rgba(245, 158, 11, 0.34);
+    background: var(--color-surface-elevated);
+    border: 1px solid var(--color-warning-border);
     box-shadow: 0 16px 40px rgba(2, 6, 23, 0.38);
     overflow: hidden;
     font-family: 'Courier New', monospace;
@@ -465,8 +448,8 @@
     pointer-events: none;
     background: repeating-linear-gradient(
       180deg,
-      rgba(245, 158, 11, 0.02),
-      rgba(245, 158, 11, 0.02) 2px,
+      transparent,
+      transparent 2px,
       transparent 2px,
       transparent 4px
     );
@@ -475,8 +458,8 @@
     position: relative;
     z-index: 1;
     padding: 11px 14px;
-    background: linear-gradient(90deg, rgba(245, 158, 11, 0.18), rgba(245, 158, 11, 0.03));
-    color: #fbbf24;
+    background: linear-gradient(90deg, var(--color-warning-soft), transparent);
+    color: var(--color-warning);
     font-size: 0.84rem;
     font-weight: 700;
     letter-spacing: 1.6px;
@@ -484,7 +467,7 @@
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    border-bottom: 1px solid rgba(245, 158, 11, 0.16);
+    border-bottom: 1px solid var(--color-warning-border);
   }
   .cvu-header-main {
     display: flex;
@@ -496,12 +479,12 @@
     width: 9px;
     height: 9px;
     border-radius: 999px;
-    background: #f59e0b;
-    box-shadow: 0 0 12px rgba(245, 158, 11, 0.75);
+    background: var(--color-warning);
+    box-shadow: 0 0 12px var(--color-warning);
     flex-shrink: 0;
   }
   .cvu-header-tag {
-    color: rgba(251, 191, 36, 0.74);
+    color: var(--color-warning);
     font-size: 0.62rem;
     letter-spacing: 1.2px;
     white-space: nowrap;
@@ -513,7 +496,7 @@
   }
   .cvu-analysis {
     padding: 12px 14px 8px;
-    color: #f8fafc;
+    color: var(--color-text);
     font-size: 0.74rem;
     line-height: 1.7;
     white-space: pre-line;
@@ -521,7 +504,7 @@
   .cvu-analysis-label {
     display: block;
     margin-bottom: 7px;
-    color: rgba(251, 191, 36, 0.9);
+    color: var(--color-warning);
     font-size: 0.62rem;
     font-weight: 700;
     letter-spacing: 1px;
@@ -537,21 +520,21 @@
     min-width: 0;
     padding: 12px 14px;
     border-radius: 10px;
-    border: 1px solid rgba(245, 158, 11, 0.22);
-    background: rgba(245, 158, 11, 0.05);
+    border: 1px solid var(--color-warning-border);
+    background: var(--color-warning-soft);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
   }
   .cvu-stat-label {
     display: block;
     margin-bottom: 6px;
-    color: rgba(251, 191, 36, 0.82);
+    color: var(--color-warning);
     font-size: 0.64rem;
     font-weight: 700;
     line-height: 1.4;
   }
   .cvu-stat-value {
     display: block;
-    color: #fff7ed;
+    color: var(--color-text);
     font-size: 1rem;
     font-weight: 700;
     line-height: 1.45;
@@ -560,7 +543,7 @@
   .cvu-stat-path {
     display: block;
     margin-top: 6px;
-    color: rgba(251, 191, 36, 0.45);
+    color: var(--color-text-muted);
     font-size: 0.56rem;
     letter-spacing: 0.4px;
     word-break: break-word;
@@ -568,14 +551,14 @@
   .cvu-stat-note {
     display: block;
     margin-top: 6px;
-    color: #fde68a;
+    color: var(--color-warning);
     font-size: 0.62rem;
     line-height: 1.5;
     word-break: break-word;
   }
   .cvu-empty {
     padding: 0 14px 12px;
-    color: #cbd5e1;
+    color: var(--color-text-secondary);
     font-size: 0.7rem;
   }
   .cvu-debug {
@@ -583,19 +566,19 @@
   }
   .cvu-debug summary {
     cursor: pointer;
-    color: #fbbf24;
+    color: var(--color-warning);
     font-size: 0.7rem;
     font-weight: 700;
   }
   .cvu-patch {
     padding: 12px 14px;
     margin: 10px 0 0;
-    color: #fde68a;
+    color: var(--color-warning);
     font-size: 0.68rem;
     line-height: 1.55;
     overflow-x: auto;
     background: rgba(2, 6, 23, 0.56);
-    border: 1px solid rgba(245, 158, 11, 0.16);
+    border: 1px solid var(--color-warning-border);
     border-radius: 10px;
     white-space: pre-wrap;
     font-family: 'Cascadia Code', 'Fira Code', monospace;
@@ -608,13 +591,13 @@
 
   
   .chat-input-area {
-    border-top: 1px solid rgba(139, 92, 246, 0.15);
+    flex-shrink: 0;
+    border-top: 1px solid var(--color-accent-soft);
     padding-top: 10px;
-    margin-top: auto;
   }
   .btn-chat-start {
     width: 100%;
-    background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+    background: var(--color-accent-strong);
     color: white;
     padding: 12px;
     border: none;
@@ -627,13 +610,13 @@
   }
   .btn-chat-start:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(139, 92, 246, 0.3);
+    box-shadow: 0 6px 20px var(--color-accent-border);
   }
   .btn-chat-send {
     width: 48px;
     height: 48px;
     border-radius: 12px;
-    background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+    background: var(--color-accent-strong);
     border: none;
     color: white;
     font-size: 1.2rem;
@@ -644,7 +627,7 @@
     justify-content: center;
     flex-shrink: 0;
   }
-  .btn-chat-send:hover { transform: scale(1.05); box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3); }
+  .btn-chat-send:hover { transform: scale(1.05); box-shadow: 0 4px 12px var(--color-accent-border); }
   .btn-chat-send:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
   .typing-dots span {
@@ -662,7 +645,7 @@
 
   .streaming-cursor::after {
     content: '▊';
-    color: #8b5cf6;
+    color: var(--color-accent);
     animation: cursorBlink 0.8s infinite;
     margin-left: 1px;
   }
@@ -671,16 +654,16 @@
     50% { opacity: 0; }
   }
 
-  .chat-messages::-webkit-scrollbar { width: 4px; }
-  .chat-messages::-webkit-scrollbar-track { background: transparent; }
-  .chat-messages::-webkit-scrollbar-thumb {
-    background: linear-gradient(180deg, rgba(139, 92, 246, 0.5), rgba(56, 189, 248, 0.45));
+  .chat-conversation::-webkit-scrollbar { width: 4px; }
+  .chat-conversation::-webkit-scrollbar-track { background: transparent; }
+  .chat-conversation::-webkit-scrollbar-thumb {
+    background: var(--color-accent-border);
     border-radius: 99px;
-    box-shadow: 0 0 4px rgba(139, 92, 246, 0.3);
+    box-shadow: 0 0 4px var(--color-accent-border);
     transition: background 0.3s ease, box-shadow 0.3s ease;
   }
-  .chat-messages::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(180deg, rgba(139, 92, 246, 0.8), rgba(56, 189, 248, 0.7));
+  .chat-conversation::-webkit-scrollbar-thumb:hover {
+    background: var(--color-accent);
     box-shadow: 0 0 8px rgba(139, 92, 246, 0.5);
   }
 </style>
@@ -690,6 +673,7 @@
   
   
   
+  var chatConversation = document.getElementById('chatConversation');
   var chatMessages = document.getElementById('chatMessages');
   var chatInput = document.getElementById('chatInput');
   var btnChatStart = document.getElementById('btnChatStart');
@@ -707,6 +691,12 @@
   var chatTokenIndicator = document.getElementById('chatTokenIndicator');
   var chatWbTriggerBar = document.getElementById('chatWbTriggerBar');
   var chatWbTriggerList = document.getElementById('chatWbTriggerList');
+
+  /** 滚到对话区底部（触发标签与消息同层滚动） */
+  function scrollChatToBottom() {
+    var el = chatConversation || chatMessages;
+    if (el) el.scrollTop = el.scrollHeight;
+  }
 
   
   
@@ -844,13 +834,17 @@
 
     
     var coreParts = [];
-    coreParts.push(
+    var rpCore = (window.__promptStore__ && window.__promptStore__.applyTemplate(
+      window.__promptStore__.get('chatRpCore'),
+      { charName: char.name, user: '{{user}}' }
+    )) || (
       'Write ' + char.name + '\'s next reply in a fictional roleplay chat between ' + char.name + ' and {{user}}.\n'
       + 'Write 1 reply only in internet RP style, italicize actions, and avoid quotation marks. '
       + 'Use markdown. Be proactive, creative, and drive the plot and conversation forward. '
       + 'Write at least 1 paragraph, up to 4. Always stay in character and avoid repetition.\n'
       + 'IMPORTANT: 每次回复至少写3-5段，包含详细的动作描写、心理活动、环境描述和对话。不要只回复一句话。'
     );
+    coreParts.push(rpCore);
     if (char.description) {
       coreParts.push('[Character: ' + char.name + ']\n' + char.description);
     }
@@ -930,7 +924,7 @@
       + '</div>';
 
     chatMessages.appendChild(div);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
+    scrollChatToBottom();
     return div;
   }
 
@@ -944,7 +938,7 @@
       el.textContent = text;
       el.classList.add('streaming-cursor');
     }
-    chatMessages.scrollTop = chatMessages.scrollHeight;
+    scrollChatToBottom();
   }
 
   var UV_RE = /<UpdateVariable>\s*<Analysis>([\s\S]*?)<\/Analysis>\s*<JSONPatch>([\s\S]*?)<\/JSONPatch>\s*<\/UpdateVariable>/;
@@ -1134,7 +1128,7 @@
   
   
   
-  async function sendToAI(messages, useStream) {
+  async function sendToAI(messages, useStream, signal) {
     var url = (document.getElementById('apiUrl').value || '').replace(/\/$/, '') + '/chat/completions';
     var key = (document.getElementById('apiKey').value || '').trim();
     var model = (document.getElementById('modelSelect').value || '');
@@ -1149,7 +1143,7 @@
     var body = { model: model, messages: messages, temperature: temp, max_tokens: maxTk };
     if (useStream) body.stream = true;
 
-    var res = await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(body) });
+    var res = await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(body), signal: signal });
     if (!res.ok) {
       var errText = ''; try { errText = await res.text(); } catch(e) {}
       throw new Error('HTTP ' + res.status + (errText ? ': ' + errText.substring(0, 200) : ''));
@@ -1270,15 +1264,21 @@
     }
 
     var msgDiv = renderMessage('assistant', char.name, '', true);
+    var center = window.__aiTaskCenter__;
+    var chatTask = center ? center.create({
+      type: 'chat_reply',
+      title: '角色试聊',
+      target: String(userText || '').slice(0, 40),
+    }) : null;
 
     try {
-      var response = await sendToAI(messages, true);
+      var response = await sendToAI(messages, true, chatTask && chatTask.signal);
       var aiText = await streamResponse(response, msgDiv);
 
       
       if (!aiText || aiText.trim().length === 0) {
         updateLastMessage(msgDiv, '⏳ 流式失败，重试中...', false);
-        var r2 = await sendToAI(messages, false);
+        var r2 = await sendToAI(messages, false, chatTask && chatTask.signal);
         var j2 = await r2.json();
         aiText = '';
         if (j2.choices && j2.choices[0] && j2.choices[0].message) {
@@ -1293,8 +1293,16 @@
         chatHistory.push({ role: 'assistant', content: clean });
         updateWbTriggerDisplay(chatHistory.map(function(m) { return m.content; }).join(' '));
       }
+      if (center && chatTask) center.succeed(chatTask.id);
     } catch(err) {
-      updateLastMessage(msgDiv, '❌ 出错了: ' + err.message, true);
+      var aborted = window.__isAiAbortError__ && window.__isAiAbortError__(err);
+      if (aborted) {
+        updateLastMessage(msgDiv, '⏹ 已取消', true);
+        if (center && chatTask && chatTask.status !== 'cancelled') center.cancel(chatTask.id);
+      } else {
+        updateLastMessage(msgDiv, '❌ 出错了: ' + err.message, true);
+        if (center && chatTask) center.fail(chatTask.id, err);
+      }
     } finally {
       chatBusy = false;
       btnChatSend.disabled = false;
@@ -1346,7 +1354,7 @@
     chatWbIndicator.textContent = '📖 0';
     chatWbIndicator.classList.remove('active');
     chatTokenIndicator.textContent = '🎫 ~0';
-    chatMessages.innerHTML = '<div class="chat-empty-hint"><div style="font-size:2rem;margin-bottom:8px;">💬</div><div style="color:#64748b;font-size:0.82rem;">点击「▶️ 开始试聊」加载开场白</div><div style="color:#475569;font-size:0.72rem;margin-top:4px;">将使用当前角色设定 + 世界书 + 预设进行模拟对话</div></div>';
+    chatMessages.innerHTML = '<div class="chat-empty-hint"><div style="font-size:2rem;margin-bottom:8px;">💬</div><div style="color:var(--color-text-muted);font-size:0.82rem;">点击「▶️ 开始试聊」加载开场白</div><div style="color:var(--color-text-muted);font-size:0.72rem;margin-top:4px;">将使用当前角色设定 + 世界书 + 预设进行模拟对话</div></div>';
   });
 
   btnChatRegenerate.addEventListener('click', async function() {
@@ -1358,6 +1366,19 @@
     }
     await chat(null);
   });
+
+  // 右栏助手：试聊回流只读桥接
+  window.__getChatPlaygroundState__ = function(opts) {
+    var max = (opts && opts.maxMessages) || 40;
+    return {
+      started: chatStarted,
+      busy: chatBusy,
+      messageCount: chatHistory.length,
+      messages: chatHistory.slice(-max).map(function(m) {
+        return { role: m.role, content: String(m.content || '').slice(0, 2000) };
+      }),
+    };
+  };
 
 })();
 </script>

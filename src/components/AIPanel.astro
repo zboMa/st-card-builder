@@ -1,195 +1,253 @@
 ---
+import AiEngineModal from './AiEngineModal.astro';
 ---
-<div class="panel ai-panel area-ai">
-  <h2>✨ AI 引擎</h2>
+<!-- AI 配置（侧栏「配置」）：横向三 Tab；一键生成见 AiEngineModal -->
+<div class="panel ai-panel area-ai-config">
+  <h2>AI 配置</h2>
 
-  <!-- API 地址 + 密钥 -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%;margin-bottom:8px;">
-    <div class="form-group" style="margin-bottom:0;">
-      <label>API 接口地址</label>
-      <input type="text" id="apiUrl" value="https://api.openai.com/v1" placeholder="https://..." style="width:100%;" />
-    </div>
-    <div class="form-group" style="margin-bottom:0;">
-      <label>API 密钥</label>
-      <input type="password" id="apiKey" placeholder="sk-..." style="width:100%;" />
-    </div>
+  <!-- 横向 Tab：默认 API 配置 -->
+  <div class="ui-tabs ai-config-tabs" role="tablist" aria-label="AI 配置分区">
+    <button type="button" class="ui-tabs__tab ai-config-tab is-active" role="tab" aria-selected="true" data-ai-config-tab="api">API 配置</button>
+    <button type="button" class="ui-tabs__tab ai-config-tab" role="tab" aria-selected="false" data-ai-config-tab="preset">酒馆预设</button>
+    <button type="button" class="ui-tabs__tab ai-config-tab" role="tab" aria-selected="false" data-ai-config-tab="engine">AI 引擎</button>
   </div>
 
-  <!-- 协议提示条（独占一行，紧凑） -->
-  <div id="apiUrlHint" style="display:none;margin-bottom:8px;"></div>
-
-  <!-- 拉取模型 + 模型选择 -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%;margin-bottom:16px;">
-    <button id="btnFetchModels" class="btn btn-fetch" style="margin:0;">🔄 拉取模型</button>
-    <div class="form-group" style="margin-bottom:0;">
-      <select id="modelSelect" style="width:100%;">
-        <option value="">请先获取模型...</option>
-      </select>
-    </div>
-  </div>
-
-  <div class="ai-debug-box">
-    <label class="ai-debug-toggle" for="aiDebugEnable">
-      <input type="checkbox" id="aiDebugEnable" />
-      <span>🐞 AI Debug 模式</span>
-    </label>
-    <div id="aiDebugStatus" class="ai-debug-status">关闭：仅显示常规错误。开启后可在 F12 Console 查看请求摘要、原始响应和 JSON 解析失败细节。</div>
-  </div>
-
-  <hr class="divider" />
-
-  <!-- 联网搜索配置 -->
-  <div id="searchConfigBlock" style="margin-bottom: 16px;">
-    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
-      <div style="display: flex; align-items: center; gap: 8px;">
-        <input type="checkbox" id="searchEnable" />
-        <label for="searchEnable" style="margin: 0; color: #38bdf8; cursor: pointer; font-weight: 700; font-size: 0.88rem;">🌐 联网搜索增强</label>
+  <!-- Tab：API 配置（接口 / 密钥 / 模型 / 搜索） -->
+  <div class="ai-config-pane is-active" role="tabpanel" data-ai-config-pane="api">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%;margin-bottom:8px;">
+      <div class="form-group" style="margin-bottom:0;">
+        <label>API 接口地址</label>
+        <input type="text" id="apiUrl" value="https://api.openai.com/v1" placeholder="https://..." style="width:100%;" />
       </div>
-      <span id="searchModeBadge" style="font-size: 0.62rem; padding: 2px 8px; border-radius: 99px; font-weight: 600; display: none;"></span>
+      <div class="form-group" style="margin-bottom:0;">
+        <label>API 密钥</label>
+        <input type="password" id="apiKey" placeholder="sk-..." style="width:100%;" />
+      </div>
     </div>
 
-    <!-- 折叠区：搜索详细配置 -->
-    <div id="searchConfigDetail" style="display: none;">
-      <p style="font-size: 0.7rem; color: #64748b; margin: 0 0 12px 0; line-height: 1.5;">
-        开启后，AI 生成角色/世界书前会先搜索相关资料作为参考。<br/>
-        <span style="color: #94a3b8;">• 不填搜索 Key → 依赖 AI 模型自带联网能力（Gemini/Perplexity 等）</span><br/>
-        <span style="color: #94a3b8;">• 填写搜索 Key → 独立搜索引擎，结果更可靠</span>
-      </p>
+    <div id="apiUrlHint" style="display:none;margin-bottom:8px;"></div>
 
-      <!-- 搜索引擎选择 -->
-      <div class="form-group" style="margin-bottom: 10px;">
-        <label>搜索引擎</label>
-        <select id="searchEngine">
-          <option value="none" selected>不使用独立搜索（靠 AI 自身联网）</option>
-          <option value="serper">Serper.dev（Google 结果 · 免费 2500次/月）</option>
-          <option value="tavily">Tavily（AI 专用 · 免费 1000次/月）</option>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%;margin-bottom:16px;">
+      <button id="btnFetchModels" class="btn btn-fetch" style="margin:0;">拉取模型</button>
+      <div class="form-group" style="margin-bottom:0;">
+        <select id="modelSelect" style="width:100%;">
+          <option value="">请先获取模型...</option>
         </select>
       </div>
-
-      <!-- 搜索 API Key（动态显示） -->
-      <div id="searchKeyGroup" style="display: none;">
-        <div class="form-group" style="margin-bottom: 10px;">
-          <label id="searchKeyLabel">搜索 API Key</label>
-          <input type="password" id="searchApiKey" placeholder="填入搜索引擎的 API Key..." />
-        </div>
-        <div id="searchRegisterHint" style="font-size: 0.68rem; color: #64748b; margin-bottom: 10px; line-height: 1.5;"></div>
-      </div>
-
-      <!-- 搜索选项 -->
-      <div class="grid-2" style="margin-bottom: 10px;">
-        <div class="form-group" style="margin-bottom: 0;">
-          <label>搜索结果数量</label>
-          <select id="searchResultCount">
-            <option value="3">3 条</option>
-            <option value="5" selected>5 条</option>
-            <option value="8">8 条</option>
-            <option value="12">12 条</option>
-          </select>
-        </div>
-        <div class="form-group" style="margin-bottom: 0;">
-          <label>搜索语言</label>
-          <select id="searchLang">
-            <option value="zh-CN" selected>中文</option>
-            <option value="en">English</option>
-            <option value="ja">日本語</option>
-            <option value="auto">自动检测</option>
-          </select>
-        </div>
-      </div>
-
-      <!-- 自定义搜索关键词 -->
-      <div class="form-group" style="margin-bottom: 10px;">
-        <label>自定义搜索词 <span style="font-weight: normal; color: #475569;">（留空则自动从提示词提取）</span></label>
-        <input type="text" id="searchCustomQuery" placeholder="例如：赛博朋克 世界观 设定集..." />
-      </div>
-
-      <!-- 搜索测试 -->
-      <div style="display: flex; gap: 8px; align-items: center;">
-        <button id="btnTestSearch" class="btn btn-fetch" style="width: auto; padding: 6px 14px; font-size: 0.78rem; margin: 0;">🔍 测试搜索</button>
-        <span id="searchTestStatus" style="font-size: 0.72rem; color: #64748b;"></span>
-      </div>
-
-      <!-- 搜索结果预览 -->
-      <div id="searchPreview" style="display: none; margin-top: 10px; max-height: 200px; overflow-y: auto; background: rgba(0,0,0,0.3); border-radius: 8px; padding: 10px; font-size: 0.72rem;"></div>
     </div>
-  </div>
 
-  <hr class="divider" />
+    <hr class="divider" />
 
-  <!-- 预设导入 -->
-  <div class="preset-upload">
-    <label style="color: #c4b5fd; margin-bottom: 8px; display: block; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">📂 导入酒馆原生预设 (.json)</label>
-    <input type="file" id="presetInput" accept=".json" />
-    <div id="presetListContainer" style="display: none; max-height: 180px; overflow-y: auto; margin-top: 10px; background: rgba(0,0,0,0.3); border-radius: 8px; padding: 8px;"></div>
-    <div id="presetStatus" style="font-size: 0.75rem; margin-top: 8px; color: #64748b;">
-      导入预设后，可勾选要注入的文风和规则
+    <!-- Embedding / RAG 向量（可独立于上方主 Chat API） -->
+    <section class="ai-embed-rag-block" aria-labelledby="aiEmbedRagHeading">
+      <h3 id="aiEmbedRagHeading" class="ai-embed-rag-heading">Embedding / RAG 向量</h3>
+      <p class="ai-config-field-hint ai-embed-rag-intro">
+        可单独配置 Embedding 接口；URL / Key 留空则回退使用上方主 API。
+        配置完成后，请到侧栏 <a href="#novel-analyze" class="ai-embed-rag-link">小说分析</a> 点击「重建索引」。
+      </p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%;margin-bottom:8px;">
+        <div class="form-group" style="margin-bottom:0;">
+          <label for="embeddingApiUrl">Embedding API URL</label>
+          <input type="text" id="embeddingApiUrl" placeholder="留空则使用上方 API 接口地址" style="width:100%;" />
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label for="embeddingApiKey">Embedding API Key</label>
+          <input type="password" id="embeddingApiKey" placeholder="留空则使用上方 API 密钥" style="width:100%;" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="embeddingModel">Embedding 模型</label>
+        <input type="text" id="embeddingModel" placeholder="text-embedding-3-small" style="width:100%;" />
+        <p class="ai-config-field-hint">留空使用默认 <code>text-embedding-3-small</code>。若接口不支持向量，会自动降级为关键词检索。</p>
+      </div>
+      <label class="novel-switch ai-embed-rag-switch" for="assistantNovelRagEnable">
+        <input type="checkbox" id="assistantNovelRagEnable" checked />
+        <span>助手问答启用小说 RAG</span>
+      </label>
+      <div class="form-group" style="margin-bottom: 0;">
+        <label for="assistantNovelRagBudget">助手 RAG 注入预算（字）</label>
+        <input type="number" id="assistantNovelRagBudget" value="12000" min="2000" max="60000" step="1000" style="width:100%;" />
+      </div>
+    </section>
+
+    <hr class="divider" />
+
+    <div class="ai-debug-box">
+      <label class="ai-debug-toggle" for="aiDebugEnable">
+        <input type="checkbox" id="aiDebugEnable" />
+        <span>AI Debug 模式</span>
+      </label>
+      <div id="aiDebugStatus" class="ai-debug-status">关闭：仅显示常规错误。开启后可在 F12 Console 查看请求摘要、原始响应和 JSON 解析失败细节。</div>
     </div>
-  </div>
 
-  <!-- 生成提示词 -->
-  <div class="form-group">
-    <label style="color: #38bdf8;">📝 [阶段1] 角色设定提示词</label>
-    <textarea id="aiPrompt" placeholder="例如：一个在赛博朋克世界中靠捡垃圾为生的边缘黑客少女..." style="min-height: 80px;"></textarea>
-  </div>
+    <hr class="divider" />
 
-  <div class="form-group">
-    <label style="color: #34d399;">🌍 [阶段2] 世界书骨架提示词</label>
-    <textarea id="wbPrompt" placeholder="例如：围绕赛博废土展开，包含武器、势力、地点、NPC..." style="min-height: 60px; border-color: rgba(16, 185, 129, 0.3);"></textarea>
-  </div>
+    <!-- 联网搜索配置 -->
+    <div id="searchConfigBlock" style="margin-bottom: 16px;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <input type="checkbox" id="searchEnable" />
+          <label for="searchEnable" class="search-enable-label">联网搜索增强</label>
+        </div>
+        <span id="searchModeBadge" style="font-size: 0.62rem; padding: 2px 8px; border-radius: 99px; font-weight: 600; display: none;"></span>
+      </div>
 
-  <!-- 世界书条数设置 -->
-  <div style="background: rgba(16, 185, 129, 0.06); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 10px; padding: 12px 14px; margin-bottom: 14px;">
-    <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
-      <div style="flex: 1;">
-        <label style="color: #34d399; font-size: 0.78rem; font-weight: 600; margin: 0 0 4px 0; display: block;">🦴 骨架模式</label>
-        <p style="font-size: 0.68rem; color: #64748b; margin: 0; line-height: 1.4;">
-          一键生成时只产出简短骨架。后续用「✨ AI重写」逐条展开。
+      <div id="searchConfigDetail" style="display: none;">
+        <p style="font-size: 0.7rem; color: var(--color-text-muted); margin: 0 0 12px 0; line-height: 1.5;">
+          开启后，AI 生成角色/世界书前会先搜索相关资料作为参考。<br/>
+          <span style="color: var(--color-text-muted);">• 不填搜索 Key → 依赖 AI 模型自带联网能力（Gemini/Perplexity 等）</span><br/>
+          <span style="color: var(--color-text-muted);">• 填写搜索 Key → 独立搜索引擎，结果更可靠</span>
         </p>
+
+        <div class="form-group" style="margin-bottom: 10px;">
+          <label>搜索引擎</label>
+          <select id="searchEngine">
+            <option value="none" selected>不使用独立搜索（靠 AI 自身联网）</option>
+            <option value="serper">Serper.dev（Google 结果 · 免费 2500次/月）</option>
+            <option value="tavily">Tavily（AI 专用 · 免费 1000次/月）</option>
+          </select>
+        </div>
+
+        <div id="searchKeyGroup" style="display: none;">
+          <div class="form-group" style="margin-bottom: 10px;">
+            <label id="searchKeyLabel">搜索 API Key</label>
+            <input type="password" id="searchApiKey" placeholder="填入搜索引擎的 API Key..." />
+          </div>
+          <div id="searchRegisterHint" style="font-size: 0.68rem; color: var(--color-text-muted); margin-bottom: 10px; line-height: 1.5;"></div>
+        </div>
+
+        <div class="grid-2" style="margin-bottom: 10px;">
+          <div class="form-group" style="margin-bottom: 0;">
+            <label>搜索结果数量</label>
+            <select id="searchResultCount">
+              <option value="3">3 条</option>
+              <option value="5" selected>5 条</option>
+              <option value="8">8 条</option>
+              <option value="12">12 条</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label>搜索语言</label>
+            <select id="searchLang">
+              <option value="zh-CN" selected>中文</option>
+              <option value="en">English</option>
+              <option value="ja">日本語</option>
+              <option value="auto">自动检测</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 10px;">
+          <label>自定义搜索词 <span style="font-weight: normal; color: var(--color-text-muted);">（留空则自动从提示词提取）</span></label>
+          <input type="text" id="searchCustomQuery" placeholder="例如：赛博朋克 世界观 设定集..." />
+        </div>
+
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <button id="btnTestSearch" class="btn btn-fetch" style="width: auto; padding: 6px 14px; font-size: 0.78rem; margin: 0;">🔍 测试搜索</button>
+          <span id="searchTestStatus" style="font-size: 0.72rem; color: var(--color-text-muted);"></span>
+        </div>
+
+        <div id="searchPreview" style="display: none; margin-top: 10px; max-height: 200px; overflow-y: auto; background: rgba(0,0,0,0.3); border-radius: 8px; padding: 10px; font-size: 0.72rem;"></div>
       </div>
-      <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
-        <label style="color: #94a3b8; font-size: 0.75rem; white-space: nowrap; margin: 0;">生成</label>
-        <input type="number" id="wbSkeletonCount" value="6" min="1" max="30" style="width: 52px; text-align: center; padding: 6px 4px; font-size: 0.9rem; font-weight: 700; border-color: rgba(16,185,129,0.3);" />
-        <label style="color: #94a3b8; font-size: 0.75rem; white-space: nowrap; margin: 0;">条</label>
-      </div>
-    </div>
-    <div style="display: flex; gap: 6px; margin-top: 10px;">
-      <button class="wb-count-btn" data-count="3" style="flex:1;">3条</button>
-      <button class="wb-count-btn" data-count="6" style="flex:1;">6条</button>
-      <button class="wb-count-btn" data-count="10" style="flex:1;">10条</button>
-      <button class="wb-count-btn" data-count="15" style="flex:1;">15条</button>
-      <button class="wb-count-btn" data-count="20" style="flex:1;">20条</button>
     </div>
   </div>
 
-  <button id="btnAiGenerate" class="btn btn-ai">🚀 一键生成角色和世界书骨架</button>
-
-  <!-- 黑客风动画区域 -->
-  <div id="hackerOverlay" style="display: none;">
-    <div id="hackerCanvas"></div>
-    <div id="hackerStatus">
-      <div id="hackerPhase"></div>
-      <div id="hackerProgress"></div>
-      <div id="hackerDetail"></div>
+  <!-- Tab：酒馆预设 -->
+  <div class="ai-config-pane" role="tabpanel" data-ai-config-pane="preset" hidden>
+    <div class="preset-upload">
+      <label class="preset-import-label">导入酒馆原生预设 (.json)</label>
+      <input type="file" id="presetInput" accept=".json" />
+      <!-- 预设勾选列表：在 360px 基础上再增高一半，便于一次看到更多规则 -->
+      <div id="presetListContainer" style="display: none; max-height: 540px; overflow-y: auto; margin-top: 10px; background: rgba(0,0,0,0.3); border-radius: 8px; padding: 8px;"></div>
+      <div id="presetStatus" style="font-size: 0.75rem; margin-top: 8px; color: var(--color-text-muted);">
+        导入预设后，可勾选要注入的文风和规则
+      </div>
     </div>
   </div>
 
-  <div id="aiStatus" class="status-text"></div>
+  <!-- Tab：AI 引擎选项（非生成区；标签 AI 上下文字数等） -->
+  <div class="ai-config-pane" role="tabpanel" data-ai-config-pane="engine" hidden>
+    <p class="ai-config-engine-tip">此处为引擎相关选项。一键生成请到「角色设定」右上角「AI 引擎」。</p>
+    <div class="form-group">
+      <label for="tagContextChars">标签生成上下文字数</label>
+      <input type="number" id="tagContextChars" value="12000" min="1000" max="200000" step="1000" style="width:100%;" />
+      <p class="ai-config-field-hint">默认 12000（12k）。角色标签 AI 生成时，按此上限截断世界书等上下文。</p>
+    </div>
+    <p class="ai-config-field-hint">小说向量检索（Embedding 模型、RAG 开关）已移至「API 配置」Tab 的 <strong>Embedding / RAG 向量</strong> 区块。</p>
+  </div>
 </div>
 
+<AiEngineModal />
+
 <style>
+  /* AI 配置 Tab：复用 ui-tabs，局部仅保留 ai-config-* 钩子 */
+  .ai-config-tabs { /* ui-tabs 已定义布局 */ }
+  .ai-config-tab { /* ui-tabs__tab 已定义 */ }
+  .ai-stage-label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .ai-stage-label--char { color: var(--color-accent-hover); }
+  .ai-stage-label--wb { color: var(--color-success); }
+  .ai-stage-label--sm { font-size: 0.78rem; margin: 0 0 4px 0; }
+
+  .ai-config-engine-tip {
+    font-size: 0.72rem;
+    color: var(--color-text-muted);
+    margin: 0 0 12px;
+    line-height: 1.5;
+  }
+  .ai-config-field-hint {
+    font-size: 0.68rem;
+    color: var(--color-text-muted);
+    margin: 6px 0 0;
+    line-height: 1.45;
+  }
+  .ai-embed-rag-block {
+    margin-bottom: 16px;
+    padding: 12px 14px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-accent-border);
+    background: rgba(99, 102, 241, 0.06);
+  }
+  .ai-embed-rag-heading {
+    margin: 0 0 8px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--color-accent-hover);
+  }
+  .ai-embed-rag-intro {
+    margin: 0 0 12px;
+  }
+  .ai-embed-rag-link {
+    color: var(--color-accent-hover);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .ai-embed-rag-link:hover {
+    color: var(--color-accent);
+  }
+  .ai-embed-rag-switch {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 10px 0;
+  }
+
   .ai-debug-box {
     margin: -2px 0 16px;
     padding: 10px 12px;
-    border-radius: 10px;
-    border: 1px solid rgba(139, 92, 246, 0.18);
-    background: linear-gradient(135deg, rgba(76, 29, 149, 0.12), rgba(15, 23, 42, 0.35));
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border-subtle);
+    background: var(--color-surface-inset);
   }
   .ai-debug-toggle {
     display: inline-flex;
     align-items: center;
     gap: 8px;
     margin: 0;
-    color: #c4b5fd;
+    color: var(--color-accent-hover);
     font-size: 0.8rem;
     font-weight: 700;
     cursor: pointer;
@@ -198,7 +256,7 @@
     margin-top: 8px;
     font-size: 0.68rem;
     line-height: 1.5;
-    color: #64748b;
+    color: var(--color-text-muted);
   }
 
   /* ── 协议提示条 ── */
@@ -228,46 +286,34 @@
     display: block;
   }
 
-  /* ── 骨架条数按钮 ── */
+  /* 骨架条数：复用 ui-pill-btn */
   .wb-count-btn {
-    background: rgba(16, 185, 129, 0.08);
-    border: 1px solid rgba(16, 185, 129, 0.2);
-    color: #6ee7b7;
-    padding: 4px 0;
-    border-radius: 6px;
-    font-size: 0.72rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    font-family: inherit;
-  }
-  .wb-count-btn:hover {
-    background: rgba(16, 185, 129, 0.18);
-    border-color: rgba(16, 185, 129, 0.4);
-    color: #a7f3d0;
-    transform: translateY(-1px);
-  }
-  .wb-count-btn.active {
-    background: rgba(16, 185, 129, 0.25);
-    border-color: #10b981;
-    color: #ecfdf5;
-    box-shadow: 0 0 8px rgba(16, 185, 129, 0.3);
+    /* ui-pill-btn 样式由 ui-patterns 提供 */
   }
 
-  /* ── 搜索配置块 ── */
+  .search-enable-label {
+    margin: 0;
+    color: var(--color-accent-hover);
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 0.88rem;
+  }
+
+  /* 搜索配置块：inset 卡片 */
   #searchConfigBlock {
-    background: rgba(56, 189, 248, 0.04);
-    border: 1px solid rgba(56, 189, 248, 0.15);
-    border-radius: 10px;
+    background: var(--color-surface-inset);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-md);
     padding: 14px;
-    transition: all 0.3s ease;
+    transition: border-color var(--dur-normal) var(--ease-out),
+      background var(--dur-normal) var(--ease-out);
     position: relative;
     z-index: 10;
     overflow: visible;
   }
   #searchConfigBlock.active {
-    border-color: rgba(56, 189, 248, 0.35);
-    background: rgba(56, 189, 248, 0.08);
+    border-color: var(--color-accent-border);
+    background: oklch(72% 0.14 305 / 0.06);
   }
   /* 放大镜扫描动画覆盖层 */
   .search-scan-overlay {
@@ -278,10 +324,20 @@
     overflow: hidden;
     border-radius: inherit;
   }
+  .preset-import-label {
+    color: var(--color-accent-hover);
+    margin-bottom: 8px;
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
   .search-scan-glass {
     position: absolute;
     font-size: 2.2rem;
-    filter: drop-shadow(0 0 12px rgba(56,189,248,0.7));
+    filter: drop-shadow(0 0 12px var(--color-accent-glow));
     opacity: 0;
   }
   .search-scan-line {
@@ -289,129 +345,41 @@
     left: 0;
     width: 100%;
     height: 2px;
-    background: linear-gradient(90deg, transparent, rgba(56,189,248,0.6), rgba(56,189,248,0.9), rgba(56,189,248,0.6), transparent);
-    box-shadow: 0 0 12px rgba(56,189,248,0.5);
+    background: linear-gradient(90deg, transparent, var(--color-accent-border), var(--color-accent), var(--color-accent-border), transparent);
+    box-shadow: 0 0 12px var(--color-accent-glow);
     opacity: 0;
   }
   .search-scan-doc {
     position: absolute;
     font-size: 1.4rem;
     opacity: 0;
-    filter: drop-shadow(0 0 8px rgba(56,189,248,0.5));
+    filter: drop-shadow(0 0 8px var(--color-accent-glow));
   }
 
-  /* ── 搜索结果预览 ── */
+  /* 搜索结果预览 */
   .search-result-item {
     padding: 8px;
-    border-bottom: 1px solid rgba(56, 189, 248, 0.1);
-    transition: background 0.15s ease;
+    border-bottom: 1px solid var(--color-border-subtle);
+    transition: background var(--dur-fast) var(--ease-out);
   }
   .search-result-item:last-child { border-bottom: none; }
-  .search-result-item:hover { background: rgba(56, 189, 248, 0.06); }
+  .search-result-item:hover { background: var(--color-accent-soft); }
   .search-result-title {
-    color: #38bdf8;
+    color: var(--color-accent-hover);
     font-weight: 600;
     font-size: 0.75rem;
     margin-bottom: 3px;
   }
   .search-result-snippet {
-    color: #94a3b8;
+    color: var(--color-text-muted);
     font-size: 0.7rem;
     line-height: 1.4;
   }
   .search-result-url {
-    color: #475569;
+    color: var(--color-text-muted);
     font-size: 0.62rem;
     margin-top: 2px;
     word-break: break-all;
-  }
-
-  /* ── 黑客动画 ── */
-  #hackerOverlay {
-    position: relative;
-    margin-top: 14px;
-    border-radius: 10px;
-    overflow: hidden;
-    border: 1px solid rgba(139, 92, 246, 0.25);
-    background: #050510;
-    min-height: 160px;
-  }
-  #hackerCanvas {
-    position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
-    font-family: 'JetBrains Mono', 'Courier New', monospace;
-    font-size: 0.65rem;
-    line-height: 1.2;
-    color: rgba(139, 92, 246, 0.15);
-    overflow: hidden;
-    white-space: pre-wrap;
-    word-break: break-all;
-    padding: 8px;
-    pointer-events: none;
-  }
-  #hackerStatus {
-    position: relative;
-    z-index: 2;
-    padding: 20px 16px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    min-height: 160px;
-    gap: 12px;
-  }
-  #hackerPhase {
-    font-size: 0.95rem;
-    font-weight: 700;
-    color: #c4b5fd;
-    text-shadow: 0 0 20px rgba(139, 92, 246, 0.5);
-    text-align: center;
-    animation: hackerGlow 1.5s ease-in-out infinite;
-  }
-  #hackerProgress {
-    width: 80%;
-    max-width: 260px;
-    height: 4px;
-    background: rgba(139, 92, 246, 0.15);
-    border-radius: 99px;
-    overflow: hidden;
-    position: relative;
-  }
-  #hackerProgress::after {
-    content: '';
-    position: absolute;
-    top: 0; left: 0;
-    height: 100%;
-    width: var(--progress, 0%);
-    background: linear-gradient(90deg, #8b5cf6, #c084fc, #8b5cf6);
-    border-radius: 99px;
-    transition: width 0.4s ease;
-    box-shadow: 0 0 12px rgba(139, 92, 246, 0.5);
-  }
-  #hackerDetail {
-    font-size: 0.7rem;
-    color: #64748b;
-    text-align: center;
-    font-family: 'JetBrains Mono', monospace;
-    min-height: 1.2em;
-  }
-  @keyframes hackerGlow {
-    0%, 100% { text-shadow: 0 0 20px rgba(139, 92, 246, 0.5); }
-    50%       { text-shadow: 0 0 40px rgba(139, 92, 246, 0.8), 0 0 80px rgba(139, 92, 246, 0.3); }
-  }
-  #hackerOverlay::after {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 2px;
-    background: linear-gradient(90deg, transparent, rgba(139, 92, 246, 0.5), transparent);
-    animation: hackerScan 2s linear infinite;
-    pointer-events: none;
-    z-index: 3;
-  }
-  @keyframes hackerScan {
-    0%   { top: 0;    opacity: 1;   }
-    100% { top: 100%; opacity: 0.2; }
   }
 </style>
 
@@ -420,6 +388,16 @@
   var apiUrl           = document.getElementById('apiUrl');
   var apiUrlHint       = document.getElementById('apiUrlHint');
   var wbSkeletonCount  = document.getElementById('wbSkeletonCount');
+  var tagContextChars  = document.getElementById('tagContextChars');
+  var embeddingApiUrlEl = document.getElementById('embeddingApiUrl');
+  var embeddingApiKeyEl = document.getElementById('embeddingApiKey');
+  var embeddingModelEl = document.getElementById('embeddingModel');
+  var novelRagEnableEl = document.getElementById('assistantNovelRagEnable');
+  var novelRagBudgetEl = document.getElementById('assistantNovelRagBudget');
+  var EMBED_URL_LS_KEY = 'st_v3_builder_embedding_api_url';
+  var EMBED_KEY_LS_KEY = 'st_v3_builder_embedding_api_key';
+  var EMBED_LS_KEY = 'st_v3_builder_embedding_model';
+  var NOVEL_RAG_CFG_KEY = 'st_v3_builder_novel_rag';
   var countBtns        = document.querySelectorAll('.wb-count-btn');
   var hackerOverlay    = document.getElementById('hackerOverlay');
   var hackerCanvas     = document.getElementById('hackerCanvas');
@@ -445,6 +423,31 @@
   var searchPreview      = document.getElementById('searchPreview');
 
   var SEARCH_CONFIG_KEY = 'st_v3_builder_search_config';
+  var DEFAULT_TAG_CTX = 12000;
+
+  // ============================================================
+  //  AI 配置横向 Tab（默认 API）
+  // ============================================================
+  function switchAiConfigTab(name) {
+    var tabName = name || 'api';
+    document.querySelectorAll('.ai-config-tab').forEach(function(btn) {
+      var on = btn.getAttribute('data-ai-config-tab') === tabName;
+      btn.classList.toggle('is-active', on);
+      btn.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    document.querySelectorAll('.ai-config-pane').forEach(function(pane) {
+      var on = pane.getAttribute('data-ai-config-pane') === tabName;
+      pane.classList.toggle('is-active', on);
+      if (on) pane.removeAttribute('hidden');
+      else pane.setAttribute('hidden', '');
+    });
+  }
+  document.querySelectorAll('.ai-config-tab').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      switchAiConfigTab(btn.getAttribute('data-ai-config-tab'));
+    });
+  });
+  switchAiConfigTab('api');
 
   // ============================================================
   //  协议提示条
@@ -459,25 +462,25 @@
 
     if (isHttps && isHttp) {
       apiUrlHint.innerHTML =
-        '<div class="hint-bar" style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);color:#fcd34d;">' +
+        '<div class="hint-bar" style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);color:var(--color-warning);">' +
           '⚠️ <span>HTTP 地址在 HTTPS 页面下会被浏览器拦截</span>' +
           '<span style="margin-left:auto;font-size:0.65rem;opacity:0.6;">悬停查看解决方法 ▾</span>' +
         '</div>' +
-        '<div class="hint-detail" style="background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.2);border-top:none;color:#fcd34d;">' +
+        '<div class="hint-detail" style="background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.2);border-top:none;color:var(--color-warning);">' +
           '解决方法（任选一种）：<br/>' +
           '① 🔗 改用本工具的 HTTP 版本访问：' +
-          '<a href="http://zmer.xyz:11450" target="_blank" style="color:#38bdf8;text-decoration:underline;">http://zmer.xyz:11450</a><br/>' +
+          '<a href="http://zmer.xyz:11450" target="_blank" style="color:var(--color-accent-hover);text-decoration:underline;">http://zmer.xyz:11450</a><br/>' +
           '② 给你的 API 套上 HTTPS<br/>' +
           '③ 使用 OpenAI / 中转站等 HTTPS 接口' +
         '</div>';
     } else if (!isHttps && isHttp) {
       apiUrlHint.innerHTML =
-        '<div class="hint-bar" style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);color:#34d399;">' +
+        '<div class="hint-bar" style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);color:var(--color-success);">' +
           '✅ <span>HTTP 地址，当前页面也是 HTTP，可以正常请求。</span>' +
         '</div>';
     } else {
       apiUrlHint.innerHTML =
-        '<div class="hint-bar" style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);color:#34d399;">' +
+        '<div class="hint-bar" style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);color:var(--color-success);">' +
           '✅ <span>HTTPS 地址，可以正常请求。</span>' +
         '</div>';
     }
@@ -520,25 +523,25 @@
     if (engine === 'none') {
       searchModeBadge.textContent      = 'AI 自带联网';
       searchModeBadge.style.background = 'rgba(56,189,248,0.12)';
-      searchModeBadge.style.color      = '#38bdf8';
+      searchModeBadge.style.color      = 'var(--color-accent-hover)';
       searchModeBadge.style.border     = '1px solid rgba(56,189,248,0.25)';
       searchKeyGroup.style.display     = 'none';
     } else if (engine === 'serper') {
       searchModeBadge.textContent      = 'Serper · Google';
       searchModeBadge.style.background = 'rgba(16,185,129,0.12)';
-      searchModeBadge.style.color      = '#34d399';
+      searchModeBadge.style.color      = 'var(--color-success)';
       searchModeBadge.style.border     = '1px solid rgba(16,185,129,0.25)';
       searchKeyGroup.style.display     = 'block';
       searchKeyLabel.textContent       = 'Serper API Key';
-      searchRegisterHint.innerHTML     = '📎 免费注册：<a href="https://serper.dev" target="_blank" style="color:#38bdf8;text-decoration:underline;">serper.dev</a> → 注册后在 Dashboard 复制 API Key（免费 2,500 次/月）';
+      searchRegisterHint.innerHTML     = '📎 免费注册：<a href="https://serper.dev" target="_blank" style="color:var(--color-accent-hover);text-decoration:underline;">serper.dev</a> → 注册后在 Dashboard 复制 API Key（免费 2,500 次/月）';
     } else if (engine === 'tavily') {
       searchModeBadge.textContent      = 'Tavily · AI 专用';
       searchModeBadge.style.background = 'rgba(245,158,11,0.12)';
-      searchModeBadge.style.color      = '#fbbf24';
+      searchModeBadge.style.color      = 'var(--color-warning)';
       searchModeBadge.style.border     = '1px solid rgba(245,158,11,0.25)';
       searchKeyGroup.style.display     = 'block';
       searchKeyLabel.textContent       = 'Tavily API Key';
-      searchRegisterHint.innerHTML     = '📎 免费注册：<a href="https://tavily.com" target="_blank" style="color:#38bdf8;text-decoration:underline;">tavily.com</a> → 注册后在 API Keys 页复制（免费 1,000 次/月）';
+      searchRegisterHint.innerHTML     = '📎 免费注册：<a href="https://tavily.com" target="_blank" style="color:var(--color-accent-hover);text-decoration:underline;">tavily.com</a> → 注册后在 API Keys 页复制（免费 1,000 次/月）';
     }
   }
 
@@ -864,39 +867,39 @@
     var query  = searchCustomQuery.value.trim() || document.getElementById('aiPrompt').value.trim();
     if (!query) {
       searchTestStatus.textContent = '❌ 请先填写提示词或搜索词';
-      searchTestStatus.style.color = '#fca5a5';
+      searchTestStatus.style.color = 'var(--color-danger)';
       return;
     }
     if (engine === 'none') {
       searchTestStatus.textContent = 'ℹ️ 当前为 AI 自带联网模式，无需测试';
-      searchTestStatus.style.color = '#38bdf8';
+      searchTestStatus.style.color = 'var(--color-accent-hover)';
       searchPreview.style.display  = 'none';
       return;
     }
     if (!searchApiKey.value.trim()) {
       searchTestStatus.textContent = '❌ 请先填写搜索 API Key';
-      searchTestStatus.style.color = '#fca5a5';
+      searchTestStatus.style.color = 'var(--color-danger)';
       return;
     }
     btnTestSearch.disabled       = true;
     searchTestStatus.textContent = '🔍 搜索中...';
-    searchTestStatus.style.color = '#38bdf8';
+    searchTestStatus.style.color = 'var(--color-accent-hover)';
     try {
       var count   = parseInt(searchResultCount.value) || 5;
       var lang    = searchLang.value;
       var results = await executeSearch(query, count, lang);
       if (results && results.length > 0) {
         searchTestStatus.textContent = '✅ 找到 ' + results.length + ' 条结果';
-        searchTestStatus.style.color = '#34d399';
+        searchTestStatus.style.color = 'var(--color-success)';
         renderSearchPreview(results);
       } else {
         searchTestStatus.textContent = '⚠️ 未找到结果';
-        searchTestStatus.style.color = '#fbbf24';
+        searchTestStatus.style.color = 'var(--color-warning)';
         searchPreview.style.display  = 'none';
       }
     } catch(err) {
       searchTestStatus.textContent = '❌ ' + err.message;
-      searchTestStatus.style.color = '#fca5a5';
+      searchTestStatus.style.color = 'var(--color-danger)';
       searchPreview.style.display  = 'none';
     } finally {
       btnTestSearch.disabled = false;
@@ -994,6 +997,107 @@
     if (isNaN(v) || v < 1) return 6;
     if (v > 30) return 30;
     return v;
+  };
+
+  /** 助手：设置骨架条数（非密钥） */
+  window.__setSkeletonCount__ = function(n) {
+    var v = parseInt(n, 10);
+    if (isNaN(v) || v < 1) v = 6;
+    if (v > 30) v = 30;
+    wbSkeletonCount.value = String(v);
+    updateCountBtnActive();
+    return { skeletonCount: v };
+  };
+
+  /** 标签 AI 上下文字数（默认 12k） */
+  function readTagContextChars() {
+    if (!tagContextChars) return DEFAULT_TAG_CTX;
+    var v = parseInt(tagContextChars.value, 10);
+    if (isNaN(v) || v < 1000) return DEFAULT_TAG_CTX;
+    if (v > 200000) return 200000;
+    return v;
+  }
+  window.__getTagContextChars__ = readTagContextChars;
+  window.__setTagContextChars__ = function(n) {
+    var v = parseInt(n, 10);
+    if (isNaN(v) || v < 1000) v = DEFAULT_TAG_CTX;
+    if (v > 200000) v = 200000;
+    if (tagContextChars) tagContextChars.value = String(v);
+    return { tagContextChars: v };
+  };
+  // 变更时通知 index 持久化（若已挂载）
+  if (tagContextChars) {
+    tagContextChars.addEventListener('change', function() {
+      tagContextChars.value = String(readTagContextChars());
+      if (typeof window.__persistAiConfig__ === 'function') window.__persistAiConfig__();
+    });
+    tagContextChars.addEventListener('input', function() {
+      if (typeof window.__persistAiConfig__ === 'function') window.__persistAiConfig__();
+    });
+  }
+
+  /** 小说 RAG / Embedding 配置 */
+  function loadNovelRagUi() {
+    try {
+      if (embeddingApiUrlEl) embeddingApiUrlEl.value = localStorage.getItem(EMBED_URL_LS_KEY) || '';
+      if (embeddingApiKeyEl) embeddingApiKeyEl.value = localStorage.getItem(EMBED_KEY_LS_KEY) || '';
+      if (embeddingModelEl) embeddingModelEl.value = localStorage.getItem(EMBED_LS_KEY) || '';
+      var cfg = JSON.parse(localStorage.getItem(NOVEL_RAG_CFG_KEY) || '{}');
+      if (novelRagEnableEl) novelRagEnableEl.checked = cfg.enabled !== false;
+      if (novelRagBudgetEl && cfg.budget) novelRagBudgetEl.value = String(cfg.budget);
+    } catch (e) { /* ignore */ }
+  }
+  function persistNovelRagUi() {
+    var enabled = !(novelRagEnableEl && !novelRagEnableEl.checked);
+    var budget = Math.max(2000, parseInt(novelRagBudgetEl && novelRagBudgetEl.value, 10) || 12000);
+    try {
+      if (embeddingApiUrlEl) localStorage.setItem(EMBED_URL_LS_KEY, String(embeddingApiUrlEl.value || '').trim());
+      if (embeddingApiKeyEl) localStorage.setItem(EMBED_KEY_LS_KEY, String(embeddingApiKeyEl.value || '').trim());
+      if (embeddingModelEl) localStorage.setItem(EMBED_LS_KEY, String(embeddingModelEl.value || '').trim());
+      localStorage.setItem(NOVEL_RAG_CFG_KEY, JSON.stringify({ enabled: enabled, budget: budget }));
+    } catch (e) { /* ignore */ }
+    // 与小说桶 state.rag 对齐（单一开关源）
+    if (window.__novelWorkshopBridge__ && typeof window.__novelWorkshopBridge__.setRagOptions === 'function') {
+      window.__novelWorkshopBridge__.setRagOptions({ enabled: enabled, budget: budget });
+    }
+    if (typeof window.__persistAiConfig__ === 'function') window.__persistAiConfig__();
+  }
+  loadNovelRagUi();
+  // 若小说工坊已加载，用 state.rag 覆盖 UI
+  if (window.__novelWorkshopBridge__ && typeof window.__novelWorkshopBridge__.getRagOptions === 'function') {
+    try {
+      var fromNovel = window.__novelWorkshopBridge__.getRagOptions();
+      if (novelRagEnableEl) novelRagEnableEl.checked = fromNovel.enabled !== false;
+      if (novelRagBudgetEl && fromNovel.budget) novelRagBudgetEl.value = String(fromNovel.budget);
+    } catch (e) { /* ignore */ }
+  }
+  [embeddingApiUrlEl, embeddingApiKeyEl, embeddingModelEl, novelRagEnableEl, novelRagBudgetEl].forEach(function(el) {
+    if (!el) return;
+    el.addEventListener('change', persistNovelRagUi);
+    if (el === embeddingApiUrlEl || el === embeddingApiKeyEl || el === embeddingModelEl || el === novelRagBudgetEl) {
+      el.addEventListener('input', persistNovelRagUi);
+    }
+  });
+  window.__getNovelRagOptions__ = function() {
+    // 优先小说 state.rag
+    if (window.__novelWorkshopBridge__ && typeof window.__novelWorkshopBridge__.getRagOptions === 'function') {
+      var o = window.__novelWorkshopBridge__.getRagOptions();
+      return {
+        enabled: o.enabled !== false,
+        budget: Math.max(2000, Number(o.budget) || 12000),
+        embedModel: embeddingModelEl ? String(embeddingModelEl.value || '').trim() : (o.embedModel || ''),
+        embeddingApiUrl: embeddingApiUrlEl ? String(embeddingApiUrlEl.value || '').trim() : '',
+        embeddingApiKey: embeddingApiKeyEl ? String(embeddingApiKeyEl.value || '').trim() : '',
+      };
+    }
+    var budget = Math.max(2000, parseInt(novelRagBudgetEl && novelRagBudgetEl.value, 10) || 12000);
+    return {
+      enabled: !(novelRagEnableEl && !novelRagEnableEl.checked),
+      budget: budget,
+      embedModel: embeddingModelEl ? String(embeddingModelEl.value || '').trim() : '',
+      embeddingApiUrl: embeddingApiUrlEl ? String(embeddingApiUrlEl.value || '').trim() : '',
+      embeddingApiKey: embeddingApiKeyEl ? String(embeddingApiKeyEl.value || '').trim() : '',
+    };
   };
 
   window.__searchConfig__ = {

@@ -1,0 +1,208 @@
+/**
+
+ * 夜庭 · Nocturne Atelier — 全站设计 token
+
+ * 唯美清新：雾紫 accent + 透气玻璃 + 低饱和语义色
+
+ * 组件样式应引用 var(--*)，避免散落 hex/rgba
+
+ */
+
+:root {
+
+  /* 色板：略抬亮的深靛底，降低压抑感 */
+
+  --color-paper: oklch(19% 0.016 285);
+
+  --color-paper-deep: oklch(15% 0.014 285);
+
+  --color-surface: oklch(22% 0.02 288);
+
+  --color-surface-elevated: oklch(26% 0.024 288);
+
+  --color-surface-input: oklch(21% 0.018 285 / 0.72);
+
+  /* inset 分区：更透，避免「嵌套黑块」 */
+
+  --color-surface-inset: oklch(21% 0.018 288 / 0.42);
+
+
+
+  --color-text: oklch(94% 0.008 285);
+
+  --color-text-secondary: oklch(80% 0.014 285);
+
+  --color-text-muted: oklch(64% 0.016 285);
+
+  --color-text-label: oklch(76% 0.04 305);
+
+
+
+  /* accent：雾紫玫瑰，降 chroma 更唯美 */
+
+  --color-accent: oklch(76% 0.095 310);
+
+  --color-accent-hover: oklch(80% 0.088 310);
+
+  --color-accent-strong: oklch(70% 0.105 310);
+
+  --color-accent-soft: oklch(76% 0.095 310 / 0.1);
+
+  --color-accent-border: oklch(76% 0.095 310 / 0.2);
+
+  --color-accent-glow: oklch(76% 0.095 310 / 0.14);
+
+  --color-on-accent: oklch(98% 0.006 285);
+
+
+
+  --color-border: oklch(40% 0.022 285 / 0.28);
+
+  --color-border-subtle: oklch(38% 0.018 285 / 0.16);
+
+  --color-focus-ring: oklch(76% 0.095 310 / 0.28);
+
+
+
+  /* 语义色：仅功能态使用，饱和度克制 */
+
+  --color-success: oklch(74% 0.11 155);
+
+  --color-success-soft: oklch(74% 0.11 155 / 0.08);
+
+  --color-success-border: oklch(74% 0.11 155 / 0.22);
+
+  --color-warning: oklch(80% 0.1 85);
+
+  --color-warning-soft: oklch(80% 0.1 85 / 0.08);
+
+  --color-warning-border: oklch(80% 0.1 85 / 0.22);
+
+  /* 未扩展骨架 AI 按钮：琥珀金提示「可展开」 */
+  --color-ai-gold: oklch(78% 0.12 85);
+
+  --color-ai-gold-soft: oklch(78% 0.12 85 / 0.14);
+
+  --color-ai-gold-border: oklch(78% 0.12 85 / 0.4);
+
+  --color-danger: oklch(64% 0.15 25);
+
+  --color-danger-soft: oklch(64% 0.15 25 / 0.08);
+
+
+
+  /* 对话气泡 */
+
+  --color-msg-user-bg: oklch(76% 0.095 310 / 0.12);
+
+  --color-msg-user-border: oklch(76% 0.095 310 / 0.22);
+
+  --color-msg-char-bg: var(--color-surface-inset);
+
+  --color-msg-char-border: var(--color-border-subtle);
+
+
+
+  --color-slider-track: oklch(30% 0.02 285 / 0.5);
+
+  --color-overlay: oklch(14% 0.014 285 / 0.65);
+
+
+
+  /* JSON 预览语法 */
+
+  --color-syntax-key: oklch(80% 0.08 230);
+
+  --color-syntax-string: oklch(84% 0.1 130);
+
+  --color-syntax-number: oklch(78% 0.1 350);
+
+  --color-syntax-bool: var(--color-accent-hover);
+
+  --color-syntax-null: var(--color-text-muted);
+
+
+
+  --color-chip-bg: oklch(24% 0.022 288 / 0.45);
+
+  --color-chip-border: oklch(76% 0.095 310 / 0.18);
+
+
+
+  /* 玻璃：更高透明度 = 更清新 */
+
+  --color-glass: oklch(24% 0.022 288 / 0.58);
+
+  --color-glass-border: oklch(92% 0.02 285 / 0.1);
+
+  --color-glass-highlight: oklch(98% 0.008 285 / 0.07);
+
+
+
+  --font-sans: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+
+  --font-mono: ui-monospace, "Cascadia Code", "Segoe UI Mono", "JetBrains Mono", monospace;
+
+
+
+  --space-1: 4px;
+
+  --space-2: 8px;
+
+  --space-3: 12px;
+
+  --space-4: 16px;
+
+  --space-5: 20px;
+
+  --space-6: 24px;
+
+  --space-8: 32px;
+
+
+
+  /* 圆角略大：现代柔和 */
+
+  --radius-sm: 10px;
+
+  --radius-md: 14px;
+
+  --radius-lg: 20px;
+
+  --radius-pill: 999px;
+
+
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --dur-fast: 150ms;
+
+  --dur-normal: 240ms;
+
+
+
+  /* 阴影：轻、散，少「重压」 */
+
+  --shadow-panel: 0 4px 28px oklch(8% 0.02 285 / 0.22);
+
+  --shadow-panel-hover: 0 8px 36px oklch(76% 0.095 310 / 0.06);
+
+  --shadow-inset: inset 0 1px 0 oklch(98% 0.008 285 / 0.05);
+
+}
+
+
+
+@media (prefers-reduced-transparency: reduce) {
+
+  :root {
+
+    --color-glass: var(--color-surface);
+
+    --color-glass-border: var(--color-border-subtle);
+
+  }
+
+}
+
+

@@ -1,0 +1,287 @@
+---
+/** 开场白模块：主开场 first_mes + 备选 alternate_greetings（从角色设定迁出，字段语义不变） */
+---
+<div class="panel area-greetings">
+  <h2>开场白</h2>
+  <p class="greetings-tip">对应 SillyTavern 的 <code>first_mes</code> 与 <code>alternate_greetings</code>，导出语义与原先一致。</p>
+
+  <!-- 主开场白 → data.first_mes / 顶层 first_mes -->
+  <div class="form-group">
+    <label>主开场白 (First Message)</label>
+    <textarea id="firstMes" style="min-height: 160px;" placeholder="角色的开场白（首次对话发送的第一条消息）..."></textarea>
+  </div>
+
+  <!-- 备选开场 → data.alternate_greetings；内存态 window.__altGreetings__ -->
+  <div class="alt-greetings-section">
+    <div class="alt-greetings-header">
+      <label class="alt-greetings-label">备选开场白 (Alternate Greetings)</label>
+      <button id="btnAddGreeting" class="btn-alt-add" title="添加备选开场白">＋</button>
+    </div>
+    <p class="alt-greetings-tip">酒馆中用户可在多个开场白之间切换选择</p>
+    <div id="altGreetingsList"></div>
+  </div>
+</div>
+
+<style is:global>
+  .greetings-tip {
+    font-size: 0.78rem;
+    color: var(--color-text-muted);
+    margin: -4px 0 16px 0;
+    line-height: 1.45;
+  }
+  .greetings-tip code {
+    font-size: 0.72rem;
+    color: var(--color-text-muted);
+  }
+
+  .alt-greetings-section {
+    margin-bottom: 14px;
+  }
+  .alt-greetings-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+  }
+  .alt-greetings-tip {
+    font-size: 0.68rem;
+    color: var(--color-text-muted);
+    margin: 0 0 10px 0;
+  }
+
+  .alt-greetings-label {
+    color: var(--color-text-label);
+    font-size: 0.78rem;
+    font-weight: 550;
+    letter-spacing: 0.02em;
+    margin: 0;
+  }
+
+  .btn-alt-add {
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-sm);
+    border: 1px dashed var(--color-accent-border);
+    background: var(--color-accent-soft);
+    color: var(--color-accent-hover);
+    font-size: 1.1rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    font-family: inherit;
+    line-height: 1;
+    padding: 0;
+  }
+  .btn-alt-add:hover {
+    background: oklch(76% 0.095 310 / 0.16);
+    border-color: var(--color-accent);
+    transform: scale(1.06);
+  }
+
+  .alt-greeting-item {
+    position: relative;
+    margin-bottom: 8px;
+    animation: altIn 0.25s ease;
+  }
+  @keyframes altIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .alt-greeting-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+  }
+  .alt-greeting-label {
+    font-size: 0.72rem;
+    color: var(--color-accent);
+    font-weight: 600;
+  }
+  .alt-greeting-actions {
+    display: flex;
+    gap: 4px;
+  }
+
+  .btn-alt-action {
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    border: 1px solid var(--color-accent-border);
+    background: var(--color-accent-soft);
+    color: var(--color-accent-hover);
+    font-size: 0.78rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.18s ease;
+    padding: 0;
+    font-family: inherit;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  }
+  .btn-alt-action:hover {
+    background: var(--color-accent-border);
+    border-color: var(--color-accent-border);
+    color: var(--color-text);
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px var(--color-accent-border);
+  }
+  .btn-alt-action:active {
+    transform: translateY(0);
+  }
+
+  .btn-alt-action[data-action="up"] {
+    border-color: var(--color-accent-border);
+    background: var(--color-accent-soft);
+    color: var(--color-accent-hover);
+  }
+  .btn-alt-action[data-action="up"]:hover {
+    background: rgba(56, 189, 248, 0.18);
+    border-color: rgba(56, 189, 248, 0.5);
+    color: var(--color-accent-hover);
+    box-shadow: 0 3px 8px rgba(56, 189, 248, 0.2);
+    transform: translateY(-1px);
+  }
+
+  .btn-alt-action[data-action="down"] {
+    border-color: rgba(16, 185, 129, 0.25);
+    background: rgba(16, 185, 129, 0.08);
+    color: var(--color-success);
+  }
+  .btn-alt-action[data-action="down"]:hover {
+    background: rgba(16, 185, 129, 0.18);
+    border-color: rgba(16, 185, 129, 0.5);
+    color: var(--color-success);
+    box-shadow: 0 3px 8px rgba(16, 185, 129, 0.2);
+    transform: translateY(-1px);
+  }
+
+  .btn-alt-action.btn-alt-del {
+    border-color: rgba(239, 68, 68, 0.25);
+    background: rgba(239, 68, 68, 0.08);
+    color: var(--color-danger);
+  }
+  .btn-alt-action.btn-alt-del:hover {
+    background: rgba(239, 68, 68, 0.18);
+    border-color: rgba(239, 68, 68, 0.5);
+    color: var(--color-danger);
+    box-shadow: 0 3px 8px rgba(239, 68, 68, 0.2);
+    transform: translateY(-1px);
+  }
+
+  .alt-greeting-item textarea {
+    width: 100%;
+    min-height: 80px;
+    resize: vertical;
+  }
+
+  .alt-greetings-empty {
+    text-align: center;
+    padding: 16px;
+    border: 1px dashed var(--color-border-subtle);
+    border-radius: 8px;
+    color: var(--color-text-muted);
+    font-size: 0.75rem;
+  }
+
+  /* 主/备选开场白：明确文字与占位符对比度 */
+  .area-greetings #firstMes,
+  .alt-greeting-item textarea {
+    color: var(--color-text);
+    background-color: var(--color-surface-elevated);
+    border-color: var(--color-border);
+  }
+  .area-greetings #firstMes::placeholder,
+  .alt-greeting-item textarea::placeholder {
+    color: var(--color-text-muted);
+    opacity: 1;
+  }
+</style>
+
+<script is:inline>
+(function() {
+  var btnAdd = document.getElementById('btnAddGreeting');
+  var listEl = document.getElementById('altGreetingsList');
+  if (!btnAdd || !listEl) return;
+
+  // 与导出/导入/助手共用同一内存列表
+  if (!window.__altGreetings__) window.__altGreetings__ = [];
+
+  function render() {
+    var greetings = window.__altGreetings__;
+    if (!greetings.length) {
+      listEl.innerHTML = '<div class="alt-greetings-empty">暂无备选开场白，点击右上角 ＋ 添加</div>';
+      return;
+    }
+    listEl.innerHTML = '';
+    greetings.forEach(function(text, i) {
+      var item = document.createElement('div');
+      item.className = 'alt-greeting-item';
+      item.innerHTML =
+        '<div class="alt-greeting-bar">' +
+          '<span class="alt-greeting-label">开场白 #' + (i + 2) + '</span>' +
+          '<div class="alt-greeting-actions">' +
+            (i > 0
+              ? '<button class="btn-alt-action" data-action="up" data-idx="' + i + '" title="上移">↑</button>'
+              : '') +
+            (i < greetings.length - 1
+              ? '<button class="btn-alt-action" data-action="down" data-idx="' + i + '" title="下移">↓</button>'
+              : '') +
+            '<button class="btn-alt-action btn-alt-del" data-action="del" data-idx="' + i + '" title="删除">✕</button>' +
+          '</div>' +
+        '</div>' +
+        '<textarea class="alt-greeting-ta" data-idx="' + i + '" placeholder="备选开场白 #' + (i + 2) + ' 的内容...">' +
+          escapeHTML(text) +
+        '</textarea>';
+      listEl.appendChild(item);
+    });
+
+    listEl.querySelectorAll('.alt-greeting-ta').forEach(function(ta) {
+      ta.addEventListener('input', function(e) {
+        var idx = parseInt(e.target.getAttribute('data-idx'));
+        window.__altGreetings__[idx] = e.target.value;
+        notifyChange();
+      });
+    });
+    listEl.querySelectorAll('.btn-alt-action').forEach(function(btn) {
+      btn.addEventListener('click', function(e) {
+        var action = e.currentTarget.getAttribute('data-action');
+        var idx    = parseInt(e.currentTarget.getAttribute('data-idx'));
+        var g      = window.__altGreetings__;
+        if (action === 'del') {
+          g.splice(idx, 1);
+        } else if (action === 'up' && idx > 0) {
+          var tmp = g[idx]; g[idx] = g[idx - 1]; g[idx - 1] = tmp;
+        } else if (action === 'down' && idx < g.length - 1) {
+          var tmp2 = g[idx]; g[idx] = g[idx + 1]; g[idx + 1] = tmp2;
+        }
+        render();
+        notifyChange();
+      });
+    });
+  }
+
+  btnAdd.addEventListener('click', function() {
+    window.__altGreetings__.push('');
+    render();
+    var tas = listEl.querySelectorAll('.alt-greeting-ta');
+    if (tas.length) tas[tas.length - 1].focus();
+    notifyChange();
+  });
+
+  function notifyChange() {
+    if (window.triggerGlobalUpdate) window.triggerGlobalUpdate();
+  }
+
+  function escapeHTML(str) {
+    return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  window.__renderAltGreetings__ = render;
+  render();
+})();
+</script>

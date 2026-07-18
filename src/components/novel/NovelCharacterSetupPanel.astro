@@ -1,0 +1,60 @@
+---
+/** 拆章后：按范围截取原文 → 生成角色设定并直接写入当前卡 */
+---
+<div class="panel novel-workshop-panel novel-setup-panel novel-character-setup-panel" data-novel-panel="character-setup">
+  <h2>🪪 角色设定</h2>
+  <p class="novel-panel-tip">
+    依赖已拆章。优先从实体库选人并以 RAG 召回原文；无命中时回退下方字数/章节范围。
+    结果写入当前卡名称 / 世界书名 / 描述 / 作者注释。
+  </p>
+  <p id="novelSetupGate" class="novel-gate-hint" style="display:none;"></p>
+
+  <div class="novel-setup-body">
+    <div class="novel-setup-controls">
+      <div class="form-group">
+        <label for="novelSetupEntityPick">从实体库选人（可选）</label>
+        <select id="novelSetupEntityPick">
+          <option value="">— 手填角色名 —</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="novelSetupCharName">角色名称</label>
+        <input type="text" id="novelSetupCharName" placeholder="例如：秦月" />
+      </div>
+      <div class="grid-2">
+        <div class="form-group">
+          <label for="novelSetupRangeMode">范围方式</label>
+          <select id="novelSetupRangeMode">
+            <option value="chars" selected>按字数限制</option>
+            <option value="chapters">前 N 启用章</option>
+          </select>
+        </div>
+        <div class="form-group" id="novelSetupCharLimitWrap">
+          <label for="novelSetupCharLimit">字数上限</label>
+          <select id="novelSetupCharLimit">
+            <option value="4000">4,000 字</option>
+            <option value="8000">8,000 字</option>
+            <option value="12000">12,000 字</option>
+            <option value="16000" selected>16,000 字</option>
+            <option value="24000">24,000 字</option>
+            <option value="32000">32,000 字</option>
+            <option value="48000">48,000 字</option>
+            <option value="64000">64,000 字</option>
+          </select>
+        </div>
+        <div class="form-group" id="novelSetupChapterCountWrap" style="display:none;">
+          <label for="novelSetupChapterCount">前 N 章（启用）</label>
+          <input type="number" id="novelSetupChapterCount" min="1" max="999" value="3" />
+        </div>
+      </div>
+      <button id="btnNovelGenCharSetup" type="button" class="btn btn-ai" style="width:100%;margin-bottom:8px;">生成角色设定</button>
+      <p id="novelSetupAiTip" class="novel-setup-ai-tip" role="status" aria-live="polite"></p>
+      <div id="novelSetupStatus" class="novel-status-text"></div>
+    </div>
+
+    <div class="novel-setup-preview-wrap">
+      <div class="novel-setup-preview-meta" id="novelSetupPreviewMeta">匹配原文 0 字 · 0 章</div>
+      <pre id="novelSetupPreview" class="novel-setup-preview" aria-live="polite"></pre>
+    </div>
+  </div>
+</div>

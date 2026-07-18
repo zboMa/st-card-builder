@@ -1,0 +1,119 @@
+---
+import {
+  DEFAULT_PROMPTS,
+  PROMPT_META,
+  PROMPT_TAB_ORDER,
+  PROMPT_STORAGE_KEY,
+} from '../lib/promptStore.mjs';
+
+const defaultsJson = JSON.stringify(DEFAULT_PROMPTS);
+const metaJson = JSON.stringify(PROMPT_META);
+const tabOrderJson = JSON.stringify(PROMPT_TAB_ORDER);
+const storageKey = PROMPT_STORAGE_KEY;
+---
+
+<!-- 尽早注入提示词仓库，供后续 is:inline 脚本同步读取 -->
+<script is:inline define:vars={{ defaultsJson, metaJson, tabOrderJson, storageKey }}>
+(function() {
+  var DEFAULTS = typeof defaultsJson === 'string' ? JSON.parse(defaultsJson) : defaultsJson;
+  var META = typeof metaJson === 'string' ? JSON.parse(metaJson) : metaJson;
+  var TAB_ORDER = typeof tabOrderJson === 'string' ? JSON.parse(tabOrderJson) : tabOrderJson;
+  var KEY = storageKey;
+
+  function listGroups() {
+    var seen = {};
+    (META || []).forEach(function(m) {
+      if (m && m.group) seen[m.group] = true;
+    });
+    var ordered = (TAB_ORDER || []).filter(function(g) { return seen[g]; });
+    Object.keys(seen).forEach(function(g) {
+      if (ordered.indexOf(g) < 0) ordered.push(g);
+    });
+    return ordered;
+  }
+
+  function applyTemplate(template, vars) {
+    var text = String(template == null ? '' : template);
+    var map = vars || {};
+    return text.replace(/\{\{(\w+)\}\}/g, function(_, k) {
+      return map[k] != null ? String(map[k]) : '';
+    });
+  }
+
+  function readOverrides() {
+    try {
+      var raw = localStorage.getItem(KEY);
+      if (!raw) return {};
+      var parsed = JSON.parse(raw);
+      return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function writeOverrides(overrides) {
+    try {
+      localStorage.setItem(KEY, JSON.stringify(overrides || {}));
+    } catch (e) {}
+  }
+
+  function get(id) {
+    var overrides = readOverrides();
+    if (overrides[id] != null && String(overrides[id]).trim() !== '') {
+      return String(overrides[id]);
+    }
+    return DEFAULTS[id] != null ? String(DEFAULTS[id]) : '';
+  }
+
+  function getAll() {
+    var out = {};
+    Object.keys(DEFAULTS).forEach(function(id) { out[id] = get(id); });
+    return out;
+  }
+
+  function set(id, value) {
+    if (!Object.prototype.hasOwnProperty.call(DEFAULTS, id)) return false;
+    var overrides = readOverrides();
+    var next = String(value == null ? '' : value);
+    if (next === String(DEFAULTS[id])) delete overrides[id];
+    else overrides[id] = next;
+    writeOverrides(overrides);
+    return true;
+  }
+
+  function setAll(values) {
+    var overrides = {};
+    Object.keys(DEFAULTS).forEach(function(id) {
+      if (values && values[id] != null && String(values[id]) !== String(DEFAULTS[id])) {
+        overrides[id] = String(values[id]);
+      }
+    });
+    writeOverrides(overrides);
+  }
+
+  function reset(id) {
+    if (id) {
+      var overrides = readOverrides();
+      delete overrides[id];
+      writeOverrides(overrides);
+      return;
+    }
+    writeOverrides({});
+  }
+
+  window.__promptStore__ = {
+    STORAGE_KEY: KEY,
+    DEFAULTS: DEFAULTS,
+    META: META,
+    TAB_ORDER: TAB_ORDER,
+    listGroups: listGroups,
+    get: get,
+    getAll: getAll,
+    getDefault: function(id) { return DEFAULTS[id] != null ? String(DEFAULTS[id]) : ''; },
+    set: set,
+    setAll: setAll,
+    reset: reset,
+    applyTemplate: applyTemplate,
+  };
+})();
+</script>

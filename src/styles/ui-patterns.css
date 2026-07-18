@@ -1,0 +1,612 @@
+/**
+ * 夜庭 · 共享 UI 模式
+ * 面板头、chip、工具条、按钮层级 — 业务组件优先复用此类
+ */
+
+/* —— 面板头 —— */
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+.panel-header h2 {
+  margin: 0;
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.panel-header__badge {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--color-success);
+  flex-shrink: 0;
+}
+
+/* —— 表单分区（inset 卡片） —— */
+.form-section {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-inset);
+  border: 1px solid var(--color-border-subtle);
+  margin-bottom: var(--space-3);
+  box-shadow: var(--shadow-inset);
+}
+
+/* —— 头像上传 —— */
+.avatar-upload {
+  display: flex;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+  align-items: center;
+}
+.avatar-upload__preview {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-inset);
+  border: 1px dashed var(--color-border);
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
+}
+.avatar-upload__placeholder {
+  font-size: 0.65rem;
+  color: var(--color-text-muted);
+}
+.avatar-upload__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.avatar-upload__meta {
+  flex: 1;
+  min-width: 0;
+}
+.avatar-upload__label {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-1);
+  display: block;
+}
+
+/* —— Chip / Pill —— */
+.ui-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  max-width: 100%;
+  padding: 2px var(--space-2) 2px 9px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--color-text-secondary);
+  background: var(--color-chip-bg);
+  border: 1px solid var(--color-chip-border);
+  border-radius: var(--radius-pill);
+}
+.ui-chip__text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ui-chip__remove {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  margin: 0;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  line-height: 1;
+  cursor: pointer;
+  font-family: inherit;
+  transition: color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out);
+}
+.ui-chip__remove:hover {
+  color: var(--color-danger);
+  background: oklch(62% 0.18 25 / 0.12);
+}
+
+/* —— 工具条（chip 区 + 输入 + 按钮横排） —— */
+.toolbar-row {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  flex-wrap: wrap;
+}
+.toolbar-row__input {
+  flex: 1;
+  min-width: 120px;
+  padding: 7px 10px;
+  font-size: 0.82rem;
+}
+.toolbar-row__actions {
+  display: flex;
+  gap: var(--space-1);
+  flex-shrink: 0;
+}
+
+/* —— 按钮层级扩展 —— */
+.btn-sm {
+  padding: 6px 12px !important;
+  font-size: 0.75rem !important;
+  width: auto !important;
+  margin: 0 !important;
+}
+.btn-ghost {
+  background: transparent;
+  color: var(--color-text-secondary);
+  border-color: var(--color-border-subtle);
+}
+.btn-ghost:hover {
+  background: var(--color-accent-soft);
+  color: var(--color-text);
+  border-color: var(--color-accent-border);
+  box-shadow: none;
+}
+.btn-toolbar {
+  padding: 6px 12px;
+  font-size: 0.75rem;
+  width: auto;
+  margin: 0;
+  flex-shrink: 0;
+  white-space: nowrap;
+  background: var(--color-accent-soft);
+  color: var(--color-accent-hover);
+  border-color: var(--color-accent-border);
+}
+.btn-toolbar:hover {
+  background: oklch(72% 0.14 305 / 0.2);
+  color: var(--color-text);
+  border-color: var(--color-accent);
+  box-shadow: none;
+}
+.btn-toolbar:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+.btn-primary {
+  background: var(--color-accent-strong);
+  color: var(--color-on-accent);
+  border-color: var(--color-accent-border);
+}
+.btn-primary:hover {
+  background: var(--color-accent);
+  border-color: var(--color-accent-border);
+  box-shadow: 0 4px 16px var(--color-accent-glow);
+}
+.btn-warning {
+  background: oklch(55% 0.14 75);
+  border-color: oklch(65% 0.12 75 / 0.45);
+  color: var(--color-paper-deep);
+}
+.btn-warning:hover {
+  background: oklch(62% 0.14 75);
+  box-shadow: 0 4px 16px oklch(62% 0.12 75 / 0.25);
+}
+
+/* —— 空态 / 提示行 —— */
+.ui-hint {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  margin: 0;
+  line-height: 1.45;
+}
+.ui-hint--inline {
+  font-size: 0.66rem;
+  font-weight: 500;
+}
+.ui-status-tip {
+  display: block;
+  min-height: 1.1em;
+  margin-top: var(--space-1);
+  font-size: 0.68rem;
+  color: var(--color-text-muted);
+  line-height: 1.4;
+}
+.ui-status-tip.is-warn { color: var(--color-warning); }
+.ui-status-tip.is-ok { color: var(--color-success); }
+.ui-status-tip.is-err { color: var(--color-danger); }
+
+/* —— Chip 列表容器 —— */
+.chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  min-height: 24px;
+  margin-bottom: var(--space-2);
+}
+.chip-list:empty::after {
+  content: '暂无标签';
+  font-size: 0.68rem;
+  color: var(--color-text-muted);
+}
+
+.form-section.char-tags-section {
+  margin-bottom: 0;
+  padding: var(--space-2) var(--space-3);
+}
+.char-tags-label-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+.char-tags-label-row label {
+  margin-bottom: 0;
+}
+
+.char-tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  max-width: 100%;
+  padding: 2px var(--space-2) 2px 9px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--color-text-secondary);
+  background: var(--color-chip-bg);
+  border: 1px solid var(--color-chip-border);
+  border-radius: var(--radius-pill);
+}
+.char-tag-chip-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.char-tag-chip-remove {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  margin: 0;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  line-height: 1;
+  cursor: pointer;
+  font-family: inherit;
+  transition: color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out);
+}
+.char-tag-chip-remove:hover {
+  color: var(--color-danger);
+  background: oklch(62% 0.18 25 / 0.12);
+}
+
+/* —— 面板标题 accent 条（非 panel-header 内的 h2） —— */
+.panel > h2:first-child {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.panel > h2:first-child::before {
+  content: '';
+  width: 3px;
+  height: 1em;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(180deg, var(--color-accent-hover), var(--color-accent));
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+
+/* —— 横向 Tab —— */
+.ui-tabs {
+  display: flex;
+  gap: var(--space-1);
+  margin: 0 0 var(--space-3);
+  padding: 3px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-inset);
+  border: 1px solid var(--color-border-subtle);
+}
+.ui-tabs__tab {
+  flex: 1;
+  margin: 0;
+  padding: 7px var(--space-2);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 0.76rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+.ui-tabs__tab:hover {
+  color: var(--color-text-secondary);
+  background: var(--color-accent-soft);
+}
+.ui-tabs__tab.is-active {
+  color: var(--color-text);
+  background: var(--color-accent-soft);
+  box-shadow: inset 0 0 0 1px var(--color-accent-border);
+}
+
+/* —— 等宽数值徽章（温度、token 等） —— */
+.mono-value {
+  font-size: 0.75rem;
+  color: var(--color-accent-hover);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  background: var(--color-accent-soft);
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-accent-border);
+}
+
+/* —— 滑条 —— */
+.ui-slider {
+  width: 100%;
+  height: 6px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--color-slider-track);
+  border-radius: var(--radius-pill);
+  outline: none;
+  cursor: pointer;
+}
+.ui-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--color-accent-strong);
+  border: 2px solid var(--color-paper-deep);
+  cursor: pointer;
+  box-shadow: 0 0 8px var(--color-accent-glow);
+  transition: box-shadow var(--dur-fast) var(--ease-out);
+}
+.ui-slider::-webkit-slider-thumb:hover {
+  box-shadow: 0 0 14px var(--color-accent-glow);
+}
+.ui-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--color-accent-strong);
+  border: 2px solid var(--color-paper-deep);
+  cursor: pointer;
+}
+
+/* —— 计数/选项 pill 组 —— */
+.ui-pill-group {
+  display: flex;
+  gap: var(--space-1);
+}
+.ui-pill-btn {
+  flex: 1;
+  background: var(--color-accent-soft);
+  border: 1px solid var(--color-accent-border);
+  color: var(--color-accent-hover);
+  padding: 4px 0;
+  border-radius: var(--radius-sm);
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+  font-family: inherit;
+}
+.ui-pill-btn:hover {
+  background: oklch(76% 0.095 310 / 0.16);
+  border-color: var(--color-accent);
+  transform: translateY(-1px);
+}
+.ui-pill-btn.is-active,
+.ui-pill-btn.active {
+  background: oklch(76% 0.095 310 / 0.22);
+  border-color: var(--color-accent);
+  color: var(--color-text);
+  box-shadow: 0 0 8px var(--color-accent-glow);
+}
+
+/* —— 玻璃弹窗 —— */
+.ui-modal-backdrop {
+  background: var(--color-overlay);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.ui-modal-dialog {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-glass-border);
+  background: var(--color-glass);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  box-shadow: var(--shadow-panel), inset 0 1px 0 var(--color-glass-highlight);
+}
+
+/* —— 图标按钮（助手 composer、工具栏） —— */
+.btn-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  margin: 0;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-subtle);
+  background: var(--color-surface-inset);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+  font-family: inherit;
+  transition: background var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out);
+}
+.btn-icon svg {
+  width: 18px;
+  height: 18px;
+  pointer-events: none;
+}
+.btn-icon:hover:not(:disabled) {
+  border-color: var(--color-accent-border);
+  background: var(--color-accent-soft);
+  color: var(--color-text);
+}
+.btn-icon:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+.btn-icon:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+/* 主操作：圆形 accent（发送 / 停止切换） */
+.btn-icon--primary {
+  border-radius: 50%;
+  border-color: var(--color-accent-border);
+  background: var(--color-accent);
+  color: var(--color-paper-deep);
+  box-shadow: 0 0 12px var(--color-accent-glow);
+}
+.btn-icon--primary:hover:not(:disabled) {
+  background: var(--color-accent-strong);
+  color: var(--color-paper-deep);
+  border-color: var(--color-accent);
+}
+.btn-icon--primary.is-stop {
+  border-color: oklch(78% 0.12 85 / 0.45);
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+  box-shadow: 0 0 10px oklch(78% 0.12 85 / 0.25);
+}
+.btn-icon--primary.is-stop:hover:not(:disabled) {
+  background: oklch(78% 0.12 85 / 0.22);
+  color: var(--color-warning);
+}
+.btn-icon--danger:hover:not(:disabled) {
+  border-color: oklch(62% 0.18 25 / 0.45);
+  background: oklch(62% 0.18 25 / 0.12);
+  color: var(--color-danger);
+}
+/* 卡片网格内紧凑图标按钮 */
+.btn-icon--sm {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+}
+.btn-icon--sm svg {
+  width: 16px;
+  height: 16px;
+}
+.btn-icon .btn-icon__glyph--hidden {
+  display: none;
+}
+.btn-icon.is-stop .btn-icon__glyph--send {
+  display: none;
+}
+.btn-icon.is-stop .btn-icon__glyph--stop {
+  display: block;
+}
+.btn-icon:not(.is-stop) .btn-icon__glyph--stop {
+  display: none;
+}
+
+/* —— Composer 底栏（左快捷 + 右图标操作） —— */
+.composer-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  min-height: 36px;
+}
+.composer-bar__left {
+  position: relative;
+  flex-shrink: 0;
+  min-width: 0;
+}
+.composer-bar__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* —— 分步 pill 导航（状态栏等） —— */
+.ui-step-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
+}
+.ui-step-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border-subtle);
+  background: var(--color-surface-inset);
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+.ui-step-pill span {
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--color-chip-bg);
+  font-size: 0.64rem;
+  font-weight: 800;
+}
+.ui-step-pill.is-active {
+  border-color: var(--color-accent-border);
+  background: var(--color-accent-soft);
+  color: var(--color-accent-hover);
+}
+.ui-step-pill.is-active span {
+  background: var(--color-accent);
+  color: var(--color-paper-deep);
+}
+.ui-step-pill.is-done {
+  border-color: oklch(72% 0.14 155 / 0.35);
+  color: var(--color-success);
+}
+
+/* 未扩展骨架：行内 AI 展开按钮（金色提示可点展开） */
+.btn-ai-expand,
+.entry-icon-btn.btn-ai-expand,
+.novel-icon-btn.btn-ai-expand {
+  border-color: var(--color-ai-gold-border) !important;
+  background: var(--color-ai-gold-soft) !important;
+  color: var(--color-ai-gold) !important;
+}
+.btn-ai-expand:hover,
+.entry-icon-btn.btn-ai-expand:hover,
+.novel-icon-btn.btn-ai-expand:hover {
+  border-color: var(--color-ai-gold) !important;
+  background: oklch(78% 0.12 85 / 0.22) !important;
+  color: oklch(88% 0.1 85) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-icon,
+  .ui-step-pill {
+    transition: none;
+  }
+}

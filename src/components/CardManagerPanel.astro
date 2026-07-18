@@ -1,0 +1,400 @@
+---
+/** 角色卡管理：预览卡片网格 / 新建 / 导入导出 / 切换 / 删除（存储逻辑仍在 index 草稿系统） */
+---
+<div class="panel area-card-manager">
+  <div class="card-manager-header">
+    <div class="card-manager-heading">
+      <h2>角色卡管理</h2>
+      <p class="card-manager-tip">本地多卡草稿箱。点击卡片可切换为当前卡并进入「角色设定」。导出在各卡底部（该卡 ST JSON / PNG）；小说工坊仅本地按卡分桶，不写入导出。</p>
+    </div>
+    <!-- 右上角：仅新建 + 导入；导出在每张预览卡底部 -->
+    <div class="card-manager-toolbar">
+      <button type="button" id="btnNewDraft" class="btn btn-add btn-sm">新建</button>
+      <button type="button" id="btnImportCard" class="btn btn-fetch btn-sm">导入</button>
+      <input type="file" id="importCardInput" accept=".json,.png" style="display:none;" />
+    </div>
+  </div>
+
+  <div id="importStatusBar" class="card-manager-import-status" style="display:none;"></div>
+
+  <div id="cardManagerList" class="card-manager-list" aria-live="polite"></div>
+</div>
+
+<style is:global>
+  .card-manager-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .card-manager-heading h2 {
+    margin-bottom: 0;
+  }
+
+  .card-manager-tip {
+    font-size: 0.78rem;
+    color: var(--color-text-muted);
+    margin: 6px 0 0 0;
+    line-height: 1.45;
+  }
+
+  .card-manager-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: flex-end;
+    flex-shrink: 0;
+  }
+
+  .card-manager-toolbar .btn {
+    width: auto;
+    min-width: 0;
+    margin: 0;
+    padding: 6px 12px;
+    font-size: 0.78rem;
+  }
+
+  .card-manager-import-status {
+    padding: 8px 12px;
+    font-size: 0.78rem;
+    border-radius: 8px;
+    margin-bottom: 12px;
+  }
+
+  /* 预览卡片网格：默认一行 4 列，窄屏递减 */
+  .card-manager-list {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  @media (max-width: 1200px) {
+    .card-manager-list {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 900px) {
+    .card-manager-list {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 560px) {
+    .card-manager-list {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
+  .card-manager-empty {
+    grid-column: 1 / -1;
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+    padding: 20px;
+    text-align: center;
+    border: 1px dashed var(--color-accent-border);
+    border-radius: 10px;
+    background: var(--color-accent-soft);
+  }
+
+  .card-manager-item {
+    display: flex;
+    flex-direction: column;
+    border-radius: 10px;
+    border: 1px solid var(--color-accent-border);
+    background: var(--color-surface-inset);
+    cursor: pointer;
+    overflow: hidden;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+
+  .card-manager-item:hover {
+    border-color: var(--color-accent-border);
+    background: var(--color-accent-soft);
+  }
+
+  .card-manager-item.is-active {
+    border-color: oklch(72% 0.14 155 / 0.45);
+    background: var(--color-success-soft);
+    box-shadow: inset 0 0 0 1px oklch(72% 0.14 155 / 0.2);
+  }
+
+  .card-manager-cover {
+    position: relative;
+    aspect-ratio: 3 / 4;
+    background: var(--color-paper-deep);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  .card-manager-cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .card-manager-cover-placeholder {
+    font-size: 0.72rem;
+    color: var(--color-text-muted);
+  }
+
+  .card-manager-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    padding: 2px 7px;
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: var(--color-success);
+    background: var(--color-paper-deep);
+    border: 1px solid oklch(72% 0.14 155 / 0.4);
+    border-radius: var(--radius-sm);
+  }
+
+  .card-manager-item-main {
+    padding: var(--space-2) var(--space-3) var(--space-1);
+    min-width: 0;
+  }
+
+  .card-manager-item-name {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .card-manager-item-meta {
+    margin-top: 4px;
+    font-size: 0.7rem;
+    color: var(--color-text-muted);
+  }
+
+  .card-manager-item-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-2) var(--space-2);
+    border-top: 1px solid var(--color-border-subtle);
+    background: var(--color-surface-inset);
+  }
+
+  .card-manager-item-actions__group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+
+  .card-mgr-icon {
+    flex-shrink: 0;
+  }
+
+  .card-mgr-icon--danger:hover:not(:disabled) {
+    border-color: oklch(62% 0.18 25 / 0.45);
+    background: oklch(62% 0.18 25 / 0.12);
+    color: var(--color-danger);
+  }
+
+  .card-mgr-icon--export:hover:not(:disabled) {
+    border-color: var(--color-accent-border);
+    color: var(--color-accent-hover);
+  }
+
+  @media (max-width: 720px) {
+    .card-manager-header {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .card-manager-toolbar {
+      justify-content: flex-start;
+    }
+  }
+</style>
+
+<script is:inline>
+(function() {
+  // 导入入口在本面板；导出 JSON/PNG 由 index 绑到各卡底部（导出该卡，不含小说）
+  var importStatusBar = document.getElementById('importStatusBar');
+  var btnImportCard = document.getElementById('btnImportCard');
+  var importCardInput = document.getElementById('importCardInput');
+  if (!btnImportCard || !importCardInput) return;
+
+  btnImportCard.addEventListener('click', function() {
+    importCardInput.value = '';
+    importCardInput.click();
+  });
+
+  importCardInput.addEventListener('change', function(e) {
+    var file = e.target.files[0];
+    if (!file) return;
+    var ext = file.name.split('.').pop().toLowerCase();
+    if (ext === 'json') importFromJSON(file);
+    else if (ext === 'png') importFromPNG(file);
+    else showImportStatus('❌ 不支持的文件格式，请选择 .json 或 .png', 'error');
+  });
+
+  function importFromJSON(file) {
+    showImportStatus('⏳ 解析 JSON...', 'info');
+    var reader = new FileReader();
+    reader.onload = function(ev) {
+      try {
+        applyImportedCard(JSON.parse(ev.target.result), file.name);
+      } catch (err) {
+        showImportStatus('❌ JSON 解析失败：' + err.message, 'error');
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  function importFromPNG(file) {
+    showImportStatus('⏳ 解析 PNG 元数据...', 'info');
+    var reader = new FileReader();
+    reader.onload = function(ev) {
+      try {
+        var bytes = new Uint8Array(ev.target.result);
+        var charaB64 = extractPNGCharaChunk(bytes);
+        if (!charaB64) {
+          showImportStatus('❌ 未找到角色数据，该 PNG 可能不是酒馆卡片', 'error');
+          return;
+        }
+        var jsonStr = decodeURIComponent(escape(atob(charaB64)));
+        var json = JSON.parse(jsonStr);
+        var dataUrl = URL.createObjectURL(file);
+        var img = new Image();
+        img.onload = function() {
+          var cv = document.createElement('canvas');
+          cv.width = img.width;
+          cv.height = img.height;
+          cv.getContext('2d').drawImage(img, 0, 0);
+          var base64 = cv.toDataURL('image/png');
+          URL.revokeObjectURL(dataUrl);
+          if (window.__setImportedAvatar__) window.__setImportedAvatar__(base64);
+          applyImportedCard(json, file.name);
+        };
+        img.onerror = function() {
+          URL.revokeObjectURL(dataUrl);
+          applyImportedCard(json, file.name);
+        };
+        img.src = dataUrl;
+      } catch (err) {
+        showImportStatus('❌ PNG 解析失败：' + err.message, 'error');
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  function extractPNGCharaChunk(bytes) {
+    var i = 8;
+    while (i < bytes.length - 12) {
+      var length =
+        (bytes[i] << 24 | bytes[i + 1] << 16 |
+          bytes[i + 2] << 8 | bytes[i + 3]) >>> 0;
+      var type = String.fromCharCode(bytes[i + 4], bytes[i + 5], bytes[i + 6], bytes[i + 7]);
+      if (type === 'tEXt') {
+        var data = bytes.slice(i + 8, i + 8 + length);
+        var nullPos = data.indexOf(0);
+        if (nullPos < 0) { i += 12 + length; continue; }
+        var keyword = '';
+        for (var k = 0; k < nullPos; k++) keyword += String.fromCharCode(data[k]);
+        if (keyword === 'chara') {
+          var value = '';
+          for (var v = nullPos + 1; v < data.length; v++) value += String.fromCharCode(data[v]);
+          return value;
+        }
+      }
+      if (type === 'IEND') break;
+      i += 12 + length;
+    }
+    return null;
+  }
+
+  function applyImportedCard(json, filename) {
+    try {
+      var normalized = normalizeCardJSON(json);
+      if (!normalized) {
+        showImportStatus('❌ 无法识别卡片格式，请确认是支持的角色卡文件', 'error');
+        return;
+      }
+      if (window.applyJSONFromEditor) window.applyJSONFromEditor(normalized);
+      if (window.updatePreviewPanel) window.updatePreviewPanel(normalized);
+      var charName = (normalized.data && normalized.data.name) || normalized.name || '未知角色';
+      showImportStatus(
+        '✅ 已导入「' + charName + '」← ' + filename + '（记得检查各字段后再导出）',
+        'success'
+      );
+    } catch (err) {
+      showImportStatus('❌ 应用失败：' + err.message, 'error');
+    }
+  }
+
+  function normalizeCardJSON(json) {
+    if (json && json.spec === 'chara_card_v3' && json.data) return json;
+    if (json && json.data && json.data.name) {
+      json.spec = json.spec || 'chara_card_v3';
+      json.spec_version = json.spec_version || '3.0';
+      return json;
+    }
+    if (json && json.name) {
+      return {
+        name: json.name || '',
+        description: json.description || '',
+        personality: json.personality || '',
+        scenario: json.scenario || '',
+        first_mes: json.first_mes || '',
+        mes_example: json.mes_example || '',
+        creatorcomment: json.creatorcomment || '',
+        avatar: 'none',
+        talkativeness: '0.5',
+        fav: false,
+        tags: json.tags || [],
+        spec: 'chara_card_v3',
+        spec_version: '3.0',
+        data: {
+          name: json.name || '',
+          description: json.description || '',
+          personality: json.personality || '',
+          scenario: json.scenario || '',
+          first_mes: json.first_mes || '',
+          mes_example: json.mes_example || '',
+          creator_notes: json.creatorcomment || '',
+          system_prompt: '',
+          post_history_instructions: '',
+          tags: json.tags || [],
+          creator: '',
+          character_version: '1.0',
+          alternate_greetings: json.alternate_greetings || [],
+          extensions: { world: '', regex_scripts: [] },
+          character_book: json.character_book || { name: '', entries: [] },
+        }
+      };
+    }
+    return null;
+  }
+
+  function showImportStatus(msg, type) {
+    if (!importStatusBar) return;
+    var colors = {
+      info: { color: 'var(--color-accent-hover)', bg: 'rgba(56,189,248,0.08)', border: 'rgba(56,189,248,0.2)' },
+      success: { color: 'var(--color-success)', bg: 'rgba(16,185,129,0.08)', border: 'rgba(16,185,129,0.2)' },
+      error: { color: 'var(--color-danger)', bg: 'rgba(239,68,68,0.08)', border: 'rgba(239,68,68,0.2)' },
+    };
+    var c = colors[type] || colors.info;
+    importStatusBar.style.cssText =
+      'display:block;padding:8px 12px;font-size:0.78rem;border-radius:8px;margin-bottom:12px;' +
+      'color:' + c.color + ';background:' + c.bg + ';border-left:3px solid ' + c.border + ';';
+    importStatusBar.textContent = msg;
+    if (type === 'success') {
+      setTimeout(function() { importStatusBar.style.display = 'none'; }, 5000);
+    }
+  }
+})();
+</script>

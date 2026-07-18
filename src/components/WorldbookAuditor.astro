@@ -1,7 +1,7 @@
 ---
 ---
 <div class="panel wb-auditor area-auditor">
-  <h2>🔍 世界书内容监测</h2>
+  <h2>世界书内容监测</h2>
 
   <!-- 控制栏：只显示 AI 审计按钮 -->
   <button id="btnRunAudit" class="btn btn-audit-run" style="width: 100%; margin-bottom: 10px;">🧠 AI 深度审计</button>
@@ -65,7 +65,7 @@
   }
   .auditor-desc {
     font-size: 0.72rem;
-    color: #64748b;
+    color: var(--color-text-muted);
     line-height: 1.5;
     margin-bottom: 10px;
     -webkit-font-smoothing: antialiased;
@@ -80,7 +80,7 @@
     width: 100%;
     background: rgba(56, 189, 248, 0.08);
     border: 1px solid rgba(56, 189, 248, 0.2);
-    color: #38bdf8;
+    color: var(--color-accent-hover);
     padding: 10px 16px;
     border-radius: 8px;
     font-size: 0.82rem;
@@ -97,9 +97,9 @@
   .btn-audit-run {
     width: 100%;
     height: 40px;
-    background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+    background: linear-gradient(135deg, var(--color-accent), #7c3aed);
     color: white;
-    border: 1px solid rgba(139, 92, 246, 0.3);
+    border: 1px solid var(--color-accent-border);
     padding: 0 16px;
     border-radius: 8px;
     font-size: 0.85rem;
@@ -114,7 +114,7 @@
   .btn-audit-run:hover {
     background: linear-gradient(135deg, #7c3aed, #6d28d9);
     border-color: rgba(139, 92, 246, 0.5);
-    box-shadow: 0 8px 24px rgba(139, 92, 246, 0.25);
+    box-shadow: 0 8px 24px var(--color-accent-border);
   }
   .btn-audit-run:disabled {
     opacity: 0.5;
@@ -150,8 +150,8 @@
     align-items: center;
     gap: 14px;
     padding: 14px;
-    background: linear-gradient(135deg, rgba(139, 92, 246, 0.08), rgba(99, 102, 241, 0.08));
-    border: 1px solid rgba(139, 92, 246, 0.2);
+    background: linear-gradient(135deg, var(--color-accent-soft), var(--color-accent-soft));
+    border: 1px solid var(--color-accent-soft);
     border-radius: 12px;
     margin-bottom: 12px;
   }
@@ -168,12 +168,12 @@
   }
   .score-bg {
     fill: none;
-    stroke: rgba(139, 92, 246, 0.15);
+    stroke: var(--color-accent-soft);
     stroke-width: 6;
   }
   .score-fill {
     fill: none;
-    stroke: #8b5cf6;
+    stroke: var(--color-accent);
     stroke-width: 6;
     stroke-linecap: round;
     stroke-dasharray: 264;
@@ -187,7 +187,7 @@
     transform: translate(-50%, -50%);
     font-size: 1.3rem;
     font-weight: 800;
-    color: #c4b5fd;
+    color: var(--color-accent-hover);
     font-family: 'JetBrains Mono', monospace;
   }
   .audit-score-info {
@@ -201,7 +201,7 @@
   }
   .score-summary {
     font-size: 0.72rem;
-    color: #94a3b8;
+    color: var(--color-text-muted);
     line-height: 1.5;
     word-break: break-word;
   }
@@ -215,13 +215,13 @@
   }
   .dim-card {
     background: linear-gradient(135deg, rgba(30, 41, 59, 0.7), rgba(25, 35, 50, 0.7));
-    border: 1px solid rgba(99, 102, 241, 0.15);
+    border: 1px solid var(--color-focus-ring);
     border-radius: 8px;
     padding: 10px 12px;
     transition: all 0.2s ease;
   }
   .dim-card:hover {
-    border-color: rgba(99, 102, 241, 0.3);
+    border-color: var(--color-accent-border);
     background: linear-gradient(135deg, rgba(35, 45, 60, 0.8), rgba(30, 40, 55, 0.8));
   }
   .dim-header {
@@ -233,7 +233,7 @@
   .dim-name {
     font-size: 0.74rem;
     font-weight: 600;
-    color: #e2e8f0;
+    color: var(--color-text-secondary);
   }
   .dim-status {
     font-size: 0.62rem;
@@ -243,22 +243,22 @@
   }
   .dim-status.good {
     background: rgba(16, 185, 129, 0.12);
-    color: #34d399;
+    color: var(--color-success);
     border: 1px solid rgba(16, 185, 129, 0.25);
   }
   .dim-status.warn {
     background: rgba(245, 158, 11, 0.12);
-    color: #fbbf24;
+    color: var(--color-warning);
     border: 1px solid rgba(245, 158, 11, 0.25);
   }
   .dim-status.bad {
     background: rgba(239, 68, 68, 0.12);
-    color: #fca5a5;
+    color: var(--color-danger);
     border: 1px solid rgba(239, 68, 68, 0.25);
   }
   .dim-status.none {
     background: rgba(100, 116, 139, 0.12);
-    color: #64748b;
+    color: var(--color-text-muted);
     border: 1px solid rgba(100, 116, 139, 0.25);
   }
   .dim-bar {
@@ -275,7 +275,7 @@
   }
   .dim-detail {
     font-size: 0.68rem;
-    color: #94a3b8;
+    color: var(--color-text-muted);
     line-height: 1.4;
     font-weight: 500;
     -webkit-font-smoothing: antialiased;
@@ -289,7 +289,7 @@
   .audit-issues-title {
     font-size: 0.78rem;
     font-weight: 700;
-    color: #e2e8f0;
+    color: var(--color-text-secondary);
     margin-bottom: 8px;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -312,8 +312,8 @@
   }
   .issue-item.critical { border-left-color: #ef4444; }
   .issue-item.warning  { border-left-color: #f59e0b; }
-  .issue-item.info     { border-left-color: #38bdf8; }
-  .issue-item.tip      { border-left-color: #34d399; }
+  .issue-item.info     { border-left-color: var(--color-accent-hover); }
+  .issue-item.tip      { border-left-color: var(--color-success); }
   .issue-icon {
     font-size: 0.9rem;
     flex-shrink: 0;
@@ -326,14 +326,14 @@
   .issue-title {
     font-size: 0.78rem;
     font-weight: 600;
-    color: #e2e8f0;
+    color: var(--color-text-secondary);
     margin-bottom: 2px;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
   .issue-desc {
     font-size: 0.73rem;
-    color: #cbd5e1;
+    color: var(--color-text-secondary);
     line-height: 1.5;
     word-break: break-word;
     font-weight: 500;
@@ -343,8 +343,8 @@
 
   
   .audit-suggestions {
-    background: linear-gradient(135deg, rgba(139, 92, 246, 0.08), rgba(99, 102, 241, 0.08));
-    border: 1px solid rgba(139, 92, 246, 0.2);
+    background: linear-gradient(135deg, var(--color-accent-soft), var(--color-accent-soft));
+    border: 1px solid var(--color-accent-soft);
     border-radius: 10px;
     padding: 14px;
   }
@@ -360,13 +360,13 @@
     align-items: flex-start;
     margin-bottom: 8px;
     font-size: 0.75rem;
-    color: #cbd5e1;
+    color: var(--color-text-secondary);
     line-height: 1.5;
   }
   .suggestion-item:last-child { margin-bottom: 0; }
   .suggestion-num {
-    background: rgba(139, 92, 246, 0.2);
-    color: #c4b5fd;
+    background: var(--color-accent-soft);
+    color: var(--color-accent-hover);
     width: 20px;
     height: 20px;
     border-radius: 50%;
@@ -392,7 +392,7 @@
     padding: 8px 10px;
     background: linear-gradient(135deg, rgba(30, 41, 59, 0.7), rgba(25, 35, 50, 0.7));
     border-radius: 8px;
-    border: 1px solid rgba(99, 102, 241, 0.15);
+    border: 1px solid var(--color-focus-ring);
   }
   .qc-stat-num {
     font-size: 1.1rem;
@@ -403,7 +403,7 @@
   }
   .qc-stat-label {
     font-size: 0.7rem;
-    color: #cbd5e1;
+    color: var(--color-text-secondary);
     line-height: 1.3;
     font-weight: 500;
   }
@@ -440,11 +440,11 @@
   }
   .qc-suggestion-item {
     padding: 8px 12px;
-    background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(99, 102, 241, 0.12));
-    border-left: 3px solid #a78bfa;
+    background: linear-gradient(135deg, var(--color-accent-soft), var(--color-accent-soft));
+    border-left: 3px solid var(--color-accent-hover);
     border-radius: 6px;
     font-size: 0.75rem;
-    color: #e0e7ff;
+    color: var(--color-text);
     line-height: 1.5;
     font-weight: 500;
     animation: suggestionSlide 0.4s ease both;
@@ -458,7 +458,7 @@
   .qc-section-title {
     font-size: 0.75rem;
     font-weight: 800;
-    color: #e0e7ff;
+    color: var(--color-text);
     margin-bottom: 8px;
     margin-top: 6px;
     text-transform: uppercase;
@@ -573,12 +573,12 @@
 
     var statsHtml = '<div class="qc-section-title">📊 基础统计</div>'
       + '<div class="qc-stats">'
-      + statCard(totalEntries, '总条目', '#c4b5fd')
-      + statCard(constantCount, '常驻', '#34d399')
-      + statCard(selectiveCount, '触发式', '#38bdf8')
+      + statCard(totalEntries, '总条目', 'var(--color-accent-hover)')
+      + statCard(constantCount, '常驻', 'var(--color-success)')
+      + statCard(selectiveCount, '触发式', 'var(--color-accent-hover)')
       + statCard(skeletonCount, '骨架', '#f59e0b')
-      + statCard(Math.round(totalContentLen / 1000 * 10) / 10 + 'k', '总字数', '#94a3b8')
-      + statCard(issues.length, '问题', issues[0].level === 'tip' ? '#34d399' : '#ef4444')
+      + statCard(Math.round(totalContentLen / 1000 * 10) / 10 + 'k', '总字数', 'var(--color-text-muted)')
+      + statCard(issues.length, '问题', issues[0].level === 'tip' ? 'var(--color-success)' : '#ef4444')
       + '</div>';
 
     var dimHtml = '<div class="qc-section-title">🧭 维度覆盖</div>'
@@ -618,7 +618,25 @@
       + '</div>';
 
     quickCheckResult.innerHTML = statsHtml + dimHtml + suggestionsHtml + issuesHtml;
+
+    // 供 AI 助手 audit_worldbook 复用同一套快速监测结果
+    return {
+      total: totalEntries,
+      constant: constantCount,
+      selective: selectiveCount,
+      skeleton: skeletonCount,
+      noKeys: noKeysCount,
+      emptyContent: emptyContentCount,
+      totalContentLen: totalContentLen,
+      issues: issues,
+      suggestions: quickSuggestions,
+      dimensions: dimensions,
+    };
   }
+
+  window.__runWorldbookQuickCheck__ = function() {
+    return runQuickCheck() || { issues: [], total: 0 };
+  };
 
   function statCard(num, label, color) {
     return '<div class="qc-stat"><div class="qc-stat-num" style="color:' + color + ';">' + num + '</div><div class="qc-stat-label">' + label + '</div></div>';
@@ -659,10 +677,10 @@
     return Object.keys(dimensions).map(function(dim) {
       var cov = dimensions[dim];
       var color, bg;
-      if (cov >= 60)      { color = '#34d399'; bg = 'rgba(16,185,129,0.1)'; }
-      else if (cov >= 30) { color = '#fbbf24'; bg = 'rgba(245,158,11,0.1)'; }
-      else if (cov > 0)   { color = '#fca5a5'; bg = 'rgba(239,68,68,0.1)'; }
-      else                { color = '#475569'; bg = 'rgba(51,65,85,0.2)'; }
+      if (cov >= 60)      { color = 'var(--color-success)'; bg = 'rgba(16,185,129,0.1)'; }
+      else if (cov >= 30) { color = 'var(--color-warning)'; bg = 'rgba(245,158,11,0.1)'; }
+      else if (cov > 0)   { color = 'var(--color-danger)'; bg = 'rgba(239,68,68,0.1)'; }
+      else                { color = 'var(--color-text-muted)'; bg = 'rgba(51,65,85,0.2)'; }
       return '<span class="qc-dim-tag" style="color:' + color + ';background:' + bg + ';border:1px solid ' + color + '22;">' + dim + ' ' + cov + '%</span>';
     }).join('');
   }
@@ -691,7 +709,7 @@
     btnRunAudit.disabled = true;
     btnRunAudit.textContent = '🧠 审计中...';
     auditStatus.textContent = '⏳ AI 正在分析你的世界书...';
-    auditStatus.style.color = '#c4b5fd';
+    auditStatus.style.color = 'var(--color-accent-hover)';
     auditReport.style.display = 'none';
 
     var wbSummary = entries.map(function(e, i) {
@@ -703,7 +721,9 @@
 
     var charInfo = '角色名: ' + (char.name || '未设置') + '\n角色描述: ' + (char.description || '未设置').substring(0, 300);
 
-    var sysPrompt = '你是一个专业的酒馆(SillyTavern)角色卡世界书审计专家。请对以下世界书进行全面审计分析。\n\n'
+    var auditHead = (window.__promptStore__ && window.__promptStore__.get('wbAudit'))
+      || '你是一个专业的酒馆(SillyTavern)角色卡世界书审计专家。请对以下世界书进行全面审计分析。\n\n';
+    var sysPrompt = auditHead
       + '【角色信息】\n' + charInfo + '\n\n'
       + '【世界书条目 (共' + entries.length + '条)】\n' + wbSummary + '\n\n'
       + '【输出要求】必须输出一个JSON对象，格式如下：\n'
@@ -727,32 +747,68 @@
       var headers = { 'Content-Type': 'application/json' };
       if (key) headers['Authorization'] = 'Bearer ' + key;
 
-      var res = await fetch(url, {
-        method: 'POST',
-        headers: headers,
-        body: JSON.stringify({
-          model: model,
-          messages: [
-            { role: 'system', content: sysPrompt },
-            { role: 'user', content: '请对这个世界书进行全面审计，给出评分和改进建议。' }
-          ],
-          temperature: 0.6
-        })
-      });
+      var center = window.__aiTaskCenter__;
+      await (center && center.run ? center.run({
+        type: 'auditor',
+        title: '世界书内容监测',
+        target: entries.length + ' 条',
+      }, async function(task) {
+        var res = await fetch(url, {
+          method: 'POST',
+          headers: headers,
+          body: JSON.stringify({
+            model: model,
+            messages: [
+              { role: 'system', content: sysPrompt },
+              { role: 'user', content: '请对这个世界书进行全面审计，给出评分和改进建议。' }
+            ],
+            temperature: 0.6
+          }),
+          signal: task.signal
+        });
 
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      var raw = (await res.json()).choices[0].message.content;
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        var raw = (await res.json()).choices[0].message.content;
 
-      var match = raw.match(/```json\s*([\s\S]*?)\s*```/);
-      var report = JSON.parse(match ? match[1] : raw);
+        var match = raw.match(/```json\s*([\s\S]*?)\s*```/);
+        var report = JSON.parse(match ? match[1] : raw);
 
-      renderAuditReport(report);
-      auditStatus.textContent = '✅ 审计完成！';
-      auditStatus.style.color = '#10b981';
+        renderAuditReport(report);
+        auditStatus.textContent = '✅ 审计完成！';
+        auditStatus.style.color = '#10b981';
+      }) : (async function() {
+        var res = await fetch(url, {
+          method: 'POST',
+          headers: headers,
+          body: JSON.stringify({
+            model: model,
+            messages: [
+              { role: 'system', content: sysPrompt },
+              { role: 'user', content: '请对这个世界书进行全面审计，给出评分和改进建议。' }
+            ],
+            temperature: 0.6
+          })
+        });
+
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        var raw = (await res.json()).choices[0].message.content;
+
+        var match = raw.match(/```json\s*([\s\S]*?)\s*```/);
+        var report = JSON.parse(match ? match[1] : raw);
+
+        renderAuditReport(report);
+        auditStatus.textContent = '✅ 审计完成！';
+        auditStatus.style.color = '#10b981';
+      })());
 
     } catch(err) {
-      auditStatus.textContent = '❌ 审计失败: ' + err.message;
-      auditStatus.style.color = '#ef4444';
+      if (window.__isAiAbortError__ && window.__isAiAbortError__(err)) {
+        auditStatus.textContent = '⏹ 已取消';
+        auditStatus.style.color = 'var(--color-text-muted)';
+      } else {
+        auditStatus.textContent = '❌ 审计失败: ' + err.message;
+        auditStatus.style.color = '#ef4444';
+      }
     } finally {
       btnRunAudit.disabled = false;
       btnRunAudit.textContent = '🧠 AI 深度审计';
@@ -767,7 +823,7 @@
 
     var score = Math.max(0, Math.min(100, report.score || 0));
     var offset = 264 - (264 * score / 100);
-    var scoreColor = score >= 80 ? '#34d399' : (score >= 60 ? '#fbbf24' : (score >= 40 ? '#fb923c' : '#ef4444'));
+    var scoreColor = score >= 80 ? 'var(--color-success)' : (score >= 60 ? 'var(--color-warning)' : (score >= 40 ? '#fb923c' : '#ef4444'));
 
     setTimeout(function() {
       scoreCircle.style.strokeDashoffset = offset;
@@ -782,15 +838,15 @@
       scoreNumber.style.color = scoreColor;
     }, 40);
 
-    var gradeColors = { 'S': '#c084fc', 'A+': '#34d399', 'A': '#34d399', 'B+': '#38bdf8', 'B': '#38bdf8', 'C+': '#fbbf24', 'C': '#fbbf24', 'D': '#fb923c', 'F': '#ef4444' };
+    var gradeColors = { 'S': '#c084fc', 'A+': 'var(--color-success)', 'A': 'var(--color-success)', 'B+': 'var(--color-accent-hover)', 'B': 'var(--color-accent-hover)', 'C+': 'var(--color-warning)', 'C': 'var(--color-warning)', 'D': '#fb923c', 'F': '#ef4444' };
     scoreGrade.textContent = '🏆 ' + (report.grade || '?');
-    scoreGrade.style.color = gradeColors[report.grade] || '#94a3b8';
+    scoreGrade.style.color = gradeColors[report.grade] || 'var(--color-text-muted)';
     scoreSummary.textContent = report.summary || '';
 
     
     if (report.dimensions && report.dimensions.length > 0) {
       auditDimensions.innerHTML = report.dimensions.map(function(dim) {
-        var barColor = dim.status === 'good' ? '#34d399' : (dim.status === 'warn' ? '#fbbf24' : (dim.status === 'bad' ? '#ef4444' : '#475569'));
+        var barColor = dim.status === 'good' ? 'var(--color-success)' : (dim.status === 'warn' ? 'var(--color-warning)' : (dim.status === 'bad' ? '#ef4444' : 'var(--color-text-muted)'));
         var dimScore = dim.score || 0;
         return '<div class="dim-card">'
           + '<div class="dim-header"><span class="dim-name">' + escapeHTML(dim.name) + '</span><span class="dim-status ' + (dim.status || 'none') + '">' + dimScore + '%</span></div>'
@@ -809,7 +865,7 @@
             + '<span class="issue-icon">' + (iconMap[iss.level] || '📌') + '</span>'
             + '<div class="issue-body"><div class="issue-title">' + escapeHTML(iss.title || '') + '</div>'
             + '<div class="issue-desc">' + escapeHTML(iss.desc || '')
-            + (iss.entries && iss.entries.length > 0 ? ' <span style="color:#8b5cf6;">[条目: ' + iss.entries.join(', ') + ']</span>' : '')
+            + (iss.entries && iss.entries.length > 0 ? ' <span style="color:var(--color-accent);">[条目: ' + iss.entries.join(', ') + ']</span>' : '')
             + '</div></div></div>';
         }).join('');
     } else {

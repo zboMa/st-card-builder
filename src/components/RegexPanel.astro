@@ -1,0 +1,841 @@
+---
+/**
+ * 正则模块：管理当前角色卡 data.extensions.regex_scripts（与 MVU/状态栏注入共存）
+ * 编辑实时写入权威数组；测试弹窗按当前选中条目解析
+ */
+---
+<div class="panel regex-panel" id="regexPanel">
+  <div class="rx-hero">
+    <div>
+      <h2>正则</h2>
+      <p>管理 SillyTavern <code>regex_scripts</code>：列表选中编辑，修改即时保存。导出仍写原字段。</p>
+    </div>
+    <div class="rx-hero-actions">
+      <button type="button" class="btn rx-tool-btn" id="rxBtnTest">测试</button>
+      <button type="button" class="btn rx-tool-btn rx-tool-primary" id="rxBtnAdd">新建</button>
+    </div>
+  </div>
+
+  <div class="rx-layout">
+    <section class="rx-list-card" aria-label="正则列表">
+      <div class="rx-list-head">
+        <span id="rxListCount">0 条</span>
+        <span class="rx-tip">按脚本名与 MVU/状态栏注入对齐</span>
+      </div>
+      <div id="rxList" class="rx-list"></div>
+      <p id="rxEmpty" class="rx-empty" hidden>暂无正则。MVU / 状态栏注入后会出现在此；也可手动新建。</p>
+    </section>
+
+    <section class="rx-editor-card" id="rxEditor" hidden>
+      <div class="rx-editor-head">
+        <h3>编辑正则</h3>
+        <span id="rxLiveHint" class="rx-live-hint">已实时保存</span>
+      </div>
+
+      <!-- id 仅内部保留，界面不展示 -->
+      <input type="hidden" id="rxId" value="" />
+
+      <div class="rx-field">
+        <label class="rx-label" for="rxScriptName">脚本名称</label>
+        <input type="text" id="rxScriptName" autocomplete="off" />
+      </div>
+      <div class="rx-field">
+        <label class="rx-label" for="rxFind">匹配正则</label>
+        <textarea id="rxFind" rows="3" spellcheck="false" placeholder="如：&lt;StatusBar&gt;([\\s\\S]*?)&lt;/StatusBar&gt;"></textarea>
+      </div>
+      <div class="rx-field">
+        <label class="rx-label" for="rxReplace">替换内容</label>
+        <textarea id="rxReplace" rows="4" spellcheck="false" placeholder="可用 $1 引用捕获组"></textarea>
+      </div>
+
+      <!-- 两栏：左作用范围+深度，右其他选项/宏/表层替换 -->
+      <div class="rx-editor-cols">
+        <div class="rx-col">
+          <div class="rx-section-title">作用范围</div>
+          <div class="rx-checks rx-checks-stack">
+            <label class="rx-check"><input type="checkbox" id="rxPlaceUser" value="1" /><span>用户输入</span></label>
+            <label class="rx-check"><input type="checkbox" id="rxPlaceAi" value="2" /><span>AI输出</span></label>
+            <label class="rx-check"><input type="checkbox" id="rxPlaceSlash" value="3" /><span>快捷命令</span></label>
+            <label class="rx-check"><input type="checkbox" id="rxPlaceWorld" value="5" /><span>世界书</span></label>
+            <label class="rx-check"><input type="checkbox" id="rxPlaceReason" value="6" /><span>推理</span></label>
+          </div>
+          <div class="rx-depth-row">
+            <div class="rx-field rx-field-tight">
+              <label class="rx-label" for="rxMinDepth">最小深度</label>
+              <input type="number" id="rxMinDepth" placeholder="空=不限" />
+            </div>
+            <div class="rx-field rx-field-tight">
+              <label class="rx-label" for="rxMaxDepth">最大深度</label>
+              <input type="number" id="rxMaxDepth" placeholder="空=不限" />
+            </div>
+          </div>
+        </div>
+        <div class="rx-col">
+          <div class="rx-section-title">其他选项</div>
+          <div class="rx-checks rx-checks-stack">
+            <label class="rx-check"><input type="checkbox" id="rxDisabled" /><span>已禁用</span></label>
+            <label class="rx-check"><input type="checkbox" id="rxRunOnEdit" /><span>编辑时运行</span></label>
+          </div>
+          <div class="rx-section-title">宏</div>
+          <div class="rx-checks">
+            <label class="rx-check"><input type="checkbox" id="rxSubstitute" /><span>宏查找替换</span></label>
+          </div>
+          <div class="rx-section-title">表层替换</div>
+          <div class="rx-checks rx-checks-stack">
+            <label class="rx-check"><input type="checkbox" id="rxMarkdownOnly" /><span>仅显示</span></label>
+            <label class="rx-check"><input type="checkbox" id="rxPromptOnly" /><span>仅后端提示词</span></label>
+          </div>
+        </div>
+      </div>
+
+      <div id="rxStatus" class="rx-status"></div>
+    </section>
+  </div>
+
+  <!-- 测试弹窗：对当前选中正则解析文本 -->
+  <div id="rxTestModal" class="rx-modal" hidden aria-hidden="true">
+    <div class="rx-modal-backdrop" data-rx-modal-close></div>
+    <div class="rx-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="rxTestTitle">
+      <div class="rx-modal-head">
+        <strong id="rxTestTitle">测试正则</strong>
+        <span class="rx-modal-tip" id="rxTestTip">使用当前选中条目</span>
+      </div>
+      <div class="rx-modal-body">
+        <div class="rx-field">
+          <label class="rx-label" for="rxTestInput">测试文本</label>
+          <textarea id="rxTestInput" rows="6" spellcheck="false" placeholder="粘贴要解析的文本…"></textarea>
+        </div>
+        <div class="rx-modal-actions-inline">
+          <button type="button" class="btn rx-tool-btn rx-tool-primary" id="rxBtnParse">解析</button>
+        </div>
+        <div class="rx-field">
+          <label class="rx-label" for="rxTestOutput">解析结果</label>
+          <textarea id="rxTestOutput" rows="6" spellcheck="false" readonly placeholder="点击「解析」后显示"></textarea>
+        </div>
+        <p id="rxTestErr" class="rx-test-err" hidden></p>
+      </div>
+      <div class="rx-modal-actions">
+        <button type="button" class="btn rx-tool-btn" data-rx-modal-close>取消</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style is:global>
+  .regex-panel {
+    border-color: rgba(56, 189, 248, 0.22);
+    background:
+      radial-gradient(circle at top right, rgba(56, 189, 248, 0.08), transparent 36%),
+      linear-gradient(180deg, rgba(15, 18, 28, 0.96), rgba(12, 16, 26, 0.94));
+  }
+  .rx-hero {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .rx-hero h2 {
+    margin: 0 0 4px;
+    border: 0;
+    padding: 0;
+    color: var(--color-accent-hover);
+    font-size: 1.05rem;
+  }
+  .rx-hero p {
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: 0.74rem;
+  }
+  .rx-hero code {
+    font-size: 0.72rem;
+    color: var(--color-accent-hover);
+  }
+  .rx-hero-actions {
+    display: flex;
+    flex-shrink: 0;
+    gap: 6px;
+    align-items: center;
+  }
+  .rx-tool-btn {
+    padding: 4px 10px;
+    font-size: 0.74rem;
+    line-height: 1.3;
+    border-radius: 8px;
+    background: rgba(15, 23, 42, 0.75);
+    border: 1px solid rgba(100, 116, 139, 0.4);
+    color: var(--color-text-secondary);
+    cursor: pointer;
+  }
+  .rx-tool-btn:hover { color: var(--color-text-secondary); border-color: rgba(148, 163, 184, 0.55); }
+  .rx-tool-primary {
+    background: linear-gradient(135deg, rgba(14, 165, 233, 0.35), rgba(56, 189, 248, 0.2));
+    border-color: rgba(56, 189, 248, 0.45);
+    color: var(--color-text-secondary);
+  }
+  .rx-layout {
+    display: grid;
+    grid-template-columns: minmax(220px, 0.9fr) minmax(280px, 1.2fr);
+    gap: 12px;
+  }
+  @media (max-width: 900px) {
+    .rx-layout { grid-template-columns: 1fr; }
+  }
+  .rx-list-card, .rx-editor-card {
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 14px;
+    padding: 12px;
+    background: rgba(8, 12, 22, 0.72);
+    min-height: 280px;
+  }
+  .rx-list-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+    font-size: 0.72rem;
+    color: var(--color-text-muted);
+  }
+  .rx-tip { color: var(--color-text-muted); }
+  .rx-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: min(52vh, 480px);
+    overflow-y: auto;
+  }
+  .rx-item {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 8px;
+    align-items: center;
+    padding: 8px 10px;
+    border-radius: 10px;
+    border: 1px solid rgba(100, 116, 139, 0.28);
+    background: var(--color-surface-inset);
+    cursor: pointer;
+    text-align: left;
+    color: inherit;
+    font: inherit;
+  }
+  /* 列表启停：独立于行点击，避免嵌套 button 导致无效 DOM */
+  .rx-toggle {
+    width: 16px;
+    height: 16px;
+    min-width: 16px;
+    min-height: 16px;
+    margin: 0;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .rx-item-actions button {
+    position: relative;
+    z-index: 1;
+  }
+  .rx-item.is-active {
+    border-color: rgba(56, 189, 248, 0.55);
+    background: linear-gradient(135deg, rgba(14, 165, 233, 0.18), rgba(15, 23, 42, 0.8));
+  }
+  .rx-item.is-disabled { opacity: 0.55; }
+  .rx-item-name {
+    font-size: 0.8rem;
+    font-weight: 650;
+    color: var(--color-text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .rx-item-meta {
+    font-size: 0.68rem;
+    color: var(--color-text-muted);
+  }
+  .rx-item-actions {
+    display: flex;
+    gap: 4px;
+  }
+  .rx-icon-btn {
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    border: 1px solid rgba(100, 116, 139, 0.35);
+    background: rgba(15, 23, 42, 0.7);
+    color: var(--color-text-muted);
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.72rem;
+  }
+  .rx-icon-btn:hover { color: var(--color-text-secondary); }
+  .rx-icon-btn.is-danger:hover {
+    color: var(--color-danger);
+    border-color: rgba(248, 113, 113, 0.5);
+  }
+  .rx-empty {
+    margin: 24px 8px;
+    text-align: center;
+    color: var(--color-text-muted);
+    font-size: 0.78rem;
+  }
+  .rx-editor-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .rx-editor-head h3 {
+    margin: 0;
+    font-size: 0.9rem;
+    color: var(--color-text-secondary);
+  }
+  .rx-live-hint {
+    font-size: 0.68rem;
+    color: var(--color-text-muted);
+  }
+  .rx-live-hint.is-ok { color: var(--color-success); }
+  .rx-live-hint.is-err { color: var(--color-danger); }
+  .rx-field { margin-bottom: 10px; }
+  .rx-field-tight { margin-bottom: 0; }
+  .rx-label {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 0.72rem;
+    color: var(--color-text-muted);
+  }
+  .rx-field input[type="text"],
+  .rx-field input[type="number"],
+  .rx-field textarea {
+    width: 100%;
+    box-sizing: border-box;
+    border-radius: 8px;
+    border: 1px solid rgba(100, 116, 139, 0.4);
+    background: rgba(15, 23, 42, 0.75);
+    color: var(--color-text-secondary);
+    padding: 8px 10px;
+    font: inherit;
+    font-size: 0.8rem;
+  }
+  .rx-field textarea { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; resize: vertical; }
+  .rx-editor-cols {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 4px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(100, 116, 139, 0.22);
+  }
+  @media (max-width: 700px) {
+    .rx-editor-cols { grid-template-columns: 1fr; }
+  }
+  .rx-col {
+    border: 1px solid rgba(100, 116, 139, 0.2);
+    border-radius: 10px;
+    padding: 10px;
+    background: rgba(15, 23, 42, 0.35);
+  }
+  .rx-section-title {
+    margin: 0 0 8px;
+    font-size: 0.72rem;
+    font-weight: 650;
+    color: var(--color-accent-hover);
+  }
+  .rx-col .rx-section-title:not(:first-child) { margin-top: 12px; }
+  .rx-checks { display: flex; flex-wrap: wrap; gap: 8px 14px; }
+  .rx-checks-stack { flex-direction: column; flex-wrap: nowrap; gap: 6px; }
+  .rx-depth-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .rx-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.74rem;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+  }
+  /* 编辑区 checkbox 可点区域覆盖 label 全文 */
+  .rx-check input[type="checkbox"] {
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+  .rx-status {
+    margin-top: 8px;
+    min-height: 1.2em;
+    font-size: 0.74rem;
+    color: var(--color-success);
+  }
+  .rx-badge {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 6px;
+    border-radius: 999px;
+    font-size: 0.62rem;
+    background: rgba(245, 158, 11, 0.2);
+    color: var(--color-warning);
+  }
+  /* 真弹窗：挂到 body 时 fixed 相对视口；避免 panel transform 困住 */
+  .rx-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 9300;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+  }
+  .rx-modal[hidden] { display: none !important; }
+  :global(body.rx-modal-open) {
+    overflow: hidden;
+  }
+  .rx-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(2, 6, 23, 0.66);
+    backdrop-filter: blur(6px);
+  }
+  .rx-modal-dialog {
+    position: relative;
+    z-index: 1;
+    width: min(560px, 100%);
+    max-height: min(84vh, 720px);
+    overflow: auto;
+    border-radius: 14px;
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(8, 12, 22, 0.98));
+    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45);
+    padding: 14px 16px;
+  }
+  .rx-modal-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .rx-modal-head strong {
+    color: var(--color-text-secondary);
+    font-size: 0.92rem;
+  }
+  .rx-modal-tip { font-size: 0.68rem; color: var(--color-text-muted); }
+  .rx-modal-body { margin-bottom: 8px; }
+  .rx-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+  .rx-modal-actions-inline {
+    display: flex;
+    justify-content: flex-end;
+    margin: 0 0 10px;
+  }
+  .rx-test-err {
+    margin: 0;
+    font-size: 0.74rem;
+    color: var(--color-danger);
+  }
+</style>
+
+<script>
+import {
+  createEmptyRegexScript,
+  normalizeRegexList,
+  normalizeRegexScript,
+  moveRegex,
+  applyRegexScript,
+  placementLabel,
+} from '../lib/regexScripts.mjs';
+
+(function() {
+  var listEl = document.getElementById('rxList');
+  var emptyEl = document.getElementById('rxEmpty');
+  var countEl = document.getElementById('rxListCount');
+  var editorEl = document.getElementById('rxEditor');
+  var statusEl = document.getElementById('rxStatus');
+  var liveHintEl = document.getElementById('rxLiveHint');
+  var testModal = document.getElementById('rxTestModal');
+  var selectedIndex = -1;
+  var filling = false;
+  var autosaving = false;
+  var saveTimer = null;
+  var lastRefreshFp = '';
+
+  if (!listEl) return;
+
+  // MVU / 状态栏自动注入名，仅作提示，不禁止编辑
+  var KNOWN_AUTO = {
+    '[不发送]去除变量更新': 'MVU',
+    '[美化]变量更新状态卡': 'MVU',
+    '[美化]状态栏展示': '状态栏',
+  };
+
+  var EDITOR_IDS = [
+    'rxScriptName', 'rxFind', 'rxReplace',
+    'rxPlaceUser', 'rxPlaceAi', 'rxPlaceSlash', 'rxPlaceWorld', 'rxPlaceReason',
+    'rxMinDepth', 'rxMaxDepth',
+    'rxDisabled', 'rxRunOnEdit', 'rxSubstitute', 'rxMarkdownOnly', 'rxPromptOnly',
+  ];
+
+  function getList() {
+    if (window.__getRegexScripts__) return normalizeRegexList(window.__getRegexScripts__());
+    return [];
+  }
+
+  function setList(list, options) {
+    options = options || {};
+    if (!window.__setRegexScripts__) {
+      setStatus('无法写入：缺少 __setRegexScripts__', 'var(--color-danger)');
+      setLiveHint('写入失败', true);
+      return false;
+    }
+    autosaving = true;
+    // 默认 silent：面板内已 renderList，避免 card-builder-data-changed 自刷循环
+    var silent = options.silent !== false;
+    window.__setRegexScripts__(normalizeRegexList(list), { silent: silent });
+    autosaving = false;
+    return true;
+  }
+
+  /** 列表 + 选中项指纹，用于跳过无变化 refresh */
+  function refreshFingerprint(list) {
+    try {
+      return JSON.stringify(list) + '|' + selectedIndex;
+    } catch (e) {
+      return String(Date.now());
+    }
+  }
+
+  function syncRefreshFingerprint(list) {
+    lastRefreshFp = refreshFingerprint(list != null ? list : getList());
+  }
+
+  function setStatus(msg, color) {
+    if (!statusEl) return;
+    statusEl.textContent = msg || '';
+    statusEl.style.color = color || 'var(--color-success)';
+  }
+
+  function setLiveHint(msg, isErr) {
+    if (!liveHintEl) return;
+    liveHintEl.textContent = msg || '';
+    liveHintEl.classList.toggle('is-ok', !isErr && !!msg);
+    liveHintEl.classList.toggle('is-err', !!isErr);
+  }
+
+  function escapeHtml(str) {
+    return String(str || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function renderList() {
+    var list = getList();
+    if (countEl) countEl.textContent = list.length + ' 条';
+    if (emptyEl) emptyEl.hidden = list.length > 0;
+    if (!listEl) return;
+    listEl.innerHTML = '';
+    list.forEach(function(rx, i) {
+      var auto = KNOWN_AUTO[rx.scriptName];
+      // 必须用 div：button 内不可嵌套 checkbox / 子 button，否则点击失效
+      var row = document.createElement('div');
+      row.className = 'rx-item' + (i === selectedIndex ? ' is-active' : '') + (rx.disabled ? ' is-disabled' : '');
+      row.setAttribute('data-idx', String(i));
+      row.setAttribute('role', 'button');
+      row.tabIndex = 0;
+      row.innerHTML =
+        '<input type="checkbox" class="rx-toggle" data-idx="' + i + '" ' + (rx.disabled ? '' : 'checked') + ' title="启停" />' +
+        '<div>' +
+          '<div class="rx-item-name">' + escapeHtml(rx.scriptName || '(未命名)') +
+            (auto ? '<span class="rx-badge">' + auto + '</span>' : '') +
+          '</div>' +
+          '<div class="rx-item-meta">' + (rx.disabled ? '已禁用 · ' : '') + placementLabel(rx.placement) + '</div>' +
+        '</div>' +
+        '<div class="rx-item-actions">' +
+          '<button type="button" class="rx-icon-btn" data-move="up" data-idx="' + i + '" title="上移">↑</button>' +
+          '<button type="button" class="rx-icon-btn" data-move="down" data-idx="' + i + '" title="下移">↓</button>' +
+          '<button type="button" class="rx-icon-btn is-danger" data-del="' + i + '" title="删除">×</button>' +
+        '</div>';
+      listEl.appendChild(row);
+    });
+  }
+
+  function fillEditor(rx) {
+    if (!editorEl) return;
+    filling = true;
+    editorEl.hidden = false;
+    document.getElementById('rxId').value = rx.id || '';
+    document.getElementById('rxScriptName').value = rx.scriptName || '';
+    document.getElementById('rxFind').value = rx.findRegex || '';
+    document.getElementById('rxReplace').value = rx.replaceString || '';
+    document.getElementById('rxPlaceUser').checked = (rx.placement || []).indexOf(1) >= 0;
+    document.getElementById('rxPlaceAi').checked = (rx.placement || []).indexOf(2) >= 0;
+    document.getElementById('rxPlaceSlash').checked = (rx.placement || []).indexOf(3) >= 0;
+    document.getElementById('rxPlaceWorld').checked = (rx.placement || []).indexOf(5) >= 0;
+    document.getElementById('rxPlaceReason').checked = (rx.placement || []).indexOf(6) >= 0;
+    document.getElementById('rxDisabled').checked = !!rx.disabled;
+    document.getElementById('rxMarkdownOnly').checked = !!rx.markdownOnly;
+    document.getElementById('rxPromptOnly').checked = !!rx.promptOnly;
+    document.getElementById('rxRunOnEdit').checked = rx.runOnEdit !== false;
+    document.getElementById('rxSubstitute').checked = !!rx.substituteRegex;
+    document.getElementById('rxMinDepth').value = rx.minDepth == null ? '' : String(rx.minDepth);
+    document.getElementById('rxMaxDepth').value = rx.maxDepth == null ? '' : String(rx.maxDepth);
+    setLiveHint('已实时保存', false);
+    filling = false;
+  }
+
+  function readEditor() {
+    var placement = [];
+    if (document.getElementById('rxPlaceUser').checked) placement.push(1);
+    if (document.getElementById('rxPlaceAi').checked) placement.push(2);
+    if (document.getElementById('rxPlaceSlash').checked) placement.push(3);
+    if (document.getElementById('rxPlaceWorld').checked) placement.push(5);
+    if (document.getElementById('rxPlaceReason').checked) placement.push(6);
+    var minRaw = document.getElementById('rxMinDepth').value;
+    var maxRaw = document.getElementById('rxMaxDepth').value;
+    return normalizeRegexScript({
+      id: document.getElementById('rxId').value,
+      scriptName: document.getElementById('rxScriptName').value,
+      findRegex: document.getElementById('rxFind').value,
+      replaceString: document.getElementById('rxReplace').value,
+      placement: placement,
+      disabled: document.getElementById('rxDisabled').checked,
+      markdownOnly: document.getElementById('rxMarkdownOnly').checked,
+      promptOnly: document.getElementById('rxPromptOnly').checked,
+      runOnEdit: document.getElementById('rxRunOnEdit').checked,
+      substituteRegex: document.getElementById('rxSubstitute').checked,
+      minDepth: minRaw === '' ? null : Number(minRaw),
+      maxDepth: maxRaw === '' ? null : Number(maxRaw),
+    });
+  }
+
+  /** 编辑区变更 → 写回当前卡权威数组（经 __setRegexScripts__ 防抖落盘） */
+  function persistEditor() {
+    if (filling || selectedIndex < 0) return;
+    var list = getList();
+    if (!list[selectedIndex]) return;
+    var edited = readEditor();
+    var name = String(edited.scriptName || '').trim();
+    if (!name) {
+      setLiveHint('脚本名称不能为空', true);
+      setStatus('脚本名称不能为空', 'var(--color-danger)');
+      return;
+    }
+    for (var i = 0; i < list.length; i++) {
+      if (i !== selectedIndex && list[i].scriptName === name) {
+        setLiveHint('脚本名称重复', true);
+        setStatus('脚本名称与其它条目重复', 'var(--color-danger)');
+        return;
+      }
+    }
+    edited.scriptName = name;
+    // 保留原 trimStrings，避免编辑时丢字段
+    if (Array.isArray(list[selectedIndex].trimStrings)) {
+      edited.trimStrings = list[selectedIndex].trimStrings.slice();
+    }
+    list[selectedIndex] = edited;
+    if (!setList(list)) return;
+    setLiveHint('已实时保存', false);
+    setStatus('');
+    renderList();
+    syncRefreshFingerprint(list);
+  }
+
+  function schedulePersist() {
+    if (filling || selectedIndex < 0) return;
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(function() {
+      saveTimer = null;
+      persistEditor();
+    }, 180);
+  }
+
+  function selectIndex(i) {
+    var list = getList();
+    if (i < 0 || i >= list.length) {
+      selectedIndex = -1;
+      if (editorEl) editorEl.hidden = true;
+      renderList();
+      return;
+    }
+    selectedIndex = i;
+    fillEditor(list[i]);
+    renderList();
+    syncRefreshFingerprint(list);
+  }
+
+  function refresh() {
+    if (autosaving) {
+      renderList();
+      return;
+    }
+    var list = getList();
+    var fp = refreshFingerprint(list);
+    if (fp === lastRefreshFp) return;
+    lastRefreshFp = fp;
+    if (selectedIndex >= list.length) selectedIndex = list.length - 1;
+    if (selectedIndex >= 0) fillEditor(list[selectedIndex]);
+    else if (editorEl) editorEl.hidden = true;
+    renderList();
+  }
+
+  function deleteAt(idx) {
+    var list = getList();
+    if (idx < 0 || idx >= list.length) return;
+    var name = list[idx] && list[idx].scriptName;
+    if (!confirm('删除正则「' + (name || '') + '」？')) return;
+    list.splice(idx, 1);
+    setList(list);
+    if (selectedIndex === idx) selectedIndex = Math.min(idx, list.length - 1);
+    else if (selectedIndex > idx) selectedIndex -= 1;
+    refresh();
+    setStatus('已删除');
+  }
+
+  function openTestModal() {
+    if (!testModal) return;
+    var tip = document.getElementById('rxTestTip');
+    var list = getList();
+    var rx = selectedIndex >= 0 ? list[selectedIndex] : null;
+    if (tip) tip.textContent = rx ? ('当前：' + (rx.scriptName || '(未命名)')) : '未选中正则';
+    document.getElementById('rxTestOutput').value = '';
+    var errEl = document.getElementById('rxTestErr');
+    if (errEl) { errEl.hidden = true; errEl.textContent = ''; }
+    // 挂到 body，避免 .panel transform/overflow 把 fixed 困成内嵌层
+    if (!testModal._rxModalHome) testModal._rxModalHome = testModal.parentNode;
+    document.body.appendChild(testModal);
+    testModal.hidden = false;
+    testModal.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('rx-modal-open');
+  }
+
+  function closeTestModal() {
+    if (!testModal) return;
+    testModal.hidden = true;
+    testModal.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('rx-modal-open');
+    if (testModal._rxModalHome && testModal.parentNode !== testModal._rxModalHome) {
+      testModal._rxModalHome.appendChild(testModal);
+    }
+  }
+
+  function runParse() {
+    var errEl = document.getElementById('rxTestErr');
+    var outEl = document.getElementById('rxTestOutput');
+    var list = getList();
+    if (selectedIndex < 0 || !list[selectedIndex]) {
+      if (errEl) {
+        errEl.hidden = false;
+        errEl.textContent = '请先在列表中选中一条正则';
+      }
+      if (outEl) outEl.value = '';
+      return;
+    }
+    // 优先用编辑区当前值（可能尚未防抖落盘）
+    var rx = editorEl && !editorEl.hidden ? readEditor() : list[selectedIndex];
+    var text = document.getElementById('rxTestInput').value;
+    var res = applyRegexScript(rx, text);
+    if (errEl) {
+      errEl.hidden = res.ok;
+      errEl.textContent = res.ok ? '' : (res.error || '解析失败');
+    }
+    if (outEl) outEl.value = res.result;
+  }
+
+  /** 列表启停：用 change 更可靠（避免 click 与行选中冲突） */
+  listEl.addEventListener('change', function(e) {
+    var t = e.target;
+    if (!t.classList || !t.classList.contains('rx-toggle')) return;
+    var ti = parseInt(t.getAttribute('data-idx'), 10);
+    var list = getList();
+    if (list[ti]) {
+      list[ti] = Object.assign({}, list[ti], { disabled: !t.checked });
+      setList(list);
+      if (ti === selectedIndex) fillEditor(list[ti]);
+      else renderList();
+      setStatus(t.checked ? '已启用' : '已禁用');
+    }
+  });
+
+  listEl.addEventListener('click', function(e) {
+    var t = e.target;
+    if (t.classList && t.classList.contains('rx-toggle')) return;
+    var delBtn = t.closest && t.closest('[data-del]');
+    if (delBtn) {
+      e.stopPropagation();
+      deleteAt(parseInt(delBtn.getAttribute('data-del'), 10));
+      return;
+    }
+    var moveBtn = t.closest && t.closest('[data-move]');
+    if (moveBtn) {
+      e.stopPropagation();
+      var mi = parseInt(moveBtn.getAttribute('data-idx'), 10);
+      var dir = moveBtn.getAttribute('data-move');
+      var to = dir === 'up' ? mi - 1 : mi + 1;
+      var moved = moveRegex(getList(), mi, to);
+      setList(moved);
+      if (selectedIndex === mi) selectedIndex = to;
+      else if (selectedIndex === to) selectedIndex = mi;
+      refresh();
+      return;
+    }
+    var item = t.closest && t.closest('.rx-item');
+    if (item) selectIndex(parseInt(item.getAttribute('data-idx'), 10));
+  });
+
+  listEl.addEventListener('keydown', function(e) {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    var item = e.target.closest && e.target.closest('.rx-item');
+    if (!item || (e.target.closest && e.target.closest('.rx-item-actions'))) return;
+    if (e.target.classList && e.target.classList.contains('rx-toggle')) return;
+    e.preventDefault();
+    selectIndex(parseInt(item.getAttribute('data-idx'), 10));
+  });
+
+  EDITOR_IDS.forEach(function(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('input', schedulePersist);
+    el.addEventListener('change', schedulePersist);
+  });
+
+  document.getElementById('rxBtnAdd')?.addEventListener('click', function() {
+    var list = getList();
+    var neu = createEmptyRegexScript({ scriptName: '新正则 ' + (list.length + 1) });
+    list.push(neu);
+    setList(list);
+    selectedIndex = list.length - 1;
+    refresh();
+    setStatus('已新建');
+  });
+
+  document.getElementById('rxBtnTest')?.addEventListener('click', openTestModal);
+  document.getElementById('rxBtnParse')?.addEventListener('click', runParse);
+
+  if (testModal) {
+    testModal.addEventListener('click', function(e) {
+      if (e.target && e.target.hasAttribute && e.target.hasAttribute('data-rx-modal-close')) {
+        closeTestModal();
+      }
+    });
+  }
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && testModal && !testModal.hidden) closeTestModal();
+  });
+
+  window.addEventListener('card-builder-data-changed', refresh);
+  window.addEventListener('card-draft-changed', refresh);
+  window.addEventListener('app-view-changed', function(ev) {
+    if (ev && ev.detail && ev.detail.view === 'regex') refresh();
+  });
+
+  refresh();
+  syncRefreshFingerprint();
+  window.__regexPanelApi__ = {
+    refresh: refresh,
+    getSelectedIndex: function() { return selectedIndex; },
+    persistEditor: persistEditor,
+  };
+})();
+</script>

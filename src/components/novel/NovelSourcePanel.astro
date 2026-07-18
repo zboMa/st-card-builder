@@ -1,0 +1,89 @@
+---
+/** 模块1：原始资料 + 全局处理配置（分片已下沉到各抽取模块） */
+---
+<div class="panel novel-workshop-panel" data-novel-panel="source">
+  <h2>原始资料</h2>
+  <p class="novel-panel-tip">导入长文后，经拆章 → 角色设定/开场白生成 → 人物/世界书/知识图谱抽取 → 文风蒸馏；抽取模块内可同步到主卡。</p>
+  <div class="novel-stats" id="novelStatsBar">
+    <span class="novel-stat-chip">等待导入文本</span>
+  </div>
+
+  <section class="novel-card">
+    <div class="novel-card-head">
+      <strong>原始资料</strong>
+      <span>支持 txt / md / json，可拖拽导入</span>
+    </div>
+    <div class="novel-card-body">
+      <label id="novelDropzone" class="novel-dropzone" for="novelSourceFile">
+        <span style="font-size:1.4rem">📥</span>
+        <span class="novel-dropzone-title">点击或拖拽导入小说文件</span>
+        <span class="novel-dropzone-subtitle">适合 txt / md / json</span>
+      </label>
+      <div class="novel-upload-row">
+        <label class="btn btn-fetch novel-btn-sm novel-upload-btn" for="novelSourceFile">选择文件</label>
+        <input id="novelSourceFile" type="file" accept=".txt,.md,.json" style="display:none;" />
+        <span id="novelFileHint" class="novel-dropzone-subtitle">支持 txt / md / json</span>
+        <button id="btnNovelClearFile" type="button" class="btn btn-fetch novel-btn-sm" style="display:none;">清空文件</button>
+      </div>
+      <div id="novelFileSummary" class="novel-stat-chip" style="display:none;margin-bottom:12px;"></div>
+      <div class="novel-source-layout">
+        <div class="form-group">
+          <label for="novelSourceText">手动补充文本</label>
+          <textarea id="novelSourceText" placeholder="贴入章节原文、人物设定表等。"></textarea>
+        </div>
+        <div class="form-group">
+          <label for="novelContextText">补充说明 (AI Context)</label>
+          <textarea id="novelContextText" placeholder="例如：优先抽取男主设定，忽略路人。"></textarea>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="novel-card">
+    <div class="novel-card-head">
+      <strong>全局处理配置</strong>
+      <span>模式 / 并行 / 召回；分片字数在拆章与各抽取模块内配置</span>
+    </div>
+    <div class="novel-card-body">
+      <div class="grid-2">
+        <div class="form-group">
+          <label for="novelNarrativeMode">处理模式</label>
+          <select id="novelNarrativeMode">
+            <option value="story">剧情延续</option>
+            <option value="worldbuilding">世界观重建</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="novelConcurrency">并行任务数</label>
+          <input id="novelConcurrency" type="number" min="1" step="1" value="3" />
+        </div>
+        <div class="form-group">
+          <label for="novelExpandBudget">AI 扩展召回预算（字）</label>
+          <input id="novelExpandBudget" type="number" min="1000" step="1000" value="30000" />
+        </div>
+      </div>
+      <label class="novel-switch">
+        <input id="novelStrictQuality" type="checkbox" />
+        <span>严格质量检查</span>
+      </label>
+      <!-- 内容模式：全局唯一入口；NSFW 与 NTL 解耦可叠加 -->
+      <div class="novel-global-modes" style="margin-top:12px;display:flex;flex-direction:column;gap:8px;">
+        <label class="novel-switch" title="全局 NSFW：分析/抽取/丰满/文风等统一读取">
+          <input id="novelGlobalAdult" type="checkbox" />
+          <span>成人模式（NSFW）</span>
+        </label>
+        <label class="novel-switch" title="禁忌张力层：与 NSFW 独立，可单独开或叠加">
+          <input id="novelGlobalNtl" type="checkbox" />
+          <span>NTL（禁忌张力，可选）</span>
+        </label>
+        <span class="novel-dropzone-subtitle">NSFW 管情欲身体向；NTL 管权力/背德/越界张力。可只开其一，也可叠加。</span>
+      </div>
+      <!-- tip 靠左、危险重置靠右：只清产出草稿，保留原文与配置 -->
+      <div class="novel-toolbar" style="margin-top:12px;justify-content:space-between;">
+        <span class="novel-dropzone-subtitle">清空章节/人物/世界书草稿/知识图谱/文风等产出，保留原文与分片等配置</span>
+        <button id="btnNovelResetAll" type="button" class="btn btn-delete novel-btn-sm">重置并清空结果</button>
+      </div>
+      <div id="novelSourceStatus" class="novel-status-text"></div>
+    </div>
+  </section>
+</div>

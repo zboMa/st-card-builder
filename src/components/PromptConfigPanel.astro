@@ -1,0 +1,295 @@
+---
+/** 提示词配置：按 Tab 分组编辑，localStorage 持久化 */
+---
+<div class="panel prompt-config-panel">
+  <h2>提示词配置</h2>
+  <p class="prompt-config-hint">
+    按分类 Tab 编辑各生成环节提示词。留空或点「恢复默认」后回退到内置默认值。
+    支持占位符 <code>&#123;&#123;batchSize&#125;&#125;</code>、<code>&#123;&#123;query&#125;&#125;</code>、<code>&#123;&#123;charName&#125;&#125;</code> 等（与调用处约定一致）。
+    动态上下文（角色信息、预设、搜索结果等）仍由原逻辑拼接，语义不变。
+  </p>
+
+  <div id="promptConfigTabs" class="ui-tabs prompt-config-tabs" role="tablist" aria-label="提示词分类"></div>
+  <div id="promptConfigList" class="prompt-config-list" role="tabpanel"></div>
+
+  <div class="prompt-config-actions">
+    <button type="button" id="btnPromptSaveAll" class="btn btn-ai">💾 保存全部</button>
+    <button type="button" id="btnPromptResetTab" class="btn btn-fetch">↺ 恢复本页默认</button>
+    <button type="button" id="btnPromptResetAll" class="btn btn-fetch">↺ 全部恢复默认</button>
+    <span id="promptConfigStatus" class="status-text"></span>
+  </div>
+</div>
+
+<style>
+  .prompt-config-hint {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    line-height: 1.55;
+    margin: -6px 0 12px;
+  }
+  .prompt-config-hint code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--color-text-muted);
+    background: rgba(148, 163, 184, 0.08);
+    padding: 1px 5px;
+    border-radius: 4px;
+  }
+  .prompt-config-tabs {
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+  .prompt-config-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-height: 120px;
+  }
+  .prompt-config-item {
+    border: 1px solid var(--color-accent-soft);
+    border-radius: 10px;
+    padding: 12px;
+    background: rgba(0, 0, 0, 0.18);
+  }
+  .prompt-config-item-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .prompt-config-item-title {
+    margin: 0;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--color-accent-hover);
+  }
+  .prompt-config-item-id {
+    font-size: 0.62rem;
+    color: var(--color-text-muted);
+    margin-left: 8px;
+    font-weight: 500;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .prompt-config-item textarea {
+    width: 100%;
+    min-height: 110px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    line-height: 1.45;
+  }
+  .prompt-config-item-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .prompt-config-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-top: 18px;
+    padding-top: 14px;
+    border-top: 1px solid var(--color-accent-soft);
+  }
+  .prompt-config-actions .btn {
+    width: auto;
+    margin: 0;
+    padding: 8px 14px;
+    font-size: 0.8rem;
+  }
+</style>
+
+<script is:inline>
+(function() {
+  var tabsEl = document.getElementById('promptConfigTabs');
+  var listEl = document.getElementById('promptConfigList');
+  var statusEl = document.getElementById('promptConfigStatus');
+  var btnSave = document.getElementById('btnPromptSaveAll');
+  var btnResetTab = document.getElementById('btnPromptResetTab');
+  var btnReset = document.getElementById('btnPromptResetAll');
+  if (!listEl || !tabsEl) return;
+
+  /** 跨 Tab 编辑缓存（切页不丢） */
+  var draftCache = {};
+  var activeGroup = '';
+
+  function store() {
+    return window.__promptStore__;
+  }
+
+  function setStatus(msg, ok) {
+    if (!statusEl) return;
+    statusEl.textContent = msg || '';
+    statusEl.style.color = ok ? 'var(--color-success)' : 'var(--color-danger)';
+  }
+
+  function escapeHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function groupsOf(ps) {
+    if (ps.listGroups) return ps.listGroups();
+    var seen = {};
+    var out = [];
+    (ps.META || []).forEach(function(m) {
+      if (!m || !m.group || seen[m.group]) return;
+      seen[m.group] = true;
+      out.push(m.group);
+    });
+    return out;
+  }
+
+  /** 把当前 Tab 的 textarea 写入 draftCache */
+  function stashActiveTab() {
+    listEl.querySelectorAll('[data-prompt-ta]').forEach(function(ta) {
+      var id = ta.getAttribute('data-prompt-ta');
+      if (id) draftCache[id] = ta.value;
+    });
+  }
+
+  function valueFor(ps, id) {
+    if (Object.prototype.hasOwnProperty.call(draftCache, id)) return draftCache[id];
+    return ps.get(id);
+  }
+
+  function metaInGroup(ps, group) {
+    return (ps.META || []).filter(function(m) { return m && m.group === group; });
+  }
+
+  function renderTabs(ps) {
+    var groups = groupsOf(ps);
+    if (!activeGroup || groups.indexOf(activeGroup) < 0) {
+      activeGroup = groups[0] || '';
+    }
+    var html = '';
+    groups.forEach(function(g) {
+      var active = g === activeGroup;
+      html += '<button type="button" class="ui-tabs__tab prompt-config-tab'
+        + (active ? ' is-active' : '') + '" role="tab" aria-selected="'
+        + (active ? 'true' : 'false') + '" data-prompt-tab="' + escapeHtml(g) + '">'
+        + escapeHtml(g) + '</button>';
+    });
+    tabsEl.innerHTML = html;
+    tabsEl.querySelectorAll('[data-prompt-tab]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var next = btn.getAttribute('data-prompt-tab');
+        if (!next || next === activeGroup) return;
+        stashActiveTab();
+        activeGroup = next;
+        renderList(ps);
+        renderTabs(ps);
+      });
+    });
+  }
+
+  function renderList(ps) {
+    var items = metaInGroup(ps, activeGroup);
+    if (!items.length) {
+      listEl.innerHTML = '<p class="prompt-config-hint">本分类暂无提示词</p>';
+      return;
+    }
+    var html = '';
+    items.forEach(function(meta) {
+      var val = valueFor(ps, meta.id);
+      html += '<div class="prompt-config-item" data-prompt-id="' + escapeHtml(meta.id) + '">'
+        + '<div class="prompt-config-item-head">'
+        + '<h3 class="prompt-config-item-title">' + escapeHtml(meta.label)
+        + '<span class="prompt-config-item-id">' + escapeHtml(meta.id) + '</span></h3>'
+        + '</div>'
+        + '<textarea data-prompt-ta="' + escapeHtml(meta.id) + '">' + escapeHtml(val) + '</textarea>'
+        + '<div class="prompt-config-item-actions">'
+        + '<button type="button" class="btn btn-fetch btn-prompt-reset-one" data-id="'
+        + escapeHtml(meta.id) + '" style="width:auto;margin:0;padding:5px 10px;font-size:0.72rem;">↺ 恢复默认</button>'
+        + '</div></div>';
+    });
+    listEl.innerHTML = html;
+
+    listEl.querySelectorAll('.btn-prompt-reset-one').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var id = btn.getAttribute('data-id');
+        var ps2 = store();
+        if (!ps2 || !id) return;
+        ps2.reset(id);
+        delete draftCache[id];
+        var ta = listEl.querySelector('[data-prompt-ta="' + id + '"]');
+        if (ta) ta.value = ps2.getDefault(id);
+        setStatus('已恢复「' + id + '」默认值', true);
+      });
+    });
+  }
+
+  function render() {
+    var ps = store();
+    if (!ps) {
+      listEl.innerHTML = '<p style="color:var(--color-danger);font-size:0.8rem;">提示词仓库未加载</p>';
+      tabsEl.innerHTML = '';
+      return;
+    }
+    // 首次/刷新：以 store 为准重建缓存（避免陈旧 draft）
+    draftCache = {};
+    (ps.META || []).forEach(function(m) {
+      if (m && m.id) draftCache[m.id] = ps.get(m.id);
+    });
+    renderTabs(ps);
+    renderList(ps);
+  }
+
+  function collectAllValues(ps) {
+    stashActiveTab();
+    var values = {};
+    (ps.META || []).forEach(function(m) {
+      if (!m || !m.id) return;
+      values[m.id] = Object.prototype.hasOwnProperty.call(draftCache, m.id)
+        ? draftCache[m.id]
+        : ps.get(m.id);
+    });
+    return values;
+  }
+
+  if (btnSave) {
+    btnSave.addEventListener('click', function() {
+      var ps = store();
+      if (!ps) return;
+      ps.setAll(collectAllValues(ps));
+      setStatus('已保存到 localStorage（含全部 Tab）', true);
+    });
+  }
+
+  if (btnResetTab) {
+    btnResetTab.addEventListener('click', function() {
+      var ps = store();
+      if (!ps || !activeGroup) return;
+      if (!confirm('确定将「' + activeGroup + '」下全部提示词恢复为默认？')) return;
+      metaInGroup(ps, activeGroup).forEach(function(m) {
+        ps.reset(m.id);
+        delete draftCache[m.id];
+      });
+      renderList(ps);
+      setStatus('已恢复「' + activeGroup + '」默认', true);
+    });
+  }
+
+  if (btnReset) {
+    btnReset.addEventListener('click', function() {
+      var ps = store();
+      if (!ps) return;
+      if (!confirm('确定将全部提示词恢复为内置默认值？')) return;
+      ps.reset();
+      draftCache = {};
+      render();
+      setStatus('已全部恢复默认', true);
+    });
+  }
+
+  window.addEventListener('app-view-changed', function(ev) {
+    if (ev.detail && ev.detail.view === 'prompt-config') render();
+  });
+
+  render();
+})();
+</script>

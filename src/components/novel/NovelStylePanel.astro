@@ -1,0 +1,52 @@
+---
+/** 模块5：文风蒸馏；模块内分片；同步为标题固定「文风」的世界书条目；配置固定 + 内容区占满 */
+---
+<div class="panel novel-workshop-panel novel-style-panel" data-novel-panel="style">
+  <h2>✒️ 文风蒸馏</h2>
+  <p class="novel-panel-tip">从启用章节抽样分析视角、句式、用词与节奏，产出可复用文风提示词。同步时写入主世界书，条目标题固定为「文风」（已存在则按冲突策略更新）。</p>
+  <p id="novelStyleGate" class="novel-gate-hint" style="display:none;"></p>
+
+  <div class="novel-style-body">
+    <div class="novel-style-controls">
+      <div class="grid-2">
+        <div class="form-group">
+          <label for="novelStyleChunkSize">抽样分片字数（预算上限）</label>
+          <select id="novelStyleChunkSize">
+            <option value="4000">4,000 字</option>
+            <option value="8000">8,000 字</option>
+            <option value="12000">12,000 字</option>
+            <option value="16000" selected>16,000 字</option>
+            <option value="24000">24,000 字</option>
+            <option value="32000">32,000 字</option>
+            <option value="48000">48,000 字</option>
+            <option value="64000">64,000 字</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="novelStyleConflictPolicy">同步冲突策略</label>
+          <select id="novelStyleConflictPolicy">
+            <option value="merge">合并</option>
+            <option value="overwrite">覆盖</option>
+            <option value="skip">跳过</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="novelStyleCustom">自定义要求（可选，留空用默认）</label>
+        <textarea id="novelStyleCustom" style="min-height:72px;" placeholder="例如：偏冷淡克制，少形容词堆砌"></textarea>
+      </div>
+      <button id="btnStyleDistill" type="button" class="btn" style="width:100%;margin-bottom:10px;">蒸馏文风</button>
+      <div id="novelStyleSyncBadge" class="novel-sync-badge unsynced" style="margin-bottom:4px;">未同步</div>
+    </div>
+
+    <div class="novel-style-content">
+      <textarea id="novelStyleText" placeholder="文风分析 + 可复用文风提示词会显示在这里，可直接编辑..."></textarea>
+      <div class="novel-toolbar" style="margin-top:10px;">
+        <button id="btnSyncStyle" type="button" class="btn novel-btn-sm">同步为世界书「文风」</button>
+        <button id="btnStyleCopy" type="button" class="btn btn-fetch novel-btn-sm">复制</button>
+        <button id="btnStyleDownload" type="button" class="btn btn-fetch novel-btn-sm">下载 .md</button>
+      </div>
+      <div id="novelStyleStatus" class="novel-status-text"></div>
+    </div>
+  </div>
+</div>

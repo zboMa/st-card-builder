@@ -210,8 +210,8 @@ const { unlockClicks = 10, label = '🔒 模块封锁中 · 开发未完成' } =
     height: 2px;
     background: linear-gradient(90deg,
       transparent 0%,
-      #fcd34d 5%, #f59e0b 20%, #fcd34d 40%,
-      #f59e0b 60%, #fcd34d 80%, #f59e0b 95%,
+      var(--color-warning) 5%, #f59e0b 20%, var(--color-warning) 40%,
+      #f59e0b 60%, var(--color-warning) 80%, #f59e0b 95%,
       transparent 100%
     );
     box-shadow:
@@ -222,8 +222,8 @@ const { unlockClicks = 10, label = '🔒 模块封锁中 · 开发未完成' } =
   .tape-line.tape-core.tape-red {
     background: linear-gradient(90deg,
       transparent 0%,
-      #fca5a5 5%, #ef4444 20%, #fca5a5 40%,
-      #ef4444 60%, #fca5a5 80%, #ef4444 95%,
+      var(--color-danger) 5%, #ef4444 20%, var(--color-danger) 40%,
+      #ef4444 60%, var(--color-danger) 80%, #ef4444 95%,
       transparent 100%
     );
     box-shadow:
@@ -304,7 +304,7 @@ const { unlockClicks = 10, label = '🔒 模块封锁中 · 开发未完成' } =
   .cordon-label-text {
     font-size: 0.78rem;
     font-weight: 700;
-    color: #fcd34d;
+    color: var(--color-warning);
     letter-spacing: 0.05em;
     text-shadow: 0 0 12px rgba(245,158,11,0.4);
     margin-bottom: 12px;
@@ -313,7 +313,7 @@ const { unlockClicks = 10, label = '🔒 模块封锁中 · 开发未完成' } =
 
   .cordon-badge-sub {
     font-size: 0.6rem;
-    color: #475569;
+    color: var(--color-text-muted);
     letter-spacing: 0.08em;
   }
 
@@ -326,7 +326,7 @@ const { unlockClicks = 10, label = '🔒 模块封锁中 · 开发未完成' } =
     left: 0;
     right: 0;
     height: 1px;
-    background: linear-gradient(90deg, transparent 0%, #f59e0b 30%, #fcd34d 50%, #f59e0b 70%, transparent 100%);
+    background: linear-gradient(90deg, transparent 0%, #f59e0b 30%, var(--color-warning) 50%, #f59e0b 70%, transparent 100%);
     z-index: 3;
     animation: cordonScanDown 3.5s linear infinite;
     box-shadow:
@@ -405,7 +405,7 @@ const { unlockClicks = 10, label = '🔒 模块封锁中 · 开发未完成' } =
     position: absolute;
     width: 4px;
     height: 4px;
-    background: #fcd34d;
+    background: var(--color-warning);
     border-radius: 50%;
     pointer-events: none;
     z-index: 10;
@@ -504,12 +504,12 @@ const { unlockClicks = 10, label = '🔒 模块封锁中 · 开发未完成' } =
   .cordon-success-toast .toast-text {
     font-size: 0.9rem;
     font-weight: 800;
-    color: #34d399;
+    color: var(--color-success);
     text-shadow: 0 0 14px rgba(16,185,129,0.5);
   }
   .cordon-success-toast .toast-sub {
     font-size: 0.65rem;
-    color: #64748b;
+    color: var(--color-text-muted);
     margin-top: 6px;
   }
 
@@ -572,7 +572,7 @@ const { unlockClicks = 10, label = '🔒 模块封锁中 · 开发未完成' } =
         }
         path.setAttribute('d', segs);
         path.setAttribute('fill', 'none');
-        path.setAttribute('stroke', i === 0 ? '#fcd34d' : 'rgba(245,158,11,0.4)');
+        path.setAttribute('stroke', i === 0 ? 'var(--color-warning)' : 'rgba(245,158,11,0.4)');
         path.setAttribute('stroke-width', i === 0 ? '2' : '1');
         path.setAttribute('stroke-linecap', 'round');
         svg.appendChild(path);
@@ -665,7 +665,7 @@ const { unlockClicks = 10, label = '🔒 模块封锁中 · 开发未完成' } =
               var cx = rect.width / 2, cy = rect.height / 2;
               sp.style.left = cx + 'px';
               sp.style.top  = cy + 'px';
-              sp.style.background = ['#34d399','#fcd34d','#60a5fa','#f472b6','#a78bfa'][idx % 5];
+              sp.style.background = ['var(--color-success)','var(--color-warning)','#60a5fa','#f472b6','var(--color-accent-hover)'][idx % 5];
               sp.style.width = '6px';
               sp.style.height = '6px';
               sp.style.setProperty('--sx', (Math.cos(a) * d).toFixed(1) + 'px');
