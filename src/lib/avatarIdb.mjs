@@ -73,9 +73,10 @@ export async function loadAvatarFullDataUrl(draftId) {
   return blobToDataUrl(rec.blob);
 }
 
-/** 读取封面 object URL（调用方需在适当时机 revoke） */
+/** 读取封面 object URL（调用方需在适当时机 revoke；缺缩略图时回退高清） */
 export async function loadAvatarThumbObjectUrl(draftId) {
   var rec = await idbGetBlob(idbAvatarThumbKey(draftId));
+  if (!rec) rec = await idbGetBlob(idbAvatarFullKey(draftId));
   if (!rec) return '';
   return URL.createObjectURL(rec.blob);
 }

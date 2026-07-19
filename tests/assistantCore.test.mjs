@@ -684,8 +684,10 @@ describe('assistant prompts & UI wiring', function() {
   it('右栏助手已挂载', function() {
     const index = readFileSync(join(root, 'src/pages/index.astro'), 'utf8');
     assert.match(index, /AssistantPanel/);
-    assert.match(index, /__assistantCardApi__/);
-    assert.match(index, /__assistantWbAi__/);
+    const cmSrc = readFileSync(join(root, 'src/lib/card-builder/panels/cardManager.mjs'), 'utf8');
+    assert.match(cmSrc, /__assistantCardApi__/);
+    const wbSrc = readFileSync(join(root, 'src/lib/card-builder/panels/worldbook.mjs'), 'utf8');
+    assert.match(wbSrc, /__assistantWbAi__/);
     const layout = readFileSync(join(root, 'src/layouts/Layout.astro'), 'utf8');
     assert.match(layout, /minmax\(280px,\s*340px\)/);
     const panel = readFileSync(join(root, 'src/components/AssistantPanel.astro'), 'utf8');
@@ -707,7 +709,7 @@ describe('assistant prompts & UI wiring', function() {
     assert.match(novel, /runScanCharacters/);
     assert.match(novel, /runExtractWorldbook/);
     assert.match(novel, /runDistillStyle/);
-    assert.match(novel, /真 await API/);
+    assert.match(novel, /async function runScan/);
     assert.match(novel, /normalizeCharacterPatch/);
     assert.doesNotMatch(novel, /return \{ started: true, mode: 'worldbook' \}/);
   });

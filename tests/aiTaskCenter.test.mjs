@@ -124,31 +124,41 @@ describe('aiTaskCenter UI wiring', function() {
   it('index 注入 AiTaskCenterUI 且 fetch 支持 signal', function() {
     const src = readFileSync(join(root, 'src/pages/index.astro'), 'utf8');
     assert.match(src, /AiTaskCenterUI/);
-    assert.match(src, /signal:\s*opts\.signal/);
     assert.match(src, /__runAiTask__/);
-    assert.match(src, /engine_generate/);
-    assert.match(src, /char_tags_generate/);
-    assert.match(src, /btnAiGenCharTags/);
     assert.match(src, /tagContextChars/);
-    assert.match(src, /wb_single|wb_organize|wb_keygen/);
+    const ctxSrc = readFileSync(join(root, 'src/lib/card-builder/shared/context.mjs'), 'utf8');
+    assert.match(ctxSrc, /signal:\s*opts\.signal/);
+    const aiSrc = readFileSync(join(root, 'src/lib/card-builder/panels/aiEngine.mjs'), 'utf8');
+    assert.match(aiSrc, /engine_generate/);
+    assert.match(aiSrc, /char_tags_generate/);
+    assert.match(aiSrc, /btnAiGenCharTags/);
+    const wbSrc = readFileSync(join(root, 'src/lib/card-builder/panels/worldbook.mjs'), 'utf8');
+    assert.match(wbSrc, /wb_single|wb_organize|wb_keygen/);
   });
 
   it('小说与助手接入任务中心', function() {
     const novel = readFileSync(join(root, 'src/lib/novel/browserApp.mjs'), 'utf8');
     assert.match(novel, /runTracked/);
-    assert.match(novel, /novel_char_expand/);
-    assert.match(novel, /novel_char_scan/);
-    assert.match(novel, /novel_wb_extract/);
-        assert.match(novel, /novel_wb_expand/);
-    assert.match(novel, /novel_style/);
-    assert.match(novel, /confirmExpandRecall|novelModalExpandConfirm/);
+    const novelChars = readFileSync(join(root, 'src/lib/novel/panels/characters.mjs'), 'utf8');
+    assert.match(novelChars, /novel_char_expand/);
+    assert.match(novelChars, /novel_char_scan/);
+    const novelWb = readFileSync(join(root, 'src/lib/novel/panels/worldbook.mjs'), 'utf8');
+    assert.match(novelWb, /novel_wb_extract/);
+    assert.match(novelWb, /novel_wb_expand/);
+    const novelStyle = readFileSync(join(root, 'src/lib/novel/panels/style.mjs'), 'utf8');
+    assert.match(novelStyle, /novel_style/);
+    const novelCtx = readFileSync(join(root, 'src/lib/novel/shared/context.mjs'), 'utf8');
+    assert.match(novelCtx, /confirmExpandRecall|novelModalExpandConfirm/);
     assert.match(novel, /signal:\s*signal/);
     // 长任务：loading + Abort；取消不弹失败 alert
     assert.match(novel, /setBtnBusy|busyFlags/);
     assert.match(novel, /mapPool\([\s\S]*task\.signal/);
     assert.match(novel, /callAI\(user,\s*null,\s*task\.signal\)/);
     assert.match(novel, /isTrackedAbort\(e\)/);
-    assert.match(novel, /⏹ 已取消扫描|⏹ 已取消抽取|⏹ 已取消蒸馏/);
+    // 取消文案在各 panel 中
+    assert.match(novelChars, /已取消扫描/);
+    assert.match(novelWb, /已取消抽取/);
+    assert.match(novelStyle, /已取消蒸馏/);
     const asst = readFileSync(join(root, 'src/components/AssistantPanel.astro'), 'utf8');
     assert.match(asst, /assistant_react/);
     assert.match(asst, /callChat\(messages,\s*0\.35,\s*reactSignal\)/);

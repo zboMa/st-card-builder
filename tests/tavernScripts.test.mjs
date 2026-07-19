@@ -77,9 +77,10 @@ describe('tavernScripts wiring', function() {
     assert.match(index, /__setTavernHelperScripts__/);
     assert.match(index, /opts\.silent/);
     assert.match(index, /__setTavernHelperScript__/);
-    // 导出保留 variables
-    assert.match(index, /variables:\s*thVars/);
-    assert.match(index, /tavern_helper/);
+    // 导出保留 variables（已迁至 state.mjs）
+    const stSrc = readFileSync(join(root, 'src/lib/card-builder/state.mjs'), 'utf8');
+    assert.match(stSrc, /variables:\s*thVars/);
+    assert.match(stSrc, /tavern_helper/);
 
     const tools = readFileSync(join(root, 'src/lib/assistant/tools.mjs'), 'utf8');
     assert.match(tools, /'tavern-scripts'/);

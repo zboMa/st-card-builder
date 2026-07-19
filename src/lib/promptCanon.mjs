@@ -9,18 +9,21 @@ export const PROMPT_BLOCKS = {
     '\n【内容描述体系·须覆盖】'
     + '\n1. 身份与定位：是谁、社会/阵营角色、与主角关系坐标。'
     + '\n2. 外貌与辨识：发/眼/体态/着装/标志性细节，可被模型「看见」。'
-    + '\n3. 性格与口吻：核心特质 + 可模仿的说话方式（给短例句更佳）。'
-    + '\n4. 背景与经历：关键事件、转折、塑造其当下行为的原因。'
-    + '\n5. 动机与冲突：目标、隐秘动机、弱点、喜恶、能力边界。'
-    + '\n6. 关系网：与谁亲近/对立/暧昧，权力差与情感张力。'
-    + '\n7. 可玩钩子：RP 中可触发的情节入口、习惯、禁忌话题（非性）。'
-    + '\n8. 具体度：用可观察细节，禁止「很美/很强/很神秘」等空话。',
+    + '\n3. 性格层叠：不只写「性格如何」，用 persona_layers 写五层——陌生人第一印象/朋友看到的/亲密者看到的/压力下的底色/自己不愿承认的。'
+    + '\n4. 张力对：写 tension_pairs，至少一对内在矛盾（如「掌控欲 vs 怕孤独」→ 用控制对方来避免被抛弃）。'
+    + '\n5. 核心欲望：core_desire，一句话——角色最深层的驱动力是什么。'
+    + '\n6. 背景与经历：关键事件、转折、塑造其当下行为的原因。'
+    + '\n7. 口吻与可模仿：speech_style 给出短例句和口癖，而非「说话温柔」。'
+    + '\n8. 关系网：与谁亲近/对立/暧昧，权力差与情感张力。'
+    + '\n9. 可玩钩子：RP 中可触发的情节入口、习惯、禁忌话题（非性）。'
+    + '\n10. 具体度：用可观察细节，禁止「很美/很强/很神秘」等空话。',
 
   nsfwPersonCanon:
     '\n【人物 NSFW 描述体系·AdultMode 开时强制写满】'
+    + '\n★ 用「欲望调色盘」而非属性清单。同一张 Kinks 牌在不同调色盘下读起来完全不同。'
     + '\n结构 NSFW_information：'
     + '\n- body{overall,breasts,waist_hips,genitals,other_features}：身体与私密部位，尺度可直白具体；'
-    + '\n- erogenous_zones[]：敏感带与被触碰时的反应；'
+    + '\n- erogenous_zones[]：敏感带与被触碰时的反应（不只列部位，写触碰后的具体反应链）；'
     + '\n- sexual_personality：亲密/床上性格与主动性；'
     + '\n- contrast：日常形象 vs 情欲面的反差；'
     + '\n- xp_kinks[] / Kinks[]：具体可玩法（非空泛「喜欢色色」）；'
@@ -28,7 +31,12 @@ export const PROMPT_BLOCKS = {
     + '\n- inner_erotic_thoughts：情欲时的内心活动与自我暗示；'
     + '\n- Sex_related_traits{experiences,sexual_orientation,sexual_role,sexual_habits[]}；'
     + '\n- Limits[]：硬界限（优先于色情细节，必须填写）。'
-    + '\n禁止整块「（原文未提及）」或留空；无原文则据性格/外貌/关系/氛围推断。',
+    + '\n- desire_palette{primary_hue,primary_intensity,accent_hue,accent_intensity,temperature,texture,forbidden_tint}：欲望调色盘——主色调是什么？对比色是什么？温度暖还是冷？触感是丝绒还是刀刃？forbidden_tint 是明明想要但不愿承认的东西。'
+    + '\n- sexual_psychology{core_desire,core_fear,shame_sources[],pride_sources[],desire_expression,arousal_signature,fantasy_vs_reality,attachment_after}：情欲心理层——通过性想获得什么？最怕什么？如何表达欲望？情动时的体态信号？幻想与现实的落差？亲密后的依恋模式？'
+    + '\n- situational_modulation{private_safe,private_charged,semi_public,post_conflict,first_time}：同一个人在五种场景中欲望表达不同，各有 primary 和 intensity。'
+    + '\n- aftercare{needs[],emotional_shift,relationship_impact}：亲密后需要什么？情绪怎么变？关系是拉近还是推远？'
+    + '\n禁止整块「（原文未提及）」或留空；无原文则据性格/外貌/关系/氛围推断。'
+    + '\n【写法要求】不要写体检报告。每段都要有画面感、可扮演、可被模型在 RP 中调用。',
 
   nsfwWorldCanon:
     '\n【世界 NSFW / 成人维·AdultMode 开时】'
@@ -229,7 +237,8 @@ export const DEFAULT_PROMPTS = {
   ),
 
   novelCharExpand: join(
-    '你是 SillyTavern 小说人物档案专家。根据原文片段与已有档案，输出完整附录1 JSON。',
+    '你是 SillyTavern 小说人物档案专家。根据原文片段与已有档案，输出完整附录1 JSON。'
+    + '\n★ 重要：用「调色盘」方式而非属性清单。同一张牌在不同调色盘下读起来完全不同。',
     '\n【事实规则】'
     + '\n1. 优先采用原文明确事实与细节。'
     + '\n2. 原文未写明的字段：必须根据已有性格、外貌、关系、身份、剧情氛围等合理虚构补全；禁止留空，禁止输出「（原文未提及）」。'
@@ -239,11 +248,14 @@ export const DEFAULT_PROMPTS = {
     B.inferCanon,
     B.antiSlop,
     B.outputCanon,
-    '\n【丰满度】外貌/性格/关系/关键事件写具体；speech_style 给可模仿口吻示例。',
+    '\n【丰满度】外貌/性格/关系/关键事件写具体；speech_style 给可模仿口吻示例；persona_layers 写满五层；tension_pairs 至少一对；core_desire 一句话穿透角色灵魂。',
     '\n只输出一个 JSON 对象，顶层字段必须完整包含：'
     + '\nChinese name, Nickname, age, gender, identity, key_events, relationships, turning_points,'
-    + '\nappearance{hair,eyes,build,识别特征}, personality{core_traits}, values_and_drives,'
-    + '\nhidden_motives, goals, weakness, likes, dislikes, skills, speech_style, NSFW_information。'
+    + '\nappearance{hair,eyes,build,识别特征}, personality{core_traits},'
+    + '\npersona_layers{surface,social,intimate,under_stress,secret_self},'
+    + '\ntension_pairs[{trait_a,trait_b,resolution}], core_desire,'
+    + '\nvalues_and_drives, hidden_motives, goals, weakness, likes, dislikes, skills, speech_style,'
+    + '\nNSFW_information。'
   ),
 
   novelWbExtract: join(
@@ -301,7 +313,8 @@ export const DEFAULT_PROMPTS = {
   ),
 
   novelAnalyzeSkeleton: join(
-    '你是小说知识抽取器。根据【本片原文】与【已有实体/关系】，输出本片增量实体与关系。',
+    '你是小说知识抽取器。根据【本片原文】与【已有实体/关系】，输出本片增量实体与关系。'
+    + '\n★ 人物用「调色盘」方式而非标签清单。',
     '\n类型 type 仅限：person|faction|location|item|event|lore|nsfw（IncludeAdult/AdultMode=false 时禁止 nsfw 与亲密边）。',
     '\n尽量挖全；同名或别名命中已有实体则 op=upsert 合并，禁止重复空壳与空内容名。',
     '\n每项须尽量含：name、aliases（尽量挖全）、summary（≤80字）、keys（2～6）、type；'
@@ -325,7 +338,8 @@ export const DEFAULT_PROMPTS = {
   ),
 
   novelEnrichEntity: join(
-    '你是小说条目写手。根据【原文片段】【当前实体】与【已有成人摘要】，输出丰满后的完整实体 JSON。',
+    '你是小说条目写手。根据【原文片段】【当前实体】与【已有成人摘要】，输出丰满后的完整实体 JSON。'
+    + '\n★ 用「调色盘」方式塑造人物：同一张 Kinks 牌在不同调色盘下读起来完全不同。',
     '\n目标：本条写到可直接用于 SillyTavern RP，无需二次扩展。',
     '\n规则：优先原文事实；无原文时据已有性格/外貌/关系/势力氛围合理虚构补全；'
     + 'content≥120字且具体可指导扮演；provenance 每项 { chapterId?, quote } 能对应则写，纯推断可短注「推断」。',
@@ -337,7 +351,7 @@ export const DEFAULT_PROMPTS = {
     B.ntlCanon,
     B.antiSlop,
     B.outputCanon,
-    '\nperson：attrs.profile 填附录1 全字段（含 NSFW_information）；并返回 attrs.nsfwMeta（lastPass:"enrich"）。',
+    '\nperson：attrs.profile 填附录1 全字段（含 persona_layers/tension_pairs/core_desire/NSFW_information 全调色盘字段）；并返回 attrs.nsfwMeta（lastPass:"enrich"）。',
     '\ntype=nsfw：按 kind 填满；item/location/lore/faction：填 attrs.adult（lastPass:"enrich"）。',
     '\nevent 补全 when/where/participants/cause/effect（亲密事件加 intimate:true）。',
     '\n若提示含【文风 NSFW 指令】或已有 XP/Limits 摘要，须对齐尺度与禁忌。',

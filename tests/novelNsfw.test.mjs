@@ -35,21 +35,23 @@ import {
   isAdultAttrsFilled,
   adultEnrichPriority,
   buildAdultContextDigests,
+  emptyNtlPersonAttrs,
+  normalizeNtlPersonAttrs,
+  mergeNtlPersonAttrs,
+  isNtlPersonFilled,
+  formatPersonNtlDigest,
 } from '../src/lib/novel/nsfwSupport.mjs';
 import { listEntitiesNeedingEnrich } from '../src/lib/novel/analyzePipeline.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 describe('novel nsfwSupport', function() {
-  it('NSFW 全局开关联动兼容字段；NTL 独立', function() {
+  it('NSFW 全局开关与旧桶兼容；NTL 独立', function() {
     var s = createDefaultNovelState();
     assert.equal(getAdultMode(s), false);
     assert.equal(getNtlMode(s), false);
     setAdultMode(s, true);
     assert.equal(s.adultMode, true);
-    assert.equal(s.analyzeIncludeAdult, true);
-    assert.equal(s.includeAdult, true);
-    assert.equal(s.styleIncludeNSFW, true);
     setNtlMode(s, true);
     assert.equal(s.ntlMode, true);
     assert.equal(getAdultMode(s), true);
@@ -160,10 +162,144 @@ describe('novel nsfwSupport', function() {
       provenance: [{ quote: 'z' }],
       attrs: normalizeNsfwEntityAttrs({ kind: 'rule', rules: ['先问'], limits: ['公开'], consent: '口头' }),
     };
-    var queue = listEntitiesNeedingEnrich([item, personThin, nsfwOk], true, true);
+    var queue = listEntitiesNeedingEnrich([item, personThin, nsfwOk], true, true, false);
     assert.ok(queue.length >= 1);
     assert.equal(queue[0].type, 'person');
     assert.ok(adultEnrichPriority(personThin) < adultEnrichPriority(item));
+  });
+
+  it('isNsfwProfileFilled: 任一 body 子字段非占位即通过', function() {
+    var profileOnlyBreasts = {
+      NSFW_information: {
+        body: { overall: '', breasts: '柔软饱满', genitals: '' },
+        sexual_personality: '主动',
+        Kinks: ['耳语'],
+        Limits: ['公开'],
+      },
+    };
+    assert.ok(isNsfwProfileFilled(profileOnlyBreasts));
+    var profileOnlyGenitals = {
+      NSFW_information: {
+        body: { overall: '', breasts: '', genitals: '敏感', waist_hips: '' },
+        sexual_personality: '被动',
+        Kinks: ['束缚'],
+        Limits: ['出血'],
+      },
+    };
+    assert.ok(isNsfwProfileFilled(profileOnlyGenitals));
+  });
+
+  it('NTL 人物 attrs 规范化/合并/丰满判定', function() {
+    var a = normalizeNtlPersonAttrs({
+      powerDynamic: '秦月掌控经济命脉，他人被迫依附',
+      tabooThemes: ['背德', '胁迫'],
+      coercionHint: '以把柄要挟',
+      inferred: true,
+      lastPass: 'skeleton',
+    });
+    assert.equal(a.powerDynamic, '秦月掌控经济命脉，他人被迫依附');
+    assert.ok(a.tabooThemes.indexOf('背德') >= 0);
+    assert.ok(isNtlPersonFilled({ type: 'person', attrs: { ntl: a } }));
+
+    var personMissingDynamic = { type: 'person', attrs: { ntl: normalizeNtlPersonAttrs({ tabooThemes: ['禁忌'] }) } };
+    assert.equal(isNtlPersonFilled(personMissingDynamic), false);
+
+    var merged = mergeNtlPersonAttrs(a, {
+      powerDynamic: '',
+      tabooThemes: ['权力滥用'],
+      moralConflict: '内心挣扎',
+      inferred: false,
+      lastPass: 'enrich',
+    });
+    assert.ok(merged.tabooThemes.indexOf('背德') >= 0);
+    assert.ok(merged.tabooThemes.indexOf('权力滥用') >= 0);
+    assert.equal(merged.inferred, false);
+    assert.equal(merged.lastPass, 'enrich');
+  });
+
+  it('adultEnrichPriority NTL 缺口排序', function() {
+    var personNsfwOk = {
+      type: 'person',
+      name: '秦月',
+      content: '长正文'.repeat(40),
+      provenance: [{ quote: 'x' }],
+      attrs: {
+        profile: {
+          NSFW_information: {
+            body: { overall: '纤细' },
+            sexual_personality: '主动',
+            Kinks: ['耳语'],
+            Limits: ['疼痛'],
+          },
+        },
+        nsfwMeta: { inferred: false },
+      },
+    };
+    var personNtlGap = {
+      type: 'person',
+      name: '柳生',
+      content: '长正文'.repeat(40),
+      provenance: [{ quote: 'y' }],
+      attrs: {
+        profile: {
+          NSFW_information: {
+            body: { overall: '结实' },
+            sexual_personality: '霸道',
+            Kinks: ['掌控'],
+            Limits: ['背叛'],
+          },
+        },
+        nsfwMeta: { inferred: false },
+      },
+    };
+    assert.equal(adultEnrichPriority(personNsfwOk, false), 3, 'NSFW 已满 → 优先级 3');
+    assert.equal(adultEnrichPriority(personNsfwOk, true), 1, 'NSFW 已满但缺 NTL → 优先级 1');
+    var gapPrio = adultEnrichPriority(personNtlGap, true);
+    assert.equal(gapPrio, 1, 'NTL 缺口人物优先级应为 1');
+  });
+
+  it('NTL 人物摘要输出', function() {
+    var ents = [{
+      type: 'person',
+      name: '秦月',
+      attrs: {
+        ntl: normalizeNtlPersonAttrs({
+          powerDynamic: '财政掌控',
+          tabooThemes: ['金钱胁迫', '背德关系'],
+          coercionHint: '以债务要挟',
+        }),
+      },
+      nsfwMeta: { inferred: true },
+    }];
+    var digest = formatPersonNtlDigest(ents);
+    assert.match(digest, /秦月/);
+    assert.match(digest, /财政掌控/);
+    assert.match(digest, /金钱胁迫/);
+  });
+
+  it('buildAdultContextDigests NTL 模式融合', function() {
+    var ents = [{
+      type: 'person',
+      name: '秦月',
+      attrs: {
+        profile: {
+          NSFW_information: { sexual_personality: '主动', Kinks: ['耳语'], Limits: ['疼痛'], body: { overall: '纤细' } },
+        },
+        nsfwMeta: { inferred: true },
+        ntl: normalizeNtlPersonAttrs({ powerDynamic: '掌控', tabooThemes: ['胁迫'] }),
+      },
+    }, {
+      type: 'nsfw',
+      name: '私密规矩',
+      attrs: normalizeNsfwEntityAttrs({ kind: 'rule', limits: ['公开'] }),
+    }];
+    var digestNsOnly = buildAdultContextDigests(ents, 5000, false);
+    assert.match(digestNsOnly, /秦月/);
+    assert.match(digestNsOnly, /私密规矩/);
+    assert.doesNotMatch(digestNsOnly, /NTL/);
+    var digestWithNtl = buildAdultContextDigests(ents, 5000, true);
+    assert.match(digestWithNtl, /NTL/);
+    assert.match(digestWithNtl, /秦月/);
   });
 
   it('RAG 增强 / 互喂摘要 / 分步推断与 NTL 提示', function() {
@@ -239,10 +375,15 @@ describe('novel nsfwSupport', function() {
   });
 
   it('UI/桥接/助手工具接线：全局 NSFW/NTL', function() {
+    // NSFW 配置已迁移到角色设定面板——检查 CharacterPanel 而非 NovelSourcePanel
+    const charPanel = readFileSync(join(root, 'src/components/CharacterPanel.astro'), 'utf8');
+    assert.match(charPanel, /charNsfwEnabled/);
+    assert.match(charPanel, /charNtlEnabled/);
+    assert.match(charPanel, /charNsfwFlavor/);
+    assert.match(charPanel, /情欲|NSFW/);
     const source = readFileSync(join(root, 'src/components/novel/NovelSourcePanel.astro'), 'utf8');
-    assert.match(source, /novelGlobalAdult/);
-    assert.match(source, /novelGlobalNtl/);
-    assert.match(source, /成人模式（NSFW）|NTL/);
+    // 原始资料面板不再包含 NSFW 配置
+    assert.doesNotMatch(source, /novelGlobalAdult|novelGlobalNtl/);
     const analyze = readFileSync(join(root, 'src/components/novel/NovelAnalyzePanel.astro'), 'utf8');
     assert.doesNotMatch(analyze, /novelAnalyzeIncludeAdult|novelGlobalAdult/);
     assert.match(analyze, /btnNovelNsfwStatusDraft/);
@@ -255,7 +396,8 @@ describe('novel nsfwSupport', function() {
     assert.match(app, /setAdultMode|getAdultMode|buildNsfwStatusDraft/);
     assert.match(app, /setNtlMode|getNtlMode|buildModeHintBlocks|buildContentModeFlags/);
     assert.match(app, /boostAdultSearchQuery|extractStyleNsfwSection|buildAdultContextDigests/);
-    assert.match(app, /novelGlobalAdult|novelGlobalNtl/);
+    // NSFW 配置已从小说面板移除，browserApp 通过 nsfw-config-changed 事件同步全局配置
+    assert.doesNotMatch(app, /novelGlobalAdult|novelGlobalNtl/);
     const tools = readFileSync(join(root, 'src/lib/assistant/tools.mjs'), 'utf8');
     assert.match(tools, /set_novel_adult_mode|set_novel_ntl_mode|draft_nsfw_statusbar/);
     const ex = readFileSync(join(root, 'src/lib/assistant/executor.mjs'), 'utf8');

@@ -1,6 +1,7 @@
 /**
  * 小说实体库：CRUD、别名匹配、投影到 characters / wbEntries / knowledgeGraph
  */
+import { uid } from '../utils.mjs';
 import { normalizeCharacterProfile, profileContentDigest } from './schema.mjs';
 import { emptyKnowledgeGraph, graphNodeId } from './graphMerge.mjs';
 import {
@@ -14,6 +15,7 @@ import {
   normalizeNsfwMeta,
   mergeNsfwMeta,
   formatAdultAttrsForContent,
+  normalizeNtlPersonAttrs,
 } from './nsfwSupport.mjs';
 
 export var ENTITY_TYPES = ['person', 'faction', 'location', 'item', 'event', 'lore', 'nsfw'];
@@ -28,10 +30,6 @@ export var TYPE_TO_WB_CATEGORY = {
   nsfw: 'nsfw',
   person: 'character',
 };
-
-export function uid(prefix) {
-  return (prefix || 'ent') + '_' + Math.random().toString(36).slice(2, 10);
-}
 
 function normName(s) {
   return String(s || '').trim().toLowerCase();
@@ -119,6 +117,9 @@ function normalizeEntityAdultFields(type, attrs) {
   if (type === 'person' && a.nsfwMeta) {
     a.nsfwMeta = normalizeNsfwMeta(a.nsfwMeta);
   }
+  if (type === 'person' && a.ntl) {
+    a.ntl = normalizeNtlPersonAttrs(a.ntl);
+  }
   return a;
 }
 
@@ -200,9 +201,6 @@ export function upsertEntity(entities, raw, opts) {
     );
     if (type === 'person' && (raw.profile || (raw.attrs && raw.attrs.profile))) {
       created.attrs.profile = normalizeCharacterProfile(raw.profile || raw.attrs.profile, name);
-    }
-    if (type === 'nsfw') {
-      created.attrs = normalizeNsfwEntityAttrs(created.attrs);
     }
     if (type === 'event' && created.attrs) {
       if (raw.attrs && (raw.attrs.intimate === true || raw.attrs.kind === 'intimate')) {

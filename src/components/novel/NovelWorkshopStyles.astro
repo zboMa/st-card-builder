@@ -487,6 +487,32 @@
     color: var(--color-text);
   }
 
+  /* NTL 禁忌类型 chip 按钮 */
+  .novel-chip-btn {
+    padding: 4px 10px;
+    border-radius: 14px;
+    border: 1px solid var(--color-border);
+    background: transparent;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    font-size: 0.7rem;
+    font-family: inherit;
+    transition: all 0.18s ease;
+    white-space: nowrap;
+  }
+  .novel-chip-btn:hover {
+    border-color: var(--color-accent);
+    color: var(--color-accent-hover);
+    background: rgba(239, 68, 68, 0.06);
+  }
+  .novel-chip-btn.active {
+    border-color: var(--color-accent);
+    background: rgba(239, 68, 68, 0.14);
+    color: var(--color-accent);
+    font-weight: 700;
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.12);
+  }
+
   .novel-output-section { margin-bottom: 18px; }
   .novel-output-section h3 {
     margin: 0 0 10px;

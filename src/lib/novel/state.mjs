@@ -96,6 +96,10 @@ export function createDefaultNovelState() {
     adultMode: false,
     /** 全局 NTL：禁忌张力层，与 NSFW 解耦可叠加 */
     ntlMode: false,
+    /** NTL 禁忌类型（多选，空=原 NTL 通用模式） */
+    ntlTabooTypes: [],
+    /** NSFW 口味预设（vanilla|domination|dark|slice_of_life|intense|angst） */
+    nsfwFlavor: '',
     wbFocus: WB_FOCUS_OPTIONS.map(function(o) { return o.id; }),
     wbEntries: [],
     // 统一知识库（主路径）
@@ -198,6 +202,8 @@ export function hydrateNovelState(raw) {
   base.includeAdult = !!base.adultMode;
   base.styleIncludeNSFW = !!base.adultMode;
   base.ntlMode = !!base.ntlMode;
+  if (!Array.isArray(base.ntlTabooTypes)) base.ntlTabooTypes = [];
+  if (typeof base.nsfwFlavor !== 'string') base.nsfwFlavor = '';
   if (!base.knowledgeGraph || typeof base.knowledgeGraph !== 'object') {
     base.knowledgeGraph = { nodes: [], edges: [], updatedAt: '' };
   }
@@ -351,7 +357,7 @@ export function writeNovelBucket(storage, cardId, state) {
 export function removeNovelBucket(storage, cardId) {
   var key = novelBucketKey(cardId);
   if (!key || !storage || typeof storage.removeItem !== 'function') return;
-  try { storage.removeItem(key); } catch (e) {}
+  try { storage.removeItem(key); } catch (e) { console.warn('Removing novel bucket from storage failed', e); }
 }
 
 /**
@@ -394,7 +400,7 @@ export function loadNovelStateForCard(storage, cardId) {
         writeNovelBucket(storage, id, state);
         if (typeof storage.removeItem === 'function') storage.removeItem(NOVEL_STORAGE_KEY);
       }
-    } catch (e) {}
+    } catch (e) { console.warn('Migrating legacy novel data failed', e); }
   }
 
   // V2 源文本兜底（桶与全局 V3 皆空时）
@@ -413,7 +419,7 @@ export function loadNovelStateForCard(storage, cardId) {
           from = from || NOVEL_V2_STORAGE_KEY;
         }
       }
-    } catch (e) {}
+    } catch (e) { console.warn('Migrating V2 novel data failed', e); }
   }
 
   // 新卡写空桶，标记「已绑定」以免后续误迁全局
@@ -451,7 +457,7 @@ export async function writeNovelBucketIdb(cardId, state) {
 export async function removeNovelBucketIdb(cardId, lsStorage) {
   var key = idbNovelKey(cardId);
   if (key) {
-    try { await idbDeleteJson(key); } catch (e) {}
+    try { await idbDeleteJson(key); } catch (e) { console.warn('Deleting novel bucket from IDB failed', e); }
   }
   removeNovelBucket(lsStorage, cardId);
 }
@@ -464,7 +470,7 @@ export async function copyNovelBucketIdb(fromCardId, toCardId, lsStorage) {
   if (fromKey && toKey) {
     try {
       if (await idbCopyJson(fromKey, toKey)) return true;
-    } catch (e) {}
+    } catch (e) { console.warn('Copying novel bucket in IDB failed', e); }
   }
   var raw = readNovelBucket(lsStorage, fromCardId);
   if (!novelStateHasContent(raw)) return false;
@@ -505,7 +511,7 @@ export async function loadNovelStateForCardIdb(cardId, lsStorage) {
         await writeNovelBucketIdb(id, state);
         if (typeof lsStorage.removeItem === 'function') lsStorage.removeItem(NOVEL_STORAGE_KEY);
       }
-    } catch (e) {}
+    } catch (e) { console.warn('Migrating legacy novel data to IDB failed', e); }
   }
 
   if (!novelStateHasContent(state) && lsStorage && typeof lsStorage.getItem === 'function') {
@@ -523,7 +529,7 @@ export async function loadNovelStateForCardIdb(cardId, lsStorage) {
           from = from || NOVEL_V2_STORAGE_KEY;
         }
       }
-    } catch (e) {}
+    } catch (e) { console.warn('Migrating V2 novel data to IDB failed', e); }
   }
 
   if (id && !migrated) await writeNovelBucketIdb(id, state);

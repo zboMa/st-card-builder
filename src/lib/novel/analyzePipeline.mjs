@@ -12,6 +12,7 @@ import {
 import {
   normalizeNsfwEntityAttrs,
   normalizeAdultAttrs,
+  normalizeNtlPersonAttrs,
   adultEnrichPriority,
   getAdultMode,
 } from './nsfwSupport.mjs';
@@ -128,7 +129,7 @@ export function applyEnrichResult(state, entityId, parsed) {
   var updated = (state.entities || []).find(function(e) { return e.id === entityId || e.name === ent.name; });
   if (updated) {
     var adult = getAdultMode(state);
-    // 标记本轮丰满步，便于分步推断追溯
+    var ntl = !!(state && state.ntlMode);
     if (adult) {
       if (!updated.attrs) updated.attrs = {};
       if (updated.type === 'person') {
@@ -138,20 +139,26 @@ export function applyEnrichResult(state, entityId, parsed) {
         updated.attrs.adult = Object.assign({}, updated.attrs.adult, { lastPass: 'enrich' });
       }
     }
+    if (ntl && updated.type === 'person') {
+      if (!updated.attrs) updated.attrs = {};
+      var ntlAttrs = normalizeNtlPersonAttrs(updated.attrs.ntl);
+      ntlAttrs.lastPass = 'enrich';
+      updated.attrs.ntl = ntlAttrs;
+    }
     updated.needsReview = !isEntityEnriched(updated, true, adult);
   }
   projectEntitiesToLegacy(state);
   return updated;
 }
 
-/** 待丰满实体列表（成人开时优先排 NSFW/adult 缺口） */
-export function listEntitiesNeedingEnrich(entities, strict, adultMode) {
+/** 待丰满实体列表（成人/NTL 开时优先排缺口） */
+export function listEntitiesNeedingEnrich(entities, strict, adultMode, ntlMode) {
   var list = (entities || []).filter(function(e) {
     return !isEntityEnriched(e, !!strict, !!adultMode);
   });
-  if (!adultMode) return list;
+  if (!adultMode && !ntlMode) return list;
   return list.slice().sort(function(a, b) {
-    return adultEnrichPriority(a) - adultEnrichPriority(b);
+    return adultEnrichPriority(a, ntlMode) - adultEnrichPriority(b, ntlMode);
   });
 }
 
@@ -185,4 +192,4 @@ export function buildSkeletonPriorBlock(state) {
     + formatPriorRelationsRef(state.relations, state.entities, 2500);
 }
 
-export { projectEntitiesToLegacy, isEntityEnriched, listEntitiesNeedingEnrich as listNeedingEnrich };
+export { projectEntitiesToLegacy, isEntityEnriched };

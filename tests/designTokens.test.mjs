@@ -111,16 +111,17 @@ describe('design tokens (Nocturne Atelier)', function() {
     assert.match(tokens, /--color-ai-gold/);
     const css = readFileSync(join(root, 'src/styles/ui-patterns.css'), 'utf8');
     assert.match(css, /\.btn-ai-expand/);
-    const indexSrc = readFileSync(join(root, 'src/pages/index.astro'), 'utf8');
-    assert.match(indexSrc, /btn-ai-expand/);
-    assert.match(indexSrc, /isSk \? ' btn-ai-expand'/);
-    const novelApp = readFileSync(join(root, 'src/lib/novel/browserApp.mjs'), 'utf8');
-    assert.match(novelApp, /isUnexpandedWbContent/);
-    assert.match(novelApp, /needExpand \? 'btn-ai-expand'/);
+    const wbSrc = readFileSync(join(root, 'src/lib/card-builder/panels/worldbook.mjs'), 'utf8');
+    assert.match(wbSrc, /btn-ai-expand/);
+    assert.match(wbSrc, /isSk \? ' btn-ai-expand'/);
+    const novelCtx = readFileSync(join(root, 'src/lib/novel/shared/context.mjs'), 'utf8');
+    assert.match(novelCtx, /isUnexpandedWbContent/);
+    const novelWb = readFileSync(join(root, 'src/lib/novel/panels/worldbook.mjs'), 'utf8');
+    assert.match(novelWb, /needExpand \? 'btn-ai-expand'/);
   });
 
   it('人物行操作：同步在左、AI 扩展紧贴编辑', function() {
-    const app = readFileSync(join(root, 'src/lib/novel/browserApp.mjs'), 'utf8');
+    const app = readFileSync(join(root, 'src/lib/novel/panels/characters.mjs'), 'utf8');
     // 在 novel-list-actions 片段内断言顺序
     const start = app.indexOf("'+ '<div class=\"novel-list-actions\">'");
     const alt = app.indexOf("novel-list-actions");

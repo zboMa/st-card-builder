@@ -1327,8 +1327,7 @@ const toolListText = formatToolsForPrompt(ASSISTANT_TOOLS);
         };
       },
       openModule: function(view) {
-        if (window.__setAppView__) window.__setAppView__(view);
-        else location.hash = view;
+        window.__setAppView__(view);
       },
       listCards: function() {
         if (!window.__assistantCardApi__) throw new Error('多卡桥接未就绪');

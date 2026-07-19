@@ -117,7 +117,7 @@ export function createAiTaskCenter(options) {
   function emit() {
     var snap = snapshot();
     listeners.forEach(function(fn) {
-      try { fn(snap); } catch (e) {}
+      try { fn(snap); } catch (e) { console.warn('Listener notification failed', e); }
     });
     return snap;
   }
@@ -212,7 +212,7 @@ export function createAiTaskCenter(options) {
     t.error = t.error || '已取消';
     try {
       if (t.controller) t.controller.abort();
-    } catch (e) {}
+    } catch (e) { console.warn('Task controller abort failed', e); }
     emit();
     return true;
   }

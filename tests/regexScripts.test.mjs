@@ -118,7 +118,8 @@ describe('regex wiring', function() {
     assert.match(index, /__getRegexScripts__/);
     assert.match(index, /__setRegexScripts__/);
     assert.match(index, /opts\.silent/);
-    assert.match(index, /regex_scripts/);
+    const stSrc = readFileSync(join(root, 'src/lib/card-builder/state.mjs'), 'utf8');
+    assert.match(stSrc, /regex_scripts/);
 
     const tools = readFileSync(join(root, 'src/lib/assistant/tools.mjs'), 'utf8');
     assert.match(tools, /'regex'/);

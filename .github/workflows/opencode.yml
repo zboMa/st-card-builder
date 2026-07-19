@@ -1,0 +1,27 @@
+name: OpenCode AI 代码助手
+on:
+  issue_comment:
+    types: [created]
+jobs:
+  opencode:
+    if: contains(github.event.comment.body, '/opencode') || contains(github.event.comment.body, '/oc')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: 拉取仓库代码
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: 运行OpenCode AI代理
+        uses: anomalyco/opencode/github@latest
+        env:
+          # 填入你的模型API密钥，二选一即可
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          # OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        with:
+          # 选用模型，deepseek推荐 deepseek-coder-v2
+          model: deepseek/deepseek-v4-pro

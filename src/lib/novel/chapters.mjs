@@ -2,11 +2,9 @@
  * 拆章：标题正则 / 空行密度 / 按字数切片；章节合并拆分调序
  */
 
-var TITLE_RE = /(?=第[^\n]{0,20}[章节卷回部篇])|(?=Chapter\s+\d+)/i;
+import { uid } from '../utils.mjs';
 
-function uid(prefix) {
-  return (prefix || 'ch') + '_' + Math.random().toString(36).slice(2, 10);
-}
+var TITLE_RE = /(?=第[^\n]{0,20}[章节卷回部篇])|(?=Chapter\s+\d+)/i;
 
 /** @param {string} text @param {{ mode?: string, chunkSize?: number }} opts */
 export function splitIntoChapters(text, opts) {

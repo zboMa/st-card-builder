@@ -123,7 +123,7 @@ export function buildToolTraceDetail(toolName, result, args) {
     var lines = [];
     if (r.preview) lines.push(String(r.preview));
     else if (args && Object.keys(args).length) {
-      try { lines.push('参数: ' + JSON.stringify(args, null, 2)); } catch (e) {}
+      try { lines.push('参数: ' + JSON.stringify(args, null, 2)); } catch (e) { console.warn('Stringifying tool args for trace failed', e); }
     } else {
       lines.push(r.message || '等待用户确认');
     }
