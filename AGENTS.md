@@ -28,7 +28,7 @@ npm test             # Node.js native test runner (tests/**/*.test.mjs)
 - `html`/`body` are `overflow: hidden`. Only inner panels scroll independently.
 - **No state management library** — data flows through `window.__get*__` / `window.__set*__` bridges and `CustomEvent` dispatches (`card-builder-data-changed`, `card-draft-changed`, `nsfw-config-changed`).
 - State persists to `localStorage` (drafts, config, prompts) and **IndexedDB** (`st-card-builder` db: `json` store for novel workshop, `blob` store for avatars).
-- **`browserApp.mjs`** is a 4200+ line monolith — the main app controller. Plan to split before adding significant code.
+- **Card-builder boot**: `src/lib/card-builder/browserApp.mjs` exports `initCardBuilder()` — the sole card-side startup (called from `index.astro`). Novel side: `NovelWorkshopApp` → `initNovelWorkshop()`. Large `.astro` panels (VariableCard / Assistant / StatusBar) are still bulky.
 
 ## Key directories
 

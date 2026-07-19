@@ -73,10 +73,12 @@ describe('tavernScripts wiring', function() {
     const index = readFileSync(join(root, 'src/pages/index.astro'), 'utf8');
     assert.match(index, /TavernScriptsPanel/);
     assert.match(index, /data-view="tavern-scripts"/);
-    assert.match(index, /__getTavernHelperScripts__/);
-    assert.match(index, /__setTavernHelperScripts__/);
-    assert.match(index, /opts\.silent/);
-    assert.match(index, /__setTavernHelperScript__/);
+    assert.match(index, /initCardBuilder/);
+    const boot = readFileSync(join(root, 'src/lib/card-builder/browserApp.mjs'), 'utf8');
+    assert.match(boot, /__getTavernHelperScripts__/);
+    assert.match(boot, /__setTavernHelperScripts__/);
+    assert.match(boot, /opts\.silent/);
+    assert.match(boot, /__setTavernHelperScript__/);
     // 导出保留 variables（已迁至 state.mjs）
     const stSrc = readFileSync(join(root, 'src/lib/card-builder/state.mjs'), 'utf8');
     assert.match(stSrc, /variables:\s*thVars/);

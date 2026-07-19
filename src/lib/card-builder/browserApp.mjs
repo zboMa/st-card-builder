@@ -1,43 +1,17 @@
 /**
- * 制卡主侧浏览器端：状态、UI 绑定、AI 调用、桥接
+ * 制卡主侧唯一启动入口：状态、面板绑定、AI 配置、全局桥接
  */
-import { createDefaultCardState, buildDraftSnapshot, genId, buildCardJSONFromDraft } from './state.mjs';
+import { createDefaultCardState } from './state.mjs';
 import { createCardStateMachine } from './stateMachine.mjs';
+import { escapeHtml } from '../utils.mjs';
 import { createCardBuilderContext } from './shared/context.mjs';
 import { registerCardManager } from './panels/cardManager.mjs';
 import { registerCharacter } from './panels/character.mjs';
 import { registerWorldbook } from './panels/worldbook.mjs';
 import { registerAiEngine } from './panels/aiEngine.mjs';
 import { registerExport } from './panels/export.mjs';
+import { buildExportChecklist } from './exportChecklist.mjs';
 
-var state = createDefaultCardState();
-var sm = createCardStateMachine(state);
-var ctx = createCardBuilderContext(sm);
-
-registerCardManager(ctx);
-registerCharacter(ctx);
-registerWorldbook(ctx);
-registerAiEngine(ctx);
-registerExport(ctx);
-
-// ============================================================
-//  全局面板初始化
-// ============================================================
-function initPanels() {
-  if (ctx.panels.character && ctx.panels.character.bind) ctx.panels.character.bind();
-  if (ctx.panels.worldbook && ctx.panels.worldbook.bind) ctx.panels.worldbook.bind();
-  if (ctx.panels.aiEngine && ctx.panels.aiEngine.bind) ctx.panels.aiEngine.bind();
-  if (ctx.panels.cardManager && ctx.panels.cardManager.bind) ctx.panels.cardManager.bind();
-
-  ctx.panels.character.renderCharTags();
-  if (ctx.panels.character.renderNsfwBlock) ctx.panels.character.renderNsfwBlock();
-}
-
-// ============================================================
-//  桥接：全局变量 / window.__xxx__
-// ============================================================
-
-// Field dict — static, defined in main script
 var FIELD_DICT = {
   "name": { label: "角色名", tip: "角色的显示名称", type: "string", required: true },
   "description": { label: "角色描述(顶层)", tip: "V2兼容字段，与data.description同步", type: "string" },
@@ -87,7 +61,9 @@ function validateField(path, value) {
     var t = Array.isArray(value) ? 'array' : typeof value;
     if (t !== info.type) return '类型错误：期望 ' + info.type + '，实际 ' + t;
   }
-  if (info.enum && value !== undefined && value !== null && value !== '' && info.enum.indexOf(value) === -1) return '值不在允许范围';
+  if (info.enum && value !== undefined && value !== null && value !== '' && info.enum.indexOf(value) === -1) {
+    return '值不在允许范围';
+  }
   if (info.range && typeof value === 'number') {
     if (info.range.min !== undefined && value < info.range.min) return '最小值为 ' + info.range.min;
     if (info.range.max !== undefined && value > info.range.max) return '最大值为 ' + info.range.max;
@@ -120,347 +96,371 @@ function validateFullJSON(obj, pp, errs) {
   return errs;
 }
 
-window.__fieldDict__ = { getFieldInfo: getFieldInfo, validateFullJSON: validateFullJSON };
-
-// ============================================================
-//  AI Config 持久化
-// ============================================================
-var AI_KEY = 'st_v3_builder_ai_config';
-
-function saveAIConfig() {
-  var apiUrl = ctx.$('apiUrl');
-  var apiKey = ctx.$('apiKey');
-  var modelSelect = ctx.$('modelSelect');
-  var aiDebugEnable = ctx.$('aiDebugEnable');
-  var tagContextCharsEl = ctx.$('tagContextChars');
-  var embeddingModel = ctx.$('embeddingModel');
-  var embeddingApiUrl = ctx.$('embeddingApiUrl');
-  var embeddingApiKey = ctx.$('embeddingApiKey');
-
-  var presetList = [];
-  if (ctx.panels.aiEngine && ctx.panels.aiEngine.getActivePresetsStr) {
-    // We need parsedPresetList access — stored in aiEngine panel's closure
-    presetList = ctx.panels.aiEngine.getParsedPresetList ? ctx.panels.aiEngine.getParsedPresetList() : [];
-  }
-
-  localStorage.setItem(AI_KEY, JSON.stringify({
-    url: apiUrl ? apiUrl.value.trim() : '',
-    key: apiKey ? apiKey.value.trim() : '',
-    model: modelSelect ? modelSelect.value : '',
-    debug: !!(aiDebugEnable && aiDebugEnable.checked),
-    tagContextChars: ctx.$('tagContextChars')
-      ? (parseInt(ctx.$('tagContextChars').value, 10) || 12000)
-      : 12000,
-    embeddingModel: embeddingModel ? embeddingModel.value : '',
-    embeddingApiUrl: embeddingApiUrl ? embeddingApiUrl.value : '',
-    embeddingApiKey: embeddingApiKey ? embeddingApiKey.value : '',
-    novelRag: typeof window.__getNovelRagOptions__ === 'function'
-      ? window.__getNovelRagOptions__()
-      : { enabled: true, budget: 12000 },
-    presetList: presetList,
-    nsfwEnabled: !!ctx.state.nsfwEnabled,
-    nsfwFlavor: ctx.state.nsfwFlavor || '',
-    ntlEnabled: !!ctx.state.ntlEnabled,
-    ntlTabooTypes: (ctx.state.ntlTabooTypes || []).slice(),
-  }));
-}
-
-window.__persistAiConfig__ = saveAIConfig;
-
-function loadAIConfig() {
+function countNovelUnsynced() {
   try {
-    var c = JSON.parse(localStorage.getItem(AI_KEY));
-    if (!c) return;
-    var apiUrl = ctx.$('apiUrl');
-    var apiKey = ctx.$('apiKey');
-    var modelSelect = ctx.$('modelSelect');
-    var aiDebugEnable = ctx.$('aiDebugEnable');
-    var tagContextCharsEl = ctx.$('tagContextChars');
+    var bridge = window.__novelWorkshopBridge__;
+    if (!bridge || typeof bridge.getState !== 'function') return 0;
+    var st = bridge.getState() || {};
+    var entities = Array.isArray(st.entities) ? st.entities : [];
+    var n = 0;
+    entities.forEach(function(e) {
+      if (e && (e.syncStatus === 'unsynced' || e.syncStatus === 'dirty')) n += 1;
+    });
+    var chars = Array.isArray(st.characters) ? st.characters : [];
+    chars.forEach(function(c) {
+      if (c && (c.syncStatus === 'unsynced' || c.syncStatus === 'dirty')) n += 1;
+    });
+    return n;
+  } catch (e) {
+    return 0;
+  }
+}
 
-    if (c.url && apiUrl) apiUrl.value = c.url;
-    if (c.key && apiKey) apiKey.value = c.key;
-    if (c.model && modelSelect) {
-      modelSelect.innerHTML = '<option value="' + c.model + '">' + c.model + '</option>';
-      modelSelect.value = c.model;
+/**
+ * 启动制卡主侧（须在 DOM 就绪后调用）
+ */
+export function bootCardBuilder() {
+  window.__fieldDict__ = { getFieldInfo: getFieldInfo, validateFullJSON: validateFullJSON };
+
+  var state = createDefaultCardState();
+  var sm = createCardStateMachine(state);
+  var ctx = createCardBuilderContext(sm);
+
+  registerCardManager(ctx);
+  registerCharacter(ctx);
+  registerWorldbook(ctx);
+  registerAiEngine(ctx);
+  registerExport(ctx);
+
+  function safeBind(name, fn) {
+    if (!fn) return;
+    try { fn(); } catch (err) {
+      console.error('[card-builder] panel bind failed: ' + name, err);
     }
-    if (aiDebugEnable) aiDebugEnable.checked = !!c.debug;
-    if (c.tagContextChars != null && window.__setTagContextChars__) {
-      window.__setTagContextChars__(c.tagContextChars);
-    } else if (c.tagContextChars != null && tagContextCharsEl) {
-      tagContextCharsEl.value = String(c.tagContextChars);
-    }
+  }
+  safeBind('character', ctx.panels.character && ctx.panels.character.bind);
+  safeBind('worldbook', ctx.panels.worldbook && ctx.panels.worldbook.bind);
+  safeBind('aiEngine', ctx.panels.aiEngine && ctx.panels.aiEngine.bind);
+  safeBind('cardManager', ctx.panels.cardManager && ctx.panels.cardManager.bind);
+  try {
+    if (ctx.panels.character.renderCharTags) ctx.panels.character.renderCharTags();
+    if (ctx.panels.character.renderNsfwBlock) ctx.panels.character.renderNsfwBlock();
+  } catch (err) {
+    console.error('[card-builder] initial character render failed', err);
+  }
+
+  var AI_KEY = 'st_v3_builder_ai_config';
+
+  function saveAIConfig() {
+    var presetList = ctx.panels.aiEngine && ctx.panels.aiEngine.getParsedPresetList
+      ? ctx.panels.aiEngine.getParsedPresetList()
+      : [];
+    localStorage.setItem(AI_KEY, JSON.stringify({
+      url: (document.getElementById('apiUrl') || {}).value || '',
+      key: (document.getElementById('apiKey') || {}).value || '',
+      model: (document.getElementById('modelSelect') || {}).value || '',
+      debug: !!(document.getElementById('aiDebugEnable') && document.getElementById('aiDebugEnable').checked),
+      tagContextChars: document.getElementById('tagContextChars')
+        ? (parseInt(document.getElementById('tagContextChars').value, 10) || 12000)
+        : 12000,
+      embeddingModel: (document.getElementById('embeddingModel') || {}).value || '',
+      embeddingApiUrl: (document.getElementById('embeddingApiUrl') || {}).value || '',
+      embeddingApiKey: (document.getElementById('embeddingApiKey') || {}).value || '',
+      novelRag: typeof window.__getNovelRagOptions__ === 'function'
+        ? window.__getNovelRagOptions__()
+        : { enabled: true, budget: 12000 },
+      presetList: presetList,
+      nsfwEnabled: !!ctx.state.nsfwEnabled,
+      nsfwFlavor: ctx.state.nsfwFlavor || '',
+      ntlEnabled: !!ctx.state.ntlEnabled,
+      ntlTabooTypes: (ctx.state.ntlTabooTypes || []).slice(),
+    }));
+    ctx.updateAIDebugStatus();
+  }
+
+  function loadAIConfig() {
     try {
-      if (c.embeddingApiUrl != null) {
-        localStorage.setItem('st_v3_builder_embedding_api_url', String(c.embeddingApiUrl || ''));
-        var embUrlEl = ctx.$('embeddingApiUrl');
-        if (embUrlEl) embUrlEl.value = String(c.embeddingApiUrl || '');
+      var c = JSON.parse(localStorage.getItem(AI_KEY));
+      if (!c) return;
+      if (c.url) {
+        var apiUrl = document.getElementById('apiUrl');
+        if (apiUrl) apiUrl.value = c.url;
       }
-      if (c.embeddingApiKey != null) {
-        localStorage.setItem('st_v3_builder_embedding_api_key', String(c.embeddingApiKey || ''));
-        var embKeyEl = ctx.$('embeddingApiKey');
-        if (embKeyEl) embKeyEl.value = String(c.embeddingApiKey || '');
+      if (c.key) {
+        var apiKey = document.getElementById('apiKey');
+        if (apiKey) apiKey.value = c.key;
       }
-      if (c.embeddingModel != null) {
-        localStorage.setItem('st_v3_builder_embedding_model', String(c.embeddingModel || ''));
-        var embEl = ctx.$('embeddingModel');
-        if (embEl) embEl.value = String(c.embeddingModel || '');
+      if (c.model) {
+        var modelSel = document.getElementById('modelSelect');
+        if (modelSel) {
+          var em = escapeHtml(c.model);
+          modelSel.innerHTML = '<option value="' + em + '">' + em + '</option>';
+          modelSel.value = c.model;
+        }
       }
-      if (c.novelRag) {
-        localStorage.setItem('st_v3_builder_novel_rag', JSON.stringify(c.novelRag));
-        var en = ctx.$('assistantNovelRagEnable');
-        var bu = ctx.$('assistantNovelRagBudget');
-        if (en) en.checked = c.novelRag.enabled !== false;
-        if (bu && c.novelRag.budget) bu.value = String(c.novelRag.budget);
+      var dbg = document.getElementById('aiDebugEnable');
+      if (dbg) dbg.checked = !!c.debug;
+      if (c.tagContextChars != null && window.__setTagContextChars__) {
+        window.__setTagContextChars__(c.tagContextChars);
       }
-    } catch (eRag) { /* ignore */ }
-    if (c.nsfwFlavor != null) ctx.state.nsfwFlavor = String(c.nsfwFlavor || '');
-    if (c.nsfwEnabled != null) ctx.state.nsfwEnabled = !!c.nsfwEnabled;
-    if (c.ntlEnabled != null) ctx.state.ntlEnabled = !!c.ntlEnabled;
-    if (Array.isArray(c.ntlTabooTypes)) ctx.state.ntlTabooTypes = c.ntlTabooTypes.slice();
-    if (c.presetList && Array.isArray(c.presetList) && c.presetList.length > 0) {
-      if (ctx.panels.aiEngine && ctx.panels.aiEngine.loadPresetsFromConfig) {
-        ctx.panels.aiEngine.loadPresetsFromConfig(c.presetList);
+      try {
+        if (c.embeddingApiUrl != null) {
+          localStorage.setItem('st_v3_builder_embedding_api_url', String(c.embeddingApiUrl || ''));
+          var embUrl = document.getElementById('embeddingApiUrl');
+          if (embUrl) embUrl.value = String(c.embeddingApiUrl || '');
+        }
+        if (c.embeddingApiKey != null) {
+          localStorage.setItem('st_v3_builder_embedding_api_key', String(c.embeddingApiKey || ''));
+          var embKey = document.getElementById('embeddingApiKey');
+          if (embKey) embKey.value = String(c.embeddingApiKey || '');
+        }
+        if (c.embeddingModel != null) {
+          localStorage.setItem('st_v3_builder_embedding_model', String(c.embeddingModel || ''));
+          var embModel = document.getElementById('embeddingModel');
+          if (embModel) embModel.value = String(c.embeddingModel || '');
+        }
+        if (c.novelRag) {
+          localStorage.setItem('st_v3_builder_novel_rag', JSON.stringify(c.novelRag));
+          var en = document.getElementById('assistantNovelRagEnable');
+          var bu = document.getElementById('assistantNovelRagBudget');
+          if (en) en.checked = c.novelRag.enabled !== false;
+          if (bu && c.novelRag.budget) bu.value = String(c.novelRag.budget);
+        }
+      } catch (eRag) { /* ignore */ }
+      if (c.nsfwFlavor != null) ctx.state.nsfwFlavor = String(c.nsfwFlavor || '');
+      if (c.nsfwEnabled != null) ctx.state.nsfwEnabled = !!c.nsfwEnabled;
+      if (c.ntlEnabled != null) ctx.state.ntlEnabled = !!c.ntlEnabled;
+      if (Array.isArray(c.ntlTabooTypes)) ctx.state.ntlTabooTypes = c.ntlTabooTypes.slice();
+      if (c.presetList && Array.isArray(c.presetList) && c.presetList.length > 0) {
+        if (ctx.panels.aiEngine && ctx.panels.aiEngine.loadPresetsFromConfig) {
+          ctx.panels.aiEngine.loadPresetsFromConfig(c.presetList);
+        }
       }
+    } catch (e) {
+      console.warn('Loading AI config from storage failed', e);
     }
-  } catch (e) { console.warn('Loading AI config from storage failed', e); }
-  ctx.updateAIDebugStatus();
-}
+    ctx.updateAIDebugStatus();
+  }
 
-// AI Config input listeners
-var apiUrl = ctx.$('apiUrl');
-var apiKey = ctx.$('apiKey');
-var modelSelect = ctx.$('modelSelect');
-var aiDebugEnable = ctx.$('aiDebugEnable');
-if (apiUrl) apiUrl.addEventListener('input', saveAIConfig);
-if (apiKey) apiKey.addEventListener('input', saveAIConfig);
-if (modelSelect) modelSelect.addEventListener('change', saveAIConfig);
-if (aiDebugEnable) aiDebugEnable.addEventListener('change', function() { ctx.updateAIDebugStatus(); saveAIConfig(); });
-
-// ============================================================
-//  角色字段 input → 存盘
-// ============================================================
-['charName', 'wbName', 'charDesc', 'firstMes', 'creatorNotes'].forEach(function(id) {
-  var el = ctx.$(id);
-  if (el) el.addEventListener('input', function() { ctx.save(); });
-});
-
-// ============================================================
-//  桥接
-// ============================================================
-window.triggerGlobalUpdate = function() { ctx.save(); };
-
-window.__getCurrentDraftId__ = function() {
-  return ctx.sm.getCurrentDraftId();
-};
-
-window.__getWorldbookEntries__ = function() {
-  return ctx.state.worldbookEntries.map(function(e) {
-    return {
-      comment: e.comment || '',
-      content: e.content || '',
-      keys: e.keys || [],
-      strategy: e.strategy || 'selective',
-      position: e.position || 4,
-      depth: e.depth || 4,
-      role: e.role || 0,
-      order: e.order || 100,
-      prob: e.prob || 100,
-      enabled: e.enabled !== false,
-    };
+  // AI Config：aiEngine.bind 已挂监听；此处再挂一份到统一 saveAIConfig（含 NSFW 等）
+  var apiUrlEl = document.getElementById('apiUrl');
+  var apiKeyEl = document.getElementById('apiKey');
+  var modelSelEl = document.getElementById('modelSelect');
+  var dbgEl = document.getElementById('aiDebugEnable');
+  if (apiUrlEl) apiUrlEl.addEventListener('input', saveAIConfig);
+  if (apiKeyEl) apiKeyEl.addEventListener('input', saveAIConfig);
+  if (modelSelEl) modelSelEl.addEventListener('change', saveAIConfig);
+  if (dbgEl) dbgEl.addEventListener('change', function() {
+    ctx.updateAIDebugStatus();
+    saveAIConfig();
   });
-};
 
-window.__setWorldbookEntries__ = function(entries) {
-  if (!Array.isArray(entries)) return;
-  ctx.state.worldbookEntries = entries.slice();
-  if (ctx.panels.worldbook && ctx.panels.worldbook.renderEntriesList) {
-    ctx.panels.worldbook.renderEntriesList();
-  }
-  ctx.save();
-};
-
-window.__getRegexScripts__ = function() {
-  return Array.isArray(ctx.state.regexScripts) ? ctx.state.regexScripts.slice() : [];
-};
-
-window.__setRegexScripts__ = function(list, opts) {
-  opts = opts || {};
-  ctx.state.regexScripts = Array.isArray(list) ? list.slice() : [];
-  ctx.save();
-  if (!opts.silent) {
-    window.dispatchEvent(new CustomEvent('card-builder-data-changed'));
-  }
-};
-
-window.__getTavernHelperScripts__ = function() {
-  return Array.isArray(ctx.state.tavernHelperScripts) ? ctx.state.tavernHelperScripts.slice() : [];
-};
-
-window.__setTavernHelperScripts__ = function(list, opts) {
-  opts = opts || {};
-  ctx.state.tavernHelperScripts = Array.isArray(list) ? list.slice() : [];
-  ctx.save();
-  if (!opts.silent) {
-    window.dispatchEvent(new CustomEvent('card-builder-data-changed'));
-  }
-};
-
-window.__injectMvuEntries__ = function(entries, newRegexScripts) {
-  if (!Array.isArray(entries)) return;
-  entries.forEach(function(entry) {
-    var idx = -1;
-    for (var i = 0; i < ctx.state.worldbookEntries.length; i++) {
-      if (ctx.state.worldbookEntries[i].comment === entry.comment) { idx = i; break; }
+  window.triggerGlobalUpdate = function() { ctx.save(); };
+  window.__getCurrentDraftId__ = function() { return ctx.sm.getCurrentDraftId(); };
+  window.__getWorldbookEntries__ = function() {
+    return ctx.state.worldbookEntries.map(function(e) {
+      return {
+        comment: e.comment || '',
+        content: e.content || '',
+        keys: e.keys || [],
+        strategy: e.strategy || 'selective',
+        position: e.position || 4,
+        depth: e.depth || 4,
+        role: e.role || 0,
+        order: e.order || 100,
+        prob: e.prob || 100,
+        enabled: e.enabled !== false,
+      };
+    });
+  };
+  window.__setWorldbookEntries__ = function(entries) {
+    if (!Array.isArray(entries)) return;
+    ctx.state.worldbookEntries = entries.slice();
+    if (ctx.panels.worldbook && ctx.panels.worldbook.renderEntriesList) {
+      ctx.panels.worldbook.renderEntriesList();
     }
-    if (idx >= 0) ctx.state.worldbookEntries[idx] = entry;
-    else ctx.state.worldbookEntries.push(entry);
-  });
-  if (Array.isArray(newRegexScripts)) {
-    newRegexScripts.forEach(function(rx) {
-      var rxIdx = -1;
-      var scripts = ctx.state.regexScripts;
-      for (var j = 0; j < scripts.length; j++) {
-        if (scripts[j].scriptName === rx.scriptName) { rxIdx = j; break; }
+    ctx.save();
+  };
+  window.__getRegexScripts__ = function() {
+    return Array.isArray(ctx.state.regexScripts) ? ctx.state.regexScripts.slice() : [];
+  };
+  window.__setRegexScripts__ = function(list, opts) {
+    opts = opts || {};
+    ctx.state.regexScripts = Array.isArray(list) ? list.slice() : [];
+    ctx.save();
+    if (!opts.silent) window.dispatchEvent(new CustomEvent('card-builder-data-changed'));
+  };
+  window.__getTavernHelperScripts__ = function() {
+    return Array.isArray(ctx.state.tavernHelperScripts) ? ctx.state.tavernHelperScripts.slice() : [];
+  };
+  window.__setTavernHelperScripts__ = function(list, opts) {
+    opts = opts || {};
+    ctx.state.tavernHelperScripts = Array.isArray(list) ? list.slice() : [];
+    ctx.save();
+    if (!opts.silent) window.dispatchEvent(new CustomEvent('card-builder-data-changed'));
+  };
+  window.__injectMvuEntries__ = function(entries, newRegexScripts) {
+    if (!Array.isArray(entries)) return;
+    entries.forEach(function(entry) {
+      var idx = -1;
+      for (var i = 0; i < ctx.state.worldbookEntries.length; i++) {
+        if (ctx.state.worldbookEntries[i].comment === entry.comment) { idx = i; break; }
       }
-      if (rxIdx >= 0) scripts[rxIdx] = rx;
-      else scripts.push(rx);
+      if (idx >= 0) ctx.state.worldbookEntries[idx] = entry;
+      else ctx.state.worldbookEntries.push(entry);
     });
-  }
-  if (ctx.panels.worldbook && ctx.panels.worldbook.renderEntriesList) {
-    ctx.panels.worldbook.renderEntriesList();
-  }
-  ctx.save();
-  window.dispatchEvent(new CustomEvent('card-builder-data-changed'));
-};
-
-window.__setTavernHelperScript__ = function(name, code, enabled) {
-  if (!name) return;
-  var isEnabled = enabled !== false;
-  if (!Array.isArray(ctx.state.tavernHelperScripts)) ctx.state.tavernHelperScripts = [];
-  var found = false;
-  for (var i = 0; i < ctx.state.tavernHelperScripts.length; i++) {
-    if (ctx.state.tavernHelperScripts[i].name === name) {
-      ctx.state.tavernHelperScripts[i].content = code;
-      ctx.state.tavernHelperScripts[i].enabled = isEnabled;
-      found = true;
-      break;
+    if (Array.isArray(newRegexScripts)) {
+      newRegexScripts.forEach(function(rx) {
+        var rxIdx = -1;
+        for (var j = 0; j < ctx.state.regexScripts.length; j++) {
+          if (ctx.state.regexScripts[j].scriptName === rx.scriptName) { rxIdx = j; break; }
+        }
+        if (rxIdx >= 0) ctx.state.regexScripts[rxIdx] = rx;
+        else ctx.state.regexScripts.push(rx);
+      });
     }
-  }
-  if (!found && isEnabled) {
-    ctx.state.tavernHelperScripts.push({
-      type: 'script',
-      enabled: true,
-      name: name,
-      id: crypto.randomUUID ? crypto.randomUUID() : (Date.now().toString(36) + '-' + Math.random().toString(36).slice(2)),
-      content: code,
-      info: '由 Card Builder 变量卡生成器自动创建',
-      button: { enabled: true, buttons: [] },
-      data: {},
-    });
-  }
-  ctx.save();
-  window.dispatchEvent(new CustomEvent('card-builder-data-changed'));
-};
-
-window.__deleteMvuArtifacts__ = function(options) {
-  options = options || {};
-  var comments = Array.isArray(options.comments) ? options.comments : [];
-  var regexNames = Array.isArray(options.regexNames) ? options.regexNames : [];
-  var helperNames = Array.isArray(options.helperNames) ? options.helperNames : [];
-
-  if (comments.length) {
-    ctx.state.worldbookEntries = ctx.state.worldbookEntries.filter(function(entry) {
-      return comments.indexOf(entry && entry.comment) < 0;
-    });
-  }
-  if (regexNames.length && Array.isArray(ctx.state.regexScripts)) {
-    ctx.state.regexScripts = ctx.state.regexScripts.filter(function(script) {
-      return regexNames.indexOf(script && script.scriptName) < 0;
-    });
-  }
-  if (helperNames.length && Array.isArray(ctx.state.tavernHelperScripts)) {
-    ctx.state.tavernHelperScripts = ctx.state.tavernHelperScripts.filter(function(script) {
-      return helperNames.indexOf(script && script.name) < 0;
-    });
-  }
-
-  if (ctx.panels.worldbook && ctx.panels.worldbook.renderEntriesList) {
-    ctx.panels.worldbook.renderEntriesList();
-  }
-  ctx.save();
-  window.dispatchEvent(new CustomEvent('card-builder-data-changed'));
-};
-
-window.__getCardExtension__ = function(key) {
-  if (!key) return ctx.state.cardBuilderExtensions || {};
-  return ctx.state.cardBuilderExtensions ? ctx.state.cardBuilderExtensions[key] : undefined;
-};
-
-window.__setCardExtension__ = function(key, value, opts) {
-  opts = opts || {};
-  if (!key) return;
-  if (!ctx.state.cardBuilderExtensions || typeof ctx.state.cardBuilderExtensions !== 'object')
-    ctx.state.cardBuilderExtensions = {};
-  if (value === undefined || value === null) delete ctx.state.cardBuilderExtensions[key];
-  else ctx.state.cardBuilderExtensions[key] = value;
-  ctx.save();
-  if (!opts.silent) {
+    if (ctx.panels.worldbook && ctx.panels.worldbook.renderEntriesList) {
+      ctx.panels.worldbook.renderEntriesList();
+    }
+    ctx.save();
     window.dispatchEvent(new CustomEvent('card-builder-data-changed'));
-  }
-};
+  };
+  window.__setTavernHelperScript__ = function(name, code, enabled) {
+    if (!name) return;
+    var isEnabled = enabled !== false;
+    if (!Array.isArray(ctx.state.tavernHelperScripts)) ctx.state.tavernHelperScripts = [];
+    var found = false;
+    for (var i = 0; i < ctx.state.tavernHelperScripts.length; i++) {
+      if (ctx.state.tavernHelperScripts[i].name === name) {
+        ctx.state.tavernHelperScripts[i].content = code;
+        ctx.state.tavernHelperScripts[i].enabled = isEnabled;
+        found = true;
+        break;
+      }
+    }
+    if (!found && isEnabled) {
+      ctx.state.tavernHelperScripts.push({
+        type: 'script',
+        enabled: true,
+        name: name,
+        id: crypto.randomUUID
+          ? crypto.randomUUID()
+          : (Date.now().toString(36) + '-' + Math.random().toString(36).slice(2)),
+        content: code,
+        info: '由 Card Builder 变量卡生成器自动创建',
+        button: { enabled: true, buttons: [] },
+        data: {},
+      });
+    }
+    ctx.save();
+    window.dispatchEvent(new CustomEvent('card-builder-data-changed'));
+  };
+  window.__deleteMvuArtifacts__ = function(options) {
+    options = options || {};
+    var comments = Array.isArray(options.comments) ? options.comments : [];
+    var regexNames = Array.isArray(options.regexNames) ? options.regexNames : [];
+    var helperNames = Array.isArray(options.helperNames) ? options.helperNames : [];
+    if (comments.length) {
+      ctx.state.worldbookEntries = ctx.state.worldbookEntries.filter(function(entry) {
+        return comments.indexOf(entry && entry.comment) < 0;
+      });
+    }
+    if (regexNames.length && Array.isArray(ctx.state.regexScripts)) {
+      ctx.state.regexScripts = ctx.state.regexScripts.filter(function(script) {
+        return regexNames.indexOf(script && script.scriptName) < 0;
+      });
+    }
+    if (helperNames.length && Array.isArray(ctx.state.tavernHelperScripts)) {
+      ctx.state.tavernHelperScripts = ctx.state.tavernHelperScripts.filter(function(script) {
+        return helperNames.indexOf(script && script.name) < 0;
+      });
+    }
+    if (ctx.panels.worldbook && ctx.panels.worldbook.renderEntriesList) {
+      ctx.panels.worldbook.renderEntriesList();
+    }
+    ctx.save();
+    window.dispatchEvent(new CustomEvent('card-builder-data-changed'));
+  };
+  window.__getCardExtension__ = function(key) {
+    if (!key) return ctx.state.cardBuilderExtensions || {};
+    return ctx.state.cardBuilderExtensions ? ctx.state.cardBuilderExtensions[key] : undefined;
+  };
+  window.__setCardExtension__ = function(key, value, opts) {
+    opts = opts || {};
+    if (!key) return;
+    if (!ctx.state.cardBuilderExtensions || typeof ctx.state.cardBuilderExtensions !== 'object') {
+      ctx.state.cardBuilderExtensions = {};
+    }
+    if (value === undefined || value === null) delete ctx.state.cardBuilderExtensions[key];
+    else ctx.state.cardBuilderExtensions[key] = value;
+    ctx.save();
+    if (!opts.silent) window.dispatchEvent(new CustomEvent('card-builder-data-changed'));
+  };
+  window.__runAiTask__ = ctx.runTracked;
+  window.__isAiAbortError__ = ctx.isTrackedAbort;
+  window.__assistantFetchAI__ = ctx.fetchAIContent;
+  window.__persistAiConfig__ = saveAIConfig;
 
-// AI task bridge
-window.__runAiTask__ = ctx.runTracked;
+  window.__assistantCardApi__ = window.__assistantCardApi__ || {};
+  window.__assistantCardApi__.exportCheck = function() {
+    var wb = Array.isArray(ctx.state.worldbookEntries) ? ctx.state.worldbookEntries : [];
+    var noKeys = wb.filter(function(e) {
+      return e && e.enabled !== false && (!e.keys || !e.keys.length);
+    }).length;
+    return buildExportChecklist({
+      charName: ctx.state.charName,
+      charDesc: ctx.state.charDesc,
+      firstMes: ctx.state.firstMes || (document.getElementById('firstMes') || {}).value || '',
+      creatorNotes: ctx.state.creatorNotes,
+      hasAvatar: !!(ctx.state.avatarInIdb || ctx.state.avatarBase64),
+      worldbookCount: wb.length,
+      worldbookNoKeys: noKeys,
+      novelUnsyncedCount: countNovelUnsynced(),
+      altGreetingCount: Array.isArray(window.__altGreetings__) ? window.__altGreetings__.length : 0,
+    });
+  };
+  window.__getExportChecklist__ = window.__assistantCardApi__.exportCheck;
 
-function isAiAbort(err) {
-  return ctx.isTrackedAbort(err);
-}
-window.__isAiAbortError__ = isAiAbort;
+  if (!window.__altGreetings__) window.__altGreetings__ = [];
+  if (!window.__aiDebugLog__) window.__aiDebugLog__ = [];
 
-window.__assistantFetchAI__ = ctx.fetchAIContent;
-
-if (!window.__altGreetings__) window.__altGreetings__ = [];
-if (!window.__aiDebugLog__) window.__aiDebugLog__ = [];
-
-// ============================================================
-//  初始化
-// ============================================================
-function initApp() {
-  initPanels();
   loadAIConfig();
 
-  // Load last active draft
-  var lastId = localStorage.getItem('st_v3_builder_current_id');
-  if (lastId && sm.getAllDrafts()[lastId]) {
-    sm.loadDraftIntoState(lastId);
-    if (ctx.panels.cardManager && ctx.panels.cardManager.loadDraft) {
-      ctx.panels.cardManager.loadDraft(lastId);
+  window.addEventListener('st-idb-ready', async function() {
+    var ensureFn = window.__ensureIdbReady__ || function() { return Promise.resolve(); };
+    await ensureFn();
+    var lastId = localStorage.getItem('st_v3_builder_current_id');
+    if (lastId && ctx.sm.getAllDrafts()[lastId]) {
+      ctx.sm.loadDraftIntoState(lastId);
     }
-  } else {
-    if (ctx.panels.cardManager && ctx.panels.cardManager.createBlankDraft) {
-      ctx.panels.cardManager.createBlankDraft({ jumpToCharacter: false });
-    }
-  }
-
-  // Card manager update after IDB ready
-  window.addEventListener('st-idb-ready', function() {
     if (ctx.panels.cardManager && ctx.panels.cardManager.updateCardManagerUI) {
       ctx.panels.cardManager.updateCardManagerUI();
     }
+    if (ctx.panels.character.renderNsfwBlock) ctx.panels.character.renderNsfwBlock();
   });
 
-  // Hash change → update card manager
   window.addEventListener('hashchange', function() {
     if (ctx.panels.cardManager && ctx.panels.cardManager.updateCardManagerUI) {
       ctx.panels.cardManager.updateCardManagerUI();
     }
   });
-
-  window.addEventListener('app-view-changed', function(ev) {
+  window.addEventListener('app-view-changed', function() {
     if (ctx.panels.cardManager && ctx.panels.cardManager.updateCardManagerUI) {
       ctx.panels.cardManager.updateCardManagerUI();
     }
   });
+
+  return ctx;
 }
 
-initApp();
+/** DOM 就绪后启动；可在 Astro 模块脚本顶层直接调用 */
+export function initCardBuilder() {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function onReady() {
+      document.removeEventListener('DOMContentLoaded', onReady);
+      bootCardBuilder();
+    });
+  } else {
+    bootCardBuilder();
+  }
+}

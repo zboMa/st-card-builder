@@ -124,8 +124,10 @@ describe('aiTaskCenter UI wiring', function() {
   it('index 注入 AiTaskCenterUI 且 fetch 支持 signal', function() {
     const src = readFileSync(join(root, 'src/pages/index.astro'), 'utf8');
     assert.match(src, /AiTaskCenterUI/);
-    assert.match(src, /__runAiTask__/);
-    assert.match(src, /tagContextChars/);
+    assert.match(src, /initCardBuilder/);
+    const boot = readFileSync(join(root, 'src/lib/card-builder/browserApp.mjs'), 'utf8');
+    assert.match(boot, /__runAiTask__/);
+    assert.match(boot, /tagContextChars/);
     const ctxSrc = readFileSync(join(root, 'src/lib/card-builder/shared/context.mjs'), 'utf8');
     assert.match(ctxSrc, /signal:\s*opts\.signal/);
     const aiSrc = readFileSync(join(root, 'src/lib/card-builder/panels/aiEngine.mjs'), 'utf8');

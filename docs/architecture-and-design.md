@@ -20,7 +20,8 @@
 | `src/lib/assistant/` | AI 助手：工具注册/风险分级/ReAct 解析/执行器/会话 |
 | `src/lib/novel/` | 小说工坊：状态/分析管道/实体库/RAG/同步 |
 | `src/lib/promptCanon.mjs` | 默认提示词块 |
-| `src/lib/nsfwSupport.mjs` | NSFW/NTL 模板、口味预设、质量门、调色盘引导 |
+| `src/lib/novel/nsfwSupport.mjs` | NSFW/NTL 模板、口味预设、质量门、调色盘引导 |
+| `src/lib/card-builder/` | 制卡域：state / panels / `browserApp.mjs`（唯一启动入口） |
 | `src/styles/tokens.css` | 设计 token（"夜庭 Nocturne" 暗色调） |
 | `src/styles/ui-patterns.css` | 共享 UI 组件 |
 
@@ -151,14 +152,15 @@ st_v3_builder_ai_config (localStorage)
 ## 当前状态与待办
 
 ### 架构债（已识别，待处理）
-1. `browserApp.mjs` 4266 行巨石——需按面板拆分为独立 controller
+1. ~~`browserApp.mjs` 巨石~~ → 已拆为 `card-builder/` + `novel/panels`；制卡侧由 `card-builder/browserApp.mjs` 的 `initCardBuilder()` 唯一启动（`index.astro` 仅调用入口）
 2. entities/legacy 双份数据表示——需统一为 entities 唯一数据源
 3. 三份重复的 alias 规范化函数和 uid 生成函数——需统一
 4. 无 lint/typecheck 脚本
+5. 超大 `.astro` 面板（VariableCard / Assistant / StatusBar）仍待继续拆分
 
 ### 功能缺口
-- 状态栏 NSFW 草案无 NTL 版本
-- 开场白面板的口味注入待完善
+- ~~状态栏 NSFW 草案无 NTL 版本~~ → 已提供 `buildStatusBarNtlDraftFromEntities` + 分析页「NTL→状态栏草案」
+- ~~开场白面板的口味注入待完善~~ → GreetingPanel 展示当前口味；助手改写 / AI 引擎 / 小说开场白生成已注入
 - 角色卡管理封面加载偶尔仍有问题（已加兜底，需验证）
 
 ---

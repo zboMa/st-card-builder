@@ -115,9 +115,11 @@ describe('regex wiring', function() {
     const index = readFileSync(join(root, 'src/pages/index.astro'), 'utf8');
     assert.match(index, /RegexPanel/);
     assert.match(index, /data-view="regex"/);
-    assert.match(index, /__getRegexScripts__/);
-    assert.match(index, /__setRegexScripts__/);
-    assert.match(index, /opts\.silent/);
+    assert.match(index, /initCardBuilder/);
+    const boot = readFileSync(join(root, 'src/lib/card-builder/browserApp.mjs'), 'utf8');
+    assert.match(boot, /__getRegexScripts__/);
+    assert.match(boot, /__setRegexScripts__/);
+    assert.match(boot, /opts\.silent/);
     const stSrc = readFileSync(join(root, 'src/lib/card-builder/state.mjs'), 'utf8');
     assert.match(stSrc, /regex_scripts/);
 
@@ -163,9 +165,9 @@ describe('regex wiring', function() {
   });
 
   it('MVU/状态栏注入路径仍按 scriptName upsert', function() {
-    const index = readFileSync(join(root, 'src/pages/index.astro'), 'utf8');
-    assert.match(index, /__injectMvuEntries__/);
-    assert.match(index, /scriptName === rx\.scriptName/);
+    const boot = readFileSync(join(root, 'src/lib/card-builder/browserApp.mjs'), 'utf8');
+    assert.match(boot, /__injectMvuEntries__/);
+    assert.match(boot, /scriptName === rx\.scriptName/);
     const mvu = readFileSync(join(root, 'src/components/VariableCardPanel.astro'), 'utf8');
     assert.match(mvu, /REGEX_SCRIPTS/);
     assert.match(mvu, /scheduleRefreshSync\(false\)/);

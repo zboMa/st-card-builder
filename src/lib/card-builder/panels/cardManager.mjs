@@ -11,7 +11,8 @@ import {
   normalizeTags,
   tagsFromImportJson,
 } from '../state.mjs';
-import { crc32, createTextChunk, deepCopy } from '../../utils.mjs';
+import { crc32, createTextChunk, deepCopy, escapeHtml } from '../../utils.mjs';
+import { buildExportChecklist } from '../exportChecklist.mjs';
 
 export function registerCardManager(ctx) {
   var panel = {};
@@ -201,6 +202,45 @@ export function registerCardManager(ctx) {
     });
   };
 
+  panel.refreshExportChecklist = function () {
+    var box = ctx.$('exportChecklistBox');
+    var summaryEl = ctx.$('exportChecklistSummary');
+    var listEl = ctx.$('exportChecklistItems');
+    if (!box || !summaryEl || !listEl) return;
+    var check = (window.__getExportChecklist__ || window.__assistantCardApi__ && window.__assistantCardApi__.exportCheck)
+      ? (window.__getExportChecklist__ || window.__assistantCardApi__.exportCheck)()
+      : buildExportChecklist({
+        charName: ctx.state.charName,
+        charDesc: ctx.state.charDesc,
+        firstMes: ctx.state.firstMes || (ctx.$('firstMes') || {}).value || '',
+        hasAvatar: !!(ctx.state.avatarInIdb || ctx.state.avatarBase64),
+        worldbookCount: (ctx.state.worldbookEntries || []).length,
+        worldbookNoKeys: (ctx.state.worldbookEntries || []).filter(function(e) {
+          return e && e.enabled !== false && (!e.keys || !e.keys.length);
+        }).length,
+        altGreetingCount: Array.isArray(window.__altGreetings__) ? window.__altGreetings__.length : 0,
+      });
+    box.hidden = false;
+    summaryEl.textContent = check.summary || (check.ok ? '检查通过' : '存在问题');
+    if (!check.items || !check.items.length) {
+      listEl.innerHTML = '<li>当前卡可导出 JSON' + (check.canExportPng ? ' / PNG' : '（PNG 需头像）') + '</li>';
+      return;
+    }
+    listEl.innerHTML = check.items.map(function(it) {
+      var cls = it.level === 'critical' ? 'is-critical' : (it.level === 'warning' ? 'is-warning' : '');
+      var jump = it.view
+        ? '<button type="button" class="export-checklist-jump" data-view="' + escapeHtml(it.view) + '">去处理</button>'
+        : '';
+      return '<li class="' + cls + '"><span>' + escapeHtml(it.message) + '</span>' + jump + '</li>';
+    }).join('');
+    listEl.querySelectorAll('.export-checklist-jump').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var view = btn.getAttribute('data-view');
+        if (view) goToView(view);
+      });
+    });
+  };
+
   // ---- Debounced update ----
   panel.updateCardManagerUI = function (storedDrafts) {
     var listEl = ctx.$('cardManagerList');
@@ -212,6 +252,7 @@ export function registerCardManager(ctx) {
       var pending = cardManagerUiPendingDrafts;
       cardManagerUiPendingDrafts = undefined;
       panel.render(pending);
+      if (getCurrentAppView() === 'card-manager') panel.refreshExportChecklist();
     }, CARD_MANAGER_UI_DEBOUNCE_MS);
   };
 
@@ -732,34 +773,31 @@ export function registerCardManager(ctx) {
         return { id: ctx.state.draftId, name: ctx.state.charName || '导入卡' };
       },
       exportCheck: function () {
-        try {
-          var d = getAllDrafts()[getCurrentDraftId()] || {
-            charName: ctx.state.charName,
-            worldbookEntries: ctx.state.worldbookEntries,
-            firstMes: ctx.state.firstMes,
-            charDesc: ctx.state.charDesc,
-          };
-          var json = buildCardJSONFromDraft(d);
-          var issues = [];
-          if (!json || !json.data) issues.push({ level: 'critical', message: '无法生成导出结构' });
-          else {
-            if (!json.data.name) issues.push({ level: 'warning', message: '缺少角色名' });
-            if (!json.data.first_mes) issues.push({ level: 'warning', message: '缺少开场白' });
-            var ents = (json.data.character_book && json.data.character_book.entries) || [];
-            if (!ents.length) issues.push({ level: 'info', message: '世界书为空' });
-          }
-          return {
-            ok: issues.filter(function (i) { return i.level === 'critical'; }).length === 0,
-            issues: issues,
-            name: (json && json.data && json.data.name) || '',
-            worldbookCount: ((json && json.data && json.data.character_book && json.data.character_book.entries) || []).length,
-            note: '仅校验，不触发下载',
-          };
-        } catch (e) {
-          return { ok: false, issues: [{ level: 'critical', message: e.message }], note: '仅校验，不触发下载' };
+        if (typeof window.__getExportChecklist__ === 'function') {
+          return window.__getExportChecklist__();
         }
+        var wb = Array.isArray(ctx.state.worldbookEntries) ? ctx.state.worldbookEntries : [];
+        return buildExportChecklist({
+          charName: ctx.state.charName,
+          charDesc: ctx.state.charDesc,
+          firstMes: ctx.state.firstMes || (ctx.$('firstMes') || {}).value || '',
+          hasAvatar: !!(ctx.state.avatarInIdb || ctx.state.avatarBase64),
+          worldbookCount: wb.length,
+          worldbookNoKeys: wb.filter(function(e) {
+            return e && e.enabled !== false && (!e.keys || !e.keys.length);
+          }).length,
+          altGreetingCount: Array.isArray(window.__altGreetings__) ? window.__altGreetings__.length : 0,
+        });
       },
     };
+
+    var btnRefreshChecklist = ctx.$('btnRefreshExportChecklist');
+    if (btnRefreshChecklist) {
+      btnRefreshChecklist.addEventListener('click', function() {
+        panel.refreshExportChecklist();
+      });
+    }
+    if (getCurrentAppView() === 'card-manager') panel.refreshExportChecklist();
   };
 
   // Mount

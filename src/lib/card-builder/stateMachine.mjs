@@ -177,6 +177,8 @@ export function createCardStateMachine(state) {
   }
 
   return {
+    /** 与 createCardBuilderContext 共享的同一 state 引用 */
+    state: state,
     getAllDrafts: getAllDrafts,
     getDraft: getDraft,
     saveDraft: saveDraft,

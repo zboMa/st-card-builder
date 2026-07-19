@@ -17,6 +17,15 @@
 
   <div id="importStatusBar" class="card-manager-import-status" style="display:none;"></div>
 
+  <div id="exportChecklistBox" class="export-checklist" hidden>
+    <div class="export-checklist-head">
+      <strong>导出前检查</strong>
+      <button type="button" id="btnRefreshExportChecklist" class="btn btn-fetch btn-sm">刷新</button>
+    </div>
+    <p id="exportChecklistSummary" class="export-checklist-summary"></p>
+    <ul id="exportChecklistItems" class="export-checklist-items"></ul>
+  </div>
+
   <div id="cardManagerList" class="card-manager-list" aria-live="polite"></div>
 </div>
 
@@ -61,6 +70,67 @@
     font-size: 0.78rem;
     border-radius: 8px;
     margin-bottom: 12px;
+  }
+
+  .export-checklist {
+    margin-bottom: 14px;
+    padding: 10px 12px;
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 10px;
+    background: var(--color-surface-elevated);
+  }
+  .export-checklist-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+  .export-checklist-head strong {
+    font-size: 0.82rem;
+  }
+  .export-checklist-summary {
+    margin: 0 0 8px 0;
+    font-size: 0.74rem;
+    color: var(--color-text-muted);
+    line-height: 1.4;
+  }
+  .export-checklist-items {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .export-checklist-items li {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 0.74rem;
+    line-height: 1.4;
+    padding: 6px 8px;
+    border-radius: 8px;
+    background: rgba(148, 163, 184, 0.08);
+  }
+  .export-checklist-items li.is-critical {
+    background: rgba(239, 68, 68, 0.1);
+    color: #fecaca;
+  }
+  .export-checklist-items li.is-warning {
+    background: rgba(245, 158, 11, 0.1);
+    color: #fde68a;
+  }
+  .export-checklist-items .export-checklist-jump {
+    flex-shrink: 0;
+    font-size: 0.7rem;
+    color: var(--color-accent-hover);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    text-decoration: underline;
   }
 
   /* 预览卡片网格：默认一行 4 列，窄屏递减 */

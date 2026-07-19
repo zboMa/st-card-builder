@@ -7,6 +7,9 @@ import { escapeHtml } from '../../utils.mjs';
 export function createCardBuilderContext(sm) {
   var $ = function(id) { return document.getElementById(id); };
   var val = function(id) { var el = $(id); return el ? String(el.value || '').trim() : ''; };
+  if (!sm || !sm.state) {
+    throw new Error('createCardBuilderContext: stateMachine 缺少 state（请确保 createCardStateMachine 返回 { state }）');
+  }
 
   var ctx = {
     state: sm.state,
