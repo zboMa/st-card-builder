@@ -1,8 +1,8 @@
 name: 自动打包部署网站
-# main分支合并代码自动触发
+# master分支合并代码自动触发
 on:
   push:
-    branches: [main]
+    branches: [master]
 
 jobs:
   build-deploy:
