@@ -60,7 +60,7 @@ SillyTavern 卡片构建器壳层设计 token。状态栏 **30 套预览主题**
 
 | `--color-border-subtle` | 分割线、输入框边 |
 
-| `--radius-sm` / `--radius-md` / `--radius-lg` | 8 / 12 / 16px |
+| `--radius-sm` / `--radius-md` / `--radius-lg` | 10 / 14 / 20px |
 
 | `--space-*` | 4pt 间距刻度 |
 
@@ -111,7 +111,7 @@ SillyTavern 卡片构建器壳层设计 token。状态栏 **30 套预览主题**
 
 1. **新样式**优先用 `var(--*)` 与 ui-patterns 类，避免散落 hex。
 
-2. **按钮层级**：同一区域仅一个 `.btn-primary`；其余用 `.btn-ghost` / `.btn-fetch` / `.btn-add`。
+2. **按钮层级**：同一区域仅一个 `.btn-primary`；其余用 `.btn-ghost` / `.btn-fetch` / `.btn-add` / `.btn-delete`（在 `Layout.astro` 定义）。
 
 3. **侧栏**：线性 SVG 图标（`AppSidebar.astro`），不用 emoji 作结构导航。
 

@@ -36,10 +36,12 @@ npm test             # Node.js native test runner (tests/**/*.test.mjs)
 |---|---|
 | `src/lib/utils.mjs` | Shared pure-function utilities: uid, escapeHtml, crc32, createTextChunk, deepCopy, strategyLabelZh, parseJsonLoose |
 | `src/lib/idbReady.mjs` | IDB async wait helper (event-driven + 100ms poll fallback) |
+| `src/lib/idbStore.mjs` | IndexedDB database open helper |
+| `src/lib/avatarIdb.mjs` | Avatar blob read/write in IndexedDB |
 | `src/lib/aiTaskCenter.mjs` | Global AI task queue with AbortController cancellation |
-| `src/lib/assistant/` | AI assistant: tools registry, risk classifier, ReAct parser, executor, session snapshots |
+| `src/lib/assistant/` | AI assistant: tools, risk, reactParse, executor, session, ragInject, tokenEstimate, characterFields, toolTraceSummary |
 | `src/lib/card-builder/` | Main card builder: state + stateMachine + shared context + panels (cardManager, character, worldbook, aiEngine, export) |
-| `src/lib/novel/` | Novel workshop: state (IDB buckets) + stateMachine + shared (context, bridge) + panels (source, chapters, setup, greetings, analyze, characters, worldbook, style) + analysis pipeline, entity store, RAG, sync, NSFW/NTL |
+| `src/lib/novel/` | Novel workshop: state (IDB buckets) + stateMachine + shared (context, bridge) + panels (source, chapters, setup, analyze, characters, worldbook, style) + analysis pipeline, entity store, RAG, sync, NSFW/NTL |
 | `src/lib/promptCanon.mjs` | Default prompt blocks shared across all generation pipelines |
 | `src/lib/promptStore.mjs` | User prompt overrides persisted to `st_v3_builder_prompts` |
 | `src/lib/statusBarThemes/` | 30 visual themes (15 aesthetics × single/multi), filtered by character count |

@@ -397,7 +397,6 @@ novel_analyze_relations  关系补全
 - `src/lib/novel/analyzePipeline.mjs`（骨架/丰满/关系）
 - `src/components/novel/NovelAnalyzePanel.astro`
 - `tests/novelRag.test.mjs`
-- `tests/novelEntityStore.test.mjs`
 - `docs/novel-analysis-architecture.md`（本文）
 
 ### 修改

@@ -55,7 +55,7 @@ src/lib/
 │   ├── graphViz.mjs               #   @antv/g6 图谱渲染与布局
 │   ├── analyzePipeline.mjs        #   分析管道 def
 │   ├── recall.mjs                 #   多场景召回
-│   ├── rag.mjs                    #   混合 RAG（向量/关键词）
+│   ├── rag/                        #   混合 RAG（chunker/embedClient/hybridSearch/indexBuild/keywordSearch/vectorSearch/store/inject/embeddingConfig）
 │   ├── sync.mjs                   #   产出同步到主卡（人物→角色设定、条目→世界书）
 │   ├── shared/
 │   │   ├── context.mjs            #   共享 ctx 工厂（$、setStatus、openNovelModal、confirmExpandRecall）
@@ -63,8 +63,7 @@ src/lib/
 │   └── panels/
 │       ├── source.mjs             #   原始资料（上传/清空/重置）
 │       ├── chapters.mjs           #   章节拆分/合并/启用/禁用
-│       ├── setup.mjs              #   角色设定（人物档案编辑）
-│       ├── greetings.mjs          #   开场白
+│       ├── setup.mjs              #   角色设定 + 开场白
 │       ├── analyze.mjs            #   完整分析（骨架+丰满+关系）+ 图谱操作
 │       ├── characters.mjs         #   人物列表（扫描/丰满/合并/同步）
 │       ├── worldbook.mjs          #   世界书条目（抽取/扩展/编辑/同步）
@@ -72,12 +71,14 @@ src/lib/
 │
 ├── assistant/                     # AI 助手（未变）
 │   ├── tools.mjs                  #   工具注册表
-│   ├── classifier.mjs             #   风险分级
-│   ├── parser.mjs                 #   ReAct 解析器
+│   ├── risk.mjs                   #   风险分级
+│   ├── reactParse.mjs             #   ReAct 解析器
 │   ├── executor.mjs               #   执行器
 │   ├── characterFields.mjs        #   角色字段规范化
 │   ├── toolTraceSummary.mjs       #   工具追踪摘要
-│   └── sessionSnapshots.mjs       #   会话快照
+│   ├── session.mjs                #   会话管理
+│   ├── ragInject.mjs              #   RAG 注入
+│   └── tokenEstimate.mjs          #   Token 估算
 │
 ├── promptCanon.mjs                # 默认提示词块
 ├── promptStore.mjs                # 用户 prompt 覆写（localStorage）
@@ -191,8 +192,8 @@ st_v3_builder_ai_config (localStorage)
 
 ### 架构重构（2026-07）
 
-- **主制卡侧拆分**: `index.astro` 3486 行 `is:inline` 脚本 → ~450 行 `type="module"` 引导 + 8 个面板文件（~4,400 行）
-- **小说工坊拆分**: `browserApp.mjs` 4264 行 → 683 行 orchestrator + 8 个面板文件 + stateMachine + context + bridge（~4,500 行）
+- **主制卡侧拆分**: `index.astro` 3486 行 `is:inline` 脚本 → 468 行 `type="module"` 引导 + 8 个面板文件（~4,400 行）
+- **小说工坊拆分**: `browserApp.mjs` 4264 行 → 684 行 orchestrator + 7 个面板文件 + stateMachine + context + bridge（~4,500 行）
 - **两侧架构对齐**: 统一 ctx → stateMachine → panels 代理模式，相同的注册/绑定/运行生命周期
 - **工具函数统一**: `utils.mjs` 消除 5 个 `uid()` 重复定义、`createTextChunk/crc32` 重复、`strategyLabelZh` 重复
 - **深拷贝优化**: 3 处 `JSON.parse(JSON.stringify())` → `deepCopy()`（优先 `structuredClone`）
