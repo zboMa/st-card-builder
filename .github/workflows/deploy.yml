@@ -45,7 +45,7 @@ jobs:
       # 6.上传打包后的dist文件
       - name: Upload dist file
         run: |
-          scp -r ./dist/* root@${{ secrets.SERVER_IP }}:/temp/card-dist/
+          scp -r ./dist/* root@${{ secrets.SERVER_IP }}:/var/temp-card/
 
       # 7.连接服务器、替换网站文件、重载Nginx
       - name: Deploy to Linux Server
@@ -65,6 +65,6 @@ jobs:
             # 清空旧站点
             rm -rf $WEB_PATH/*
             # 上传打包后的dist文件覆盖
-            cp -r /temp/card-dist/* $WEB_PATH/
+            cp -r /var/temp-card/* $WEB_PATH/
             # 重载Nginx，不中断访问
             # systemctl reload nginx
