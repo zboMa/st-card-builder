@@ -162,8 +162,19 @@ npm run preview
 ## 验证
 
 ```bash
-npm test
-npm run build
+npm test               # 346 个测试，22 个文件，全部通过
+npm run build          # 静态构建
 ```
 
 提交前请至少执行测试与构建验证。
+
+## 开发（贡献者）
+
+项目采用原生 `.mjs` ESM 模块，无 TypeScript、无框架依赖。启动方式：
+
+```bash
+npm install
+npm run dev            # http://localhost:4321
+```
+
+架构说明见 [`docs/architecture-and-design.md`](docs/architecture-and-design.md)，快速上手见 [`AGENTS.md`](AGENTS.md)。

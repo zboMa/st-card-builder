@@ -28,18 +28,25 @@ npm test             # Node.js native test runner (tests/**/*.test.mjs)
 - `html`/`body` are `overflow: hidden`. Only inner panels scroll independently.
 - **No state management library** — data flows through `window.__get*__` / `window.__set*__` bridges and `CustomEvent` dispatches (`card-builder-data-changed`, `card-draft-changed`, `nsfw-config-changed`).
 - State persists to `localStorage` (drafts, config, prompts) and **IndexedDB** (`st-card-builder` db: `json` store for novel workshop, `blob` store for avatars).
-- **`browserApp.mjs`** is a 4200+ line monolith — the main app controller. Plan to split before adding significant code.
+- **Panel-based architecture** (2026-07 refactor): both card-builder and novel workshop use the same ctx → stateMachine → panels delegate pattern. `index.astro` is now a thin ~450-line boot script. See `docs/architecture-and-design.md` for full details.
 
 ## Key directories
 
 | Path | Purpose |
 |---|---|
+| `src/lib/utils.mjs` | Shared pure-function utilities: uid, escapeHtml, crc32, createTextChunk, deepCopy, strategyLabelZh, parseJsonLoose |
+| `src/lib/idbReady.mjs` | IDB async wait helper (event-driven + 100ms poll fallback) |
 | `src/lib/aiTaskCenter.mjs` | Global AI task queue with AbortController cancellation |
 | `src/lib/assistant/` | AI assistant: tools registry, risk classifier, ReAct parser, executor, session snapshots |
-| `src/lib/novel/` | Novel workshop: state (IDB buckets), analysis pipeline, entity store, RAG, sync, NSFW/NTL support |
+| `src/lib/card-builder/` | Main card builder: state + stateMachine + shared context + panels (cardManager, character, worldbook, aiEngine, export) |
+| `src/lib/novel/` | Novel workshop: state (IDB buckets) + stateMachine + shared (context, bridge) + panels (source, chapters, setup, greetings, analyze, characters, worldbook, style) + analysis pipeline, entity store, RAG, sync, NSFW/NTL |
 | `src/lib/promptCanon.mjs` | Default prompt blocks shared across all generation pipelines |
 | `src/lib/promptStore.mjs` | User prompt overrides persisted to `st_v3_builder_prompts` |
 | `src/lib/statusBarThemes/` | 30 visual themes (15 aesthetics × single/multi), filtered by character count |
+| `src/lib/statusBar.mjs` | Status bar designer: theme resolution, HTML generation, snippet building |
+| `src/lib/charTags.mjs` | Character tag normalization and merging |
+| `src/lib/tavernScripts.mjs` | Tavern helper scripts normalization |
+| `src/lib/regexScripts.mjs` | Regex scripts normalization |
 | `src/styles/tokens.css` | Design tokens ("Nocturne" dark theme) |
 | `src/styles/ui-patterns.css` | Shared UI components (panels, buttons, chips, etc.) |
 | `scripts/genStatusBarThemes.mjs` | Generates status bar theme CSS (standalone node script, not npm-registered) |
