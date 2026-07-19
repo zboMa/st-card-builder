@@ -1,0 +1,50 @@
+name: 自动打包部署网站
+# main分支合并代码自动触发
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      # 1.拉取代码
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2.安装Node环境（前端Vue/React通用）
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      # 3.安装依赖、打包
+      - name: Install & Build
+        run: |
+          npm ci
+          npm run build
+          # 校验是否生成dist打包文件夹
+          test -d dist || exit 1
+
+      # 4.连接服务器、替换网站文件、重载Nginx
+      - name: Deploy to Linux Server
+        uses: appleboy/ssh-action@master
+        with:
+          # ==========下面4项全部改成你自己的信息==========
+          host: ${{ secrets.SERVER_IP }} # 服务器公网IP
+          username: ${{ secrets.SERVER_USER }} # 登录用户名，一般root
+          port: ${{ secrets.SSH_PORT }} # SSH端口，默认22
+          key: ${{ secrets.SSH_PRIVATE_KEY }} # 刚才复制的完整私钥
+          # =============================================
+          script: |
+            # 你的网站目录，替换成1Panel里网站路径
+            WEB_PATH="/var/www/card"
+            # 先备份旧文件（回滚用）
+            cp -r $WEB_PATH /var/www/card-bak-$(date +%Y%m%d-%H%M)
+            # 清空旧站点
+            rm -rf $WEB_PATH/*
+            # 上传打包后的dist文件覆盖
+            cp -r /tmp/dist/* $WEB_PATH/
+            # 重载Nginx，不中断访问
+            # systemctl reload nginx
