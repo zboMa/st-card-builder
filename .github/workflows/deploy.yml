@@ -40,7 +40,7 @@ jobs:
       # 5.添加SSH已知主机
       - name: Add SSH known hosts
         run: |
-          ssh-keyscan -H x.xxx.xxx.xx >> ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
 
       # 6.上传打包后的dist文件
       - name: Upload dist file
