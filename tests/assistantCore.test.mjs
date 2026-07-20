@@ -270,6 +270,8 @@ describe('assistant tools registry', function() {
     assert.ok(ASSISTANT_PRESET_CHIPS.length >= 5);
     var withTool = ASSISTANT_PRESET_CHIPS.filter(function(c) { return c.tool; });
     assert.ok(withTool.length >= 4);
+    assert.ok(ASSISTANT_PRESET_CHIPS.some(function(c) { return c.id === 'setup_card'; }));
+    assert.ok(ASSISTANT_PRESET_CHIPS.some(function(c) { return c.id === 'start_generate'; }));
     assert.ok(ASSISTANT_PRESET_CHIPS.some(function(c) { return c.tool === 'batch_fill_worldbook_keys'; }));
     assert.ok(ASSISTANT_PRESET_CHIPS.some(function(c) { return c.tool === 'fix_from_lint'; }));
   });
@@ -678,6 +680,9 @@ describe('assistant prompts & UI wiring', function() {
     });
     assert.match(DEFAULT_PROMPTS.assistantSystem, /定向修改/);
     assert.match(DEFAULT_PROMPTS.assistantSystem, /禁止.*API Key|API Key/);
+    assert.match(DEFAULT_PROMPTS.assistantSystem, /主次|制卡是主体/);
+    assert.match(DEFAULT_PROMPTS.assistantSystem, /倾向引导|非强制/);
+    assert.match(DEFAULT_PROMPTS.assistantReactHint, /勿强制|跳步/);
     assert.match(DEFAULT_PROMPTS.assistantChatFeedback, /fixes/);
   });
 
