@@ -32,6 +32,13 @@ const EXPECTED_MENU = {
 
     'novel-style',
   ],
+  '小说创作': [
+    'story-manage',
+    'story-graph',
+    'story-outline',
+    'story-write',
+    'story-read',
+  ],
   '完成制作': ['chat', 'preview', 'auditor'],
   '配置': ['ai-config', 'prompt-config'],
 };
@@ -45,6 +52,7 @@ describe('sidebar navigation contract', function() {
     assert.match(src, /data-view=\{item\.view\}/);
     assert.match(src, /角色卡制作/);
     assert.match(src, /小说/);
+    assert.match(src, /小说创作/);
     assert.match(src, /完成制作/);
     assert.match(src, /配置/);
   });
@@ -321,6 +329,21 @@ describe('sidebar navigation contract', function() {
     assert.doesNotMatch(src, /产出浏览/);
     assert.match(src, /hash === 'novel-outputs'/);
     assert.match(src, /novel-characters/);
+  });
+
+  it('小说创作菜单顺序为 管理→图谱→大纲→写作→阅读', function() {
+    const src = readFileSync(join(root, 'src/components/AppSidebar.astro'), 'utf8');
+    let last = -1;
+    EXPECTED_MENU['小说创作'].forEach(function(viewId) {
+      const idx = sidebarViewIndex(src, viewId);
+      assert.ok(idx > last, 'story studio order broken at ' + viewId);
+      last = idx;
+    });
+    assert.match(src, /小说创作/);
+    assert.match(src, /view:\s*'story-manage'/);
+    assert.match(src, /view:\s*'story-read'/);
+    // 与小说工坊分离
+    assert.doesNotMatch(src, /view:\s*'story-source'/);
   });
 
   it('index.astro 为每个菜单项提供 app-view', function() {

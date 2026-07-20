@@ -59,7 +59,7 @@ describe('promptStore', function() {
   it('PROMPT_META 按 Tab 分组且覆盖约定分类', function() {
     var groups = listPromptGroups();
     assert.deepEqual(groups, PROMPT_TAB_ORDER);
-    ['角色卡制作', '世界书', '状态栏·MVU', '小说', 'AI 助手'].forEach(function(g) {
+    ['角色卡制作', '世界书', '状态栏·MVU', '小说', '小说创作', 'AI 助手'].forEach(function(g) {
       assert.ok(PROMPT_META.some(function(m) { return m.group === g; }), 'missing group ' + g);
     });
     assert.equal(PROMPT_META.find(function(m) { return m.id === 'wbSkeleton'; }).group, '世界书');

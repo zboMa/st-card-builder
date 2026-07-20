@@ -25,6 +25,8 @@ export const AI_TASK_TYPES = Object.freeze({
   novel_style: '文风蒸馏',
   novel_char_setup: '小说角色设定生成',
   novel_greetings: '小说开场白生成',
+  story_outline: '小说创作·大纲',
+  story_chapter: '小说创作·章文',
   chat_reply: '角色试聊',
   auditor: '世界书内容监测',
   mvu_generate: 'MVU 变量卡生成',

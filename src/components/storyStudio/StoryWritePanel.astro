@@ -1,0 +1,40 @@
+---
+/** 逐章写作：推进提示、连写下一章、同步 MVU/状态栏 */
+---
+<div class="panel story-studio-panel" data-story-panel="write">
+  <h2>逐章写作</h2>
+  <p class="ss-tip">每章可填推进提示；「自动连写下一章」写完后切到下一章继续。同步变量/状态栏需当前卡已有 MVU 与状态栏 design。</p>
+  <div class="ss-write-grid">
+    <div class="form-group">
+      <label for="ssWriteChapterSelect">章节</label>
+      <select id="ssWriteChapterSelect"></select>
+    </div>
+    <div class="form-group">
+      <label for="ssWriteChapterTitle">标题</label>
+      <input id="ssWriteChapterTitle" type="text" />
+    </div>
+    <div class="form-group">
+      <label for="ssWriteAdvancePrompt">本章推进提示</label>
+      <textarea id="ssWriteAdvancePrompt" rows="2" placeholder="例如：冲突升级，埋下反转伏笔"></textarea>
+    </div>
+    <div class="form-group">
+      <label for="ssWriteChapterSummary">摘要</label>
+      <textarea id="ssWriteChapterSummary" rows="2"></textarea>
+    </div>
+    <div class="form-group">
+      <label for="ssWriteChapterContent">正文</label>
+      <textarea id="ssWriteChapterContent" rows="14" placeholder="章节正文"></textarea>
+    </div>
+    <label class="novel-switch" style="display:flex;gap:8px;align-items:center;">
+      <input id="ssWriteSyncMvu" type="checkbox" />
+      <span>写完同步变量与状态栏</span>
+    </label>
+    <div id="ssWriteMvuWarn" class="ss-warn" hidden></div>
+  </div>
+  <div class="ss-toolbar" style="margin-top:12px;">
+    <button type="button" id="btnSsWriteChapter" class="btn btn-fetch">AI 撰写本章</button>
+    <button type="button" id="btnSsWriteAutoNext" class="btn btn-fetch">自动连写下一章</button>
+    <button type="button" id="btnSsWriteSave" class="btn btn-ghost btn-sm">保存</button>
+  </div>
+  <div id="ssWriteStatus" class="ss-status"></div>
+</div>
