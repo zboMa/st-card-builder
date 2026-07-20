@@ -177,4 +177,15 @@ npm install
 npm run dev            # http://localhost:4321
 ```
 
+### 可选：云同步（Node + CouchDB + PouchDB）
+
+```bash
+cp server/.env.example server/.env
+npm run couch          # 需本机 Docker：CouchDB :5984
+npm install --prefix server
+npm run server:dev     # API :8787（Astro 已代理 /api）
+```
+
+侧栏 **配置 → 账户与同步**：调试用户名登录；AI 配置内单独控制密钥是否上云。说明见 [`docs/cloud-sync.md`](docs/cloud-sync.md)。
+
 架构说明见 [`docs/architecture-and-design.md`](docs/architecture-and-design.md)，快速上手见 [`AGENTS.md`](AGENTS.md)。
