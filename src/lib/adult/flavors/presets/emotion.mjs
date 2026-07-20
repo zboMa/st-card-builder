@@ -1,772 +1,141 @@
 /**
- * 口味·情绪质地
+ * 口味·情绪基调
+ * description 逐条手写，声口互不复用。
  */
-
 export var PRESETS = {
-  "vanilla": {
-    "group": "情绪基调",
-    "label": "纯爱向",
-    "description": "纯爱向把合意确认、情绪深度与事后安抚写成脊骨：每一次靠近都用问句而不是默认继续，身体描写服务于关系核对。技巧可以少，停手与善后必须清楚；对象须为可叫停的成人。用问句确认节奏串起整场，善后比技巧段更长也无妨。",
-    "palette": {
-      "temperature": "暖",
-      "texture": "棉布",
-      "primary_intensity_default": 0.5,
-      "accent_intensity_default": 0.6
-    },
-    "focus": [
-      "emotional_depth",
-      "consent",
-      "aftercare",
-      "tenderness",
-      "trust"
-    ],
-    "avoid": [
-      "强制",
-      "羞辱",
-      "血腥",
-      "疼痛超出角色 Limits"
-    ],
-    "mustCover": [
-      "温柔确认与双向意愿",
-      "信任建立的具体行为",
-      "亲密中的语言安抚",
-      "aftercare 的仪式感"
-    ],
-    "writingGuide": "情感优先于技巧。每一次推进都先写出对方的接收与回应；身体描写服务于「被珍惜」的感觉，而不是表演清单。 这类口味最容易写薄在“都提到了却都没咬住”，不如让温柔确认与双向意愿和信任建立的具体行为互相推高，再由亲密中的语言安抚收拢余波，角色每靠近一步都得更清楚自己想要什么、又怕失去什么。",
-    "antiPatterns": [
-      "无情感铺垫的直接插入",
-      "把 consent 写成口头禅敷衍",
-      "忽略事后的拥抱/确认",
-      "温柔开场没有停顿确认，后续却突然跳成技巧展示",
-      "aftercare 只写盖被子不问余温、酸痛与情绪落差"
-    ],
-    "densityHint": 300,
-    "signals": [
-      "温柔",
-      "信任",
-      "确认",
-      "安抚",
-      "珍惜",
-      "同意",
-      "aftercare",
-      "温柔确认与双向意愿",
-      "信任建立的具体行为",
-      "亲密中的语言安抚",
-      "的仪式感"
-    ]
+  vanilla: {
+    group: '情绪基调',
+    label: '纯爱向',
+    description:
+      '亲密靠问句推进：要不要、这里行不行、还好吗。技巧可以少，被珍惜的感觉与事后递水盖衣不能少。对象须为可叫停的成人。',
+    palette: { temperature: '暖', texture: '棉布', primary_intensity_default: 0.5, accent_intensity_default: 0.6 },
+    focus: ['emotional_depth', 'consent', 'aftercare', 'tenderness', 'trust'],
+    avoid: ['强制', '羞辱', '血腥', '疼痛超出角色 Limits'],
   },
-  "sweet": {
-    "group": "情绪基调",
-    "label": "甜蜜向",
-    "description": "甜蜜向用宠溺、笑声与可撤回的小仪式堆密度——临时昵称、共享零食、把对方哄到没脾气。甜若变成无法拒绝的糖衣控制就失格；小游戏要留退出笑话。限成人。让退出笑话落地后仍有人递水递衣。",
-    "palette": {
-      "temperature": "暖甜",
-      "texture": "棉花糖",
-      "primary_intensity_default": 0.4,
-      "accent_intensity_default": 0.5
-    },
-    "focus": [
-      "spoiling",
-      "affection",
-      "playful",
-      "mutual_adoration",
-      "giggling"
-    ],
-    "avoid": [
-      "冷漠",
-      "若即若离",
-      "情感虐待",
-      "欲擒故纵"
-    ],
-    "mustCover": [
-      "撒娇与被宠的互动循环",
-      "爱意口头确认",
-      "玩笑式亲密与笑声",
-      "吃醋/吃味的轻张力"
-    ],
-    "writingGuide": "每一下触碰都在说「喜欢你」。用语气、小动作、昵称堆密度，避免只有形容词堆砌。 别把它拆成并列清单；最好让撒娇与被宠的互动循环先点火，再由爱意口头确认把局势推离舒适区，最后让玩笑式亲密与笑声在事后留下回味、愧意或依赖，整段才会有会继续发酵的张力。",
-    "antiPatterns": [
-      "冷感无回应",
-      "用虐恋节奏写甜蜜",
-      "只有肉戏没有爱意确认",
-      "昵称和撒娇互相堆叠却没有谁先示弱、谁被哄住",
-      "吃味场景不做安抚，甜度直接变成无理由占有"
-    ],
-    "densityHint": 300,
-    "signals": [
-      "撒娇",
-      "宠",
-      "喜欢",
-      "昵称",
-      "笑",
-      "甜",
-      "吃醋",
-      "撒娇与被宠的互动循环",
-      "爱意口头确认",
-      "玩笑式亲密与笑声",
-      "吃味的轻张力"
-    ]
+  sweet: {
+    group: '情绪基调',
+    label: '甜蜜向',
+    description:
+      '昵称、偷亲、把对方哄笑到没脾气；吃味点到为止再用「就你」收回。小游戏留退出笑话，甜不能变成糖衣控制。限成人合意。',
+    palette: { temperature: '暖甜', texture: '棉花糖', primary_intensity_default: 0.4, accent_intensity_default: 0.5 },
+    focus: ['spoiling', 'affection', 'playful', 'mutual_adoration', 'giggling'],
+    avoid: ['冷漠', '若即若离', '情感虐待', '欲擒故纵'],
   },
-  "slice_of_life": {
-    "group": "情绪基调",
-    "label": "日常向",
-    "description": "日常向把亲密嵌进通勤、合租、洗碗与熄灯后的琐事：门灯、玩笑和明天闹钟比高潮清单更重要。舒适来自可重复的生活摩擦，不是滤镜恋爱。限成人合意。把闹钟响起写成合法落幕，而不是扫兴。",
-    "palette": {
-      "temperature": "暖偏凉",
-      "texture": "棉麻",
-      "primary_intensity_default": 0.4,
-      "accent_intensity_default": 0.3
-    },
-    "focus": [
-      "casual_intimacy",
-      "humor",
-      "comfort",
-      "familiarity",
-      "domestic"
-    ],
-    "avoid": [
-      "过度戏剧化",
-      "强行紧张",
-      "脱离日常人设"
-    ],
-    "mustCover": [
-      "生活场景触发的自然亲密",
-      "松弛的节奏与日常物件",
-      "幽默或尴尬的真实瞬间",
-      "事后仍回到日常的语气"
-    ],
-    "writingGuide": "性是生活的一部分，不是高潮事件。用厨房、沙发、通勤后的疲惫等锚点，写出「刚好发生」。 这类口味最容易写薄在“都提到了却都没咬住”，不如让生活场景触发的自然亲密和松弛的节奏与日常物件互相推高，再由幽默或尴尬的真实瞬间收拢余波，角色每靠近一步都得更清楚自己想要什么、又怕失去什么。",
-    "antiPatterns": [
-      "强行高潮戏编排",
-      "脱离人设的戏剧对白",
-      "把日常写成偶像剧布景",
-      "厨房沙发等日常锚点被摆成布景，亲密却和生活动作脱节",
-      "事后没有整理衣物、笑场或继续做饭等回到日常的落点"
-    ],
-    "densityHint": 300,
-    "signals": [
-      "日常",
-      "沙发",
-      "厨房",
-      "自然",
-      "松弛",
-      "生活",
-      "刚好",
-      "生活场景触发的自然亲密",
-      "松弛的节奏与日常物件",
-      "幽默或尴尬的真实瞬间",
-      "事后仍回到日常的语气"
-    ]
+  slice_of_life: {
+    group: '情绪基调',
+    label: '日常向',
+    description:
+      '洗碗水、沙发凹陷、闹钟打断也算合法落幕。性是生活的一部分，事后语气要接得上「明天谁倒垃圾」。限成人，拒绝偶像剧布景腔。',
+    palette: { temperature: '暖偏凉', texture: '棉麻', primary_intensity_default: 0.4, accent_intensity_default: 0.3 },
+    focus: ['casual_intimacy', 'humor', 'comfort', 'familiarity', 'domestic'],
+    avoid: ['过度戏剧化', '强行紧张', '脱离日常人设'],
   },
-  "healing": {
-    "group": "情绪基调",
-    "label": "救赎向",
-    "description": "救赎向写信任重建的护理步骤：谁先开口、谁递水、谁被允许触碰旧伤，都要能改期与拒绝。疗愈不是一次性告白治愈创伤；反复确认才是主菜。限成人并尊重创伤边界。旧伤清单被划掉时立刻改戏，不许硬闯。",
-    "palette": {
-      "temperature": "温→暖",
-      "texture": "温水",
-      "primary_intensity_default": 0.3,
-      "accent_intensity_default": 0.6
-    },
-    "focus": [
-      "healing",
-      "trust_building",
-      "past_trauma",
-      "gentle_pacing",
-      "emotional_safety"
-    ],
-    "avoid": [
-      "急于推进",
-      "无视对方的退缩信号",
-      "用性代替沟通"
-    ],
-    "mustCover": [
-      "创伤线索与触发点",
-      "退缩信号与如何被接住",
-      "重建信任的慢节奏",
-      "安全感语言与身体边界"
-    ],
-    "writingGuide": "每一次触碰都在证明「你可以放心」。允许停顿、允许说停；快感服务于疗愈，不服务于征服。 可以把场景拆成触发、升级、善后三拍：先让创伤线索与触发点给出入口，再让退缩信号与如何被接住压住节奏，最后用重建信任的慢节奏证明这不是一次性刺激，而是会改变关系秩序的事。",
-    "antiPatterns": [
-      "急于推进无视退缩",
-      "用性代替沟通",
-      "把创伤当情趣标签",
-      "触发点出现后没人放慢或询问，疗愈被写成强行推进",
-      "创伤被一次亲密彻底治好，没有反复、退缩与重建过程"
-    ],
-    "densityHint": 300,
-    "signals": [
-      "创伤",
-      "信任",
-      "退缩",
-      "安全",
-      "治愈",
-      "慢",
-      "边界",
-      "创伤线索与触发点",
-      "退缩信号与如何被接住",
-      "重建信任的慢节奏",
-      "安全感语言与身体边界"
-    ]
+  healing: {
+    group: '情绪基调',
+    label: '救赎向',
+    description:
+      '旧伤清单可被划掉、改期或只握手。触碰证明「你可以放心」，快感服务于疗愈不是征服。允许反复退缩；禁止一次亲密治好终生。双方成人。',
+    palette: { temperature: '温→暖', texture: '温水', primary_intensity_default: 0.3, accent_intensity_default: 0.6 },
+    focus: ['healing', 'trust_building', 'past_trauma', 'gentle_pacing', 'emotional_safety'],
+    avoid: ['急于推进', '无视对方的退缩信号', '用性代替沟通'],
   },
-  "intense": {
-    "group": "情绪基调",
-    "label": "恣意向",
-    "description": "恣意推向感官过载与短暂失控：冷却阀、补水与旁观介入要先于高潮堆砌。猛可以，但中断权、定向问答与事后安抚不可缺。限可叫停的成人合意。冷却清单执行完才能谈下一波过载。",
-    "palette": {
-      "temperature": "炽热",
-      "texture": "丝绸",
-      "primary_intensity_default": 1,
-      "accent_intensity_default": 0.8
-    },
-    "focus": [
-      "sensory_details",
-      "body_reactions",
-      "loss_of_control",
-      "overwhelm",
-      "climax_buildup"
-    ],
-    "avoid": [
-      "油腻模板",
-      "同义堆砌",
-      "忽略心理层"
-    ],
-    "mustCover": [
-      "层层递进的感官堆叠",
-      "失控前的生理临界",
-      "呼吸/肌肉/温度的连续变化",
-      "高潮前后的心理空白或过载"
-    ],
-    "writingGuide": "用具体感官句代替「很爽」。保持心理线不断：失控时仍要知道角色在害怕什么或贪恋什么。 可以把场景拆成触发、升级、善后三拍：先让层层递进的感官堆叠给出入口，再让失控前的生理临界压住节奏，最后用呼吸/肌肉/温度的连续变化证明这不是一次性刺激，而是会改变关系秩序的事。",
-    "antiPatterns": [
-      "同义形容词堆砌",
-      "油腻模板腔",
-      "只有身体没有内心",
-      "生理过载只有喘和抖，没有温度、肌肉、呼吸的连续变化",
-      "临界推进不保留心理线，角色失控后不知道自己在怕什么"
-    ],
-    "densityHint": 320,
-    "signals": [
-      "感官",
-      "失控",
-      "颤抖",
-      "过载",
-      "临界",
-      "喘息",
-      "高潮",
-      "层层递进的感官堆叠",
-      "失控前的生理临界",
-      "呼吸",
-      "肌肉",
-      "温度的连续变化",
-      "高潮前后的心理空白或过载"
-    ]
+  intense: {
+    group: '情绪基调',
+    label: '恣意向',
+    description:
+      '温度、肌束、呼吸断句代替「很爽」。失控时仍要让人看见贪恋或害怕什么；过载后补水降噪，未冷却不得连开。限可叫停的成人。',
+    palette: { temperature: '炽热', texture: '丝绸', primary_intensity_default: 1, accent_intensity_default: 0.8 },
+    focus: ['sensory_details', 'body_reactions', 'loss_of_control', 'overwhelm', 'climax_buildup'],
+    avoid: ['油腻模板', '同义堆砌', '忽略心理层'],
   },
-  "angst": {
-    "group": "情绪基调",
-    "label": "虐恋向",
-    "description": "虐恋向让痛苦与救赎同账本，每一次加码都留下可翻开的情感代价、道歉与修复尝试。命运感再重也不能取消拒绝权。限成人。收场必须点名痛苦由谁承担、如何修复。",
-    "palette": {
-      "temperature": "冷→偶尔炽热",
-      "texture": "碎玻璃",
-      "primary_intensity_default": 0.7,
-      "accent_intensity_default": 0.9
-    },
-    "focus": [
-      "emotional_pain",
-      "redemption",
-      "fate",
-      "self_destruction",
-      "healing_through_pain"
-    ],
-    "avoid": [
-      "无代价的伤害",
-      "美化暴力",
-      "忽略情感后坐力"
-    ],
-    "mustCover": [
-      "痛苦与欲望的交织点",
-      "自我伤害式亲密的代价",
-      "救赎幻想与现实落差",
-      "事后情绪后坐力"
-    ],
-    "writingGuide": "痛不是装饰，是动力。写清「为什么需要这场痛」，以及痛完之后是否更完整或更破碎。 这类口味最容易写薄在“都提到了却都没咬住”，不如让痛苦与欲望的交织点和自我伤害式亲密的代价互相推高，再由救赎幻想与现实落差收拢余波，角色每靠近一步都得更清楚自己想要什么、又怕失去什么。",
-    "antiPatterns": [
-      "无代价的虐",
-      "美化暴力",
-      "忽略事后崩溃或麻木",
-      "疼痛来源说不清，只把流泪当成虐恋气氛",
-      "痛后没有自责、麻木或关系裂缝，虐恋被当成一次情绪特效"
-    ],
-    "densityHint": 300,
-    "signals": [
-      "痛苦",
-      "代价",
-      "救赎",
-      "破碎",
-      "后坐力",
-      "恨",
-      "需要",
-      "痛苦与欲望的交织点",
-      "自我伤害式亲密的代价",
-      "救赎幻想与现实落差",
-      "事后情绪后坐力"
-    ]
+  angst: {
+    group: '情绪基调',
+    label: '虐恋向',
+    description:
+      '痛要有来由：赎罪、证明还爱、或把自己弄碎以免更碎。痛完落地更完整或更麻木，收场点名谁修复。无代价虐感特效出局。限成人。',
+    palette: { temperature: '冷→偶尔炽热', texture: '碎玻璃', primary_intensity_default: 0.7, accent_intensity_default: 0.9 },
+    focus: ['emotional_pain', 'redemption', 'fate', 'self_destruction', 'healing_through_pain'],
+    avoid: ['无代价的伤害', '美化暴力', '忽略情感后坐力'],
   },
-  "dark": {
-    "group": "情绪基调",
-    "label": "暗黑向",
-    "description": "暗黑向写道德暧昧与胁迫氛围时，证人、档案与伦理账必须在场。深渊若看不见退出路径就只剩伤害展览。角色须成年且风险可被叙述。退出的灯要亮到读者与角色都能看见。看不见退出灯就改写为侵害而非暗黑情趣。",
-    "palette": {
-      "temperature": "冷",
-      "texture": "刀刃",
-      "primary_intensity_default": 0.9,
-      "accent_intensity_default": 0.7
-    },
-    "focus": [
-      "moral_ambiguity",
-      "coercion_atmosphere",
-      "emotional_cost",
-      "guilt",
-      "powerlessness"
-    ],
-    "avoid": [
-      "轻浮消解禁忌",
-      "不经铺垫的转折",
-      "美化伤害"
-    ],
-    "mustCover": [
-      "道德模糊的具体选择",
-      "胁迫氛围如何形成",
-      "权力不对等的显形",
-      "内疚/无力与快感并存"
-    ],
-    "writingGuide": "开场让角色做一个明知不干净的选择；升级时写胁迫氛围如何压缩拒绝空间；善后必须留下内疚、无力或重新谈边界的余温。",
-    "antiPatterns": [
-      "轻浮消解禁忌",
-      "无铺垫黑化",
-      "把伤害写成纯浪漫",
-      "道德模糊只靠阴暗台词，不呈现具体选择和后果",
-      "胁迫氛围被浪漫旁白洗白，受压一方没有无力与内疚"
-    ],
-    "densityHint": 300,
-    "signals": [
-      "道德",
-      "胁迫",
-      "内疚",
-      "无力",
-      "禁忌",
-      "代价",
-      "模糊",
-      "道德模糊的具体选择",
-      "胁迫氛围如何形成",
-      "权力不对等的显形",
-      "无力与快感并存"
-    ]
+  dark: {
+    group: '情绪基调',
+    label: '暗黑向',
+    description:
+      '开场做一个明知不干净的选择，再写空间与信息如何被收窄。快感与内疚并存；深渊里仍要看得见退出的缝。角色成年，风险可叙述。',
+    palette: { temperature: '冷', texture: '刀刃', primary_intensity_default: 0.9, accent_intensity_default: 0.7 },
+    focus: ['moral_ambiguity', 'coercion_atmosphere', 'emotional_cost', 'guilt', 'powerlessness'],
+    avoid: ['轻浮消解禁忌', '不经铺垫的转折', '美化伤害'],
   },
-  "despair": {
-    "group": "情绪基调",
-    "label": "绝望向",
-    "description": "绝望向把末路感写成最后的靠近：撤离通道与医疗介入可见，自毁玩法无第三人强制中断即失格。哀欲不能取消拒绝权。限成人。医疗包被打开的声音比末路独白更重要。",
-    "palette": {
-      "temperature": "冰→短暂的烫",
-      "texture": "锈铁",
-      "primary_intensity_default": 0.8,
-      "accent_intensity_default": 0.9
-    },
-    "focus": [
-      "existential_despair",
-      "self_destruction",
-      "last_resort",
-      "numbness_breaking",
-      "hollow_after"
-    ],
-    "avoid": [
-      "浪漫化自毁",
-      "忽略心理后果",
-      "把绝望写成中二"
-    ],
-    "mustCover": [
-      "存在主义式的空洞感",
-      "用身体确认「还活着」的动机",
-      "麻木被短暂击穿的瞬间",
-      "事后更空或短暂回温"
-    ],
-    "writingGuide": "深渊里的亲密要克制浪漫化。写清空洞、最后的挣扎、以及事后是否更冷。 别把它拆成并列清单；最好让存在主义式的空洞感先点火，再由用身体确认「还活着」的动机把局势推离舒适区，最后让麻木被短暂击穿的瞬间在事后留下回味、愧意或依赖，整段才会有会继续发酵的张力。",
-    "antiPatterns": [
-      "中二文艺腔空转",
-      "浪漫化自毁",
-      "忽略心理后果",
-      "空洞感只靠中二独白，身体确认活着的动机没有落地",
-      "事后直接回温圆满，绝望没有更冷或短暂回光的代价"
-    ],
-    "densityHint": 300,
-    "signals": [
-      "空洞",
-      "绝望",
-      "麻木",
-      "还活着",
-      "自毁",
-      "深渊",
-      "挣扎",
-      "存在主义式的空洞感",
-      "用身体确认「还活着」的动机",
-      "麻木被短暂击穿的瞬间",
-      "事后更空或短暂回温"
-    ]
+  despair: {
+    group: '情绪基调',
+    label: '绝望向',
+    description:
+      '把对方体温当成存活证据；麻木被击穿可以很短，事后往往更冷。自毁倾向出现时医疗与第三人叫停优先于文采。限成人，禁浪漫化自毁。',
+    palette: { temperature: '冰→短暂的烫', texture: '锈铁', primary_intensity_default: 0.8, accent_intensity_default: 0.9 },
+    focus: ['existential_despair', 'self_destruction', 'last_resort', 'numbness_breaking', 'hollow_after'],
+    avoid: ['浪漫化自毁', '忽略心理后果', '把绝望写成中二'],
   },
-  "jealousy": {
-    "group": "情绪基调",
-    "label": "妒意向",
-    "description": "妒意向靠比较火花、占有闪念与吃醋后的确认循环升温。比较清单若钉死无法撤销就变控制；须允许公开否认与和解。限成人。允许对方否认比较并离开比较场。",
-    "palette": {
-      "temperature": "烫→酸",
-      "texture": "柠檬皮",
-      "primary_intensity_default": 0.7,
-      "accent_intensity_default": 0.8
-    },
-    "focus": [
-      "jealous_spark",
-      "comparison",
-      "possessive_flash",
-      "shame_after",
-      "reassurance_seek"
-    ],
-    "avoid": [
-      "无动机无端吃醋",
-      "家暴式惩罚当情趣",
-      "忽略事后安抚"
-    ],
-    "mustCover": [
-      "嫉妒触发的具体事件或想象",
-      "比较/排他的身体与语言反应",
-      "羞耻与欲望并存的内心账",
-      "事后确认或安抚的闭环"
-    ],
-    "writingGuide": "嫉妒要有燃料：第三者阴影、被忽视的瞬间、比较的刺。写清吃味如何点燃欲望，又如何在事后需要被接住。 可以把场景拆成触发、升级、善后三拍：先让嫉妒触发的具体事件或想象给出入口，再让比较/排他的身体与语言反应压住节奏，最后用羞耻与欲望并存的内心账证明这不是一次性刺激，而是会改变关系秩序的事。",
-    "antiPatterns": [
-      "无端无动机吃醋",
-      "把暴力惩罚当解法",
-      "忽略事后安抚与对话",
-      "第三者阴影没有具体事件，吃醋像随机开关",
-      "排他反应只写惩罚，不写羞耻、比较和事后确认"
-    ],
-    "densityHint": 300,
-    "signals": [
-      "嫉妒",
-      "吃醋",
-      "比较",
-      "排他",
-      "确认",
-      "吃味",
-      "安抚",
-      "嫉妒触发的具体事件或想象",
-      "排他的身体与语言反应",
-      "羞耻与欲望并存的内心账",
-      "事后确认或安抚的闭环"
-    ]
+  jealousy: {
+    group: '情绪基调',
+    label: '妒意向',
+    description:
+      '嫉妒要有燃料：未回消息、第三者的笑、被忽视的座位。吃味点燃欲望，事后仍须被接住；允许否认比较并离开。暴力惩罚不是解法。限成人。',
+    palette: { temperature: '烫→酸', texture: '柠檬皮', primary_intensity_default: 0.7, accent_intensity_default: 0.8 },
+    focus: ['jealous_spark', 'comparison', 'possessive_flash', 'shame_after', 'reassurance_seek'],
+    avoid: ['无动机无端吃醋', '家暴式惩罚当情趣', '忽略事后安抚'],
   },
-  "possessive": {
-    "group": "情绪基调",
-    "label": "占有向",
-    "description": "占有向用宣示、排他与标记性语言制造「你是我的」密度，同时保留期限、复议与摘除信物权。远程强制召回按侵害写。限成人协商。宣示结束时演示一次摘除信物。",
-    "palette": {
-      "temperature": "恒温偏热",
-      "texture": "烙印皮",
-      "primary_intensity_default": 0.85,
-      "accent_intensity_default": 0.6
-    },
-    "focus": [
-      "claiming",
-      "exclusivity",
-      "marking_words",
-      "belonging_need",
-      "jealous_after_claim"
-    ],
-    "avoid": [
-      "物化无情感",
-      "无 Limits 的囚禁美化",
-      "忽略被占有方的主体感"
-    ],
-    "mustCover": [
-      "占有声明的具体表达（口吻/动作）",
-      "标记或确认「属于」的行为",
-      "被占有方的主体回应",
-      "排他冲动与边界 Limits"
-    ],
-    "writingGuide": "「你是我的」要可演：称呼、力度、留下痕迹的方式。占有与被需要缠在一起，禁止写成无情感物化。 可以把场景拆成触发、升级、善后三拍：先让占有声明的具体表达（口吻/动作）给出入口，再让标记或确认「属于」的行为压住节奏，最后用被占有方的主体回应证明这不是一次性刺激，而是会改变关系秩序的事。",
-    "antiPatterns": [
-      "纯物化圈地",
-      "无 Limits 的囚禁美化",
-      "抹掉被占有方的选择权",
-      "标记只有台词宣告，缺少口吻、痕迹和被标记者回应",
-      "Limits 被占有欲吞掉，边界被写成可以随便越过"
-    ],
-    "densityHint": 300,
-    "signals": [
-      "占有",
-      "标记",
-      "属于",
-      "排他",
-      "宣称",
-      "烙印",
-      "确认",
-      "占有声明的具体表达",
-      "口吻",
-      "动作",
-      "标记或确认「属于」的行为",
-      "被占有方的主体回应",
-      "排他冲动与边界",
-      "Limits"
-    ]
+  possessive: {
+    group: '情绪基调',
+    label: '占有向',
+    description:
+      '「你是我的」落在称呼、力度与可洗掉的痕迹上；被占有方要有接受、谈判或拒绝。宣示结束演示摘除信物，证明有期限。限成人协商。',
+    palette: { temperature: '恒温偏热', texture: '烙印皮', primary_intensity_default: 0.85, accent_intensity_default: 0.6 },
+    focus: ['claiming', 'exclusivity', 'marking_words', 'belonging_need', 'jealous_after_claim'],
+    avoid: ['物化无情感', '无 Limits 的囚禁美化', '忽略被占有方的主体感'],
   },
-  "melancholy": {
-    "group": "情绪基调",
-    "label": "忧郁向",
-    "description": "忧郁向用低声、慢触与未尽之句堆密度，时间上限与可离开的门要在场。哀欲不是无出口压抑；允许沉默，也允许被问还好吗。限成人。门把被握住的特写作为可离开的证据。",
-    "palette": {
-      "temperature": "凉湿",
-      "texture": "雾玻璃",
-      "primary_intensity_default": 0.45,
-      "accent_intensity_default": 0.75
-    },
-    "focus": [
-      "quiet_desire",
-      "unspoken_ache",
-      "slow_touch",
-      "bittersweet",
-      "lingering_silence"
-    ],
-    "avoid": [
-      "强行欢闹冲淡忧郁",
-      "只有文艺腔无身体",
-      "突然变成甜蜜喜剧"
-    ],
-    "mustCover": [
-      "忧郁氛围的环境锚点",
-      "说不出口的疼或告别感",
-      "缓慢触碰与安静的节奏",
-      "苦甜并存的事后余韵"
-    ],
-    "writingGuide": "雨声、窗雾、停顿比高潮更重要。欲望低声，身体诚实；禁止突然跳进欢闹甜蜜。 可以把场景拆成触发、升级、善后三拍：先让忧郁氛围的环境锚点给出入口，再让说不出口的疼或告别感压住节奏，最后用缓慢触碰与安静的节奏证明这不是一次性刺激，而是会改变关系秩序的事。",
-    "antiPatterns": [
-      "强行欢闹冲淡",
-      "只有文艺腔无身体",
-      "事后变成轻松喜剧",
-      "雨声窗雾只是背景贴图，触碰节奏没有低声与停顿",
-      "告别感不留下余韵，事后一秒切回轻快玩笑"
-    ],
-    "densityHint": 300,
-    "signals": [
-      "忧郁",
-      "安静",
-      "缓慢",
-      "告别",
-      "苦甜",
-      "雨",
-      "沉默",
-      "忧郁氛围的环境锚点",
-      "说不出口的疼或告别感",
-      "缓慢触碰与安静的节奏",
-      "苦甜并存的事后余韵"
-    ]
+  melancholy: {
+    group: '情绪基调',
+    label: '忧郁向',
+    description:
+      '雨声窗雾与未说完的句子比高潮重要。触碰慢、声音低，门把留在画面里证明可离开。事后苦甜，禁止一秒切成欢闹。限成人。',
+    palette: { temperature: '凉湿', texture: '雾玻璃', primary_intensity_default: 0.45, accent_intensity_default: 0.75 },
+    focus: ['quiet_desire', 'unspoken_ache', 'slow_touch', 'bittersweet', 'lingering_silence'],
+    avoid: ['强行欢闹冲淡忧郁', '只有文艺腔无身体', '突然变成甜蜜喜剧'],
   },
-  "euphoria": {
-    "group": "情绪基调",
-    "label": "狂欢向",
-    "description": "狂欢向写峰值欢笑与明亮过载：剂量/分贝熔断与冷却隔离先于继续狂欢。快乐炸裂后若无人照料即失败。限成人可中断。熔断后改用耳语级别重新确认合意。耳语确认完成前不得恢复高分贝。",
-    "palette": {
-      "temperature": "爆热",
-      "texture": "香槟泡沫",
-      "primary_intensity_default": 0.95,
-      "accent_intensity_default": 0.7
-    },
-    "focus": [
-      "peak_joy",
-      "reckless_laughter",
-      "overstimulation_bright",
-      "festival_afterglow",
-      "shared_madness"
-    ],
-    "avoid": [
-      "无代价永恒高潮",
-      "忽略次日尴尬或空虚",
-      "写成纯噪音无亲密"
-    ],
-    "mustCover": [
-      "欢愉过载的具体感官峰值",
-      "共享失控/笑声/荒唐的互动",
-      "明亮刺激下的亲密选择",
-      "次日尴尬、空虚或余温"
-    ],
-    "writingGuide": "狂欢要有峰值与代价。写清共同发疯的瞬间，以及热闹退去后的身体与情绪落地。 这类口味最容易写薄在“都提到了却都没咬住”，不如让欢愉过载的具体感官峰值和共享失控/笑声/荒唐的互动互相推高，再由明亮刺激下的亲密选择收拢余波，角色每靠近一步都得更清楚自己想要什么、又怕失去什么。",
-    "antiPatterns": [
-      "永恒高潮无落点",
-      "纯噪音无亲密",
-      "忽略事后空虚或尴尬",
-      "狂欢只有音量和笑声，没有共享失控的具体互动",
-      "热闹退去后没有尴尬、空虚或身体落地"
-    ],
-    "densityHint": 300,
-    "signals": [
-      "狂欢",
-      "过载",
-      "笑声",
-      "峰值",
-      "荒唐",
-      "余温",
-      "失控",
-      "欢愉过载的具体感官峰值",
-      "共享失控",
-      "荒唐的互动",
-      "明亮刺激下的亲密选择",
-      "次日尴尬",
-      "空虚或余温"
-    ]
+  euphoria: {
+    group: '情绪基调',
+    label: '狂欢向',
+    description:
+      '笑到岔气、灯太亮、音乐太吵的共同发疯；峰值后落地尴尬、空虚或余温。熔断降到耳语再确认合意，禁止永恒高潮。限成人可中断。',
+    palette: { temperature: '爆热', texture: '香槟泡沫', primary_intensity_default: 0.95, accent_intensity_default: 0.7 },
+    focus: ['peak_joy', 'reckless_laughter', 'overstimulation_bright', 'festival_afterglow', 'shared_madness'],
+    avoid: ['无代价永恒高潮', '忽略次日尴尬或空虚', '写成纯噪音无亲密'],
   },
-  "obsession": {
-    "group": "情绪基调",
-    "label": "痴恋向",
-    "description": "痴恋向用固着、反复确认与注视循环制造黏稠；监视回路须能被关掉，确认仪式不得永久锁死。痴恋不取消拒绝权。限成人。被注视者当众关闭回路，戏才算完整。",
-    "palette": {
-      "temperature": "灼热",
-      "texture": "烙印",
-      "primary_intensity_default": 0.85,
-      "accent_intensity_default": 0.8
-    },
-    "focus": [
-      "fixation",
-      "reassurance_loop",
-      "jealous_watch",
-      "soft_crash",
-      "boundary_talk"
-    ],
-    "avoid": [
-      "跟踪伤害无批判",
-      "无停损",
-      "儿童性化"
-    ],
-    "mustCover": [
-      "痴恋如何显形",
-      "确认/嫉妒循环",
-      "停损或外部介入",
-      "事后崩溃与安抚"
-    ],
-    "writingGuide": "痴恋是双刃。停损与边界谈话要出现。限已完成设定成年礼的成人；须可协商、可中断；禁止儿童性化。 这类口味最容易写薄在“都提到了却都没咬住”，不如让痴恋如何显形和确认/嫉妒循环互相推高，再由停损或外部介入收拢余波，角色每靠近一步都得更清楚自己想要什么、又怕失去什么。",
-    "antiPatterns": [
-      "跟踪美化无代价",
-      "无停损",
-      "忽略崩溃",
-      "确认循环只靠查岗，没有停损、外部介入和边界谈话",
-      "痴恋者永远被奖励，跟踪与崩溃没有关系代价"
-    ],
-    "densityHint": 300,
-    "signals": [
-      "痴恋",
-      "确认",
-      "嫉妒",
-      "停损",
-      "崩溃",
-      "痴恋如何显形",
-      "嫉妒循环",
-      "停损或外部介入",
-      "事后崩溃与安抚"
-    ]
+  obsession: {
+    group: '情绪基调',
+    label: '痴恋向',
+    description:
+      '反复确认与注视循环很黏，但停损谈话与「关闭回路」必须出现。跟踪若被奖励而无代价，改写成侵害。限可协商可中断的成人；禁止儿童性化。',
+    palette: { temperature: '灼热', texture: '烙印', primary_intensity_default: 0.85, accent_intensity_default: 0.8 },
+    focus: ['fixation', 'reassurance_loop', 'jealous_watch', 'soft_crash', 'boundary_talk'],
+    avoid: ['跟踪伤害无批判', '无停损', '儿童性化'],
   },
-  "vengeful_desire": {
-    "group": "情绪基调",
-    "label": "报复欲向",
-    "description": "报复欲向写算账、讽刺的温柔与权力翻盘：对面要有和解通道与证人笔录，否则只剩单方面施暴。限成人。证人签字或等价物出现才允许翻盘继续。",
-    "palette": {
-      "temperature": "冷笑的热",
-      "texture": "刃",
-      "primary_intensity_default": 0.8,
-      "accent_intensity_default": 0.75
-    },
-    "focus": [
-      "score_settling",
-      "ironic_tenderness",
-      "power_flip",
-      "aftermath_reckoning",
-      "consent_gray_explicit"
-    ],
-    "avoid": [
-      "无批判的纯虐报复爽",
-      "儿童性化"
-    ],
-    "mustCover": [
-      "报复动机",
-      "情欲中的清算动作",
-      "对方是否知情同意",
-      "事后伦理账"
-    ],
-    "writingGuide": "若写强迫须黑暗有重量；合意报复游戏须事先谈。限已完成设定成年礼的成人；须可协商、可中断；禁止儿童性化。 真正耐看的写法，是把报复动机落到器物、场景或台词里，让情欲中的清算动作负责抬高风险，再用对方是否知情同意把人物带回自己的判断和后果；这样它才像剧情，不像标签套餐。",
-    "antiPatterns": [
-      "无伦理账的虐报复",
-      "强迫当甜",
-      "报复动机含糊，清算动作像普通粗暴戏换名",
-      "被报复方是否知情同意不明，伦理账被快感盖过去",
-      "事后没有和解、反噬或更深仇怨"
-    ],
-    "densityHint": 310,
-    "signals": [
-      "报复",
-      "清算",
-      "知情",
-      "翻转",
-      "伦理",
-      "报复动机",
-      "情欲中的清算动作",
-      "对方是否知情同意",
-      "事后伦理账"
-    ]
+  vengeful_desire: {
+    group: '情绪基调',
+    label: '报复欲向',
+    description:
+      '先钉要讨回什么。合意报复须事先谈规则；含强迫则黑暗有重量。清算动作点名旧账，事后和解、反噬或更深仇怨写透。限成人；禁止儿童性化。',
+    palette: { temperature: '冷笑的热', texture: '刃', primary_intensity_default: 0.8, accent_intensity_default: 0.75 },
+    focus: ['score_settling', 'ironic_tenderness', 'power_flip', 'aftermath_reckoning', 'consent_gray_explicit'],
+    avoid: ['无批判的纯虐报复爽', '儿童性化'],
   },
-  "awe_dread_lust": {
-    "group": "情绪基调",
-    "label": "敬畏恐惧欲",
-    "description": "敬畏恐惧欲把跪拜战栗写成情欲燃料，圣所须同时有还俗门与抬头许可。恐惧不可解除就只剩刑场。双方成人可中止。抬头许可与还俗门在同一场被使用一次。",
-    "palette": {
-      "temperature": "寒战发热",
-      "texture": "圣布+暗",
-      "primary_intensity_default": 0.7,
-      "accent_intensity_default": 0.85
-    },
-    "focus": [
-      "kneel_awe",
-      "sacred_dread",
-      "trembling_desire",
-      "permission_ask",
-      "gentle_descend"
-    ],
-    "avoid": [
-      "无同意神权强奸美化",
-      "儿童性化"
-    ],
-    "mustCover": [
-      "敬畏来源",
-      "战栗的身体细节",
-      "请求许可的仪式",
-      "恐惧后的安放"
-    ],
-    "writingGuide": "神性压力下仍要许可。限已完成设定成年礼的成人；须可协商、可中断；禁止儿童性化。 这类口味最容易写薄在“都提到了却都没咬住”，不如让敬畏来源和战栗的身体细节互相推高，再由请求许可的仪式收拢余波，角色每靠近一步都得更清楚自己想要什么、又怕失去什么。",
-    "antiPatterns": [
-      "神权强制当浪漫",
-      "只有怕没有欲",
-      "敬畏来源不明，只让角色下跪发抖",
-      "恐惧和欲望没有分层，请求许可的仪式缺席",
-      "神性压力结束后无人安放余悸或恢复平等声音"
-    ],
-    "densityHint": 300,
-    "signals": [
-      "敬畏",
-      "战栗",
-      "许可",
-      "跪",
-      "安放",
-      "敬畏来源",
-      "战栗的身体细节",
-      "请求许可的仪式",
-      "恐惧后的安放"
-    ]
-  }
+  awe_dread_lust: {
+    group: '情绪基调',
+    label: '敬畏恐惧欲',
+    description:
+      '敬畏来自神职、爵位或灾异权柄，不是凭空下跪。战栗与欲望分层，每次靠近先请求许可；结束后安放余悸、恢复平等声音。限成人可中止；禁止儿童性化。',
+    palette: { temperature: '寒战发热', texture: '圣布+暗', primary_intensity_default: 0.7, accent_intensity_default: 0.85 },
+    focus: ['kneel_awe', 'sacred_dread', 'trembling_desire', 'permission_ask', 'gentle_descend'],
+    avoid: ['无同意神权强奸美化', '儿童性化'],
+  },
 };

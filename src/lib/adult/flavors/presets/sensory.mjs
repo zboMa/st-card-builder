@@ -1,559 +1,106 @@
 /**
- * 口味·感官焦点
+ * 口味·感官节奏
+ * description 逐条手写。
  */
 
 export var PRESETS = {
-  "slowburn": {
-    "group": "感官节奏",
-    "label": "慢燃向",
-    "description": "慢燃用延迟满足、微触碰与预期堆叠制造渴望：日期可复议，微触配额不可被单方清零。拖是双方同意的拉长。限成人。改期请求被接受时预期堆叠清零重计。重计预期时双方重新对齐日期。",
-    "palette": {
-      "temperature": "慢升温",
-      "texture": "绸带抽丝",
-      "primary_intensity_default": 0.45,
-      "accent_intensity_default": 0.9
-    },
-    "focus": [
-      "delayed_gratification",
-      "micro_touches",
-      "anticipation_stack",
-      "almost_moments",
-      "payoff_timing"
-    ],
-    "avoid": [
-      "开场即高潮",
-      "省略加压过程",
-      "慢而无张力"
-    ],
-    "mustCover": [
-      "长前戏中的微触与停顿",
-      "「几乎得到」的加压瞬间",
-      "延迟满足的心理账",
-      "最终释放的时机与代价"
-    ],
-    "writingGuide": "慢不是拖，是加压。每一寸布料、每一次停顿都要让读者感到「还早」；爆发必须挣来。 别把它拆成并列清单；最好让长前戏中的微触与停顿先点火，再由「几乎得到」的加压瞬间把局势推离舒适区，最后让延迟满足的心理账在事后留下回味、愧意或依赖，整段才会有会继续发酵的张力。",
-    "antiPatterns": [
-      "开场即高潮",
-      "慢而无张力",
-      "省略加压只写结果",
-      "前戏很长却没有每次几乎得到的加压点",
-      "最终释放来得随意，之前的忍耐没有代价"
-    ],
-    "densityHint": 320,
-    "signals": [
-      "慢燃",
-      "延迟",
-      "停顿",
-      "几乎",
-      "加压",
-      "前戏",
-      "期待",
-      "长前戏中的微触与停顿",
-      "「几乎得到」的加压瞬间",
-      "延迟满足的心理账",
-      "最终释放的时机与代价"
-    ]
+  slowburn: {
+    group: "感官节奏",
+    label: "慢燃向",
+    description:
+      "微触与停顿堆渴望，日期可复议。「几乎得到」要双方都疼一下再共同决定是否释放。单方清零配额出局。限成人。",
+    palette: {"temperature":"慢升温","texture":"绸带抽丝","primary_intensity_default":0.45,"accent_intensity_default":0.9},
+    focus: ["delayed_gratification","micro_touches","anticipation_stack","almost_moments","payoff_timing"],
+    avoid: ["开场即高潮","省略加压过程","慢而无张力"],
   },
-  "quickie": {
-    "group": "感官节奏",
-    "label": "速战向",
-    "description": "速战吃时间压力与半着衣急促：隔音、门锁与同意刷新仍不可省。匆忙不是跳过边界的许可。限成人合意。听不到同意短句就保持半着衣停手。半着衣停手也算完整收束。",
-    "palette": {
-      "temperature": "骤热骤凉",
-      "texture": "皱布",
-      "primary_intensity_default": 0.85,
-      "accent_intensity_default": 0.5
-    },
-    "focus": [
-      "time_pressure",
-      "half_dressed",
-      "urgent_breath",
-      "stolen_moment",
-      "messy_after"
-    ],
-    "avoid": [
-      "写成完整长戏压缩版",
-      "无紧迫感的空喊快",
-      "忽略事后匆忙余韵"
-    ],
-    "mustCover": [
-      "时间压力的具体来源",
-      "半着装/空间局促的细节",
-      "短促节奏中的密度",
-      "匆忙结束后的余韵或狼狈"
-    ],
-    "writingGuide": "用紧迫感换长度。门缝、钟表、外面的脚步都可以是节拍器；事后要有匆忙落地。 真正耐看的写法，是把时间压力的具体来源落到器物、场景或台词里，让半着装/空间局促的细节负责抬高风险，再用短促节奏中的密度把人物带回自己的判断和后果；这样它才像剧情，不像标签套餐。",
-    "antiPatterns": [
-      "无紧迫感空喊快",
-      "写成压缩长戏",
-      "事后无狼狈余韵",
-      "时间压力没有钟表、脚步或门缝来源，快只停在字面",
-      "匆忙结束后衣物、呼吸和狼狈余韵全部缺席"
-    ],
-    "densityHint": 300,
-    "signals": [
-      "匆忙",
-      "紧迫",
-      "间隙",
-      "半脱",
-      "喘息",
-      "速战",
-      "狼狈",
-      "时间压力的具体来源",
-      "半着装",
-      "空间局促的细节",
-      "短促节奏中的密度",
-      "匆忙结束后的余韵或狼狈"
-    ]
+  quickie: {
+    group: "感官节奏",
+    label: "速战向",
+    description:
+      "时间压力有来源：电梯、会议、钥匙响。半着衣局促制造密度，门锁与同意短句不可省。匆忙不是侵害许可证。限成人。",
+    palette: {"temperature":"骤热骤凉","texture":"皱布","primary_intensity_default":0.85,"accent_intensity_default":0.5},
+    focus: ["time_pressure","half_dressed","urgent_breath","stolen_moment","messy_after"],
+    avoid: ["写成完整长戏压缩版","无紧迫感的空喊快","忽略事后匆忙余韵"],
   },
-  "public_risk": {
-    "group": "感官节奏",
-    "label": "风险向",
-    "description": "风险吃被发现的肾上腺素，撤离路线与音量控制先于刺激。曝光不得变单方面毁灭。限成人协商。撤离路线演练一次再进入风险升温。演练撤离失败则取消本场风险玩法。",
-    "palette": {
-      "temperature": "冷汗热核",
-      "texture": "隔音薄壁",
-      "primary_intensity_default": 0.75,
-      "accent_intensity_default": 0.85
-    },
-    "focus": [
-      "discovery_risk",
-      "volume_control",
-      "adrenaline",
-      "almost_caught",
-      "private_after_public"
-    ],
-    "avoid": [
-      "无同意的真实公开羞辱",
-      "无视法律/安全边界",
-      "只有刺激无事后落地"
-    ],
-    "mustCover": [
-      "可能被发现的具体风险源",
-      "音量/动作的自我控制",
-      "肾上腺素与羞耻的叠加",
-      "回到私密后的落地"
-    ],
-    "writingGuide": "风险是燃料，不是真伤害路人。写清「差一点」与事后如何消化兴奋和羞耻。 真正耐看的写法，是把可能被发现的具体风险源落到器物、场景或台词里，让音量/动作的自我控制负责抬高风险，再用肾上腺素与羞耻的叠加把人物带回自己的判断和后果；这样它才像剧情，不像标签套餐。",
-    "antiPatterns": [
-      "无同意公开羞辱",
-      "无视安全边界",
-      "只有刺激无落地",
-      "风险源不具体，所谓差点被发现没有路径",
-      "回到私密后不消化羞耻，公共风险只成背景噱头"
-    ],
-    "densityHint": 300,
-    "signals": [
-      "风险",
-      "被发现",
-      "隔墙",
-      "肾上腺素",
-      "半公开",
-      "控制音量",
-      "差一点",
-      "可能被发现的具体风险源",
-      "音量",
-      "动作的自我控制",
-      "肾上腺素与羞耻的叠加",
-      "回到私密后的落地"
-    ]
+  public_risk: {
+    group: "感官节奏",
+    label: "风险向",
+    description:
+      "风险源具体到人影与监控灯。音量自控先于刺激，撤离演练后再升温；曝光不得单方面毁灭。限成人协商。",
+    palette: {"temperature":"冷汗热核","texture":"隔音薄壁","primary_intensity_default":0.75,"accent_intensity_default":0.85},
+    focus: ["discovery_risk","volume_control","adrenaline","almost_caught","private_after_public"],
+    avoid: ["无同意的真实公开羞辱","无视法律/安全边界","只有刺激无事后落地"],
   },
-  "aftercare_focus": {
-    "group": "感官节奏",
-    "label": "安抚向",
-    "description": "安抚把补水保温与情绪复盘写成主菜；把善后当审讯或勒索直接出局。善后可要求也可拒绝。限成人。复盘问答结束前禁止任何新刺激暗示。新刺激暗示出现即安抚失败重来。",
-    "palette": {
-      "temperature": "回温",
-      "texture": "毯子绒",
-      "primary_intensity_default": 0.35,
-      "accent_intensity_default": 0.8
-    },
-    "focus": [
-      "aftercare_ritual",
-      "hydration_warmth",
-      "emotional_debrief",
-      "body_check",
-      "reassurance_loop"
-    ],
-    "avoid": [
-      "事后一笔带过",
-      "只照顾身体不问情绪",
-      "用安抚掩盖未协商伤害"
-    ],
-    "mustCover": [
-      "aftercare 的具体仪式步骤",
-      "身体检查与补水保暖",
-      "情绪复盘或低语确认",
-      "安抚如何完成整场亲密"
-    ],
-    "writingGuide": "把结束后的照顾写成主戏。水、毯子、问疼不疼、允许沉默——亲密在这里才闭合。 可以把场景拆成触发、升级、善后三拍：先让aftercare 的具体仪式步骤给出入口，再让身体检查与补水保暖压住节奏，最后用情绪复盘或低语确认证明这不是一次性刺激，而是会改变关系秩序的事。",
-    "antiPatterns": [
-      "事后一笔带过",
-      "只顾身体不问情绪",
-      "用安抚掩盖未协商伤害",
-      "aftercare 只有递水盖毯，没有身体检查和情绪复盘",
-      "安抚被用来粉饰未协商伤害，闭环反而缺席"
-    ],
-    "densityHint": 300,
-    "signals": [
-      "aftercare",
-      "毯子",
-      "补水",
-      "安抚",
-      "复盘",
-      "确认",
-      "回温",
-      "的具体仪式步骤",
-      "身体检查与补水保暖",
-      "情绪复盘或低语确认",
-      "安抚如何完成整场亲密"
-    ]
+  aftercare_focus: {
+    group: "感官节奏",
+    label: "安抚向",
+    description:
+      "补水保温检查红痕是主菜；复盘结束前禁止新刺激。善后可要求可拒绝，当审讯或勒索出局。限成人。",
+    palette: {"temperature":"回温","texture":"毯子绒","primary_intensity_default":0.35,"accent_intensity_default":0.8},
+    focus: ["aftercare_ritual","hydration_warmth","emotional_debrief","body_check","reassurance_loop"],
+    avoid: ["事后一笔带过","只照顾身体不问情绪","用安抚掩盖未协商伤害"],
   },
-  "edging_control": {
-    "group": "感官节奏",
-    "label": "边缘向",
-    "description": "边缘用濒临—撤回循环制造乞求：强制冷却次数与被控方否决必须在。无限上调按压榨写。限成人合意。冷却次数用尽则本场边缘玩法结束。玩法结束后先完成安抚再离开。",
-    "palette": {
-      "temperature": "临界烫",
-      "texture": "拉紧的弦",
-      "primary_intensity_default": 0.8,
-      "accent_intensity_default": 0.9
-    },
-    "focus": [
-      "edge_cycles",
-      "deny_and_return",
-      "begging_threshold",
-      "control_voice",
-      "release_permission"
-    ],
-    "avoid": [
-      "无安全词的无限剥夺",
-      "忽略生理极限",
-      "最终无释放也无协商收束"
-    ],
-    "mustCover": [
-      "推向临界又拉回的循环",
-      "控制方的指令节奏",
-      "被控方的恳求/崩溃阈值",
-      "最终释放或协商收束"
-    ],
-    "writingGuide": "边缘是节奏艺术。写清次数、停顿、允许与否；安全词与生理极限必须在场。 别把它拆成并列清单；最好让推向临界又拉回的循环先点火，再由控制方的指令节奏把局势推离舒适区，最后让被控方的恳求/崩溃阈值在事后留下回味、愧意或依赖，整段才会有会继续发酵的张力。",
-    "antiPatterns": [
-      "无限剥夺无安全词",
-      "无视生理极限",
-      "无释放也无协商收束",
-      "临界循环没有次数和停顿变化，边缘控制像无限拖延",
-      "最终释放或收束不协商，被控方阈值被当成不存在"
-    ],
-    "densityHint": 320,
-    "signals": [
-      "边缘",
-      "临界",
-      "拉回",
-      "恳求",
-      "允许",
-      "循环",
-      "释放",
-      "推向临界又拉回的循环",
-      "控制方的指令节奏",
-      "被控方的恳求",
-      "崩溃阈值",
-      "最终释放或协商收束"
-    ]
+  edging_control: {
+    group: "感官节奏",
+    label: "边缘向",
+    description:
+      "循环次数双方可读，用尽结束。被控方否决随时生效；最终释放或协商收束二选一。无限乞求上调按压榨。限成人。",
+    palette: {"temperature":"临界烫","texture":"拉紧的弦","primary_intensity_default":0.8,"accent_intensity_default":0.9},
+    focus: ["edge_cycles","deny_and_return","begging_threshold","control_voice","release_permission"],
+    avoid: ["无安全词的无限剥夺","忽略生理极限","最终无释放也无协商收束"],
   },
-  "mirror_play": {
-    "group": "感官节奏",
-    "label": "镜像向",
-    "description": "镜像迫使目睹自我：闭眼遮镜权与删录权要在场。强制录影不可删按侵害写。限成人协商。遮镜后改用语言确认而非视觉强迫。镜子是对话工具，不是单方面刑具。",
-    "palette": {
-      "temperature": "镜面凉",
-      "texture": "水银玻璃",
-      "primary_intensity_default": 0.65,
-      "accent_intensity_default": 0.85
-    },
-    "focus": [
-      "self_gaze",
-      "forced_witness",
-      "visual_feedback",
-      "shame_pride_mix",
-      "mirror_dialogue"
-    ],
-    "avoid": [
-      "无同意强迫观看",
-      "只有镜子道具无心理",
-      "忽略事后自我形象冲击"
-    ],
-    "mustCover": [
-      "镜子/倒影的场景布置",
-      "被迫或自愿看见自己",
-      "视觉反馈引发的羞耻/兴奋",
-      "事后对自我形象的余波"
-    ],
-    "writingGuide": "看见自己是第二层床戏。写眼神躲闪、被迫对视、以及画面如何改变呼吸。 别把它拆成并列清单；最好让镜子/倒影的场景布置先点火，再由被迫或自愿看见自己把局势推离舒适区，最后让视觉反馈引发的羞耻/兴奋在事后留下回味、愧意或依赖，整段才会有会继续发酵的张力。",
-    "antiPatterns": [
-      "无同意强迫观看",
-      "只有道具无心理",
-      "忽略事后自我冲击",
-      "镜子只当道具，角色看见自己后没有羞耻或形象震动",
-      "强迫观看没有退出信号，视觉反馈变成单向摆拍"
-    ],
-    "densityHint": 300,
-    "signals": [
-      "镜子",
-      "倒影",
-      "看见自己",
-      "对视",
-      "画面",
-      "羞耻",
-      "视觉",
-      "倒影的场景布置",
-      "被迫或自愿看见自己",
-      "视觉反馈引发的羞耻",
-      "兴奋",
-      "事后对自我形象的余波"
-    ]
+  mirror_play: {
+    group: "感官节奏",
+    label: "镜像向",
+    description:
+      "遮镜权高于表演欲。协商下目睹自我，羞耻与兴奋被视觉放大；强制不可删录影按侵害。限成人协商。",
+    palette: {"temperature":"镜面凉","texture":"水银玻璃","primary_intensity_default":0.65,"accent_intensity_default":0.85},
+    focus: ["self_gaze","forced_witness","visual_feedback","shame_pride_mix","mirror_dialogue"],
+    avoid: ["无同意强迫观看","只有镜子道具无心理","忽略事后自我形象冲击"],
   },
-  "orgasm_control": {
-    "group": "感官节奏",
-    "label": "高潮控制",
-    "description": "高潮控制靠许可结构与定时释放的协商：被控方否决不可缺，毁高潮不得设为不可协商默认。限成人。否决条款被引用时许可结构立即失效。许可失效后禁止继续控制高潮。",
-    "palette": {
-      "temperature": "控温",
-      "texture": "锁链丝",
-      "primary_intensity_default": 0.75,
-      "accent_intensity_default": 0.8
-    },
-    "focus": [
-      "permission_structure",
-      "timed_release",
-      "ruined_or_full",
-      "rule_clarity",
-      "post_release_care"
-    ],
-    "avoid": [
-      "无协商的永久禁止",
-      "忽视身体信号",
-      "控制方无视安全词"
-    ],
-    "mustCover": [
-      "允许/禁止的明确规则",
-      "时机与方式如何被授予",
-      "规则可撤回的证据",
-      "释放后的护理与确认"
-    ],
-    "writingGuide": "高潮是可授予的特权。规则要清晰可执行；控制方必须尊重安全词与身体信号。 真正耐看的写法，是把允许/禁止的明确规则落到器物、场景或台词里，让时机与方式如何被授予负责抬高风险，再用规则可撤回的证据把人物带回自己的判断和后果；这样它才像剧情，不像标签套餐。",
-    "antiPatterns": [
-      "无协商永久禁止",
-      "忽视身体信号",
-      "控制方无视安全词",
-      "允许规则模糊，禁止与授予没有可执行时机",
-      "释放后无人护理确认，控制只停在高潮前"
-    ],
-    "densityHint": 300,
-    "signals": [
-      "允许",
-      "禁止",
-      "授予",
-      "规则",
-      "释放",
-      "控制",
-      "权限",
-      "禁止的明确规则",
-      "时机与方式如何被授予",
-      "规则可撤回的证据",
-      "释放后的护理与确认"
-    ]
+  orgasm_control: {
+    group: "感官节奏",
+    label: "高潮控制",
+    description:
+      "许可含否决拔销；允许/禁止清晰且可撤回。毁高潮不得不可协商默认；释放后护理确认。限成人。",
+    palette: {"temperature":"控温","texture":"锁链丝","primary_intensity_default":0.75,"accent_intensity_default":0.8},
+    focus: ["permission_structure","timed_release","ruined_or_full","rule_clarity","post_release_care"],
+    avoid: ["无协商的永久禁止","忽视身体信号","控制方无视安全词"],
   },
-  "scent_focus": {
-    "group": "感官节奏",
-    "label": "气味向",
-    "description": "气味把体香残留与空间标记写成亲密语言，通风净味与拒吸权先于浓香奇观。不可强制吸入。限成人。拒吸后立刻通风，不得继续浓香加码。通风未完成不得关闭窗户。",
-    "palette": {
-      "temperature": "嗅觉热",
-      "texture": "空气丝",
-      "primary_intensity_default": 0.6,
-      "accent_intensity_default": 0.8
-    },
-    "focus": [
-      "scent_memory",
-      "layering",
-      "mark_space",
-      "inhale_focus",
-      "air_out"
-    ],
-    "avoid": [
-      "强制熏迷无同意",
-      "儿童性化"
-    ],
-    "mustCover": [
-      "气味层次",
-      "记忆触发",
-      "空间标记",
-      "散味与事后"
-    ],
-    "writingGuide": "开场用衣物、房间或皮肤残香触发记忆；升级让气味层次改变距离和判断；善后写通风散味、清洗与被标记后的情绪确认。",
-    "antiPatterns": [
-      "迷香强奸默认",
-      "只有「好香」",
-      "气味层次只写香不香，缺少来源、残留和空间变化",
-      "记忆触发没有具体回忆，嗅觉无法推动关系",
-      "散味与通风缺席，气味标记没有事后落点"
-    ],
-    "densityHint": 300,
-    "signals": [
-      "气味",
-      "记忆",
-      "标记",
-      "吸入",
-      "散味",
-      "气味层次",
-      "记忆触发",
-      "空间标记",
-      "散味与事后"
-    ]
+  scent_focus: {
+    group: "感官节奏",
+    label: "气味向",
+    description:
+      "体香与空间层次勾起记忆；拒吸与通风优先于浓香。强制吸入按越界；事后散味与洗澡。限成人。",
+    palette: {"temperature":"嗅觉热","texture":"空气丝","primary_intensity_default":0.6,"accent_intensity_default":0.8},
+    focus: ["scent_memory","layering","mark_space","inhale_focus","air_out"],
+    avoid: ["强制熏迷无同意","儿童性化"],
   },
-  "taste_focus": {
-    "group": "感官节奏",
-    "label": "味觉向",
-    "description": "味觉用喂食吻味与配对实验写亲昵，拒食卡贴器具旁。强制吞咽按越界记账；过敏恶心优先停。限成人。恶心或过敏信号出现立即停止喂食。停止喂食后提供清水与休息。",
-    "palette": {
-      "temperature": "舌温",
-      "texture": "汁液",
-      "primary_intensity_default": 0.65,
-      "accent_intensity_default": 0.7
-    },
-    "focus": [
-      "feed_kiss",
-      "flavor_pair",
-      "refuse_right",
-      "allergy_list",
-      "aftertaste_care"
-    ],
-    "avoid": [
-      "强迫灌食",
-      "儿童性化"
-    ],
-    "mustCover": [
-      "味道与质地",
-      "拒食权",
-      "过敏/忌口",
-      "余味护理"
-    ],
-    "writingGuide": "开场先确认忌口、过敏和拒食权；升级把味道、质地、余味写成互动节拍；善后用漱口、补水和是否再尝来收束。",
-    "antiPatterns": [
-      "强迫灌食",
-      "无视过敏",
-      "味道只写甜苦咸，缺少质地、余味和口腔反应",
-      "拒食权没有实际生效，喂食变成单向灌输",
-      "过敏忌口不先确认，味觉玩法失去安全前提"
-    ],
-    "densityHint": 300,
-    "signals": [
-      "味",
-      "喂",
-      "拒食",
-      "过敏",
-      "余味",
-      "味道与质地",
-      "拒食权",
-      "忌口",
-      "余味护理"
-    ]
+  taste_focus: {
+    group: "感官节奏",
+    label: "味觉向",
+    description:
+      "忌口卡先于餐具。味道质地成亲昵语言，恶心过敏立即停喂；拒食权可见。限成人合意。",
+    palette: {"temperature":"舌温","texture":"汁液","primary_intensity_default":0.65,"accent_intensity_default":0.7},
+    focus: ["feed_kiss","flavor_pair","refuse_right","allergy_list","aftertaste_care"],
+    avoid: ["强迫灌食","儿童性化"],
   },
-  "voice_command": {
-    "group": "感官节奏",
-    "label": "听觉指令向",
-    "description": "听觉指令靠短句口令与静音否决键成立。耳返不得绕过当面安全词；惩罚可申诉。限成人指令集事先对齐。静音键按下后一切耳返指令作废。耳返作废后只接受当面短句。",
-    "palette": {
-      "temperature": "耳廓热",
-      "texture": "声纹",
-      "primary_intensity_default": 0.7,
-      "accent_intensity_default": 0.75
-    },
-    "focus": [
-      "command_set",
-      "whisper",
-      "mute_veto",
-      "tone_drop",
-      "debrief_voice"
-    ],
-    "avoid": [
-      "强制洗脑无否决",
-      "儿童性化"
-    ],
-    "mustCover": [
-      "指令集范围",
-      "静音/否决",
-      "声线变化",
-      "事后用正常声音复盘"
-    ],
-    "writingGuide": "开场备案指令集、否决词和静音手势；升级让声线变化逐步牵动动作；善后必须回到正常声音复盘哪些命令有效。",
-    "antiPatterns": [
-      "无否决洗脑",
-      "事后仍剥夺声音",
-      "指令集没有范围，任何一句话都被当成绝对命令",
-      "静音否决不存在，声音玩法滑向洗脑设定",
-      "事后仍用命令声压制，正常声音复盘缺席"
-    ],
-    "densityHint": 300,
-    "signals": [
-      "指令",
-      "耳语",
-      "否决",
-      "声线",
-      "复盘",
-      "指令集范围",
-      "静音",
-      "声线变化",
-      "事后用正常声音复盘"
-    ]
+  voice_command: {
+    group: "感官节奏",
+    label: "听觉指令向",
+    description:
+      "指令集事先对齐，静音键与安全词同级。耳返不得绕过当面同意；事后正常声音复盘。限成人。",
+    palette: {"temperature":"耳廓热","texture":"声纹","primary_intensity_default":0.7,"accent_intensity_default":0.75},
+    focus: ["command_set","whisper","mute_veto","tone_drop","debrief_voice"],
+    avoid: ["强制洗脑无否决","儿童性化"],
   },
-  "blank_out": {
-    "group": "感官节奏",
-    "label": "失神空白向",
-    "description": "失神空白写过载后短暂失去语言与时间感，唤回口令与定向问答同场。检索失败立刻停手照料。限成人可中断。检索步骤执行失败则本场结束并照料。照料优先于解释失神好不好看。",
-    "palette": {
-      "temperature": "空白冷",
-      "texture": "雾",
-      "primary_intensity_default": 0.85,
-      "accent_intensity_default": 0.7
-    },
-    "focus": [
-      "overload",
-      "blank_moment",
-      "retrieve_protocol",
-      "grounding",
-      "hydrate_warm"
-    ],
-    "avoid": [
-      "故意致昏迷伤害无护理",
-      "儿童性化"
-    ],
-    "mustCover": [
-      "过载触发",
-      "失神表现",
-      "捞回步骤",
-      "着陆安抚补水"
-    ],
-    "writingGuide": "开场写过载触发和捞回暗号；升级观察失神前的呼吸、握力和回应变慢；善后用定向、补水和拥抱把人带回现实。",
-    "antiPatterns": [
-      "丢弃失神者",
-      "无捞回",
-      "故意伤害昏迷",
-      "失神表现只有眼神空白，没有过载触发和捞回步骤",
-      "着陆安抚补水缺席，空白被写成可以丢下不管"
-    ],
-    "densityHint": 300,
-    "signals": [
-      "失神",
-      "空白",
-      "捞回",
-      "着陆",
-      "补水",
-      "过载触发",
-      "失神表现",
-      "捞回步骤",
-      "着陆安抚补水"
-    ]
-  }
+  blank_out: {
+    group: "感官节奏",
+    label: "失神空白向",
+    description:
+      "失神是短暂失语失时，不是永久失忆。唤回口令与检索步骤在场；失败立刻照料着陆。限成人可中断。",
+    palette: {"temperature":"空白冷","texture":"雾","primary_intensity_default":0.85,"accent_intensity_default":0.7},
+    focus: ["overload","blank_moment","retrieve_protocol","grounding","hydrate_warm"],
+    avoid: ["故意致昏迷伤害无护理","儿童性化"],
+  },
 };

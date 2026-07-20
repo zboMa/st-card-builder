@@ -1,767 +1,142 @@
 /**
- * 口味·特殊玩法
+ * 口味·特殊风味
+ * description 逐条手写。
  */
 
 export var PRESETS = {
-  "discipline": {
-    "group": "特殊风味",
-    "label": "惩戒向",
-    "description": "惩戒走规则→违规→惩罚→安抚闭环：计数、叫停与情感修复同级。无规则惩罚只是伤害。限成人合意。安抚未完成不得开始下一轮计数。安抚对话要比惩罚动作更长。",
-    "palette": {
-      "temperature": "冷→温",
-      "texture": "竹",
-      "primary_intensity_default": 0.7,
-      "accent_intensity_default": 0.5
-    },
-    "focus": [
-      "rules",
-      "transgression",
-      "punishment",
-      "atonement",
-      "comfort_after_punish"
-    ],
-    "avoid": [
-      "只罚不安抚",
-      "惩罚无规则前提下",
-      "忽视事后情感"
-    ],
-    "mustCover": [
-      "规则前提与违规事实",
-      "惩罚的仪式步骤",
-      "惩罚中的心理账",
-      "罚后安抚与关系修复"
-    ],
-    "writingGuide": "规则→违规→惩罚→安抚闭环必须完整。罚是为了关系结构，不是为了虐而虐。 别把它拆成并列清单；最好让规则前提与违规事实先点火，再由惩罚的仪式步骤把局势推离舒适区，最后让惩罚中的心理账在事后留下回味、愧意或依赖，整段才会有会继续发酵的张力。",
-    "antiPatterns": [
-      "只罚不安抚",
-      "无规则乱罚",
-      "忽视事后情感",
-      "违规事实没写清，惩罚像施罚方心血来潮",
-      "罚后不修复关系，惩戒闭环断在疼痛处"
-    ],
-    "densityHint": 300,
-    "signals": [
-      "规则",
-      "违规",
-      "惩罚",
-      "安抚",
-      "仪式",
-      "赎罪",
-      "修复",
-      "规则前提与违规事实",
-      "惩罚的仪式步骤",
-      "惩罚中的心理账",
-      "罚后安抚与关系修复"
-    ]
+  discipline: {
+    group: "特殊风味",
+    label: "惩戒向",
+    description:
+      "无规则不得开罚。违规可复述，惩罚有计数叫停；安抚未完不连开下一轮。纪律不是发泄。限成人合意。",
+    palette: {"temperature":"冷→温","texture":"竹","primary_intensity_default":0.7,"accent_intensity_default":0.5},
+    focus: ["rules","transgression","punishment","atonement","comfort_after_punish"],
+    avoid: ["只罚不安抚","惩罚无规则前提下","忽视事后情感"],
   },
-  "shame": {
-    "group": "特殊风味",
-    "label": "羞耻向",
-    "description": "羞耻重在暴露瞬间的脸红与说不出口，遮挡恢复键与留档否决权必须存在。羞辱人格或强制传播出局。限成人。遮挡键被按下后禁止继续暴露升级。遮挡后改用语言亲昵而非继续暴露。",
-    "palette": {
-      "temperature": "忽冷忽热",
-      "texture": "薄冰",
-      "primary_intensity_default": 0.6,
-      "accent_intensity_default": 0.8
-    },
-    "focus": [
-      "embarrassment",
-      "exposure",
-      "blushing",
-      "verbal_teasing",
-      "shame_arousal_loop"
-    ],
-    "avoid": [
-      "只羞辱不安抚",
-      "践踏自尊无底线",
-      "忽略羞耻后的情感需求"
-    ],
-    "mustCover": [
-      "暴露/被看的情境",
-      "脸红躲闪等羞耻微反应",
-      "羞耻与兴奋的正反馈环",
-      "羞耻后的安抚或沉溺"
-    ],
-    "writingGuide": "羞耻心理重于器官描写。写眼神、说不出口的话、被点破时的生理反应。 别把它拆成并列清单；最好让暴露/被看的情境先点火，再由脸红躲闪等羞耻微反应把局势推离舒适区，最后让羞耻与兴奋的正反馈环在事后留下回味、愧意或依赖，整段才会有会继续发酵的张力。",
-    "antiPatterns": [
-      "践踏自尊无底线",
-      "只羞辱不安抚",
-      "忽略羞耻后的情感需求",
-      "羞耻只靠粗暴羞辱，脸红躲闪和说不出口的细节缺席",
-      "羞耻后没有安抚或沉溺选择，自尊被踩碎后无人处理"
-    ],
-    "densityHint": 300,
-    "signals": [
-      "羞耻",
-      "暴露",
-      "脸红",
-      "躲闪",
-      "说不出口",
-      "羞辱",
-      "兴奋",
-      "被看的情境",
-      "脸红躲闪等羞耻微反应",
-      "羞耻与兴奋的正反馈环",
-      "羞耻后的安抚或沉溺"
-    ]
+  shame: {
+    group: "特殊风味",
+    label: "羞耻向",
+    description:
+      "脸红躲闪与说不出口；遮挡键在手边。暴露可撤回，强制传播出局。可安抚可沉溺，禁羞辱人格。限成人。",
+    palette: {"temperature":"忽冷忽热","texture":"薄冰","primary_intensity_default":0.6,"accent_intensity_default":0.8},
+    focus: ["embarrassment","exposure","blushing","verbal_teasing","shame_arousal_loop"],
+    avoid: ["只羞辱不安抚","践踏自尊无底线","忽略羞耻后的情感需求"],
   },
-  "fantasy": {
-    "group": "特殊风味",
-    "label": "架空向",
-    "description": "架空把非人身体特质与世界规则写进亲密：解剖适配先于猎奇清单。异种不等于伤害豁免。限可沟通成人角色。用一条世界规则句解释亲密为何合法。规则句说不清就停用该异种设定。",
-    "palette": {
-      "temperature": "变幻",
-      "texture": "星尘",
-      "primary_intensity_default": 0.5,
-      "accent_intensity_default": 0.7
-    },
-    "focus": [
-      "species_specific_traits",
-      "worldbuilding_eroticism",
-      "non_human_bodies",
-      "magical_intimacy",
-      "otherness"
-    ],
-    "avoid": [
-      "写成人形只换皮",
-      "忽略种族设定",
-      "把架空当成标签敷衍"
-    ],
-    "mustCover": [
-      "非人/异种的身体或能力差异",
-      "设定如何改变情欲体验",
-      "文化/种族禁忌或本能",
-      "他者感与亲密如何共存"
-    ],
-    "writingGuide": "设定驱动情欲：牙齿、翅膀、魔力、发情周期等必须进入床戏逻辑，禁止人形换皮。 可以把场景拆成触发、升级、善后三拍：先让非人/异种的身体或能力差异给出入口，再让设定如何改变情欲体验压住节奏，最后用文化/种族禁忌或本能证明这不是一次性刺激，而是会改变关系秩序的事。",
-    "antiPatterns": [
-      "只换种族名不改体验",
-      "忽略设定限制",
-      "架空标签敷衍",
-      "非人特征只换名词，牙齿翅膀魔力不改变亲密逻辑",
-      "文化本能没有限制或代价，异种感被人类模板吃掉"
-    ],
-    "densityHint": 300,
-    "signals": [
-      "种族",
-      "非人",
-      "魔力",
-      "本能",
-      "异种",
-      "设定",
-      "他者",
-      "异种的身体或能力差异",
-      "设定如何改变情欲体验",
-      "文化",
-      "种族禁忌或本能",
-      "他者感与亲密如何共存"
-    ]
+  fantasy: {
+    group: "特殊风味",
+    label: "架空向",
+    description:
+      "异种身体先过解剖适配与世界规则。情欲被设定改写，猎奇不是伤害豁免；规则说不清就停用。限可沟通成人。",
+    palette: {"temperature":"变幻","texture":"星尘","primary_intensity_default":0.5,"accent_intensity_default":0.7},
+    focus: ["species_specific_traits","worldbuilding_eroticism","non_human_bodies","magical_intimacy","otherness"],
+    avoid: ["写成人形只换皮","忽略种族设定","把架空当成标签敷衍"],
   },
-  "primal": {
-    "group": "特殊风味",
-    "label": "本能向",
-    "description": "本能写嗅闻、追扑与领地标记，抑制等效物与清洗权必须在场。野性再热也不可取消叫停；事后回人话。限成人合意。清洗与回人话完成前不得进入下一场野性。回人话失败则本场野性结束。",
-    "palette": {
-      "temperature": "原始的热",
-      "texture": "毛皮+汗",
-      "primary_intensity_default": 0.9,
-      "accent_intensity_default": 0.6
-    },
-    "focus": [
-      "instinct",
-      "feral",
-      "scent_marking",
-      "raw_power",
-      "rationality_losing"
-    ],
-    "avoid": [
-      "回归理性太快",
-      "用社交规范约束",
-      "写成普通野兽行为"
-    ],
-    "mustCover": [
-      "理性退场的触发",
-      "气味/领地/占有等本能标记",
-      "语言退化或兽性动作",
-      "事后理性回笼的尴尬或依恋"
-    ],
-    "writingGuide": "冲动、气味、原始占有。社交规范暂时失效；回笼时要有代价或余温。 真正耐看的写法，是把理性退场的触发落到器物、场景或台词里，让气味/领地/占有等本能标记负责抬高风险，再用语言退化或兽性动作把人物带回自己的判断和后果；这样它才像剧情，不像标签套餐。",
-    "antiPatterns": [
-      "理性过早恢复",
-      "写成普通野兽纪录片",
-      "用礼貌社交冲淡本能",
-      "本能只等于粗鲁动作，没有气味、领地和理性退场触发",
-      "回笼时没有尴尬或依恋，兽性结束像断电"
-    ],
-    "densityHint": 300,
-    "signals": [
-      "本能",
-      "气味",
-      "占有",
-      "兽",
-      "理性",
-      "领地",
-      "标记",
-      "理性退场的触发",
-      "占有等本能标记",
-      "语言退化或兽性动作",
-      "事后理性回笼的尴尬或依恋"
-    ]
+  primal: {
+    group: "特殊风味",
+    label: "本能向",
+    description:
+      "理性退场有触发；嗅闻追扑与领地标记后须回人话并清洗。抑制与叫停在场。限成人合意。",
+    palette: {"temperature":"原始的热","texture":"毛皮+汗","primary_intensity_default":0.9,"accent_intensity_default":0.6},
+    focus: ["instinct","feral","scent_marking","raw_power","rationality_losing"],
+    avoid: ["回归理性太快","用社交规范约束","写成普通野兽行为"],
   },
-  "contrast": {
-    "group": "特殊风味",
-    "label": "反差向",
-    "description": "反差吃人设与欲望、公开与私下的裂缝：摘面具要有缓冲间，暴露可撤回。强制揭面具按侵害写。限成人。缓冲间对话结束才允许摘下面具。面具重新戴上时也要有同意。",
-    "palette": {
-      "temperature": "冷外热内",
-      "texture": "西装内里的汗",
-      "primary_intensity_default": 0.7,
-      "accent_intensity_default": 0.85
-    },
-    "focus": [
-      "persona_vs_desire",
-      "public_vs_private",
-      "reluctant_reveal",
-      "shameful_enjoyment",
-      "identity_crack"
-    ],
-    "avoid": [
-      "无铺垫的突然崩人设",
-      "把反差写成单纯双标脸谱",
-      "忽略事后自我厌恶或沉溺"
-    ],
-    "mustCover": [
-      "公开人设 vs 私下欲望的对照",
-      "外壳裂开的触发事件",
-      "失控/乖顺/淫靡的具体反差行为",
-      "事后自我厌恶或沉溺成瘾"
-    ],
-    "writingGuide": "张力来自「不该这样」。先写稳外壳，再写裂缝；反差要可演、可复现，不是标签。 可以把场景拆成触发、升级、善后三拍：先让公开人设 vs 私下欲望的对照给出入口，再让外壳裂开的触发事件压住节奏，最后用失控/乖顺/淫靡的具体反差行为证明这不是一次性刺激，而是会改变关系秩序的事。",
-    "antiPatterns": [
-      "无铺垫突然崩人设",
-      "脸谱双标",
-      "忽略事后自我厌恶或沉溺",
-      "公开人设没有先立稳，私下失控缺乏裂缝触发",
-      "反差行为只为猎奇，不回到自我厌恶或成瘾"
-    ],
-    "densityHint": 320,
-    "signals": [
-      "反差",
-      "外壳",
-      "私下",
-      "失控",
-      "清冷",
-      "崩",
-      "不该",
-      "公开人设",
-      "vs",
-      "私下欲望的对照",
-      "外壳裂开的触发事件",
-      "乖顺",
-      "淫靡的具体反差行为",
-      "事后自我厌恶或沉溺成瘾"
-    ]
+  contrast: {
+    group: "特殊风味",
+    label: "反差向",
+    description:
+      "公私切换经缓冲间；外壳因何裂开要具体。事后厌恶或沉溺写透；强制揭面具按侵害。限成人。",
+    palette: {"temperature":"冷外热内","texture":"西装内里的汗","primary_intensity_default":0.7,"accent_intensity_default":0.85},
+    focus: ["persona_vs_desire","public_vs_private","reluctant_reveal","shameful_enjoyment","identity_crack"],
+    avoid: ["无铺垫的突然崩人设","把反差写成单纯双标脸谱","忽略事后自我厌恶或沉溺"],
   },
-  "temperature_play": {
-    "group": "特殊风味",
-    "label": "温差向",
-    "description": "温差靠冷热交替制造预期，烫伤冻伤阈值与回温柜先于极限秀。器具有刻度与急停；越阈值停手护理。限成人。回温完成并复述阈值后才可再加冷热。未复述阈值不得再次施加极端温度。",
-    "palette": {
-      "temperature": "极冷↔极热",
-      "texture": "冰晶+蜡",
-      "primary_intensity_default": 0.75,
-      "accent_intensity_default": 0.7
-    },
-    "focus": [
-      "cold_hot_contrast",
-      "temperature_anticipation",
-      "skin_reaction",
-      "tool_ritual",
-      "safe_limits"
-    ],
-    "avoid": [
-      "无安全铺垫的烫伤烫伤风险",
-      "只有道具清单无心理",
-      "忽略皮肤反馈与停顿"
-    ],
-    "mustCover": [
-      "冷热交替的具体工具与顺序",
-      "皮肤对温度的即时反应",
-      "温度节奏如何服务心理",
-      "安全 Limits 与停顿检查"
-    ],
-    "writingGuide": "冰与火是对话。写清预期、接触、撤离；温度变化要有心理对应，禁止只列道具。 这类口味最容易写薄在“都提到了却都没咬住”，不如让冷热交替的具体工具与顺序和皮肤对温度的即时反应互相推高，再由温度节奏如何服务心理收拢余波，角色每靠近一步都得更清楚自己想要什么、又怕失去什么。",
-    "antiPatterns": [
-      "无视烫伤/冻伤风险",
-      "道具清单无心理",
-      "无反馈硬推",
-      "冷热顺序混乱，没有预期、接触和撤离节拍",
-      "皮肤反馈不影响继续与停顿，温差只成道具展示"
-    ],
-    "densityHint": 300,
-    "signals": [
-      "温度",
-      "冰块",
-      "热",
-      "交替",
-      "皮肤",
-      "蜡",
-      "冷热",
-      "冷热交替的具体工具与顺序",
-      "皮肤对温度的即时反应",
-      "温度节奏如何服务心理",
-      "安全",
-      "Limits",
-      "与停顿检查"
-    ]
+  temperature_play: {
+    group: "特殊风味",
+    label: "温差向",
+    description:
+      "器具有刻度，回温柜在场。皮肤反应服务心理预期；越阈值停手，未复述不得再加极端温度。限成人。",
+    palette: {"temperature":"极冷↔极热","texture":"冰晶+蜡","primary_intensity_default":0.75,"accent_intensity_default":0.7},
+    focus: ["cold_hot_contrast","temperature_anticipation","skin_reaction","tool_ritual","safe_limits"],
+    avoid: ["无安全铺垫的烫伤烫伤风险","只有道具清单无心理","忽略皮肤反馈与停顿"],
   },
-  "sensory_deprivation": {
-    "group": "特殊风味",
-    "label": "剥夺向",
-    "description": "剥夺用蒙眼耳塞放大触感，时限沙漏与旁观监护同场。解除后定向问答确认仍愿继续。限成人可中断。解除剥夺后三问定向全部通过才继续。三问任一失败立即永久解除剥夺。",
-    "palette": {
-      "temperature": "暗温",
-      "texture": "盲绸",
-      "primary_intensity_default": 0.7,
-      "accent_intensity_default": 0.8
-    },
-    "focus": [
-      "blindfold_focus",
-      "amplified_touch",
-      "disorientation",
-      "trust_hand_off",
-      "release_aftercare"
-    ],
-    "avoid": [
-      "无协商突然剥夺",
-      "忽视恐慌信号",
-      "事后不解除不安"
-    ],
-    "mustCover": [
-      "剥夺手段（视/听/动）的建立",
-      "感官放大后的触碰事件",
-      "信任移交与恐慌信号",
-      "解除后的安抚与定向"
-    ],
-    "writingGuide": "看不见时每一次触碰都是事件。写清移交控制、放大感官、以及解除后的落地。 真正耐看的写法，是把剥夺手段（视/听/动）的建立落到器物、场景或台词里，让感官放大后的触碰事件负责抬高风险，再用信任移交与恐慌信号把人物带回自己的判断和后果；这样它才像剧情，不像标签套餐。",
-    "antiPatterns": [
-      "无协商突然剥夺",
-      "忽视恐慌",
-      "事后不解除不安",
-      "剥夺方式没协商，恐慌信号出现后仍按原计划推进",
-      "解除后不做定向安抚，被蒙住的脆弱感无落点"
-    ],
-    "densityHint": 300,
-    "signals": [
-      "蒙眼",
-      "剥夺",
-      "放大",
-      "触碰",
-      "信任",
-      "解除",
-      "黑暗",
-      "剥夺手段",
-      "的建立",
-      "感官放大后的触碰事件",
-      "信任移交与恐慌信号",
-      "解除后的安抚与定向"
-    ]
+  sensory_deprivation: {
+    group: "特殊风味",
+    label: "剥夺向",
+    description:
+      "沙漏一尽无条件解除。恐慌信号优先；解除后定向三问通过才可继续。限成人可中断。",
+    palette: {"temperature":"暗温","texture":"盲绸","primary_intensity_default":0.7,"accent_intensity_default":0.8},
+    focus: ["blindfold_focus","amplified_touch","disorientation","trust_hand_off","release_aftercare"],
+    avoid: ["无协商突然剥夺","忽视恐慌信号","事后不解除不安"],
   },
-  "hypnosis_play": {
-    "group": "特殊风味",
-    "label": "暗示向",
-    "description": "暗示写恍惚与触发词的协商剧场，解除咒语公示且可被第三者执行。未经预同意加戏即越界。限成人角色扮演。第三者念出解除词作为可验证收束。解除后定向问答确认自我连续。",
-    "palette": {
-      "temperature": "浮温",
-      "texture": "雾纱",
-      "primary_intensity_default": 0.55,
-      "accent_intensity_default": 0.85
-    },
-    "focus": [
-      "trance_play",
-      "trigger_words",
-      "soft_suggestion",
-      "wake_protocol",
-      "after_consent_check"
-    ],
-    "avoid": [
-      "真洗脑无同意",
-      "抹除主体意志",
-      "忽略唤醒与事后确认"
-    ],
-    "mustCover": [
-      "同意与可唤醒协议",
-      "暗示/触发词的具体运用",
-      "恍惚态下的边界仍可执行",
-      "唤醒后的确认与 aftercare"
-    ],
-    "writingGuide": "这是扮演与诱导，不是抹除意志。写清进入、触发、唤醒、事后确认四段。 可以把场景拆成触发、升级、善后三拍：先让同意与可唤醒协议给出入口，再让暗示/触发词的具体运用压住节奏，最后用恍惚态下的边界仍可执行证明这不是一次性刺激，而是会改变关系秩序的事。",
-    "antiPatterns": [
-      "真洗脑无同意",
-      "抹除主体",
-      "无唤醒协议",
-      "触发词万能生效，没有进入、唤醒和边界规则",
-      "恍惚态下主体全失，醒后记忆与确认被省略"
-    ],
-    "densityHint": 320,
-    "signals": [
-      "暗示",
-      "触发",
-      "恍惚",
-      "唤醒",
-      "诱导",
-      "协议",
-      "确认",
-      "同意与可唤醒协议",
-      "触发词的具体运用",
-      "恍惚态下的边界仍可执行",
-      "唤醒后的确认与",
-      "aftercare"
-    ]
+  hypnosis_play: {
+    group: "特殊风味",
+    label: "暗示向",
+    description:
+      "解除词公示且第三者可执行。恍惚加戏未经预同意即越界；唤醒确认自我连续。禁无法醒来的控制。限成人角色扮演。",
+    palette: {"temperature":"浮温","texture":"雾纱","primary_intensity_default":0.55,"accent_intensity_default":0.85},
+    focus: ["trance_play","trigger_words","soft_suggestion","wake_protocol","after_consent_check"],
+    avoid: ["真洗脑无同意","抹除主体意志","忽略唤醒与事后确认"],
   },
-  "marking_claim": {
-    "group": "特殊风味",
-    "label": "标记向",
-    "description": "标记用可见痕迹、气味与名分宣称堆占有感，洗脱遮盖与公开否认通道要保留。远程广播羞辱出局。限成人。演示洗脱或遮盖以证明标记非永久。无法洗脱的标记按侵害追责。",
-    "palette": {
-      "temperature": "热印",
-      "texture": "齿痕皮",
-      "primary_intensity_default": 0.75,
-      "accent_intensity_default": 0.65
-    },
-    "focus": [
-      "visible_marks",
-      "scent_claim",
-      "name_claim",
-      "pride_shame_mix",
-      "mark_aftercare"
-    ],
-    "avoid": [
-      "无同意的永久性伤害",
-      "纯物化圈地",
-      "忽略痕迹带来的社交/心理代价"
-    ],
-    "mustCover": [
-      "标记的具体形式（吻痕/气味/称呼）",
-      "留下痕迹时的心理账",
-      "被标记方的骄傲或羞耻",
-      "痕迹的事后护理与代价"
-    ],
-    "writingGuide": "标记要可见可感。写清为何要留下、看见表征时的情绪，以及社交/身体代价。 可以把场景拆成触发、升级、善后三拍：先让标记的具体形式（吻痕/气味/称呼）给出入口，再让留下痕迹时的心理账压住节奏，最后用被标记方的骄傲或羞耻证明这不是一次性刺激，而是会改变关系秩序的事。",
-    "antiPatterns": [
-      "无同意永久性伤害",
-      "纯物化圈地",
-      "忽略痕迹代价",
-      "标记形式没有可见可感的痕迹，只有口头专属",
-      "痕迹的社交代价和护理缺席，标记像无后果贴纸"
-    ],
-    "densityHint": 300,
-    "signals": [
-      "标记",
-      "吻痕",
-      "气味",
-      "专属",
-      "痕迹",
-      "属于",
-      "护理",
-      "标记的具体形式",
-      "称呼",
-      "留下痕迹时的心理账",
-      "被标记方的骄傲或羞耻",
-      "痕迹的事后护理与代价"
-    ]
+  marking_claim: {
+    group: "特殊风味",
+    label: "标记向",
+    description:
+      "标记可洗可遮可否认；留下时的骄傲或羞耻要写。远程广播羞辱出局；演示洗脱证非永久。限成人。",
+    palette: {"temperature":"热印","texture":"齿痕皮","primary_intensity_default":0.75,"accent_intensity_default":0.65},
+    focus: ["visible_marks","scent_claim","name_claim","pride_shame_mix","mark_aftercare"],
+    avoid: ["无同意的永久性伤害","纯物化圈地","忽略痕迹带来的社交/心理代价"],
   },
-  "size_difference": {
-    "group": "特殊风味",
-    "label": "体差向",
-    "description": "体差写尺度对比与承托感，承重安全与呼吸监测先于奇观。强者有停手义务；弱侧否决权不可被体型抹掉。限成人。呼吸监测报警则体差玩法立即降级。降级后改用平等体位继续或结束。",
-    "palette": {
-      "temperature": "对比温",
-      "texture": "巨掌棉",
-      "primary_intensity_default": 0.7,
-      "accent_intensity_default": 0.7
-    },
-    "focus": [
-      "scale_contrast",
-      "enveloping",
-      "strength_gap_care",
-      "position_adaptation",
-      "mutual_dignity"
-    ],
-    "avoid": [
-      "写成一方无人格",
-      "忽略适配与舒适",
-      "用体差合理化伤害"
-    ],
-    "mustCover": [
-      "体型/力量差的具体体感",
-      "包裹或被覆盖的情绪含义",
-      "体位与力度如何适配舒适",
-      "双方尊严与同意始终在场"
-    ],
-    "writingGuide": "对比制造安全感或压迫美感。写清手掌、重量、距离；禁止把一方写成无人格道具。 这类口味最容易写薄在“都提到了却都没咬住”，不如让体型/力量差的具体体感和包裹或被覆盖的情绪含义互相推高，再由体位与力度如何适配舒适收拢余波，角色每靠近一步都得更清楚自己想要什么、又怕失去什么。",
-    "antiPatterns": [
-      "一方无人格",
-      "忽略舒适适配",
-      "用体差合理化伤害",
-      "体差只写大和小，不写重量、距离与舒适适配",
-      "力量差被用来免责伤害，双方尊严没有在场"
-    ],
-    "densityHint": 300,
-    "signals": [
-      "体差",
-      "包裹",
-      "力量",
-      "对比",
-      "覆盖",
-      "适配",
-      "手掌",
-      "体型",
-      "力量差的具体体感",
-      "包裹或被覆盖的情绪含义",
-      "体位与力度如何适配舒适",
-      "双方尊严与同意始终在场"
-    ]
+  size_difference: {
+    group: "特殊风味",
+    label: "体差向",
+    description:
+      "承重与呼吸监测先于奇观。弱侧否决不可被体型抹掉；报警立即降级。限成人。",
+    palette: {"temperature":"对比温","texture":"巨掌棉","primary_intensity_default":0.7,"accent_intensity_default":0.7},
+    focus: ["scale_contrast","enveloping","strength_gap_care","position_adaptation","mutual_dignity"],
+    avoid: ["写成一方无人格","忽略适配与舒适","用体差合理化伤害"],
   },
-  "bondage_focus": {
-    "group": "特殊风味",
-    "label": "束缚向",
-    "description": "束缚吃几何约束与无力感，安全剪位与循环检查缺一不可。忽略血运警告仍继续即事故。限成人可随时剪开。循环检查漏项则禁止继续上绳。漏检上绳按事故停手并剪开。",
-    "palette": {
-      "temperature": "紧压",
-      "texture": "绳纤",
-      "primary_intensity_default": 0.75,
-      "accent_intensity_default": 0.65
-    },
-    "focus": [
-      "restraint_geometry",
-      "circulation_check",
-      "safety_shears",
-      "helpless_trust",
-      "release_ritual"
-    ],
-    "avoid": [
-      "无检查的危险吊缚伤害",
-      "儿童性化"
-    ],
-    "mustCover": [
-      "束缚方式与着力点",
-      "血运/神经检查",
-      "安全剪与快速解开",
-      "解开仪式与安抚"
-    ],
-    "writingGuide": "美服从属于安全。检查与剪刀必须在场。限已完成设定成年礼的成人；须可协商、可中断；禁止儿童性化。 真正耐看的写法，是把束缚方式与着力点落到器物、场景或台词里，让血运/神经检查负责抬高风险，再用安全剪与快速解开把人物带回自己的判断和后果；这样它才像剧情，不像标签套餐。",
-    "antiPatterns": [
-      "无检查危险吊",
-      "无剪刀",
-      "解开后不理",
-      "束缚着力点不明，血运神经检查没有影响姿势",
-      "安全剪只是摆设，解开仪式和安抚缺席"
-    ],
-    "densityHint": 300,
-    "signals": [
-      "束缚",
-      "检查",
-      "安全剪",
-      "解开",
-      "信任",
-      "束缚方式与着力点",
-      "血运",
-      "神经检查",
-      "安全剪与快速解开",
-      "解开仪式与安抚"
-    ]
+  bondage_focus: {
+    group: "特殊风味",
+    label: "束缚向",
+    description:
+      "安全剪写进开场检查，血运神经检查成环。漏检不上绳；解开有安抚。警告后继续即事故。限成人。",
+    palette: {"temperature":"紧压","texture":"绳纤","primary_intensity_default":0.75,"accent_intensity_default":0.65},
+    focus: ["restraint_geometry","circulation_check","safety_shears","helpless_trust","release_ritual"],
+    avoid: ["无检查的危险吊缚伤害","儿童性化"],
   },
-  "pain_edge": {
-    "group": "特殊风味",
-    "label": "疼痛边缘向",
-    "description": "疼痛边缘把痛写成可对话强度阶：交通灯在承受方一侧，加码权够得着。痛不是发泄。限成人协商。黄灯出现时加码权自动冻结。加码权冻结期间只可减不可加。",
-    "palette": {
-      "temperature": "锐热",
-      "texture": "鞭痕",
-      "primary_intensity_default": 0.85,
-      "accent_intensity_default": 0.6
-    },
-    "focus": [
-      "negotiated_intensity",
-      "traffic_light",
-      "pain_as_dialogue",
-      "mark_care",
-      "emotional_check"
-    ],
-    "avoid": [
-      "无协商施暴",
-      "儿童性化"
-    ],
-    "mustCover": [
-      "事前协商强度",
-      "红黄绿灯",
-      "疼痛中的情感确认",
-      "伤痕护理与复盘"
-    ],
-    "writingGuide": "开场协商强度、工具和红黄绿灯；升级让每次疼痛都等待颜色反馈；善后处理伤痕、复盘心理余震，而不是把痛留在现场。",
-    "antiPatterns": [
-      "无灯乱打",
-      "忽略护理",
-      "施暴发泄",
-      "红黄绿灯没有实际响应，疼痛强度一路硬推",
-      "伤痕护理与复盘缺席，疼痛被写成发泄出口"
-    ],
-    "densityHint": 310,
-    "signals": [
-      "疼痛",
-      "绿灯",
-      "刹停",
-      "护理",
-      "协商",
-      "事前协商强度",
-      "红黄绿灯",
-      "疼痛中的情感确认",
-      "伤痕护理与复盘"
-    ]
+  pain_edge: {
+    group: "特殊风味",
+    label: "疼痛边缘向",
+    description:
+      "交通灯在承受方一侧，黄灯冻结加码。痛是可对话强度阶；事后护理复盘。限成人协商。",
+    palette: {"temperature":"锐热","texture":"鞭痕","primary_intensity_default":0.85,"accent_intensity_default":0.6},
+    focus: ["negotiated_intensity","traffic_light","pain_as_dialogue","mark_care","emotional_check"],
+    avoid: ["无协商施暴","儿童性化"],
   },
-  "sacrilege": {
-    "group": "特殊风味",
-    "label": "圣渎向",
-    "description": "圣渎靠圣物誓词与背德战栗取味，还俗净礼与教团追责写进余波。无信仰代价的亵玩只剩空壳。限成人可中止。净礼未完成不得把圣物带出场景。圣物带出未净礼按渎职写代价。",
-    "palette": {
-      "temperature": "烛火",
-      "texture": "圣布撕开",
-      "primary_intensity_default": 0.7,
-      "accent_intensity_default": 0.85
-    },
-    "focus": [
-      "sacred_symbol",
-      "transgression_thrill",
-      "guilt_pleasure",
-      "fictional_cult",
-      "after_confession"
-    ],
-    "avoid": [
-      "针对真实宗教群体的仇恨色情",
-      "儿童性化"
-    ],
-    "mustCover": [
-      "虚构神圣符号",
-      "亵渎动作的心理账",
-      "愧疚与快感",
-      "事后告解或决裂"
-    ],
-    "writingGuide": "优先虚构教团；避免真实宗教仇恨化。限已完成设定成年礼的成人；须可协商、可中断；禁止儿童性化。 这类口味最容易写薄在“都提到了却都没咬住”，不如让虚构神圣符号和亵渎动作的心理账互相推高，再由愧疚与快感收拢余波，角色每靠近一步都得更清楚自己想要什么、又怕失去什么。",
-    "antiPatterns": [
-      "真实宗教仇恨色情",
-      "无心理账",
-      "神圣符号没有虚构语境，亵渎像随手摆拍",
-      "愧疚与快感不共存，破戒后没有告解或决裂",
-      "真实宗教被当成仇恨靶子，禁忌感变成冒犯噱头"
-    ],
-    "densityHint": 300,
-    "signals": [
-      "圣",
-      "亵渎",
-      "愧疚",
-      "告解",
-      "符号",
-      "虚构神圣符号",
-      "亵渎动作的心理账",
-      "愧疚与快感",
-      "事后告解或决裂"
-    ]
+  sacrilege: {
+    group: "特殊风味",
+    label: "圣渎向",
+    description:
+      "虚构神圣符号可还俗；愧疚与快感并行。事后告解净礼或决裂；无代价空壳亵玩出局。限成人可中止。",
+    palette: {"temperature":"烛火","texture":"圣布撕开","primary_intensity_default":0.7,"accent_intensity_default":0.85},
+    focus: ["sacred_symbol","transgression_thrill","guilt_pleasure","fictional_cult","after_confession"],
+    avoid: ["针对真实宗教群体的仇恨色情","儿童性化"],
   },
-  "objectification_prop": {
-    "group": "特殊风味",
-    "label": "物化器物向",
-    "description": "物化把人暂时写成被使用的道具：计时复位铃一响恢复人称与行动权，协议不得覆盖安全词。限成人协商。复位铃后第一句必须恢复人名称呼。人名称呼恢复前禁止继续物化指令。",
-    "palette": {
-      "temperature": "物冷",
-      "texture": "瓷/金属",
-      "primary_intensity_default": 0.8,
-      "accent_intensity_default": 0.7
-    },
-    "focus": [
-      "timed_object_role",
-      "use_and_reset",
-      "safeword_override",
-      "dignity_return",
-      "debrief"
-    ],
-    "avoid": [
-      "永久物化无复位",
-      "儿童性化"
-    ],
-    "mustCover": [
-      "时限与安全词覆盖",
-      "使用方式边界",
-      "复位仪式",
-      "尊严回归谈话"
-    ],
-    "writingGuide": "物化是限时扮演。复位强制。限已完成设定成年礼的成人；须可协商、可中断；禁止儿童性化。 这类口味最容易写薄在“都提到了却都没咬住”，不如让时限与安全词覆盖和使用方式边界互相推高，再由复位仪式收拢余波，角色每靠近一步都得更清楚自己想要什么、又怕失去什么。",
-    "antiPatterns": [
-      "永久物化",
-      "无复位",
-      "无安全词",
-      "复位仪式缺席，角色外人格回不来",
-      "使用方式边界不明，限时扮演滑向永久剥夺"
-    ],
-    "densityHint": 310,
-    "signals": [
-      "物化",
-      "时限",
-      "复位",
-      "安全词",
-      "尊严",
-      "时限与安全词覆盖",
-      "使用方式边界",
-      "复位仪式",
-      "尊严回归谈话"
-    ]
+  objectification_prop: {
+    group: "特殊风味",
+    label: "物化器物向",
+    description:
+      "计时复位铃恢复人称；协议不得覆盖安全词。超时按事故；复位后先叫人名。限成人协商。",
+    palette: {"temperature":"物冷","texture":"瓷/金属","primary_intensity_default":0.8,"accent_intensity_default":0.7},
+    focus: ["timed_object_role","use_and_reset","safeword_override","dignity_return","debrief"],
+    avoid: ["永久物化无复位","儿童性化"],
   },
-  "uniform_ritual": {
-    "group": "特殊风味",
-    "label": "制服仪式向",
-    "description": "制服仪式写更衣、衔级手势与布料声响，更衣自主与卸装时刻必须存在。全天不可卸按压迫写。限成人。卸装完成前不算仪式结束。卸装后衔级手势一律失效。",
-    "palette": {
-      "temperature": "浆烫",
-      "texture": "布料纹章",
-      "primary_intensity_default": 0.65,
-      "accent_intensity_default": 0.7
-    },
-    "focus": [
-      "dressing_ritual",
-      "rank_gesture",
-      "fabric_sound",
-      "role_voice",
-      "undress_reverse"
-    ],
-    "avoid": [
-      "校服未成年性化",
-      "儿童性化"
-    ],
-    "mustCover": [
-      "更衣仪式步骤",
-      "衔级/礼仪动作",
-      "布料与声音细节",
-      "脱卸的反向仪式"
-    ],
-    "writingGuide": "明确成人制服。禁止校服未成年意象。限已完成设定成年礼的成人；须可协商、可中断；禁止儿童性化。 可以把场景拆成触发、升级、善后三拍：先让更衣仪式步骤给出入口，再让衔级/礼仪动作压住节奏，最后用布料与声音细节证明这不是一次性刺激，而是会改变关系秩序的事。",
-    "antiPatterns": [
-      "校服未成年性化",
-      "只有衣服无仪式",
-      "制服只有布料名称，没有更衣、衔级和礼仪步骤",
-      "校服意象未做成人化替换，边界风险被忽略",
-      "脱卸没有反向仪式，制服玩法失去收束"
-    ],
-    "densityHint": 300,
-    "signals": [
-      "制服",
-      "更衣",
-      "衔级",
-      "礼仪",
-      "脱卸",
-      "更衣仪式步骤",
-      "礼仪动作",
-      "布料与声音细节",
-      "脱卸的反向仪式"
-    ]
-  }
+  uniform_ritual: {
+    group: "特殊风味",
+    label: "制服仪式向",
+    description:
+      "更衣自主与卸装时刻必须在。布料声响与衔级手势入戏；全天不可卸按压迫写。限成人。",
+    palette: {"temperature":"浆烫","texture":"布料纹章","primary_intensity_default":0.65,"accent_intensity_default":0.7},
+    focus: ["dressing_ritual","rank_gesture","fabric_sound","role_voice","undress_reverse"],
+    avoid: ["校服未成年性化","儿童性化"],
+  },
 };

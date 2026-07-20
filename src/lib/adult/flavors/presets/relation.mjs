@@ -1,827 +1,151 @@
 /**
- * 口味·关系动力
+ * 口味·关系动态
+ * description 逐条手写。
  */
 
 export var PRESETS = {
-  "domination": {
-    "group": "关系动态",
-    "label": "调教向",
-    "description": "调教向靠规则阶梯、许可结构与可降级按钮推进，不是一次性压服。加码可回看规则墙与申诉栏；复盘安抚与指令同权。限可叫停成人。申诉被受理的过程要写进调教复盘。",
-    "palette": {
-      "temperature": "温→热",
-      "texture": "皮革",
-      "primary_intensity_default": 0.8,
-      "accent_intensity_default": 0.5
-    },
-    "focus": [
-      "power_exchange",
-      "rules",
-      "progression",
-      "psychological_transformation",
-      "ritual"
-    ],
-    "avoid": [
-      "无铺垫直接硬来",
-      "忽略安全词",
-      "超出 Limits 的极端"
-    ],
-    "mustCover": [
-      "规则与仪式的建立过程",
-      "训练/渐进的阶段感",
-      "心理从抗拒到接纳的转变",
-      "安全词与 Limits 的可执行性"
-    ],
-    "writingGuide": "权力交换靠规则与反馈运转。写清命令如何下达、如何被遵守、违规如何处理，以及被支配方的内在变化。 可以把场景拆成触发、升级、善后三拍：先让规则与仪式的建立过程给出入口，再让训练/渐进的阶段感压住节奏，最后用心理从抗拒到接纳的转变证明这不是一次性刺激，而是会改变关系秩序的事。",
-    "antiPatterns": [
-      "无铺垫直接硬来",
-      "忽略安全词",
-      "超出 Limits 的极端",
-      "规则没有建立就开始惩罚，服从像凭空出现",
-      "安全词被提过却从未影响节奏或动作选择"
-    ],
-    "densityHint": 320,
-    "signals": [
-      "规则",
-      "仪式",
-      "训练",
-      "命令",
-      "服从",
-      "安全词",
-      "渐进",
-      "规则与仪式的建立过程",
-      "渐进的阶段感",
-      "心理从抗拒到接纳的转变",
-      "安全词与",
-      "Limits",
-      "的可执行性"
-    ]
+  domination: {
+    group: "关系动态",
+    label: "调教向",
+    description:
+      "先立规则与安全词，再进入训练回合。抗拒松动要看得见，申诉与降级始终可用；复盘对照规则而非只夸听话。限可叫停的成人。",
+    palette: {"temperature":"温→热","texture":"皮革","primary_intensity_default":0.8,"accent_intensity_default":0.5},
+    focus: ["power_exchange","rules","progression","psychological_transformation","ritual"],
+    avoid: ["无铺垫直接硬来","忽略安全词","超出 Limits 的极端"],
   },
-  "brat": {
-    "group": "关系动态",
-    "label": "叛逆向",
-    "description": "叛逆向吃顶嘴、挑衅与被驯回的火花：驯服须能和解也能加码，纪律档不可变成不可擦的人格判决。限成人协商。以和解握手或等价仪式结束顶嘴回合。",
-    "palette": {
-      "temperature": "热",
-      "texture": "磨砂皮",
-      "primary_intensity_default": 0.7,
-      "accent_intensity_default": 0.8
-    },
-    "focus": [
-      "defiance",
-      "taming",
-      "sass_backfire",
-      "teasing",
-      "power_struggle_to_submission"
-    ],
-    "avoid": [
-      "真的愤怒",
-      "完全压制没有过程",
-      "忽视 brat 的主动性魅力"
-    ],
-    "mustCover": [
-      "嘴硬挑衅的具体台词/动作",
-      "被压制时的身体诚实",
-      "驯服过程的拉扯回合",
-      "挑衅背后的邀请动机"
-    ],
-    "writingGuide": "Brat 的魅力在主动制造麻烦。写清「故意惹」与「其实要」的双轨，驯服是博弈不是碾压。 这类口味最容易写薄在“都提到了却都没咬住”，不如让嘴硬挑衅的具体台词/动作和被压制时的身体诚实互相推高，再由驯服过程的拉扯回合收拢余波，角色每靠近一步都得更清楚自己想要什么、又怕失去什么。",
-    "antiPatterns": [
-      "真怒无情趣",
-      "瞬间彻底压制无过程",
-      "抹掉 brat 主动性",
-      "挑衅台词像真吵架，读不出主动邀请的暗号",
-      "驯服一回合结束，嘴硬和身体诚实没有来回"
-    ],
-    "densityHint": 300,
-    "signals": [
-      "挑衅",
-      "嘴硬",
-      "驯服",
-      "反抗",
-      "诚实",
-      "邀请",
-      "拉扯",
-      "嘴硬挑衅的具体台词",
-      "动作",
-      "被压制时的身体诚实",
-      "驯服过程的拉扯回合",
-      "挑衅背后的邀请动机"
-    ]
+  brat: {
+    group: "关系动态",
+    label: "叛逆向",
+    description:
+      "嘴硬挑衅背后是「来抓住我」。多回合拉扯：顶嘴、破功、再顶嘴；收束用和解，禁止记成不可擦人格判决。限成人协商。",
+    palette: {"temperature":"热","texture":"磨砂皮","primary_intensity_default":0.7,"accent_intensity_default":0.8},
+    focus: ["defiance","taming","sass_backfire","teasing","power_struggle_to_submission"],
+    avoid: ["真的愤怒","完全压制没有过程","忽视 brat 的主动性魅力"],
   },
-  "gentle_dom": {
-    "group": "关系动态",
-    "label": "温柔支配",
-    "description": "温柔支配用照料口吻下达不可忽视的指令，但显式同意刷新与可拒绝日程必须在场。温柔若掩盖不可退出，只是糖衣压迫。限成人。指令前后各做一次同意刷新。",
-    "palette": {
-      "temperature": "恒温",
-      "texture": "绒面革",
-      "primary_intensity_default": 0.6,
-      "accent_intensity_default": 0.7
-    },
-    "focus": [
-      "care_as_control",
-      "gentle_firmness",
-      "praise",
-      "safety",
-      "trust_based_power"
-    ],
-    "avoid": [
-      "冷暴力",
-      "羞辱",
-      "命令式语气",
-      "忽视被支配方的反馈"
-    ],
-    "mustCover": [
-      "以照顾为名的掌控细节",
-      "温柔语气下的不可违抗",
-      "赞美/确认作为控制手段",
-      "被支配方的安心与依赖"
-    ],
-    "writingGuide": "绑好先问疼不疼，命令却像商量。掌控感来自被接住，而不是被吓住。 别把它拆成并列清单；最好让以照顾为名的掌控细节先点火，再由温柔语气下的不可违抗把局势推离舒适区，最后让赞美/确认作为控制手段在事后留下回味、愧意或依赖，整段才会有会继续发酵的张力。",
-    "antiPatterns": [
-      "冷暴力",
-      "羞辱式支配",
-      "忽视反馈",
-      "温柔只体现在小声说话，掌控细节没有规则感",
-      "赞美成了泛泛夸奖，不承担引导、许可或收束功能"
-    ],
-    "densityHint": 300,
-    "signals": [
-      "照顾",
-      "温柔",
-      "赞美",
-      "安心",
-      "掌控",
-      "商量",
-      "依赖",
-      "以照顾为名的掌控细节",
-      "温柔语气下的不可违抗",
-      "确认作为控制手段",
-      "被支配方的安心与依赖"
-    ]
+  gentle_dom: {
+    group: "关系动态",
+    label: "温柔支配",
+    description:
+      "递水掖被的口吻下达不可忽视的指令，但每次加码前刷新同意。说「今晚不做」必须被接住。温柔不是糖衣压迫。限成人。",
+    palette: {"temperature":"恒温","texture":"绒面革","primary_intensity_default":0.6,"accent_intensity_default":0.7},
+    focus: ["care_as_control","gentle_firmness","praise","safety","trust_based_power"],
+    avoid: ["冷暴力","羞辱","命令式语气","忽视被支配方的反馈"],
   },
-  "service": {
-    "group": "关系动态",
-    "label": "臣服向",
-    "description": "臣服向写奉献与侍奉的甘美，名册要有下班时刻，器物可归还。无期限奉献按剥夺自主写。限成人可撤回契约。下班时刻一到，侍奉名册合上。合上名册后禁止再用侍奉口吻下令。",
-    "palette": {
-      "temperature": "暖",
-      "texture": "丝绒",
-      "primary_intensity_default": 0.5,
-      "accent_intensity_default": 0.8
-    },
-    "focus": [
-      "devotion",
-      "worship",
-      "selfless_service",
-      "pleasure_in_giving",
-      "humility"
-    ],
-    "avoid": [
-      "强迫服务",
-      "自我否定",
-      "把奉献写成无自尊"
-    ],
-    "mustCover": [
-      "奉献/崇拜的具体行为",
-      "以对方愉悦为成就感",
-      "自我边界仍存在的证据",
-      "被需要时的情绪高潮"
-    ],
-    "writingGuide": "快感来自「我能让你满足」。奉献有尊严：写清选择服务，而不是自我抹除。 真正耐看的写法，是把奉献/崇拜的具体行为落到器物、场景或台词里，让以对方愉悦为成就感负责抬高风险，再用自我边界仍存在的证据把人物带回自己的判断和后果；这样它才像剧情，不像标签套餐。",
-    "antiPatterns": [
-      "强迫服务",
-      "无自尊的自我否定",
-      "把臣服写成无人格",
-      "奉献者只会说愿意，没有自尊边界和选择理由",
-      "以对方愉悦为目标却不写观察、调整和被需要的高潮"
-    ],
-    "densityHint": 300,
-    "signals": [
-      "奉献",
-      "崇拜",
-      "服务",
-      "满足",
-      "被需要",
-      "谦卑",
-      "成就",
-      "崇拜的具体行为",
-      "以对方愉悦为成就感",
-      "自我边界仍存在的证据",
-      "被需要时的情绪高潮"
-    ]
+  service: {
+    group: "关系动态",
+    label: "臣服向",
+    description:
+      "奉献落在可观察行为与记住偏好；成就感来自对方被取悦，同时保留说不的证据。名册有下班时刻。限成人可撤回。",
+    palette: {"temperature":"暖","texture":"丝绒","primary_intensity_default":0.5,"accent_intensity_default":0.8},
+    focus: ["devotion","worship","selfless_service","pleasure_in_giving","humility"],
+    avoid: ["强迫服务","自我否定","把奉献写成无自尊"],
   },
-  "pursuit": {
-    "group": "关系动态",
-    "label": "狩猎向",
-    "description": "狩猎向靠追逐、挑逗与拉扯升温，安全区旗帜与被追者喊停权必须可见。狩猎不是围捕抹掉退路。限成人角色扮演。被追者踏入安全区则追逐立即停止。",
-    "palette": {
-      "temperature": "温→热→凉交替",
-      "texture": "羽毛",
-      "primary_intensity_default": 0.6,
-      "accent_intensity_default": 0.7
-    },
-    "focus": [
-      "chase",
-      "tease",
-      "push_pull",
-      "anticipation",
-      "delayed_gratification"
-    ],
-    "avoid": [
-      "直接扑倒",
-      "省略追逐过程",
-      "单方面追逐无互动"
-    ],
-    "mustCover": [
-      "追逐与撤退的节奏",
-      "距离感制造的期待",
-      "猫鼠互动的主动权交换",
-      "延迟满足的临界点"
-    ],
-    "writingGuide": "靠近一步退半步。张力在「还没得到」；写清猎人与猎物如何互相诱饵。 可以把场景拆成触发、升级、善后三拍：先让追逐与撤退的节奏给出入口，再让距离感制造的期待压住节奏，最后用猫鼠互动的主动权交换证明这不是一次性刺激，而是会改变关系秩序的事。",
-    "antiPatterns": [
-      "直接扑倒省略过程",
-      "单方面追逐无互动",
-      "无期待积累",
-      "追逐没有退半步的节奏，猎人与猎物没有互设诱饵",
-      "距离感只靠拖延，不产生期待、误判或临界点"
-    ],
-    "densityHint": 300,
-    "signals": [
-      "追逐",
-      "距离",
-      "期待",
-      "撤退",
-      "诱饵",
-      "延迟",
-      "猫鼠",
-      "追逐与撤退的节奏",
-      "距离感制造的期待",
-      "猫鼠互动的主动权交换",
-      "延迟满足的临界点"
-    ]
+  pursuit: {
+    group: "关系动态",
+    label: "狩猎向",
+    description:
+      "追逐地图画出安全区，踏入即停。靠近—撤退制造期待，喊停权在被追者手里。狩猎不是围死退路。限成人角色扮演。",
+    palette: {"temperature":"温→热→凉交替","texture":"羽毛","primary_intensity_default":0.6,"accent_intensity_default":0.7},
+    focus: ["chase","tease","push_pull","anticipation","delayed_gratification"],
+    avoid: ["直接扑倒","省略追逐过程","单方面追逐无互动"],
   },
-  "seduction": {
-    "group": "关系动态",
-    "label": "引导向",
-    "description": "引导向写一步步诱惑与觉醒，阶梯可回退，仪式有知情说明。诱导不可回退就变操控。限成人且每步可停。演示一次主动回退台阶以证明可逆。回退台阶被使用时不得嘲笑对方。",
-    "palette": {
-      "temperature": "凉→渐热",
-      "texture": "薄纱",
-      "primary_intensity_default": 0.5,
-      "accent_intensity_default": 0.9
-    },
-    "focus": [
-      "corruption",
-      "awakening",
-      "stepped_temptation",
-      "innocence_fading",
-      "point_of_no_return"
-    ],
-    "avoid": [
-      "跳过快进",
-      "对方毫无挣扎",
-      "把引导写成单纯操纵"
-    ],
-    "mustCover": [
-      "引诱的阶梯（每步更越界一点）",
-      "无辜/防线被侵蚀的迹象",
-      "对方内心的挣扎与合理化",
-      "不可回头点的标记"
-    ],
-    "writingGuide": "过程比结果迷人。每一步都让对方以为自己还能停，同时把退路拆掉一点。 别把它拆成并列清单；最好让引诱的阶梯（每步更越界一点）先点火，再由无辜/防线被侵蚀的迹象把局势推离舒适区，最后让对方内心的挣扎与合理化在事后留下回味、愧意或依赖，整段才会有会继续发酵的张力。",
-    "antiPatterns": [
-      "跳过快进",
-      "对方毫无挣扎",
-      "把引导写成单纯操纵无诱惑",
-      "引诱一步到位，防线被侵蚀的阶梯缺失",
-      "对方挣扎只喊不要，缺少自我合理化和不可回头点"
-    ],
-    "densityHint": 320,
-    "signals": [
-      "引诱",
-      "阶梯",
-      "防线",
-      "越界",
-      "挣扎",
-      "合理化",
-      "觉醒",
-      "引诱的阶梯",
-      "每步更越界一点",
-      "无辜",
-      "防线被侵蚀的迹象",
-      "对方内心的挣扎与合理化",
-      "不可回头点的标记"
-    ]
+  seduction: {
+    group: "关系动态",
+    label: "引导向",
+    description:
+      "引诱阶梯每级可回退；防线松动与内心合理化要写清。知情先于越界，不可逆诱导按操控写。限成人且每步可停。",
+    palette: {"temperature":"凉→渐热","texture":"薄纱","primary_intensity_default":0.5,"accent_intensity_default":0.9},
+    focus: ["corruption","awakening","stepped_temptation","innocence_fading","point_of_no_return"],
+    avoid: ["跳过快进","对方毫无挣扎","把引导写成单纯操纵"],
   },
-  "denial_surrender": {
-    "group": "关系动态",
-    "label": "沦陷向",
-    "description": "沦陷向写抵抗崩解到交出控制：中途退出章仍有效，系统自动判抵抗无效即失格。限成人协商。抵抗章节被朗读确认后才进入下一幕。未朗读抵抗章不得进入沦陷高潮。",
-    "palette": {
-      "temperature": "冷→爆热→温",
-      "texture": "融化的冰",
-      "primary_intensity_default": 0.6,
-      "accent_intensity_default": 0.9
-    },
-    "focus": [
-      "resistance",
-      "crumbling",
-      "surrender",
-      "internal_conflict",
-      "relief_after_yielding"
-    ],
-    "avoid": [
-      "直接放弃抵抗",
-      "没有内心挣扎",
-      "沉溺后没有情绪余波"
-    ],
-    "mustCover": [
-      "抗拒的表层理由",
-      "动摇的裂缝细节",
-      "崩溃/投降的那一瞬",
-      "沉溺后的情绪余波（解脱或羞耻）"
-    ],
-    "writingGuide": "完整弧光：抗拒→动摇→崩溃→沉溺。投降的一秒值得浓墨；沉溺后要有余震。 可以把场景拆成触发、升级、善后三拍：先让抗拒的表层理由给出入口，再让动摇的裂缝细节压住节奏，最后用崩溃/投降的那一瞬证明这不是一次性刺激，而是会改变关系秩序的事。",
-    "antiPatterns": [
-      "直接放弃抵抗",
-      "无内心拉扯",
-      "沉溺后情绪真空",
-      "抗拒理由说完立刻投降，动摇裂缝没有过程",
-      "沉溺后没有羞耻或解脱，投降像开关"
-    ],
-    "densityHint": 320,
-    "signals": [
-      "抗拒",
-      "动摇",
-      "崩溃",
-      "投降",
-      "沉溺",
-      "解脱",
-      "余波",
-      "抗拒的表层理由",
-      "动摇的裂缝细节",
-      "投降的那一瞬",
-      "沉溺后的情绪余波",
-      "解脱或羞耻"
-    ]
+  denial_surrender: {
+    group: "关系动态",
+    label: "沦陷向",
+    description:
+      "抗拒理由具体，裂缝用停顿与抓衣角写。投降后解脱或羞耻皆可；抵抗章节须被确认仍有效。限成人协商。",
+    palette: {"temperature":"冷→爆热→温","texture":"融化的冰","primary_intensity_default":0.6,"accent_intensity_default":0.9},
+    focus: ["resistance","crumbling","surrender","internal_conflict","relief_after_yielding"],
+    avoid: ["直接放弃抵抗","没有内心挣扎","沉溺后没有情绪余波"],
   },
-  "enemies": {
-    "group": "关系动态",
-    "label": "敌对向",
-    "description": "敌对向让恨意与欲望扭打，停火协议与伤情登记先于粗暴互动。冲突可以脏，医疗与停手优先。限成人。伤情登记表签字后才继续恨欲纠缠。停火协议优先于任何恨欲加码。",
-    "palette": {
-      "temperature": "冷+灼热点",
-      "texture": "淬火的钢",
-      "primary_intensity_default": 0.9,
-      "accent_intensity_default": 0.8
-    },
-    "focus": [
-      "hatred_and_desire",
-      "roughness",
-      "conflicted",
-      "verbal_hostility",
-      "reluctant_care"
-    ],
-    "avoid": [
-      "突然变甜",
-      "消解敌对张力",
-      "暴力无上下文"
-    ],
-    "mustCover": [
-      "恨意与欲望的并存句",
-      "带刃的亲密（言语/动作）",
-      "不愿承认在乎的瞬间",
-      "暴力美学的上下文与代价"
-    ],
-    "writingGuide": "明明该恨却想要。靠近带着刀；偶尔露出的在乎比甜言更狠。 可以把场景拆成触发、升级、善后三拍：先让恨意与欲望的并存句给出入口，再让带刃的亲密（言语/动作）压住节奏，最后用不愿承认在乎的瞬间证明这不是一次性刺激，而是会改变关系秩序的事。",
-    "antiPatterns": [
-      "突然变甜消解敌对",
-      "无上下文暴力",
-      "只有打没有欲",
-      "敌对背景一句带过，粗暴动作没有恨意上下文",
-      "偶露在乎的瞬间缺席，整段只有互骂没有欲望"
-    ],
-    "densityHint": 300,
-    "signals": [
-      "恨",
-      "敌对",
-      "刀",
-      "粗暴",
-      "在乎",
-      "不愿承认",
-      "撕裂",
-      "恨意与欲望的并存句",
-      "带刃的亲密",
-      "言语",
-      "动作",
-      "不愿承认在乎的瞬间",
-      "暴力美学的上下文与代价"
-    ]
+  enemies: {
+    group: "关系动态",
+    label: "敌对向",
+    description:
+      "恨与欲同句，动作带刃但先过伤情登记与停火。不愿承认在乎比告白重要。医疗优先于「打是亲」。限成人。",
+    palette: {"temperature":"冷+灼热点","texture":"淬火的钢","primary_intensity_default":0.9,"accent_intensity_default":0.8},
+    focus: ["hatred_and_desire","roughness","conflicted","verbal_hostility","reluctant_care"],
+    avoid: ["突然变甜","消解敌对张力","暴力无上下文"],
   },
-  "switch_dynamic": {
-    "group": "关系动态",
-    "label": "切换向",
-    "description": "切换向写权力轮值与协商代理：切换牌不可单方垄断，轮值表可改期。互为主体是底线。限成人合意。轮值交接仪式公开完成再进入新角色。新角色开始前双方口头确认切换完成。",
-    "palette": {
-      "temperature": "冷热交替",
-      "texture": "双面缎",
-      "primary_intensity_default": 0.7,
-      "accent_intensity_default": 0.75
-    },
-    "focus": [
-      "role_switch",
-      "negotiated_power",
-      "mutual_agency",
-      "fluid_control",
-      "after_switch_checkin"
-    ],
-    "avoid": [
-      "无协商的突然翻转",
-      "一方永远被动",
-      "忽略切换后的情绪确认"
-    ],
-    "mustCover": [
-      "切换前的协商或默契信号",
-      "主导/臣服互换的具体过程",
-      "双方主动权都曾显形",
-      "切换后的情绪确认与 aftercare"
-    ],
-    "writingGuide": "权力是可协商的舞蹈。写清谁先放手、谁接过缰绳，以及互换后双方是否仍感到安全与被尊重。 别把它拆成并列清单；最好让切换前的协商或默契信号先点火，再由主导/臣服互换的具体过程把局势推离舒适区，最后让双方主动权都曾显形在事后留下回味、愧意或依赖，整段才会有会继续发酵的张力。",
-    "antiPatterns": [
-      "无协商突然翻转",
-      "一方永远被动",
-      "切换后不做确认",
-      "主导互换没有默契信号，翻转像作者临时换姿势",
-      "切换后不确认安全感，双方主动权沦为一方表演"
-    ],
-    "densityHint": 300,
-    "signals": [
-      "切换",
-      "互换",
-      "协商",
-      "主导",
-      "臣服",
-      "确认",
-      "舞蹈",
-      "切换前的协商或默契信号",
-      "臣服互换的具体过程",
-      "双方主动权都曾显形",
-      "切换后的情绪确认与",
-      "aftercare"
-    ]
+  switch_dynamic: {
+    group: "关系动态",
+    label: "切换向",
+    description:
+      "切换用口令或双钥，双方都当过主导与臣服。新角色开始前口头确认，aftercare 优先当前弱势侧。限成人合意。",
+    palette: {"temperature":"冷热交替","texture":"双面缎","primary_intensity_default":0.7,"accent_intensity_default":0.75},
+    focus: ["role_switch","negotiated_power","mutual_agency","fluid_control","after_switch_checkin"],
+    avoid: ["无协商的突然翻转","一方永远被动","忽略切换后的情绪确认"],
   },
-  "mentor_guide": {
-    "group": "关系动态",
-    "label": "导师向",
-    "description": "导师向用示范、纠正与称赞推进学习式亲密：学员否决权与成年核验不可缺。教学名义不得绕过边界。限双方成人。学员拍停课牌时导师必须立刻停手。",
-    "palette": {
-      "temperature": "稳温",
-      "texture": "粉笔灰+丝",
-      "primary_intensity_default": 0.55,
-      "accent_intensity_default": 0.7
-    },
-    "focus": [
-      "instruction",
-      "demonstration",
-      "correction_praise",
-      "learning_curve",
-      "adult_consent_frame"
-    ],
-    "avoid": [
-      "师生权力压迫无同意",
-      "把教导写成羞辱",
-      "跳过学习过程直接结果"
-    ],
-    "mustCover": [
-      "教学框架与示范步骤",
-      "纠正与赞美的节奏",
-      "学习者的进步/笨拙瞬间",
-      "成人同意框架下的权威边界"
-    ],
-    "writingGuide": "权威来自耐心与专业。每一步示范都可撤回；教导服务于共同愉悦，不是单方面碾压。 可以把场景拆成触发、升级、善后三拍：先让教学框架与示范步骤给出入口，再让纠正与赞美的节奏压住节奏，最后用学习者的进步/笨拙瞬间证明这不是一次性刺激，而是会改变关系秩序的事。",
-    "antiPatterns": [
-      "无同意的压迫教学",
-      "羞辱式纠正",
-      "跳过过程只写结果",
-      "教学步骤空泛，只把权威当作命令理由",
-      "纠正没有赞美回路，学习者的笨拙与进步被跳过"
-    ],
-    "densityHint": 300,
-    "signals": [
-      "教导",
-      "示范",
-      "纠正",
-      "赞美",
-      "学习",
-      "引导",
-      "步骤",
-      "教学框架与示范步骤",
-      "纠正与赞美的节奏",
-      "学习者的进步",
-      "笨拙瞬间",
-      "成人同意框架下的权威边界"
-    ]
+  mentor_guide: {
+    group: "关系动态",
+    label: "导师向",
+    description:
+      "示范桌旁停课牌学员可拍即停。笨拙被允许；权威止于成人同意，不得以辅导名义绕过边界。双方须已完成成年礼。",
+    palette: {"temperature":"稳温","texture":"粉笔灰+丝","primary_intensity_default":0.55,"accent_intensity_default":0.7},
+    focus: ["instruction","demonstration","correction_praise","learning_curve","adult_consent_frame"],
+    avoid: ["师生权力压迫无同意","把教导写成羞辱","跳过学习过程直接结果"],
   },
-  "rivalry_heat": {
-    "group": "关系动态",
-    "label": "较劲向",
-    "description": "较劲向靠竞技唤起与谁先崩的计分取热：停赛键与医疗兜底必须在。赌约取消安全即出局。限成人。医疗兜底被调用时计分作废。计分作废后先照料再谈下一次较劲。",
-    "palette": {
-      "temperature": "灼",
-      "texture": "砂纸摩擦",
-      "primary_intensity_default": 0.8,
-      "accent_intensity_default": 0.85
-    },
-    "focus": [
-      "competitive_arousal",
-      "scorekeeping",
-      "who_breaks_first",
-      "smug_after",
-      "equal_footing"
-    ],
-    "avoid": [
-      "真伤自尊的贬低",
-      "一边倒碾压无博弈",
-      "忽略事后和解或余火"
-    ],
-    "mustCover": [
-      "互不服输的具体较劲点",
-      "比谁先失控的张力回合",
-      "输赢瞬间的身体与语气",
-      "事后和解、嘲讽或余火"
-    ],
-    "writingGuide": "竞争把欲望推高。写清计分方式、谁先破功、胜利者的得意与失败者的不甘如何仍亲密。 可以把场景拆成触发、升级、善后三拍：先让互不服输的具体较劲点给出入口，再让比谁先失控的张力回合压住节奏，最后用输赢瞬间的身体与语气证明这不是一次性刺激，而是会改变关系秩序的事。",
-    "antiPatterns": [
-      "真伤自尊的贬低",
-      "一边倒无博弈",
-      "事后无落点",
-      "较劲没有计分点，输赢不影响语气和身体反应",
-      "失败者被贬低到失去尊严，竞争变成单方羞辱"
-    ],
-    "densityHint": 300,
-    "signals": [
-      "较劲",
-      "不服",
-      "比拼",
-      "失控",
-      "计分",
-      "余火",
-      "博弈",
-      "互不服输的具体较劲点",
-      "比谁先失控的张力回合",
-      "输赢瞬间的身体与语气",
-      "事后和解",
-      "嘲讽或余火"
-    ]
+  rivalry_heat: {
+    group: "关系动态",
+    label: "较劲向",
+    description:
+      "较劲点具体：谁先求饶、谁先吻回。停赛与医疗铃一响计分作废。事后和解、嘲讽或余火写透。限成人。",
+    palette: {"temperature":"灼","texture":"砂纸摩擦","primary_intensity_default":0.8,"accent_intensity_default":0.85},
+    focus: ["competitive_arousal","scorekeeping","who_breaks_first","smug_after","equal_footing"],
+    avoid: ["真伤自尊的贬低","一边倒碾压无博弈","忽略事后和解或余火"],
   },
-  "caregiver": {
-    "group": "关系动态",
-    "label": "照料向",
-    "description": "照料向写哺育、调频与柔软仪式：不可剥夺对方进食饮水自主。软仪式若不可拒绝就变控制。限成人合意。被照料方改期时照料日程整体后移。日程后移不构成惩罚理由。",
-    "palette": {
-      "temperature": "恒温暖",
-      "texture": "毛巾棉",
-      "primary_intensity_default": 0.4,
-      "accent_intensity_default": 0.75
-    },
-    "focus": [
-      "nurture",
-      "attunement",
-      "soft_rituals",
-      "safe_dependency",
-      "gratitude_arousal"
-    ],
-    "avoid": [
-      "infantilize 对方人格",
-      "用照料掩盖控制欲无协商",
-      "忽略被照料方的主体选择"
-    ],
-    "mustCover": [
-      "照料行为的具体清单（水/毯/擦拭等）",
-      "被照料方的安全感与依赖",
-      "照料如何转化为情欲语言",
-      "双方主体选择仍清晰"
-    ],
-    "writingGuide": "喂水、擦汗、裹毯子可以比进入更色情。写清被接住的感觉，禁止把对方写成无人格客体。 别把它拆成并列清单；最好让照料行为的具体清单（水/毯/擦拭等）先点火，再由被照料方的安全感与依赖把局势推离舒适区，最后让照料如何转化为情欲语言在事后留下回味、愧意或依赖，整段才会有会继续发酵的张力。",
-    "antiPatterns": [
-      "抹除对方人格",
-      "用照料掩盖未协商控制",
-      "忽略被照料方的选择",
-      "照料清单像家务流水，没转化成情欲语言",
-      "被照料方只被摆弄，安全感和主体选择没有显形"
-    ],
-    "densityHint": 300,
-    "signals": [
-      "照料",
-      "喂水",
-      "毯子",
-      "依赖",
-      "安抚",
-      "擦拭",
-      "被接住",
-      "照料行为的具体清单",
-      "擦拭等",
-      "被照料方的安全感与依赖",
-      "照料如何转化为情欲语言",
-      "双方主体选择仍清晰"
-    ]
+  caregiver: {
+    group: "关系动态",
+    label: "照料向",
+    description:
+      "水毯擦拭是可拒绝菜单；改期则日程后移不构成惩罚。可说「只要毯子不要触碰」。限成人合意。",
+    palette: {"temperature":"恒温暖","texture":"毛巾棉","primary_intensity_default":0.4,"accent_intensity_default":0.75},
+    focus: ["nurture","attunement","soft_rituals","safe_dependency","gratitude_arousal"],
+    avoid: ["infantilize 对方人格","用照料掩盖控制欲无协商","忽略被照料方的主体选择"],
   },
-  "voyeur_exhibit": {
-    "group": "关系动态",
-    "label": "观展向",
-    "description": "观展向把被看与表演写成触碰：落幕灯与观众权限撤销权在表演者手里。强制留档传播出局。限成人协商。表演者收回权限则观众席熄灯。熄灯后禁止私藏表演录像。",
-    "palette": {
-      "temperature": "凉皮热核",
-      "texture": "玻璃窗",
-      "primary_intensity_default": 0.65,
-      "accent_intensity_default": 0.85
-    },
-    "focus": [
-      "gaze_as_touch",
-      "performance",
-      "watched_arousal",
-      "exhibition_shame_loop",
-      "viewer_restraint"
-    ],
-    "avoid": [
-      "无同意的偷窥美化",
-      "践踏自尊的公开羞辱",
-      "忽略事后羞耻安抚"
-    ],
-    "mustCover": [
-      "观看与展演的角色分工",
-      "目光如何成为触碰",
-      "被看时的羞耻/兴奋环",
-      "同意边界与事后安抚"
-    ],
-    "writingGuide": "目光即触碰。写清谁在看、谁在演、距离与指令；禁止无同意偷窥美化。 别把它拆成并列清单；最好让观看与展演的角色分工先点火，再由目光如何成为触碰把局势推离舒适区，最后让被看时的羞耻/兴奋环在事后留下回味、愧意或依赖，整段才会有会继续发酵的张力。",
-    "antiPatterns": [
-      "无同意偷窥",
-      "践踏自尊的公开羞辱",
-      "事后无羞耻安抚",
-      "谁看谁演说不清，目光没有变成动作或命令",
-      "展演后不处理羞耻，观看只留下公开刺激"
-    ],
-    "densityHint": 300,
-    "signals": [
-      "观看",
-      "展示",
-      "目光",
-      "被看",
-      "展演",
-      "羞耻",
-      "同意",
-      "观看与展演的角色分工",
-      "目光如何成为触碰",
-      "被看时的羞耻",
-      "兴奋环",
-      "同意边界与事后安抚"
-    ]
+  voyeur_exhibit: {
+    group: "关系动态",
+    label: "观展向",
+    description:
+      "落幕灯与观众权限在表演者手里。目光如触碰；强制留档出局，收回权限则熄灯。限成人协商。",
+    palette: {"temperature":"凉皮热核","texture":"玻璃窗","primary_intensity_default":0.65,"accent_intensity_default":0.85},
+    focus: ["gaze_as_touch","performance","watched_arousal","exhibition_shame_loop","viewer_restraint"],
+    avoid: ["无同意的偷窥美化","践踏自尊的公开羞辱","忽略事后羞耻安抚"],
   },
-  "protocol_slave": {
-    "group": "关系动态",
-    "label": "契约主奴向",
-    "description": "契约主奴靠书面契约、角色时辰与安全词运转：契约可焚毁、时辰可停摆，时段外按普通人相处。单方无限续期按胁迫写。限成人。时辰牌翻面后禁止再使用主奴称谓。",
-    "palette": {
-      "temperature": "仪式温",
-      "texture": "革+纸",
-      "primary_intensity_default": 0.75,
-      "accent_intensity_default": 0.6
-    },
-    "focus": [
-      "written_contract",
-      "role_hours",
-      "safeword",
-      "review",
-      "aftercare"
-    ],
-    "avoid": [
-      "无契约无时限的永久奴役美化",
-      "儿童性化"
-    ],
-    "mustCover": [
-      "书面条款要点",
-      "时限与安全词",
-      "定期复核",
-      "角色外的平等安抚"
-    ],
-    "writingGuide": "主奴是可撤销的扮演结构。限已完成设定成年礼的成人；须可协商、可中断；禁止儿童性化。 别把它拆成并列清单；最好让书面条款要点先点火，再由时限与安全词把局势推离舒适区，最后让定期复核在事后留下回味、愧意或依赖，整段才会有会继续发酵的张力。",
-    "antiPatterns": [
-      "无安全词永久奴",
-      "无复核",
-      "契约条款只有主奴二字，没有时限、复核和例外",
-      "角色内服从覆盖角色外人格，平等安抚缺席",
-      "安全词没有高于所有条款，协议失去可撤销性"
-    ],
-    "densityHint": 310,
-    "signals": [
-      "契约",
-      "安全词",
-      "时限",
-      "复核",
-      "主奴",
-      "书面条款要点",
-      "时限与安全词",
-      "定期复核",
-      "角色外的平等安抚"
-    ]
+  protocol_slave: {
+    group: "关系动态",
+    label: "契约主奴向",
+    description:
+      "契约可焚、时辰可停；条款写清结束条件与安全词。时段外恢复普通人称呼。单方无限续期按胁迫。限成人。",
+    palette: {"temperature":"仪式温","texture":"革+纸","primary_intensity_default":0.75,"accent_intensity_default":0.6},
+    focus: ["written_contract","role_hours","safeword","review","aftercare"],
+    avoid: ["无契约无时限的永久奴役美化","儿童性化"],
   },
-  "public_protocol": {
-    "group": "关系动态",
-    "label": "公开服从向",
-    "description": "公开服从写约定观众前的仪轨：匿名否决与围观名单裁减权必须存在。公开不是单方面处刑秀。限成人合意。匿名否决触发则公开仪轨立即散场。散场后围观名单必须销毁或封存。",
-    "palette": {
-      "temperature": "聚光热",
-      "texture": "舞台",
-      "primary_intensity_default": 0.7,
-      "accent_intensity_default": 0.8
-    },
-    "focus": [
-      "agreed_audience",
-      "protocol_display",
-      "shame_arousal",
-      "exit_plan",
-      "debrief"
-    ],
-    "avoid": [
-      "非约定公开羞辱",
-      "儿童性化"
-    ],
-    "mustCover": [
-      "观众范围约定",
-      "服从指令内容",
-      "退出计划",
-      "事后复盘安抚"
-    ],
-    "writingGuide": "开场先划定观众范围、暗号和退出路线；升级只写协议内的服从指令；善后用复盘把羞耻、兴奋和是否继续公开拆开。",
-    "antiPatterns": [
-      "突袭公开",
-      "无退出",
-      "无复盘",
-      "观众范围不先约定，公开服从像突袭羞辱",
-      "退出计划写在口头，却没有暗号、路线和复盘"
-    ],
-    "densityHint": 300,
-    "signals": [
-      "公开",
-      "观众",
-      "服从",
-      "退出",
-      "复盘",
-      "观众范围约定",
-      "服从指令内容",
-      "退出计划",
-      "事后复盘安抚"
-    ]
+  public_protocol: {
+    group: "关系动态",
+    label: "公开服从向",
+    description:
+      "先约定谁可看、看到哪。匿名否决即散场；公开不是处刑秀。事后复盘羞耻是否可承受。限成人合意。",
+    palette: {"temperature":"聚光热","texture":"舞台","primary_intensity_default":0.7,"accent_intensity_default":0.8},
+    focus: ["agreed_audience","protocol_display","shame_arousal","exit_plan","debrief"],
+    avoid: ["非约定公开羞辱","儿童性化"],
   },
-  "group_power_field": {
-    "group": "关系动态",
-    "label": "多人权力场",
-    "description": "多人权力场靠焦点轮转、否决权与注视层级维持：焦点铃公开，最强者不得代行所有人同意。限全体成人可冷场退出。冷场铃响时所有焦点与加码清零。",
-    "palette": {
-      "temperature": "群热",
-      "texture": "多层目光",
-      "primary_intensity_default": 0.8,
-      "accent_intensity_default": 0.7
-    },
-    "focus": [
-      "focus_rotate",
-      "veto_right",
-      "gaze_hierarchy",
-      "coalition",
-      "aftercare_all"
-    ],
-    "avoid": [
-      "无否决的轮奸美化",
-      "儿童性化"
-    ],
-    "mustCover": [
-      "谁主导谁否决",
-      "注视与轮转规则",
-      "每个参与者的事后安抚",
-      "退出权"
-    ],
-    "writingGuide": "多人不是混沌。否决与退出优先。限已完成设定成年礼的成人；须可协商、可中断；禁止儿童性化。 别把它拆成并列清单；最好让谁主导谁否决先点火，再由注视与轮转规则把局势推离舒适区，最后让每个参与者的事后安抚在事后留下回味、愧意或依赖，整段才会有会继续发酵的张力。",
-    "antiPatterns": [
-      "无否决轮奸当甜",
-      "忽略某人安抚",
-      "多人轮转没有主导与否决规则，焦点混成噪音",
-      "某个参与者只被当背景，没有独立安抚和退出权",
-      "注视结构不清，权力场变成排队清单"
-    ],
-    "densityHint": 320,
-    "signals": [
-      "多人",
-      "否决",
-      "轮转",
-      "注视",
-      "退出",
-      "谁主导谁否决",
-      "注视与轮转规则",
-      "每个参与者的事后安抚",
-      "退出权"
-    ]
-  }
+  group_power_field: {
+    group: "关系动态",
+    label: "多人权力场",
+    description:
+      "焦点铃与否决牌全场可见，最强者不得代行同意。每人有退出权与单独安抚。全体成人，冷场可清零。",
+    palette: {"temperature":"群热","texture":"多层目光","primary_intensity_default":0.8,"accent_intensity_default":0.7},
+    focus: ["focus_rotate","veto_right","gaze_hierarchy","coalition","aftercare_all"],
+    avoid: ["无否决的轮奸美化","儿童性化"],
+  },
 };
