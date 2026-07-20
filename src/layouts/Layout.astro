@@ -325,7 +325,8 @@ const { title } = Astro.props;
           top: 0;
           left: 0;
           right: 0;
-          z-index: 8200;
+          /* 介于遮罩(8300)与抽屉(8400)之间：打开菜单时汉堡仍可点关闭 */
+          z-index: 8350;
           min-height: calc(48px + env(safe-area-inset-top, 0px));
           padding: env(safe-area-inset-top, 0px) 12px 8px 12px;
           background: var(--color-glass);
@@ -338,8 +339,8 @@ const { title } = Astro.props;
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          width: 40px;
-          height: 40px;
+          width: 32px;
+          height: 32px;
           margin: 0;
           padding: 0;
           border: 1px solid var(--color-accent-border);
@@ -348,6 +349,10 @@ const { title } = Astro.props;
           color: var(--color-accent);
           cursor: pointer;
           flex-shrink: 0;
+        }
+        .app-mobile-nav-btn svg {
+          width: 16px;
+          height: 16px;
         }
         .app-mobile-nav-btn:focus-visible {
           outline: 2px solid var(--color-focus-ring);
@@ -372,6 +377,7 @@ const { title } = Astro.props;
           display: block;
           position: fixed;
           inset: 0;
+          /* 叠放：主内容 < 遮罩(8300) < 顶栏(8350) < 侧栏(8400) < 助手(8500) */
           z-index: 8300;
           background: oklch(12% 0.02 285 / 0.55);
           opacity: 0;
