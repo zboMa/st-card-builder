@@ -12,12 +12,14 @@ import { PRESETS as adaptive } from './adaptive.mjs';
 import { PRESETS as multi } from './multi.mjs';
 import { PRESETS as edging } from './edging.mjs';
 import { PRESETS as clothed } from './clothed.mjs';
+import { PRESETS as named } from './named.mjs';
+import { PRESETS as multiAct } from './multiAct.mjs';
 
 export var EROTIC_POSTURE_PRESETS = Object.assign(
   {},
   face, rear, riding, side, standing, kneeling,
   restraint, mirror, carry, scene, adaptive, multi,
-  edging, clothed
+  edging, clothed, named, multiAct
 );
 
 export var EROTIC_POSTURE_IDS = Object.keys(EROTIC_POSTURE_PRESETS);
