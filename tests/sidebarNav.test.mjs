@@ -24,9 +24,9 @@ const EXPECTED_MENU = {
   '小说': [
     'novel-source',
     'novel-chapters',
+    'novel-analyze',
     'novel-character-setup',
     'novel-greetings',
-    'novel-analyze',
     'novel-characters',
     'novel-worldbook',
 
@@ -145,7 +145,7 @@ describe('sidebar navigation contract', function() {
     assert.match(charSrc, /char-tags-tip/);
     assert.match(charSrc, /form-section char-tags-section/);
     assert.match(charSrc, /char-tags-add-row/);
-    assert.match(charSrc, /btn-ai-tag/);
+    assert.match(charSrc, /btn btn-sm btn-ai-tag/);
     assert.match(charSrc, /class="btn btn-sm"/);
     assert.doesNotMatch(charSrc, /char-tags-hint/);
     const indexSrc = readFileSync(join(root, 'src/pages/index.astro'), 'utf8');
@@ -259,29 +259,28 @@ describe('sidebar navigation contract', function() {
     assert.match(src, /JSON 实时追踪/);
   });
 
-  it('角色试聊：标题行右上操作 + flex 占满 + 对话区内滚', function() {
+  it('角色试聊：右上角配置按钮 + 顶部滑出浮层 + flex 占满 + 对话区内滚', function() {
     const chat = readFileSync(join(root, 'src/components/ChatPlayground.astro'), 'utf8');
     assert.match(chat, /chat-panel-header/);
     assert.match(chat, /chat-header-actions/);
     // 操作控件在标题行内（HTML 段，脚本前）
     const htmlEnd = chat.indexOf('<style>');
     const htmlPart = htmlEnd > 0 ? chat.slice(0, htmlEnd) : chat;
-    assert.match(htmlPart, /chat-header-actions[\s\S]*chatWbIndicator/);
-    assert.match(htmlPart, /chat-header-actions[\s\S]*chatTokenIndicator/);
-    assert.match(htmlPart, /chat-header-actions[\s\S]*chatShowPrompt/);
-    assert.match(htmlPart, /chat-header-actions[\s\S]*btnChatReset/);
-    assert.match(htmlPart, /chat-header-actions[\s\S]*btnChatRegenerate/);
-    // 重置/重生成在调试右侧（同一行顺序）
-    const debugIdx = htmlPart.indexOf('chatShowPrompt');
-    const resetIdx = htmlPart.indexOf('btnChatReset');
-    const regenIdx = htmlPart.indexOf('btnChatRegenerate');
-    assert.ok(debugIdx > 0 && resetIdx > debugIdx, '重置应在调试右侧');
-    assert.ok(regenIdx > resetIdx, '重新生成应在重置之后');
-    // 小号 ghost 按钮与指示器同行（宽度由 btn-sm / btn-ghost 承担）
+    assert.match(htmlPart, /id="btnChatConfig"/);
+    // 右上角仅配置按钮；其余在滑出浮层
+    const headerChunk = htmlPart.match(/class="chat-header-actions">[\s\S]*?<\/div>/);
+    assert.ok(headerChunk, 'header actions missing');
+    assert.match(headerChunk[0], /btnChatConfig/);
+    assert.doesNotMatch(headerChunk[0], /btnChatReset|chatWbIndicator|chatShowPrompt/);
+    assert.match(htmlPart, /chatConfigDrawer[\s\S]*chatWbIndicator/);
+    assert.match(htmlPart, /chatConfigDrawer[\s\S]*chatTokenIndicator/);
+    assert.match(htmlPart, /chatConfigDrawer[\s\S]*chatShowPrompt/);
+    assert.match(htmlPart, /chatConfigDrawer[\s\S]*btnChatReset/);
+    assert.match(htmlPart, /chatConfigDrawer[\s\S]*btnChatRegenerate/);
+    assert.match(htmlPart, /chatConfigDrawer[\s\S]*chatTemperature/);
+    // 小号 ghost 按钮
     assert.match(htmlPart, /btn-sm btn-ghost btn-chat-ctrl/);
-    // 配置区不含重置/调试开关
-    assert.doesNotMatch(htmlPart, /chat-controls[\s\S]*btnChatReset/);
-    assert.doesNotMatch(chat, /chat-setting-extra/);
+    assert.match(chat, /chat-config-drawer/);
     assert.match(chat, /chat-controls/);
     assert.match(chat, /id="chatMessages"/);
     assert.match(chat, /chat-input-area/);
@@ -299,7 +298,7 @@ describe('sidebar navigation contract', function() {
     assert.match(layout, /\.chat-playground\s+\.chat-conversation/);
   });
 
-  it('小说菜单顺序为 资料→拆章→设定→开场白→分析→人物列表→世界书条目→文风', function() {
+  it('小说菜单顺序为 资料→拆章→分析→设定→开场白→人物列表→世界书条目→文风', function() {
     const src = readFileSync(join(root, 'src/components/AppSidebar.astro'), 'utf8');
     let last = -1;
     EXPECTED_MENU['小说'].forEach(function(viewId) {

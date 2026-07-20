@@ -221,24 +221,73 @@ export function registerCardManager(ctx) {
         altGreetingCount: Array.isArray(window.__altGreetings__) ? window.__altGreetings__.length : 0,
       });
     box.hidden = false;
-    summaryEl.textContent = check.summary || (check.ok ? '检查通过' : '存在问题');
-    if (!check.items || !check.items.length) {
-      listEl.innerHTML = '<li>当前卡可导出 JSON' + (check.canExportPng ? ' / PNG' : '（PNG 需头像）') + '</li>';
-      return;
+    var items = check.items || [];
+    var critical = items.filter(function(it) { return it.level === 'critical'; }).length;
+    var warning = items.filter(function(it) { return it.level === 'warning'; }).length;
+    var countText;
+    if (!items.length) {
+      countText = check.ok
+        ? ('通过 · 可导出 JSON' + (check.canExportPng ? ' / PNG' : ''))
+        : (check.summary || '存在问题');
+    } else {
+      countText = '严重 ' + critical + ' · 警告 ' + warning;
+      if (check.summary) countText += ' · ' + check.summary;
     }
-    listEl.innerHTML = check.items.map(function(it) {
-      var cls = it.level === 'critical' ? 'is-critical' : (it.level === 'warning' ? 'is-warning' : '');
-      var jump = it.view
-        ? '<button type="button" class="export-checklist-jump" data-view="' + escapeHtml(it.view) + '">去处理</button>'
-        : '';
-      return '<li class="' + cls + '"><span>' + escapeHtml(it.message) + '</span>' + jump + '</li>';
-    }).join('');
+    summaryEl.textContent = countText;
+    summaryEl.classList.toggle('is-critical', critical > 0);
+    summaryEl.classList.toggle('is-warning', critical === 0 && warning > 0);
+
+    if (!items.length) {
+      listEl.innerHTML = '<li>当前卡可导出 JSON' + (check.canExportPng ? ' / PNG' : '（PNG 需头像）') + '</li>';
+    } else {
+      listEl.innerHTML = items.map(function(it) {
+        var cls = it.level === 'critical' ? 'is-critical' : (it.level === 'warning' ? 'is-warning' : '');
+        var jump = it.view
+          ? '<button type="button" class="export-checklist-jump" data-view="' + escapeHtml(it.view) + '">去处理</button>'
+          : '';
+        return '<li class="' + cls + '"><span>' + escapeHtml(it.message) + '</span>' + jump + '</li>';
+      }).join('');
+    }
     listEl.querySelectorAll('.export-checklist-jump').forEach(function(btn) {
       btn.addEventListener('click', function() {
         var view = btn.getAttribute('data-view');
+        closeExportChecklistModal();
         if (view) goToView(view);
       });
     });
+  };
+
+  function openExportChecklistModal() {
+    var modal = ctx.$('exportChecklistModal');
+    if (!modal) return;
+    modal.hidden = false;
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('export-checklist-modal-open');
+  }
+
+  function closeExportChecklistModal() {
+    var modal = ctx.$('exportChecklistModal');
+    if (!modal) return;
+    modal.hidden = true;
+    modal.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('export-checklist-modal-open');
+  }
+
+  panel.bindExportChecklistUi = function () {
+    var openBtn = ctx.$('btnOpenExportChecklist');
+    var modal = ctx.$('exportChecklistModal');
+    if (openBtn && !openBtn._exportChecklistBound) {
+      openBtn._exportChecklistBound = true;
+      openBtn.addEventListener('click', function() {
+        openExportChecklistModal();
+      });
+    }
+    if (modal && !modal._exportChecklistBound) {
+      modal._exportChecklistBound = true;
+      modal.querySelectorAll('[data-export-checklist-close]').forEach(function(el) {
+        el.addEventListener('click', closeExportChecklistModal);
+      });
+    }
   };
 
   // ---- Debounced update ----
@@ -645,6 +694,8 @@ export function registerCardManager(ctx) {
 
   // ---- Event bindings ----
   panel.bind = function () {
+    panel.bindExportChecklistUi();
+
     var btnNewDraft = ctx.$('btnNewDraft');
     if (btnNewDraft) {
       btnNewDraft.addEventListener('click', function () {

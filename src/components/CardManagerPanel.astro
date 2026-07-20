@@ -17,13 +17,28 @@
 
   <div id="importStatusBar" class="card-manager-import-status" style="display:none;"></div>
 
-  <div id="exportChecklistBox" class="export-checklist" hidden>
-    <div class="export-checklist-head">
-      <strong>导出前检查</strong>
+  <div id="exportChecklistBox" class="export-checklist-bar" hidden>
+    <div class="export-checklist-bar__main">
+      <span class="export-checklist-bar__label">导出前检查</span>
+      <span id="exportChecklistSummary" class="export-checklist-bar__summary"></span>
+    </div>
+    <div class="export-checklist-bar__actions">
+      <button type="button" id="btnOpenExportChecklist" class="btn-icon export-checklist-bar__icon" title="查看检查详情" aria-label="查看检查详情">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      </button>
       <button type="button" id="btnRefreshExportChecklist" class="btn btn-fetch btn-sm">刷新</button>
     </div>
-    <p id="exportChecklistSummary" class="export-checklist-summary"></p>
-    <ul id="exportChecklistItems" class="export-checklist-items"></ul>
+  </div>
+
+  <div id="exportChecklistModal" class="export-checklist-modal" hidden aria-hidden="true">
+    <div class="export-checklist-modal__backdrop ui-modal-backdrop" data-export-checklist-close></div>
+    <div class="ui-modal-dialog export-checklist-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="exportChecklistModalTitle">
+      <div class="export-checklist-modal__head">
+        <h3 id="exportChecklistModalTitle">导出前检查</h3>
+        <button type="button" class="btn-icon" data-export-checklist-close aria-label="关闭">×</button>
+      </div>
+      <ul id="exportChecklistItems" class="export-checklist-items"></ul>
+    </div>
   </div>
 
   <div id="cardManagerList" class="card-manager-list" aria-live="polite"></div>
@@ -72,28 +87,97 @@
     margin-bottom: 12px;
   }
 
-  .export-checklist {
-    margin-bottom: 14px;
-    padding: 10px 12px;
+  .export-checklist-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 12px;
+    padding: 8px 10px;
     border: 1px solid var(--color-border-subtle);
     border-radius: 10px;
     background: var(--color-surface-elevated);
+    min-width: 0;
   }
-  .export-checklist-head {
+  .export-checklist-bar__main {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    flex: 1;
+  }
+  .export-checklist-bar__label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .export-checklist-bar__summary {
+    font-size: 0.72rem;
+    color: var(--color-text-muted);
+    line-height: 1.35;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+  .export-checklist-bar__summary.is-critical {
+    color: #fecaca;
+  }
+  .export-checklist-bar__summary.is-warning {
+    color: #fde68a;
+  }
+  .export-checklist-bar__actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  .export-checklist-bar__actions .btn {
+    width: auto;
+    min-width: 0;
+    margin: 0;
+    padding: 5px 10px;
+    font-size: 0.72rem;
+  }
+  .export-checklist-bar__icon {
+    width: 32px;
+    height: 32px;
+  }
+
+  .export-checklist-modal[hidden] {
+    display: none !important;
+  }
+  .export-checklist-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 9200;
+    display: grid;
+    place-items: center;
+    padding: 16px;
+  }
+  .export-checklist-modal__backdrop {
+    position: absolute;
+    inset: 0;
+  }
+  .export-checklist-modal__dialog {
+    position: relative;
+    z-index: 1;
+    width: min(440px, 100%);
+    max-height: min(70vh, 520px);
+    display: flex;
+    flex-direction: column;
+    padding: 14px 16px;
+  }
+  .export-checklist-modal__head {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 8px;
-    margin-bottom: 6px;
+    margin-bottom: 10px;
   }
-  .export-checklist-head strong {
-    font-size: 0.82rem;
-  }
-  .export-checklist-summary {
-    margin: 0 0 8px 0;
-    font-size: 0.74rem;
-    color: var(--color-text-muted);
-    line-height: 1.4;
+  .export-checklist-modal__head h3 {
+    margin: 0;
+    font-size: 0.9rem;
   }
   .export-checklist-items {
     list-style: none;
@@ -102,6 +186,8 @@
     display: flex;
     flex-direction: column;
     gap: 6px;
+    overflow-y: auto;
+    min-height: 0;
   }
   .export-checklist-items li {
     display: flex;

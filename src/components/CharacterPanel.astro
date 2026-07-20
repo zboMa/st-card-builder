@@ -46,7 +46,7 @@
       <div class="char-tags-add-row">
         <input type="text" id="charTagInput" class="char-tag-input" placeholder="输入标签，回车添加" autocomplete="off" />
         <button type="button" id="btnAddCharTag" class="btn btn-sm">添加</button>
-        <button type="button" id="btnAiGenCharTags" class="btn-ai-tag">AI 生成</button>
+        <button type="button" id="btnAiGenCharTags" class="btn btn-sm btn-ai-tag">AI 生成</button>
       </div>
     </div>
     <span id="charTagsAiTip" class="ui-status-tip char-tags-ai-tip" role="status" aria-live="polite"></span>
@@ -86,11 +86,28 @@
     display: flex;
     gap: 6px;
     align-items: center;
+    flex-wrap: wrap;
   }
   .char-tag-input {
     flex: 1;
     min-width: 100px;
     padding: 5px 8px;
     font-size: 0.78rem;
+  }
+  .char-tags-add-row .btn {
+    width: auto;
+    min-width: 0;
+    margin: 0;
+    flex-shrink: 0;
+  }
+  .btn-ai-tag {
+    background: var(--color-accent-soft);
+    border-color: var(--color-accent-border);
+    color: var(--color-accent-hover);
+  }
+  .btn-ai-tag:hover {
+    background: oklch(76% 0.095 310 / 0.16);
+    border-color: var(--color-accent);
+    color: var(--color-text);
   }
 </style>
