@@ -1,16 +1,41 @@
 ---
 ---
 <div class="panel varcard-panel">
+  <div id="vcCorruptionGap" class="vc-corruption-gap" hidden role="status">
+    <strong>恶堕进度缺失</strong>
+    <span id="vcCorruptionGapMsg">已启用恶堕，但 MVU 尚无「恶堕进度」变量。</span>
+    <button type="button" class="btn btn-sm vc-gap-action" id="vcGapInferBtn">从卡推定补齐</button>
+  </div>
+
   <div class="vc-node-workbench">
     <div class="vc-workbench-head">
       <div>
         <h2>MVU 变量节点</h2>
         <!-- 整套生成在状态栏；本页负责链路与变量查看/编辑 -->
-        <p>节点编排与变量查看/编辑。整套变量请在「状态栏」生成并覆盖写入。</p>
+        <p>节点编排与变量查看/编辑。整套变量请在「状态栏」生成并覆盖写入；也可「从卡推定变量」规则合并。</p>
       </div>
       <div class="vc-workbench-meta">
         <span class="vc-mode-pill">手动链路模式</span>
+        <button type="button" class="btn btn-sm" id="btnVcInfer">从卡推定变量</button>
         <span id="vcStatus" class="vc-status">自动同步角色卡中的 MVU…</span>
+      </div>
+    </div>
+
+    <div id="vcInferPanel" class="vc-infer-panel" hidden>
+      <div class="vc-infer-head">
+        <strong>从卡推定 · 候选变量</strong>
+        <span id="vcInferCount" class="vc-infer-count">0</span>
+        <div class="vc-infer-head-actions">
+          <button type="button" class="btn btn-ghost btn-sm" id="vcInferSelectAll">全选新增</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="vcInferSelectNone">全不选</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="vcInferCancel">关闭</button>
+        </div>
+      </div>
+      <p class="vc-infer-tip">勾选后合并进 <code>zmer_mvu_design</code>（已有路径默认不勾）。不覆盖整套 AI 生成，仅 upsert。</p>
+      <div id="vcInferList" class="vc-infer-list"></div>
+      <div class="vc-infer-actions">
+        <button type="button" class="btn" id="vcInferApply">应用合并</button>
+        <button type="button" class="btn btn-primary" id="vcInferApplyInject">应用并注入</button>
       </div>
     </div>
 
@@ -289,6 +314,117 @@
     color: var(--color-text-muted);
     word-break: break-word;
     line-height: 1.45;
+  }
+
+  .vc-corruption-gap {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    margin: 0 0 12px;
+    padding: 10px 12px;
+    border: 1px solid rgba(248, 113, 113, 0.45);
+    border-radius: 8px;
+    background: linear-gradient(90deg, rgba(127, 29, 29, 0.55), rgba(15, 23, 42, 0.9));
+    color: #fecaca;
+    font-size: 0.78rem;
+    line-height: 1.45;
+  }
+  .vc-corruption-gap[hidden] { display: none !important; }
+  .vc-corruption-gap strong {
+    color: #fee2e2;
+    letter-spacing: 0.02em;
+  }
+  .vc-gap-action { flex-shrink: 0; }
+
+  .vc-infer-panel {
+    margin: 0 0 14px;
+    padding: 12px;
+    border: 1px solid rgba(56, 189, 248, 0.28);
+    border-radius: 8px;
+    background: rgba(15, 23, 42, 0.88);
+  }
+  .vc-infer-panel[hidden] { display: none !important; }
+  .vc-infer-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+  .vc-infer-head strong {
+    color: var(--color-text-secondary);
+    font-size: 0.86rem;
+  }
+  .vc-infer-count {
+    padding: 2px 7px;
+    border-radius: 999px;
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    color: #7dd3fc;
+    font-size: 0.62rem;
+  }
+  .vc-infer-head-actions {
+    margin-left: auto;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .vc-infer-tip {
+    margin: 0 0 8px;
+    color: var(--color-text-muted);
+    font-size: 0.68rem;
+    line-height: 1.5;
+  }
+  .vc-infer-list {
+    max-height: 240px;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 10px;
+  }
+  .vc-infer-row {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 8px;
+    align-items: start;
+    padding: 6px 8px;
+    border-radius: 6px;
+    border: 1px solid rgba(51, 65, 85, 0.8);
+    background: rgba(2, 6, 23, 0.55);
+    font-size: 0.72rem;
+  }
+  .vc-infer-row.is-present { opacity: 0.72; }
+  .vc-infer-row-main { min-width: 0; }
+  .vc-infer-path {
+    color: #e2e8f0;
+    font-family: var(--font-mono, ui-monospace, monospace);
+    word-break: break-all;
+  }
+  .vc-infer-meta {
+    margin-top: 2px;
+    color: var(--color-text-muted);
+    font-size: 0.64rem;
+    line-height: 1.4;
+  }
+  .vc-infer-badge {
+    flex-shrink: 0;
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    color: #94a3b8;
+    font-size: 0.58rem;
+    white-space: nowrap;
+  }
+  .vc-infer-badge.is-new {
+    border-color: rgba(52, 211, 153, 0.4);
+    color: #86efac;
+  }
+  .vc-infer-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: flex-end;
   }
 
   .vc-node-canvas {
@@ -2721,4 +2857,214 @@
   });
 
 })();
+</script>
+
+<script>
+  import {
+    inferMvuCandidatesFromCard,
+    mergeCandidatesIntoDesign,
+    corruptionProgressGap,
+  } from '../lib/mvu/inferFromCard.mjs';
+  import { STATUS_BAR_EXT_KEY } from '../lib/statusBar.mjs';
+
+  (function setupMvuInferUi() {
+    var gapEl = document.getElementById('vcCorruptionGap');
+    var gapMsg = document.getElementById('vcCorruptionGapMsg');
+    var gapBtn = document.getElementById('vcGapInferBtn');
+    var btnInfer = document.getElementById('btnVcInfer');
+    var panel = document.getElementById('vcInferPanel');
+    var listEl = document.getElementById('vcInferList');
+    var countEl = document.getElementById('vcInferCount');
+    var btnSelectAll = document.getElementById('vcInferSelectAll');
+    var btnSelectNone = document.getElementById('vcInferSelectNone');
+    var btnCancel = document.getElementById('vcInferCancel');
+    var btnApply = document.getElementById('vcInferApply');
+    var btnApplyInject = document.getElementById('vcInferApplyInject');
+
+    /** @type {import('../lib/mvu/inferFromCard.mjs').MvuCandidate[]} */
+    var lastCandidates = [];
+
+    function esc(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function buildCardLike() {
+      var name = (document.getElementById('charName') || {}).value || '';
+      var desc = (document.getElementById('charDesc') || {}).value || '';
+      var wb = window.__getWorldbookEntries__ ? window.__getWorldbookEntries__() : [];
+      var adult = window.__getNsfwConfig__ ? window.__getNsfwConfig__() : {};
+      var statusBar = window.__getCardExtension__
+        ? window.__getCardExtension__(STATUS_BAR_EXT_KEY)
+        : null;
+      var mvuDesign = window.__getCardExtension__
+        ? window.__getCardExtension__('zmer_mvu_design')
+        : null;
+      return {
+        name: String(name || '').trim(),
+        description: String(desc || ''),
+        worldbook: wb,
+        adultConfig: adult || {},
+        statusBarDesign: statusBar,
+        mvuDesign: mvuDesign,
+      };
+    }
+
+    function refreshCorruptionGap() {
+      if (!gapEl) return;
+      var gap = corruptionProgressGap(buildCardLike());
+      gapEl.hidden = !gap.gap;
+      if (gapMsg && gap.message) gapMsg.textContent = gap.message;
+    }
+
+    function renderInferList() {
+      if (!listEl) return;
+      if (!lastCandidates.length) {
+        listEl.innerHTML = '<div class="vc-infer-meta">未推定到候选。请先配置状态栏模块或开启恶堕/成人层。</div>';
+        if (countEl) countEl.textContent = '0';
+        return;
+      }
+      listEl.innerHTML = lastCandidates.map(function(c, i) {
+        var checked = c.selected !== false ? ' checked' : '';
+        var present = c.alreadyPresent ? ' is-present' : '';
+        var badge = c.alreadyPresent
+          ? '<span class="vc-infer-badge">已有</span>'
+          : '<span class="vc-infer-badge is-new">新增</span>';
+        return (
+          '<label class="vc-infer-row' + present + '">'
+          + '<input type="checkbox" data-infer-idx="' + i + '"' + checked + ' />'
+          + '<span class="vc-infer-row-main">'
+          + '<div class="vc-infer-path">' + esc(c.path) + '</div>'
+          + '<div class="vc-infer-meta">'
+          + esc(c.name) + ' · ' + esc(c.type)
+          + ' · 初值 ' + esc(c.initial)
+          + ' · ' + esc(c.source)
+          + '</div>'
+          + '<div class="vc-infer-meta">' + esc(c.updateHint) + '</div>'
+          + '</span>'
+          + badge
+          + '</label>'
+        );
+      }).join('');
+      if (countEl) {
+        var nNew = lastCandidates.filter(function(c) { return !c.alreadyPresent; }).length;
+        countEl.textContent = lastCandidates.length + '（新增 ' + nNew + '）';
+      }
+    }
+
+    function openInferPanel() {
+      lastCandidates = inferMvuCandidatesFromCard(buildCardLike());
+      if (panel) panel.hidden = false;
+      renderInferList();
+    }
+
+    function closeInferPanel() {
+      if (panel) panel.hidden = true;
+    }
+
+    function selectedPathsFromUi() {
+      if (!listEl) return [];
+      var paths = [];
+      listEl.querySelectorAll('input[data-infer-idx]').forEach(function(input) {
+        if (!input.checked) return;
+        var idx = Number(input.getAttribute('data-infer-idx'));
+        var c = lastCandidates[idx];
+        if (c && c.path) paths.push(c.path);
+      });
+      return paths;
+    }
+
+    function applyInfer(inject) {
+      var paths = selectedPathsFromUi();
+      if (!paths.length) {
+        alert('请至少勾选一个候选变量');
+        return;
+      }
+      var existing = window.__getCardExtension__
+        ? window.__getCardExtension__('zmer_mvu_design')
+        : null;
+      var merged = mergeCandidatesIntoDesign(existing, lastCandidates, {
+        selectedPaths: paths,
+        onlySelected: true,
+      });
+      var design = {
+        variables: merged.variables,
+        summary: merged.summary || ('从卡推定 +' + merged.added),
+        source: 'infer_from_card',
+      };
+      if (!window.__applyExternalVariableDesign__) {
+        alert('MVU 注入未就绪');
+        return;
+      }
+      var result = window.__applyExternalVariableDesign__({
+        design: design,
+        source: 'infer_from_card',
+        inject: !!inject,
+        message: inject
+          ? ('已推定合并并注入（+' + merged.added + ' / 更新 ' + merged.updated + '）')
+          : ('已推定合并到设计（+' + merged.added + ' / 更新 ' + merged.updated + '）'),
+      });
+      closeInferPanel();
+      refreshCorruptionGap();
+      return result;
+    }
+
+    if (btnInfer) btnInfer.addEventListener('click', openInferPanel);
+    if (gapBtn) gapBtn.addEventListener('click', openInferPanel);
+    if (btnCancel) btnCancel.addEventListener('click', closeInferPanel);
+    if (btnSelectAll) {
+      btnSelectAll.addEventListener('click', function() {
+        lastCandidates.forEach(function(c) {
+          if (!c.alreadyPresent) c.selected = true;
+        });
+        renderInferList();
+      });
+    }
+    if (btnSelectNone) {
+      btnSelectNone.addEventListener('click', function() {
+        lastCandidates.forEach(function(c) { c.selected = false; });
+        renderInferList();
+      });
+    }
+    if (btnApply) btnApply.addEventListener('click', function() { applyInfer(false); });
+    if (btnApplyInject) btnApplyInject.addEventListener('click', function() { applyInfer(true); });
+
+    window.__mvuInferApi__ = {
+      infer: function(cardLike) {
+        return inferMvuCandidatesFromCard(cardLike || buildCardLike());
+      },
+      gap: function(cardLike) {
+        return corruptionProgressGap(cardLike || buildCardLike());
+      },
+      merge: function(design, candidates, opts) {
+        return mergeCandidatesIntoDesign(design, candidates, opts);
+      },
+      buildCardLike: buildCardLike,
+      refreshGap: refreshCorruptionGap,
+      openPanel: openInferPanel,
+    };
+
+    // 挂到助手 MVU API（若主脚本已就绪）
+    function attachAssistant() {
+      if (!window.__assistantMvuApi__) return;
+      window.__assistantMvuApi__.inferVariables = function() {
+        var cardLike = buildCardLike();
+        return {
+          candidates: inferMvuCandidatesFromCard(cardLike),
+          corruptionGap: corruptionProgressGap(cardLike),
+        };
+      };
+    }
+    attachAssistant();
+    setTimeout(attachAssistant, 800);
+    setTimeout(attachAssistant, 2000);
+
+    refreshCorruptionGap();
+    setInterval(refreshCorruptionGap, 1600);
+    window.addEventListener('nsfw-config-changed', refreshCorruptionGap);
+    window.addEventListener('card-builder-data-changed', refreshCorruptionGap);
+  })();
 </script>

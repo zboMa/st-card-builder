@@ -28,6 +28,12 @@ import NovelAnalyzePanel from '../components/novel/NovelAnalyzePanel.astro';
 import NovelCharactersPanel from '../components/novel/NovelCharactersPanel.astro';
 import NovelWorldbookPanel from '../components/novel/NovelWorldbookPanel.astro';
 import NovelStylePanel from '../components/novel/NovelStylePanel.astro';
+import StoryStudioApp from '../components/storyStudio/StoryStudioApp.astro';
+import StoryManagePanel from '../components/storyStudio/StoryManagePanel.astro';
+import StoryGraphPanel from '../components/storyStudio/StoryGraphPanel.astro';
+import StoryOutlinePanel from '../components/storyStudio/StoryOutlinePanel.astro';
+import StoryWritePanel from '../components/storyStudio/StoryWritePanel.astro';
+import StoryReadPanel from '../components/storyStudio/StoryReadPanel.astro';
 import AiTaskCenterUI from '../components/AiTaskCenterUI.astro';
 ---
 
@@ -35,6 +41,7 @@ import AiTaskCenterUI from '../components/AiTaskCenterUI.astro';
   <PromptStoreBootstrap />
   <AiTaskCenterUI />
   <NovelWorkshopApp />
+  <StoryStudioApp />
   <ParticleCanvas />
 
   <!-- 侧栏（含品牌区）+ 主内容 + 右栏 AI 助手；各 view 常驻 DOM，切换仅显隐 -->
@@ -71,6 +78,11 @@ import AiTaskCenterUI from '../components/AiTaskCenterUI.astro';
       <div class="app-view" data-view="novel-characters"><NovelCharactersPanel /></div>
       <div class="app-view" data-view="novel-worldbook"><NovelWorldbookPanel /></div>
       <div class="app-view" data-view="novel-style"><NovelStylePanel /></div>
+      <div class="app-view" data-view="story-manage"><StoryManagePanel /></div>
+      <div class="app-view" data-view="story-graph"><StoryGraphPanel /></div>
+      <div class="app-view" data-view="story-outline"><StoryOutlinePanel /></div>
+      <div class="app-view" data-view="story-write"><StoryWritePanel /></div>
+      <div class="app-view" data-view="story-read"><StoryReadPanel /></div>
       <div class="app-view" data-view="chat"><ChatPlayground /></div>
       <div class="app-view" data-view="preview"><PreviewPanel /></div>
       <div class="app-view" data-view="auditor"><WorldbookAuditor /></div>

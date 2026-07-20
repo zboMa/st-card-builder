@@ -14,6 +14,7 @@ const TOOL_MIN_ARGS = {
   get_worldbook_list: {},
   get_worldbook_entry: { index: 0 },
   get_mvu_state: {},
+  infer_mvu_variables: {},
   get_novel_workspace: {},
   get_export_preview: {},
   export_card_check: {},
@@ -154,6 +155,21 @@ function createFullMockBridge(seed) {
     getWorldbook: function() { return state.worldbook.slice(); },
     setWorldbook: function(e) { state.worldbook = (e || []).slice(); },
     getMvu: function() { return state.mvu; },
+    inferMvuVariables: function() {
+      return {
+        candidates: [
+          {
+            name: '好感',
+            path: '角色.好感度',
+            type: 'number',
+            initial: 0,
+            updateHint: '互动增减',
+            source: 'statusbar:affection',
+          },
+        ],
+        corruptionGap: { gap: false, message: '', missingHint: '' },
+      };
+    },
     upsertMvu: function(d) { state.mvu.design = d; return { count: (d.variables || []).length }; },
     upsertMvuDesign: function(p) {
       state.mvu.design = (p && p.design) || p;

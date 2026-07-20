@@ -121,4 +121,31 @@ export var PRESETS = {
     focus: ["weather_pressure","humidity_touch","shelter_intimacy","sound_mask","morning_trace"],
     avoid: ["天气只当滤镜", "借留宿绕过同意", "忽略湿冷安全", "儿童性化"],
   },
+  all_women_black_stockings: {
+    group: "感官节奏",
+    label: "全员女性黑丝",
+    description:
+      "全员女性空间里，黑丝不是「给谁看」的制服贴纸，而是职场与晚宴共用的礼仪皮肤：哑光四十旦尼掩盖腿纹，亮面十五旦尼在灯下反一条细线，吊带扣压进腰窝的金属凉意先于任何抚摸。更衣间门帘内侧贴着着装公约——黑丝可穿可补不可撕、走丝要当场报修、谁有权伸手扶袜口。观看礼仪被改写：直视小腿是失礼，斜睨镜中倒影却被默许；同级之间互递补丝笔，下级不得评价上级的吊带颜色。触感写清尼龙与汗的摩擦差：并膝时袜面沙沙作响，指腹沿袜缝上行会先碰到加固跟，再碰到袜口松紧；汗湿后变黏，干后变涩，每一种都要改呼吸。晚宴结束后，高跟鞋踢掉、袜口勒痕发红，也要先问能不能碰。同意与可停写进同场：说停就松手，补丝优先于继续；撕袜须事先许可。限成人合意，禁止儿童性化；删掉黑丝仍无损情节即失败。",
+    palette: {"temperature":"灯下冷亮","texture":"尼龙沙沙","primary_intensity_default":0.6,"accent_intensity_default":0.85},
+    focus: ["all_women_gaze","black_nylon_friction","garter_etiquette","run_repair","stoppable_touch"],
+    avoid: ["只当换装贴图", "无同意撕袜", "忽略补丝与礼仪", "儿童性化"],
+  },
+  all_women_white_stockings: {
+    group: "感官节奏",
+    label: "全员女性白丝",
+    description:
+      "白丝在全女场域里承载洁净表演：晨间更衣室白雾、私汤回廊的水汽、排练厅镜前的脚尖练习——乳白薄纱会显出皮下青筋与一点点胭脂痕，比黑丝更怕脏、更怕被看见「不完美」。着装礼仪要求白丝入公共区前过检：起球、咖渍、袜口翻卷都要回柜更换；互相帮忙提袜跟时，目光落在脚踝骨而非大腿内侧。触感偏软偏凉：棉口吸汗发沉，蕾丝边刮过掌心发痒，静电让裙摆贴住袜面再突然弹开。摩擦写在跪坐垫上、木地板上、被汗浸湿后变半透明的瞬间——半透明本身不是许可，只是材质反应。社会触点落在洗衣房与晒衣绳：谁的白丝被公开晾出、谁借了备用双、谁因弄脏而道歉补货。同意可停：拒触、换袜、关灯遮腿随时生效，漂洗未完成不得把污渍当玩笑羞辱。限成人，禁止儿童性化；白丝不等于幼态符号。",
+    palette: {"temperature":"乳白凉","texture":"薄纱静电","primary_intensity_default":0.55,"accent_intensity_default":0.8},
+    focus: ["white_sheer_stain","cleanliness_ritual","static_cling","laundry_witness","consent_pause"],
+    avoid: ["白丝幼态化", "弄脏无善后", "半透明当默许", "儿童性化"],
+  },
+  all_women_sheer_stockings: {
+    group: "感官节奏",
+    label: "全员女性丝袜变体",
+    description:
+      "肉色、网眼、过膝与细纹提花在同一全女空间里按日程轮换，而不是一股脑堆在腿上。门厅挂着变体调度板：昼间肉色连裤袜对齐肤色差半号，晚间网袜配短靴只在酒吧层，过膝袜限宿舍与周末集训，提花假日才可外露。礼仪写清：肉色要「像没穿却更齐整」，网眼破洞当场换，过膝下滑须本人提或经允许代提。触感各异——肉色薄得像第二层皮，走路时袜裆缝压住耻骨边缘；网眼菱格勒进皮肤留浅格，指尖穿过网孔会先碰到凉空气再碰到热皮肉；过膝罗口箍住腿肚，坐下时边沿翻进一圈汗湿。社会触点是共享修补匣与尺码柜：谁借走了裸色备用、谁因网袜钩丝被点名，借用条要签字。调度板可改，但改前要口头确认；可停优先于换装好奇。限成人合意，禁止儿童性化；变体名目再多也不能写成未成年校服。",
+    palette: {"temperature":"变体轮换","texture":"皮感网勒","primary_intensity_default":0.58,"accent_intensity_default":0.82},
+    focus: ["variant_roster","nude_match","fishnet_grid","kneehigh_cuff","shared_repair_kit"],
+    avoid: ["变体堆砌无调度", "过膝当校服性化", "代提袜无允许", "儿童性化"],
+  },
 };

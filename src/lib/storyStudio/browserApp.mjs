@@ -1,0 +1,1037 @@
+/**
+ * 小说创作模块控制器：状态桥 + AI + 五视图渲染
+ */
+
+import {
+  normalizeNovel,
+  createEmptyNovel,
+  createEmptyChapter,
+  genStoryId,
+  toCatalogEntry,
+  upsertCatalogEntry,
+  removeCatalogEntry,
+  discardOutlineFrom,
+  syncChaptersFromOutline,
+} from './state.mjs';
+import {
+  loadCatalog,
+  saveCatalog,
+  loadNovel,
+  saveNovel,
+  deleteNovel,
+  loadActiveNovelId,
+  saveActiveNovelId,
+} from './idb.mjs';
+import { downloadNovelTxt } from './exportTxt.mjs';
+import { seedGraphFromCard, mergeGraphSeed } from './graphSeed.mjs';
+import { detectMvuStatusBarDesign, trySyncAfterChapter } from './mvuHook.mjs';
+import {
+  buildOutlineUserPrompt,
+  buildChapterUserPrompt,
+  graphBriefFromNovel,
+  outlineBriefFromNovel,
+  parseOutlineAiText,
+  CHILD_SAFETY_RULE,
+} from './prompts.mjs';
+
+var state = {
+  cardId: '',
+  catalog: [],
+  novel: null,
+  status: '',
+  busy: false,
+};
+
+function $(id) {
+  return document.getElementById(id);
+}
+
+function setStatus(msg) {
+  state.status = String(msg || '');
+  ['ssManageStatus', 'ssGraphStatus', 'ssOutlineStatus', 'ssWriteStatus', 'ssReadStatus'].forEach(function(id) {
+    var el = $(id);
+    if (el) el.textContent = state.status;
+  });
+}
+
+function getCardId() {
+  try {
+    var id = localStorage.getItem('st_v3_builder_current_id');
+    if (id) return id;
+  } catch (e) { /* ignore */ }
+  return state.cardId || 'default';
+}
+
+function getCardSeed() {
+  var charName = '';
+  var charDesc = '';
+  var wb = [];
+  try {
+    var nameEl = $('charName');
+    var descEl = $('charDesc');
+    if (nameEl) charName = nameEl.value || '';
+    if (descEl) charDesc = descEl.value || '';
+  } catch (e) { /* ignore */ }
+  if (window.__getWorldbookEntries__) {
+    try { wb = window.__getWorldbookEntries__() || []; } catch (e2) { wb = []; }
+  }
+  return { charName: charName, charDesc: charDesc, worldbookEntries: wb };
+}
+
+function promptText(id, fallback) {
+  if (window.__promptStore__ && window.__promptStore__.get) {
+    var t = window.__promptStore__.get(id);
+    if (t) return t;
+  }
+  return fallback || '';
+}
+
+async function callAI(userContent, systemExtra, signal) {
+  var apiUrlEl = $('apiUrl');
+  var apiKeyEl = $('apiKey');
+  var modelEl = $('modelSelect');
+  if (!apiUrlEl || !modelEl || !modelEl.value) throw new Error('未配置 AI 模型（请先到「AI 配置」）');
+  var messages = [];
+  if (systemExtra) messages.push({ role: 'system', content: systemExtra });
+  messages.push({ role: 'user', content: userContent });
+  var res = await fetch(String(apiUrlEl.value).replace(/\/$/, '') + '/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: 'Bearer ' + (apiKeyEl ? apiKeyEl.value.trim() : ''),
+    },
+    body: JSON.stringify({ model: modelEl.value, messages: messages, temperature: 0.7 }),
+    signal: signal,
+  });
+  if (!res.ok) throw new Error(res.status === 429 ? '429 限流' : 'HTTP ' + res.status);
+  var data = await res.json();
+  var text = data.choices && data.choices[0] && data.choices[0].message
+    ? data.choices[0].message.content
+    : '';
+  text = String(text || '').trim();
+  if (!text) throw new Error('模型返回空内容');
+  return text;
+}
+
+function runTracked(meta, fn) {
+  var center = window.__aiTaskCenter__;
+  if (center && typeof center.run === 'function') return center.run(meta, fn);
+  return fn({ signal: undefined, id: null });
+}
+
+function isAbort(err) {
+  if (window.__isAiAbortError__) return window.__isAiAbortError__(err);
+  return !!(err && (err.name === 'AbortError' || /abort|取消/i.test(String(err.message || ''))));
+}
+
+async function persistNovel() {
+  if (!state.novel) return;
+  var cardId = getCardId();
+  state.novel.cardId = cardId;
+  state.novel.updatedAt = Date.now();
+  state.novel = normalizeNovel(state.novel);
+  await saveNovel(cardId, state.novel.id, state.novel);
+  state.catalog = upsertCatalogEntry(state.catalog, state.novel);
+  await saveCatalog(cardId, state.catalog);
+  await saveActiveNovelId(cardId, state.novel.id);
+}
+
+async function reloadCatalog() {
+  var cardId = getCardId();
+  state.cardId = cardId;
+  state.catalog = await loadCatalog(cardId);
+  var activeId = await loadActiveNovelId(cardId);
+  if (activeId) {
+    var raw = await loadNovel(cardId, activeId);
+    state.novel = raw ? normalizeNovel(raw) : null;
+  } else {
+    state.novel = null;
+  }
+  if (!state.novel && state.catalog.length) {
+    var first = state.catalog[0];
+    var raw2 = await loadNovel(cardId, first.id);
+    if (raw2) {
+      state.novel = normalizeNovel(raw2);
+      await saveActiveNovelId(cardId, state.novel.id);
+    }
+  }
+}
+
+function escapeHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function renderManage() {
+  var list = $('ssNovelList');
+  if (!list) return;
+  if (!state.catalog.length) {
+    list.innerHTML = '<div class="ss-empty">尚无小说。点击「新建小说」开始。</div>';
+    return;
+  }
+  var activeId = state.novel ? state.novel.id : '';
+  list.innerHTML = state.catalog.map(function(item) {
+    var active = item.id === activeId ? ' is-active' : '';
+    return (
+      '<div class="ss-novel-item' + active + '" data-novel-id="' + escapeHtml(item.id) + '">'
+      + '<div class="ss-novel-item__main">'
+      + '<strong class="ss-novel-title">' + escapeHtml(item.title || '未命名') + '</strong>'
+      + '<span class="ss-novel-meta">' + (item.chapterCount || 0) + ' 章 · '
+      + (item.outlineCount || 0) + ' 大纲</span>'
+      + '</div>'
+      + '<div class="ss-novel-item__actions">'
+      + '<button type="button" class="btn btn-sm btn-ghost" data-ss-act="open">打开</button>'
+      + '<button type="button" class="btn btn-sm btn-ghost" data-ss-act="rename">重命名</button>'
+      + '<button type="button" class="btn btn-sm btn-ghost" data-ss-act="export">导出 TXT</button>'
+      + '<button type="button" class="btn btn-sm btn-delete" data-ss-act="delete">删除</button>'
+      + '</div></div>'
+    );
+  }).join('');
+}
+
+function renderGraph() {
+  var box = $('ssGraphNodes');
+  var edgeBox = $('ssGraphEdges');
+  var title = $('ssCurrentNovelTitle');
+  if (title) title.textContent = state.novel ? state.novel.title : '（未打开小说）';
+  if (!box || !edgeBox) return;
+  if (!state.novel) {
+    box.innerHTML = '<div class="ss-empty">请先在「管理」打开一部小说</div>';
+    edgeBox.innerHTML = '';
+    return;
+  }
+  var g = state.novel.graph || { nodes: [], edges: [] };
+  box.innerHTML = (g.nodes || []).map(function(n, i) {
+    return (
+      '<div class="ss-graph-row" data-node-idx="' + i + '">'
+      + '<select class="ss-node-type" data-f="type">'
+      + '<option value="character"' + (n.type === 'character' ? ' selected' : '') + '>人物</option>'
+      + '<option value="location"' + (n.type === 'location' ? ' selected' : '') + '>地点</option>'
+      + '<option value="other"' + (n.type === 'other' ? ' selected' : '') + '>其他</option>'
+      + '</select>'
+      + '<input class="ss-node-name" data-f="name" value="' + escapeHtml(n.name) + '" placeholder="名称" />'
+      + '<input class="ss-node-note" data-f="note" value="' + escapeHtml(n.note) + '" placeholder="备注" />'
+      + '<button type="button" class="btn btn-sm btn-delete" data-ss-node-del>删</button>'
+      + '</div>'
+    );
+  }).join('') || '<div class="ss-empty">暂无节点。可从卡面种子生成。</div>';
+
+  var nodeOpts = (g.nodes || []).map(function(n) {
+    return '<option value="' + escapeHtml(n.id) + '">' + escapeHtml(n.name) + '</option>';
+  }).join('');
+  edgeBox.innerHTML = (g.edges || []).map(function(e, i) {
+    return (
+      '<div class="ss-graph-row" data-edge-idx="' + i + '">'
+      + '<select data-f="from">' + nodeOpts.replace(
+        'value="' + escapeHtml(e.from) + '"',
+        'value="' + escapeHtml(e.from) + '" selected'
+      ) + '</select>'
+      + '<input data-f="label" value="' + escapeHtml(e.label) + '" placeholder="关系" />'
+      + '<select data-f="to">' + nodeOpts.replace(
+        'value="' + escapeHtml(e.to) + '"',
+        'value="' + escapeHtml(e.to) + '" selected'
+      ) + '</select>'
+      + '<button type="button" class="btn btn-sm btn-delete" data-ss-edge-del>删</button>'
+      + '</div>'
+    );
+  }).join('') || '<div class="ss-empty">暂无关系边</div>';
+}
+
+function renderOutline() {
+  var box = $('ssOutlineList');
+  if (!box) return;
+  if (!state.novel) {
+    box.innerHTML = '<div class="ss-empty">请先打开一部小说</div>';
+    return;
+  }
+  var items = state.novel.outline || [];
+  box.innerHTML = items.map(function(o, i) {
+    return (
+      '<div class="ss-outline-item" data-ol-idx="' + i + '">'
+      + '<div class="ss-outline-item__head">'
+      + '<span class="ss-ol-idx">#' + (i + 1) + '</span>'
+      + '<input class="ss-ol-title" value="' + escapeHtml(o.title) + '" />'
+      + '<button type="button" class="btn btn-sm btn-delete" data-ss-ol-discard title="从此章起废弃后续">废弃后续</button>'
+      + '<button type="button" class="btn btn-sm btn-delete" data-ss-ol-del>删</button>'
+      + '</div>'
+      + '<textarea class="ss-ol-summary" rows="2" placeholder="摘要">' + escapeHtml(o.summary) + '</textarea>'
+      + '</div>'
+    );
+  }).join('') || '<div class="ss-empty">暂无大纲。可分段生成或手动添加。</div>';
+}
+
+function renderWrite() {
+  var sel = $('ssWriteChapterSelect');
+  var titleEl = $('ssWriteChapterTitle');
+  var summaryEl = $('ssWriteChapterSummary');
+  var contentEl = $('ssWriteChapterContent');
+  var advEl = $('ssWriteAdvancePrompt');
+  var syncEl = $('ssWriteSyncMvu');
+  var warnEl = $('ssWriteMvuWarn');
+  if (!state.novel) {
+    if (sel) sel.innerHTML = '<option value="">请先打开小说</option>';
+    return;
+  }
+  var chapters = state.novel.chapters || [];
+  var curId = sel && sel.value ? sel.value : (chapters[0] && chapters[0].id) || '';
+  if (sel) {
+    sel.innerHTML = chapters.map(function(c, i) {
+      return '<option value="' + escapeHtml(c.id) + '"'
+        + (c.id === curId ? ' selected' : '') + '>'
+        + (i + 1) + '. ' + escapeHtml(c.title || '未命名')
+        + (c.content ? '' : '（空）')
+        + '</option>';
+    }).join('') || '<option value="">无章节（请先做大纲）</option>';
+    curId = sel.value;
+  }
+  var ch = chapters.find(function(c) { return c.id === curId; });
+  if (titleEl) titleEl.value = ch ? ch.title : '';
+  if (summaryEl) summaryEl.value = ch ? ch.summary : '';
+  if (contentEl) contentEl.value = ch ? ch.content : '';
+  if (advEl) advEl.value = ch ? ch.advancePrompt : '';
+  if (syncEl) syncEl.checked = !!(state.novel.writeSettings && state.novel.writeSettings.syncMvuStatusBar);
+
+  var detect = detectMvuStatusBarDesign(window.__getCardExtension__);
+  if (warnEl) {
+    if (syncEl && syncEl.checked && !detect.ok) {
+      warnEl.hidden = false;
+      warnEl.textContent = detect.warning || '缺少 MVU/状态栏 design，同步不会生效。';
+    } else {
+      warnEl.hidden = true;
+      warnEl.textContent = '';
+    }
+  }
+}
+
+function renderRead() {
+  var title = $('ssReadTitle');
+  var body = $('ssReadBody');
+  var toc = $('ssReadToc');
+  var modeSel = $('ssReadMode');
+  var pageInfo = $('ssReadPageInfo');
+  if (!state.novel) {
+    if (title) title.textContent = '未打开小说';
+    if (body) body.innerHTML = '<div class="ss-empty">请先在「管理」打开一部小说</div>';
+    if (toc) toc.innerHTML = '';
+    return;
+  }
+  if (title) title.textContent = state.novel.title;
+  var chapters = state.novel.chapters || [];
+  var rs = state.novel.readState || {};
+  var idx = chapters.findIndex(function(c) { return c.id === rs.chapterId; });
+  if (idx < 0) idx = 0;
+  var ch = chapters[idx];
+  if (modeSel) modeSel.value = rs.mode || 'swipe';
+
+  if (toc) {
+    toc.innerHTML = chapters.map(function(c, i) {
+      return '<button type="button" class="ss-toc-item' + (i === idx ? ' is-active' : '') + '" data-ch-id="'
+        + escapeHtml(c.id) + '">' + (i + 1) + '. ' + escapeHtml(c.title || '未命名') + '</button>';
+    }).join('') || '<div class="ss-empty">暂无章节</div>';
+  }
+
+  if (!ch) {
+    if (body) body.innerHTML = '<div class="ss-empty">暂无章节</div>';
+    if (pageInfo) pageInfo.textContent = '';
+    return;
+  }
+
+  var text = String(ch.content || '').trim();
+  var display = text;
+  var isSummary = false;
+  if (!display) {
+    display = String(ch.summary || '').trim() || '（本章暂无正文与摘要）';
+    isSummary = !!ch.summary;
+  }
+
+  var mode = rs.mode || 'swipe';
+  if (mode === 'page' && text) {
+    var pageSize = 900;
+    var pages = [];
+    for (var p = 0; p < text.length; p += pageSize) pages.push(text.slice(p, p + pageSize));
+    if (!pages.length) pages = [display];
+    var pi = Math.min(Math.max(0, rs.pageIndex || 0), pages.length - 1);
+    state.novel.readState.pageIndex = pi;
+    display = pages[pi];
+    if (pageInfo) pageInfo.textContent = '第 ' + (idx + 1) + '/' + chapters.length + ' 章 · 页 '
+      + (pi + 1) + '/' + pages.length;
+    if (body) {
+      body.innerHTML = '<div class="ss-read-page" data-page-mode="page">'
+        + '<h3>' + escapeHtml(ch.title) + '</h3>'
+        + (isSummary ? '<p class="ss-read-summary-tag">摘要</p>' : '')
+        + '<div class="ss-read-text">' + escapeHtml(display).replace(/\n/g, '<br/>') + '</div>'
+        + '</div>';
+    }
+  } else {
+    if (pageInfo) pageInfo.textContent = '第 ' + (idx + 1) + '/' + chapters.length + ' 章';
+    if (body) {
+      body.innerHTML = '<div class="ss-read-page" data-page-mode="swipe">'
+        + '<h3>' + escapeHtml(ch.title) + '</h3>'
+        + (isSummary ? '<p class="ss-read-summary-tag">摘要（无正文）</p>' : '')
+        + '<div class="ss-read-text">' + escapeHtml(display).replace(/\n/g, '<br/>') + '</div>'
+        + '</div>';
+    }
+  }
+
+  // bookmarks
+  var bmBox = $('ssReadBookmarks');
+  if (bmBox) {
+    var bms = state.novel.bookmarks || [];
+    bmBox.innerHTML = bms.map(function(b) {
+      var c = chapters.find(function(x) { return x.id === b.chapterId; });
+      return '<button type="button" class="ss-bm-item" data-bm-ch="' + escapeHtml(b.chapterId) + '">'
+        + escapeHtml((c && c.title) || '书签') + (b.note ? ' · ' + escapeHtml(b.note) : '')
+        + '</button>';
+    }).join('') || '<span class="ss-muted">暂无书签</span>';
+  }
+}
+
+function renderAll() {
+  renderManage();
+  renderGraph();
+  renderOutline();
+  renderWrite();
+  renderRead();
+}
+
+async function openNovel(novelId) {
+  var cardId = getCardId();
+  var raw = await loadNovel(cardId, novelId);
+  if (!raw) {
+    setStatus('打开失败：找不到小说');
+    return;
+  }
+  state.novel = normalizeNovel(raw);
+  await saveActiveNovelId(cardId, novelId);
+  setStatus('已打开：' + state.novel.title);
+  renderAll();
+}
+
+async function createNovel() {
+  var cardId = getCardId();
+  var title = window.prompt('新小说标题', '未命名小说');
+  if (title === null) return;
+  var novel = createEmptyNovel({ title: String(title || '').trim() || '未命名小说', cardId: cardId });
+  state.novel = novel;
+  await persistNovel();
+  setStatus('已创建：' + novel.title);
+  renderAll();
+}
+
+async function renameNovel(novelId) {
+  var cardId = getCardId();
+  var entry = state.catalog.find(function(x) { return x.id === novelId; });
+  var next = window.prompt('重命名', (entry && entry.title) || '');
+  if (next === null) return;
+  next = String(next).trim();
+  if (!next) return;
+  var raw = await loadNovel(cardId, novelId);
+  if (!raw) return;
+  var novel = normalizeNovel(raw);
+  novel.title = next;
+  novel.updatedAt = Date.now();
+  await saveNovel(cardId, novelId, novel);
+  state.catalog = upsertCatalogEntry(state.catalog, novel);
+  await saveCatalog(cardId, state.catalog);
+  if (state.novel && state.novel.id === novelId) state.novel = novel;
+  setStatus('已重命名');
+  renderAll();
+}
+
+async function removeNovel(novelId) {
+  if (!window.confirm('确定删除这部小说？不可恢复。')) return;
+  var cardId = getCardId();
+  await deleteNovel(cardId, novelId);
+  state.catalog = removeCatalogEntry(state.catalog, novelId);
+  await saveCatalog(cardId, state.catalog);
+  if (state.novel && state.novel.id === novelId) {
+    state.novel = null;
+    await saveActiveNovelId(cardId, '');
+  }
+  setStatus('已删除');
+  renderAll();
+}
+
+async function exportNovel(novelId) {
+  var cardId = getCardId();
+  var raw = await loadNovel(cardId, novelId);
+  if (!raw) {
+    setStatus('导出失败');
+    return;
+  }
+  downloadNovelTxt(normalizeNovel(raw));
+  setStatus('已导出 TXT');
+}
+
+function collectGraphFromDom() {
+  if (!state.novel) return;
+  var nodes = [];
+  document.querySelectorAll('#ssGraphNodes .ss-graph-row').forEach(function(row) {
+    var typeEl = row.querySelector('[data-f="type"]');
+    var nameEl = row.querySelector('[data-f="name"]');
+    var noteEl = row.querySelector('[data-f="note"]');
+    var prev = state.novel.graph.nodes[Number(row.getAttribute('data-node-idx'))] || {};
+    nodes.push({
+      id: prev.id || genStoryId('node'),
+      type: typeEl ? typeEl.value : 'other',
+      name: nameEl ? nameEl.value : '',
+      note: noteEl ? noteEl.value : '',
+    });
+  });
+  var edges = [];
+  document.querySelectorAll('#ssGraphEdges .ss-graph-row').forEach(function(row) {
+    var fromEl = row.querySelector('[data-f="from"]');
+    var toEl = row.querySelector('[data-f="to"]');
+    var labelEl = row.querySelector('[data-f="label"]');
+    var prev = state.novel.graph.edges[Number(row.getAttribute('data-edge-idx'))] || {};
+    edges.push({
+      id: prev.id || genStoryId('edge'),
+      from: fromEl ? fromEl.value : '',
+      to: toEl ? toEl.value : '',
+      label: labelEl ? labelEl.value : '关系',
+    });
+  });
+  state.novel.graph = { nodes: nodes, edges: edges, updatedAt: new Date().toISOString() };
+}
+
+function collectOutlineFromDom() {
+  if (!state.novel) return;
+  var items = [];
+  document.querySelectorAll('#ssOutlineList .ss-outline-item').forEach(function(row, i) {
+    var titleEl = row.querySelector('.ss-ol-title');
+    var sumEl = row.querySelector('.ss-ol-summary');
+    var prev = state.novel.outline[Number(row.getAttribute('data-ol-idx'))] || {};
+    items.push({
+      id: prev.id || genStoryId('ol'),
+      title: titleEl ? titleEl.value : '',
+      summary: sumEl ? sumEl.value : '',
+      order: i,
+    });
+  });
+  state.novel.outline = items;
+}
+
+function collectWriteFromDom() {
+  if (!state.novel) return;
+  var sel = $('ssWriteChapterSelect');
+  if (!sel || !sel.value) return;
+  var ch = state.novel.chapters.find(function(c) { return c.id === sel.value; });
+  if (!ch) return;
+  var titleEl = $('ssWriteChapterTitle');
+  var summaryEl = $('ssWriteChapterSummary');
+  var contentEl = $('ssWriteChapterContent');
+  var advEl = $('ssWriteAdvancePrompt');
+  var syncEl = $('ssWriteSyncMvu');
+  if (titleEl) ch.title = titleEl.value;
+  if (summaryEl) ch.summary = summaryEl.value;
+  if (contentEl) ch.content = contentEl.value;
+  if (advEl) ch.advancePrompt = advEl.value;
+  if (!state.novel.writeSettings) state.novel.writeSettings = {};
+  if (syncEl) state.novel.writeSettings.syncMvuStatusBar = !!syncEl.checked;
+}
+
+async function seedGraph() {
+  if (!state.novel) {
+    setStatus('请先打开小说');
+    return;
+  }
+  var seeded = seedGraphFromCard(getCardSeed());
+  state.novel.graph = mergeGraphSeed(state.novel.graph, seeded);
+  await persistNovel();
+  setStatus('已从卡面种子生成图谱（' + state.novel.graph.nodes.length + ' 节点）');
+  renderGraph();
+}
+
+async function generateOutline(mode) {
+  if (!state.novel) {
+    setStatus('请先打开小说');
+    return;
+  }
+  collectOutlineFromDom();
+  var directionEl = $('ssOutlineDirection');
+  var direction = directionEl ? directionEl.value : '';
+  var existing = (state.novel.outline || []).map(function(o, i) {
+    return (i + 1) + '. ' + o.title + ' — ' + o.summary;
+  }).join('\n');
+  var segmentHint = mode === 'continue'
+    ? '在已有大纲之后续写 3～5 章。'
+    : '生成完整分段大纲，约 8～12 章。';
+
+  var system = promptText(
+    'storyOutlineGen',
+    '你是长篇小说大纲策划。输出结构化章节大纲（标题+摘要）。' + CHILD_SAFETY_RULE
+  );
+  var user = buildOutlineUserPrompt({
+    title: state.novel.title,
+    direction: direction,
+    graphBrief: graphBriefFromNovel(state.novel),
+    existingOutline: existing,
+    segmentHint: segmentHint,
+  });
+
+  setStatus('正在生成大纲…');
+  try {
+    await runTracked({
+      type: 'story_outline',
+      typeLabel: '小说创作·大纲',
+      title: mode === 'continue' ? '续写大纲' : '生成大纲',
+      target: state.novel.title,
+    }, async function(task) {
+      var text = await callAI(user, system, task.signal);
+      var parsed = parseOutlineAiText(text);
+      if (!parsed.length) throw new Error('未能解析大纲 JSON');
+      if (mode === 'continue') {
+        var base = state.novel.outline.length;
+        parsed.forEach(function(p, i) {
+          state.novel.outline.push({
+            id: genStoryId('ol'),
+            title: p.title,
+            summary: p.summary,
+            order: base + i,
+          });
+        });
+      } else if (!state.novel.outline.length) {
+        state.novel.outline = parsed.map(function(p, i) {
+          return { id: genStoryId('ol'), title: p.title, summary: p.summary, order: i };
+        });
+      } else {
+        // 分段追加
+        var base2 = state.novel.outline.length;
+        parsed.forEach(function(p, i) {
+          state.novel.outline.push({
+            id: genStoryId('ol'),
+            title: p.title,
+            summary: p.summary,
+            order: base2 + i,
+          });
+        });
+      }
+      state.novel = syncChaptersFromOutline(state.novel);
+      await persistNovel();
+    });
+    setStatus('大纲已更新');
+    renderAll();
+  } catch (err) {
+    if (isAbort(err)) setStatus('已取消');
+    else setStatus('大纲生成失败：' + (err.message || err));
+  }
+}
+
+async function writeChapter(autoNext) {
+  if (!state.novel) {
+    setStatus('请先打开小说');
+    return;
+  }
+  collectWriteFromDom();
+  var sel = $('ssWriteChapterSelect');
+  if (!sel || !sel.value) {
+    setStatus('没有可写章节，请先生成大纲');
+    return;
+  }
+  var idx = state.novel.chapters.findIndex(function(c) { return c.id === sel.value; });
+  if (idx < 0) return;
+  var ch = state.novel.chapters[idx];
+  var prev = idx > 0 ? state.novel.chapters[idx - 1] : null;
+
+  var system = promptText(
+    'storyChapterWrite',
+    '你是长篇小说写手。根据大纲与推进提示撰写章节正文。' + CHILD_SAFETY_RULE
+  );
+  var user = buildChapterUserPrompt({
+    title: state.novel.title,
+    chapterTitle: ch.title,
+    chapterSummary: ch.summary,
+    advancePrompt: ch.advancePrompt,
+    prevContent: prev ? prev.content : '',
+    outlineBrief: outlineBriefFromNovel(state.novel, idx),
+    graphBrief: graphBriefFromNovel(state.novel),
+  });
+
+  setStatus('正在撰写：' + ch.title);
+  try {
+    await runTracked({
+      type: 'story_chapter',
+      typeLabel: '小说创作·章文',
+      title: '撰写章节',
+      target: ch.title,
+    }, async function(task) {
+      var text = await callAI(user, system, task.signal);
+      ch.content = text;
+      // 若勾选同步
+      var wantSync = !!(state.novel.writeSettings && state.novel.writeSettings.syncMvuStatusBar);
+      var syncResult = trySyncAfterChapter({
+        enabled: wantSync,
+        getExtension: window.__getCardExtension__,
+        setExtension: window.__setCardExtension__,
+        chapterTitle: ch.title,
+        chapterSummary: ch.summary,
+        chapterContent: ch.content,
+      });
+      if (wantSync && syncResult.skipped && syncResult.reason === 'no_design') {
+        setStatus('章节已写完；同步未生效：' + (syncResult.warning || ''));
+      }
+      await persistNovel();
+    });
+
+    if (autoNext && idx + 1 < state.novel.chapters.length) {
+      sel.value = state.novel.chapters[idx + 1].id;
+      renderWrite();
+      setStatus('本章完成，已切到下一章');
+    } else {
+      setStatus('章节撰写完成');
+      renderWrite();
+      renderRead();
+    }
+  } catch (err) {
+    if (isAbort(err)) setStatus('已取消');
+    else setStatus('撰写失败：' + (err.message || err));
+  }
+}
+
+function bindEvents() {
+  var root = document.getElementById('storyStudioRoot') || document;
+
+  var btnNew = $('btnSsNewNovel');
+  if (btnNew) btnNew.addEventListener('click', function() { createNovel(); });
+
+  var list = $('ssNovelList');
+  if (list) {
+    list.addEventListener('click', function(ev) {
+      var btn = ev.target.closest('[data-ss-act]');
+      if (!btn) return;
+      var item = btn.closest('[data-novel-id]');
+      if (!item) return;
+      var id = item.getAttribute('data-novel-id');
+      var act = btn.getAttribute('data-ss-act');
+      if (act === 'open') openNovel(id);
+      else if (act === 'rename') renameNovel(id);
+      else if (act === 'export') exportNovel(id);
+      else if (act === 'delete') removeNovel(id);
+    });
+  }
+
+  var btnSeed = $('btnSsSeedGraph');
+  if (btnSeed) btnSeed.addEventListener('click', function() { seedGraph(); });
+
+  var btnAddNode = $('btnSsAddNode');
+  if (btnAddNode) {
+    btnAddNode.addEventListener('click', async function() {
+      if (!state.novel) return;
+      collectGraphFromDom();
+      state.novel.graph.nodes.push({
+        id: genStoryId('node'),
+        type: 'character',
+        name: '新节点',
+        note: '',
+      });
+      await persistNovel();
+      renderGraph();
+    });
+  }
+
+  var btnAddEdge = $('btnSsAddEdge');
+  if (btnAddEdge) {
+    btnAddEdge.addEventListener('click', async function() {
+      if (!state.novel || !state.novel.graph.nodes.length) return;
+      collectGraphFromDom();
+      var a = state.novel.graph.nodes[0];
+      var b = state.novel.graph.nodes[1] || a;
+      state.novel.graph.edges.push({
+        id: genStoryId('edge'),
+        from: a.id,
+        to: b.id,
+        label: '关系',
+      });
+      await persistNovel();
+      renderGraph();
+    });
+  }
+
+  var btnSaveGraph = $('btnSsSaveGraph');
+  if (btnSaveGraph) {
+    btnSaveGraph.addEventListener('click', async function() {
+      if (!state.novel) return;
+      collectGraphFromDom();
+      await persistNovel();
+      setStatus('图谱已保存');
+    });
+  }
+
+  var graphNodes = $('ssGraphNodes');
+  if (graphNodes) {
+    graphNodes.addEventListener('click', async function(ev) {
+      var del = ev.target.closest('[data-ss-node-del]');
+      if (!del) return;
+      var row = del.closest('[data-node-idx]');
+      if (!row || !state.novel) return;
+      collectGraphFromDom();
+      var i = Number(row.getAttribute('data-node-idx'));
+      state.novel.graph.nodes.splice(i, 1);
+      await persistNovel();
+      renderGraph();
+    });
+  }
+  var graphEdges = $('ssGraphEdges');
+  if (graphEdges) {
+    graphEdges.addEventListener('click', async function(ev) {
+      var del = ev.target.closest('[data-ss-edge-del]');
+      if (!del) return;
+      var row = del.closest('[data-edge-idx]');
+      if (!row || !state.novel) return;
+      collectGraphFromDom();
+      var i = Number(row.getAttribute('data-edge-idx'));
+      state.novel.graph.edges.splice(i, 1);
+      await persistNovel();
+      renderGraph();
+    });
+  }
+
+  var btnOlGen = $('btnSsOutlineGen');
+  if (btnOlGen) btnOlGen.addEventListener('click', function() { generateOutline('segment'); });
+  var btnOlCont = $('btnSsOutlineContinue');
+  if (btnOlCont) btnOlCont.addEventListener('click', function() { generateOutline('continue'); });
+  var btnOlAdd = $('btnSsOutlineAdd');
+  if (btnOlAdd) {
+    btnOlAdd.addEventListener('click', async function() {
+      if (!state.novel) return;
+      collectOutlineFromDom();
+      state.novel.outline.push({
+        id: genStoryId('ol'),
+        title: '第' + (state.novel.outline.length + 1) + '章',
+        summary: '',
+        order: state.novel.outline.length,
+      });
+      state.novel = syncChaptersFromOutline(state.novel);
+      await persistNovel();
+      renderOutline();
+      renderWrite();
+    });
+  }
+  var btnOlSave = $('btnSsOutlineSave');
+  if (btnOlSave) {
+    btnOlSave.addEventListener('click', async function() {
+      if (!state.novel) return;
+      collectOutlineFromDom();
+      state.novel = syncChaptersFromOutline(state.novel);
+      await persistNovel();
+      setStatus('大纲已保存');
+      renderAll();
+    });
+  }
+
+  var olList = $('ssOutlineList');
+  if (olList) {
+    olList.addEventListener('click', async function(ev) {
+      if (!state.novel) return;
+      var discard = ev.target.closest('[data-ss-ol-discard]');
+      var del = ev.target.closest('[data-ss-ol-del]');
+      var row = ev.target.closest('[data-ol-idx]');
+      if (!row) return;
+      var i = Number(row.getAttribute('data-ol-idx'));
+      if (discard) {
+        if (!window.confirm('从此章起废弃后续大纲与对应章节？')) return;
+        collectOutlineFromDom();
+        state.novel = discardOutlineFrom(state.novel, i);
+        await persistNovel();
+        setStatus('已废弃后续');
+        renderAll();
+        return;
+      }
+      if (del) {
+        collectOutlineFromDom();
+        state.novel.outline.splice(i, 1);
+        state.novel.outline.forEach(function(o, idx) { o.order = idx; });
+        state.novel = syncChaptersFromOutline(state.novel);
+        await persistNovel();
+        renderAll();
+      }
+    });
+  }
+
+  var writeSel = $('ssWriteChapterSelect');
+  if (writeSel) {
+    writeSel.addEventListener('change', function() {
+      collectWriteFromDom();
+      renderWrite();
+    });
+  }
+  var btnWrite = $('btnSsWriteChapter');
+  if (btnWrite) btnWrite.addEventListener('click', function() { writeChapter(false); });
+  var btnWriteNext = $('btnSsWriteAutoNext');
+  if (btnWriteNext) btnWriteNext.addEventListener('click', function() { writeChapter(true); });
+  var btnWriteSave = $('btnSsWriteSave');
+  if (btnWriteSave) {
+    btnWriteSave.addEventListener('click', async function() {
+      collectWriteFromDom();
+      await persistNovel();
+      setStatus('章节已保存');
+      renderRead();
+    });
+  }
+  var syncEl = $('ssWriteSyncMvu');
+  if (syncEl) {
+    syncEl.addEventListener('change', function() {
+      collectWriteFromDom();
+      renderWrite();
+      persistNovel();
+    });
+  }
+
+  // Read
+  var toc = $('ssReadToc');
+  if (toc) {
+    toc.addEventListener('click', async function(ev) {
+      var btn = ev.target.closest('[data-ch-id]');
+      if (!btn || !state.novel) return;
+      state.novel.readState.chapterId = btn.getAttribute('data-ch-id');
+      state.novel.readState.pageIndex = 0;
+      await persistNovel();
+      renderRead();
+    });
+  }
+  var modeSel = $('ssReadMode');
+  if (modeSel) {
+    modeSel.addEventListener('change', async function() {
+      if (!state.novel) return;
+      state.novel.readState.mode = modeSel.value;
+      state.novel.readState.pageIndex = 0;
+      await persistNovel();
+      renderRead();
+    });
+  }
+  var btnPrev = $('btnSsReadPrev');
+  if (btnPrev) {
+    btnPrev.addEventListener('click', async function() {
+      if (!state.novel) return;
+      var chapters = state.novel.chapters;
+      var idx = chapters.findIndex(function(c) { return c.id === state.novel.readState.chapterId; });
+      if (idx < 0) idx = 0;
+      var mode = state.novel.readState.mode || 'swipe';
+      if (mode === 'page' && state.novel.readState.pageIndex > 0) {
+        state.novel.readState.pageIndex -= 1;
+      } else if (idx > 0) {
+        state.novel.readState.chapterId = chapters[idx - 1].id;
+        state.novel.readState.pageIndex = 0;
+      }
+      await persistNovel();
+      renderRead();
+    });
+  }
+  var btnNext = $('btnSsReadNext');
+  if (btnNext) {
+    btnNext.addEventListener('click', async function() {
+      if (!state.novel) return;
+      var chapters = state.novel.chapters;
+      var idx = chapters.findIndex(function(c) { return c.id === state.novel.readState.chapterId; });
+      if (idx < 0) idx = 0;
+      var mode = state.novel.readState.mode || 'swipe';
+      var ch = chapters[idx];
+      if (mode === 'page' && ch && ch.content) {
+        var pageSize = 900;
+        var pages = Math.max(1, Math.ceil(ch.content.length / pageSize));
+        if ((state.novel.readState.pageIndex || 0) + 1 < pages) {
+          state.novel.readState.pageIndex = (state.novel.readState.pageIndex || 0) + 1;
+          await persistNovel();
+          renderRead();
+          return;
+        }
+      }
+      if (idx + 1 < chapters.length) {
+        state.novel.readState.chapterId = chapters[idx + 1].id;
+        state.novel.readState.pageIndex = 0;
+        await persistNovel();
+        renderRead();
+      }
+    });
+  }
+  var btnBm = $('btnSsReadBookmark');
+  if (btnBm) {
+    btnBm.addEventListener('click', async function() {
+      if (!state.novel) return;
+      var chId = state.novel.readState.chapterId || (state.novel.chapters[0] && state.novel.chapters[0].id);
+      if (!chId) return;
+      state.novel.bookmarks = state.novel.bookmarks || [];
+      var exists = state.novel.bookmarks.some(function(b) { return b.chapterId === chId; });
+      if (!exists) {
+        state.novel.bookmarks.push({
+          id: genStoryId('bm'),
+          chapterId: chId,
+          note: '',
+          createdAt: Date.now(),
+        });
+      }
+      await persistNovel();
+      setStatus('已添加书签');
+      renderRead();
+    });
+  }
+  var bmBox = $('ssReadBookmarks');
+  if (bmBox) {
+    bmBox.addEventListener('click', async function(ev) {
+      var btn = ev.target.closest('[data-bm-ch]');
+      if (!btn || !state.novel) return;
+      state.novel.readState.chapterId = btn.getAttribute('data-bm-ch');
+      state.novel.readState.pageIndex = 0;
+      await persistNovel();
+      renderRead();
+    });
+  }
+  var btnFs = $('btnSsReadFullscreen');
+  if (btnFs) {
+    btnFs.addEventListener('click', function() {
+      var el = $('ssReadStage');
+      if (!el) return;
+      if (!document.fullscreenElement) {
+        if (el.requestFullscreen) el.requestFullscreen();
+      } else if (document.exitFullscreen) {
+        document.exitFullscreen();
+      }
+    });
+  }
+
+  // swipe on read body
+  var readBody = $('ssReadBody');
+  if (readBody) {
+    var touchX = 0;
+    readBody.addEventListener('touchstart', function(ev) {
+      if (ev.changedTouches && ev.changedTouches[0]) touchX = ev.changedTouches[0].clientX;
+    }, { passive: true });
+    readBody.addEventListener('touchend', function(ev) {
+      if (!ev.changedTouches || !ev.changedTouches[0]) return;
+      var dx = ev.changedTouches[0].clientX - touchX;
+      if (Math.abs(dx) < 60) return;
+      if (dx < 0 && btnNext) btnNext.click();
+      else if (dx > 0 && btnPrev) btnPrev.click();
+    }, { passive: true });
+  }
+
+  window.addEventListener('card-draft-changed', function() {
+    reloadCatalog().then(renderAll);
+  });
+  window.addEventListener('app-view-changed', function(ev) {
+    var v = ev && ev.detail && ev.detail.view;
+    if (v && String(v).indexOf('story-') === 0) {
+      reloadCatalog().then(renderAll);
+    }
+  });
+}
+
+export async function initStoryStudio() {
+  if (window.__storyStudioReady__) return;
+  window.__storyStudioReady__ = true;
+  bindEvents();
+  try {
+    await reloadCatalog();
+  } catch (e) {
+    console.warn('[storyStudio] load failed', e);
+  }
+  renderAll();
+  window.__storyStudio__ = {
+    getState: function() { return state; },
+    reload: reloadCatalog,
+    render: renderAll,
+  };
+}

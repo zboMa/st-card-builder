@@ -1,0 +1,22 @@
+---
+/** 人物·关系·地点图谱（可编辑，可从卡面种子） */
+---
+<div class="panel story-studio-panel" data-story-panel="graph">
+  <h2>创作图谱</h2>
+  <p class="ss-tip">当前小说：<span id="ssCurrentNovelTitle">（未打开）</span>。可从世界书/角色种子生成，再手工编辑。</p>
+  <div class="ss-toolbar">
+    <button type="button" id="btnSsSeedGraph" class="btn btn-fetch">从卡面种子生成</button>
+    <button type="button" id="btnSsAddNode" class="btn btn-ghost btn-sm">加节点</button>
+    <button type="button" id="btnSsAddEdge" class="btn btn-ghost btn-sm">加关系</button>
+    <button type="button" id="btnSsSaveGraph" class="btn btn-fetch btn-sm">保存</button>
+  </div>
+  <section class="ss-card">
+    <div class="ss-card-head"><strong>节点</strong><span>人物 / 地点 / 其他</span></div>
+    <div class="ss-card-body" id="ssGraphNodes"></div>
+  </section>
+  <section class="ss-card">
+    <div class="ss-card-head"><strong>关系</strong><span>from → label → to</span></div>
+    <div class="ss-card-body" id="ssGraphEdges"></div>
+  </section>
+  <div id="ssGraphStatus" class="ss-status"></div>
+</div>

@@ -1,0 +1,19 @@
+---
+/** 大纲：章节名 + 摘要；分段生成 / 续写；废弃后续 */
+---
+<div class="panel story-studio-panel" data-story-panel="outline">
+  <h2>大纲</h2>
+  <p class="ss-tip">维护章节标题与摘要。可分段生成或续写；「废弃后续」从该章起清空后段并重开。</p>
+  <div class="form-group">
+    <label for="ssOutlineDirection">创作方向（可选）</label>
+    <textarea id="ssOutlineDirection" rows="2" placeholder="例如：都市异能，慢热复仇线，共 12 章左右"></textarea>
+  </div>
+  <div class="ss-toolbar">
+    <button type="button" id="btnSsOutlineGen" class="btn btn-fetch">分段生成大纲</button>
+    <button type="button" id="btnSsOutlineContinue" class="btn btn-fetch">续写大纲</button>
+    <button type="button" id="btnSsOutlineAdd" class="btn btn-ghost btn-sm">手动加章</button>
+    <button type="button" id="btnSsOutlineSave" class="btn btn-ghost btn-sm">保存</button>
+  </div>
+  <div id="ssOutlineList"></div>
+  <div id="ssOutlineStatus" class="ss-status"></div>
+</div>

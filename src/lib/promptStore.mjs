@@ -15,6 +15,7 @@ export const PROMPT_TAB_ORDER = [
   '恶堕',
   '状态栏·MVU',
   '小说',
+  '小说创作',
   'AI 助手',
 ];
 
@@ -55,6 +56,8 @@ export const PROMPT_META = [
   { id: 'novelCharSetup', label: '小说角色设定生成', group: '小说' },
   { id: 'novelGreetingsGen', label: '小说开场白生成', group: '小说' },
   { id: 'styleGuide', label: '文风指南（手动）', group: '小说' },
+  { id: 'storyOutlineGen', label: '创作·大纲生成', group: '小说创作' },
+  { id: 'storyChapterWrite', label: '创作·章节正文', group: '小说创作' },
   { id: 'assistantSystem', label: 'AI 助手系统提示', group: 'AI 助手' },
   { id: 'assistantReactHint', label: 'AI 助手续步提示', group: 'AI 助手' },
   { id: 'assistantChatFeedback', label: '试聊回流分析提示', group: 'AI 助手' },
