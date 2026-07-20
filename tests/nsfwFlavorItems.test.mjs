@@ -84,7 +84,8 @@ describe('nsfw flavor items', function() {
     assert.match(hint, /制服下失控/);
     assert.match(hint, /纯爱向/);
     assert.match(hint, /主调色盘/);
-    assert.match(hint, /重点写出/);
+    assert.match(hint, /重点标签|必写维度/);
+    assert.match(hint, /丰满硬约束/);
 
     var s = createDefaultNovelState();
     setAdultMode(s, true);
@@ -92,6 +93,7 @@ describe('nsfw flavor items', function() {
     var single = buildNsfwFlavorHint(s);
     assert.match(single, /反差向/);
     assert.match(single, /用户补充：x/);
+    assert.match(single, /必写维度/);
   });
 
   it('主角调色盘可关闭成人层', function() {

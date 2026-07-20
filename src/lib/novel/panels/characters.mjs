@@ -25,6 +25,11 @@ import {
   buildNsfwFlavorHint,
   buildNtlTabooHint,
   buildPaletteGuidanceBlock,
+  getNsfwFlavorItems,
+  evaluateFlavorRichness,
+  buildFlavorExpandSystemPrompt,
+  buildFlavorExpandUserPrompt,
+  NSFW_FLAVOR_PRESETS,
   ADULT_RAG_BOOST_TERMS,
   NTL_RAG_BOOST_TERMS,
 } from '../nsfwSupport.mjs';
@@ -338,6 +343,7 @@ export function registerCharacters(ctx) {
           + (adultOn ? extractStyleNsfwSection(state.styleText) : '')
           + buildModeHintBlocks(state, 'expand')
           + buildPaletteGuidanceBlock(state)
+          + buildNsfwFlavorHint(state)
           + buildNtlTabooHint(state)
           + buildAdultContextDigests(state.entities, 2000, getNtlMode(state))
           + '\n\n角色名: ' + ch.name
@@ -348,12 +354,36 @@ export function registerCharacters(ctx) {
           + '\n匹配词: ' + recall.terms.join('、')
           + '\n\n【原文片段】\n' + recall.body
           + '\n\n请输出附录1完整 JSON，字段须含: Chinese name, Nickname, age, gender, identity, key_events, relationships, turning_points, appearance{hair,eyes,build,识别特征}, personality{core_traits}, persona_layers{surface,social,intimate,under_stress,secret_self}, tension_pairs[{trait_a,trait_b,resolution}], core_desire, values_and_drives, hidden_motives, goals, weakness, likes, dislikes, skills, speech_style, NSFW_information（含 body/erogenous_zones/sexual_personality/contrast/xp_kinks/sensitive_triggers/inner_erotic_thoughts/Sex_related_traits/Kinks/Limits/desire_palette/sexual_psychology/situational_modulation/aftercare）。'
-          + (adultOn ? '\nAdultMode=true：NSFW_information 禁止整块「原文未提及」，须填 Limits 与 Kinks/xp_kinks；无原文则据已有档案推断。' : '');
+          + (adultOn ? '\nAdultMode=true：NSFW_information 禁止整块「原文未提及」，须填 Limits 与 Kinks/xp_kinks；无原文则据已有档案推断。须按口味丰满规范写透必写维度。' : '');
         var text = await ctx.callAI(user, null, task.signal);
         var json = parseJsonLoose(text);
         var profile = normalizeCharacterProfile(json.profile || json, ch.name);
         if (mode === 'patch' && ch.profile) {
           profile = Object.assign({}, ch.profile, profile);
+        }
+        var flavorItems = adultOn ? getNsfwFlavorItems(state) : [];
+        var flavorThinTip = '';
+        if (flavorItems.length) {
+          var richness = evaluateFlavorRichness(profile, flavorItems, { presets: NSFW_FLAVOR_PRESETS });
+          if (!richness.ok) {
+            var expandPrompt = buildFlavorExpandSystemPrompt(flavorItems, { presets: NSFW_FLAVOR_PRESETS })
+              + '\n\n' + buildFlavorExpandUserPrompt({
+                weakDimensions: richness.weakDimensions,
+                minChars: richness.minChars,
+                flavorHint: buildNsfwFlavorHint(state),
+                context: ch.name + (ch.note ? (' · ' + ch.note) : ''),
+                text: JSON.stringify(profile),
+              })
+              + '\n请输出完整人物 JSON（含加厚后的 NSFW_information）。';
+            var expandText = await ctx.callAI(expandPrompt, null, task.signal);
+            var expandJson = parseJsonLoose(expandText);
+            var expandedProfile = normalizeCharacterProfile(expandJson.profile || expandJson, ch.name);
+            var richness2 = evaluateFlavorRichness(expandedProfile, flavorItems, { presets: NSFW_FLAVOR_PRESETS });
+            if (richness2.total >= richness.total) profile = expandedProfile;
+            if (!richness2.ok) {
+              flavorThinTip = '；口味层仍偏薄：' + richness2.weakDimensions.slice(0, 3).join('；');
+            }
+          }
         }
         ch.profile = profile;
         ch.hits = recall.hitCount;
@@ -375,8 +405,11 @@ export function registerCharacters(ctx) {
         ctx.save();
         ctx.renderAll();
         if (options.openEditor !== false && !options.silent) panel.openProfileEditor(ch.id);
-        ctx.setStatus('novelCharStatus', '「' + ch.name + '」扩展完成（召回 ' + recall.totalChars + ' 字 / ' + recall.snippetCount + ' 片段）');
-        return { id: ch.id, name: ch.name, mode: mode, recallChars: recall.totalChars };
+        ctx.setStatus(
+          'novelCharStatus',
+          '「' + ch.name + '」扩展完成（召回 ' + recall.totalChars + ' 字 / ' + recall.snippetCount + ' 片段）' + flavorThinTip
+        );
+        return { id: ch.id, name: ch.name, mode: mode, recallChars: recall.totalChars, flavorThin: !!flavorThinTip };
       });
     } catch (e) {
       if (!ctx.isTrackedAbort(e)) {

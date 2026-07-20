@@ -139,7 +139,7 @@ tests/                             # 22 个测试文件，346 个测试，全部
 
 ### 21 种 NSFW 口味预设（多选最多 5）+ 8 种 NTL 禁忌类型
 
-详见 `src/lib/novel/nsfwSupport.mjs`：口味含「反差向」；卡级数据为 `nsfwFlavorItems: [{ id, note }]`（旧 `nsfwFlavor` 迁为首项）；首项为主调色盘，`buildNsfwFlavorHintFromItems` 合并 focus/avoid/note。
+详见 `src/lib/novel/nsfwSupport.mjs` + `nsfwFlavorEnrichment.mjs`：口味含「反差向」；卡级数据为 `nsfwFlavorItems: [{ id, note }]`（旧 `nsfwFlavor` 迁为首项）；每口味含 `mustCover/writingGuide/antiPatterns/densityHint`；`buildNsfwFlavorHintFromItems` 注入必写维度与硬约束；`evaluateFlavorRichness` 门禁 + 偏薄自动扩写（人物/分析/世界书）。
 
 ### 全局配置 —— 角色设定是唯一入口
 

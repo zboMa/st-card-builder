@@ -8,6 +8,30 @@
  *   第三层·NTL 禁忌层（可选叠加）→ ntlTabooType 预设 → 特定禁忌类别的张力引导
  */
 import { UNMENTIONED } from './schema.mjs';
+import {
+  NSFW_FLAVOR_DEFAULT_MIN_CHARS,
+  NSFW_FLAVOR_ENRICHMENT,
+  FLAVOR_SHARED_DIMENSIONS,
+  applyFlavorEnrichment,
+  collectFlavorEnrichment,
+  evaluateFlavorRichness,
+  extractFlavorRichnessText,
+  buildFlavorExpandSystemPrompt,
+  buildFlavorExpandUserPrompt,
+  compactCharCount,
+} from './nsfwFlavorEnrichment.mjs';
+
+export {
+  NSFW_FLAVOR_DEFAULT_MIN_CHARS,
+  NSFW_FLAVOR_ENRICHMENT,
+  FLAVOR_SHARED_DIMENSIONS,
+  collectFlavorEnrichment,
+  evaluateFlavorRichness,
+  extractFlavorRichnessText,
+  buildFlavorExpandSystemPrompt,
+  buildFlavorExpandUserPrompt,
+  compactCharCount,
+};
 
 /** 卡级 NSFW 口味最多叠加条数 */
 export var MAX_NSFW_FLAVOR_ITEMS = 5;
@@ -225,6 +249,8 @@ export var NSFW_FLAVOR_PRESETS = {
     avoid: ['无铺垫的突然崩人设', '把反差写成单纯双标脸谱', '忽略事后自我厌恶或沉溺'],
   },
 };
+
+applyFlavorEnrichment(NSFW_FLAVOR_PRESETS);
 
 export var NSFWFLAVOR_IDS = Object.keys(NSFW_FLAVOR_PRESETS);
 
@@ -991,6 +1017,7 @@ export function addNtlTabooType(state, type) {
 
 /**
  * 由口味条目列表构建注入块（供卡侧 / 小说侧共用）
+ * 对齐恶堕：必写维度 + 写作指南 + 反模式 + 密度硬约束
  * @param {Array<{id:string,note?:string}>} items
  * @param {{ presets?: object, intro?: string, footer?: string }} [opts]
  */
@@ -1005,13 +1032,14 @@ export function buildNsfwFlavorHintFromItems(items, opts) {
   var focusAll = [];
   var avoidAll = [];
   var lines = [];
+  var collected = collectFlavorEnrichment(list, presets);
 
   if (list.length === 1) {
     var f0 = presets[list[0].id];
     if (!f0) return '';
-    lines.push('\n【NSFW 口味·' + f0.label + '】');
+    lines.push('\n【NSFW 口味·' + f0.label + '·丰满写作规范】');
   } else {
-    lines.push('\n【NSFW 口味组合】（首项为主调色盘）');
+    lines.push('\n【NSFW 口味组合·丰满写作规范】（首项为主调色盘）');
   }
   if (opts.intro) lines.push(opts.intro);
 
@@ -1021,6 +1049,7 @@ export function buildNsfwFlavorHintFromItems(items, opts) {
     var notePart = it.note ? ('；用户补充：' + it.note) : '';
     lines.push((idx + 1) + '. ' + f.label + '：' + f.description + notePart
       + (idx === 0 ? '（主调色盘）' : '（叠加）'));
+    if (f.writingGuide) lines.push('   写法：' + f.writingGuide);
     (f.focus || []).forEach(function(x) {
       if (!focusSeen[x]) { focusSeen[x] = true; focusAll.push(x); }
     });
@@ -1035,8 +1064,24 @@ export function buildNsfwFlavorHintFromItems(items, opts) {
     lines.push('主调色盘参考：温度=' + p.temperature + ' | 触感=' + p.texture
       + ' | 主色强度=' + p.primary_intensity_default + ' | 对比色强度=' + p.accent_intensity_default);
   }
-  if (focusAll.length) lines.push('重点写出：' + focusAll.join(' / '));
-  if (avoidAll.length) lines.push('避免：' + avoidAll.join(' / '));
+
+  lines.push('【必写维度·须写透】');
+  FLAVOR_SHARED_DIMENSIONS.forEach(function(dim, i) {
+    lines.push((i + 1) + ') ' + dim.label);
+  });
+  collected.mustCover.forEach(function(lab) {
+    lines.push('- ' + lab);
+  });
+
+  if (collected.writingGuides.length) {
+    lines.push('【写作指南】');
+    collected.writingGuides.forEach(function(g) { lines.push('- ' + g); });
+  }
+  if (focusAll.length) lines.push('重点标签：' + focusAll.join(' / '));
+  var avoidMerged = avoidAll.concat(collected.antiPatterns || []);
+  if (avoidMerged.length) lines.push('禁止/避免：' + avoidMerged.join(' / '));
+  lines.push('【丰满硬约束】成人相关正文去空白后≥' + collected.densityHint
+    + '字；禁止提纲、空话、（待填充）、标签堆砌、一笔带过；须落到具体心理、身体反应、关系动态、边界与事后余波。');
   if (opts.footer) lines.push(opts.footer);
   return lines.join('\n');
 }
@@ -1079,6 +1124,7 @@ export function buildPaletteGuidanceBlock(state, opts) {
 
   var items = includeAdult && getAdultMode(state) ? getNsfwFlavorItems(state) : [];
   if (items.length) {
+    var collected = collectFlavorEnrichment(items, NSFW_FLAVOR_PRESETS);
     var labels = items.map(function(it) {
       var f = NSFW_FLAVOR_PRESETS[it.id];
       var base = f ? (f.label + '（' + f.description + '）') : it.id;
@@ -1092,6 +1138,8 @@ export function buildPaletteGuidanceBlock(state, opts) {
     if (primary) {
       parts.push('  - 主调色盘：温度=' + primary.palette.temperature + '，触感=' + primary.palette.texture);
     }
+    parts.push('  - 必写维度：' + FLAVOR_SHARED_DIMENSIONS.map(function(d) { return d.label; }).concat(collected.mustCover).join('；'));
+    parts.push('  - 成人相关正文≥' + collected.densityHint + '字；禁止提纲/空话/待填充。');
     parts.push('  - sexual_psychology：core_desire/core_fear/shame_sources/desire_expression/arousal_signature/fantasy_vs_reality/attachment_after 全部写满。');
     parts.push('  - situational_modulation：同一个人在不同场景下欲望表现不同。safe=intensity低/charged=intensity高/semi_public=克制暗流/post_conflict=粗暴确认/first_time=紧张试探。');
     parts.push('  - aftercare：亲密后需要什么（拥抱/独处/语言确认/清洁）；对关系是拉近还是推远。');

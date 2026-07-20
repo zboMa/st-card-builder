@@ -11,6 +11,7 @@ import {
   buildAdultContextDigests,
   buildNtlTabooHint,
   buildPaletteGuidanceBlock,
+  buildNsfwFlavorHint,
 } from '../nsfwSupport.mjs';
 import { parseJsonLoose } from '../../utils.mjs';
 
@@ -144,6 +145,9 @@ export function registerStyle(ctx) {
           + '\n自定义要求: ' + (state.styleCustomReq || '无')
           + '\nContext: ' + (state.contextText || '')
           + buildModeHintBlocks(state, 'style')
+          + (adultOn ? buildPaletteGuidanceBlock(state) : '')
+          + (adultOn ? buildNsfwFlavorHint(state) : '')
+          + buildNtlTabooHint(state)
           + buildAdultContextDigests(state.entities, 4000, getNtlMode(state));
         var out = await ctx.callAI(user, null, task.signal);
         state.styleText = out.trim();

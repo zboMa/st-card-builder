@@ -14,6 +14,12 @@ import {
   buildModeHintBlocks,
   buildAdultContextDigests,
   buildContentModeFlags,
+  buildNsfwFlavorHint,
+  getNsfwFlavorItems,
+  evaluateFlavorRichness,
+  buildFlavorExpandSystemPrompt,
+  buildFlavorExpandUserPrompt,
+  NSFW_FLAVOR_PRESETS,
 } from '../nsfwSupport.mjs';
 import { findEntityMatch, upsertEntity, projectEntitiesToLegacy, isEntityEnriched, ingestLegacyIntoEntities } from '../entityStore.mjs';
 import { applyDraftsToWorldbook } from '../sync.mjs';
@@ -743,10 +749,13 @@ export function registerWorldbook(ctx) {
         var modeHint = mode === 'rewrite'
           ? '\n【模式】重写：依据原文重建内容，可大幅改写。'
           : '\n【模式】扩写：在已有内容上补全细节，保留可靠事实。';
+        var adultOn = getAdultMode(state);
+        var flavorItems = adultOn ? getNsfwFlavorItems(state) : [];
         var user = head
           + modeHint
           + (options.instruction ? '\n【用户要求】' + options.instruction : '')
           + buildModeHintBlocks(state, 'expand')
+          + (flavorItems.length ? buildNsfwFlavorHint(state) : '')
           + buildAdultContextDigests(state.entities, 1500, getNtlMode(state))
           + '\n条目标题: ' + matchName
           + '\n类别: ' + (entry.category || 'setting')
@@ -758,9 +767,34 @@ export function registerWorldbook(ctx) {
           + '\n召回字数: ' + recall.totalChars + (recall.truncated ? '（已抽样截断）' : '')
           + '\n匹配词: ' + recall.terms.join('、')
           + '\n\n【原文片段】\n' + recall.body
-          + '\n\n请输出 JSON（AdultMode 时含 attrs.adult；NtlMode 时可含 attrs.ntl）。';
+          + '\n\n请输出 JSON（AdultMode 时含 attrs.adult；NtlMode 时可含 attrs.ntl；已选口味时 content/attrs 须写透必写维度）。';
         var text = await ctx.callAI(user, null, task.signal);
         var json = parseJsonLoose(text);
+        if (flavorItems.length) {
+          var probe = {
+            content: json.content || entry.content || '',
+            attrs: json.attrs || entry.attrs || {},
+          };
+          var richness = evaluateFlavorRichness(probe, flavorItems, { presets: NSFW_FLAVOR_PRESETS });
+          if (!richness.ok) {
+            var expandPrompt = buildFlavorExpandSystemPrompt(flavorItems, { presets: NSFW_FLAVOR_PRESETS })
+              + '\n\n' + buildFlavorExpandUserPrompt({
+                weakDimensions: richness.weakDimensions,
+                minChars: richness.minChars,
+                flavorHint: buildNsfwFlavorHint(state),
+                context: matchName + ' · ' + (entry.category || 'setting'),
+                text: JSON.stringify(json),
+              })
+              + '\n请输出 JSON：{ "name", "content", "keys", "attrs"? }';
+            var expandText = await ctx.callAI(expandPrompt, null, task.signal);
+            var expanded = parseJsonLoose(expandText);
+            var richness2 = evaluateFlavorRichness({
+              content: expanded.content || '',
+              attrs: expanded.attrs || {},
+            }, flavorItems, { presets: NSFW_FLAVOR_PRESETS });
+            if (richness2.total >= richness.total) json = Object.assign({}, json, expanded);
+          }
+        }
         if (json.name) entry.name = String(json.name).trim() || entry.name;
         if (json.content) entry.content = String(json.content);
         if (Array.isArray(json.keys) && json.keys.length) {

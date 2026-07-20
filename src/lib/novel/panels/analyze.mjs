@@ -29,6 +29,13 @@ import {
   extractStyleNsfwSection,
   buildModeHintBlocks,
   buildContentModeFlags,
+  buildNsfwFlavorHint,
+  buildPaletteGuidanceBlock,
+  getNsfwFlavorItems,
+  evaluateFlavorRichness,
+  buildFlavorExpandSystemPrompt,
+  buildFlavorExpandUserPrompt,
+  NSFW_FLAVOR_PRESETS,
   buildStatusBarNsfwDraftFromEntities,
   buildStatusBarNtlDraftFromEntities,
 } from '../nsfwSupport.mjs';
@@ -588,10 +595,14 @@ export function registerAnalyze(ctx) {
             var related = pickRelatedEntities(state.entities, query, 8);
             var inject = buildRagInjectBlock(search, related, { entityBudget: 3000 });
             var styleNsfw = adultOn ? extractStyleNsfwSection(state.styleText) : '';
+            var flavorItems = adultOn ? getNsfwFlavorItems(state) : [];
+            var needFlavor = flavorItems.length > 0 && (live.type === 'person' || live.type === 'nsfw');
             var user = head
               + '\n\n' + inject
               + styleNsfw
               + buildModeHintBlocks(state, 'enrich')
+              + (needFlavor ? buildPaletteGuidanceBlock(state) : '')
+              + (needFlavor ? buildNsfwFlavorHint(state) : '')
               + buildAdultContextDigests(state.entities, 3000, getNtlMode(state))
               + '\n\n【待丰满实体】\n'
               + JSON.stringify({
@@ -606,6 +617,24 @@ export function registerAnalyze(ctx) {
               + '\nContext: ' + (state.contextText || '');
             var text = await ctx.callAI(user, null, task.signal);
             var parsed = parseJsonLoose(text);
+            if (needFlavor) {
+              var richness = evaluateFlavorRichness(parsed, flavorItems, { presets: NSFW_FLAVOR_PRESETS });
+              if (!richness.ok) {
+                var expandPrompt = buildFlavorExpandSystemPrompt(flavorItems, { presets: NSFW_FLAVOR_PRESETS })
+                  + '\n\n' + buildFlavorExpandUserPrompt({
+                    weakDimensions: richness.weakDimensions,
+                    minChars: richness.minChars,
+                    flavorHint: buildNsfwFlavorHint(state),
+                    context: live.type + ' · ' + live.name,
+                    text: JSON.stringify(parsed),
+                  })
+                  + '\n请输出加厚后的完整 JSON 实体（保持 type/name）。';
+                var expandText = await ctx.callAI(expandPrompt, null, task.signal);
+                var expanded = parseJsonLoose(expandText);
+                var richness2 = evaluateFlavorRichness(expanded, flavorItems, { presets: NSFW_FLAVOR_PRESETS });
+                if (richness2.total >= richness.total) parsed = expanded;
+              }
+            }
             applyEnrichResult(state, live.id, parsed);
             done++;
             state.failedShards = (state.failedShards || []).filter(function(f) {

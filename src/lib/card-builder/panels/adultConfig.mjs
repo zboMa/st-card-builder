@@ -242,13 +242,20 @@ export function registerAdultConfig(ctx) {
       } else {
         listEl.innerHTML = items.map(function(it, idx) {
           var f = data.presets[it.id] || { label: it.id, description: '' };
+          var cover = Array.isArray(f.mustCover) && f.mustCover.length
+            ? ('必写：' + f.mustCover.slice(0, 3).join('、') + (f.mustCover.length > 3 ? '…' : ''))
+            : '';
+          var dens = f.densityHint ? ('≥' + f.densityHint + '字') : '';
           return '<div class="adult-flavor-item" data-flavor-idx="' + idx + '">'
             + '<div class="adult-flavor-item-head">'
             + '<div class="adult-flavor-item-meta">'
             + '<div class="adult-flavor-item-title">' + escapeHtml(f.label)
             + (idx === 0 ? '<span class="adult-flavor-primary-tag">主调色盘</span>' : '')
+            + (dens ? '<span class="adult-flavor-primary-tag">' + dens + '</span>' : '')
             + '</div>'
             + '<div class="adult-flavor-item-desc">' + escapeHtml(f.description || '') + '</div>'
+            + (cover ? '<div class="adult-flavor-item-desc">' + escapeHtml(cover) + '</div>' : '')
+            + (f.writingGuide ? '<div class="adult-flavor-item-desc">' + escapeHtml(f.writingGuide) + '</div>' : '')
             + '</div>'
             + '<button type="button" class="btn btn-ghost" data-flavor-remove="' + idx + '" style="font-size:0.7rem;padding:2px 8px;">移除</button>'
             + '</div>'
