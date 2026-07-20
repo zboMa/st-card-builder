@@ -349,7 +349,7 @@ export function registerSetup(ctx) {
           + '\nContext: ' + (state.contextText || '无')
           + '\n【硬约束】输出的 charDesc/creatorNotes 是主角卡面设定：禁止 NSFW_information、情欲口味、NTL、恶堕分期；成人层只属于世界书人物条目。'
           + buildModeHintBlocks(state, 'expand')
-          + buildPaletteGuidanceBlock(state)
+          + buildPaletteGuidanceBlock(state, { includeAdult: false })
           + '\n\n【原文】\n' + corpus.text;
         var text = await ctx.callAI(user, null, task.signal);
         var data = parseJsonLoose(text);

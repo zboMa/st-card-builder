@@ -16,35 +16,43 @@
       <span class="char-nsfw-label">情欲 / NSFW</span>
       <span class="ui-hint ui-hint--inline">卡级统一口味，供世界书人物与管线读取</span>
     </div>
-    <div class="char-nsfw-grid">
-      <div class="char-nsfw-col">
-        <label class="novel-switch">
-          <input id="adultNsfwEnabled" type="checkbox" />
-          <span>启用 NSFW</span>
-        </label>
-        <span class="char-nsfw-subtitle">分析/抽取/丰满/文风/恶堕等统一读取；主角生成不注入</span>
-        <div id="adultNsfwFlavorRow" style="display:none;margin-top:4px;">
-          <div class="char-nsfw-flavor-line">
-            <span class="char-nsfw-sub">口味</span>
-            <select id="adultNsfwFlavor" style="font-size:0.73rem;padding:3px 8px;border-radius:6px;border:1px solid var(--color-border);background:var(--color-surface);color:var(--color-text);max-width:150px;"></select>
-            <span id="adultNsfwFlavorDesc" class="char-nsfw-subtitle"></span>
-          </div>
-        </div>
+
+    <label class="novel-switch">
+      <input id="adultNsfwEnabled" type="checkbox" />
+      <span>启用 NSFW</span>
+    </label>
+    <span class="char-nsfw-subtitle">分析/抽取/丰满/文风/恶堕等统一读取；主角生成不注入</span>
+
+    <section id="adultFlavorSection" class="adult-flavor-section" style="display:none;" aria-labelledby="adultFlavorHeading">
+      <div class="char-nsfw-flavor-line" style="margin-bottom:6px;">
+        <span id="adultFlavorHeading" class="char-nsfw-sub">口味</span>
+        <span class="char-nsfw-subtitle">最多 5 个；首项为主调色盘，可叠加；每项可写补充提示</span>
       </div>
-      <div class="char-nsfw-col">
+      <div id="adultNsfwFlavorList" class="adult-flavor-list"></div>
+      <div class="adult-flavor-add-row">
+        <select id="adultNsfwFlavorPicker" aria-label="选择要添加的口味">
+          <option value="">选择口味…</option>
+        </select>
+        <button type="button" id="btnAddNsfwFlavor" class="btn btn-ghost">＋添加口味</button>
+        <span id="adultNsfwFlavorCap" class="char-nsfw-subtitle"></span>
+      </div>
+    </section>
+
+    <section class="adult-ntl-section" aria-labelledby="adultNtlHeading">
+      <div class="char-nsfw-flavor-line" style="margin-bottom:4px;">
+        <span id="adultNtlHeading" class="char-nsfw-sub">NTL 禁忌</span>
         <label class="novel-switch">
           <input id="adultNtlEnabled" type="checkbox" />
-          <span>NTL 禁忌</span>
+          <span>启用</span>
         </label>
         <span class="char-nsfw-subtitle">权力/背德/越界张力。可只开其一，也可叠加</span>
-        <div id="adultNtlTabooRow" style="display:none;margin-top:4px;">
-          <div id="adultNtlTabooTypes" style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;"></div>
-        </div>
       </div>
-    </div>
-    <span class="char-nsfw-subtitle" style="margin-top:6px;display:block;">口味决定世界书人物写法风格；NTL 细化禁忌维度。均不进入主角 Description。</span>
+      <div id="adultNtlTabooRow" style="display:none;margin-top:4px;">
+        <div id="adultNtlTabooTypes" class="adult-ntl-chips"></div>
+      </div>
+    </section>
 
-    <div id="adultCorruptionBlock" class="char-corruption-block" style="display:none;margin-top:12px;">
+    <div id="adultCorruptionBlock" class="char-corruption-block" style="display:none;">
       <div class="char-nsfw-flavor-line" style="margin-bottom:6px;">
         <label class="novel-switch">
           <input id="adultCorruptionEnabled" type="checkbox" />
@@ -82,6 +90,8 @@
         </div>
       </div>
     </div>
+
+    <span class="char-nsfw-subtitle" style="margin-top:8px;display:block;">口味决定世界书人物写法风格；NTL 细化禁忌维度。均不进入主角 Description。</span>
   </div>
 </div>
 
@@ -106,16 +116,82 @@
     color: var(--color-accent);
     white-space: nowrap;
   }
-  .char-nsfw-grid {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px 24px;
-    margin-bottom: 6px;
+  .adult-flavor-section,
+  .adult-ntl-section {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--color-border);
   }
-  .char-nsfw-col {
+  .adult-flavor-list {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .adult-flavor-item {
+    padding: 8px 10px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: var(--color-surface);
+  }
+  .adult-flavor-item-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+  .adult-flavor-item-meta {
+    flex: 1;
+    min-width: 0;
+  }
+  .adult-flavor-item-title {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--color-text);
+  }
+  .adult-flavor-item-title .adult-flavor-primary-tag {
+    margin-left: 6px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: var(--color-accent);
+  }
+  .adult-flavor-item-desc {
+    font-size: 0.7rem;
+    color: var(--color-text-muted);
+    line-height: 1.4;
+    margin-top: 2px;
+  }
+  .adult-flavor-item textarea {
+    width: 100%;
+    font-size: 0.72rem;
+    padding: 5px 8px;
+    border-radius: 6px;
+    border: 1px solid var(--color-border);
+    background: var(--color-bg, var(--color-surface));
+    color: var(--color-text);
+    resize: vertical;
+    min-height: 2.4em;
+  }
+  .adult-flavor-add-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .adult-flavor-add-row select {
+    font-size: 0.73rem;
+    padding: 4px 8px;
+    border-radius: 6px;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text);
+    max-width: 220px;
+  }
+  .adult-ntl-chips {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
   }
   .char-nsfw-flavor-line {
     display: flex;
@@ -134,7 +210,8 @@
     line-height: 1.4;
   }
   .char-corruption-block {
-    padding-top: 8px;
+    margin-top: 12px;
+    padding-top: 10px;
     border-top: 1px dashed var(--color-border);
   }
   .char-corruption-targets {

@@ -25,6 +25,7 @@ export function createDefaultCardState() {
     altGreetings: [],
     nsfwEnabled: false,
     nsfwFlavor: '',
+    nsfwFlavorItems: [],
     ntlEnabled: false,
     ntlTabooTypes: [],
     corruptionEnabled: false,
@@ -64,6 +65,11 @@ export function buildDraftSnapshot(state) {
     altGreetings: s.altGreetings || [],
     nsfwEnabled: !!s.nsfwEnabled,
     nsfwFlavor: s.nsfwFlavor || '',
+    nsfwFlavorItems: Array.isArray(s.nsfwFlavorItems)
+      ? s.nsfwFlavorItems.map(function(it) {
+          return { id: String((it && it.id) || ''), note: String((it && it.note) || '') };
+        }).filter(function(it) { return it.id; })
+      : (s.nsfwFlavor ? [{ id: s.nsfwFlavor, note: '' }] : []),
     ntlEnabled: !!s.ntlEnabled,
     ntlTabooTypes: (s.ntlTabooTypes || []).slice(),
     corruptionEnabled: !!s.corruptionEnabled,

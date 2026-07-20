@@ -18,15 +18,20 @@ export function registerAiEngine(ctx) {
   // ====================================================================
 
   function buildNsfwFlavorHint() {
+    if (typeof window.__buildAdultPromptHints__ === 'function') {
+      var hints = window.__buildAdultPromptHints__() || {};
+      return hints.nsfw || '';
+    }
     var nsfwConfig = window.__getNsfwConfig__ ? window.__getNsfwConfig__() : {};
     var data = window.__nsfwFlavorData__;
-    if (!nsfwConfig.enabled || !nsfwConfig.flavor || !data) return '';
-    var p = data.presets[nsfwConfig.flavor];
-    if (!p) return '';
-    return '\n【生成风格·' + p.label + '】' + p.description
-      + '\n温度=' + p.palette.temperature + ' | 触感=' + p.palette.texture
-      + '\n重点：' + p.focus.join(' / ')
-      + '\n避免：' + p.avoid.join(' / ');
+    if (!nsfwConfig.enabled || !data) return '';
+    var items = Array.isArray(nsfwConfig.flavorItems) ? nsfwConfig.flavorItems : [];
+    if (!items.length && nsfwConfig.flavor) items = [{ id: nsfwConfig.flavor, note: '' }];
+    if (!items.length) return '';
+    if (typeof data.buildHintFromItems === 'function') {
+      return data.buildHintFromItems(items);
+    }
+    return '';
   }
 
   function buildNtlHintForPrompt() {
@@ -98,6 +103,11 @@ export function registerAiEngine(ctx) {
       presetList: parsedPresetList,
       nsfwEnabled:   !!nsfwConfig.enabled,
       nsfwFlavor:    nsfwConfig.flavor || '',
+      nsfwFlavorItems: Array.isArray(nsfwConfig.flavorItems)
+        ? nsfwConfig.flavorItems.map(function(it) {
+            return { id: String((it && it.id) || ''), note: String((it && it.note) || '') };
+          }).filter(function(it) { return it.id; })
+        : (nsfwConfig.flavor ? [{ id: nsfwConfig.flavor, note: '' }] : []),
       ntlEnabled:    !!nsfwConfig.ntlEnabled,
       ntlTabooTypes: (nsfwConfig.ntlTabooTypes || []).slice(),
     }));

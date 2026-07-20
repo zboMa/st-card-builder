@@ -137,9 +137,9 @@ tests/                             # 22 个测试文件，346 个测试，全部
 **不是给人物加标签，而是给 AI 一个调色盘**。用 `primary_hue`（主色调）、`accent_hue`（对比色）、`temperature`（冷暖）、`texture`（触感）来描述欲望——
 同一张 Kinks 牌在不同调色盘下读起来完全不同。
 
-### 20 种 NSFW 口味预设 + 8 种 NTL 禁忌类型
+### 21 种 NSFW 口味预设（多选最多 5）+ 8 种 NTL 禁忌类型
 
-详见 `src/lib/novel/nsfwSupport.mjs`（962 行），完整定义了口味的 `group/label/description/palette/focus/avoid` 和 NTL 禁忌 `attrs`。
+详见 `src/lib/novel/nsfwSupport.mjs`：口味含「反差向」；卡级数据为 `nsfwFlavorItems: [{ id, note }]`（旧 `nsfwFlavor` 迁为首项）；首项为主调色盘，`buildNsfwFlavorHintFromItems` 合并 focus/avoid/note。
 
 ### 全局配置 —— 角色设定是唯一入口
 
@@ -218,7 +218,7 @@ AdultConfigPanel
 st_v3_builder_ai_config
     ↓ nsfw-config-changed
     ├→ 世界书管道生成 / 恶堕档案
-    └→ 小说工坊 adultMode/ntlMode/nsfwFlavor/ntlTabooTypes
+    └→ 小说工坊 adultMode/ntlMode/nsfwFlavorItems(+nsfwFlavor)/ntlTabooTypes
 ```
 
 **小说工坊原始资料面板**不包含任何 NSFW/NTL 配置 UI——只有分片/召回/处理模式等纯工作流配置。
@@ -269,7 +269,7 @@ st_v3_builder_ai_config
 
 ### NSFW/NTL 增强（历史）
 
-- 20 种口味预设 + 8 种 NTL 禁忌类型
+- 21 种口味预设（多选最多 5 + note）+ 8 种 NTL 禁忌类型
 - NTL 人物数据模型（`emptyNtlPersonAttrs` / `normalizeNtlPersonAttrs` / `mergeNtlPersonAttrs`）
 - RAG 增强搜索覆盖 7 个 pipeline 场景
 - `promptCanon` 更新为调色盘引导写作法

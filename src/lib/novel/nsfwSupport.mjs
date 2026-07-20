@@ -4,10 +4,13 @@
  *
  * 调色盘三层架构：
  *   第一层·角色核心调色盘（always）→ schema.mjs: persona_layers / tension_pairs / core_desire
- *   第二层·NSFW 口味（叠加）→ nsfwFlavor 预设 → desire_palette / sexual_psychology / situational_modulation / aftercare
+ *   第二层·NSFW 口味（叠加）→ nsfwFlavorItems 多选（最多 5，首项为主调色盘）→ desire_palette / …
  *   第三层·NTL 禁忌层（可选叠加）→ ntlTabooType 预设 → 特定禁忌类别的张力引导
  */
 import { UNMENTIONED } from './schema.mjs';
+
+/** 卡级 NSFW 口味最多叠加条数 */
+export var MAX_NSFW_FLAVOR_ITEMS = 5;
 
 /** NSFW 实体 kind */
 export var NSFW_ENTITY_KINDS = ['rule', 'place', 'item', 'dynamic', 'taboo', 'consent'];
@@ -41,11 +44,11 @@ export var NTL_RAG_BOOST_TERMS = [
 ];
 
 /**
- * NSFW 口味预设：20 种，分三组
+ * NSFW 口味预设：21 种，分三组
  *   情绪基调（8）：纯爱/甜蜜/日常/救赎/恣意/虐恋/暗黑/绝望
  *   关系动态（8）：调教/叛逆/温柔支配/臣服/狩猎/引导/沦陷/敌对
- *   特殊风味（4）：惩戒/羞耻/架空/本能
- * 每种预设驱动不同的调色盘参数和 prompt 注入方向
+ *   特殊风味（5）：惩戒/羞耻/架空/本能/反差
+ * 可多选最多 5 项；首项为主调色盘，其余叠加 focus/avoid 与用户 note
  */
 export var NSFW_FLAVOR_PRESETS = {
   // ======== 第一组：情绪基调 ========
@@ -212,6 +215,14 @@ export var NSFW_FLAVOR_PRESETS = {
     palette: { temperature: '原始的热', texture: '毛皮+汗', primary_intensity_default: 0.9, accent_intensity_default: 0.6 },
     focus: ['instinct', 'feral', 'scent_marking', 'raw_power', 'rationality_losing'],
     avoid: ['回归理性太快', '用社交规范约束', '写成普通野兽行为'],
+  },
+  contrast: {
+    group: '特殊风味',
+    label: '反差向',
+    description: '表面人设与情欲表现强烈错位——清冷/端庄/强势外壳下的失控、乖顺或淫靡；张力来自「不该这样」',
+    palette: { temperature: '冷外热内', texture: '西装内里的汗', primary_intensity_default: 0.7, accent_intensity_default: 0.85 },
+    focus: ['persona_vs_desire', 'public_vs_private', 'reluctant_reveal', 'shameful_enjoyment', 'identity_crack'],
+    avoid: ['无铺垫的突然崩人设', '把反差写成单纯双标脸谱', '忽略事后自我厌恶或沉溺'],
   },
 };
 
@@ -889,14 +900,64 @@ export function buildStatusBarNtlDraftFromEntities(entities, charName) {
 }
 
 /**
- * 获取/设置 NSFW 口味预设
+ * 规范化口味列表：[{ id, note }]，去重、校验、截断至 MAX；
+ * 若列表空且有旧版单字段 nsfwFlavor，则迁移为一项。
  */
+export function normalizeNsfwFlavorItems(rawItems, legacyFlavorId) {
+  var out = [];
+  var seen = Object.create(null);
+  var list = Array.isArray(rawItems) ? rawItems : [];
+  list.forEach(function(it) {
+    if (!it) return;
+    var id = typeof it === 'string' ? it : String(it.id || '').trim();
+    if (!id || NSFWFLAVOR_IDS.indexOf(id) < 0 || seen[id]) return;
+    seen[id] = true;
+    var note = typeof it === 'string' ? '' : String(it.note == null ? '' : it.note).trim();
+    out.push({ id: id, note: note });
+  });
+  if (!out.length) {
+    var legacy = String(legacyFlavorId || '').trim();
+    if (legacy && NSFWFLAVOR_IDS.indexOf(legacy) >= 0) {
+      out.push({ id: legacy, note: '' });
+    }
+  }
+  if (out.length > MAX_NSFW_FLAVOR_ITEMS) out = out.slice(0, MAX_NSFW_FLAVOR_ITEMS);
+  return out;
+}
+
+/** 主口味 id（首项），兼容旧单字段读取 */
 export function getNsfwFlavor(state) {
+  var items = getNsfwFlavorItems(state);
+  if (items.length) return items[0].id;
   return (state && state.nsfwFlavor) || '';
 }
 
+export function getNsfwFlavorItems(state) {
+  if (!state) return [];
+  return normalizeNsfwFlavorItems(state.nsfwFlavorItems, state.nsfwFlavor);
+}
+
+/** 写入口味列表，并同步主字段 nsfwFlavor = 首项 id */
+export function setNsfwFlavorItems(state, items) {
+  var next = normalizeNsfwFlavorItems(items, '');
+  state.nsfwFlavorItems = next.map(function(it) {
+    return { id: it.id, note: it.note || '' };
+  });
+  state.nsfwFlavor = next.length ? next[0].id : '';
+  return getNsfwFlavorItems(state);
+}
+
+/** 兼容旧 API：设为主口味（若已在列表中则移到首位，否则替换为单项） */
 export function setNsfwFlavor(state, flavorId) {
-  state.nsfwFlavor = NSFWFLAVOR_IDS.indexOf(flavorId) >= 0 ? flavorId : '';
+  var id = NSFWFLAVOR_IDS.indexOf(flavorId) >= 0 ? flavorId : '';
+  if (!id) {
+    state.nsfwFlavorItems = [];
+    state.nsfwFlavor = '';
+    return '';
+  }
+  var cur = getNsfwFlavorItems(state).filter(function(it) { return it.id !== id; });
+  cur.unshift({ id: id, note: '' });
+  setNsfwFlavorItems(state, cur);
   return state.nsfwFlavor;
 }
 
@@ -929,19 +990,63 @@ export function addNtlTabooType(state, type) {
 }
 
 /**
+ * 由口味条目列表构建注入块（供卡侧 / 小说侧共用）
+ * @param {Array<{id:string,note?:string}>} items
+ * @param {{ presets?: object, intro?: string, footer?: string }} [opts]
+ */
+export function buildNsfwFlavorHintFromItems(items, opts) {
+  opts = opts || {};
+  var presets = opts.presets || NSFW_FLAVOR_PRESETS;
+  var list = normalizeNsfwFlavorItems(items, '');
+  if (!list.length) return '';
+
+  var focusSeen = Object.create(null);
+  var avoidSeen = Object.create(null);
+  var focusAll = [];
+  var avoidAll = [];
+  var lines = [];
+
+  if (list.length === 1) {
+    var f0 = presets[list[0].id];
+    if (!f0) return '';
+    lines.push('\n【NSFW 口味·' + f0.label + '】');
+  } else {
+    lines.push('\n【NSFW 口味组合】（首项为主调色盘）');
+  }
+  if (opts.intro) lines.push(opts.intro);
+
+  list.forEach(function(it, idx) {
+    var f = presets[it.id];
+    if (!f) return;
+    var notePart = it.note ? ('；用户补充：' + it.note) : '';
+    lines.push((idx + 1) + '. ' + f.label + '：' + f.description + notePart
+      + (idx === 0 ? '（主调色盘）' : '（叠加）'));
+    (f.focus || []).forEach(function(x) {
+      if (!focusSeen[x]) { focusSeen[x] = true; focusAll.push(x); }
+    });
+    (f.avoid || []).forEach(function(x) {
+      if (!avoidSeen[x]) { avoidSeen[x] = true; avoidAll.push(x); }
+    });
+  });
+
+  var primary = presets[list[0].id];
+  if (primary && primary.palette) {
+    var p = primary.palette;
+    lines.push('主调色盘参考：温度=' + p.temperature + ' | 触感=' + p.texture
+      + ' | 主色强度=' + p.primary_intensity_default + ' | 对比色强度=' + p.accent_intensity_default);
+  }
+  if (focusAll.length) lines.push('重点写出：' + focusAll.join(' / '));
+  if (avoidAll.length) lines.push('避免：' + avoidAll.join(' / '));
+  if (opts.footer) lines.push(opts.footer);
+  return lines.join('\n');
+}
+
+/**
  * 构建 NSFW 口味注入块：告诉 AI 按什么风格/重点写 NSFW 内容
  */
 export function buildNsfwFlavorHint(state) {
-  var flavorId = getNsfwFlavor(state);
-  if (!flavorId) return '';
-  var f = NSFW_FLAVOR_PRESETS[flavorId];
-  if (!f) return '';
-  var p = f.palette;
-  return '\n【NSFW 口味·' + f.label + '】' + f.description
-    + '\n调色盘参考：温度=' + p.temperature + ' | 触感=' + p.texture
-    + ' | 主色强度=' + p.primary_intensity_default + ' | 对比色强度=' + p.accent_intensity_default
-    + '\n重点写出：' + f.focus.join(' / ')
-    + '\n避免：' + f.avoid.join(' / ');
+  if (!getAdultMode(state)) return '';
+  return buildNsfwFlavorHintFromItems(getNsfwFlavorItems(state));
 }
 
 /**
@@ -960,8 +1065,11 @@ export function buildNtlTabooHint(state) {
 
 /**
  * 构建调色盘引导块（角色核心层 + NSFW 口味层），注入到人物生成/扩展 prompt
+ * @param {{ includeAdult?: boolean }} [opts] includeAdult=false 时仅核心层（主角管道）
  */
-export function buildPaletteGuidanceBlock(state) {
+export function buildPaletteGuidanceBlock(state, opts) {
+  opts = opts || {};
+  var includeAdult = opts.includeAdult !== false;
   var parts = [];
   parts.push('\n【调色盘生成引导】');
   parts.push('不要列属性清单。用「调色盘」方式塑造人物：');
@@ -969,21 +1077,27 @@ export function buildPaletteGuidanceBlock(state) {
   parts.push('2. tension_pairs：至少一对内在矛盾（例如「掌控欲 vs 对被抛弃的恐惧」→ 用制造依赖来确保对方不离开）。每对写清 trait_a、trait_b、resolution（这两股力如何共存）。');
   parts.push('3. core_desire：一句话。角色最根本要什么（被认可/被需要/自由/安全/复仇/归属/遗忘）。');
 
-  var flavorId = getNsfwFlavor(state);
-  if (flavorId && getAdultMode(state)) {
-    var f = NSFW_FLAVOR_PRESETS[flavorId];
-    if (f) {
-      parts.push('4. NSFW 部分用「欲望调色盘」而非 Kinks 清单：');
-      parts.push('  - desire_palette：primary_hue（情欲主色）+ accent_hue（对比色）+ temperature + texture。同一张 Kinks 牌在不同调色盘下读起来完全不同。');
-      parts.push('  - forbidden_tint：明明想要但不愿承认的东西——这是最迷人的部分。');
-      parts.push('  - 口味：' + f.label + '（' + f.description + '），温度=' + f.palette.temperature + '，触感=' + f.palette.texture);
-      parts.push('  - sexual_psychology：core_desire/core_fear/shame_sources/desire_expression/arousal_signature/fantasy_vs_reality/attachment_after 全部写满。');
-      parts.push('  - situational_modulation：同一个人在不同场景下欲望表现不同。safe=intensity低/charged=intensity高/semi_public=克制暗流/post_conflict=粗暴确认/first_time=紧张试探。');
-      parts.push('  - aftercare：亲密后需要什么（拥抱/独处/语言确认/清洁）；对关系是拉近还是推远。');
+  var items = includeAdult && getAdultMode(state) ? getNsfwFlavorItems(state) : [];
+  if (items.length) {
+    var labels = items.map(function(it) {
+      var f = NSFW_FLAVOR_PRESETS[it.id];
+      var base = f ? (f.label + '（' + f.description + '）') : it.id;
+      return it.note ? (base + '｜补充：' + it.note) : base;
+    });
+    var primary = NSFW_FLAVOR_PRESETS[items[0].id];
+    parts.push('4. NSFW 部分用「欲望调色盘」而非 Kinks 清单：');
+    parts.push('  - desire_palette：primary_hue（情欲主色）+ accent_hue（对比色）+ temperature + texture。同一张 Kinks 牌在不同调色盘下读起来完全不同。');
+    parts.push('  - forbidden_tint：明明想要但不愿承认的东西——这是最迷人的部分。');
+    parts.push('  - 口味组合（首项为主）：' + labels.join(' + '));
+    if (primary) {
+      parts.push('  - 主调色盘：温度=' + primary.palette.temperature + '，触感=' + primary.palette.texture);
     }
+    parts.push('  - sexual_psychology：core_desire/core_fear/shame_sources/desire_expression/arousal_signature/fantasy_vs_reality/attachment_after 全部写满。');
+    parts.push('  - situational_modulation：同一个人在不同场景下欲望表现不同。safe=intensity低/charged=intensity高/semi_public=克制暗流/post_conflict=粗暴确认/first_time=紧张试探。');
+    parts.push('  - aftercare：亲密后需要什么（拥抱/独处/语言确认/清洁）；对关系是拉近还是推远。');
   }
 
-  if (getNtlMode(state)) {
+  if (includeAdult && getNtlMode(state)) {
     var tabooTypes = getNtlTabooTypes(state);
     parts.push('5. NTL 禁忌层：');
     if (tabooTypes.length) {

@@ -275,14 +275,19 @@ export function registerWorldbook(ctx) {
   //  NSFW / NTL 提示构建
   // ============================================================
   function buildNsfwFlavorHint() {
+    if (typeof window.__buildAdultPromptHints__ === 'function') {
+      var hints = window.__buildAdultPromptHints__() || {};
+      return hints.nsfw || '';
+    }
     var data = window.__nsfwFlavorData__;
-    if (!ctx.state.nsfwEnabled || !ctx.state.nsfwFlavor || !data) return '';
-    var p = data.presets[ctx.state.nsfwFlavor];
-    if (!p) return '';
-    return '\n\u3010\u751F\u6210\u98CE\u683C\u00B7' + p.label + '\u3011' + p.description
-      + '\n\u6E29\u5EA6=' + p.palette.temperature + ' | \u89E6\u611F=' + p.palette.texture
-      + '\n\u91CD\u70B9\uFF1A' + p.focus.join(' / ')
-      + '\n\u907F\u514D\uFF1A' + p.avoid.join(' / ');
+    if (!ctx.state.nsfwEnabled || !data) return '';
+    var items = Array.isArray(ctx.state.nsfwFlavorItems) ? ctx.state.nsfwFlavorItems : [];
+    if (!items.length && ctx.state.nsfwFlavor) items = [{ id: ctx.state.nsfwFlavor, note: '' }];
+    if (!items.length) return '';
+    if (typeof data.buildHintFromItems === 'function') {
+      return data.buildHintFromItems(items);
+    }
+    return '';
   }
 
   function buildNtlHintForPrompt() {

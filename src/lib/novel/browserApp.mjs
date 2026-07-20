@@ -43,6 +43,7 @@ import {
   buildContentModeFlags,
   getNsfwFlavor,
   setNsfwFlavor,
+  setNsfwFlavorItems,
   getNtlTabooTypes,
   setNtlTabooTypes,
 } from './nsfwSupport.mjs';
@@ -667,7 +668,11 @@ export function initNovelWorkshop() {
     var cfg = ev && ev.detail;
     if (cfg) {
       if (typeof cfg.enabled === 'boolean') setAdultMode(state, cfg.enabled);
-      if (typeof cfg.flavor === 'string') setNsfwFlavor(state, cfg.flavor);
+      if (Array.isArray(cfg.flavorItems)) {
+        setNsfwFlavorItems(state, cfg.flavorItems);
+      } else if (typeof cfg.flavor === 'string') {
+        setNsfwFlavor(state, cfg.flavor);
+      }
       if (typeof cfg.ntlEnabled === 'boolean') setNtlMode(state, cfg.ntlEnabled);
       if (Array.isArray(cfg.ntlTabooTypes)) setNtlTabooTypes(state, cfg.ntlTabooTypes);
       ctx.save();

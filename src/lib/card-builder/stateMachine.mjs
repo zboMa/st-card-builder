@@ -84,6 +84,16 @@ export function createCardStateMachine(state) {
     state.altGreetings = d.altGreetings || [];
     state.nsfwEnabled = !!d.nsfwEnabled;
     state.nsfwFlavor = d.nsfwFlavor || '';
+    if (Array.isArray(d.nsfwFlavorItems) && d.nsfwFlavorItems.length) {
+      state.nsfwFlavorItems = d.nsfwFlavorItems.map(function(it) {
+        return { id: String((it && it.id) || ''), note: String((it && it.note) || '') };
+      }).filter(function(it) { return it.id; });
+      if (!state.nsfwFlavor && state.nsfwFlavorItems[0]) state.nsfwFlavor = state.nsfwFlavorItems[0].id;
+    } else if (state.nsfwFlavor) {
+      state.nsfwFlavorItems = [{ id: state.nsfwFlavor, note: '' }];
+    } else {
+      state.nsfwFlavorItems = [];
+    }
     state.ntlEnabled = !!d.ntlEnabled;
     state.ntlTabooTypes = Array.isArray(d.ntlTabooTypes) ? d.ntlTabooTypes.slice() : [];
     state.corruptionEnabled = !!d.corruptionEnabled;
@@ -113,6 +123,7 @@ export function createCardStateMachine(state) {
     state.altGreetings = [];
     state.nsfwEnabled = false;
     state.nsfwFlavor = '';
+    state.nsfwFlavorItems = [];
     state.ntlEnabled = false;
     state.ntlTabooTypes = [];
     state.corruptionEnabled = false;

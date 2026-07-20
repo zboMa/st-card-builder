@@ -130,12 +130,18 @@ import AiTaskCenterUI from '../components/AiTaskCenterUI.astro';
       NSFWFLAVOR_IDS,
       NTL_TABOO_TYPES,
       NTL_TABOO_IDS,
+      MAX_NSFW_FLAVOR_ITEMS,
+      normalizeNsfwFlavorItems,
+      buildNsfwFlavorHintFromItems,
     } from '../lib/novel/nsfwSupport.mjs';
     window.__nsfwFlavorData__ = {
       presets: NSFW_FLAVOR_PRESETS,
       ids: NSFWFLAVOR_IDS,
       tabooTypes: NTL_TABOO_TYPES,
       tabooIds: NTL_TABOO_IDS,
+      maxItems: MAX_NSFW_FLAVOR_ITEMS,
+      normalizeItems: normalizeNsfwFlavorItems,
+      buildHintFromItems: buildNsfwFlavorHintFromItems,
     };
   </script>
 

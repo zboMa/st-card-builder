@@ -175,6 +175,11 @@ export function bootCardBuilder() {
       presetList: presetList,
       nsfwEnabled: !!ctx.state.nsfwEnabled,
       nsfwFlavor: ctx.state.nsfwFlavor || '',
+      nsfwFlavorItems: Array.isArray(ctx.state.nsfwFlavorItems)
+        ? ctx.state.nsfwFlavorItems.map(function(it) {
+            return { id: String((it && it.id) || ''), note: String((it && it.note) || '') };
+          }).filter(function(it) { return it.id; })
+        : (ctx.state.nsfwFlavor ? [{ id: ctx.state.nsfwFlavor, note: '' }] : []),
       ntlEnabled: !!ctx.state.ntlEnabled,
       ntlTabooTypes: (ctx.state.ntlTabooTypes || []).slice(),
       corruptionEnabled: !!ctx.state.corruptionEnabled,
@@ -237,7 +242,17 @@ export function bootCardBuilder() {
           if (bu && c.novelRag.budget) bu.value = String(c.novelRag.budget);
         }
       } catch (eRag) { /* ignore */ }
-      if (c.nsfwFlavor != null) ctx.state.nsfwFlavor = String(c.nsfwFlavor || '');
+      if (Array.isArray(c.nsfwFlavorItems) && c.nsfwFlavorItems.length) {
+        ctx.state.nsfwFlavorItems = c.nsfwFlavorItems.map(function(it) {
+          return { id: String((it && it.id) || ''), note: String((it && it.note) || '') };
+        }).filter(function(it) { return it.id; });
+        ctx.state.nsfwFlavor = ctx.state.nsfwFlavorItems[0] ? ctx.state.nsfwFlavorItems[0].id : '';
+      } else if (c.nsfwFlavor != null) {
+        ctx.state.nsfwFlavor = String(c.nsfwFlavor || '');
+        ctx.state.nsfwFlavorItems = ctx.state.nsfwFlavor
+          ? [{ id: ctx.state.nsfwFlavor, note: '' }]
+          : [];
+      }
       if (c.nsfwEnabled != null) ctx.state.nsfwEnabled = !!c.nsfwEnabled;
       if (c.ntlEnabled != null) ctx.state.ntlEnabled = !!c.ntlEnabled;
       if (Array.isArray(c.ntlTabooTypes)) ctx.state.ntlTabooTypes = c.ntlTabooTypes.slice();

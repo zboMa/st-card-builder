@@ -33,16 +33,49 @@ export function registerAdultConfig(ctx) {
   var escapeHtml = ctx.escapeHtml;
   var corruptionTargetsCache = [];
 
+  function maxFlavorItems() {
+    var data = window.__nsfwFlavorData__;
+    return (data && data.maxItems) || 5;
+  }
+
+  function normalizeFlavorItems(raw, legacy) {
+    var data = window.__nsfwFlavorData__;
+    if (data && typeof data.normalizeItems === 'function') {
+      return data.normalizeItems(raw, legacy);
+    }
+    var out = [];
+    var seen = Object.create(null);
+    (Array.isArray(raw) ? raw : []).forEach(function(it) {
+      var id = it && it.id ? String(it.id) : '';
+      if (!id || seen[id]) return;
+      if (data && data.ids && data.ids.indexOf(id) < 0) return;
+      seen[id] = true;
+      out.push({ id: id, note: String((it && it.note) || '') });
+    });
+    if (!out.length && legacy && (!data || !data.ids || data.ids.indexOf(legacy) >= 0)) {
+      out.push({ id: String(legacy), note: '' });
+    }
+    return out.slice(0, maxFlavorItems());
+  }
+
+  function ensureFlavorItemsOnState() {
+    var items = normalizeFlavorItems(ctx.state.nsfwFlavorItems, ctx.state.nsfwFlavor);
+    ctx.state.nsfwFlavorItems = items;
+    ctx.state.nsfwFlavor = items.length ? items[0].id : '';
+    return items;
+  }
+
   function buildNsfwFlavorHint() {
     var data = window.__nsfwFlavorData__;
-    if (!ctx.state.nsfwEnabled || !ctx.state.nsfwFlavor || !data) return '';
-    var p = data.presets[ctx.state.nsfwFlavor];
-    if (!p) return '';
-    return '\n【生成风格·' + p.label + '】（仅用于世界书人物/恶堕，勿写入主角设定）'
-      + p.description
-      + '\n温度=' + p.palette.temperature + ' | 触感=' + p.palette.texture
-      + '\n重点：' + p.focus.join(' / ')
-      + '\n避免：' + p.avoid.join(' / ');
+    if (!ctx.state.nsfwEnabled || !data) return '';
+    var items = ensureFlavorItemsOnState();
+    if (!items.length) return '';
+    if (typeof data.buildHintFromItems === 'function') {
+      return data.buildHintFromItems(items, {
+        intro: '（仅用于世界书人物/恶堕，勿写入主角设定）',
+      });
+    }
+    return '';
   }
 
   function buildNtlHintForPrompt() {
@@ -194,46 +227,82 @@ export function registerAdultConfig(ctx) {
       return names;
     },
 
-    renderNsfwBlock: function() {
+    renderFlavorList: function() {
       var data = window.__nsfwFlavorData__;
-      var adultEl = document.getElementById('adultNsfwEnabled');
-      var ntlEl = document.getElementById('adultNtlEnabled');
-      var flavorEl = document.getElementById('adultNsfwFlavor');
-      var flavorRow = document.getElementById('adultNsfwFlavorRow');
-      var flavorDesc = document.getElementById('adultNsfwFlavorDesc');
-      var ntlRow = document.getElementById('adultNtlTabooRow');
-      var ntlContainer = document.getElementById('adultNtlTabooTypes');
+      var listEl = document.getElementById('adultNsfwFlavorList');
+      var picker = document.getElementById('adultNsfwFlavorPicker');
+      var capEl = document.getElementById('adultNsfwFlavorCap');
+      var addBtn = document.getElementById('btnAddNsfwFlavor');
+      if (!listEl || !data) return;
 
-      if (adultEl && adultEl.checked !== ctx.state.nsfwEnabled) adultEl.checked = ctx.state.nsfwEnabled;
-      if (ntlEl && ntlEl.checked !== ctx.state.ntlEnabled) ntlEl.checked = ctx.state.ntlEnabled;
+      var items = ensureFlavorItemsOnState();
+      var max = maxFlavorItems();
+      if (!items.length) {
+        listEl.innerHTML = '<span class="char-nsfw-subtitle">尚未添加口味——点击下方「＋添加口味」选择（可不选，用通用写法）</span>';
+      } else {
+        listEl.innerHTML = items.map(function(it, idx) {
+          var f = data.presets[it.id] || { label: it.id, description: '' };
+          return '<div class="adult-flavor-item" data-flavor-idx="' + idx + '">'
+            + '<div class="adult-flavor-item-head">'
+            + '<div class="adult-flavor-item-meta">'
+            + '<div class="adult-flavor-item-title">' + escapeHtml(f.label)
+            + (idx === 0 ? '<span class="adult-flavor-primary-tag">主调色盘</span>' : '')
+            + '</div>'
+            + '<div class="adult-flavor-item-desc">' + escapeHtml(f.description || '') + '</div>'
+            + '</div>'
+            + '<button type="button" class="btn btn-ghost" data-flavor-remove="' + idx + '" style="font-size:0.7rem;padding:2px 8px;">移除</button>'
+            + '</div>'
+            + '<textarea data-flavor-note="' + idx + '" rows="2" placeholder="可选：补充该口味的额外提示（写入世界书管道）">'
+            + escapeHtml(it.note || '') + '</textarea>'
+            + '</div>';
+        }).join('');
+      }
 
-      if (flavorRow) flavorRow.style.display = ctx.state.nsfwEnabled ? 'flex' : 'none';
-      if (flavorEl && !flavorEl.dataset.filled && data) {
-        var groups = { '情绪基调': [], '关系动态': [], '特殊风味': [] };
-        data.ids.forEach(function(id) {
-          var f = data.presets[id];
-          var g = f.group || '特殊风味';
-          if (!groups[g]) groups[g] = [];
-          groups[g].push(id);
-        });
-        var opts = '<option value="">默认（通用）</option>';
+      var selected = Object.create(null);
+      items.forEach(function(it) { selected[it.id] = true; });
+      var groups = { '情绪基调': [], '关系动态': [], '特殊风味': [] };
+      data.ids.forEach(function(id) {
+        if (selected[id]) return;
+        var f = data.presets[id];
+        var g = (f && f.group) || '特殊风味';
+        if (!groups[g]) groups[g] = [];
+        groups[g].push(id);
+      });
+      if (picker) {
+        var opts = '<option value="">选择口味…</option>';
         Object.keys(groups).forEach(function(g) {
-          var ids = groups[g];
-          if (!ids.length) return;
+          if (!groups[g].length) return;
           opts += '<optgroup label="' + g + '">';
-          ids.forEach(function(id) {
+          groups[g].forEach(function(id) {
             opts += '<option value="' + id + '">' + data.presets[id].label + '</option>';
           });
           opts += '</optgroup>';
         });
-        flavorEl.innerHTML = opts;
-        flavorEl.dataset.filled = '1';
+        picker.innerHTML = opts;
+        picker.disabled = items.length >= max;
       }
-      if (flavorEl) flavorEl.value = ctx.state.nsfwFlavor;
-      if (flavorDesc && data) {
-        var f = data.presets[ctx.state.nsfwFlavor];
-        flavorDesc.textContent = f ? f.description : '';
+      if (addBtn) addBtn.disabled = items.length >= max;
+      if (capEl) {
+        capEl.textContent = items.length
+          ? ('已选 ' + items.length + ' / ' + max)
+          : ('最多 ' + max + ' 个');
       }
+    },
+
+    renderNsfwBlock: function() {
+      var data = window.__nsfwFlavorData__;
+      var adultEl = document.getElementById('adultNsfwEnabled');
+      var ntlEl = document.getElementById('adultNtlEnabled');
+      var flavorSection = document.getElementById('adultFlavorSection');
+      var ntlRow = document.getElementById('adultNtlTabooRow');
+      var ntlContainer = document.getElementById('adultNtlTabooTypes');
+
+      ensureFlavorItemsOnState();
+      if (adultEl && adultEl.checked !== ctx.state.nsfwEnabled) adultEl.checked = ctx.state.nsfwEnabled;
+      if (ntlEl && ntlEl.checked !== ctx.state.ntlEnabled) ntlEl.checked = ctx.state.ntlEnabled;
+
+      if (flavorSection) flavorSection.style.display = ctx.state.nsfwEnabled ? 'block' : 'none';
+      if (ctx.state.nsfwEnabled) ctx.panels.adultConfig.renderFlavorList();
 
       if (ntlRow) ntlRow.style.display = ctx.state.ntlEnabled ? 'block' : 'none';
       if (ntlContainer && data) {
@@ -280,16 +349,29 @@ export function registerAdultConfig(ctx) {
       if (ctx.state.corruptionEnabled) ctx.panels.adultConfig.renderCorruptionTargets();
     },
 
+    readFlavorItemsFromUi: function() {
+      var items = ensureFlavorItemsOnState().map(function(it) {
+        return { id: it.id, note: it.note || '' };
+      });
+      document.querySelectorAll('#adultNsfwFlavorList [data-flavor-note]').forEach(function(el) {
+        var idx = parseInt(el.getAttribute('data-flavor-note'), 10);
+        if (isNaN(idx) || !items[idx]) return;
+        items[idx].note = String(el.value || '').trim();
+      });
+      return normalizeFlavorItems(items, '');
+    },
+
     syncNsfwBlockFromUi: function() {
       var adultEl = document.getElementById('adultNsfwEnabled');
       var ntlEl = document.getElementById('adultNtlEnabled');
-      var flavorEl = document.getElementById('adultNsfwFlavor');
       var chips = document.querySelectorAll('[data-adult-ntl].active');
       var ntlTypes = [];
       chips.forEach(function(c) { ntlTypes.push(c.dataset.adultNtl); });
 
       ctx.state.nsfwEnabled = adultEl ? !!adultEl.checked : false;
-      ctx.state.nsfwFlavor = flavorEl ? flavorEl.value : '';
+      var items = ctx.panels.adultConfig.readFlavorItemsFromUi();
+      ctx.state.nsfwFlavorItems = items;
+      ctx.state.nsfwFlavor = items.length ? items[0].id : '';
       ctx.state.ntlEnabled = ntlEl ? !!ntlEl.checked : false;
       ctx.state.ntlTabooTypes = ntlTypes;
 
@@ -300,6 +382,43 @@ export function registerAdultConfig(ctx) {
       window.dispatchEvent(new CustomEvent('nsfw-config-changed', {
         detail: window.__getNsfwConfig__ ? window.__getNsfwConfig__() : {},
       }));
+    },
+
+    commitFlavorItems: function(items) {
+      ctx.state.nsfwFlavorItems = normalizeFlavorItems(items, '');
+      ctx.state.nsfwFlavor = ctx.state.nsfwFlavorItems.length ? ctx.state.nsfwFlavorItems[0].id : '';
+      var adultEl = document.getElementById('adultNsfwEnabled');
+      var ntlEl = document.getElementById('adultNtlEnabled');
+      var chips = document.querySelectorAll('[data-adult-ntl].active');
+      var ntlTypes = [];
+      chips.forEach(function(c) { ntlTypes.push(c.dataset.adultNtl); });
+      ctx.state.nsfwEnabled = adultEl ? !!adultEl.checked : ctx.state.nsfwEnabled;
+      ctx.state.ntlEnabled = ntlEl ? !!ntlEl.checked : ctx.state.ntlEnabled;
+      ctx.state.ntlTabooTypes = ntlTypes;
+      ctx.panels.adultConfig.syncCorruptionBlockFromUi({ skipRender: true, silentEvent: true });
+      ctx.panels.adultConfig.renderNsfwBlock();
+      ctx.save();
+      if (typeof window.__persistAiConfig__ === 'function') window.__persistAiConfig__();
+      window.dispatchEvent(new CustomEvent('nsfw-config-changed', {
+        detail: window.__getNsfwConfig__ ? window.__getNsfwConfig__() : {},
+      }));
+    },
+
+    addFlavorItem: function(flavorId) {
+      var id = String(flavorId || '').trim();
+      if (!id) return;
+      var items = ctx.panels.adultConfig.readFlavorItemsFromUi();
+      if (items.length >= maxFlavorItems()) return;
+      if (items.some(function(it) { return it.id === id; })) return;
+      items.push({ id: id, note: '' });
+      ctx.panels.adultConfig.commitFlavorItems(items);
+    },
+
+    removeFlavorItem: function(idx) {
+      var items = ctx.panels.adultConfig.readFlavorItemsFromUi();
+      if (idx < 0 || idx >= items.length) return;
+      items.splice(idx, 1);
+      ctx.panels.adultConfig.commitFlavorItems(items);
     },
 
     syncCorruptionBlockFromUi: function(opts) {
@@ -564,9 +683,13 @@ export function registerAdultConfig(ctx) {
     bind: function() {
       window.__getNsfwConfig__ = function() {
         var corr = ctx.panels.adultConfig.getCorruptionConfig();
+        var items = ensureFlavorItemsOnState();
         return {
           enabled: ctx.state.nsfwEnabled,
-          flavor: ctx.state.nsfwFlavor,
+          flavor: ctx.state.nsfwFlavor || (items[0] && items[0].id) || '',
+          flavorItems: items.map(function(it) {
+            return { id: it.id, note: it.note || '' };
+          }),
           ntlEnabled: ctx.state.ntlEnabled,
           ntlTabooTypes: ctx.state.ntlTabooTypes.slice(),
           corruptionEnabled: corr.enabled,
@@ -580,7 +703,15 @@ export function registerAdultConfig(ctx) {
       };
       window.__setNsfwConfig__ = function(cfg) {
         if (cfg && typeof cfg.enabled === 'boolean') ctx.state.nsfwEnabled = cfg.enabled;
-        if (cfg && typeof cfg.flavor === 'string') ctx.state.nsfwFlavor = cfg.flavor;
+        if (cfg && Array.isArray(cfg.flavorItems)) {
+          ctx.state.nsfwFlavorItems = normalizeFlavorItems(cfg.flavorItems, cfg.flavor || '');
+          ctx.state.nsfwFlavor = ctx.state.nsfwFlavorItems.length ? ctx.state.nsfwFlavorItems[0].id : '';
+        } else if (cfg && typeof cfg.flavor === 'string') {
+          ctx.state.nsfwFlavor = cfg.flavor;
+          ctx.state.nsfwFlavorItems = cfg.flavor
+            ? normalizeFlavorItems([{ id: cfg.flavor, note: '' }], '')
+            : [];
+        }
         if (cfg && typeof cfg.ntlEnabled === 'boolean') ctx.state.ntlEnabled = cfg.ntlEnabled;
         if (cfg && Array.isArray(cfg.ntlTabooTypes)) ctx.state.ntlTabooTypes = cfg.ntlTabooTypes.slice();
         if (cfg && typeof cfg.corruptionEnabled === 'boolean') ctx.state.corruptionEnabled = cfg.corruptionEnabled;
@@ -620,10 +751,30 @@ export function registerAdultConfig(ctx) {
 
       var adultEl = document.getElementById('adultNsfwEnabled');
       var ntlEl = document.getElementById('adultNtlEnabled');
-      var flavorEl = document.getElementById('adultNsfwFlavor');
+      var addFlavorBtn = document.getElementById('btnAddNsfwFlavor');
+      var flavorList = document.getElementById('adultNsfwFlavorList');
       if (adultEl) adultEl.addEventListener('change', ctx.panels.adultConfig.syncNsfwBlockFromUi);
       if (ntlEl) ntlEl.addEventListener('change', ctx.panels.adultConfig.syncNsfwBlockFromUi);
-      if (flavorEl) flavorEl.addEventListener('change', ctx.panels.adultConfig.syncNsfwBlockFromUi);
+      if (addFlavorBtn) {
+        addFlavorBtn.addEventListener('click', function() {
+          var picker = document.getElementById('adultNsfwFlavorPicker');
+          var id = picker ? picker.value : '';
+          if (!id) return;
+          ctx.panels.adultConfig.addFlavorItem(id);
+        });
+      }
+      if (flavorList) {
+        flavorList.addEventListener('click', function(e) {
+          var btn = e.target && e.target.closest ? e.target.closest('[data-flavor-remove]') : null;
+          if (!btn) return;
+          var idx = parseInt(btn.getAttribute('data-flavor-remove'), 10);
+          if (!isNaN(idx)) ctx.panels.adultConfig.removeFlavorItem(idx);
+        });
+        flavorList.addEventListener('change', function(e) {
+          if (!e.target || !e.target.matches('[data-flavor-note]')) return;
+          ctx.panels.adultConfig.syncNsfwBlockFromUi();
+        });
+      }
 
       var corrEnabled = document.getElementById('adultCorruptionEnabled');
       var corrPreset = document.getElementById('adultCorruptionPreset');

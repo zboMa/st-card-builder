@@ -22,12 +22,15 @@ import {
   setNtlMode,
   getNsfwFlavor,
   setNsfwFlavor,
+  getNsfwFlavorItems,
+  setNsfwFlavorItems,
   getNtlTabooTypes,
   setNtlTabooTypes,
   buildStatusBarNsfwDraftFromEntities,
   buildStatusBarNtlDraftFromEntities,
   NSFW_FLAVOR_PRESETS,
   NTL_TABOO_TYPES,
+  MAX_NSFW_FLAVOR_ITEMS,
 } from '../nsfwSupport.mjs';
 
 export function setCharacterFields(fields, $) {
@@ -656,11 +659,23 @@ export function createBridge(ctx) {
       return syncOutputs(ctx, Object.assign({ target: 'entities' }, opts || {}));
     },
     getNsfwFlavor: function() { return getNsfwFlavor(state); },
+    getNsfwFlavorItems: function() { return getNsfwFlavorItems(state); },
     setNsfwFlavor: function(id) {
       setNsfwFlavor(state, id);
       if (typeof window.__setNsfwConfig__ === 'function') {
         var cfg = window.__getNsfwConfig__ ? window.__getNsfwConfig__() : {};
         cfg.flavor = id;
+        cfg.flavorItems = getNsfwFlavorItems(state);
+        window.__setNsfwConfig__(cfg);
+      }
+      ctx.save();
+    },
+    setNsfwFlavorItems: function(items) {
+      setNsfwFlavorItems(state, items);
+      if (typeof window.__setNsfwConfig__ === 'function') {
+        var cfg = window.__getNsfwConfig__ ? window.__getNsfwConfig__() : {};
+        cfg.flavorItems = getNsfwFlavorItems(state);
+        cfg.flavor = getNsfwFlavor(state);
         window.__setNsfwConfig__(cfg);
       }
       ctx.save();
@@ -676,6 +691,7 @@ export function createBridge(ctx) {
       ctx.save();
     },
     getNsfwFlavorPresets: function() { return NSFW_FLAVOR_PRESETS; },
+    getMaxNsfwFlavorItems: function() { return MAX_NSFW_FLAVOR_ITEMS; },
     getNtlTabooTypeOptions: function() { return NTL_TABOO_TYPES; },
   };
 }
