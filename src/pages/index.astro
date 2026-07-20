@@ -3,6 +3,7 @@ import Layout from '../layouts/Layout.astro';
 import AIPanel from '../components/AIPanel.astro';
 import CardManagerPanel from '../components/CardManagerPanel.astro';
 import CharacterPanel from '../components/CharacterPanel.astro';
+import AdultConfigPanel from '../components/AdultConfigPanel.astro';
 import GreetingPanel from '../components/GreetingPanel.astro';
 import WorldbookPanel from '../components/WorldbookPanel.astro';
 import PreviewPanel from '../components/PreviewPanel.astro';
@@ -55,6 +56,7 @@ import AiTaskCenterUI from '../components/AiTaskCenterUI.astro';
       <!-- 视图顺序与侧栏一致；显隐由 data-view 控制 -->
       <div class="app-view" data-view="card-manager"><CardManagerPanel /></div>
       <div class="app-view" data-view="character"><CharacterPanel /></div>
+      <div class="app-view" data-view="adult-config"><AdultConfigPanel /></div>
       <div class="app-view" data-view="greetings"><GreetingPanel /></div>
       <div class="app-view" data-view="worldbook"><WorldbookPanel /></div>
       <div class="app-view" data-view="statusbar"><StatusBarPanel /></div>

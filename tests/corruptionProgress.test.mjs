@@ -24,6 +24,9 @@ import {
   findCorruptionEntries,
   buildCorruptionExportIssues,
   ensureCorruptionModuleInDesign,
+  evaluateArchiveRichness,
+  findWorldbookPersonContext,
+  CORRUPTION_MIN_CHARS_PER_STAGE,
 } from '../src/lib/corruptionProgress.mjs';
 import { STATUS_BAR_MODULES, buildPlaceholderPaths } from '../src/lib/statusBar.mjs';
 
@@ -145,16 +148,38 @@ describe('corruptionProgress', function() {
     assert.equal(d.moduleFlags.corruption_stage, true);
   });
 
-  it('UI and assistant wiring present', function() {
-    var panel = readFileSync(join(root, 'src/components/CharacterPanel.astro'), 'utf8');
-    assert.match(panel, /charCorruptionEnabled/);
+  it('UI and assistant wiring present on adult-config module', function() {
+    var panel = readFileSync(join(root, 'src/components/AdultConfigPanel.astro'), 'utf8');
+    assert.match(panel, /adultCorruptionEnabled/);
     assert.match(panel, /btnGenCorruptionLore/);
-    var char = readFileSync(join(root, 'src/lib/card-builder/panels/character.mjs'), 'utf8');
-    assert.match(char, /runGenerateCorruptionLore/);
-    assert.match(char, /corruptionProgress/);
+    var adult = readFileSync(join(root, 'src/lib/card-builder/panels/adultConfig.mjs'), 'utf8');
+    assert.match(adult, /runGenerateCorruptionLore/);
+    assert.match(adult, /findWorldbookPersonContext/);
+    assert.match(adult, /evaluateArchiveRichness/);
+    var charPanel = readFileSync(join(root, 'src/components/CharacterPanel.astro'), 'utf8');
+    assert.doesNotMatch(charPanel, /adultNsfwEnabled|charNsfwEnabled/);
+    assert.match(charPanel, /成人配置/);
     var tools = readFileSync(join(root, 'src/lib/assistant/tools.mjs'), 'utf8');
     assert.match(tools, /generate_corruption_lore/);
+    assert.match(tools, /adult-config/);
     var exec = readFileSync(join(root, 'src/lib/assistant/executor.mjs'), 'utf8');
     assert.match(exec, /generate_corruption_lore/);
+  });
+
+  it('archive richness gate and worldbook person lookup', function() {
+    var stages = CORRUPTION_PRESETS['5'].stages;
+    var thin = '## 未触碰\n短\n## 动摇\n短\n## 越界\n短\n## 沉沦\n短\n## 彻底恶堕\n短';
+    var ev = evaluateArchiveRichness(thin, stages);
+    assert.equal(ev.ok, false);
+    assert.ok(ev.weakStages.length >= 1);
+    var fatBody = '这是一段足够长的恶堕阶段正文用来通过字数门禁检查一二三四五六七八九十。'.repeat(8);
+    var fat = stages.map(function(s) { return '## ' + s + '\n' + fatBody; }).join('\n');
+    assert.equal(evaluateArchiveRichness(fat, stages).ok, true);
+    var hit = findWorldbookPersonContext([
+      { comment: '[小说人物] 林晚', content: '林晚是学妹', keys: ['林晚'] },
+      { comment: '恶堕档案·林晚', content: '勿用' },
+    ], '林晚');
+    assert.ok(hit);
+    assert.match(hit.content, /学妹/);
   });
 });

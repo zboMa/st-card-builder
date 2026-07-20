@@ -189,7 +189,7 @@ export function formatToolsForPrompt(tools) {
 }
 
 export const VALID_VIEWS = [
-  'card-manager', 'character', 'greetings', 'worldbook', 'mvu', 'statusbar',
+  'card-manager', 'character', 'adult-config', 'greetings', 'worldbook', 'mvu', 'statusbar',
   'regex', 'tavern-scripts',
   'novel-source', 'novel-chapters', 'novel-character-setup', 'novel-greetings',
   'novel-analyze', 'novel-characters', 'novel-worldbook', 'novel-style',

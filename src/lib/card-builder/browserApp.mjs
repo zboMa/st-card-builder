@@ -7,6 +7,7 @@ import { escapeHtml } from '../utils.mjs';
 import { createCardBuilderContext } from './shared/context.mjs';
 import { registerCardManager } from './panels/cardManager.mjs';
 import { registerCharacter } from './panels/character.mjs';
+import { registerAdultConfig } from './panels/adultConfig.mjs';
 import { registerWorldbook } from './panels/worldbook.mjs';
 import { registerAiEngine } from './panels/aiEngine.mjs';
 import { registerExport } from './panels/export.mjs';
@@ -128,6 +129,7 @@ export function bootCardBuilder() {
 
   registerCardManager(ctx);
   registerCharacter(ctx);
+  registerAdultConfig(ctx);
   registerWorldbook(ctx);
   registerAiEngine(ctx);
   registerExport(ctx);
@@ -139,15 +141,15 @@ export function bootCardBuilder() {
     }
   }
   safeBind('character', ctx.panels.character && ctx.panels.character.bind);
+  safeBind('adultConfig', ctx.panels.adultConfig && ctx.panels.adultConfig.bind);
   safeBind('worldbook', ctx.panels.worldbook && ctx.panels.worldbook.bind);
   safeBind('aiEngine', ctx.panels.aiEngine && ctx.panels.aiEngine.bind);
   safeBind('cardManager', ctx.panels.cardManager && ctx.panels.cardManager.bind);
   try {
     if (ctx.panels.character.renderCharTags) ctx.panels.character.renderCharTags();
-    if (ctx.panels.character.renderNsfwBlock) ctx.panels.character.renderNsfwBlock();
-    if (ctx.panels.character.renderCorruptionBlock) ctx.panels.character.renderCorruptionBlock();
+    if (ctx.panels.adultConfig.renderNsfwBlock) ctx.panels.adultConfig.renderNsfwBlock();
   } catch (err) {
-    console.error('[card-builder] initial character render failed', err);
+    console.error('[card-builder] initial character/adult render failed', err);
   }
 
   var AI_KEY = 'st_v3_builder_ai_config';
@@ -455,8 +457,9 @@ export function bootCardBuilder() {
     if (ctx.panels.cardManager && ctx.panels.cardManager.updateCardManagerUI) {
       ctx.panels.cardManager.updateCardManagerUI();
     }
-    if (ctx.panels.character.renderNsfwBlock) ctx.panels.character.renderNsfwBlock();
-    if (ctx.panels.character.renderCorruptionBlock) ctx.panels.character.renderCorruptionBlock();
+    if (ctx.panels.adultConfig && ctx.panels.adultConfig.renderNsfwBlock) {
+      ctx.panels.adultConfig.renderNsfwBlock();
+    }
   });
 
   window.addEventListener('hashchange', function() {

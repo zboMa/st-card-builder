@@ -263,18 +263,34 @@ export function buildCustomStagesUserPrompt(brief) {
   return '弧光描述：\n' + String(brief || '').trim();
 }
 
+/** 每阶段最低汉字量（门禁） */
+export var CORRUPTION_MIN_CHARS_PER_STAGE = 220;
+/** 每阶段目标区间（提示词） */
+export var CORRUPTION_TARGET_CHARS_PER_STAGE = { min: 220, max: 400 };
+
 export function buildArchiveSystemPrompt() {
   return [
-    '你是角色卡世界书作者，专写「恶堕进度」分期人物说明。',
-    '为单一角色生成一条世界书正文：包含全部阶段，每阶段用 Markdown ## 标题。',
-    '每阶段必须覆盖：心理状态、性格与价值观偏移、言行与反差、对亲密对象态度、欲望与边界变化、扮演注意。',
-    '每阶段 80-180 字，具体可演，避免空话与跳阶。',
-    '只输出世界书正文（不要 JSON、不要标题外的前言）。',
+    '你是角色卡世界书作者，专写「恶堕进度」分期人物说明（面向世界书 NPC，不是主角卡面 Description）。',
+    '为单一角色生成一条完整世界书正文：包含全部阶段，每阶段用 Markdown ## 标题（标题须与阶段表完全一致）。',
+    '每阶段必须写成可直接扮演的丰满段落，覆盖并写透：',
+    '1) 心理状态与自我叙事 2) 性格/价值观如何偏移 3) 言行举止与反差细节（含口头禅或习惯动作）',
+    '4) 对旧关系/亲密对象的态度变化 5) 欲望、边界与禁忌的松动 6) 扮演注意（本阶段可做/禁做）。',
+    '字数：每一阶段正文 ' + CORRUPTION_TARGET_CHARS_PER_STAGE.min + '-' + CORRUPTION_TARGET_CHARS_PER_STAGE.max + ' 字（不含标题）；禁止提纲、空话、（待填充）、一笔带过。',
+    '相邻阶段必须可感知递进，禁止跳阶或阶段之间复制粘贴。',
+    '只输出世界书正文（不要 JSON、不要前言后记）。',
+  ].join('\n');
+}
+
+export function buildArchiveExpandSystemPrompt() {
+  return [
+    '你是角色卡世界书扩写编辑。下文恶堕档案过薄，请在保持阶段标题不变的前提下大幅加厚每一阶段。',
+    '每阶段扩写到 ' + CORRUPTION_TARGET_CHARS_PER_STAGE.min + '-' + CORRUPTION_TARGET_CHARS_PER_STAGE.max + ' 字，补足心理、反差、口头禅、边界与可演细节。',
+    '禁止删除阶段；禁止输出（待填充）；只输出完整正文。',
   ].join('\n');
 }
 
 /**
- * @param {{ charName: string, stageNames: string[], charDesc?: string, identity?: string, customBrief?: string, nsfwFlavorHint?: string }} opts
+ * @param {{ charName: string, stageNames: string[], worldbookContent?: string, identity?: string, customBrief?: string, nsfwFlavorHint?: string, ntlHint?: string }} opts
  */
 export function buildArchiveUserPrompt(opts) {
   var o = opts || {};
@@ -282,14 +298,103 @@ export function buildArchiveUserPrompt(opts) {
   var parts = [];
   parts.push('角色名：' + String(o.charName || '').trim());
   if (o.identity) parts.push('身份：' + String(o.identity).trim());
-  if (o.charDesc) parts.push('角色设定摘要：\n' + String(o.charDesc).trim().slice(0, 2000));
+  if (o.worldbookContent) {
+    parts.push('【该角色世界书人物设定——必须据此写恶堕，禁止写成另一人或主角】\n'
+      + String(o.worldbookContent).trim().slice(0, 6000));
+  } else {
+    parts.push('【警告】未提供该角色世界书正文，请仍按角色名写出丰满分期，但勿编造与已知卡面冲突的设定。');
+  }
   if (o.customBrief) parts.push('弧光补充：\n' + String(o.customBrief).trim().slice(0, 800));
   if (o.nsfwFlavorHint) parts.push(String(o.nsfwFlavorHint).trim());
-  parts.push('阶段表（须全部写出，标题与下列完全一致）：\n' + stages.map(function(s, i) {
+  if (o.ntlHint) parts.push(String(o.ntlHint).trim());
+  parts.push('阶段表（须全部写出，## 标题与下列完全一致）：\n' + stages.map(function(s, i) {
     return (i + 1) + '. ' + s;
   }).join('\n'));
   parts.push('正文开头须含：【读取状态栏/MVU「' + CORRUPTION_STATUS_LABEL + '」；仅采用与当前值对应的阶段，禁止混用其他阶段】');
   return parts.join('\n\n');
+}
+
+/**
+ * 从世界书条目中解析某角色的人物正文（排除恶堕档案本身）
+ * @param {Array<object>} entries
+ * @param {string} charName
+ * @returns {{ content: string, comment: string, aliases: string[] }|null}
+ */
+export function findWorldbookPersonContext(entries, charName) {
+  var name = String(charName || '').trim();
+  if (!name) return null;
+  var list = Array.isArray(entries) ? entries : [];
+  var nameLower = name.toLowerCase();
+  var best = null;
+
+  function scoreEntry(e) {
+    if (!e || isCorruptionRulesComment(e.comment) || isCorruptionArchiveComment(e.comment)) return -1;
+    var comment = String(e.comment || '').trim();
+    var content = String(e.content || '').trim();
+    if (!content) return -1;
+    var keys = Array.isArray(e.keys) ? e.keys.map(function(k) { return String(k || '').trim(); }) : [];
+    var s = 0;
+    if (comment === name || comment === '[小说人物] ' + name) s += 100;
+    if (comment.indexOf(name) >= 0) s += 40;
+    if (keys.some(function(k) { return k === name || k.toLowerCase() === nameLower; })) s += 50;
+    if (content.indexOf(name) >= 0) s += 10;
+    return s;
+  }
+
+  list.forEach(function(e) {
+    var sc = scoreEntry(e);
+    if (sc <= 0) return;
+    if (!best || sc > best._score) {
+      best = {
+        content: String(e.content || ''),
+        comment: String(e.comment || ''),
+        aliases: Array.isArray(e.keys) ? e.keys.slice() : [],
+        _score: sc,
+      };
+    }
+  });
+  if (!best) return null;
+  delete best._score;
+  return best;
+}
+
+/**
+ * @param {string} content
+ * @param {string[]} stageNames
+ * @returns {{ ok: boolean, perStage: Record<string, number>, total: number, weakStages: string[] }}
+ */
+export function evaluateArchiveRichness(content, stageNames) {
+  var stages = asTrimmedList(stageNames);
+  var text = String(content || '');
+  var perStage = Object.create(null);
+  var weakStages = [];
+  var total = text.replace(/\s+/g, '').length;
+
+  stages.forEach(function(stage, idx) {
+    var re = new RegExp(
+      '##\\s*' + stage.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*\\n([\\s\\S]*?)(?=\\n##\\s*|$)',
+      'i'
+    );
+    var m = text.match(re);
+    var body = m ? m[1] : '';
+    if (!body && idx === 0) body = text;
+    var n = String(body || '').replace(/\s+/g, '').length;
+    perStage[stage] = n;
+    if (n < CORRUPTION_MIN_CHARS_PER_STAGE) weakStages.push(stage);
+  });
+
+  if (/待填充|（待填充）|TODO|TBD/i.test(text)) {
+    stages.forEach(function(s) {
+      if (weakStages.indexOf(s) < 0) weakStages.push(s);
+    });
+  }
+
+  return {
+    ok: weakStages.length === 0 && total >= stages.length * CORRUPTION_MIN_CHARS_PER_STAGE,
+    perStage: perStage,
+    total: total,
+    weakStages: weakStages,
+  };
 }
 
 /**

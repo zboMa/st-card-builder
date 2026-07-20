@@ -398,22 +398,24 @@ describe('novel nsfwSupport', function() {
     assert.ok(d.paths.some(function(p) { return p.label === '道德冲突'; }));
   });
 
-  it('小说设定/开场白生成注入口味块', function() {
+  it('小说设定/开场白生成不向主角注入口味块', function() {
     const setup = readFileSync(join(root, 'src/lib/novel/panels/setup.mjs'), 'utf8');
     assert.match(setup, /buildModeHintBlocks/);
-    assert.match(setup, /buildNsfwFlavorHint/);
-    assert.match(setup, /buildNtlTabooHint/);
+    assert.match(setup, /硬约束/);
+    // 主角 charDesc / 开场白路径不得再拼接口味注入
+    assert.doesNotMatch(setup, /buildNsfwFlavorHint\(state\)\s*\n\s*\+\s*buildNtlTabooHint/);
   });
 
-  it('UI/桥接/助手工具接线：全局 NSFW/NTL', function() {
-    // NSFW 配置已迁移到角色设定面板——检查 CharacterPanel 而非 NovelSourcePanel
+  it('UI/桥接/助手工具接线：卡级 NSFW/NTL 在成人配置', function() {
+    const adultPanel = readFileSync(join(root, 'src/components/AdultConfigPanel.astro'), 'utf8');
+    assert.match(adultPanel, /adultNsfwEnabled/);
+    assert.match(adultPanel, /adultNtlEnabled/);
+    assert.match(adultPanel, /adultNsfwFlavor/);
+    assert.match(adultPanel, /情欲|NSFW/);
     const charPanel = readFileSync(join(root, 'src/components/CharacterPanel.astro'), 'utf8');
-    assert.match(charPanel, /charNsfwEnabled/);
-    assert.match(charPanel, /charNtlEnabled/);
-    assert.match(charPanel, /charNsfwFlavor/);
-    assert.match(charPanel, /情欲|NSFW/);
+    assert.doesNotMatch(charPanel, /adultNsfwEnabled|charNsfwEnabled/);
+    assert.match(charPanel, /成人配置/);
     const source = readFileSync(join(root, 'src/components/novel/NovelSourcePanel.astro'), 'utf8');
-    // 原始资料面板不再包含 NSFW 配置
     assert.doesNotMatch(source, /novelGlobalAdult|novelGlobalNtl/);
     const analyze = readFileSync(join(root, 'src/components/novel/NovelAnalyzePanel.astro'), 'utf8');
     assert.doesNotMatch(analyze, /novelAnalyzeIncludeAdult|novelGlobalAdult/);
@@ -428,7 +430,6 @@ describe('novel nsfwSupport', function() {
     assert.match(app, /setAdultMode|getAdultMode|buildNsfwStatusDraft/);
     assert.match(app, /setNtlMode|getNtlMode|buildModeHintBlocks|buildContentModeFlags/);
     assert.match(app, /boostAdultSearchQuery|extractStyleNsfwSection|buildAdultContextDigests/);
-    // NSFW 配置已从小说面板移除，browserApp 通过 nsfw-config-changed 事件同步全局配置
     assert.doesNotMatch(app, /novelGlobalAdult|novelGlobalNtl/);
     const tools = readFileSync(join(root, 'src/lib/assistant/tools.mjs'), 'utf8');
     assert.match(tools, /set_novel_adult_mode|set_novel_ntl_mode|draft_nsfw_statusbar/);

@@ -22,7 +22,8 @@ function escapeRegExp(s) {
  */
 export function profileToCharacterFields(profile, name, policy, currentDesc, opts) {
   opts = opts || {};
-  var yaml = formatProfileYaml(profile, name);
+  // 主角卡面默认剥离 NSFW_information（成人层只进世界书人物）
+  var yaml = formatProfileYaml(profile, name, { omitNsfw: opts.omitNsfw !== false });
   var cur = String(currentDesc || '');
   var p = policy || 'merge';
   var display = name || (profile && profile['Chinese name']) || '';

@@ -383,10 +383,10 @@ export function registerAiEngine(ctx) {
         if (hacker) { hacker.setPhase('\ud83e\uddec [阶段 ' + currentStep + '/' + totalSteps + '] 构建角色灵魂...'); hacker.setProgress(currentStep, totalSteps); hacker.setDetail(hacker.randomMsg()); }
         if (statusEl) { statusEl.textContent = '\u23f3 [阶段 1] 构思角色设定...'; statusEl.style.color = '#38bdf8'; }
 
+        // 主角设定：不注入 NSFW/NTL（成人配置仅服务世界书人物）
         var p1Sys = ctx.promptText('charGen')
           + (presetsStr ? '\n【文风要求】：\n' + presetsStr : '')
-          + buildNsfwFlavorHint()
-          + buildNtlHintForPrompt()
+          + '\n【约束】主角 Description 禁止写入 NSFW_information、恶堕分期、情欲口味或 NTL 禁忌层；此类内容只属于世界书人物。'
           + searchInjection;
 
         var aiResp1 = await ctx.fetchAIContent({
@@ -499,12 +499,12 @@ export function registerAiEngine(ctx) {
 
         var greetUserDir = (greetEl && greetEl.value.trim())
           || '根据角色与世界书骨架，生成沉浸式主开场白与 2 条备选开场白';
+        // 主角开场白：不注入 NSFW/NTL
         var greetSys = ctx.promptText('greetingGen')
           + charRef
           + formatWbSkeletonRef(ctx.state.worldbookEntries)
           + (presetsStr ? '\n【文风】：' + presetsStr.substring(0, 200) : '')
-          + buildNsfwFlavorHint()
-          + buildNtlHintForPrompt()
+          + '\n【约束】开场白面向主角互动，勿写成恶堕进度或 NTL 调教说明书。'
           + searchInjection;
 
         var aiResp3 = await ctx.fetchAIContent({
@@ -592,9 +592,13 @@ export function registerAiEngine(ctx) {
       var wbIncludeCharData = ctx.$('wbIncludeCharData');
       var includeChar = wbIncludeCharData && wbIncludeCharData.checked;
       var charBlock   = includeChar ? '\n【角色】：' + ctx.state.charName + ' | ' + ctx.state.charDesc + '\n' : '';
+      var adultHints = (typeof window.__buildAdultPromptHints__ === 'function')
+        ? window.__buildAdultPromptHints__()
+        : { nsfw: buildNsfwFlavorHint(), ntl: buildNtlHintForPrompt() };
       var sysPrompt   = (ctx.promptText('wbSingle') || '')
         + stepInfo + charBlock + '\n' + ctxStr + '\n' + presetBlock
-        + buildNsfwFlavorHint() + buildNtlHintForPrompt() + searchInjection
+        + (adultHints.nsfw || '') + (adultHints.ntl || '') + searchInjection
+        + '\n【说明】若生成世界书人物条目，可按成人配置写情欲/禁忌；勿把恶堕分期写进主角 Description。'
         + '\n【输出】：1个JSON对象 { "comment": "标题", "content": "详细设定(至少100字)", "keys": ["触发词"], "strategy": "selective 或 constant", "position": 4 }';
       var userPrompt  = customDirection ? '【方向】：' + customDirection : '【自由发挥，拒绝重复】';
       var headers     = { 'Content-Type': 'application/json' };
@@ -685,7 +689,7 @@ export function registerAiEngine(ctx) {
       if (key) headers['Authorization'] = 'Bearer ' + key;
       var sysPrompt = ctx.promptText('charTagsGen')
         || '根据角色设定与世界书，生成 5-12 个短中文分类标签。只输出 JSON 数组，例如 ["奇幻","恋爱"]。不要解释。';
-      sysPrompt += buildNsfwFlavorHint();
+      // 主角标签：不注入 NSFW 口味
 
       var btnEl = ctx.$('btnAiGenCharTags');
       if (btnEl) btnEl.disabled = true;

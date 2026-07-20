@@ -1,5 +1,5 @@
 ---
-/** 角色设定：编辑当前卡字段；多卡切换在「角色卡管理」 */
+/** 角色设定：编辑当前卡主角字段；多卡切换在「角色卡管理」；成人配置见侧栏「成人配置」 */
 ---
 <div class="panel area-character">
   <div class="panel-header character-panel-head">
@@ -51,87 +51,13 @@
     <span id="charTagsAiTip" class="ui-status-tip char-tags-ai-tip" role="status" aria-live="polite"></span>
   </div>
 
-  <hr class="divider" />
-
-  <!-- ═══ 全局 NSFW / 情欲设置 ═══ -->
-  <div class="form-group char-nsfw-block">
-    <div class="char-nsfw-head">
-      <span class="char-nsfw-label">情欲 / NSFW 设置</span>
-      <span class="ui-hint ui-hint--inline">全局生效：角色卡生成与小说工坊分析统一按此风格</span>
-    </div>
-    <div class="char-nsfw-grid">
-      <div class="char-nsfw-col">
-        <label class="novel-switch">
-          <input id="charNsfwEnabled" type="checkbox" />
-          <span>启用 NSFW</span>
-        </label>
-        <span class="char-nsfw-subtitle">管情欲身体向：分析/抽取/丰满/文风等统一读取</span>
-        <div id="charNsfwFlavorRow" style="display:none;margin-top:4px;">
-          <div class="char-nsfw-flavor-line">
-            <span class="char-nsfw-sub">口味</span>
-            <select id="charNsfwFlavor" style="font-size:0.73rem;padding:3px 8px;border-radius:6px;border:1px solid var(--color-border);background:var(--color-surface);color:var(--color-text);max-width:150px;"></select>
-            <span id="charNsfwFlavorDesc" class="char-nsfw-subtitle"></span>
-          </div>
-        </div>
-      </div>
-      <div class="char-nsfw-col">
-        <label class="novel-switch">
-          <input id="charNtlEnabled" type="checkbox" />
-          <span>NTL 禁忌</span>
-        </label>
-        <span class="char-nsfw-subtitle">管权力/背德/越界张力。可只开其一，也可叠加</span>
-        <div id="charNtlTabooRow" style="display:none;margin-top:4px;">
-          <div id="charNtlTabooTypes" style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;"></div>
-        </div>
-      </div>
-    </div>
-    <span class="char-nsfw-subtitle" style="margin-top:6px;display:block;">口味预设决定写法风格与画面感——同一张 Kinks 牌在不同口味下读起来完全不同。NTL 勾选具体方向来细化禁忌维度。</span>
-
-    <div id="charCorruptionBlock" class="char-corruption-block" style="display:none;margin-top:12px;">
-      <div class="char-nsfw-flavor-line" style="margin-bottom:6px;">
-        <label class="novel-switch">
-          <input id="charCorruptionEnabled" type="checkbox" />
-          <span>恶堕进度</span>
-        </label>
-        <span class="char-nsfw-subtitle">总则 1 条 + 每角色 1 条分期档案；当前阶段用状态栏「恶堕进度」变量</span>
-      </div>
-      <div id="charCorruptionBody" style="display:none;">
-        <div class="char-nsfw-flavor-line" style="margin-bottom:6px;">
-          <span class="char-nsfw-sub">阶数</span>
-          <select id="charCorruptionPreset" style="font-size:0.73rem;padding:3px 8px;border-radius:6px;border:1px solid var(--color-border);background:var(--color-surface);color:var(--color-text);">
-            <option value="3">简洁 3 阶</option>
-            <option value="5" selected>标准 5 阶（默认）</option>
-            <option value="7">细腻 7 阶</option>
-            <option value="custom">自定义（描述生成）</option>
-          </select>
-          <label class="novel-switch" style="margin-left:4px;">
-            <input id="charCorruptionFemaleOnly" type="checkbox" checked />
-            <span class="char-nsfw-subtitle">默认仅女角色</span>
-          </label>
-          <label class="novel-switch">
-            <input id="charCorruptionSyncSb" type="checkbox" checked />
-            <span class="char-nsfw-subtitle">同步状态栏模块</span>
-          </label>
-        </div>
-        <div id="charCorruptionCustomRow" style="display:none;margin-bottom:6px;">
-          <textarea id="charCorruptionCustomBrief" rows="2" placeholder="描述堕落弧光，例如：清纯学妹被一步步引诱，最终主动沉沦……" style="width:100%;font-size:0.75rem;padding:6px 8px;border-radius:6px;border:1px solid var(--color-border);background:var(--color-surface);color:var(--color-text);resize:vertical;"></textarea>
-        </div>
-        <div class="char-nsfw-subtitle" style="margin-bottom:4px;">生成对象（可改勾选；男角色默认不勾）</div>
-        <div id="charCorruptionTargets" class="char-corruption-targets"></div>
-        <div class="char-nsfw-flavor-line" style="margin-top:8px;gap:8px;">
-          <button type="button" id="btnRefreshCorruptionTargets" class="btn btn-ghost" style="font-size:0.72rem;padding:4px 10px;">刷新角色列表</button>
-          <button type="button" id="btnGenCorruptionLore" class="btn btn-primary" style="font-size:0.72rem;padding:4px 12px;">生成/更新恶堕世界书</button>
-          <span id="charCorruptionTip" class="ui-status-tip" role="status" aria-live="polite"></span>
-        </div>
-      </div>
-    </div>
-  </div>
+  <p class="ui-hint character-adult-hint">本页只编辑<strong>主角</strong>设定，不含 NSFW / NTL / 恶堕。卡级成人配置请到侧栏「成人配置」。</p>
 
   <hr class="divider" />
 
   <div class="form-group">
     <label>角色描述 (Description)</label>
-    <textarea id="charDesc" style="min-height: 130px;" placeholder="角色的外貌、性格、背景故事..."></textarea>
+    <textarea id="charDesc" style="min-height: 130px;" placeholder="主角的外貌、性格、背景故事（请勿写入 NSFW / 恶堕分期）..."></textarea>
   </div>
 
   <p class="ui-hint character-greetings-hint">主开场白与备选开场请到侧栏「开场白」模块编辑。</p>
@@ -151,70 +77,9 @@
     gap: var(--space-2);
     flex-shrink: 0;
   }
-  .char-nsfw-block {
-    padding: 2px 0 6px;
-  }
-  .char-nsfw-head {
-    display: flex;
-    align-items: baseline;
-    gap: 10px;
-    margin-bottom: 10px;
-  }
-  .char-nsfw-label {
-    font-size: 0.85rem;
-    font-weight: 700;
-    color: var(--color-accent);
-    white-space: nowrap;
-  }
-  .char-nsfw-grid {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px 24px;
-    margin-bottom: 6px;
-  }
-  .char-nsfw-col {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-  .char-nsfw-row {
-    margin: 6px 0;
-  }
-  .char-nsfw-flavor-line {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-  }
-  .char-nsfw-sub {
-    font-size: 0.76rem;
-    color: var(--color-accent);
-    font-weight: 700;
-  }
-  .char-nsfw-subtitle {
-    font-size: 0.7rem;
-    color: var(--color-text-muted);
-    line-height: 1.4;
-  }
-  .char-corruption-block {
-    padding-top: 8px;
-    border-top: 1px dashed var(--color-border);
-  }
-  .char-corruption-targets {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px 10px;
-    max-height: 120px;
-    overflow: auto;
-    padding: 4px 0;
-  }
-  .char-corruption-targets label {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 0.72rem;
-    color: var(--color-text);
-    cursor: pointer;
+  .character-adult-hint {
+    margin: 4px 0 0;
+    line-height: 1.45;
   }
   .char-tags-add-row {
     display: flex;
@@ -226,28 +91,5 @@
     min-width: 100px;
     padding: 5px 8px;
     font-size: 0.78rem;
-    border-radius: 6px;
-    border: 1px solid var(--color-border);
-    background: var(--color-surface-input);
-    color: var(--color-text);
-  }
-  .btn-ai-tag {
-    padding: 5px 10px;
-    font-size: 0.7rem;
-    border-radius: 10px;
-    border: 1px dashed var(--color-border);
-    background: transparent;
-    color: var(--color-text-muted);
-    cursor: pointer;
-    white-space: nowrap;
-    transition: all 0.18s;
-  }
-  .btn-ai-tag:hover {
-    border-color: var(--color-accent);
-    color: var(--color-accent-hover);
-  }
-  .btn-ai-tag:disabled {
-    opacity: 0.5;
-    cursor: wait;
   }
 </style>

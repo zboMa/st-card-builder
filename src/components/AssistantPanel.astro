@@ -1739,25 +1739,9 @@ const toolListText = formatToolsForPrompt(ASSISTANT_TOOLS);
           throw new Error('备选开场白序号越界');
         }
         var sys = '你是开场白写手。' + (mode === 'expand' ? '扩写' : '重写')
-          + '开场白，贴合人设，只输出正文。';
-        var nsfwCfg = window.__getNsfwConfig__ ? window.__getNsfwConfig__() : {};
-        var flavorData = window.__nsfwFlavorData__;
-        var modeHints = '';
-        if (nsfwCfg && nsfwCfg.enabled && nsfwCfg.flavor && flavorData && flavorData.presets[nsfwCfg.flavor]) {
-          var fp = flavorData.presets[nsfwCfg.flavor];
-          modeHints += '\n【NSFW 口味·' + fp.label + '】' + fp.description
-            + '\n重点：' + (fp.focus || []).join(' / ')
-            + '\n避免：' + (fp.avoid || []).join(' / ');
-        }
-        if (nsfwCfg && nsfwCfg.ntlEnabled && flavorData) {
-          modeHints += '\n【NTL 禁忌张力】开场须体现边界感、权力差或道德张力的潜台词，禁止未成年内容。';
-          (nsfwCfg.ntlTabooTypes || []).forEach(function(tid) {
-            var info = flavorData.tabooTypes && flavorData.tabooTypes[tid];
-            if (info) modeHints += '\n- ' + info.label + '：' + info.description;
-          });
-        }
+          + '开场白，贴合人设，只输出正文。开场白属于主角互动，禁止写成恶堕进度说明或 NTL 调教手册。';
         var text = await callChat([
-          { role: 'system', content: sys + modeHints },
+          { role: 'system', content: sys },
           {
             role: 'user',
             content: '角色：' + (c.charName || '') + '\n人设摘要：' + String(c.charDesc || '').slice(0, 600)

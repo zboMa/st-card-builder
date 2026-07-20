@@ -159,8 +159,9 @@ tests/                             # 22 个测试文件，346 个测试，全部
   · 常驻「恶堕进度总则」1 条
   · 每角色「恶堕档案·{名}」1 条（全阶段合集；靠角色名触发）
 状态栏模块：corruption_stage（恶堕进度）——变量选当前阶段
-入口：CharacterPanel NSFW 区块内；默认仅女角色；助手工具 generate_corruption_lore
-实现：src/lib/corruptionProgress.mjs
+入口：侧栏「成人配置」；默认仅女角色（排除主角）；助手工具 generate_corruption_lore
+加厚：每阶段 ≥220 字，不足自动扩写；上下文取该角色世界书正文
+实现：src/lib/corruptionProgress.mjs + adultConfig.mjs
 ```
 
 ### NSFW_information 扩展结构
@@ -194,17 +195,20 @@ core_desire: ""
 
 ---
 
-## 全局配置 —— 角色设定是唯一入口
+## 全局配置 —— 「成人配置」模块（卡级统一）
 
-**NSFW 口味 / NTL 禁忌配置** 存储于 `st_v3_builder_ai_config`（和 API Key 同级），**角色设定面板（CharacterPanel）是唯一 UI 入口**。
+**NSFW 口味 / NTL 禁忌 / 恶堕进度** 为整张卡统一配置，存储于 `st_v3_builder_ai_config`（和 API Key 同级）。  
+**UI 入口**：侧栏「成人配置」（`AdultConfigPanel`，在「角色设定」下方），**不是**角色设定本身。
+
+**主角（角色设定 / 开场白）禁止写入 NSFW/NTL/恶堕**；成人层只服务世界书人物、分析管线、恶堕档案与状态栏 NSFW 模块。
 
 ```
-CharacterPanel（唯一配置入口）
+AdultConfigPanel（侧栏「成人配置」，卡级统一）
     ↓ 读写
 st_v3_builder_ai_config (localStorage)
     ↓ nsfw-config-changed 事件
-    ├→ 角色卡生成 prompt 注入（AI 引擎/开场白/世界书/标签）
-    └→ 小说工坊 pipeline 同步（browserApp 监听事件 → state.adultMode/ntlMode/nsfwFlavor/ntlTabooTypes）
+    ├→ 世界书人物 / 恶堕档案生成注入（不进主角 Description/开场白）
+    └→ 小说工坊 pipeline 同步（adultMode/ntlMode/nsfwFlavor/ntlTabooTypes）
 ```
 
 **小说工坊原始资料面板**不包含任何 NSFW/NTL 配置 UI——只有分片/召回/处理模式等纯工作流配置。
