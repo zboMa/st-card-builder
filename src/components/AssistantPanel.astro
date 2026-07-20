@@ -4,9 +4,20 @@
  * 占满右栏；快捷入口填入输入框；就绪以标题左侧绿点标识
  */
 import { ASSISTANT_PRESET_CHIPS, ASSISTANT_TOOLS, formatToolsForPrompt } from '../lib/assistant/tools.mjs';
+import { NSFW_FLAVOR_PRESETS } from '../lib/adult/flavors/index.mjs';
+import { NTL_TABOO_TYPES } from '../lib/adult/ntl/index.mjs';
+import { WORLDFRAMES } from '../lib/adult/vessels/index.mjs';
+import { WORLDVIEW_PRESETS } from '../lib/presets/worldviews/index.mjs';
+import { buildCatalogOverviewText } from '../lib/catalogSummaries.mjs';
 
 const chipsJson = JSON.stringify(ASSISTANT_PRESET_CHIPS);
 const toolListText = formatToolsForPrompt(ASSISTANT_TOOLS);
+const catalogOverviewText = buildCatalogOverviewText({
+  flavors: NSFW_FLAVOR_PRESETS,
+  ntl: NTL_TABOO_TYPES,
+  worldframes: WORLDFRAMES,
+  worldviews: WORLDVIEW_PRESETS,
+});
 ---
 
 <!-- FAB 与面板并列挂到 shell；窄屏 position:fixed，桌面 FAB 隐藏、面板仍为右栏 -->
@@ -750,8 +761,8 @@ const toolListText = formatToolsForPrompt(ASSISTANT_TOOLS);
 })();
 </script>
 
-<script define:vars={{ chipsJson, toolListText }}>
-  window.__assistantBoot__ = { chipsJson: chipsJson, toolListText: toolListText };
+<script define:vars={{ chipsJson, toolListText, catalogOverviewText }}>
+  window.__assistantBoot__ = { chipsJson: chipsJson, toolListText: toolListText, catalogOverviewText: catalogOverviewText };
 </script>
 
 <script>
@@ -787,6 +798,7 @@ const toolListText = formatToolsForPrompt(ASSISTANT_TOOLS);
   (function initAssistantPanel() {
     var boot = window.__assistantBoot__ || {};
     var toolListText = boot.toolListText || '';
+    var catalogOverviewText = boot.catalogOverviewText || '';
     var chips = ASSISTANT_PRESET_CHIPS;
     try {
       if (boot.chipsJson) chips = typeof boot.chipsJson === 'string' ? JSON.parse(boot.chipsJson) : boot.chipsJson;
@@ -1564,6 +1576,24 @@ const toolListText = formatToolsForPrompt(ASSISTANT_TOOLS);
         if (ps && ps.defaults) return { ids: Object.keys(ps.defaults) };
         return { ids: ['assistantSystem', 'assistantReactHint', 'assistantChatFeedback'] };
       },
+      getAdultConfig: function() {
+        if (typeof window.__getNsfwConfig__ === 'function') return window.__getNsfwConfig__();
+        return {};
+      },
+      getNsfwConfig: function() {
+        if (typeof window.__getNsfwConfig__ === 'function') return window.__getNsfwConfig__();
+        return {};
+      },
+      setAdultConfig: function(cfg) {
+        if (typeof window.__setNsfwConfig__ !== 'function') throw new Error('成人配置桥接未就绪');
+        window.__setNsfwConfig__(cfg || {});
+        return window.__getNsfwConfig__ ? window.__getNsfwConfig__() : (cfg || {});
+      },
+      setNsfwConfig: function(cfg) {
+        if (typeof window.__setNsfwConfig__ !== 'function') throw new Error('成人配置桥接未就绪');
+        window.__setNsfwConfig__(cfg || {});
+        return window.__getNsfwConfig__ ? window.__getNsfwConfig__() : (cfg || {});
+      },
       generateCharacter: async function(opts) {
         if (window.__assistantGenerateCharacter__) {
           return window.__assistantGenerateCharacter__(opts || {});
@@ -1799,8 +1829,11 @@ const toolListText = formatToolsForPrompt(ASSISTANT_TOOLS);
       var base = promptText('assistantSystem', {
         toolList: toolListText,
         characterFieldHint: CHARACTER_FIELD_HINT,
+        catalogOverview: catalogOverviewText,
       }) || (
-        '你是卡片构建助手。工具：\n' + toolListText + '\n输出 JSON：tool 或 final。'
+        '你是卡片构建助手。工具：\n' + toolListText
+        + (catalogOverviewText ? '\n\n' + catalogOverviewText : '')
+        + '\n输出 JSON：tool 或 final。'
       );
       if (userExtra) base += '\n\n' + userExtra;
       return base;

@@ -9,9 +9,12 @@
 
 | 字段 | 目标区间 |
 |---|---|
+| `summary` | **20–40**（UI 列表 / 助手概览专用） |
 | `description` | **300–450** |
 | `writingGuide` | **350–500** |
 | `antiPatterns` | **4–6** 条，且条目间独有、贴主题 |
+
+`summary` 放在 `summaries.mjs`（口味/NTL/世界观/框架），加载时挂到条目；**不替代** description / writingGuide。
 
 未达标视为不合格；验收以字数硬线 + 人工抽读为准。
 
@@ -50,12 +53,15 @@
 |---|---|
 | 口味 presets | `src/lib/adult/flavors/presets/{emotion,relation,sensory,special,matter}.mjs` |
 | 口味 enrichment | `src/lib/adult/flavors/enrichment/{同名}.mjs`（运行时 `applyFlavorEnrichment` 合并） |
+| 口味 summary | `src/lib/adult/flavors/summaries.mjs` |
 | NTL types | `src/lib/adult/ntl/types/{bond,coercion,rupture}.mjs` |
 | NTL enrichment | `src/lib/adult/ntl/enrichment/{同名}.mjs` |
-| 世界观 | `src/lib/presets/worldviews/data/*.mjs`；底线常量 `WORLDVIEW_QUALITY_FLOOR` |
+| NTL summary | `src/lib/adult/ntl/summaries.mjs` |
+| 世界观 | `src/lib/presets/worldviews/data/*.mjs`；摘要 `summaries.mjs`；底线 `WORLDVIEW_QUALITY_FLOOR` |
 | 载体 overlays | `src/lib/adult/vessels/overlays/{flavor,ntl}.mjs` |
+| 世界观框架 | `src/lib/adult/vessels/frames/`；摘要 `frames/summaries.mjs` |
 
-**注意**：presets / types 源文件不要误写入 enrichment 字段；`mustCover` / `writingGuide` / `antiPatterns` / `signals` 放 enrichment，由 apply 合并。
+**注意**：presets / types 源文件不要误写入 enrichment 字段；`mustCover` / `writingGuide` / `antiPatterns` / `signals` 放 enrichment，由 apply 合并。`summary` 走独立 summaries 表挂载。
 
 ---
 

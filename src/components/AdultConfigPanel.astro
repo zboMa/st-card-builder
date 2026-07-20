@@ -1,7 +1,8 @@
 ---
 /**
  * 卡级成人配置（NSFW / NTL / 恶堕）
- * 与「角色设定」分离：主角正文不写入此类内容；本配置服务世界书人物与分析管线。
+ * 顺序：世界观框架 → NSFW → 口味 → NTL → 恶堕
+ * 列表仅展示 summary（20–40字）；长文见提示词配置目录浏览。
  */
 ---
 <div class="panel area-adult-config">
@@ -9,10 +10,23 @@
   <p class="ui-hint adult-config-lead">
     整张卡统一配置，<strong>仅世界书管道</strong>：世界书人物条、恶堕档案、小说人物丰满/分析、状态栏 NSFW。
     <strong>主角管道</strong>（角色设定 / 开场白）完全不读、不写此配置。
+    条目旁只显示短摘要；完整写法指引在「提示词配置」目录 Tab。
   </p>
 
   <div class="form-group char-nsfw-block">
-    <div class="char-nsfw-head">
+    <!-- 1. 世界观框架（最上，始终可见） -->
+    <div id="adultWorldframeRow" class="adult-worldframe-row" aria-labelledby="adultWorldframeHeading">
+      <span id="adultWorldframeHeading" class="char-nsfw-sub">世界观框架</span>
+      <span id="adultWorldframeLabel" class="char-nsfw-subtitle">未推断</span>
+      <button type="button" id="btnAdultWorldframeRefresh" class="btn btn-ghost" style="font-size:0.7rem;padding:2px 8px;">重新推断</button>
+      <select id="adultWorldframeSelect" aria-label="覆盖世界观框架" style="font-size:0.72rem;padding:3px 6px;border-radius:6px;border:1px solid var(--color-border);background:var(--color-surface);color:var(--color-text);">
+        <option value="">自动</option>
+      </select>
+      <span class="char-nsfw-subtitle">口味/NTL 将物化为该世界的法器·异能·场所等载体</span>
+    </div>
+
+    <!-- 2. NSFW 开关 -->
+    <div class="char-nsfw-head" style="margin-top:12px;">
       <span class="char-nsfw-label">情欲 / NSFW</span>
       <span class="ui-hint ui-hint--inline">卡级统一口味，供世界书人物与管线读取</span>
     </div>
@@ -23,10 +37,11 @@
     </label>
     <span class="char-nsfw-subtitle">分析/抽取/丰满/文风/恶堕等统一读取；主角生成不注入</span>
 
+    <!-- 3. 口味 -->
     <section id="adultFlavorSection" class="adult-flavor-section" style="display:none;" aria-labelledby="adultFlavorHeading">
       <div class="char-nsfw-flavor-line" style="margin-bottom:6px;">
         <span id="adultFlavorHeading" class="char-nsfw-sub">口味</span>
-        <span class="char-nsfw-subtitle">最多 5 个；首项为主调色盘；每项含必写维度与密度门槛（对齐恶堕丰满标准）</span>
+        <span class="char-nsfw-subtitle">最多 5 个；首项为主调色盘</span>
       </div>
       <div id="adultNsfwFlavorList" class="adult-flavor-list"></div>
       <div class="adult-flavor-add-row">
@@ -38,16 +53,7 @@
       </div>
     </section>
 
-    <div id="adultWorldframeRow" class="adult-worldframe-row" style="display:none;margin:8px 0 10px;">
-      <span class="char-nsfw-sub">世界观框架</span>
-      <span id="adultWorldframeLabel" class="char-nsfw-subtitle">未推断</span>
-      <button type="button" id="btnAdultWorldframeRefresh" class="btn btn-ghost" style="font-size:0.7rem;padding:2px 8px;">重新推断</button>
-      <select id="adultWorldframeSelect" aria-label="覆盖世界观框架" style="font-size:0.72rem;padding:3px 6px;border-radius:6px;border:1px solid var(--color-border);background:var(--color-surface);color:var(--color-text);">
-        <option value="">自动</option>
-      </select>
-      <span class="char-nsfw-subtitle">口味/NTL 将物化为该世界的法器·异能·场所等载体</span>
-    </div>
-
+    <!-- 4. NTL -->
     <section class="adult-ntl-section" aria-labelledby="adultNtlHeading">
       <div class="char-nsfw-flavor-line" style="margin-bottom:4px;">
         <span id="adultNtlHeading" class="char-nsfw-sub">NTL 禁忌</span>
@@ -55,15 +61,16 @@
           <input id="adultNtlEnabled" type="checkbox" />
           <span>启用</span>
         </label>
-        <span class="char-nsfw-subtitle">权力/背德/越界/百破等；多选；含必写维度与密度门槛</span>
+        <span class="char-nsfw-subtitle">权力/背德/越界/百破等；多选</span>
       </div>
       <div id="adultNtlTabooRow" style="display:none;margin-top:4px;">
         <div id="adultNtlTabooTypes" class="adult-ntl-chips"></div>
         <div id="adultNtlTabooList" class="adult-flavor-list" style="margin-top:8px;"></div>
-        <span class="char-nsfw-subtitle">点选芯片添加/取消；下方可为每项写补充要求（写入世界书管道）</span>
+        <span class="char-nsfw-subtitle">点选芯片添加/取消；下方可为每项写补充要求</span>
       </div>
     </section>
 
+    <!-- 5. 恶堕 -->
     <div id="adultCorruptionBlock" class="char-corruption-block" style="display:none;">
       <div class="char-nsfw-flavor-line" style="margin-bottom:6px;">
         <label class="novel-switch">
@@ -103,7 +110,7 @@
       </div>
     </div>
 
-    <span class="char-nsfw-subtitle" style="margin-top:8px;display:block;">口味/NTL 决定人物写法，并物化为世界观载体（法器·异能·场所等）。均不进入主角 Description。</span>
+    <span class="char-nsfw-subtitle" style="margin-top:8px;display:block;">口味/NTL 决定人物写法，并物化为世界观载体。均不进入主角 Description。</span>
   </div>
 </div>
 
@@ -113,7 +120,9 @@
     flex-wrap: wrap;
     align-items: center;
     gap: 8px;
-    padding: 8px 0 2px;
+    padding: 8px 0 10px;
+    margin-bottom: 4px;
+    border-bottom: 1px dashed var(--color-border);
   }
   .adult-config-lead {
     margin: -4px 0 14px;
@@ -198,13 +207,14 @@
     flex-wrap: wrap;
   }
   .adult-flavor-add-row select {
-    font-size: 0.73rem;
+    flex: 1;
+    min-width: 140px;
+    font-size: 0.75rem;
     padding: 4px 8px;
     border-radius: 6px;
     border: 1px solid var(--color-border);
     background: var(--color-surface);
     color: var(--color-text);
-    max-width: 220px;
   }
   .adult-ntl-chips {
     display: flex;

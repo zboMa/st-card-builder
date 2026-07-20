@@ -15,6 +15,8 @@ import { PRESETS as SUPERNATURAL } from './data/supernatural.mjs';
 import { PRESETS as SCIFI } from './data/scifi.mjs';
 import { PRESETS as TABOO_POWER } from './data/taboo_power.mjs';
 import { PRESETS as CATASTROPHE } from './data/catastrophe.mjs';
+import { WORLDVIEW_SUMMARIES } from './summaries.mjs';
+import { applySummariesToList } from '../../catalogSummaries.mjs';
 
 var DATA_MODULES = [ORIENTAL, MODERN, FANTASY, SUPERNATURAL, SCIFI, CATASTROPHE, TABOO_POWER];
 
@@ -44,7 +46,7 @@ function flattenPresets() {
   return out;
 }
 
-export var WORLDVIEW_PRESETS = flattenPresets();
+export var WORLDVIEW_PRESETS = applySummariesToList(flattenPresets(), WORLDVIEW_SUMMARIES);
 
 export var WORLDVIEW_PRESET_MAP = (function() {
   var m = Object.create(null);
@@ -53,6 +55,7 @@ export var WORLDVIEW_PRESET_MAP = (function() {
 })();
 
 export var WORLDVIEW_PRESET_IDS = WORLDVIEW_PRESETS.map(function(p) { return p.id; });
+export { WORLDVIEW_SUMMARIES };
 
 export { WORLDVIEW_GROUPS };
 
@@ -72,6 +75,7 @@ export function listWorldviewPresetsByGroup() {
     g.items.push({
       id: p.id,
       label: p.label,
+      summary: p.summary || '',
       description: p.description || '',
     });
   });
