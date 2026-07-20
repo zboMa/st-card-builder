@@ -37,6 +37,18 @@ import AiTaskCenterUI from '../components/AiTaskCenterUI.astro';
   <ParticleCanvas />
 
   <!-- 侧栏（含品牌区）+ 主内容 + 右栏 AI 助手；各 view 常驻 DOM，切换仅显隐 -->
+  <!-- 移动端：顶栏汉堡 + 遮罩；AI 以 FAB 弹层打开（见 Layout / AssistantPanel） -->
+  <header class="app-mobile-topbar" id="appMobileTopbar">
+    <button type="button" class="app-mobile-nav-btn" id="btnMobileNavOpen" aria-controls="appSidebar" aria-expanded="false" aria-label="打开菜单">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+        <path d="M5 7h14M5 12h14M5 17h14"/>
+      </svg>
+    </button>
+    <div class="app-mobile-topbar-brand">
+      <span class="app-mobile-topbar-title">卡片构建器</span>
+    </div>
+  </header>
+  <div class="app-shell-backdrop" id="appShellBackdrop" hidden aria-hidden="true"></div>
   <div class="app-shell">
     <AppSidebar />
     <div class="app-container">

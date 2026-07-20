@@ -2,6 +2,7 @@
 /**
  * 侧栏三段式：顶品牌 / 中可滚菜单 / 底配置
  * 导航项使用统一线性 SVG，不用 emoji
+ * 窄屏（≤900px）：左侧滑出抽屉，由顶栏汉堡控制
  */
 
 /** 16px 线性图标 path（stroke 由 CSS currentColor 控制） */
@@ -124,13 +125,19 @@ const CONFIG_ITEMS = [
 
 <script is:inline>
 (function() {
-  // 侧栏在视图 DOM 之前解析，需等文档就绪后再绑菜单
   function initSidebarNav() {
     var DEFAULT_VIEW = 'character';
+    var MOBILE_MQ = '(max-width: 900px)';
     var sidebar = document.getElementById('appSidebar');
     var nav = document.getElementById('appSidebarNav');
     var toggle = document.getElementById('btnSidebarToggle');
+    var mobileOpenBtn = document.getElementById('btnMobileNavOpen');
+    var backdrop = document.getElementById('appShellBackdrop');
     if (!sidebar || !nav) return;
+
+    function isMobileShell() {
+      return window.matchMedia(MOBILE_MQ).matches;
+    }
 
     function getViewEls() {
       return document.querySelectorAll('.app-view[data-view]');
@@ -139,6 +146,47 @@ const CONFIG_ITEMS = [
     function getNavItems() {
       return sidebar.querySelectorAll('.app-sidebar-item[data-view]');
     }
+
+    function syncBackdropVisibility() {
+      if (!backdrop) return;
+      var navOpen = document.body.classList.contains('is-mobile-nav-open');
+      var asstOpen = document.body.classList.contains('is-mobile-assistant-open');
+      var show = isMobileShell() && (navOpen || asstOpen);
+      backdrop.hidden = !show;
+      backdrop.setAttribute('aria-hidden', show ? 'false' : 'true');
+    }
+
+    function setDrawerOpen(open) {
+      var on = !!open && isMobileShell();
+      sidebar.classList.toggle('is-drawer-open', on);
+      document.body.classList.toggle('is-mobile-nav-open', on);
+      if (mobileOpenBtn) mobileOpenBtn.setAttribute('aria-expanded', on ? 'true' : 'false');
+      if (toggle) toggle.setAttribute('aria-expanded', on ? 'true' : 'false');
+      // 兼容旧 class：窄屏抽屉打开时不应 is-collapsed
+      if (on) sidebar.classList.remove('is-collapsed');
+      syncBackdropVisibility();
+    }
+
+    function closeDrawer() {
+      setDrawerOpen(false);
+    }
+
+    function openDrawer() {
+      // 打开导航时关掉助手弹层，避免双层
+      if (typeof window.__closeAssistantSheet__ === 'function') {
+        try { window.__closeAssistantSheet__(); } catch (e) {}
+      }
+      setDrawerOpen(true);
+    }
+
+    function toggleDrawer() {
+      if (sidebar.classList.contains('is-drawer-open')) closeDrawer();
+      else openDrawer();
+    }
+
+    window.__closeMobileNav__ = closeDrawer;
+    window.__openMobileNav__ = openDrawer;
+    window.__syncMobileBackdrop__ = syncBackdropVisibility;
 
     function setActiveView(viewId) {
       var id = viewId || DEFAULT_VIEW;
@@ -169,24 +217,57 @@ const CONFIG_ITEMS = [
     getNavItems().forEach(function(btn) {
       btn.addEventListener('click', function() {
         setActiveView(btn.getAttribute('data-view'));
-        if (window.matchMedia('(max-width: 900px)').matches) {
-          sidebar.classList.add('is-collapsed');
-          if (toggle) toggle.setAttribute('aria-expanded', 'false');
-        }
+        if (isMobileShell()) closeDrawer();
       });
     });
 
-    if (toggle) {
-      toggle.addEventListener('click', function() {
-        var collapsed = sidebar.classList.toggle('is-collapsed');
-        toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    if (mobileOpenBtn) {
+      mobileOpenBtn.addEventListener('click', function() {
+        toggleDrawer();
       });
     }
+
+    if (toggle) {
+      toggle.addEventListener('click', function() {
+        if (isMobileShell()) toggleDrawer();
+        else {
+          var collapsed = sidebar.classList.toggle('is-collapsed');
+          toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+        }
+      });
+    }
+
+    if (backdrop) {
+      backdrop.addEventListener('click', function() {
+        if (document.body.classList.contains('is-mobile-nav-open')) closeDrawer();
+        else if (typeof window.__closeAssistantSheet__ === 'function') {
+          try { window.__closeAssistantSheet__(); } catch (e) {}
+        }
+      });
+    }
+
+    document.addEventListener('keydown', function(e) {
+      if (e.key !== 'Escape') return;
+      if (document.body.classList.contains('is-mobile-nav-open')) {
+        closeDrawer();
+        e.preventDefault();
+      }
+    });
+
+    window.addEventListener('resize', function() {
+      if (!isMobileShell()) {
+        sidebar.classList.remove('is-drawer-open');
+        document.body.classList.remove('is-mobile-nav-open');
+        if (mobileOpenBtn) mobileOpenBtn.setAttribute('aria-expanded', 'false');
+        syncBackdropVisibility();
+      }
+    });
 
     setActiveView(readHashView());
     window.addEventListener('hashchange', function() {
       setActiveView(readHashView());
     });
+    syncBackdropVisibility();
   }
 
   if (document.readyState === 'loading') {
