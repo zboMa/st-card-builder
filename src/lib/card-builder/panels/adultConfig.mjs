@@ -1,6 +1,6 @@
 /**
- * 卡级成人配置面板（NSFW / NTL / 恶堕）
- * 与角色设定分离：不注入主角 Description / 开场白生成。
+ * 世界与限定面板：世界观预设 + 载体框架 + NSFW / NTL / 恶堕
+ * NSFW 段不注入主角 Description / 开场白生成；预设喂给 AI 引擎。
  */
 import {
   CORRUPTION_PRESETS,
@@ -30,10 +30,31 @@ import {
 import { buildPlaceholderPaths, normalizeDesign } from '../../statusBar.mjs';
 import { buildAdultCanonDigest, formatCorruptionArchiveDigests } from '../../adult/canon.mjs';
 import { CORRUPTION_EXPAND_WB } from '../../novel/contextBudgets.mjs';
+import {
+  listWorldviewPresetsByGroup,
+  getWorldviewPreset,
+  normalizeWorldviewPresetItems,
+  primaryWorldviewPresetId,
+  MAX_WORLDVIEW_PRESET_ITEMS,
+} from '../../presets/worldviews/index.mjs';
 
 export function registerAdultConfig(ctx) {
   var escapeHtml = ctx.escapeHtml;
   var corruptionTargetsCache = [];
+
+  function ensureWorldviewPresetItemsOnState() {
+    ctx.state.worldviewPresetItems = normalizeWorldviewPresetItems(ctx.state.worldviewPresetItems || []);
+    return ctx.state.worldviewPresetItems;
+  }
+
+  function syncWorldframeFromPresets() {
+    if (ctx.state.adultWorldframeForced) return;
+    var items = ensureWorldviewPresetItemsOnState();
+    var primaryId = primaryWorldviewPresetId(items);
+    var p = getWorldviewPreset(primaryId);
+    if (!p || !p.mapsToWorldframe) return;
+    ctx.state.adultWorldframe = p.mapsToWorldframe;
+  }
 
   function maxFlavorItems() {
     var data = window.__nsfwFlavorData__;
@@ -143,12 +164,12 @@ export function registerAdultConfig(ctx) {
       var row = document.getElementById('adultWorldframeRow');
       var labelEl = document.getElementById('adultWorldframeLabel');
       var select = document.getElementById('adultWorldframeSelect');
+      var mapHint = document.getElementById('adultWorldframeMapHint');
       var data = window.__nsfwFlavorData__;
       if (!row) return;
-      // 框架始终展示在最上；不再依赖 NSFW/NTL 开关
       row.style.display = 'flex';
       if (select && data && data.worldframeIds && !select.dataset.filled) {
-        var opts = '<option value="">自动</option>';
+        var opts = '<option value="">自动（跟主预设）</option>';
         data.worldframeIds.forEach(function(id) {
           if (id === 'generic') return;
           var wf = data.worldframes[id];
@@ -159,6 +180,7 @@ export function registerAdultConfig(ctx) {
         select.innerHTML = opts;
         select.dataset.filled = '1';
       }
+      if (!ctx.state.adultWorldframeForced) syncWorldframeFromPresets();
       var forced = ctx.state.adultWorldframeForced || '';
       if (select) select.value = forced;
       var info = forced && data && data.worldframes[forced]
@@ -179,7 +201,18 @@ export function registerAdultConfig(ctx) {
         var src = info.source === 'forced' ? '手动' : (info.source === 'infer' ? '自动' : (info.source || ''));
         labelEl.textContent = (info.label || info.id || '未推断') + conf + (src ? '（' + src + '）' : '');
       }
-      // 同步小说工坊：手动 forced → set；自动建议 → suggest（不抢强制）
+      if (mapHint) {
+        var items = ensureWorldviewPresetItemsOnState();
+        var primaryId = primaryWorldviewPresetId(items);
+        var p = getWorldviewPreset(primaryId);
+        if (forced) {
+          mapHint.textContent = '已手动强制；与主预设脱钩';
+        } else if (p) {
+          mapHint.textContent = '由预设「' + (p.label || primaryId) + '」→ 框架「' + (info.label || info.id) + '」';
+        } else {
+          mapHint.textContent = '未选预设时按卡面推断；口味/NTL 物化为该世界的载体';
+        }
+      }
       var novelBridge = window.__novelWorkshopBridge__;
       if (novelBridge) {
         if (forced && typeof novelBridge.setAdultWorldframe === 'function') {
@@ -195,6 +228,85 @@ export function registerAdultConfig(ctx) {
           }
         }
       }
+    },
+
+    renderWorldviewPresetList: function() {
+      var listEl = document.getElementById('adultWorldviewPresetList');
+      var picker = document.getElementById('adultWorldviewPresetPicker');
+      var capEl = document.getElementById('adultWvCap');
+      var items = ensureWorldviewPresetItemsOnState();
+      if (listEl) {
+        if (!items.length) {
+          listEl.innerHTML = '<span class="adult-wv-empty">尚未添加——可多选组合（如魅魔+修仙）。不选则 AI 引擎须填写阶段提示词。</span>';
+        } else {
+          listEl.innerHTML = items.map(function(it, idx) {
+            var p = getWorldviewPreset(it.id) || { label: it.id, summary: '', description: '' };
+            var blurb = p.summary || String(p.description || '').slice(0, 40);
+            if (p.description && !p.summary && p.description.length > 40) blurb += '…';
+            return '<div class="adult-dashed-item" data-wv-idx="' + idx + '">'
+              + '<div class="adult-dashed-item-head">'
+              + '<div class="adult-dashed-item-meta">'
+              + '<div class="adult-dashed-item-title">' + escapeHtml(p.label)
+              + (idx === 0
+                ? '<span class="adult-dashed-tag">主</span>'
+                : '<span class="adult-dashed-tag">叠加</span>')
+              + '</div>'
+              + (blurb ? '<div class="adult-dashed-item-desc">' + escapeHtml(blurb) + '</div>' : '')
+              + '</div>'
+              + '<div class="adult-dashed-item-actions">'
+              + (idx > 0 ? '<button type="button" class="adult-dashed-move" data-wv-up="' + idx + '" title="上移">↑</button>' : '')
+              + (idx < items.length - 1 ? '<button type="button" class="adult-dashed-move" data-wv-down="' + idx + '" title="下移">↓</button>' : '')
+              + '<button type="button" class="adult-dashed-remove" data-wv-remove="' + idx + '">移除</button>'
+              + '</div></div>'
+              + '<textarea data-wv-note="' + idx + '" rows="1" placeholder="可选备注（如：修仙为壳，魅魔为隐秘族群）">'
+              + escapeHtml(it.note || '') + '</textarea>'
+              + '</div>';
+          }).join('');
+        }
+      }
+      var selected = Object.create(null);
+      items.forEach(function(it) { selected[it.id] = true; });
+      if (picker) {
+        var opts = '<option value="">选择要添加的预设…</option>';
+        listWorldviewPresetsByGroup().forEach(function(g) {
+          var avail = (g.items || []).filter(function(it) { return !selected[it.id]; });
+          if (!avail.length) return;
+          opts += '<optgroup label="' + escapeHtml(g.label) + '">';
+          avail.forEach(function(it) {
+            opts += '<option value="' + escapeHtml(it.id) + '">' + escapeHtml(it.label) + '</option>';
+          });
+          opts += '</optgroup>';
+        });
+        picker.innerHTML = opts;
+        picker.disabled = items.length >= MAX_WORLDVIEW_PRESET_ITEMS;
+        picker.value = '';
+      }
+      if (capEl) {
+        capEl.textContent = items.length
+          ? ('已选 ' + items.length + ' / ' + MAX_WORLDVIEW_PRESET_ITEMS)
+          : ('最多 ' + MAX_WORLDVIEW_PRESET_ITEMS + ' 项');
+      }
+    },
+
+    addWorldviewPresetItem: function(id) {
+      id = String(id || '').trim();
+      if (!id || !getWorldviewPreset(id)) return;
+      var items = ensureWorldviewPresetItemsOnState();
+      if (items.length >= MAX_WORLDVIEW_PRESET_ITEMS) return;
+      if (items.some(function(it) { return it.id === id; })) return;
+      items.push({ id: id, note: '' });
+      ctx.state.worldviewPresetItems = items;
+      syncWorldframeFromPresets();
+      ctx.panels.adultConfig.renderWorldviewPresetList();
+      ctx.panels.adultConfig.renderWorldframeRow();
+      ctx.save();
+      if (typeof window.__persistAiConfig__ === 'function') window.__persistAiConfig__();
+      window.dispatchEvent(new CustomEvent('nsfw-config-changed', {
+        detail: window.__getNsfwConfig__ ? window.__getNsfwConfig__() : {},
+      }));
+      window.dispatchEvent(new CustomEvent('worldview-presets-changed', {
+        detail: { items: items.slice() },
+      }));
     },
 
     getCorruptionConfig: function() {
@@ -336,28 +448,28 @@ export function registerAdultConfig(ctx) {
       var listEl = document.getElementById('adultNsfwFlavorList');
       var picker = document.getElementById('adultNsfwFlavorPicker');
       var capEl = document.getElementById('adultNsfwFlavorCap');
-      var addBtn = document.getElementById('btnAddNsfwFlavor');
       if (!listEl || !data) return;
 
       var items = ensureFlavorItemsOnState();
       var max = maxFlavorItems();
       if (!items.length) {
-        listEl.innerHTML = '<span class="char-nsfw-subtitle">尚未添加口味——点击下方「＋添加口味」选择（可不选，用通用写法）</span>';
+        listEl.innerHTML = '<span class="adult-wv-empty">尚未添加口味——上方下拉点选即可（可不选，用通用写法）</span>';
       } else {
         listEl.innerHTML = items.map(function(it, idx) {
           var f = data.presets[it.id] || { label: it.id, summary: '', description: '' };
           var blurb = f.summary || '';
-          return '<div class="adult-flavor-item" data-flavor-idx="' + idx + '">'
-            + '<div class="adult-flavor-item-head">'
-            + '<div class="adult-flavor-item-meta">'
-            + '<div class="adult-flavor-item-title">' + escapeHtml(f.label)
-            + (idx === 0 ? '<span class="adult-flavor-primary-tag">主调色盘</span>' : '')
+          return '<div class="adult-dashed-item" data-flavor-idx="' + idx + '">'
+            + '<div class="adult-dashed-item-head">'
+            + '<div class="adult-dashed-item-meta">'
+            + '<div class="adult-dashed-item-title">' + escapeHtml(f.label)
+            + (idx === 0 ? '<span class="adult-dashed-tag">主调色盘</span>' : '')
             + '</div>'
-            + (blurb ? '<div class="adult-flavor-item-desc">' + escapeHtml(blurb) + '</div>' : '')
+            + (blurb ? '<div class="adult-dashed-item-desc">' + escapeHtml(blurb) + '</div>' : '')
             + '</div>'
-            + '<button type="button" class="btn btn-ghost" data-flavor-remove="' + idx + '" style="font-size:0.7rem;padding:2px 8px;">移除</button>'
-            + '</div>'
-            + '<textarea data-flavor-note="' + idx + '" rows="2" placeholder="可选：补充该口味的额外提示（写入世界书管道）">'
+            + '<div class="adult-dashed-item-actions">'
+            + '<button type="button" class="adult-dashed-remove" data-flavor-remove="' + idx + '">移除</button>'
+            + '</div></div>'
+            + '<textarea data-flavor-note="' + idx + '" rows="1" placeholder="可选：补充该口味的额外提示">'
             + escapeHtml(it.note || '') + '</textarea>'
             + '</div>';
         }).join('');
@@ -400,8 +512,8 @@ export function registerAdultConfig(ctx) {
         });
         picker.innerHTML = opts;
         picker.disabled = items.length >= max;
+        picker.value = '';
       }
-      if (addBtn) addBtn.disabled = items.length >= max;
       if (capEl) {
         capEl.textContent = items.length
           ? ('已选 ' + items.length + ' / ' + max)
@@ -417,6 +529,7 @@ export function registerAdultConfig(ctx) {
       var ntlRow = document.getElementById('adultNtlTabooRow');
       var ntlContainer = document.getElementById('adultNtlTabooTypes');
 
+      ctx.panels.adultConfig.renderWorldviewPresetList();
       ensureFlavorItemsOnState();
       if (adultEl && adultEl.checked !== ctx.state.nsfwEnabled) adultEl.checked = ctx.state.nsfwEnabled;
       if (ntlEl && ntlEl.checked !== ctx.state.ntlEnabled) ntlEl.checked = ctx.state.ntlEnabled;
@@ -465,17 +578,18 @@ export function registerAdultConfig(ctx) {
       listEl.innerHTML = items.map(function(it, idx) {
         var info = data.tabooTypes[it.id] || { label: it.id, summary: '' };
         var blurb = info.summary || '';
-        return '<div class="adult-flavor-item" data-ntl-idx="' + idx + '">'
-          + '<div class="adult-flavor-item-head">'
-          + '<div class="adult-flavor-item-meta">'
-          + '<div class="adult-flavor-item-title">' + escapeHtml(info.label)
-          + (it.id === 'yuri_destruction' ? '<span class="adult-flavor-primary-tag">百合破坏</span>' : '')
+        return '<div class="adult-dashed-item" data-ntl-idx="' + idx + '">'
+          + '<div class="adult-dashed-item-head">'
+          + '<div class="adult-dashed-item-meta">'
+          + '<div class="adult-dashed-item-title">' + escapeHtml(info.label)
+          + (it.id === 'yuri_destruction' ? '<span class="adult-dashed-tag">百合破坏</span>' : '')
           + '</div>'
-          + (blurb ? '<div class="adult-flavor-item-desc">' + escapeHtml(blurb) + '</div>' : '')
+          + (blurb ? '<div class="adult-dashed-item-desc">' + escapeHtml(blurb) + '</div>' : '')
           + '</div>'
-          + '<button type="button" class="btn btn-ghost" data-ntl-remove="' + idx + '" style="font-size:0.7rem;padding:2px 8px;">移除</button>'
-          + '</div>'
-          + '<textarea data-ntl-note="' + idx + '" rows="2" placeholder="可选：补充该禁忌方向的额外要求（写入世界书管道）">'
+          + '<div class="adult-dashed-item-actions">'
+          + '<button type="button" class="adult-dashed-remove" data-ntl-remove="' + idx + '">移除</button>'
+          + '</div></div>'
+          + '<textarea data-ntl-note="' + idx + '" rows="1" placeholder="可选：补充该禁忌方向的额外要求">'
           + escapeHtml(it.note || '') + '</textarea>'
           + '</div>';
       }).join('');
@@ -879,6 +993,7 @@ export function registerAdultConfig(ctx) {
       window.__getNsfwConfig__ = function() {
         var corr = ctx.panels.adultConfig.getCorruptionConfig();
         var items = ensureFlavorItemsOnState();
+        var wvItems = ensureWorldviewPresetItemsOnState();
         return {
           enabled: ctx.state.nsfwEnabled,
           flavor: ctx.state.nsfwFlavor || (items[0] && items[0].id) || '',
@@ -890,6 +1005,10 @@ export function registerAdultConfig(ctx) {
           ntlTabooItems: ensureNtlItemsOnState().map(function(it) {
             return { id: it.id, note: it.note || '' };
           }),
+          worldviewPresetItems: wvItems.map(function(it) {
+            return { id: it.id, note: it.note || '' };
+          }),
+          worldviewPresetId: primaryWorldviewPresetId(wvItems) || '',
           adultWorldframe: ctx.state.adultWorldframe || '',
           adultWorldframeForced: ctx.state.adultWorldframeForced || '',
           corruptionEnabled: corr.enabled,
@@ -922,6 +1041,13 @@ export function registerAdultConfig(ctx) {
           ctx.state.ntlTabooTypes = cfg.ntlTabooTypes.slice();
           ctx.state.ntlTabooItems = ctx.state.ntlTabooTypes.map(function(id) { return { id: id, note: '' }; });
         }
+        if (cfg && (Array.isArray(cfg.worldviewPresetItems) || typeof cfg.worldviewPresetId === 'string')) {
+          ctx.state.worldviewPresetItems = normalizeWorldviewPresetItems(
+            cfg.worldviewPresetItems,
+            cfg.worldviewPresetId || ''
+          );
+          syncWorldframeFromPresets();
+        }
         if (cfg && typeof cfg.adultWorldframe === 'string') ctx.state.adultWorldframe = cfg.adultWorldframe;
         if (cfg && typeof cfg.adultWorldframeForced === 'string') {
           ctx.state.adultWorldframeForced = cfg.adultWorldframeForced;
@@ -942,6 +1068,9 @@ export function registerAdultConfig(ctx) {
         if (typeof window.__persistAiConfig__ === 'function') window.__persistAiConfig__();
         window.dispatchEvent(new CustomEvent('nsfw-config-changed', {
           detail: window.__getNsfwConfig__(),
+        }));
+        window.dispatchEvent(new CustomEvent('worldview-presets-changed', {
+          detail: { items: ensureWorldviewPresetItemsOnState().slice() },
         }));
       };
       window.__generateCorruptionLore__ = function(o) {
@@ -999,14 +1128,13 @@ export function registerAdultConfig(ctx) {
 
       var adultEl = document.getElementById('adultNsfwEnabled');
       var ntlEl = document.getElementById('adultNtlEnabled');
-      var addFlavorBtn = document.getElementById('btnAddNsfwFlavor');
       var flavorList = document.getElementById('adultNsfwFlavorList');
+      var flavorPicker = document.getElementById('adultNsfwFlavorPicker');
       if (adultEl) adultEl.addEventListener('change', ctx.panels.adultConfig.syncNsfwBlockFromUi);
       if (ntlEl) ntlEl.addEventListener('change', ctx.panels.adultConfig.syncNsfwBlockFromUi);
-      if (addFlavorBtn) {
-        addFlavorBtn.addEventListener('click', function() {
-          var picker = document.getElementById('adultNsfwFlavorPicker');
-          var id = picker ? picker.value : '';
+      if (flavorPicker) {
+        flavorPicker.addEventListener('change', function() {
+          var id = flavorPicker.value || '';
           if (!id) return;
           ctx.panels.adultConfig.addFlavorItem(id);
         });
@@ -1023,13 +1151,79 @@ export function registerAdultConfig(ctx) {
           ctx.panels.adultConfig.syncNsfwBlockFromUi();
         });
       }
+
+      var wvPicker = document.getElementById('adultWorldviewPresetPicker');
+      var wvList = document.getElementById('adultWorldviewPresetList');
+      if (wvPicker) {
+        wvPicker.addEventListener('change', function() {
+          var id = wvPicker.value || '';
+          if (!id) return;
+          ctx.panels.adultConfig.addWorldviewPresetItem(id);
+        });
+      }
+      if (wvList) {
+        wvList.addEventListener('click', function(e) {
+          var t = e.target;
+          if (!t || !t.getAttribute) return;
+          var items = ensureWorldviewPresetItemsOnState().slice();
+          var changed = false;
+          if (t.hasAttribute('data-wv-remove')) {
+            var ri = parseInt(t.getAttribute('data-wv-remove'), 10);
+            if (!isNaN(ri) && ri >= 0 && ri < items.length) {
+              items.splice(ri, 1);
+              changed = true;
+            }
+          } else if (t.hasAttribute('data-wv-up')) {
+            var ui = parseInt(t.getAttribute('data-wv-up'), 10);
+            if (!isNaN(ui) && ui > 0) {
+              var tmpU = items[ui - 1];
+              items[ui - 1] = items[ui];
+              items[ui] = tmpU;
+              changed = true;
+            }
+          } else if (t.hasAttribute('data-wv-down')) {
+            var di = parseInt(t.getAttribute('data-wv-down'), 10);
+            if (!isNaN(di) && di < items.length - 1) {
+              var tmpD = items[di + 1];
+              items[di + 1] = items[di];
+              items[di] = tmpD;
+              changed = true;
+            }
+          }
+          if (!changed) return;
+          ctx.state.worldviewPresetItems = items;
+          syncWorldframeFromPresets();
+          ctx.panels.adultConfig.renderWorldviewPresetList();
+          ctx.panels.adultConfig.renderWorldframeRow();
+          ctx.save();
+          if (typeof window.__persistAiConfig__ === 'function') window.__persistAiConfig__();
+          window.dispatchEvent(new CustomEvent('nsfw-config-changed', {
+            detail: window.__getNsfwConfig__ ? window.__getNsfwConfig__() : {},
+          }));
+          window.dispatchEvent(new CustomEvent('worldview-presets-changed', {
+            detail: { items: items.slice() },
+          }));
+        });
+        wvList.addEventListener('change', function(e) {
+          if (!e.target || !e.target.matches('[data-wv-note]')) return;
+          var idx = parseInt(e.target.getAttribute('data-wv-note'), 10);
+          var items = ensureWorldviewPresetItemsOnState();
+          if (isNaN(idx) || !items[idx]) return;
+          items[idx].note = String(e.target.value || '').trim();
+          ctx.state.worldviewPresetItems = items;
+          ctx.save();
+          if (typeof window.__persistAiConfig__ === 'function') window.__persistAiConfig__();
+        });
+      }
+
       var wfRefresh = document.getElementById('btnAdultWorldframeRefresh');
       var wfSelect = document.getElementById('adultWorldframeSelect');
       if (wfRefresh) {
         wfRefresh.addEventListener('click', function() {
           ctx.state.adultWorldframeForced = '';
+          syncWorldframeFromPresets();
           var info = inferWorldframeFromCard();
-          ctx.state.adultWorldframe = info.id;
+          if (!ctx.state.adultWorldframe) ctx.state.adultWorldframe = info.id;
           ctx.panels.adultConfig.renderWorldframeRow();
           ctx.save();
           if (typeof window.__persistAiConfig__ === 'function') window.__persistAiConfig__();
@@ -1044,8 +1238,9 @@ export function registerAdultConfig(ctx) {
           ctx.state.adultWorldframeForced = v;
           if (v) ctx.state.adultWorldframe = v;
           else {
+            syncWorldframeFromPresets();
             var info = inferWorldframeFromCard();
-            ctx.state.adultWorldframe = info.id;
+            if (!ctx.state.adultWorldframe) ctx.state.adultWorldframe = info.id;
           }
           ctx.panels.adultConfig.renderWorldframeRow();
           ctx.save();

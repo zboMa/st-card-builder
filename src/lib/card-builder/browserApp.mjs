@@ -158,12 +158,12 @@ export function bootCardBuilder() {
     var presetList = ctx.panels.aiEngine && ctx.panels.aiEngine.getParsedPresetList
       ? ctx.panels.aiEngine.getParsedPresetList()
       : [];
-    var worldviewPresetId = ctx.panels.aiEngine && ctx.panels.aiEngine.getWorldviewPresetId
-      ? ctx.panels.aiEngine.getWorldviewPresetId()
-      : ((document.getElementById('aiWorldviewPreset') || {}).value || '');
-    var worldviewPresetItems = ctx.panels.aiEngine && ctx.panels.aiEngine.getWorldviewPresetItems
-      ? ctx.panels.aiEngine.getWorldviewPresetItems()
-      : (worldviewPresetId ? [{ id: worldviewPresetId, note: '' }] : []);
+    var worldviewPresetItems = Array.isArray(ctx.state.worldviewPresetItems)
+      ? ctx.state.worldviewPresetItems
+      : (ctx.panels.aiEngine && ctx.panels.aiEngine.getWorldviewPresetItems
+        ? ctx.panels.aiEngine.getWorldviewPresetItems()
+        : []);
+    var worldviewPresetId = worldviewPresetItems[0] ? worldviewPresetItems[0].id : '';
     localStorage.setItem(AI_KEY, JSON.stringify({
       url: (document.getElementById('apiUrl') || {}).value || '',
       key: (document.getElementById('apiKey') || {}).value || '',
@@ -179,6 +179,7 @@ export function bootCardBuilder() {
         ? window.__getNovelRagOptions__()
         : { enabled: true, budget: 12000 },
       presetList: presetList,
+      // 兼容旧键：主源已迁入卡草稿 worldviewPresetItems
       worldviewPresetId: String(worldviewPresetId || ''),
       worldviewPresetItems: Array.isArray(worldviewPresetItems)
         ? worldviewPresetItems.map(function(it) {
@@ -300,21 +301,25 @@ export function bootCardBuilder() {
       if (typeof c.adultWorldframeForced === 'string') {
         ctx.state.adultWorldframeForced = c.adultWorldframeForced || '';
       }
+      // 世界观预设：若卡草稿尚无，则从旧 AI 配置迁移一次
+      var draftHasWv = Array.isArray(ctx.state.worldviewPresetItems) && ctx.state.worldviewPresetItems.length > 0;
+      if (!draftHasWv && (Array.isArray(c.worldviewPresetItems) || c.worldviewPresetId)) {
+        if (ctx.panels.aiEngine && ctx.panels.aiEngine.applyWorldviewPresetItems) {
+          ctx.panels.aiEngine.applyWorldviewPresetItems(
+            c.worldviewPresetItems,
+            c.worldviewPresetId || ''
+          );
+        } else if (ctx.panels.aiEngine && ctx.panels.aiEngine.applyWorldviewPresetId) {
+          ctx.panels.aiEngine.applyWorldviewPresetId(c.worldviewPresetId || '');
+        }
+        ctx.save();
+      } else if (ctx.panels.aiEngine && ctx.panels.aiEngine.refreshWorldviewSummary) {
+        ctx.panels.aiEngine.refreshWorldviewSummary();
+      }
       if (c.presetList && Array.isArray(c.presetList) && c.presetList.length > 0) {
         if (ctx.panels.aiEngine && ctx.panels.aiEngine.loadPresetsFromConfig) {
           ctx.panels.aiEngine.loadPresetsFromConfig(c.presetList);
         }
-      }
-      if (ctx.panels.aiEngine && ctx.panels.aiEngine.applyWorldviewPresetItems) {
-        ctx.panels.aiEngine.applyWorldviewPresetItems(
-          c.worldviewPresetItems,
-          c.worldviewPresetId || ''
-        );
-      } else if (ctx.panels.aiEngine && ctx.panels.aiEngine.applyWorldviewPresetId) {
-        ctx.panels.aiEngine.applyWorldviewPresetId(c.worldviewPresetId || '');
-      } else {
-        var wvEl = document.getElementById('aiWorldviewPreset');
-        if (wvEl && c.worldviewPresetId) wvEl.value = String(c.worldviewPresetId || '');
       }
       if (ctx.panels.aiEngine && ctx.panels.aiEngine.applyEnginePipelineOptions) {
         ctx.panels.aiEngine.applyEnginePipelineOptions(c);

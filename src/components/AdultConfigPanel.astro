@@ -1,31 +1,49 @@
 ---
 /**
- * 卡级成人配置（NSFW / NTL / 恶堕）
- * 顺序：世界观框架 → NSFW → 口味 → NTL → 恶堕
+ * 世界与限定：世界观预设 + 载体框架 + NSFW / 口味 / NTL / 恶堕
  * 列表仅展示 summary（20–40字）；长文见提示词配置目录浏览。
  */
 ---
 <div class="panel area-adult-config">
-  <h2>成人配置</h2>
+  <h2>世界与限定</h2>
   <p class="ui-hint adult-config-lead">
-    整张卡统一配置，<strong>仅世界书管道</strong>：世界书人物条、恶堕档案、小说人物丰满/分析、状态栏 NSFW。
-    <strong>主角管道</strong>（角色设定 / 开场白）完全不读、不写此配置。
-    条目旁只显示短摘要；完整写法指引在「提示词配置」目录 Tab。
+    卡级统一配置。<strong>世界观预设</strong>喂给 AI 引擎生成（角色 / 世界书 / 开场白）；
+    <strong>载体框架</strong>把口味与 NTL 物化为法器·异能·场所。
+    NSFW 段仅世界书管道读取，主角 Description / 开场白不注入。
+    条目旁只显示短摘要；完整写法在「提示词配置」目录 Tab。
   </p>
 
   <div class="form-group char-nsfw-block">
-    <!-- 1. 世界观框架（最上，始终可见） -->
+    <!-- 1. 世界观预设（生成底盘） -->
+    <section class="adult-wv-section" aria-labelledby="adultWvHeading">
+      <div class="char-nsfw-flavor-line" style="margin-bottom:6px;">
+        <span id="adultWvHeading" class="char-nsfw-sub">世界观预设</span>
+        <span class="char-nsfw-subtitle">最多 3 项；首项为主底盘，其余为叠加层</span>
+        <span id="adultWvCap" class="char-nsfw-subtitle"></span>
+      </div>
+      <div class="adult-dashed-add-row">
+        <select id="adultWorldviewPresetPicker" aria-label="添加世界观预设">
+          <option value="">选择要添加的预设…</option>
+        </select>
+      </div>
+      <div id="adultWorldviewPresetList" class="adult-dashed-list" aria-live="polite"></div>
+      <p class="char-nsfw-subtitle" style="margin-top:4px;">
+        主预设未强制覆盖时，会映射到下方载体框架。与「载体框架」不是同一目录：预设细、框架粗。
+      </p>
+    </section>
+
+    <!-- 2. 载体框架 -->
     <div id="adultWorldframeRow" class="adult-worldframe-row" aria-labelledby="adultWorldframeHeading">
-      <span id="adultWorldframeHeading" class="char-nsfw-sub">世界观框架</span>
+      <span id="adultWorldframeHeading" class="char-nsfw-sub">载体框架</span>
       <span id="adultWorldframeLabel" class="char-nsfw-subtitle">未推断</span>
-      <button type="button" id="btnAdultWorldframeRefresh" class="btn btn-ghost" style="font-size:0.7rem;padding:2px 8px;">重新推断</button>
-      <select id="adultWorldframeSelect" aria-label="覆盖世界观框架" style="font-size:0.72rem;padding:3px 6px;border-radius:6px;border:1px solid var(--color-border);background:var(--color-surface);color:var(--color-text);">
-        <option value="">自动</option>
+      <button type="button" id="btnAdultWorldframeRefresh" class="btn btn-ghost adult-btn-compact">重新推断</button>
+      <select id="adultWorldframeSelect" aria-label="覆盖载体框架" class="adult-select-compact">
+        <option value="">自动（跟主预设）</option>
       </select>
-      <span class="char-nsfw-subtitle">口味/NTL 将物化为该世界的法器·异能·场所等载体</span>
+      <span id="adultWorldframeMapHint" class="char-nsfw-subtitle"></span>
     </div>
 
-    <!-- 2. NSFW 开关 -->
+    <!-- 3. NSFW 开关 -->
     <div class="char-nsfw-head" style="margin-top:12px;">
       <span class="char-nsfw-label">情欲 / NSFW</span>
       <span class="ui-hint ui-hint--inline">卡级统一口味，供世界书人物与管线读取</span>
@@ -37,23 +55,22 @@
     </label>
     <span class="char-nsfw-subtitle">分析/抽取/丰满/文风/恶堕等统一读取；主角生成不注入</span>
 
-    <!-- 3. 口味 -->
+    <!-- 4. 口味 -->
     <section id="adultFlavorSection" class="adult-flavor-section" style="display:none;" aria-labelledby="adultFlavorHeading">
       <div class="char-nsfw-flavor-line" style="margin-bottom:6px;">
         <span id="adultFlavorHeading" class="char-nsfw-sub">口味</span>
         <span class="char-nsfw-subtitle">最多 5 个；首项为主调色盘</span>
+        <span id="adultNsfwFlavorCap" class="char-nsfw-subtitle"></span>
       </div>
-      <div id="adultNsfwFlavorList" class="adult-flavor-list"></div>
-      <div class="adult-flavor-add-row">
+      <div class="adult-dashed-add-row">
         <select id="adultNsfwFlavorPicker" aria-label="选择要添加的口味">
           <option value="">选择口味…</option>
         </select>
-        <button type="button" id="btnAddNsfwFlavor" class="btn btn-ghost">＋添加口味</button>
-        <span id="adultNsfwFlavorCap" class="char-nsfw-subtitle"></span>
       </div>
+      <div id="adultNsfwFlavorList" class="adult-dashed-list"></div>
     </section>
 
-    <!-- 4. NTL -->
+    <!-- 5. NTL -->
     <section class="adult-ntl-section" aria-labelledby="adultNtlHeading">
       <div class="char-nsfw-flavor-line" style="margin-bottom:4px;">
         <span id="adultNtlHeading" class="char-nsfw-sub">NTL 禁忌</span>
@@ -65,12 +82,12 @@
       </div>
       <div id="adultNtlTabooRow" style="display:none;margin-top:4px;">
         <div id="adultNtlTabooTypes" class="adult-ntl-chips"></div>
-        <div id="adultNtlTabooList" class="adult-flavor-list" style="margin-top:8px;"></div>
+        <div id="adultNtlTabooList" class="adult-dashed-list" style="margin-top:8px;"></div>
         <span class="char-nsfw-subtitle">点选芯片添加/取消；下方可为每项写补充要求</span>
       </div>
     </section>
 
-    <!-- 5. 恶堕 -->
+    <!-- 6. 恶堕 -->
     <div id="adultCorruptionBlock" class="char-corruption-block" style="display:none;">
       <div class="char-nsfw-flavor-line" style="margin-bottom:6px;">
         <label class="novel-switch">
@@ -82,7 +99,7 @@
       <div id="adultCorruptionBody" style="display:none;">
         <div class="char-nsfw-flavor-line" style="margin-bottom:6px;">
           <span class="char-nsfw-sub">阶数</span>
-          <select id="adultCorruptionPreset" style="font-size:0.73rem;padding:3px 8px;border-radius:6px;border:1px solid var(--color-border);background:var(--color-surface);color:var(--color-text);">
+          <select id="adultCorruptionPreset" class="adult-select-compact">
             <option value="3">简洁 3 阶</option>
             <option value="5" selected>标准 5 阶（默认）</option>
             <option value="7">细腻 7 阶</option>
@@ -103,8 +120,8 @@
         <div class="char-nsfw-subtitle" style="margin-bottom:4px;">生成对象（来自世界书/小说人物；主角自动排除；男角色默认不勾）</div>
         <div id="adultCorruptionTargets" class="char-corruption-targets"></div>
         <div class="char-nsfw-flavor-line" style="margin-top:8px;gap:8px;">
-          <button type="button" id="btnRefreshCorruptionTargets" class="btn btn-ghost" style="font-size:0.72rem;padding:4px 10px;">刷新角色列表</button>
-          <button type="button" id="btnGenCorruptionLore" class="btn btn-primary" style="font-size:0.72rem;padding:4px 12px;">生成/更新恶堕世界书</button>
+          <button type="button" id="btnRefreshCorruptionTargets" class="btn btn-ghost adult-btn-compact">刷新角色列表</button>
+          <button type="button" id="btnGenCorruptionLore" class="btn btn-primary adult-btn-compact">生成/更新恶堕世界书</button>
           <span id="adultCorruptionTip" class="ui-status-tip" role="status" aria-live="polite"></span>
         </div>
       </div>
@@ -120,14 +137,18 @@
     flex-wrap: wrap;
     align-items: center;
     gap: 8px;
-    padding: 8px 0 10px;
-    margin-bottom: 4px;
+    padding: 10px 0 12px;
+    margin: 8px 0 4px;
+    border-top: 1px dashed var(--color-border);
     border-bottom: 1px dashed var(--color-border);
   }
   .adult-config-lead {
     margin: -4px 0 14px;
     font-size: 0.78rem;
     line-height: 1.5;
+  }
+  .adult-wv-section {
+    margin-bottom: 4px;
   }
   .char-nsfw-block {
     padding: 2px 0 6px;
@@ -150,71 +171,107 @@
     padding-top: 10px;
     border-top: 1px dashed var(--color-border);
   }
-  .adult-flavor-list {
+  .adult-dashed-list {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    margin-bottom: 8px;
+    margin-top: 8px;
   }
-  .adult-flavor-item {
+  .adult-dashed-item {
     padding: 8px 10px;
-    border: 1px solid var(--color-border);
+    border: 1px dashed var(--color-border);
     border-radius: 8px;
-    background: var(--color-surface);
+    background: transparent;
   }
-  .adult-flavor-item-head {
+  .adult-dashed-item-head {
     display: flex;
     align-items: flex-start;
     gap: 8px;
-    margin-bottom: 6px;
   }
-  .adult-flavor-item-meta {
+  .adult-dashed-item-meta {
     flex: 1;
     min-width: 0;
   }
-  .adult-flavor-item-title {
-    font-size: 0.78rem;
-    font-weight: 700;
-    color: var(--color-text);
-  }
-  .adult-flavor-item-title .adult-flavor-primary-tag {
-    margin-left: 6px;
-    font-size: 0.68rem;
+  .adult-dashed-item-title {
+    font-size: 0.72rem;
     font-weight: 600;
+    color: var(--color-text-muted);
+  }
+  .adult-dashed-item-title .adult-dashed-tag {
+    margin-left: 6px;
+    font-size: 0.65rem;
+    font-weight: 500;
     color: var(--color-accent);
   }
-  .adult-flavor-item-desc {
+  .adult-dashed-item-desc {
     font-size: 0.7rem;
     color: var(--color-text-muted);
-    line-height: 1.4;
-    margin-top: 2px;
+    line-height: 1.45;
+    margin-top: 3px;
   }
-  .adult-flavor-item textarea {
+  .adult-dashed-item-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+  .adult-dashed-remove {
+    font-size: 0.65rem;
+    padding: 1px 6px;
+    color: var(--color-text-muted);
+    opacity: 0.65;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .adult-dashed-remove:hover {
+    opacity: 1;
+    color: var(--color-text);
+  }
+  .adult-dashed-move {
+    font-size: 0.65rem;
+    padding: 1px 4px;
+    color: var(--color-text-muted);
+    opacity: 0.55;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+  }
+  .adult-dashed-move:hover { opacity: 1; }
+  .adult-dashed-item textarea {
     width: 100%;
-    font-size: 0.72rem;
-    padding: 5px 8px;
+    margin-top: 6px;
+    font-size: 0.7rem;
+    padding: 4px 7px;
     border-radius: 6px;
-    border: 1px solid var(--color-border);
+    border: 1px dashed var(--color-border);
     background: var(--color-bg, var(--color-surface));
     color: var(--color-text);
     resize: vertical;
-    min-height: 2.4em;
+    min-height: 2.2em;
   }
-  .adult-flavor-add-row {
+  .adult-dashed-add-row {
     display: flex;
     align-items: center;
     gap: 8px;
     flex-wrap: wrap;
   }
-  .adult-flavor-add-row select {
+  .adult-dashed-add-row select,
+  .adult-select-compact {
     flex: 1;
     min-width: 140px;
-    font-size: 0.75rem;
-    padding: 4px 8px;
+    font-size: 0.72rem;
+    padding: 3px 6px;
     border-radius: 6px;
     border: 1px solid var(--color-border);
     background: var(--color-surface);
     color: var(--color-text);
+  }
+  .adult-btn-compact {
+    font-size: 0.7rem !important;
+    padding: 2px 8px !important;
   }
   .adult-ntl-chips {
     display: flex;
@@ -259,4 +316,12 @@
     color: var(--color-text);
     cursor: pointer;
   }
+  .adult-wv-empty {
+    font-size: 0.7rem;
+    color: var(--color-text-muted);
+    padding: 4px 0;
+  }
+  /* 兼容旧 class：口味/NTL 列表渲染可复用虚线卡 */
+  .adult-flavor-list { display: contents; }
+  .adult-flavor-item { /* unused; list uses adult-dashed-item */ }
 </style>

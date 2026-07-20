@@ -29,6 +29,7 @@ export function createDefaultCardState() {
     ntlEnabled: false,
     ntlTabooTypes: [],
     ntlTabooItems: [],
+    worldviewPresetItems: [],
     adultWorldframe: '',
     adultWorldframeForced: '',
     corruptionEnabled: false,
@@ -80,6 +81,11 @@ export function buildDraftSnapshot(state) {
           return { id: String((it && it.id) || ''), note: String((it && it.note) || '') };
         }).filter(function(it) { return it.id; })
       : (s.ntlTabooTypes || []).map(function(id) { return { id: String(id), note: '' }; }),
+    worldviewPresetItems: Array.isArray(s.worldviewPresetItems)
+      ? s.worldviewPresetItems.map(function(it) {
+          return { id: String((it && it.id) || ''), note: String((it && it.note) || '') };
+        }).filter(function(it) { return it.id; })
+      : [],
     adultWorldframe: s.adultWorldframe || '',
     adultWorldframeForced: s.adultWorldframeForced || '',
     corruptionEnabled: !!s.corruptionEnabled,

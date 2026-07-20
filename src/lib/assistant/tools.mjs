@@ -41,14 +41,14 @@ export const ASSISTANT_TOOLS = [
   { name: 'list_cards', kind: 'read', risk: 'none', summary: '多卡草稿列表（id/名/当前）', argsHint: '{}' },
   { name: 'get_engine_options', kind: 'read', risk: 'none', summary: '读取 AI 引擎非密钥选项', argsHint: '{}' },
   { name: 'get_prompt_ids', kind: 'read', risk: 'none', summary: '提示词配置 id 列表（只读）', argsHint: '{}' },
-  { name: 'get_adult_config', kind: 'read', risk: 'none', summary: '读取卡级成人配置（框架/NSFW/口味/NTL/恶堕）', argsHint: '{}' },
+  { name: 'get_adult_config', kind: 'read', risk: 'none', summary: '读取卡级「世界与限定」（世界观预设/载体框架/NSFW/口味/NTL/恶堕）', argsHint: '{}' },
   { name: 'novel_list_outputs', kind: 'read', risk: 'none', summary: '小说各模块产出摘要（人物/世界书/文风/实体）', argsHint: '{}' },
 
   // —— 写入（小改 auto / 大改 confirm）——
   { name: 'update_character_fields', kind: 'write', risk: 'auto', summary: '更新部分角色字段', argsHint: '{ fields:{charName?,wbName?,charDesc?,firstMes?,creatorNotes?,tags?,altGreetings?} }' },
   { name: 'replace_character_section', kind: 'write', risk: 'confirm', summary: '整段覆盖角色字段', argsHint: '{ field: charDesc|firstMes|creatorNotes|..., content }' },
   { name: 'expand_character_field', kind: 'generate', risk: 'confirm', summary: '按字段名重写/扩写角色字段', argsHint: '{ field: charDesc|creatorNotes|..., mode?, instruction? }' },
-  { name: 'set_adult_config', kind: 'write', risk: 'auto', summary: '更新卡级成人配置（框架/NSFW开关/口味多选/NTL/恶堕开关等）', argsHint: '{ enabled?, flavorItems?, ntlEnabled?, ntlTabooTypes?, adultWorldframeForced?, corruptionEnabled?, ... }' },
+  { name: 'set_adult_config', kind: 'write', risk: 'auto', summary: '更新卡级「世界与限定」（worldviewPresetItems/框架/NSFW/口味/NTL/恶堕等）', argsHint: '{ worldviewPresetItems?, enabled?, flavorItems?, ntlEnabled?, ntlTabooTypes?, adultWorldframeForced?, corruptionEnabled?, ... }' },
   { name: 'create_worldbook_entry', kind: 'write', risk: 'auto', summary: '新建一条世界书', argsHint: '{ entry }' },
   { name: 'update_worldbook_entry', kind: 'write', risk: 'auto', summary: '更新一条世界书', argsHint: '{ target|{index|comment}, patch }' },
   { name: 'delete_worldbook_entry', kind: 'write', risk: 'confirm', summary: '删除世界书条目（含清空全部）', argsHint: '{ index|indices|target|{all:true} }' },
@@ -126,13 +126,13 @@ export const ASSISTANT_PRESET_CHIPS = [
   {
     id: 'setup_card',
     label: '帮我配卡',
-    prompt: '我想做一张新卡（可当空卡）。先听我描述想要的风格与关系；你推荐世界观/框架/口味/NTL 等搭配并讨论，确认后再用 set_adult_config 写入。不要强迫流程，也不要一上来就跑小说工坊。',
+    prompt: '我想做一张新卡（可当空卡）。先听我描述想要的风格与关系；你推荐世界观预设/载体框架/口味/NTL 等搭配并讨论，确认后再用 set_adult_config 写入「世界与限定」。不要强迫流程，也不要一上来就跑小说工坊。',
     tool: 'get_adult_config',
   },
   {
     id: 'recommend_adult',
     label: '推荐搭配',
-    prompt: '根据当前卡面与我的偏好，用 get_adult_config 看现状，对照目录概览推荐口味/NTL/框架组合；我确认后再 set_adult_config。',
+    prompt: '根据当前卡面与我的偏好，用 get_adult_config 看现状，对照目录概览推荐世界观预设/口味/NTL/框架组合；我确认后再 set_adult_config。',
     tool: 'get_adult_config',
   },
   {
