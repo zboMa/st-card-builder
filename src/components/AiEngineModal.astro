@@ -27,39 +27,53 @@
       </div>
 
       <div class="form-group">
-        <label class="ai-stage-label ai-stage-label--wb">[阶段2] 世界书骨架提示词</label>
+        <label class="ai-stage-label ai-stage-label--wb">[阶段2] 世界书方向提示词</label>
         <textarea id="wbPrompt" placeholder="例如：围绕赛博废土展开，包含武器、势力、地点、NPC..." style="min-height: 52px; border-color: rgba(16, 185, 129, 0.3);"></textarea>
       </div>
 
       <div class="form-group">
         <label class="ai-stage-label ai-stage-label--greeting">[阶段3] 开场白提示词</label>
         <textarea id="greetingPrompt" placeholder="例如：雨夜巷口初遇，用第二人称、带环境描写与角色小动作..." style="min-height: 52px; border-color: rgba(167, 139, 250, 0.35);"></textarea>
-        <p class="ai-engine-field-hint">始终执行；留空则按角色与世界书骨架自动构思。后续阶段会将前序生成结果注入参考。</p>
+        <p class="ai-engine-field-hint">始终执行；留空则按角色与世界书自动构思。后续阶段会将前序结果注入参考。</p>
       </div>
 
-      <!-- 世界书条数 -->
       <div class="ai-engine-skeleton-box">
+        <div class="ai-engine-mode-row">
+          <label class="ai-stage-label ai-stage-label--wb ai-stage-label--sm" for="aiEngineGenMode">生成模式</label>
+          <select id="aiEngineGenMode" aria-label="AI 引擎生成模式">
+            <option value="full" selected>完整生成（大纲→逐条丰满）</option>
+            <option value="skeleton">仅骨架（不自动展开）</option>
+          </select>
+        </div>
+        <p class="ai-engine-field-hint ai-engine-field-hint--tight" id="aiEngineModeHint">
+          默认：先出分类型大纲，再自动一条条写满（人物/地点/势力/事件/物品等互洽）。可选「仅骨架」节省时间。
+        </p>
+        <label class="ai-engine-pause-row" for="aiEnginePauseAfterOutline">
+          <input type="checkbox" id="aiEnginePauseAfterOutline" />
+          <span>大纲完成后暂停（确认后再点下方「继续丰满」）</span>
+        </label>
         <div class="ai-engine-skeleton-row">
           <div class="ai-engine-skeleton-meta">
-            <label class="ai-stage-label ai-stage-label--wb ai-stage-label--sm">骨架模式</label>
-            <p class="ai-engine-field-hint ai-engine-field-hint--tight">一键生成时只产出简短骨架。后续用「✨ AI重写」逐条展开。</p>
+            <label class="ai-stage-label ai-stage-label--wb ai-stage-label--sm">世界书条数</label>
+            <p class="ai-engine-field-hint ai-engine-field-hint--tight">完整模式=大纲槽位数；仅骨架=骨架条数。</p>
           </div>
           <div class="ai-engine-skeleton-count">
             <label style="color: var(--color-text-muted); font-size: 0.75rem; white-space: nowrap; margin: 0;">生成</label>
-            <input type="number" id="wbSkeletonCount" value="6" min="1" max="30" style="width: 52px; text-align: center; padding: 6px 4px; font-size: 0.9rem; font-weight: 700; border-color: rgba(16,185,129,0.3);" />
+            <input type="number" id="wbSkeletonCount" value="10" min="1" max="30" style="width: 52px; text-align: center; padding: 6px 4px; font-size: 0.9rem; font-weight: 700; border-color: rgba(16,185,129,0.3);" />
             <label style="color: var(--color-text-muted); font-size: 0.75rem; white-space: nowrap; margin: 0;">条</label>
           </div>
         </div>
         <div class="ai-engine-skeleton-pills">
-          <button type="button" class="ui-pill-btn wb-count-btn" data-count="3">3条</button>
           <button type="button" class="ui-pill-btn wb-count-btn" data-count="6">6条</button>
           <button type="button" class="ui-pill-btn wb-count-btn" data-count="10">10条</button>
-          <button type="button" class="ui-pill-btn wb-count-btn" data-count="15">15条</button>
+          <button type="button" class="ui-pill-btn wb-count-btn" data-count="13">13条</button>
+          <button type="button" class="ui-pill-btn wb-count-btn" data-count="16">16条</button>
           <button type="button" class="ui-pill-btn wb-count-btn" data-count="20">20条</button>
         </div>
       </div>
 
-      <button type="button" id="btnAiGenerate" class="btn btn-ai">一键生成角色、世界书骨架与开场白</button>
+      <button type="button" id="btnAiGenerate" class="btn btn-ai">一键完整生成（角色·大纲·丰满·开场白）</button>
+      <button type="button" id="btnAiContinueEnrich" class="btn btn-fetch" hidden style="margin-top: 8px; width: 100%;">继续：按大纲逐条丰满</button>
 
       <div id="hackerOverlay" style="display: none;">
         <div id="hackerCanvas"></div>
@@ -158,6 +172,31 @@
     padding: 12px 14px;
     margin-bottom: 14px;
   }
+  .ai-engine-mode-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+  .ai-engine-mode-row select {
+    width: 100%;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(16, 185, 129, 0.35);
+    background: var(--color-surface, #0f1419);
+    color: var(--color-text);
+    font-size: 0.88rem;
+  }
+  .ai-engine-pause-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    margin: 8px 0 10px;
+    cursor: pointer;
+  }
+  .ai-engine-pause-row input { margin-top: 2px; }
   .ai-engine-skeleton-row {
     display: flex;
     align-items: center;

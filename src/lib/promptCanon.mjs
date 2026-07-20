@@ -128,6 +128,39 @@ export const DEFAULT_PROMPTS = {
     '\n只输出可被解析的 JSON（由调用方约定数组形态）。'
   ),
 
+  wbOutline: join(
+    '你是 SillyTavern 世界书架构师。请先产出「分类型大纲」，不要写长文正文。',
+    B.contentCanon,
+    B.antiSlop,
+    '\n【任务】按配额生成 slots 数组；每条只含：type、comment、blurb(一句话职责)、keys(1～3)、links(关联其他条目标题，可空)、strategy。',
+    '\n【type 枚举】worldview|location|faction|person|event|item|ability|other',
+    '\n【人物】person 的 comment 建议带「[小说人物] 名字」；主角卡面已有，勿重复写主角 Description。',
+    '\n【关联】links 写出本条依赖/对立/隶属的其他 comment，便于后续互洽。',
+    '\n【禁止】不要写 100 字以上 content；不要输出解释。',
+    '\n只输出 JSON：{ "slots": [ { "type":"location", "comment":"...", "blurb":"...", "keys":["..."], "links":["..."], "strategy":"selective" } ] }'
+  ),
+
+  wbEnrichFromOutline: join(
+    '你是 SillyTavern 世界书写手。将【大纲中的一条】展开为完整可 RP 词条。',
+    B.contentCanon,
+    B.nsfwWorldCanon,
+    B.inferCanon,
+    B.antiSlop,
+    B.outputCanon,
+    '\n【要求】严格服务该条 type 职责；content≥150 字，写清定义/规则/用法/与关联条目的交互；引用已有条目时勿矛盾。',
+    '\n【人物条】可写外貌性格关系与成人层（若启用）；勿写成主角卡 Description。',
+    '\n【输出】仅 1 个 JSON：{ "comment":"标题", "content":"详细设定", "keys":["触发词"], "strategy":"selective|constant", "position":4 }'
+  ),
+
+  wbCrossLink: join(
+    '你是 SillyTavern 世界书交叉校对编辑。在已有完整条目之间补强互指，使人物/势力/物品/事件互相咬合。',
+    B.contentCanon,
+    B.antiSlop,
+    '\n【任务】为需要补边的条目生成短补丁（追加段，非重写全文）。',
+    '\n只输出 JSON：{ "patches": [ { "comment":"精确匹配已有标题", "append":"追加的互指段落(40～120字)" } ] }',
+    '\n无需要补则 patches 为空数组。禁止发明新标题。'
+  ),
+
   wbSingle: join(
     '你是 SillyTavern 世界书词条构建大师。请生成【仅仅1条】详细完整的设定。',
     B.contentCanon,

@@ -200,6 +200,12 @@ export function bootCardBuilder() {
       corruptionSyncStatusBar: ctx.state.corruptionSyncStatusBar !== false,
       adultWorldframe: ctx.state.adultWorldframe || '',
       adultWorldframeForced: ctx.state.adultWorldframeForced || '',
+      engineGenMode: (document.getElementById('aiEngineGenMode') || {}).value || 'full',
+      pauseAfterOutline: !!(document.getElementById('aiEnginePauseAfterOutline')
+        && document.getElementById('aiEnginePauseAfterOutline').checked),
+      skeletonCount: typeof window.__getSkeletonCount__ === 'function'
+        ? window.__getSkeletonCount__()
+        : (parseInt((document.getElementById('wbSkeletonCount') || {}).value, 10) || 10),
     }));
     ctx.updateAIDebugStatus();
   }
@@ -297,6 +303,17 @@ export function bootCardBuilder() {
         var wvEl = document.getElementById('aiWorldviewPreset');
         if (wvEl && c.worldviewPresetId) wvEl.value = String(c.worldviewPresetId || '');
       }
+      if (ctx.panels.aiEngine && ctx.panels.aiEngine.applyEnginePipelineOptions) {
+        ctx.panels.aiEngine.applyEnginePipelineOptions(c);
+      } else {
+        var modeEl = document.getElementById('aiEngineGenMode');
+        if (modeEl && c.engineGenMode) modeEl.value = String(c.engineGenMode);
+        var pauseEl = document.getElementById('aiEnginePauseAfterOutline');
+        if (pauseEl && c.pauseAfterOutline != null) pauseEl.checked = !!c.pauseAfterOutline;
+        if (c.skeletonCount != null && window.__setSkeletonCount__) {
+          window.__setSkeletonCount__(c.skeletonCount);
+        }
+      }
       if (ctx.panels.adultConfig && ctx.panels.adultConfig.renderWorldframeRow) {
         try { ctx.panels.adultConfig.renderWorldframeRow(); } catch (eWf) { /* ignore */ }
       }
@@ -320,6 +337,15 @@ export function bootCardBuilder() {
     ctx.updateAIDebugStatus();
     saveAIConfig();
   });
+  var genModeSel = document.getElementById('aiEngineGenMode');
+  var pauseOutlineEl = document.getElementById('aiEnginePauseAfterOutline');
+  var skCountInput = document.getElementById('wbSkeletonCount');
+  if (genModeSel) genModeSel.addEventListener('change', saveAIConfig);
+  if (pauseOutlineEl) pauseOutlineEl.addEventListener('change', saveAIConfig);
+  if (skCountInput) {
+    skCountInput.addEventListener('change', saveAIConfig);
+    skCountInput.addEventListener('input', saveAIConfig);
+  }
 
   window.triggerGlobalUpdate = function() { ctx.save(); };
   window.__getCurrentDraftId__ = function() { return ctx.sm.getCurrentDraftId(); };
