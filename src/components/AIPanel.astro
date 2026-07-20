@@ -27,14 +27,15 @@ import AiEngineModal from './AiEngineModal.astro';
 
     <div id="apiUrlHint" style="display:none;margin-bottom:8px;"></div>
 
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%;margin-bottom:16px;">
-      <button id="btnFetchModels" class="btn btn-fetch" style="margin:0;">拉取模型</button>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%;margin-bottom:8px;">
+      <button type="button" id="btnFetchModels" class="btn btn-fetch" style="margin:0;">拉取模型</button>
       <div class="form-group" style="margin-bottom:0;">
         <select id="modelSelect" style="width:100%;">
           <option value="">请先获取模型...</option>
         </select>
       </div>
     </div>
+    <div id="fetchModelsStatus" class="fetch-models-status" aria-live="polite"></div>
 
     <hr class="divider" />
 
@@ -260,6 +261,14 @@ import AiEngineModal from './AiEngineModal.astro';
   }
 
   /* ── 协议提示条 ── */
+  .fetch-models-status {
+    min-height: 1.2em;
+    margin: 0 0 12px 0;
+    font-size: 0.72rem;
+    line-height: 1.4;
+    color: var(--color-text-muted);
+  }
+
   #apiUrlHint {
     width: 100%;
     box-sizing: border-box;

@@ -4,6 +4,7 @@
 <div class="panel area-greetings">
   <h2>开场白</h2>
   <p class="greetings-tip">对应 SillyTavern 的 <code>first_mes</code> 与 <code>alternate_greetings</code>，导出语义与原先一致。</p>
+  <p id="greetingsFlavorTip" class="greetings-flavor-tip" hidden></p>
 
   <!-- 主开场白 → data.first_mes / 顶层 first_mes -->
   <div class="form-group">
@@ -26,7 +27,17 @@
   .greetings-tip {
     font-size: 0.78rem;
     color: var(--color-text-muted);
-    margin: -4px 0 16px 0;
+    margin: -4px 0 8px 0;
+    line-height: 1.45;
+  }
+  .greetings-flavor-tip {
+    font-size: 0.72rem;
+    color: var(--color-accent-hover);
+    background: var(--color-accent-soft);
+    border: 1px solid var(--color-accent-border);
+    border-radius: var(--radius-sm);
+    padding: 6px 10px;
+    margin: 0 0 14px 0;
     line-height: 1.45;
   }
   .greetings-tip code {
@@ -281,7 +292,36 @@
     return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
 
+  function refreshFlavorTip() {
+    var tip = document.getElementById('greetingsFlavorTip');
+    if (!tip) return;
+    var cfg = null;
+    try { cfg = window.__getNsfwConfig__ ? window.__getNsfwConfig__() : null; } catch (e) { cfg = null; }
+    var data = window.__nsfwFlavorData__;
+    if (!cfg || (!cfg.enabled && !cfg.ntlEnabled)) {
+      tip.hidden = true;
+      tip.textContent = '';
+      return;
+    }
+    var parts = [];
+    if (cfg.enabled) {
+      var flavorLabel = (data && data.presets && data.presets[cfg.flavor] && data.presets[cfg.flavor].label) || cfg.flavor || '已开';
+      parts.push('NSFW 口味：' + flavorLabel);
+    }
+    if (cfg.ntlEnabled) {
+      var taboo = (cfg.ntlTabooTypes || []).map(function(id) {
+        return (data && data.tabooTypes && data.tabooTypes[id] && data.tabooTypes[id].label) || id;
+      }).filter(Boolean);
+      parts.push('NTL：' + (taboo.length ? taboo.join(' / ') : '已开'));
+    }
+    tip.textContent = parts.join(' · ') + '。AI 引擎 / 助手改写开场白时会注入该调色盘。';
+    tip.hidden = false;
+  }
+
   window.__renderAltGreetings__ = render;
+  window.addEventListener('nsfw-config-changed', refreshFlavorTip);
+  window.addEventListener('app-view-changed', refreshFlavorTip);
+  refreshFlavorTip();
   render();
 })();
 </script>

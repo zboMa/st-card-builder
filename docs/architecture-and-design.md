@@ -94,30 +94,16 @@ tests/                             # 22 个测试文件，346 个测试，全部
 
 ### 架构模式
 
-**ctx → stateMachine → panels 代理模式**（card-builder 和 novel 完全一致）：
-
-```
-createXxxState()          # 状态工厂，纯数据
-    ↓
-createXxxStateMachine()   # 持久化（localStorage / IndexedDB）
-    ↓
-createXxxContext(sm)      # ctx 工厂：$、save()、callAI()、runTracked()、showConfirmDialog()
-    ↓
-registerXxxPanel(ctx)     # 各面板注册：ctx.panels.xxx = panel（提供 render/bind/run 方法）
-    ↓
-window.__get*__/__set*__  # 桥接函数挂到 window
-    ↓
-CustomEvent 分发           # card-builder-data-changed / card-draft-changed / nsfw-config-changed
-```
-
-**窗口桥接**: `index.astro` 中定义 `window.__getXxx__()` / `window.__setXxx__(v, opts)`，面板和 .astro 组件统一通过此桥接读写状态。
-
-**事件流转**:
-```
-state 变更 → ctx.save() → __set*__() → CustomEvent → 其他 panel/component 响应
-```
-
----
+| 路径 | 用途 |
+|---|---|
+| `src/lib/aiTaskCenter.mjs` | 全局 AI 任务队列，AbortController 取消 |
+| `src/lib/assistant/` | AI 助手：工具注册/风险分级/ReAct 解析/执行器/会话 |
+| `src/lib/novel/` | 小说工坊：状态/分析管道/实体库/RAG/同步 |
+| `src/lib/promptCanon.mjs` | 默认提示词块 |
+| `src/lib/novel/nsfwSupport.mjs` | NSFW/NTL 模板、口味预设、质量门、调色盘引导 |
+| `src/lib/card-builder/` | 制卡域：state / panels / `browserApp.mjs`（唯一启动入口） |
+| `src/styles/tokens.css` | 设计 token（"夜庭 Nocturne" 暗色调） |
+| `src/styles/ui-patterns.css` | 共享 UI 组件 |
 
 ## 数据惯例
 
@@ -237,14 +223,17 @@ st_v3_builder_ai_config (localStorage)
 - ~~多份 uid 生成函数~~ → 统一到 `utils.mjs`
 - ~~双份 legacy 数据~~ → adultMode 主字段化
 
-### 已知缺口
+### 架构债（已识别，待处理）
+1. ~~`browserApp.mjs` 巨石~~ → 已拆为 `card-builder/` + `novel/panels`；制卡侧由 `card-builder/browserApp.mjs` 的 `initCardBuilder()` 唯一启动（`index.astro` 仅调用入口）
+2. entities/legacy 双份数据表示——需统一为 entities 唯一数据源
+3. 三份重复的 alias 规范化函数和 uid 生成函数——需统一
+4. 无 lint/typecheck 脚本
+5. 超大 `.astro` 面板（VariableCard / Assistant / StatusBar）仍待继续拆分
 
-- **VariableCardPanel.astro** 仍 2,535 行，含内联 JS——排序最大单体待拆（但作为后制，优先级低）
-- 状态栏 NSFW 草案无 NTL 版本
-- 开场白面板的口味注入待完善
-- 无 lint/typecheck/CI——依赖人工 `npm test && npm run build`
-- 无响应式/移动端支持（桌面端专用）
-- API 密钥明文存 localStorage（前端无加密手段，用户应知晓）
+### 功能缺口
+- ~~状态栏 NSFW 草案无 NTL 版本~~ → 已提供 `buildStatusBarNtlDraftFromEntities` + 分析页「NTL→状态栏草案」
+- ~~开场白面板的口味注入待完善~~ → GreetingPanel 展示当前口味；助手改写 / AI 引擎 / 小说开场白生成已注入
+- 角色卡管理封面加载偶尔仍有问题（已加兜底，需验证）
 
 ---
 

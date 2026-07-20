@@ -232,32 +232,86 @@ export function registerAiEngine(ctx) {
       var apiUrlEl = ctx.$('apiUrl');
       var apiKeyEl = ctx.$('apiKey');
       var modelEl = ctx.$('modelSelect');
-      var statusEl = ctx.$('aiStatus');
+      // 主反馈在 API 配置页；aiStatus 仅在引擎弹窗内，避免「点了没反应」
+      var statusEl = ctx.$('fetchModelsStatus') || ctx.$('aiStatus');
       var btnEl = ctx.$('btnFetchModels');
+      var escape = ctx.escapeHtml || function(s) { return String(s == null ? '' : s); };
 
-      var url = (apiUrlEl ? apiUrlEl.value : '').replace(/\/$/, '') + '/models';
+      function setFetchStatus(msg, ok) {
+        if (!statusEl) return;
+        statusEl.textContent = msg || '';
+        statusEl.style.color = ok === true ? '#10b981' : (ok === false ? '#ef4444' : 'var(--color-text-muted)');
+      }
+
+      var base = apiUrlEl ? String(apiUrlEl.value || '').trim() : '';
+      if (!base) {
+        setFetchStatus('请先填写 API 接口地址', false);
+        return;
+      }
+      // 兼容用户填到 /v1 或 /v1/chat/completions
+      base = base.replace(/\/$/, '');
+      if (/\/chat\/completions$/i.test(base)) base = base.replace(/\/chat\/completions$/i, '');
+      var url = base + '/models';
       var key = apiKeyEl ? apiKeyEl.value.trim() : '';
 
       ctx.setBtnBusy(btnEl, true, '\u23f3...');
+      setFetchStatus('正在拉取模型列表…', null);
       try {
         var h = { 'Content-Type': 'application/json' };
         if (key) h['Authorization'] = 'Bearer ' + key;
         var res = await fetch(url, { headers: h });
-        var result = await res.json();
-        var models = Array.isArray(result.data)
-          ? result.data.map(function(m) { return m.id; })
-          : Array.isArray(result) ? result.map(function(m) { return m.id || m.name; }) : [];
+        var rawText = await res.text();
+        var result = null;
+        try {
+          result = rawText ? JSON.parse(rawText) : null;
+        } catch (parseErr) {
+          throw new Error(
+            '接口未返回 JSON（HTTP ' + res.status + '）。请确认地址形如 https://api.example.com/v1'
+          );
+        }
+        if (!res.ok) {
+          var errMsg = (result && (result.error && result.error.message || result.message || result.error)) || ('HTTP ' + res.status);
+          throw new Error(typeof errMsg === 'string' ? errMsg : JSON.stringify(errMsg));
+        }
+        var models = Array.isArray(result && result.data)
+          ? result.data.map(function(m) { return m && (m.id || m.name); }).filter(Boolean)
+          : Array.isArray(result) ? result.map(function(m) { return m && (m.id || m.name) || m; }).filter(Boolean) : [];
+        models = models.map(function(m) { return String(m); });
         models.sort();
+        if (!models.length) {
+          if (modelEl) {
+            modelEl.innerHTML = '<option value="">未获取到模型</option>';
+          }
+          setFetchStatus('请求成功但模型列表为空，请检查接口是否支持 GET /models', false);
+          return;
+        }
         if (modelEl) {
-          modelEl.innerHTML = models.map(function(m) { return '<option value="' + m + '">' + m + '</option>'; }).join('');
+          modelEl.innerHTML = models.map(function(m) {
+            var em = escape(m);
+            return '<option value="' + em + '">' + em + '</option>';
+          }).join('');
           var saved = {};
           try { saved = JSON.parse(localStorage.getItem(AI_KEY)) || {}; } catch (e) { console.warn('Parsing saved AI config failed', e); }
           if (saved.model && models.indexOf(saved.model) >= 0) modelEl.value = saved.model;
         }
         saveAiConfig();
-        if (statusEl) { statusEl.textContent = '\u2705 成功获取 ' + models.length + ' 个模型！'; statusEl.style.color = '#10b981'; }
+        setFetchStatus('\u2705 成功获取 ' + models.length + ' 个模型', true);
+        var modalStatus = ctx.$('aiStatus');
+        if (modalStatus && modalStatus !== statusEl) {
+          modalStatus.textContent = '\u2705 成功获取 ' + models.length + ' 个模型！';
+          modalStatus.style.color = '#10b981';
+        }
       } catch (err) {
-        if (statusEl) { statusEl.textContent = '\u274c ' + err.message; statusEl.style.color = '#ef4444'; }
+        var msg = (err && err.message) ? err.message : String(err);
+        if (/Failed to fetch|NetworkError|Load failed/i.test(msg)) {
+          msg = '网络失败或被 CORS 拦截。请确认接口允许浏览器跨域，或改用支持 CORS 的中转地址。';
+        }
+        setFetchStatus('\u274c ' + msg, false);
+        var modalStatusErr = ctx.$('aiStatus');
+        if (modalStatusErr && modalStatusErr !== statusEl) {
+          modalStatusErr.textContent = '\u274c ' + msg;
+          modalStatusErr.style.color = '#ef4444';
+        }
       } finally {
         ctx.setBtnBusy(btnEl, false);
       }

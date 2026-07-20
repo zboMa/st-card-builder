@@ -842,6 +842,53 @@ export function buildStatusBarNsfwDraftFromEntities(entities, charName) {
 }
 
 /**
+ * 附录 attrs.ntl → 状态栏禁忌张力变量草案（不自动写入）
+ * @returns {{ paths: { path: string, label: string, value: string }[], note: string, characterName?: string }}
+ */
+export function buildStatusBarNtlDraftFromEntities(entities, charName) {
+  var persons = (entities || []).filter(function(e) { return e && e.type === 'person'; });
+  var ent = null;
+  if (charName) {
+    var want = String(charName).trim().toLowerCase();
+    ent = persons.find(function(e) {
+      return String(e.name || '').toLowerCase() === want
+        || (e.aliases || []).some(function(a) { return String(a).toLowerCase() === want; });
+    }) || null;
+  }
+  if (!ent) {
+    ent = persons.find(function(e) { return isNtlPersonFilled(e); }) || persons[0] || null;
+  }
+  if (!ent || !ent.attrs || !ent.attrs.ntl) {
+    return { paths: [], note: '无可用人物 NTL 档案（需已丰满且含 attrs.ntl）' };
+  }
+  var n = normalizeNtlPersonAttrs(ent.attrs.ntl);
+  var paths = [];
+  function add(path, label, value) {
+    var v = String(value == null ? '' : value).trim();
+    if (!v || isPlaceholderText(v)) return;
+    paths.push({ path: path, label: label, value: v.slice(0, 200) });
+  }
+  add('stat.ntl_power', '权力动态', n.powerDynamic);
+  add('stat.ntl_coercion', '胁迫提示', n.coercionHint);
+  add('stat.ntl_moral', '道德冲突', n.moralConflict);
+  add('stat.ntl_role', '主导角色', n.dominantRole);
+  add('stat.ntl_cost', '情绪代价', n.emotionalCost);
+  if (Array.isArray(n.tabooThemes) && n.tabooThemes.length) {
+    add('stat.ntl_themes', '禁忌主题', n.tabooThemes.slice(0, 8).join('、'));
+  }
+  if (Array.isArray(n.secrets) && n.secrets.length) {
+    add('stat.ntl_secrets', '秘密', n.secrets.slice(0, 8).join('、'));
+  }
+  return {
+    paths: paths,
+    note: paths.length
+      ? ('来自人物「' + ent.name + '」NTL · ' + paths.length + ' 条草案（需在状态栏确认后写入）')
+      : 'NTL 字段多为占位，请先丰满人物禁忌维',
+    characterName: ent.name,
+  };
+}
+
+/**
  * 获取/设置 NSFW 口味预设
  */
 export function getNsfwFlavor(state) {

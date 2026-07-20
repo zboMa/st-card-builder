@@ -24,6 +24,7 @@ import {
   formatAdultSideDigest,
   extractStyleNsfwSection,
   buildStatusBarNsfwDraftFromEntities,
+  buildStatusBarNtlDraftFromEntities,
   buildAdultAnalyzeHintBlock,
   buildAdultProgressiveHint,
   buildNtlHintBlock,
@@ -374,6 +375,36 @@ describe('novel nsfwSupport', function() {
     assert.ok(d.paths.some(function(p) { return p.label === '界限'; }));
   });
 
+  it('状态栏 NTL 草案从 attrs.ntl 提取', function() {
+    var entities = [];
+    upsertEntity(entities, {
+      type: 'person',
+      name: '秦月',
+      attrs: {
+        ntl: {
+          powerDynamic: '表面平等暗藏掌控',
+          coercionHint: '用愧疚施压',
+          moralConflict: '师生伦理',
+          dominantRole: '男主',
+          emotionalCost: '自我厌弃与渴望并存',
+          tabooThemes: ['身份差'],
+          secrets: ['私下越界'],
+        },
+      },
+    });
+    var d = buildStatusBarNtlDraftFromEntities(entities, '秦月');
+    assert.ok(d.paths.length >= 3);
+    assert.ok(d.paths.some(function(p) { return p.path.indexOf('ntl_power') >= 0; }));
+    assert.ok(d.paths.some(function(p) { return p.label === '道德冲突'; }));
+  });
+
+  it('小说设定/开场白生成注入口味块', function() {
+    const setup = readFileSync(join(root, 'src/lib/novel/panels/setup.mjs'), 'utf8');
+    assert.match(setup, /buildModeHintBlocks/);
+    assert.match(setup, /buildNsfwFlavorHint/);
+    assert.match(setup, /buildNtlTabooHint/);
+  });
+
   it('UI/桥接/助手工具接线：全局 NSFW/NTL', function() {
     // NSFW 配置已迁移到角色设定面板——检查 CharacterPanel 而非 NovelSourcePanel
     const charPanel = readFileSync(join(root, 'src/components/CharacterPanel.astro'), 'utf8');
@@ -387,6 +418,7 @@ describe('novel nsfwSupport', function() {
     const analyze = readFileSync(join(root, 'src/components/novel/NovelAnalyzePanel.astro'), 'utf8');
     assert.doesNotMatch(analyze, /novelAnalyzeIncludeAdult|novelGlobalAdult/);
     assert.match(analyze, /btnNovelNsfwStatusDraft/);
+    assert.match(analyze, /btnNovelNtlStatusDraft/);
     assert.match(analyze, /novelNsfwStatusDraft/);
     const wb = readFileSync(join(root, 'src/components/novel/NovelWorldbookPanel.astro'), 'utf8');
     assert.doesNotMatch(wb, /novelIncludeAdult/);

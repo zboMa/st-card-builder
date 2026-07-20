@@ -9,6 +9,12 @@ import { pickRelatedEntities, buildRagInjectBlock } from '../rag/inject.mjs';
 import { getEmbeddingConfig, EMBEDDING_API_URL_KEY, EMBEDDING_API_KEY_KEY, EMBEDDING_MODEL_KEY } from '../rag/embeddingConfig.mjs';
 import { applyTemplate } from '../../promptStore.mjs';
 import { escapeHtml, parseJsonLoose } from '../../utils.mjs';
+import {
+  buildModeHintBlocks,
+  buildPaletteGuidanceBlock,
+  buildNtlTabooHint,
+  buildNsfwFlavorHint,
+} from '../nsfwSupport.mjs';
 
 export function registerSetup(ctx) {
   var panel = {};
@@ -342,6 +348,10 @@ export function registerSetup(ctx) {
           + '\n角色名称: ' + charName
           + (corpus.entity ? '\n实体摘要: ' + String(corpus.entity.summary || '').slice(0, 200) : '')
           + '\nContext: ' + (state.contextText || '无')
+          + buildModeHintBlocks(state, 'expand')
+          + buildPaletteGuidanceBlock(state)
+          + buildNsfwFlavorHint(state)
+          + buildNtlTabooHint(state)
           + '\n\n【原文】\n' + corpus.text;
         var text = await ctx.callAI(user, null, task.signal);
         var data = parseJsonLoose(text);
@@ -416,6 +426,10 @@ export function registerSetup(ctx) {
           + (corpus.entity ? '\n实体摘要: ' + String(corpus.entity.summary || '').slice(0, 200) : '')
           + '\n开场白总数: ' + total + '（主开场 1 + 备选 ' + altCount + '）'
           + '\nContext: ' + (state.contextText || '无')
+          + '\n【开场白语气】贴合全局 NSFW/NTL 调色盘：情欲温度与禁忌张力须体现在开场氛围、潜台词与边界感中，禁止未成年内容。'
+          + buildModeHintBlocks(state, 'expand')
+          + buildNsfwFlavorHint(state)
+          + buildNtlTabooHint(state)
           + '\n\n【原文】\n' + corpus.text;
         var text = await ctx.callAI(user, null, task.signal);
         var data = parseJsonLoose(text);

@@ -30,6 +30,7 @@ import {
   buildModeHintBlocks,
   buildContentModeFlags,
   buildStatusBarNsfwDraftFromEntities,
+  buildStatusBarNtlDraftFromEntities,
 } from '../nsfwSupport.mjs';
 import { escapeHtml, parseJsonLoose } from '../../utils.mjs';
 
@@ -265,9 +266,7 @@ export function registerAnalyze(ctx) {
         if (ctx.updateExtractCallEstimates) ctx.updateExtractCallEstimates();
       });
     }
-    var sbDraft = $('btnNovelNsfwStatusDraft');
-    if (sbDraft) sbDraft.addEventListener('click', function() {
-      var draft = buildStatusBarNsfwDraftFromEntities(state.entities, state.setupCharName || '');
+    function showStatusBarDraft(draft, storageKey) {
       var box = $('novelNsfwStatusDraft');
       if (box) {
         box.style.display = '';
@@ -278,8 +277,22 @@ export function registerAnalyze(ctx) {
       }
       if (ctx.setStatus) ctx.setStatus('novelAnalyzeStatus', draft.note);
       try {
-        sessionStorage.setItem('st_v3_nsfw_status_draft', JSON.stringify(draft));
+        sessionStorage.setItem(storageKey, JSON.stringify(draft));
       } catch (e) { /* ignore */ }
+    }
+    var sbDraft = $('btnNovelNsfwStatusDraft');
+    if (sbDraft) sbDraft.addEventListener('click', function() {
+      showStatusBarDraft(
+        buildStatusBarNsfwDraftFromEntities(state.entities, state.setupCharName || ''),
+        'st_v3_nsfw_status_draft'
+      );
+    });
+    var ntlDraftBtn = $('btnNovelNtlStatusDraft');
+    if (ntlDraftBtn) ntlDraftBtn.addEventListener('click', function() {
+      showStatusBarDraft(
+        buildStatusBarNtlDraftFromEntities(state.entities, state.setupCharName || ''),
+        'st_v3_ntl_status_draft'
+      );
     });
     var ragBtn = $('btnNovelRagIndex');
     if (ragBtn) ragBtn.addEventListener('click', async function() {

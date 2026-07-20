@@ -25,6 +25,7 @@ import {
   getNtlTabooTypes,
   setNtlTabooTypes,
   buildStatusBarNsfwDraftFromEntities,
+  buildStatusBarNtlDraftFromEntities,
   NSFW_FLAVOR_PRESETS,
   NTL_TABOO_TYPES,
 } from '../nsfwSupport.mjs';
@@ -612,6 +613,13 @@ export function createBridge(ctx) {
     buildNsfwStatusDraft: function(opts) {
       opts = opts || {};
       return buildStatusBarNsfwDraftFromEntities(
+        state.entities,
+        opts.name || opts.charName || state.setupCharName || ''
+      );
+    },
+    buildNtlStatusDraft: function(opts) {
+      opts = opts || {};
+      return buildStatusBarNtlDraftFromEntities(
         state.entities,
         opts.name || opts.charName || state.setupCharName || ''
       );
