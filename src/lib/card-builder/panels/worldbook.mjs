@@ -291,8 +291,15 @@ export function registerWorldbook(ctx) {
   }
 
   function buildNtlHintForPrompt() {
+    if (typeof window.__buildAdultPromptHints__ === 'function') {
+      var hints = window.__buildAdultPromptHints__() || {};
+      return hints.ntl || '';
+    }
     var data = window.__nsfwFlavorData__;
     if (!ctx.state.ntlEnabled || !ctx.state.ntlTabooTypes.length || !data) return '';
+    if (typeof data.buildNtlHintFromTypes === 'function') {
+      return data.buildNtlHintFromTypes(ctx.state.ntlTabooTypes, { tabooTypes: data.tabooTypes });
+    }
     var lines = ['\n\u3010NTL \u7981\u5FCC\u65B9\u5411\u3011'];
     ctx.state.ntlTabooTypes.forEach(function(t) {
       var info = data.tabooTypes[t];

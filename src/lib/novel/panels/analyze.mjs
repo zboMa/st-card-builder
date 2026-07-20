@@ -36,6 +36,12 @@ import {
   buildFlavorExpandSystemPrompt,
   buildFlavorExpandUserPrompt,
   NSFW_FLAVOR_PRESETS,
+  NTL_TABOO_TYPES,
+  getNtlTabooTypes,
+  buildNtlTabooHint,
+  evaluateNtlRichness,
+  buildNtlExpandSystemPrompt,
+  buildNtlExpandUserPrompt,
   buildStatusBarNsfwDraftFromEntities,
   buildStatusBarNtlDraftFromEntities,
 } from '../nsfwSupport.mjs';
@@ -596,13 +602,16 @@ export function registerAnalyze(ctx) {
             var inject = buildRagInjectBlock(search, related, { entityBudget: 3000 });
             var styleNsfw = adultOn ? extractStyleNsfwSection(state.styleText) : '';
             var flavorItems = adultOn ? getNsfwFlavorItems(state) : [];
+            var ntlTypes = ntlOn ? getNtlTabooTypes(state) : [];
             var needFlavor = flavorItems.length > 0 && (live.type === 'person' || live.type === 'nsfw');
+            var needNtl = ntlTypes.length > 0 && live.type === 'person';
             var user = head
               + '\n\n' + inject
               + styleNsfw
               + buildModeHintBlocks(state, 'enrich')
-              + (needFlavor ? buildPaletteGuidanceBlock(state) : '')
+              + (needFlavor || needNtl ? buildPaletteGuidanceBlock(state) : '')
               + (needFlavor ? buildNsfwFlavorHint(state) : '')
+              + (needNtl ? buildNtlTabooHint(state) : '')
               + buildAdultContextDigests(state.entities, 3000, getNtlMode(state))
               + '\n\n【待丰满实体】\n'
               + JSON.stringify({
@@ -633,6 +642,24 @@ export function registerAnalyze(ctx) {
                 var expanded = parseJsonLoose(expandText);
                 var richness2 = evaluateFlavorRichness(expanded, flavorItems, { presets: NSFW_FLAVOR_PRESETS });
                 if (richness2.total >= richness.total) parsed = expanded;
+              }
+            }
+            if (needNtl) {
+              var ntlRich = evaluateNtlRichness(parsed, ntlTypes, { tabooTypes: NTL_TABOO_TYPES });
+              if (!ntlRich.ok) {
+                var ntlExpandPrompt = buildNtlExpandSystemPrompt(ntlTypes, { tabooTypes: NTL_TABOO_TYPES })
+                  + '\n\n' + buildNtlExpandUserPrompt({
+                    weakDimensions: ntlRich.weakDimensions,
+                    minChars: ntlRich.minChars,
+                    ntlHint: buildNtlTabooHint(state),
+                    context: live.type + ' · ' + live.name,
+                    text: JSON.stringify(parsed),
+                  })
+                  + '\n请输出加厚后的完整 JSON 实体，写满 attrs.ntl。';
+                var ntlExpandText = await ctx.callAI(ntlExpandPrompt, null, task.signal);
+                var ntlExpanded = parseJsonLoose(ntlExpandText);
+                var ntlRich2 = evaluateNtlRichness(ntlExpanded, ntlTypes, { tabooTypes: NTL_TABOO_TYPES });
+                if (ntlRich2.total >= ntlRich.total) parsed = ntlExpanded;
               }
             }
             applyEnrichResult(state, live.id, parsed);

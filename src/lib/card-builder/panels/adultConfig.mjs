@@ -81,6 +81,12 @@ export function registerAdultConfig(ctx) {
   function buildNtlHintForPrompt() {
     var data = window.__nsfwFlavorData__;
     if (!ctx.state.ntlEnabled || !ctx.state.ntlTabooTypes.length || !data) return '';
+    if (typeof data.buildNtlHintFromTypes === 'function') {
+      return data.buildNtlHintFromTypes(ctx.state.ntlTabooTypes, {
+        tabooTypes: data.tabooTypes,
+        intro: '（仅用于世界书人物/恶堕，勿写入主角设定）',
+      });
+    }
     var lines = ['\n【NTL 禁忌方向】（仅用于世界书人物/恶堕，勿写入主角设定）'];
     ctx.state.ntlTabooTypes.forEach(function(t) {
       var info = data.tabooTypes[t];
@@ -316,9 +322,18 @@ export function registerAdultConfig(ctx) {
         ntlContainer.innerHTML = data.tabooIds.map(function(id) {
           var info = data.tabooTypes[id];
           var active = ctx.state.ntlTabooTypes.indexOf(id) >= 0;
+          var tip = info.description || '';
+          if (info.writingGuide) tip += '｜' + info.writingGuide;
+          if (Array.isArray(info.mustCover) && info.mustCover.length) {
+            tip += '｜必写：' + info.mustCover.slice(0, 2).join('、');
+          }
+          if (info.densityHint) tip += '｜≥' + info.densityHint + '字';
           return '<button type="button" class="novel-chip-btn' + (active ? ' active' : '') + '"'
-            + ' data-adult-ntl="' + id + '" title="' + info.description + '"'
-            + ' aria-pressed="' + active + '">' + info.label + '</button>';
+            + ' data-adult-ntl="' + id + '" title="' + escapeHtml(tip) + '"'
+            + ' aria-pressed="' + (active ? 'true' : 'false') + '">'
+            + escapeHtml(info.label)
+            + (id === 'yuri_destruction' ? '<span class="char-nsfw-subtitle" style="margin-left:3px;">百合破坏</span>' : '')
+            + '</button>';
         }).join('');
         ntlContainer.querySelectorAll('[data-adult-ntl]').forEach(function(btn) {
           btn.addEventListener('click', function() {

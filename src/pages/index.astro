@@ -132,10 +132,14 @@ import AiTaskCenterUI from '../components/AiTaskCenterUI.astro';
       NTL_TABOO_IDS,
       MAX_NSFW_FLAVOR_ITEMS,
       NSFW_FLAVOR_DEFAULT_MIN_CHARS,
+      NTL_TABOO_DEFAULT_MIN_CHARS,
       normalizeNsfwFlavorItems,
       buildNsfwFlavorHintFromItems,
       evaluateFlavorRichness,
       collectFlavorEnrichment,
+      buildNtlTabooHintFromTypes,
+      evaluateNtlRichness,
+      collectNtlEnrichment,
     } from '../lib/novel/nsfwSupport.mjs';
     window.__nsfwFlavorData__ = {
       presets: NSFW_FLAVOR_PRESETS,
@@ -144,10 +148,14 @@ import AiTaskCenterUI from '../components/AiTaskCenterUI.astro';
       tabooIds: NTL_TABOO_IDS,
       maxItems: MAX_NSFW_FLAVOR_ITEMS,
       defaultMinChars: NSFW_FLAVOR_DEFAULT_MIN_CHARS,
+      ntlDefaultMinChars: NTL_TABOO_DEFAULT_MIN_CHARS,
       normalizeItems: normalizeNsfwFlavorItems,
       buildHintFromItems: buildNsfwFlavorHintFromItems,
       evaluateRichness: evaluateFlavorRichness,
       collectEnrichment: collectFlavorEnrichment,
+      buildNtlHintFromTypes: buildNtlTabooHintFromTypes,
+      evaluateNtlRichness: evaluateNtlRichness,
+      collectNtlEnrichment: collectNtlEnrichment,
     };
   </script>
 

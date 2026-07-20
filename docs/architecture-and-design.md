@@ -137,16 +137,16 @@ tests/                             # 22 个测试文件，346 个测试，全部
 **不是给人物加标签，而是给 AI 一个调色盘**。用 `primary_hue`（主色调）、`accent_hue`（对比色）、`temperature`（冷暖）、`texture`（触感）来描述欲望——
 同一张 Kinks 牌在不同调色盘下读起来完全不同。
 
-### 21 种 NSFW 口味预设（多选最多 5）+ 8 种 NTL 禁忌类型
+### 21 种 NSFW 口味预设（多选最多 5）+ 9 种 NTL 禁忌类型
 
-详见 `src/lib/novel/nsfwSupport.mjs` + `nsfwFlavorEnrichment.mjs`：口味含「反差向」；卡级数据为 `nsfwFlavorItems: [{ id, note }]`（旧 `nsfwFlavor` 迁为首项）；每口味含 `mustCover/writingGuide/antiPatterns/densityHint`；`buildNsfwFlavorHintFromItems` 注入必写维度与硬约束；`evaluateFlavorRichness` 门禁 + 偏薄自动扩写（人物/分析/世界书）。
+详见 `src/lib/novel/nsfwSupport.mjs` + `nsfwFlavorEnrichment.mjs` + `ntlTabooEnrichment.mjs`：口味含「反差向」；NTL 含「百破」；均有 `mustCover/writingGuide/antiPatterns/densityHint`；偏薄自动扩写。
 
-### 全局配置 —— 角色设定是唯一入口
+### 全局配置 —— 侧栏「成人配置」是唯一入口
 
-### NTL 禁忌类型（8 种，多选）
+### NTL 禁忌类型（9 种，多选）
 
 ```
-年龄差 / 身份差 / 情感禁忌 / 道德冲突 / 情境禁忌 / 权力胁迫 / 隐秘关系 / 俘获救赎
+年龄差 / 身份差 / 情感禁忌 / 道德冲突 / 情境禁忌 / 权力胁迫 / 隐秘关系 / 俘获救赎 / 百破（百合破坏）
 ```
 
 ### 恶堕进度（世界书 + MVU，非独立 NSFW 口味）
@@ -269,7 +269,7 @@ st_v3_builder_ai_config
 
 ### NSFW/NTL 增强（历史）
 
-- 21 种口味预设（多选最多 5 + note）+ 8 种 NTL 禁忌类型
+- 21 种口味预设（多选最多 5 + note）+ 9 种 NTL 禁忌类型（含百破）
 - NTL 人物数据模型（`emptyNtlPersonAttrs` / `normalizeNtlPersonAttrs` / `mergeNtlPersonAttrs`）
 - RAG 增强搜索覆盖 7 个 pipeline 场景
 - `promptCanon` 更新为调色盘引导写作法

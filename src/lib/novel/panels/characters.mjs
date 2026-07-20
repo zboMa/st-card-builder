@@ -30,6 +30,11 @@ import {
   buildFlavorExpandSystemPrompt,
   buildFlavorExpandUserPrompt,
   NSFW_FLAVOR_PRESETS,
+  NTL_TABOO_TYPES,
+  getNtlTabooTypes,
+  evaluateNtlRichness,
+  buildNtlExpandSystemPrompt,
+  buildNtlExpandUserPrompt,
   ADULT_RAG_BOOST_TERMS,
   NTL_RAG_BOOST_TERMS,
 } from '../nsfwSupport.mjs';
@@ -382,6 +387,36 @@ export function registerCharacters(ctx) {
             if (richness2.total >= richness.total) profile = expandedProfile;
             if (!richness2.ok) {
               flavorThinTip = '；口味层仍偏薄：' + richness2.weakDimensions.slice(0, 3).join('；');
+            }
+          }
+        }
+        var ntlTypes = getNtlMode(state) ? getNtlTabooTypes(state) : [];
+        if (ntlTypes.length) {
+          var ntlProbe = {
+            attrs: { ntl: (profile && profile.ntl) || (profile && profile.NSFW_information && profile.NSFW_information.ntl) || profile },
+            content: JSON.stringify(profile),
+          };
+          var ntlRich = evaluateNtlRichness(ntlProbe, ntlTypes, { tabooTypes: NTL_TABOO_TYPES });
+          if (!ntlRich.ok) {
+            var ntlExpandPrompt = buildNtlExpandSystemPrompt(ntlTypes, { tabooTypes: NTL_TABOO_TYPES })
+              + '\n\n' + buildNtlExpandUserPrompt({
+                weakDimensions: ntlRich.weakDimensions,
+                minChars: ntlRich.minChars,
+                ntlHint: buildNtlTabooHint(state),
+                context: ch.name + (ch.note ? (' · ' + ch.note) : ''),
+                text: JSON.stringify(profile),
+              })
+              + '\n请输出完整人物 JSON，并写满 attrs.ntl / 禁忌相关字段。';
+            var ntlExpandText = await ctx.callAI(ntlExpandPrompt, null, task.signal);
+            var ntlExpandJson = parseJsonLoose(ntlExpandText);
+            var ntlExpandedProfile = normalizeCharacterProfile(ntlExpandJson.profile || ntlExpandJson, ch.name);
+            var ntlRich2 = evaluateNtlRichness({
+              attrs: { ntl: ntlExpandedProfile },
+              content: JSON.stringify(ntlExpandedProfile),
+            }, ntlTypes, { tabooTypes: NTL_TABOO_TYPES });
+            if (ntlRich2.total >= ntlRich.total) profile = ntlExpandedProfile;
+            if (!ntlRich2.ok) {
+              flavorThinTip += '；NTL 仍偏薄：' + ntlRich2.weakDimensions.slice(0, 2).join('；');
             }
           }
         }

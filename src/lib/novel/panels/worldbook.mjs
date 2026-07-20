@@ -20,6 +20,12 @@ import {
   buildFlavorExpandSystemPrompt,
   buildFlavorExpandUserPrompt,
   NSFW_FLAVOR_PRESETS,
+  NTL_TABOO_TYPES,
+  getNtlTabooTypes,
+  buildNtlTabooHint,
+  evaluateNtlRichness,
+  buildNtlExpandSystemPrompt,
+  buildNtlExpandUserPrompt,
 } from '../nsfwSupport.mjs';
 import { findEntityMatch, upsertEntity, projectEntitiesToLegacy, isEntityEnriched, ingestLegacyIntoEntities } from '../entityStore.mjs';
 import { applyDraftsToWorldbook } from '../sync.mjs';
@@ -751,11 +757,13 @@ export function registerWorldbook(ctx) {
           : '\n【模式】扩写：在已有内容上补全细节，保留可靠事实。';
         var adultOn = getAdultMode(state);
         var flavorItems = adultOn ? getNsfwFlavorItems(state) : [];
+        var ntlTypes = getNtlMode(state) ? getNtlTabooTypes(state) : [];
         var user = head
           + modeHint
           + (options.instruction ? '\n【用户要求】' + options.instruction : '')
           + buildModeHintBlocks(state, 'expand')
           + (flavorItems.length ? buildNsfwFlavorHint(state) : '')
+          + (ntlTypes.length ? buildNtlTabooHint(state) : '')
           + buildAdultContextDigests(state.entities, 1500, getNtlMode(state))
           + '\n条目标题: ' + matchName
           + '\n类别: ' + (entry.category || 'setting')
@@ -767,7 +775,7 @@ export function registerWorldbook(ctx) {
           + '\n召回字数: ' + recall.totalChars + (recall.truncated ? '（已抽样截断）' : '')
           + '\n匹配词: ' + recall.terms.join('、')
           + '\n\n【原文片段】\n' + recall.body
-          + '\n\n请输出 JSON（AdultMode 时含 attrs.adult；NtlMode 时可含 attrs.ntl；已选口味时 content/attrs 须写透必写维度）。';
+          + '\n\n请输出 JSON（AdultMode 时含 attrs.adult；NtlMode 时可含 attrs.ntl；已选口味/禁忌时 content/attrs 须写透必写维度）。';
         var text = await ctx.callAI(user, null, task.signal);
         var json = parseJsonLoose(text);
         if (flavorItems.length) {
@@ -793,6 +801,31 @@ export function registerWorldbook(ctx) {
               attrs: expanded.attrs || {},
             }, flavorItems, { presets: NSFW_FLAVOR_PRESETS });
             if (richness2.total >= richness.total) json = Object.assign({}, json, expanded);
+          }
+        }
+        if (ntlTypes.length) {
+          var ntlProbe = {
+            content: json.content || entry.content || '',
+            attrs: json.attrs || entry.attrs || {},
+          };
+          var ntlRich = evaluateNtlRichness(ntlProbe, ntlTypes, { tabooTypes: NTL_TABOO_TYPES });
+          if (!ntlRich.ok) {
+            var ntlExpandPrompt = buildNtlExpandSystemPrompt(ntlTypes, { tabooTypes: NTL_TABOO_TYPES })
+              + '\n\n' + buildNtlExpandUserPrompt({
+                weakDimensions: ntlRich.weakDimensions,
+                minChars: ntlRich.minChars,
+                ntlHint: buildNtlTabooHint(state),
+                context: matchName + ' · ' + (entry.category || 'setting'),
+                text: JSON.stringify(json),
+              })
+              + '\n请输出 JSON：{ "name", "content", "keys", "attrs"? }（含加厚 attrs.ntl）';
+            var ntlExpandText = await ctx.callAI(ntlExpandPrompt, null, task.signal);
+            var ntlExpanded = parseJsonLoose(ntlExpandText);
+            var ntlRich2 = evaluateNtlRichness({
+              content: ntlExpanded.content || '',
+              attrs: ntlExpanded.attrs || {},
+            }, ntlTypes, { tabooTypes: NTL_TABOO_TYPES });
+            if (ntlRich2.total >= ntlRich.total) json = Object.assign({}, json, ntlExpanded);
           }
         }
         if (json.name) entry.name = String(json.name).trim() || entry.name;

@@ -20,6 +20,18 @@ import {
   buildFlavorExpandUserPrompt,
   compactCharCount,
 } from './nsfwFlavorEnrichment.mjs';
+import {
+  NTL_TABOO_DEFAULT_MIN_CHARS,
+  NTL_TABOO_ENRICHMENT,
+  NTL_SHARED_DIMENSIONS,
+  applyNtlTabooEnrichment,
+  collectNtlEnrichment,
+  evaluateNtlRichness,
+  extractNtlRichnessText,
+  buildNtlExpandSystemPrompt,
+  buildNtlExpandUserPrompt,
+  buildNtlTabooHintFromTypes,
+} from './ntlTabooEnrichment.mjs';
 
 export {
   NSFW_FLAVOR_DEFAULT_MIN_CHARS,
@@ -31,6 +43,15 @@ export {
   buildFlavorExpandSystemPrompt,
   buildFlavorExpandUserPrompt,
   compactCharCount,
+  NTL_TABOO_DEFAULT_MIN_CHARS,
+  NTL_TABOO_ENRICHMENT,
+  NTL_SHARED_DIMENSIONS,
+  collectNtlEnrichment,
+  evaluateNtlRichness,
+  extractNtlRichnessText,
+  buildNtlExpandSystemPrompt,
+  buildNtlExpandUserPrompt,
+  buildNtlTabooHintFromTypes,
 };
 
 /** 卡级 NSFW 口味最多叠加条数 */
@@ -254,7 +275,7 @@ applyFlavorEnrichment(NSFW_FLAVOR_PRESETS);
 
 export var NSFWFLAVOR_IDS = Object.keys(NSFW_FLAVOR_PRESETS);
 
-/** NTL 禁忌类型：不只是"背德/权力差"，而是具体的禁忌方向 */
+/** NTL 禁忌类型：不只是"背德/权力差"，而是具体的禁忌方向（含百破） */
 export var NTL_TABOO_TYPES = {
   age_gap: { label: '年龄差', description: '成熟度不对等带来的自然张力' },
   status_gap: { label: '身份差', description: '师生/医患/僧俗/上下级等身份边界' },
@@ -264,7 +285,13 @@ export var NTL_TABOO_TYPES = {
   power_coercion: { label: '权力胁迫', description: '直接的权力压迫与服从（原 NTL 核心）' },
   secret_affair: { label: '隐秘关系', description: '不能公开的地下关系，偷情/瞒着所有人' },
   redemption_captor: { label: '俘获/救赎', description: '敌对关系中被对方吸引（斯德哥尔摩/反向救赎）' },
+  yuri_destruction: {
+    label: '百破',
+    description: '百合破坏：原有或潜在的女女亲密/爱恋被介入、瓦解、侵占或自我崩解；张力来自「本可完整的百合被撕开」',
+  },
 };
+
+applyNtlTabooEnrichment(NTL_TABOO_TYPES);
 
 export var NTL_TABOO_IDS = Object.keys(NTL_TABOO_TYPES);
 
@@ -1095,17 +1122,13 @@ export function buildNsfwFlavorHint(state) {
 }
 
 /**
- * 构建 NTL 禁忌类型注入块：具体到每类禁忌的 RP 引导
+ * 构建 NTL 禁忌类型注入块：必写维度 + 指南 + 硬约束（对齐口味丰满）
  */
 export function buildNtlTabooHint(state) {
+  if (!getNtlMode(state)) return '';
   var types = getNtlTabooTypes(state);
   if (!types.length) return '';
-  var lines = ['\n【NTL 禁忌方向（具体）】'];
-  types.forEach(function(t) {
-    var info = NTL_TABOO_TYPES[t];
-    if (info) lines.push('- ' + info.label + '：' + info.description);
-  });
-  return lines.join('\n');
+  return buildNtlTabooHintFromTypes(types, { tabooTypes: NTL_TABOO_TYPES });
 }
 
 /**
@@ -1147,14 +1170,20 @@ export function buildPaletteGuidanceBlock(state, opts) {
 
   if (includeAdult && getNtlMode(state)) {
     var tabooTypes = getNtlTabooTypes(state);
+    var ntlCollected = collectNtlEnrichment(tabooTypes, NTL_TABOO_TYPES);
     parts.push('5. NTL 禁忌层：');
     if (tabooTypes.length) {
       tabooTypes.forEach(function(t) {
         var info = NTL_TABOO_TYPES[t];
-        if (info) parts.push('  - ' + info.label + '：' + info.description);
+        if (info) {
+          parts.push('  - ' + info.label + '：' + info.description);
+          if (info.writingGuide) parts.push('    写法：' + info.writingGuide);
+        }
       });
     }
-    parts.push('  - 写到 person.attrs.ntl 的完整字段（powerDynamic/coercionHint/moralConflict/dominantRole/emotionalCost/secrets）。');
+    parts.push('  - 必写维度：' + NTL_SHARED_DIMENSIONS.map(function(d) { return d.label; }).concat(ntlCollected.mustCover).join('；'));
+    parts.push('  - NTL 相关正文≥' + (ntlCollected.densityHint || NTL_TABOO_DEFAULT_MIN_CHARS) + '字；禁止提纲/空话/待填充。');
+    parts.push('  - 写到 person.attrs.ntl 的完整字段（powerDynamic/coercionHint/moralConflict/dominantRole/emotionalCost/secrets/tabooThemes）。');
     parts.push('  - 禁忌的核心不在「做了什么」而在「做了之后的感受」——罪恶感/刺激/理性化/偶尔无所谓/反复。');
   }
   return parts.join('\n');

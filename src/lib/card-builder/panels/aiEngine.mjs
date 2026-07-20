@@ -35,9 +35,16 @@ export function registerAiEngine(ctx) {
   }
 
   function buildNtlHintForPrompt() {
+    if (typeof window.__buildAdultPromptHints__ === 'function') {
+      var hints = window.__buildAdultPromptHints__() || {};
+      return hints.ntl || '';
+    }
     var nsfwConfig = window.__getNsfwConfig__ ? window.__getNsfwConfig__() : {};
     var data = window.__nsfwFlavorData__;
     if (!nsfwConfig.ntlEnabled || !nsfwConfig.ntlTabooTypes || !nsfwConfig.ntlTabooTypes.length || !data) return '';
+    if (typeof data.buildNtlHintFromTypes === 'function') {
+      return data.buildNtlHintFromTypes(nsfwConfig.ntlTabooTypes, { tabooTypes: data.tabooTypes });
+    }
     var lines = ['\n【NTL 禁忌方向】'];
     nsfwConfig.ntlTabooTypes.forEach(function(t) {
       var info = data.tabooTypes[t];
