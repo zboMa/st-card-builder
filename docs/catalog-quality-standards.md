@@ -1,22 +1,20 @@
 # 目录扩展质量标准
 
-> 扩展 / 增补 **口味 · NTL · 世界观 · 载体** 时遵守本文。不必在每次任务里口头重申。  
-> 配套 UI：侧栏「提示词配置」→ Tab「口味目录 / NTL目录 / 世界观 / 载体·* / 扩展规范」。
+> 扩展 / 增补 **口味 · NTL · 世界观 · 载体 · 表达层（姿势/话风）· 恶堕** 时遵守本文。  
+> 配套 UI：侧栏「提示词配置」→ 对应目录 Tab。
 
 ---
 
 ## 字数硬线（JS `.length`，中文一字算一）
 
-| 字段 | 目标区间 |
-|---|---|
-| `summary` | **20–40**（UI 列表 / 助手概览专用） |
-| `description` | **300–450** |
-| `writingGuide` | **350–500** |
-| `antiPatterns` | **4–6** 条，且条目间独有、贴主题 |
+| 字段 | 口味 / NTL / 世界观 / 载体 | **表达层（姿势 · 话风）** |
+|---|---|---|
+| `summary` | **20–40** | **12–28** |
+| `description` | **300–450** | **150–225** |
+| `writingGuide` | **350–500** | **175–250** |
+| `antiPatterns` | **4–6** 条，条目间独有 | 同左 |
 
-`summary` 放在 `summaries.mjs`（口味/NTL/世界观/框架），加载时挂到条目；**不替代** description / writingGuide。
-
-未达标视为不合格；验收以字数硬线 + 人工抽读为准。
+表达层约为口味硬线一半：条目更短、便于多选点配；仍须逐条手写，禁止脚本套路。
 
 ---
 
@@ -42,6 +40,7 @@
 |---|---|---|
 | **世界观** | 制度 / 生存 / 权力结构 | 口味式情欲教程、NTL 禁忌清单 |
 | **口味** | 情欲质地 / 节奏 / 安全余波 | 世界观制度全文、NTL 证据链 |
+| **表达层** | 姿势语言 / 情趣话风（多选、不占口味槽） | 口味质地全文、禁忌证据链 |
 | **NTL** | 禁忌结构 / 证据链 / 代价 | 口味感官教程、载体巡检手册 |
 | **载体 overlays** | **世界如何物化**该口味或禁忌（设施、规章、礼法、器物维保） | 人物层床戏教程 |
 
@@ -59,7 +58,9 @@
 | NTL summary | `src/lib/adult/ntl/summaries.mjs` |
 | 世界观 | `src/lib/presets/worldviews/data/*.mjs`；摘要 `summaries.mjs`；底线 `WORLDVIEW_QUALITY_FLOOR` |
 | 载体 overlays | `src/lib/adult/vessels/overlays/{flavor,ntl}.mjs` |
-| 世界观框架 | `src/lib/adult/vessels/frames/`；摘要 `frames/summaries.mjs` |
+| 表达层姿势 | `src/lib/adult/expression/postures/` |
+| 表达层话风 | `src/lib/adult/expression/speech/` |
+| 恶堕提示/阶段 | `src/lib/corruptionProgress.mjs`；提示词可进 promptStore |
 
 **注意**：presets / types 源文件不要误写入 enrichment 字段；`mustCover` / `writingGuide` / `antiPatterns` / `signals` 放 enrichment，由 apply 合并。`summary` 走独立 summaries 表挂载。
 

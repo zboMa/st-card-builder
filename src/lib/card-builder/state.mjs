@@ -26,6 +26,8 @@ export function createDefaultCardState() {
     nsfwEnabled: false,
     nsfwFlavor: '',
     nsfwFlavorItems: [],
+    eroticPostureItems: [],
+    eroticSpeechItems: [],
     ntlEnabled: false,
     ntlTabooTypes: [],
     ntlTabooItems: [],
@@ -74,6 +76,16 @@ export function buildDraftSnapshot(state) {
           return { id: String((it && it.id) || ''), note: String((it && it.note) || '') };
         }).filter(function(it) { return it.id; })
       : (s.nsfwFlavor ? [{ id: s.nsfwFlavor, note: '' }] : []),
+    eroticPostureItems: Array.isArray(s.eroticPostureItems)
+      ? s.eroticPostureItems.map(function(it) {
+          return { id: String((it && it.id) || ''), note: String((it && it.note) || '') };
+        }).filter(function(it) { return it.id; })
+      : [],
+    eroticSpeechItems: Array.isArray(s.eroticSpeechItems)
+      ? s.eroticSpeechItems.map(function(it) {
+          return { id: String((it && it.id) || ''), note: String((it && it.note) || '') };
+        }).filter(function(it) { return it.id; })
+      : [],
     ntlEnabled: !!s.ntlEnabled,
     ntlTabooTypes: (s.ntlTabooTypes || []).slice(),
     ntlTabooItems: Array.isArray(s.ntlTabooItems)

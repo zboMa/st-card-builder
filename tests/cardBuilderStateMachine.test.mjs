@@ -22,5 +22,7 @@ describe('card-builder stateMachine exposes state', function() {
     assert.equal(ctx.state, state);
     assert.ok(Array.isArray(ctx.state.charTags));
     assert.equal(typeof ctx.state.nsfwEnabled, 'boolean');
+    assert.ok(Array.isArray(ctx.state.eroticPostureItems));
+    assert.ok(Array.isArray(ctx.state.eroticSpeechItems));
   });
 });

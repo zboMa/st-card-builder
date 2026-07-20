@@ -305,6 +305,16 @@ export function registerAiEngine(ctx) {
             return { id: String((it && it.id) || ''), note: String((it && it.note) || '') };
           }).filter(function(it) { return it.id; })
         : (nsfwConfig.flavor ? [{ id: nsfwConfig.flavor, note: '' }] : []),
+      eroticPostureItems: Array.isArray(nsfwConfig.postureItems)
+        ? nsfwConfig.postureItems.map(function(it) {
+            return { id: String((it && it.id) || ''), note: String((it && it.note) || '') };
+          }).filter(function(it) { return it.id; })
+        : [],
+      eroticSpeechItems: Array.isArray(nsfwConfig.speechItems)
+        ? nsfwConfig.speechItems.map(function(it) {
+            return { id: String((it && it.id) || ''), note: String((it && it.note) || '') };
+          }).filter(function(it) { return it.id; })
+        : [],
       ntlEnabled:    !!nsfwConfig.ntlEnabled,
       ntlTabooTypes: (nsfwConfig.ntlTabooTypes || []).slice(),
       ntlTabooItems: Array.isArray(nsfwConfig.ntlTabooItems)

@@ -2,6 +2,11 @@
  * 提示词描述体系：公共块 + 组装后的 DEFAULT_PROMPTS
  * 内容维 / NSFW 维 / 推断规则统一驱动角色卡·世界书·小说·助手
  */
+import {
+  buildCustomStagesSystemPrompt,
+  buildArchiveSystemPrompt,
+  buildArchiveExpandSystemPrompt,
+} from './corruptionProgress.mjs';
 
 /** 可复用提示块（不单独进 UI，供 DEFAULT_PROMPTS 组装） */
 export const PROMPT_BLOCKS = {
@@ -452,6 +457,12 @@ export const DEFAULT_PROMPTS = {
     '\n按调用方要求的 JSON schema 输出问题与修复建议。'
   ),
 
+  corruptionStages: buildCustomStagesSystemPrompt(),
+
+  corruptionArchive: buildArchiveSystemPrompt(),
+
+  corruptionArchiveExpand: buildArchiveExpandSystemPrompt(),
+
   statusBarPaths: join(
     '你是 SillyTavern 状态栏设计师。根据角色与配置，规划状态栏要展示的变量路径。\n',
     '{{charBlock}}\n',
@@ -581,7 +592,7 @@ export const DEFAULT_PROMPTS = {
 
   assistantSystem: join(
     '你是 SillyTavern 卡片构建器的 AI 辅助助手。\n',
-    '【主次】制卡是主体：角色设定、开场白、世界书、世界与限定（预设/框架/口味/NTL）、MVU/状态栏、导出与试聊回流。'
+    '【主次】制卡是主体：角色设定、开场白、世界书、世界与限定（预设/框架/口味/表达层/NTL）、MVU/状态栏、导出与试聊回流。'
     + '小说工坊是可选增强（拆章/分析/同步原文资料）；用户未提到原文或工坊、且工坊无数据时，不要主动把流程绑到小说。\n',
     '【倾向引导·非强制】空卡或用户要「配一张卡」时，可按此倾向推进（用户跳步、直改字段、自己点引擎均可，勿强迫）：'
     + '听需求 → 推荐世界观预设/框架/口味/NTL 等搭配并讨论 → 用户确认后 set_adult_config 等写配置'
@@ -602,7 +613,7 @@ export const DEFAULT_PROMPTS = {
     '10. 改写角色/世界书/（若启用）小说实体时遵循内容描述体系：具体可扮演、禁空话；AdultMode 时补全 NSFW/adult 维并尊重 Limits。\n',
     '11. 【角色字段名】update/replace/expand 角色设定时只用：{{characterFieldHint}}；'
     + '作者注释必须写 creatorNotes，禁止 postHistoryInstructions（本应用无独立 Author\'s Note 字段）。\n',
-    '12. 【世界与限定】卡级世界观预设/载体框架/NSFW/口味/NTL/恶堕用 get_adult_config / set_adult_config；'
+    '12. 【世界与限定】卡级世界观预设/载体框架/NSFW/口味/姿势语言/情趣话风/NTL/恶堕用 get_adult_config / set_adult_config；'
     + '选口味与 NTL 时只用下方概览中的 id；单条世界书「生成」属 confirm，直写 create/update 多为 auto。\n',
     '\n【可用工具】\n{{toolList}}\n',
     '\n{{catalogOverview}}\n',

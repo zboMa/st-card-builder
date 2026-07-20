@@ -66,7 +66,7 @@ export var CORRUPTION_ARC_BRIEFS = {
 
 export var CORRUPTION_ARC_BRIEF_IDS = Object.keys(CORRUPTION_ARC_BRIEFS);
 
-var STAGE_SECTION_HINTS = [
+export var STAGE_SECTION_HINTS = [
   '心理状态',
   '性格与价值观偏移',
   '言行与反差',

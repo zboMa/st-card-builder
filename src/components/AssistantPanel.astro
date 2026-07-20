@@ -6,6 +6,10 @@
 import { ASSISTANT_PRESET_CHIPS, ASSISTANT_TOOLS, formatToolsForPrompt } from '../lib/assistant/tools.mjs';
 import { NSFW_FLAVOR_PRESETS } from '../lib/adult/flavors/index.mjs';
 import { NTL_TABOO_TYPES } from '../lib/adult/ntl/index.mjs';
+import {
+  EROTIC_POSTURE_PRESETS,
+  EROTIC_SPEECH_PRESETS,
+} from '../lib/adult/expression/index.mjs';
 import { WORLDFRAMES } from '../lib/adult/vessels/index.mjs';
 import { WORLDVIEW_PRESETS } from '../lib/presets/worldviews/index.mjs';
 import { buildCatalogOverviewText } from '../lib/catalogSummaries.mjs';
@@ -14,6 +18,8 @@ const chipsJson = JSON.stringify(ASSISTANT_PRESET_CHIPS);
 const toolListText = formatToolsForPrompt(ASSISTANT_TOOLS);
 const catalogOverviewText = buildCatalogOverviewText({
   flavors: NSFW_FLAVOR_PRESETS,
+  postures: EROTIC_POSTURE_PRESETS,
+  speeches: EROTIC_SPEECH_PRESETS,
   ntl: NTL_TABOO_TYPES,
   worldframes: WORLDFRAMES,
   worldviews: WORLDVIEW_PRESETS,

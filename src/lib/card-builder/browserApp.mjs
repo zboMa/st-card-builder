@@ -193,6 +193,16 @@ export function bootCardBuilder() {
             return { id: String((it && it.id) || ''), note: String((it && it.note) || '') };
           }).filter(function(it) { return it.id; })
         : (ctx.state.nsfwFlavor ? [{ id: ctx.state.nsfwFlavor, note: '' }] : []),
+      eroticPostureItems: Array.isArray(ctx.state.eroticPostureItems)
+        ? ctx.state.eroticPostureItems.map(function(it) {
+            return { id: String((it && it.id) || ''), note: String((it && it.note) || '') };
+          }).filter(function(it) { return it.id; })
+        : [],
+      eroticSpeechItems: Array.isArray(ctx.state.eroticSpeechItems)
+        ? ctx.state.eroticSpeechItems.map(function(it) {
+            return { id: String((it && it.id) || ''), note: String((it && it.note) || '') };
+          }).filter(function(it) { return it.id; })
+        : [],
       ntlEnabled: !!ctx.state.ntlEnabled,
       ntlTabooTypes: (ctx.state.ntlTabooTypes || []).slice(),
       ntlTabooItems: Array.isArray(ctx.state.ntlTabooItems)
@@ -278,6 +288,16 @@ export function bootCardBuilder() {
         ctx.state.nsfwFlavorItems = ctx.state.nsfwFlavor
           ? [{ id: ctx.state.nsfwFlavor, note: '' }]
           : [];
+      }
+      if (Array.isArray(c.eroticPostureItems)) {
+        ctx.state.eroticPostureItems = c.eroticPostureItems.map(function(it) {
+          return { id: String((it && it.id) || ''), note: String((it && it.note) || '') };
+        }).filter(function(it) { return it.id; });
+      }
+      if (Array.isArray(c.eroticSpeechItems)) {
+        ctx.state.eroticSpeechItems = c.eroticSpeechItems.map(function(it) {
+          return { id: String((it && it.id) || ''), note: String((it && it.note) || '') };
+        }).filter(function(it) { return it.id; });
       }
       if (c.nsfwEnabled != null) ctx.state.nsfwEnabled = !!c.nsfwEnabled;
       if (c.ntlEnabled != null) ctx.state.ntlEnabled = !!c.ntlEnabled;

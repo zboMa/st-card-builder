@@ -12,6 +12,7 @@ export const PROMPT_STORAGE_KEY = 'st_v3_builder_prompts';
 export const PROMPT_TAB_ORDER = [
   '角色卡制作',
   '世界书',
+  '恶堕',
   '状态栏·MVU',
   '小说',
   'AI 助手',
@@ -33,6 +34,9 @@ export const PROMPT_META = [
   { id: 'wbTriggerKeys', label: '批量触发词', group: '世界书' },
   { id: 'wbOrganize', label: '世界书参数整理', group: '世界书' },
   { id: 'wbAudit', label: '世界书 AI 审计', group: '世界书' },
+  { id: 'corruptionStages', label: '恶堕阶段表生成', group: '恶堕' },
+  { id: 'corruptionArchive', label: '恶堕档案生成', group: '恶堕' },
+  { id: 'corruptionArchiveExpand', label: '恶堕档案扩写', group: '恶堕' },
   { id: 'mvuDesign', label: 'MVU 变量设计（单条等）', group: '状态栏·MVU' },
   { id: 'statusBarPaths', label: '状态栏路径规划（兼容）', group: '状态栏·MVU' },
   { id: 'statusBarCharScan', label: '状态栏人物识别', group: '状态栏·MVU' },

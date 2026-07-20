@@ -49,6 +49,22 @@ export function buildCatalogOverviewText(opts) {
     });
   }
 
+  if (opts.postures) {
+    lines.push('■ 姿势语言（表达层；不占口味槽，可多选）');
+    Object.keys(opts.postures).forEach(function(id) {
+      var p = opts.postures[id];
+      lines.push('  ' + id + ' · ' + (p.label || id) + ' — ' + (p.summary || ''));
+    });
+  }
+
+  if (opts.speeches) {
+    lines.push('■ 情趣话风（表达层；不占口味槽，可多选）');
+    Object.keys(opts.speeches).forEach(function(id) {
+      var s = opts.speeches[id];
+      lines.push('  ' + id + ' · ' + (s.label || id) + ' — ' + (s.summary || ''));
+    });
+  }
+
   if (opts.ntl) {
     lines.push('■ NTL 禁忌（多选）');
     var byN = Object.create(null);

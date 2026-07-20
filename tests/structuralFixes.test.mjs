@@ -27,7 +27,7 @@ var AI_CONFIG_UNION_KEYS = [
   'url', 'key', 'model', 'debug', 'tagContextChars',
   'embeddingModel', 'embeddingApiUrl', 'embeddingApiKey', 'novelRag',
   'presetList', 'worldviewPresetId', 'worldviewPresetItems',
-  'nsfwEnabled', 'nsfwFlavor', 'nsfwFlavorItems',
+  'nsfwEnabled', 'nsfwFlavor', 'nsfwFlavorItems', 'eroticPostureItems', 'eroticSpeechItems',
   'ntlEnabled', 'ntlTabooTypes', 'ntlTabooItems',
   'corruptionEnabled', 'corruptionPreset', 'corruptionCustomBrief',
   'corruptionStageNames', 'corruptionSelectedNames',
