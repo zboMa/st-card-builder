@@ -115,9 +115,82 @@ export function registerAdultConfig(ctx) {
     return '';
   }
 
+  function inferWorldframeFromCard() {
+    var data = window.__nsfwFlavorData__;
+    if (!data || typeof data.inferWorldframe !== 'function') {
+      return { id: 'generic', label: '通用/未识别', confidence: 0, source: 'unavailable' };
+    }
+    var novelBridge = window.__novelWorkshopBridge__;
+    var novelEntities = (novelBridge && typeof novelBridge.listEntities === 'function')
+      ? (novelBridge.listEntities({}) || [])
+      : [];
+    var novelState = (novelBridge && typeof novelBridge.getState === 'function')
+      ? (novelBridge.getState() || {})
+      : {};
+    return data.inferWorldframe({
+      forced: ctx.state.adultWorldframeForced || '',
+      contextText: novelState.contextText || ctx.state.creatorNotes || '',
+      entities: novelEntities,
+      worldbookEntries: ctx.state.worldbookEntries || [],
+    });
+  }
+
   ctx.panels.adultConfig = {
     buildNsfwFlavorHint: buildNsfwFlavorHint,
     buildNtlHintForPrompt: buildNtlHintForPrompt,
+
+    renderWorldframeRow: function() {
+      var row = document.getElementById('adultWorldframeRow');
+      var labelEl = document.getElementById('adultWorldframeLabel');
+      var select = document.getElementById('adultWorldframeSelect');
+      var data = window.__nsfwFlavorData__;
+      if (!row) return;
+      var show = !!(ctx.state.nsfwEnabled || ctx.state.ntlEnabled);
+      row.style.display = show ? 'flex' : 'none';
+      if (!show) return;
+      if (select && data && data.worldframeIds && !select.dataset.filled) {
+        var opts = '<option value="">自动</option>';
+        data.worldframeIds.forEach(function(id) {
+          if (id === 'generic') return;
+          var wf = data.worldframes[id];
+          opts += '<option value="' + id + '">' + escapeHtml((wf && wf.label) || id) + '</option>';
+        });
+        opts += '<option value="generic">通用</option>';
+        select.innerHTML = opts;
+        select.dataset.filled = '1';
+      }
+      var forced = ctx.state.adultWorldframeForced || '';
+      if (select) select.value = forced;
+      var info = forced && data && data.worldframes[forced]
+        ? { id: forced, label: data.worldframes[forced].label, confidence: 1, source: 'forced' }
+        : (ctx.state.adultWorldframe && data && data.worldframes[ctx.state.adultWorldframe]
+          ? {
+            id: ctx.state.adultWorldframe,
+            label: data.worldframes[ctx.state.adultWorldframe].label,
+            confidence: 0.7,
+            source: 'cached',
+          }
+          : inferWorldframeFromCard());
+      if (!forced) {
+        ctx.state.adultWorldframe = info.id;
+      }
+      if (labelEl) {
+        var conf = info.confidence != null ? (' · ' + Math.round(info.confidence * 100) + '%') : '';
+        var src = info.source === 'forced' ? '手动' : (info.source === 'infer' ? '自动' : (info.source || ''));
+        labelEl.textContent = (info.label || info.id || '未推断') + conf + (src ? '（' + src + '）' : '');
+      }
+      // 同步小说工坊
+      var novelBridge = window.__novelWorkshopBridge__;
+      if (novelBridge && typeof novelBridge.setAdultWorldframe === 'function') {
+        novelBridge.setAdultWorldframe(forced || info.id);
+      } else if (novelBridge && typeof novelBridge.getState === 'function') {
+        var ns = novelBridge.getState();
+        if (ns) {
+          ns.adultWorldframe = info.id;
+          ns.adultWorldframeForced = forced;
+        }
+      }
+    },
 
     getCorruptionConfig: function() {
       return normalizeCorruptionConfig({
@@ -338,6 +411,7 @@ export function registerAdultConfig(ctx) {
       if (ctx.state.nsfwEnabled) ctx.panels.adultConfig.renderFlavorList();
 
       if (ntlRow) ntlRow.style.display = ctx.state.ntlEnabled ? 'block' : 'none';
+      ctx.panels.adultConfig.renderWorldframeRow();
       ensureNtlItemsOnState();
       if (ntlContainer && data) {
         var activeSet = Object.create(null);
@@ -807,6 +881,8 @@ export function registerAdultConfig(ctx) {
           ntlTabooItems: ensureNtlItemsOnState().map(function(it) {
             return { id: it.id, note: it.note || '' };
           }),
+          adultWorldframe: ctx.state.adultWorldframe || '',
+          adultWorldframeForced: ctx.state.adultWorldframeForced || '',
           corruptionEnabled: corr.enabled,
           corruptionPreset: corr.preset,
           corruptionCustomBrief: corr.customBrief,
@@ -836,6 +912,10 @@ export function registerAdultConfig(ctx) {
         } else if (cfg && Array.isArray(cfg.ntlTabooTypes)) {
           ctx.state.ntlTabooTypes = cfg.ntlTabooTypes.slice();
           ctx.state.ntlTabooItems = ctx.state.ntlTabooTypes.map(function(id) { return { id: id, note: '' }; });
+        }
+        if (cfg && typeof cfg.adultWorldframe === 'string') ctx.state.adultWorldframe = cfg.adultWorldframe;
+        if (cfg && typeof cfg.adultWorldframeForced === 'string') {
+          ctx.state.adultWorldframeForced = cfg.adultWorldframeForced;
         }
         if (cfg && typeof cfg.corruptionEnabled === 'boolean') ctx.state.corruptionEnabled = cfg.corruptionEnabled;
         if (cfg && typeof cfg.corruptionPreset === 'string') ctx.state.corruptionPreset = cfg.corruptionPreset;
@@ -874,19 +954,36 @@ export function registerAdultConfig(ctx) {
           ? ((novelBridge.getState() || {}).styleText || '')
           : '';
         var canon = '';
+        var wfLabel = '';
+        var vessel = '';
         if (ctx.state.nsfwEnabled || ctx.state.ntlEnabled) {
+          var wfInfo = inferWorldframeFromCard();
+          wfLabel = wfInfo.label || '';
+          ctx.state.adultWorldframe = wfInfo.id;
           canon = buildAdultCanonDigest({
             entities: novelEntities,
             worldbookEntries: ctx.state.worldbookEntries || [],
             styleText: styleText,
             includeCorruption: true,
             includeStyle: true,
+            includeVessels: true,
+            worldframeLabel: wfLabel,
           });
+          var data = window.__nsfwFlavorData__;
+          if (data && typeof data.buildVesselHint === 'function') {
+            vessel = data.buildVesselHint({
+              worldframe: wfInfo.id,
+              flavorItems: ensureFlavorItemsOnState(),
+              ntlItems: ensureNtlItemsOnState(),
+              intro: '（仅世界书管道：物化口味/NTL 为世界观载体）',
+            });
+          }
         }
         return {
           nsfw: buildNsfwFlavorHint(),
           ntl: buildNtlHintForPrompt(),
           canon: canon,
+          vessel: vessel,
         };
       };
 
@@ -916,6 +1013,39 @@ export function registerAdultConfig(ctx) {
           ctx.panels.adultConfig.syncNsfwBlockFromUi();
         });
       }
+      var wfRefresh = document.getElementById('btnAdultWorldframeRefresh');
+      var wfSelect = document.getElementById('adultWorldframeSelect');
+      if (wfRefresh) {
+        wfRefresh.addEventListener('click', function() {
+          ctx.state.adultWorldframeForced = '';
+          var info = inferWorldframeFromCard();
+          ctx.state.adultWorldframe = info.id;
+          ctx.panels.adultConfig.renderWorldframeRow();
+          ctx.save();
+          if (typeof window.__persistAiConfig__ === 'function') window.__persistAiConfig__();
+          window.dispatchEvent(new CustomEvent('nsfw-config-changed', {
+            detail: window.__getNsfwConfig__ ? window.__getNsfwConfig__() : {},
+          }));
+        });
+      }
+      if (wfSelect) {
+        wfSelect.addEventListener('change', function() {
+          var v = wfSelect.value || '';
+          ctx.state.adultWorldframeForced = v;
+          if (v) ctx.state.adultWorldframe = v;
+          else {
+            var info = inferWorldframeFromCard();
+            ctx.state.adultWorldframe = info.id;
+          }
+          ctx.panels.adultConfig.renderWorldframeRow();
+          ctx.save();
+          if (typeof window.__persistAiConfig__ === 'function') window.__persistAiConfig__();
+          window.dispatchEvent(new CustomEvent('nsfw-config-changed', {
+            detail: window.__getNsfwConfig__ ? window.__getNsfwConfig__() : {},
+          }));
+        });
+      }
+
       var ntlList = document.getElementById('adultNtlTabooList');
       if (ntlList) {
         ntlList.addEventListener('click', function(e) {

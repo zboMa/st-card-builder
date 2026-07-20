@@ -38,6 +38,16 @@
       </div>
     </section>
 
+    <div id="adultWorldframeRow" class="adult-worldframe-row" style="display:none;margin:8px 0 10px;">
+      <span class="char-nsfw-sub">世界观框架</span>
+      <span id="adultWorldframeLabel" class="char-nsfw-subtitle">未推断</span>
+      <button type="button" id="btnAdultWorldframeRefresh" class="btn btn-ghost" style="font-size:0.7rem;padding:2px 8px;">重新推断</button>
+      <select id="adultWorldframeSelect" aria-label="覆盖世界观框架" style="font-size:0.72rem;padding:3px 6px;border-radius:6px;border:1px solid var(--color-border);background:var(--color-surface);color:var(--color-text);">
+        <option value="">自动</option>
+      </select>
+      <span class="char-nsfw-subtitle">口味/NTL 将物化为该世界的法器·异能·场所等载体</span>
+    </div>
+
     <section class="adult-ntl-section" aria-labelledby="adultNtlHeading">
       <div class="char-nsfw-flavor-line" style="margin-bottom:4px;">
         <span id="adultNtlHeading" class="char-nsfw-sub">NTL 禁忌</span>
@@ -93,11 +103,18 @@
       </div>
     </div>
 
-    <span class="char-nsfw-subtitle" style="margin-top:8px;display:block;">口味决定世界书人物写法风格；NTL 细化禁忌维度。均不进入主角 Description。</span>
+    <span class="char-nsfw-subtitle" style="margin-top:8px;display:block;">口味/NTL 决定人物写法，并物化为世界观载体（法器·异能·场所等）。均不进入主角 Description。</span>
   </div>
 </div>
 
 <style is:global>
+  .adult-worldframe-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 0 2px;
+  }
   .adult-config-lead {
     margin: -4px 0 14px;
     font-size: 0.78rem;

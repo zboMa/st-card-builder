@@ -141,6 +141,12 @@ import AiTaskCenterUI from '../components/AiTaskCenterUI.astro';
       normalizeNtlTabooItems,
       evaluateNtlRichness,
       collectNtlEnrichment,
+      WORLDFRAMES,
+      WORLDFRAME_IDS,
+      inferWorldframe,
+      collectVesselEnrichment,
+      buildVesselHint,
+      evaluateVesselRichness,
     } from '../lib/novel/nsfwSupport.mjs';
     window.__nsfwFlavorData__ = {
       presets: NSFW_FLAVOR_PRESETS,
@@ -158,6 +164,12 @@ import AiTaskCenterUI from '../components/AiTaskCenterUI.astro';
       normalizeNtlItems: normalizeNtlTabooItems,
       evaluateNtlRichness: evaluateNtlRichness,
       collectNtlEnrichment: collectNtlEnrichment,
+      worldframes: WORLDFRAMES,
+      worldframeIds: WORLDFRAME_IDS,
+      inferWorldframe: inferWorldframe,
+      collectVesselEnrichment: collectVesselEnrichment,
+      buildVesselHint: buildVesselHint,
+      evaluateVesselRichness: evaluateVesselRichness,
     };
   </script>
 

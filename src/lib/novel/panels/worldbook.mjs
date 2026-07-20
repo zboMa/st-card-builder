@@ -27,6 +27,11 @@ import {
   buildNtlExpandUserPrompt,
   buildAdultCanonDigest,
   ADULT_CANON_BUDGET,
+  resolveWorldframe,
+  evaluateVesselRichness,
+  buildVesselExpandSystemPrompt,
+  buildVesselExpandUserPrompt,
+  buildVesselHintForState,
 } from '../nsfwSupport.mjs';
 import { PRIOR_WB_EXTRACT_PER, RAG_ENTITY_BUDGET, ENTITY_SUMMARY_STORE } from '../contextBudgets.mjs';
 import { findEntityMatch, upsertEntity, projectEntitiesToLegacy, isEntityEnriched, ingestLegacyIntoEntities } from '../entityStore.mjs';
@@ -778,6 +783,7 @@ export function registerWorldbook(ctx) {
             styleText: state.styleText,
             focusName: matchName,
             budget: ADULT_CANON_BUDGET,
+            worldframeLabel: resolveWorldframe(state).label,
           })
           + '\n条目标题: ' + matchName
           + '\n类别: ' + (entry.category || 'setting')
@@ -840,6 +846,42 @@ export function registerWorldbook(ctx) {
               attrs: ntlExpanded.attrs || {},
             }, ntlTypes, { tabooTypes: NTL_TABOO_TYPES });
             if (ntlRich2.total >= ntlRich.total) json = Object.assign({}, json, ntlExpanded);
+          }
+        }
+        if (adultOn || getNtlMode(state)) {
+          var cat = String(entry.category || 'setting');
+          if (cat === 'item' || cat === 'location' || cat === 'nsfw' || cat === 'faction'
+            || cat === 'setting' || cat === 'worldview' || cat === 'history') {
+            var vOpts = {
+              worldframe: resolveWorldframe(state).id,
+              flavorItems: flavorItems,
+              ntlItems: ntlTypes.map(function(id) { return { id: id }; }),
+            };
+            var vProbe = {
+              type: cat === 'nsfw' ? 'nsfw' : (cat === 'item' ? 'item' : 'lore'),
+              name: matchName,
+              content: json.content || entry.content || '',
+              attrs: json.attrs || entry.attrs || {},
+            };
+            var vRich = evaluateVesselRichness(vProbe, vOpts);
+            if (!vRich.ok) {
+              var vExpandPrompt = buildVesselExpandSystemPrompt(vOpts)
+                + '\n\n' + buildVesselExpandUserPrompt({
+                  weakDimensions: vRich.weakDimensions,
+                  minChars: vRich.minChars,
+                  vesselHint: buildVesselHintForState(state),
+                  context: matchName + ' · ' + cat,
+                  text: JSON.stringify(json),
+                })
+                + '\n请输出 JSON：{ "name", "content", "keys", "attrs"? }（attrs.adult 须含 vesselKind/powerLogic/costOrRisk/relatedPersons）';
+              var vExpandText = await ctx.callAI(vExpandPrompt, null, task.signal);
+              var vExpanded = parseJsonLoose(vExpandText);
+              var vRich2 = evaluateVesselRichness({
+                content: vExpanded.content || '',
+                attrs: vExpanded.attrs || {},
+              }, vOpts);
+              if (vRich2.total >= vRich.total) json = Object.assign({}, json, vExpanded);
+            }
           }
         }
         if (json.name) entry.name = String(json.name).trim() || entry.name;

@@ -45,11 +45,20 @@ import {
   ADULT_CANON_BUDGET,
   buildStatusBarNsfwDraftFromEntities,
   buildStatusBarNtlDraftFromEntities,
+  buildStatusBarVesselDraftFromEntities,
+  resolveWorldframe,
+  evaluateVesselRichness,
+  buildVesselExpandSystemPrompt,
+  buildVesselExpandUserPrompt,
+  buildVesselHintForState,
+  listVesselEntities,
+  personMentionsVessels,
 } from '../nsfwSupport.mjs';
 import { RAG_ENTITY_BUDGET } from '../contextBudgets.mjs';
 import { escapeHtml, parseJsonLoose } from '../../utils.mjs';
 
 function novelCanonBlock(state, focusName) {
+  var wf = resolveWorldframe(state);
   return buildAdultCanonDigest({
     entities: state.entities,
     worldbookEntries: (state.wbEntries || []).map(function(e) {
@@ -61,7 +70,17 @@ function novelCanonBlock(state, focusName) {
     styleText: state.styleText,
     focusName: focusName || '',
     budget: ADULT_CANON_BUDGET,
+    worldframeLabel: wf.label,
   });
+}
+
+function vesselOptsFromState(state) {
+  var wf = resolveWorldframe(state);
+  return {
+    worldframe: wf.id,
+    flavorItems: getAdultMode(state) ? getNsfwFlavorItems(state) : [],
+    ntlItems: getNtlMode(state) ? getNtlTabooTypes(state).map(function(id) { return { id: id }; }) : [],
+  };
 }
 
 var ENTITY_TYPE_ZH = {
@@ -322,6 +341,14 @@ export function registerAnalyze(ctx) {
       showStatusBarDraft(
         buildStatusBarNtlDraftFromEntities(state.entities, state.setupCharName || ''),
         'st_v3_ntl_status_draft'
+      );
+    });
+    var vesselDraftBtn = $('btnNovelVesselStatusDraft');
+    if (vesselDraftBtn) vesselDraftBtn.addEventListener('click', function() {
+      var wf = resolveWorldframe(state);
+      showStatusBarDraft(
+        buildStatusBarVesselDraftFromEntities(state.entities, { worldframe: wf.id }),
+        'st_v3_vessel_status_draft'
       );
     });
     var ragBtn = $('btnNovelRagIndex');
@@ -623,6 +650,14 @@ export function registerAnalyze(ctx) {
             var ntlTypes = ntlOn ? getNtlTabooTypes(state) : [];
             var needFlavor = flavorItems.length > 0 && (live.type === 'person' || live.type === 'nsfw');
             var needNtl = ntlTypes.length > 0 && live.type === 'person';
+            var needVessel = (adultOn || ntlOn) && (
+              live.type === 'nsfw'
+              || live.type === 'item'
+              || live.type === 'location'
+              || live.type === 'lore'
+              || live.type === 'faction'
+            );
+            var vOpts = vesselOptsFromState(state);
             var user = head
               + '\n\n' + inject
               + styleNsfw
@@ -642,6 +677,13 @@ export function registerAnalyze(ctx) {
               + buildContentModeFlags(state)
               + '\nStrictQuality: ' + (!!state.strictQuality)
               + '\nContext: ' + (state.contextText || '');
+            if (live.type === 'person') {
+              var vessels = listVesselEntities(state.entities);
+              if (vessels.length) {
+                user += '\n【软约束】正文须点名互动至少一件已有载体：'
+                  + vessels.slice(0, 8).map(function(v) { return v.name; }).join('、');
+              }
+            }
             var text = await ctx.callAI(user, null, task.signal);
             var parsed = parseJsonLoose(text);
             if (needFlavor) {
@@ -678,6 +720,43 @@ export function registerAnalyze(ctx) {
                 var ntlExpanded = parseJsonLoose(ntlExpandText);
                 var ntlRich2 = evaluateNtlRichness(ntlExpanded, ntlTypes, { tabooTypes: NTL_TABOO_TYPES });
                 if (ntlRich2.total >= ntlRich.total) parsed = ntlExpanded;
+              }
+            }
+            if (needVessel) {
+              var vRich = evaluateVesselRichness(parsed, vOpts);
+              if (!vRich.ok) {
+                var vExpandPrompt = buildVesselExpandSystemPrompt(vOpts)
+                  + '\n\n' + buildVesselExpandUserPrompt({
+                    weakDimensions: vRich.weakDimensions,
+                    minChars: vRich.minChars,
+                    vesselHint: buildVesselHintForState(state),
+                    context: live.type + ' · ' + live.name,
+                    text: JSON.stringify(parsed),
+                  })
+                  + '\n请输出加厚后的完整 JSON 实体，写满 attrs.adult（含 powerLogic/vesselKind/costOrRisk/relatedPersons）。';
+                var vExpandText = await ctx.callAI(vExpandPrompt, null, task.signal);
+                var vExpanded = parseJsonLoose(vExpandText);
+                var vRich2 = evaluateVesselRichness(vExpanded, vOpts);
+                if (vRich2.total >= vRich.total) parsed = vExpanded;
+              }
+            }
+            if (live.type === 'person') {
+              var vesselList = listVesselEntities(state.entities);
+              var mention = personMentionsVessels(JSON.stringify(parsed), vesselList);
+              if (mention.missing) {
+                var avail = vesselList.map(function(v) { return v.name; }).filter(Boolean).slice(0, 10).join('、');
+                var hookPrompt = '你是角色卡编辑。下文未点名已有世界观成人载体，请改写使人物与至少一件载体产生互动（持有/被施加/惧怕/渴望），保持 JSON 结构。\n'
+                  + '可用载体：' + avail
+                  + '\n\n' + JSON.stringify(parsed);
+                try {
+                  var hookText = await ctx.callAI(hookPrompt, null, task.signal);
+                  var hooked = parseJsonLoose(hookText);
+                  if (hooked && (hooked.name || hooked.type || hooked.attrs || hooked.NSFW_information)) {
+                    parsed = hooked;
+                  }
+                } catch (hookErr) {
+                  if (ctx.isTrackedAbort(hookErr)) throw hookErr;
+                }
               }
             }
             applyEnrichResult(state, live.id, parsed);

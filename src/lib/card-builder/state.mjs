@@ -29,6 +29,8 @@ export function createDefaultCardState() {
     ntlEnabled: false,
     ntlTabooTypes: [],
     ntlTabooItems: [],
+    adultWorldframe: '',
+    adultWorldframeForced: '',
     corruptionEnabled: false,
     corruptionPreset: '5',
     corruptionCustomBrief: '',
@@ -78,6 +80,8 @@ export function buildDraftSnapshot(state) {
           return { id: String((it && it.id) || ''), note: String((it && it.note) || '') };
         }).filter(function(it) { return it.id; })
       : (s.ntlTabooTypes || []).map(function(id) { return { id: String(id), note: '' }; }),
+    adultWorldframe: s.adultWorldframe || '',
+    adultWorldframeForced: s.adultWorldframeForced || '',
     corruptionEnabled: !!s.corruptionEnabled,
     corruptionPreset: s.corruptionPreset || '5',
     corruptionCustomBrief: s.corruptionCustomBrief || '',

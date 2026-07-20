@@ -104,6 +104,8 @@ export function createCardStateMachine(state) {
       state.ntlTabooTypes = Array.isArray(d.ntlTabooTypes) ? d.ntlTabooTypes.slice() : [];
       state.ntlTabooItems = state.ntlTabooTypes.map(function(id) { return { id: id, note: '' }; });
     }
+    state.adultWorldframe = d.adultWorldframe || '';
+    state.adultWorldframeForced = d.adultWorldframeForced || '';
     state.corruptionEnabled = !!d.corruptionEnabled;
     state.corruptionPreset = d.corruptionPreset || '5';
     state.corruptionCustomBrief = d.corruptionCustomBrief || '';
@@ -135,6 +137,8 @@ export function createCardStateMachine(state) {
     state.ntlEnabled = false;
     state.ntlTabooTypes = [];
     state.ntlTabooItems = [];
+    state.adultWorldframe = '';
+    state.adultWorldframeForced = '';
     state.corruptionEnabled = false;
     state.corruptionPreset = '5';
     state.corruptionCustomBrief = '';

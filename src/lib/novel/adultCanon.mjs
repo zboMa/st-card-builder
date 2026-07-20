@@ -18,6 +18,7 @@ import {
   STYLE_ADULT_FALLBACK,
   clampBudget,
 } from './contextBudgets.mjs';
+import { formatVesselCanonBlock } from './adultWorldVessels.mjs';
 
 var ADULT_SIDE_TYPES = { item: 1, location: 1, lore: 1, faction: 1 };
 
@@ -148,6 +149,8 @@ function extractStyleSlice(styleText) {
  *   budget?: number,
  *   includeCorruption?: boolean,
  *   includeStyle?: boolean,
+ *   includeVessels?: boolean,
+ *   worldframeLabel?: string,
  * }} opts
  */
 export function buildAdultCanonDigest(opts) {
@@ -161,6 +164,7 @@ export function buildAdultCanonDigest(opts) {
   var focus = String(opts.focusName || '').trim();
   var includeCorruption = opts.includeCorruption !== false;
   var includeStyle = opts.includeStyle !== false;
+  var includeVessels = opts.includeVessels !== false;
 
   var parts = [];
   parts.push('\n【成人 Canon·已生成内容联动】');
@@ -235,6 +239,17 @@ export function buildAdultCanonDigest(opts) {
     used = compactLen(parts.join('\n'));
   }
 
+  if (includeVessels && remain() > 400) {
+    var vesselBlock = formatVesselCanonBlock(opts.entities, {
+      budget: Math.min(Math.floor(budget * 0.18), remain()),
+      worldframeLabel: opts.worldframeLabel || '',
+    });
+    if (vesselBlock) {
+      parts.push(vesselBlock);
+      used = compactLen(parts.join('\n'));
+    }
+  }
+
   if (includeCorruption && remain() > 400) {
     var corr = formatCorruptionArchiveDigests(opts.worldbookEntries, {
       excludeName: focus || (opts.excludeNames && opts.excludeNames[0]) || '',
@@ -274,7 +289,7 @@ export function buildAdultCanonDigest(opts) {
     }
   }
 
-  parts.push('【联动硬约束】新内容须与上列 Limits/NTL/恶堕气质可对读；写出与他人的关系互动（权力、秘密、禁忌共鸣或冲突），禁止孤立设定。');
+  parts.push('【联动硬约束】新内容须与上列 Limits/NTL/恶堕气质/世界观载体可对读；写出与他人及法器/异能/场所等载体的互动，禁止孤立设定或错位道具体系。');
 
   var out = parts.join('\n');
   if (compactLen(out) > budget) out = take(out, budget);

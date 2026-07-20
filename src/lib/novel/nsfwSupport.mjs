@@ -48,6 +48,24 @@ import {
   EXPAND_BODY_CHARS,
 } from './contextBudgets.mjs';
 import { buildAdultCanonDigest, formatCorruptionArchiveDigests } from './adultCanon.mjs';
+import {
+  WORLDFRAMES,
+  WORLDFRAME_IDS,
+  VESSEL_KINDS,
+  VESSEL_KIND_LABELS,
+  VESSEL_DEFAULT_MIN_CHARS,
+  inferWorldframe,
+  collectVesselEnrichment,
+  buildVesselHint,
+  evaluateVesselRichness,
+  buildVesselExpandSystemPrompt,
+  buildVesselExpandUserPrompt,
+  listVesselEntities,
+  personMentionsVessels,
+  formatVesselCanonBlock,
+  buildStatusBarVesselDraftFromEntities,
+  isVesselEntity,
+} from './adultWorldVessels.mjs';
 
 export {
   NSFW_FLAVOR_DEFAULT_MIN_CHARS,
@@ -75,6 +93,22 @@ export {
   ADULT_CANON_BUDGET,
   EXPAND_CTX_CHARS,
   EXPAND_BODY_CHARS,
+  WORLDFRAMES,
+  WORLDFRAME_IDS,
+  VESSEL_KINDS,
+  VESSEL_KIND_LABELS,
+  VESSEL_DEFAULT_MIN_CHARS,
+  inferWorldframe,
+  collectVesselEnrichment,
+  buildVesselHint,
+  evaluateVesselRichness,
+  buildVesselExpandSystemPrompt,
+  buildVesselExpandUserPrompt,
+  listVesselEntities,
+  personMentionsVessels,
+  formatVesselCanonBlock,
+  buildStatusBarVesselDraftFromEntities,
+  isVesselEntity,
 };
 
 /** 卡级 NSFW 口味最多叠加条数 */
@@ -373,7 +407,7 @@ export function normalizeNsfwEntityAttrs(raw) {
   return base;
 }
 
-/** 非人物通用成人维空模板 */
+/** 非人物通用成人维空模板（含世界观载体字段） */
 export function emptyAdultAttrs() {
   return {
     eroticRole: '',
@@ -382,6 +416,13 @@ export function emptyAdultAttrs() {
     limits: [],
     playIdeas: [],
     relatedPersons: [],
+    vesselKind: '',
+    worldframe: '',
+    powerLogic: '',
+    costOrRisk: '',
+    socialCover: '',
+    flavorHooks: [],
+    ntlHooks: [],
     inferred: true,
     lastPass: '',
   };
@@ -393,7 +434,12 @@ export function normalizeAdultAttrs(raw) {
   if (!raw || typeof raw !== 'object') return base;
   if (raw.eroticRole != null) base.eroticRole = String(raw.eroticRole).trim();
   if (raw.atmosphere != null) base.atmosphere = String(raw.atmosphere).trim();
-  ['triggers', 'limits', 'playIdeas', 'relatedPersons'].forEach(function(key) {
+  if (raw.vesselKind != null) base.vesselKind = String(raw.vesselKind).trim();
+  if (raw.worldframe != null) base.worldframe = String(raw.worldframe).trim();
+  if (raw.powerLogic != null) base.powerLogic = String(raw.powerLogic).trim();
+  if (raw.costOrRisk != null) base.costOrRisk = String(raw.costOrRisk).trim();
+  if (raw.socialCover != null) base.socialCover = String(raw.socialCover).trim();
+  ['triggers', 'limits', 'playIdeas', 'relatedPersons', 'flavorHooks', 'ntlHooks'].forEach(function(key) {
     var list = asStringList(raw[key]);
     if (list.length) base[key] = list;
   });
@@ -409,7 +455,12 @@ export function mergeAdultAttrs(prev, next) {
   var b = normalizeAdultAttrs(next);
   if (!isPlaceholderText(b.eroticRole)) a.eroticRole = b.eroticRole;
   if (!isPlaceholderText(b.atmosphere)) a.atmosphere = b.atmosphere;
-  ['triggers', 'limits', 'playIdeas', 'relatedPersons'].forEach(function(key) {
+  if (!isPlaceholderText(b.vesselKind)) a.vesselKind = b.vesselKind;
+  if (!isPlaceholderText(b.worldframe)) a.worldframe = b.worldframe;
+  if (!isPlaceholderText(b.powerLogic)) a.powerLogic = b.powerLogic;
+  if (!isPlaceholderText(b.costOrRisk)) a.costOrRisk = b.costOrRisk;
+  if (!isPlaceholderText(b.socialCover)) a.socialCover = b.socialCover;
+  ['triggers', 'limits', 'playIdeas', 'relatedPersons', 'flavorHooks', 'ntlHooks'].forEach(function(key) {
     var seen = {};
     var out = [];
     (a[key] || []).concat(b[key] || []).forEach(function(x) {
@@ -426,14 +477,18 @@ export function mergeAdultAttrs(prev, next) {
   return a;
 }
 
-/** attrs.adult 是否达到成人门槛 */
+/** attrs.adult 是否达到成人门槛（含载体厚度） */
 export function isAdultAttrsFilled(adult) {
   var a = normalizeAdultAttrs(adult);
   var roleOk = !isPlaceholderText(a.eroticRole);
   var atmosOk = !isPlaceholderText(a.atmosphere);
   var ideasOk = (a.playIdeas && a.playIdeas.length) || (a.triggers && a.triggers.length);
   var limitsOk = a.limits && a.limits.length > 0;
-  return !!(roleOk && (atmosOk || ideasOk) && limitsOk);
+  var logicOk = !isPlaceholderText(a.powerLogic);
+  var vesselOk = !isPlaceholderText(a.vesselKind) || logicOk;
+  var personOk = a.relatedPersons && a.relatedPersons.length > 0;
+  var costOk = !isPlaceholderText(a.costOrRisk) || !isPlaceholderText(a.socialCover);
+  return !!(roleOk && (atmosOk || ideasOk) && limitsOk && vesselOk && logicOk && (personOk || costOk));
 }
 
 /** 该类型在成人模式下是否需要 adult 维 */
@@ -696,8 +751,10 @@ export function formatAdultSideDigest(entities, maxChars) {
   }).forEach(function(e) {
     var a = normalizeAdultAttrs(e.attrs.adult);
     if (isPlaceholderText(a.eroticRole) && !(a.playIdeas || []).length) return;
-    var line = '- [' + e.type + '] ' + e.name
+    var line = '- [' + e.type + (a.vesselKind ? '/' + a.vesselKind : '') + '] ' + e.name
       + (a.eroticRole ? ': ' + String(a.eroticRole).slice(0, FIELD_SUMMARY) : '')
+      + (a.powerLogic ? ' | 机制:' + String(a.powerLogic).slice(0, FIELD_SUMMARY) : '')
+      + (a.costOrRisk ? ' | 代价:' + String(a.costOrRisk).slice(0, 120) : '')
       + (a.limits && a.limits.length ? ' | 禁:' + a.limits.slice(0, LIST_LIMITS).join('/') : '')
       + (a.relatedPersons && a.relatedPersons.length
         ? ' | 相关:' + a.relatedPersons.slice(0, 10).join('/') : '');
@@ -786,31 +843,34 @@ export function buildAdultProgressiveHint(phase) {
       + '\n【本步·骨架】'
       + '\n- person：尽量附 attrs.profile.NSFW_information 初稿 + attrs.nsfwMeta:{inferred,confidence,lastPass:"skeleton"}；'
       + '至少填 body.overall、sexual_personality、Kinks/xp_kinks、Limits（可全推断）。'
-      + '\n- item/location/lore/faction：附 attrs.adult={eroticRole,atmosphere,triggers[],limits[],playIdeas[],relatedPersons[],inferred,lastPass:"skeleton"}。'
-      + '\n- 必须挖 type=nsfw（kind=rule|place|item|dynamic|taboo|consent），attrs 按 kind 填最低字段。'
-      + '\n- 亲密边/亲密 event.attrs.intimate=true。';
+      + '\n- item/location/lore/faction：附 attrs.adult={eroticRole,atmosphere,vesselKind,worldframe,powerLogic,costOrRisk,socialCover,triggers[],limits[],playIdeas[],relatedPersons[],flavorHooks[],ntlHooks[],inferred,lastPass:"skeleton"}。'
+      + '\n- 必须挖 type=nsfw（kind=rule|place|item|dynamic|taboo|consent），attrs 按 kind 填最低字段，并尽量补 powerLogic/costOrRisk。'
+      + '\n- 亲密边/亲密 event.attrs.intimate=true。'
+      + '\n- 成人载体须贴合世界观语汇（法器/异能/咒物等），禁止错位玩具清单。';
   }
   if (p === 'relations') {
     return common
       + '\n【本步·关系】优先补亲密边（' + INTIMATE_REL_LABELS.join('/') + '）；'
-      + 'attrs 可含 intimacy/power/taboo；边两端人物若 NSFW 空洞，在 evidence 旁用短注暗示张力（丰满步会写全）。';
+      + 'attrs 可含 intimacy/power/taboo；边两端人物若 NSFW 空洞，在 evidence 旁用短注暗示张力（丰满步会写全）。'
+      + '\n可补「人物—载体」使用/被施加/契约边。';
   }
   if (p === 'extract') {
     return common
-      + '\n【本步·世界书抽取】必须抽 category=nsfw；普通 item/location/setting 也尽量带 attrs.adult；'
-      + '可补充完善已有条目的成人维，勿重复空壳。';
+      + '\n【本步·世界书抽取】必须抽 category=nsfw；普通 item/location/setting 也尽量带完整 attrs.adult（含 powerLogic）；'
+      + '可补充完善已有条目的成人维与世界观载体，勿重复空壳。';
   }
   if (p === 'expand') {
     return common
-      + '\n【本步·扩展】据召回原文与已有档案修订 NSFW/adult；无原文则据已有字段推断补全。';
+      + '\n【本步·扩展】据召回原文与已有档案修订 NSFW/adult/载体机制；无原文则据已有字段与世界观语汇推断补全。';
   }
   // enrich 默认
   return common
     + '\n【本步·丰满】'
-    + '\n- person：写满 NSFW_information；attrs.nsfwMeta.lastPass="enrich"；有原文证据则 inferred=false。'
-    + '\n- type=nsfw：按 kind 填满 rules/limits/consent/triggers/atmosphere/playIdeas/relatedNames。'
-    + '\n- item/location/lore/faction：写满 attrs.adult，content 可含【成人向用法】指引。'
-    + '\n- 参考提示中的【已有人物/NSFW/条目成人向】摘要，保持 XP 与 Limits 一致。';
+    + '\n- person：写满 NSFW_information；attrs.nsfwMeta.lastPass="enrich"；有原文证据则 inferred=false；'
+    + '须点名与已有成人载体（法器/异能/场所等）的互动。'
+    + '\n- type=nsfw：按 kind 填满 rules/limits/consent/triggers/atmosphere/playIdeas/relatedNames，并写 powerLogic/costOrRisk。'
+    + '\n- item/location/lore/faction：写满 attrs.adult（机制/代价/伪装/人物挂钩），content 含【成人向用法】长文。'
+    + '\n- 参考提示中的【已有人物/NSFW/条目成人向/世界观载体】摘要，保持 XP 与 Limits 一致。';
 }
 
 /** 成人模式通用附加块（兼容旧调用；默认 enrich 口径） */
@@ -863,7 +923,73 @@ export function buildModeHintBlocks(state, phase) {
   var parts = [];
   if (getAdultMode(state)) parts.push(buildAdultProgressiveHint(phase));
   if (getNtlMode(state)) parts.push(buildNtlHintBlock(phase));
+  if (getAdultMode(state) || getNtlMode(state)) {
+    parts.push(buildVesselHintForState(state, { phase: phase }));
+  }
   return parts.join('');
+}
+
+/**
+ * 从 state 组装世界观载体 hint
+ * @param {object} state
+ * @param {{ phase?: string, intro?: string }} [opts]
+ */
+export function buildVesselHintForState(state, opts) {
+  opts = opts || {};
+  if (!state || (!getAdultMode(state) && !getNtlMode(state))) return '';
+  var inferred = resolveWorldframe(state);
+  return buildVesselHint({
+    enabled: true,
+    worldframe: inferred.id,
+    flavorItems: getAdultMode(state) ? getNsfwFlavorItems(state) : [],
+    ntlItems: getNtlMode(state) ? getNtlTabooItems(state) : [],
+    intro: opts.intro || '（仅世界书管道：物化口味/NTL，勿写入主角 Description）',
+  });
+}
+
+/** 读取或推断并缓存 adultWorldframe */
+export function resolveWorldframe(state, opts) {
+  opts = opts || {};
+  if (!state) return inferWorldframe({});
+  if (!opts.recompute && state.adultWorldframe && WORLDFRAMES[state.adultWorldframe]) {
+    return {
+      id: state.adultWorldframe,
+      label: WORLDFRAMES[state.adultWorldframe].label,
+      confidence: state.adultWorldframeConfidence != null ? state.adultWorldframeConfidence : 0.7,
+      source: state.adultWorldframeForced ? 'forced' : 'cached',
+    };
+  }
+  var result = inferWorldframe({
+    forced: opts.forced || state.adultWorldframeForced || '',
+    contextText: state.contextText,
+    entities: state.entities,
+    worldbookEntries: (state.wbEntries || []).map(function(e) {
+      return {
+        comment: e.comment || ('[小说' + (e.category || 'setting') + '] ' + e.name),
+        content: e.content || '',
+        category: e.category,
+        name: e.name,
+      };
+    }),
+  });
+  state.adultWorldframe = result.id;
+  state.adultWorldframeConfidence = result.confidence;
+  state.adultWorldframeSource = result.source;
+  return result;
+}
+
+export function setAdultWorldframe(state, frameId) {
+  if (!state) return null;
+  var id = String(frameId || '').trim();
+  if (id && WORLDFRAMES[id]) {
+    state.adultWorldframe = id;
+    state.adultWorldframeForced = id;
+    state.adultWorldframeConfidence = 1;
+    state.adultWorldframeSource = 'forced';
+    return resolveWorldframe(state);
+  }
+  state.adultWorldframeForced = '';
+  return resolveWorldframe(state, { recompute: true });
 }
 
 /** 丰满队列优先级：人物 NSFW → nsfw 实体 → 缺 adult 的条目 → 缺 NTL 的人物 → 其他 */

@@ -47,6 +47,7 @@ import {
   getNtlTabooTypes,
   setNtlTabooTypes,
   setNtlTabooItems,
+  setAdultWorldframe,
 } from './nsfwSupport.mjs';
 import { applyTemplate } from '../promptStore.mjs';
 import { normalizeCharacterPatch } from '../assistant/characterFields.mjs';
@@ -680,6 +681,12 @@ export function initNovelWorkshop() {
         setNtlTabooItems(state, cfg.ntlTabooItems);
       } else if (Array.isArray(cfg.ntlTabooTypes)) {
         setNtlTabooTypes(state, cfg.ntlTabooTypes);
+      }
+      if (typeof cfg.adultWorldframeForced === 'string' && cfg.adultWorldframeForced) {
+        setAdultWorldframe(state, cfg.adultWorldframeForced);
+      } else if (typeof cfg.adultWorldframe === 'string' && cfg.adultWorldframe) {
+        state.adultWorldframe = cfg.adultWorldframe;
+        state.adultWorldframeForced = '';
       }
       ctx.save();
       renderGates();

@@ -138,6 +138,8 @@ export function registerAiEngine(ctx) {
             return { id: String((it && it.id) || ''), note: String((it && it.note) || '') };
           }).filter(function(it) { return it.id; })
         : (nsfwConfig.ntlTabooTypes || []).map(function(id) { return { id: String(id), note: '' }; }),
+      adultWorldframe: nsfwConfig.adultWorldframe || '',
+      adultWorldframeForced: nsfwConfig.adultWorldframeForced || '',
     }));
   }
 
@@ -638,7 +640,8 @@ export function registerAiEngine(ctx) {
         : { nsfw: buildNsfwFlavorHint(), ntl: buildNtlHintForPrompt(), canon: buildAdultCanonHint() };
       var sysPrompt   = (ctx.promptText('wbSingle') || '')
         + stepInfo + charBlock + '\n' + ctxStr + '\n' + presetBlock
-        + (adultHints.nsfw || '') + (adultHints.ntl || '') + (adultHints.canon || '') + searchInjection
+        + (adultHints.nsfw || '') + (adultHints.ntl || '') + (adultHints.vessel || '')
+        + (adultHints.canon || '') + searchInjection
         + '\n【说明】人物类条目标题建议「[小说人物] 名字」；成人内容只写世界书，勿写主角卡面。'
         + '\n【输出】：1个JSON对象 { "comment": "标题", "content": "详细设定(至少100字)", "keys": ["触发词"], "strategy": "selective 或 constant", "position": 4 }';
       var userPrompt  = customDirection ? '【方向】：' + customDirection : '【自由发挥，拒绝重复】';

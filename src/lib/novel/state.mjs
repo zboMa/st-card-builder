@@ -100,6 +100,11 @@ export function createDefaultNovelState() {
     ntlTabooTypes: [],
     /** NTL 禁忌多选：[{ id, note }] */
     ntlTabooItems: [],
+    /** 推断/强制的世界观框架 id（xianxia/modern_ability/…） */
+    adultWorldframe: '',
+    adultWorldframeForced: '',
+    adultWorldframeConfidence: 0,
+    adultWorldframeSource: '',
     /** NSFW 主口味 id（兼容旧字段；等于 nsfwFlavorItems[0].id） */
     nsfwFlavor: '',
     /** NSFW 口味多选：[{ id, note }]，最多 5；首项为主调色盘 */
@@ -223,6 +228,10 @@ export function hydrateNovelState(raw) {
   if (base.nsfwFlavorItems.length && !base.nsfwFlavor) {
     base.nsfwFlavor = String(base.nsfwFlavorItems[0].id || '');
   }
+  if (typeof base.adultWorldframe !== 'string') base.adultWorldframe = '';
+  if (typeof base.adultWorldframeForced !== 'string') base.adultWorldframeForced = '';
+  if (typeof base.adultWorldframeConfidence !== 'number') base.adultWorldframeConfidence = 0;
+  if (typeof base.adultWorldframeSource !== 'string') base.adultWorldframeSource = '';
   if (!base.knowledgeGraph || typeof base.knowledgeGraph !== 'object') {
     base.knowledgeGraph = { nodes: [], edges: [], updatedAt: '' };
   }

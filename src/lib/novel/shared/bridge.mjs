@@ -30,6 +30,8 @@ import {
   setNtlTabooItems,
   buildStatusBarNsfwDraftFromEntities,
   buildStatusBarNtlDraftFromEntities,
+  setAdultWorldframe,
+  resolveWorldframe,
   NSFW_FLAVOR_PRESETS,
   NTL_TABOO_TYPES,
   MAX_NSFW_FLAVOR_ITEMS,
@@ -707,5 +709,11 @@ export function createBridge(ctx) {
     getNsfwFlavorPresets: function() { return NSFW_FLAVOR_PRESETS; },
     getMaxNsfwFlavorItems: function() { return MAX_NSFW_FLAVOR_ITEMS; },
     getNtlTabooTypeOptions: function() { return NTL_TABOO_TYPES; },
+    getAdultWorldframe: function() { return resolveWorldframe(state); },
+    setAdultWorldframe: function(frameId) {
+      setAdultWorldframe(state, frameId);
+      ctx.save();
+      return resolveWorldframe(state);
+    },
   };
 }

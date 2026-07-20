@@ -112,15 +112,21 @@ describe('novel nsfwSupport', function() {
       eroticRole: '束缚道具',
       limits: ['出血'],
       playIdeas: '轻缚',
+      vesselKind: 'artifact',
+      powerLogic: '灵力注入锁环收紧禁制',
+      costOrRisk: '道心反噬',
+      relatedPersons: ['甲'],
       inferred: true,
       lastPass: 'skeleton',
     });
     assert.equal(a.eroticRole, '束缚道具');
     assert.ok(a.playIdeas.indexOf('轻缚') >= 0);
+    assert.equal(a.powerLogic, '灵力注入锁环收紧禁制');
     assert.ok(isAdultAttrsFilled(a));
     var merged = mergeAdultAttrs(a, {
       atmosphere: '昏暗厢房',
       limits: ['公开'],
+      socialCover: '镇派法器',
       inferred: false,
       lastPass: 'enrich',
     });
@@ -146,6 +152,11 @@ describe('novel nsfwSupport', function() {
       triggers: ['触碰'],
       limits: ['外借'],
       playIdeas: ['贴耳低语时把玩'],
+      vesselKind: 'artifact',
+      powerLogic: '贴身共鸣触发羞耻反馈',
+      costOrRisk: '被发现的舆论风险',
+      socialCover: '普通饰品',
+      relatedPersons: ['乙'],
     });
     assert.ok(isEntityEnriched(item, true, true));
 
@@ -421,6 +432,7 @@ describe('novel nsfwSupport', function() {
     assert.doesNotMatch(analyze, /novelAnalyzeIncludeAdult|novelGlobalAdult/);
     assert.match(analyze, /btnNovelNsfwStatusDraft/);
     assert.match(analyze, /btnNovelNtlStatusDraft/);
+    assert.match(analyze, /btnNovelVesselStatusDraft/);
     assert.match(analyze, /novelNsfwStatusDraft/);
     const wb = readFileSync(join(root, 'src/components/novel/NovelWorldbookPanel.astro'), 'utf8');
     assert.doesNotMatch(wb, /novelIncludeAdult/);

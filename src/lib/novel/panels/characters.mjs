@@ -38,6 +38,9 @@ import {
   ADULT_CANON_BUDGET,
   ADULT_RAG_BOOST_TERMS,
   NTL_RAG_BOOST_TERMS,
+  resolveWorldframe,
+  listVesselEntities,
+  personMentionsVessels,
 } from '../nsfwSupport.mjs';
 import {
   upsertEntity,
@@ -362,6 +365,7 @@ export function registerCharacters(ctx) {
             styleText: state.styleText,
             focusName: ch.name,
             budget: ADULT_CANON_BUDGET,
+            worldframeLabel: resolveWorldframe(state).label,
           })
           + '\n\n角色名: ' + ch.name
           + '\n别名: ' + (ch.aliases || []).join('、')
@@ -372,6 +376,10 @@ export function registerCharacters(ctx) {
           + '\n\n【原文片段】\n' + recall.body
           + '\n\n请输出附录1完整 JSON，字段须含: Chinese name, Nickname, age, gender, identity, key_events, relationships, turning_points, appearance{hair,eyes,build,识别特征}, personality{core_traits}, persona_layers{surface,social,intimate,under_stress,secret_self}, tension_pairs[{trait_a,trait_b,resolution}], core_desire, values_and_drives, hidden_motives, goals, weakness, likes, dislikes, skills, speech_style, NSFW_information（含 body/erogenous_zones/sexual_personality/contrast/xp_kinks/sensitive_triggers/inner_erotic_thoughts/Sex_related_traits/Kinks/Limits/desire_palette/sexual_psychology/situational_modulation/aftercare）。'
           + (adultOn ? '\nAdultMode=true：NSFW_information 禁止整块「原文未提及」，须填 Limits 与 Kinks/xp_kinks；无原文则据已有档案推断。须按口味丰满规范写透必写维度。' : '');
+        var vesselNames = listVesselEntities(state.entities).map(function(v) { return v.name; }).filter(Boolean);
+        if ((adultOn || getNtlMode(state)) && vesselNames.length) {
+          user += '\n【软约束】须点名与已有世界观成人载体的互动：' + vesselNames.slice(0, 8).join('、');
+        }
         var text = await ctx.callAI(user, null, task.signal);
         var json = parseJsonLoose(text);
         var profile = normalizeCharacterProfile(json.profile || json, ch.name);
@@ -429,6 +437,24 @@ export function registerCharacters(ctx) {
             if (ntlRich2.total >= ntlRich.total) profile = ntlExpandedProfile;
             if (!ntlRich2.ok) {
               flavorThinTip += '；NTL 仍偏薄：' + ntlRich2.weakDimensions.slice(0, 2).join('；');
+            }
+          }
+        }
+        if ((adultOn || getNtlMode(state)) && vesselNames.length) {
+          var mention = personMentionsVessels(JSON.stringify(profile), listVesselEntities(state.entities));
+          if (mention.missing) {
+            try {
+              var hookPrompt = '你是角色卡编辑。下文未点名已有世界观成人载体，请改写 NSFW/关系相关字段，使人物与至少一件载体互动（持有/被施加/惧怕/渴望）。保持完整人物 JSON。\n'
+                + '可用载体：' + vesselNames.slice(0, 10).join('、')
+                + '\n\n' + JSON.stringify(profile);
+              var hookText = await ctx.callAI(hookPrompt, null, task.signal);
+              var hookJson = parseJsonLoose(hookText);
+              var hooked = normalizeCharacterProfile(hookJson.profile || hookJson, ch.name);
+              if (hooked && (hooked.NSFW_information || hooked.identity)) profile = hooked;
+              var mention2 = personMentionsVessels(JSON.stringify(profile), listVesselEntities(state.entities));
+              if (mention2.missing) flavorThinTip += '；未挂钩世界观载体';
+            } catch (hookErr) {
+              if (ctx.isTrackedAbort(hookErr)) throw hookErr;
             }
           }
         }
