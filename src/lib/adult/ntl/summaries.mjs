@@ -39,4 +39,10 @@ export var NTL_SUMMARIES = {
   memory_rewrite: '记忆篡改要求手段受益者与回滚证据同明，无回滚却称可逆须揭穿。',
   faked_death_return: '假死归来用葬礼谎言制造清算，动机钉死逃债任务或背叛并留档。',
   breeding_politics: '生育政治把配额禁生血统政策伸进卧室，身体自主成可引述账本。',
+  household_intrusion: '寄宿鸠占改写餐桌座次钥匙分配与账簿签字顺位，原户主被挪到客席。',
+  harem_rank_anxiety: '位份焦虑用位次册月例请安把恩宠评级，一人得宠即他人裁减留档。',
+  neighbor_exposure: '邻里曝光靠楼道监控业主群物业投诉与快递签收慢煮私密关系。',
+  closed_space_breach: '女域破门让闺阁女堂寝区共同体连坐，门籍值夜舍监集体反噬。',
+  service_role_collapse: '履约角色崩溶解外卖家政代驾护工月嫂平台派单打卡与验收边界。',
+  suggestion_consent_cut: '暗示切割同意用APP条款课时增项按次充值把整体合意拆成计费小格。',
 };
