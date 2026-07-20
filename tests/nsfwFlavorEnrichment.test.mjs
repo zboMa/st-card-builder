@@ -23,8 +23,8 @@ import {
 import { createDefaultNovelState } from '../src/lib/novel/state.mjs';
 
 describe('nsfw flavor enrichment', function() {
-  it('全部 21 口味均有丰满字段', function() {
-    assert.equal(NSFWFLAVOR_IDS.length, 21);
+  it('全部口味均有丰满字段', function() {
+    assert.equal(NSFWFLAVOR_IDS.length, 42);
     NSFWFLAVOR_IDS.forEach(function(id) {
       var f = NSFW_FLAVOR_PRESETS[id];
       var en = NSFW_FLAVOR_ENRICHMENT[id];

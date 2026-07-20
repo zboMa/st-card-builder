@@ -371,7 +371,7 @@ export function registerAdultConfig(ctx) {
 
       var selected = Object.create(null);
       items.forEach(function(it) { selected[it.id] = true; });
-      var groups = { '情绪基调': [], '关系动态': [], '特殊风味': [] };
+      var groups = { '情绪基调': [], '关系动态': [], '特殊风味': [], '感官节奏': [] };
       data.ids.forEach(function(id) {
         if (selected[id]) return;
         var f = data.presets[id];

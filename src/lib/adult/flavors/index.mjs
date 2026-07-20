@@ -1,11 +1,12 @@
 /**
  * 成人 · NSFW 口味（预设 + 丰满规范）
- * 扩展：在 presets.mjs 追加条目，并在 enrichment.mjs 补齐同 id 规范
+ * 扩展：在 presets/{group}.mjs 追加条目，并在 enrichment/{group}.mjs 补齐同 id 规范
  */
-import { NSFW_FLAVOR_PRESETS } from './presets.mjs';
+import { FLAVOR_GROUPS } from './groups.mjs';
+import { NSFW_FLAVOR_PRESETS } from './presets/catalog.mjs';
+import { NSFW_FLAVOR_ENRICHMENT } from './enrichment/catalog.mjs';
 import {
   NSFW_FLAVOR_DEFAULT_MIN_CHARS,
-  NSFW_FLAVOR_ENRICHMENT,
   FLAVOR_SHARED_DIMENSIONS,
   applyFlavorEnrichment,
   collectFlavorEnrichment,
@@ -14,13 +15,14 @@ import {
   buildFlavorExpandSystemPrompt,
   buildFlavorExpandUserPrompt,
   compactCharCount,
-} from './enrichment.mjs';
+} from './enrichment/logic.mjs';
 
 applyFlavorEnrichment(NSFW_FLAVOR_PRESETS);
 
 export var NSFWFLAVOR_IDS = Object.keys(NSFW_FLAVOR_PRESETS);
 
 export {
+  FLAVOR_GROUPS,
   NSFW_FLAVOR_PRESETS,
   NSFW_FLAVOR_DEFAULT_MIN_CHARS,
   NSFW_FLAVOR_ENRICHMENT,
