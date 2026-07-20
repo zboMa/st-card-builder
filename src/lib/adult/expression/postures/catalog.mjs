@@ -10,6 +10,8 @@ import { PRESETS as carry } from './carry.mjs';
 import { PRESETS as scene } from './scene.mjs';
 import { PRESETS as adaptive } from './adaptive.mjs';
 import { PRESETS as multi } from './multi.mjs';
+import { PRESETS as actFocus } from './actFocus.mjs';
+import { PRESETS as finish } from './finish.mjs';
 import { PRESETS as edging } from './edging.mjs';
 import { PRESETS as clothed } from './clothed.mjs';
 import { PRESETS as named } from './named.mjs';
@@ -19,7 +21,7 @@ export var EROTIC_POSTURE_PRESETS = Object.assign(
   {},
   face, rear, riding, side, standing, kneeling,
   restraint, mirror, carry, scene, adaptive, multi,
-  edging, clothed, named, multiAct
+  actFocus, finish, edging, clothed, named, multiAct
 );
 
 export var EROTIC_POSTURE_IDS = Object.keys(EROTIC_POSTURE_PRESETS);
