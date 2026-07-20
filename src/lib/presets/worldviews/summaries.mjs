@@ -82,4 +82,11 @@ export var WORLDVIEW_SUMMARIES = {
   showbiz_resource_hunt: '试镜番位代言待播雪藏同桌讨价，柔情先写进通告表与合约',
   closed_female_domain: '门规石碑访客章切边界，外男引荐簿签错人整层年卡冻结',
   suggestion_service_trade: 'App订阅疗程包切同意，冥想舱瑜伽课录音存档反做免责证据',
+  doorstep_dispatch: '订单编号行程录音把陌生人送进门，评分下线与投诉专员裁定生计',
+  membership_bathhouse: '腕带等级切分公共池与私汤，续费黑名单比雾气更早改写谁能进来',
+  atelier_shortcourse: '周课气味劳动逼人反复回炉，留位名额与结业评分软绳拉住同期',
+  rule_overlay_realm: '模拟器与剧本日腕带压过物理常识，退出阀与日志丢包决定谁还活着',
+  transit_capsule: '限时通行证锁住一夜共处，查铺广播与离站截止把亲密撕成一次性',
+  live_gift_court: '礼物榜即位份，公屏见证后结算群把甜蜜折成返点与封号申诉',
+  clan_name_debauch: '改口酒与族谱添笔给越界上锁，祠堂座次胙肉把名分变成全族背书',
 };
