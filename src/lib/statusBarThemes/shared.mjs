@@ -99,8 +99,9 @@ export function guessPct(sample) {
 export function classifyPath(p) {
   var s = ((p && p.label) || '') + ' ' + ((p && p.path) || '') + ' ' + ((p && p.group) || '');
   if (/时间|天气|地点|位置|场景|日期/i.test(s)) return 'meta';
+  if (/恶堕进度|关系阶段/.test(s)) return 'narrative';
   if (/好感|信任|亲密度|体力|魔力|生命|理智|金钱|等级|进度|快感|高潮|hp|mp|san/i.test(s)) return 'meter';
-  if (/内心|双乳|小穴|美腿|美脚|屁穴|口腔|敏感|体液|露出|调教|性经验|性行为|亲密/i.test(s)) return 'nsfw';
+  if (/内心|双乳|小穴|美腿|美脚|屁穴|口腔|敏感|体液|露出|调教|性经验|性行为|亲密|恶堕/i.test(s)) return 'nsfw';
   if (/物品|道具|任务|事件|记忆|线索/i.test(s)) return 'items';
   if (/情绪|心情|行动|着装|关系|阶段|状态/i.test(s)) return 'narrative';
   return 'attr';

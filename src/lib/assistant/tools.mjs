@@ -95,6 +95,7 @@ export const ASSISTANT_TOOLS = [
   { name: 'set_novel_adult_mode', kind: 'write', risk: 'auto', summary: '开关小说全局 NSFW（原始资料·全局配置；联动分析/世界书/文风）', argsHint: '{ enabled: boolean }' },
   { name: 'set_novel_ntl_mode', kind: 'write', risk: 'auto', summary: '开关小说全局 NTL 禁忌张力层（与 NSFW 解耦，可叠加）', argsHint: '{ enabled: boolean }' },
   { name: 'draft_nsfw_statusbar', kind: 'read', risk: 'none', summary: '从人物 NSFW 生成状态栏变量草案（不写入）', argsHint: '{ name? }' },
+  { name: 'generate_corruption_lore', kind: 'generate', risk: 'confirm', summary: '生成/更新恶堕进度总则与角色分期档案世界书', argsHint: '{ selectedNames?, preset?, customBrief?, templateOnly? }' },
   { name: 'novel_distill_style', kind: 'generate', risk: 'confirm', summary: 'await 文风蒸馏', argsHint: '{}' },
   { name: 'novel_patch_chapters', kind: 'write', risk: 'auto', summary: '章节合并/启停/调序/删/重命名', argsHint: '{ action, ids?, id?, title?, enabled? }' },
   { name: 'novel_expand_character', kind: 'generate', risk: 'confirm', summary: '按人物 id/名扩写档案（附录1；助手直跑跳过确认弹窗）', argsHint: '{ target|{id|name}, mode?, instruction? }' },

@@ -6,6 +6,7 @@
 var PENDING_TOOL_LABELS = {
   generate_worldbook_entry: '生成并写入世界书条目',
   generate_worldbook_skeleton: '生成世界书骨架',
+  generate_corruption_lore: '生成恶堕进度世界书',
   generate_character_draft: '生成角色草稿',
   organize_worldbook: '整理世界书',
   switch_card: '切换卡片',

@@ -86,6 +86,45 @@
       </div>
     </div>
     <span class="char-nsfw-subtitle" style="margin-top:6px;display:block;">口味预设决定写法风格与画面感——同一张 Kinks 牌在不同口味下读起来完全不同。NTL 勾选具体方向来细化禁忌维度。</span>
+
+    <div id="charCorruptionBlock" class="char-corruption-block" style="display:none;margin-top:12px;">
+      <div class="char-nsfw-flavor-line" style="margin-bottom:6px;">
+        <label class="novel-switch">
+          <input id="charCorruptionEnabled" type="checkbox" />
+          <span>恶堕进度</span>
+        </label>
+        <span class="char-nsfw-subtitle">总则 1 条 + 每角色 1 条分期档案；当前阶段用状态栏「恶堕进度」变量</span>
+      </div>
+      <div id="charCorruptionBody" style="display:none;">
+        <div class="char-nsfw-flavor-line" style="margin-bottom:6px;">
+          <span class="char-nsfw-sub">阶数</span>
+          <select id="charCorruptionPreset" style="font-size:0.73rem;padding:3px 8px;border-radius:6px;border:1px solid var(--color-border);background:var(--color-surface);color:var(--color-text);">
+            <option value="3">简洁 3 阶</option>
+            <option value="5" selected>标准 5 阶（默认）</option>
+            <option value="7">细腻 7 阶</option>
+            <option value="custom">自定义（描述生成）</option>
+          </select>
+          <label class="novel-switch" style="margin-left:4px;">
+            <input id="charCorruptionFemaleOnly" type="checkbox" checked />
+            <span class="char-nsfw-subtitle">默认仅女角色</span>
+          </label>
+          <label class="novel-switch">
+            <input id="charCorruptionSyncSb" type="checkbox" checked />
+            <span class="char-nsfw-subtitle">同步状态栏模块</span>
+          </label>
+        </div>
+        <div id="charCorruptionCustomRow" style="display:none;margin-bottom:6px;">
+          <textarea id="charCorruptionCustomBrief" rows="2" placeholder="描述堕落弧光，例如：清纯学妹被一步步引诱，最终主动沉沦……" style="width:100%;font-size:0.75rem;padding:6px 8px;border-radius:6px;border:1px solid var(--color-border);background:var(--color-surface);color:var(--color-text);resize:vertical;"></textarea>
+        </div>
+        <div class="char-nsfw-subtitle" style="margin-bottom:4px;">生成对象（可改勾选；男角色默认不勾）</div>
+        <div id="charCorruptionTargets" class="char-corruption-targets"></div>
+        <div class="char-nsfw-flavor-line" style="margin-top:8px;gap:8px;">
+          <button type="button" id="btnRefreshCorruptionTargets" class="btn btn-ghost" style="font-size:0.72rem;padding:4px 10px;">刷新角色列表</button>
+          <button type="button" id="btnGenCorruptionLore" class="btn btn-primary" style="font-size:0.72rem;padding:4px 12px;">生成/更新恶堕世界书</button>
+          <span id="charCorruptionTip" class="ui-status-tip" role="status" aria-live="polite"></span>
+        </div>
+      </div>
+    </div>
   </div>
 
   <hr class="divider" />
@@ -156,6 +195,26 @@
     font-size: 0.7rem;
     color: var(--color-text-muted);
     line-height: 1.4;
+  }
+  .char-corruption-block {
+    padding-top: 8px;
+    border-top: 1px dashed var(--color-border);
+  }
+  .char-corruption-targets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    max-height: 120px;
+    overflow: auto;
+    padding: 4px 0;
+  }
+  .char-corruption-targets label {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.72rem;
+    color: var(--color-text);
+    cursor: pointer;
   }
   .char-tags-add-row {
     display: flex;

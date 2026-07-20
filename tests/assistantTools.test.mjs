@@ -69,6 +69,7 @@ const TOOL_MIN_ARGS = {
   set_novel_adult_mode: { enabled: true },
   set_novel_ntl_mode: { enabled: false },
   draft_nsfw_statusbar: {},
+  generate_corruption_lore: { templateOnly: true, selectedNames: ['测试'] },
   novel_distill_style: {},
   novel_patch_chapters: { action: 'enable', id: 'ch1' },
   novel_expand_character: { target: { name: '林月' } },
@@ -207,6 +208,19 @@ function createFullMockBridge(seed) {
     setNovelAdultMode: function(on) { state.novel.adultMode = on; return on; },
     setNovelNtlMode: function(on) { state.novel.ntlMode = on; return on; },
     draftNsfwStatusBar: function() { return { draft: true, variables: [] }; },
+    generateCorruptionLore: async function(opts) {
+      return {
+        ok: true,
+        stageNames: ['未触碰', '动摇', '越界', '沉沦', '彻底恶堕'],
+        archiveCount: (opts && opts.selectedNames && opts.selectedNames.length) || 1,
+        usedAi: false,
+        templateOnly: !!(opts && opts.templateOnly),
+      };
+    },
+    getNsfwConfig: function() {
+      return { enabled: true, corruptionEnabled: true, corruptionPreset: '5' };
+    },
+    setNsfwConfig: function() { return true; },
     patchNovelChapters: function(opts) { return { action: opts.action, ok: true }; },
     mutateNovelCharacter: async function(opts) {
       var t = opts.target || opts;

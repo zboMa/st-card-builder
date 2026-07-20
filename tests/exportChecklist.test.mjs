@@ -36,6 +36,23 @@ describe('exportChecklist', function() {
     assert.equal(b.canExportPng, true);
   });
 
+  it('extraIssues from corruption checklist surface as warnings', function() {
+    var r = buildExportChecklist({
+      charName: 'A',
+      charDesc: 'Long enough character description text for passing the min length gate xx',
+      firstMes: 'hi',
+      worldbookCount: 1,
+      hasAvatar: true,
+      extraIssues: [{
+        code: 'corruption_no_rules',
+        level: 'warning',
+        message: '已启用恶堕进度，但缺少世界书',
+        view: 'worldbook',
+      }],
+    });
+    assert.ok(r.items.some(function(i) { return i.id === 'corruption_no_rules'; }));
+  });
+
   it('novel unsynced is warning', function() {
     var r = buildExportChecklist({
       charName: 'A',

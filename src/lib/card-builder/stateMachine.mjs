@@ -86,6 +86,13 @@ export function createCardStateMachine(state) {
     state.nsfwFlavor = d.nsfwFlavor || '';
     state.ntlEnabled = !!d.ntlEnabled;
     state.ntlTabooTypes = Array.isArray(d.ntlTabooTypes) ? d.ntlTabooTypes.slice() : [];
+    state.corruptionEnabled = !!d.corruptionEnabled;
+    state.corruptionPreset = d.corruptionPreset || '5';
+    state.corruptionCustomBrief = d.corruptionCustomBrief || '';
+    state.corruptionStageNames = Array.isArray(d.corruptionStageNames) ? d.corruptionStageNames.slice() : [];
+    state.corruptionSelectedNames = Array.isArray(d.corruptionSelectedNames) ? d.corruptionSelectedNames.slice() : [];
+    state.corruptionDefaultFemaleOnly = d.corruptionDefaultFemaleOnly !== false;
+    state.corruptionSyncStatusBar = d.corruptionSyncStatusBar !== false;
     return true;
   }
 
@@ -108,6 +115,13 @@ export function createCardStateMachine(state) {
     state.nsfwFlavor = '';
     state.ntlEnabled = false;
     state.ntlTabooTypes = [];
+    state.corruptionEnabled = false;
+    state.corruptionPreset = '5';
+    state.corruptionCustomBrief = '';
+    state.corruptionStageNames = [];
+    state.corruptionSelectedNames = [];
+    state.corruptionDefaultFemaleOnly = true;
+    state.corruptionSyncStatusBar = true;
   }
 
   function deleteDraft(id) {

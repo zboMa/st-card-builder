@@ -145,6 +145,7 @@ export function bootCardBuilder() {
   try {
     if (ctx.panels.character.renderCharTags) ctx.panels.character.renderCharTags();
     if (ctx.panels.character.renderNsfwBlock) ctx.panels.character.renderNsfwBlock();
+    if (ctx.panels.character.renderCorruptionBlock) ctx.panels.character.renderCorruptionBlock();
   } catch (err) {
     console.error('[card-builder] initial character render failed', err);
   }
@@ -174,6 +175,13 @@ export function bootCardBuilder() {
       nsfwFlavor: ctx.state.nsfwFlavor || '',
       ntlEnabled: !!ctx.state.ntlEnabled,
       ntlTabooTypes: (ctx.state.ntlTabooTypes || []).slice(),
+      corruptionEnabled: !!ctx.state.corruptionEnabled,
+      corruptionPreset: ctx.state.corruptionPreset || '5',
+      corruptionCustomBrief: ctx.state.corruptionCustomBrief || '',
+      corruptionStageNames: Array.isArray(ctx.state.corruptionStageNames) ? ctx.state.corruptionStageNames.slice() : [],
+      corruptionSelectedNames: Array.isArray(ctx.state.corruptionSelectedNames) ? ctx.state.corruptionSelectedNames.slice() : [],
+      corruptionDefaultFemaleOnly: ctx.state.corruptionDefaultFemaleOnly !== false,
+      corruptionSyncStatusBar: ctx.state.corruptionSyncStatusBar !== false,
     }));
     ctx.updateAIDebugStatus();
   }
@@ -231,6 +239,13 @@ export function bootCardBuilder() {
       if (c.nsfwEnabled != null) ctx.state.nsfwEnabled = !!c.nsfwEnabled;
       if (c.ntlEnabled != null) ctx.state.ntlEnabled = !!c.ntlEnabled;
       if (Array.isArray(c.ntlTabooTypes)) ctx.state.ntlTabooTypes = c.ntlTabooTypes.slice();
+      if (c.corruptionEnabled != null) ctx.state.corruptionEnabled = !!c.corruptionEnabled;
+      if (c.corruptionPreset != null) ctx.state.corruptionPreset = String(c.corruptionPreset || '5');
+      if (c.corruptionCustomBrief != null) ctx.state.corruptionCustomBrief = String(c.corruptionCustomBrief || '');
+      if (Array.isArray(c.corruptionStageNames)) ctx.state.corruptionStageNames = c.corruptionStageNames.slice();
+      if (Array.isArray(c.corruptionSelectedNames)) ctx.state.corruptionSelectedNames = c.corruptionSelectedNames.slice();
+      if (c.corruptionDefaultFemaleOnly != null) ctx.state.corruptionDefaultFemaleOnly = !!c.corruptionDefaultFemaleOnly;
+      if (c.corruptionSyncStatusBar != null) ctx.state.corruptionSyncStatusBar = !!c.corruptionSyncStatusBar;
       if (c.presetList && Array.isArray(c.presetList) && c.presetList.length > 0) {
         if (ctx.panels.aiEngine && ctx.panels.aiEngine.loadPresetsFromConfig) {
           ctx.panels.aiEngine.loadPresetsFromConfig(c.presetList);
@@ -407,6 +422,9 @@ export function bootCardBuilder() {
     var noKeys = wb.filter(function(e) {
       return e && e.enabled !== false && (!e.keys || !e.keys.length);
     }).length;
+    var extraIssues = typeof window.__getCorruptionExportIssues__ === 'function'
+      ? window.__getCorruptionExportIssues__()
+      : [];
     return buildExportChecklist({
       charName: ctx.state.charName,
       charDesc: ctx.state.charDesc,
@@ -417,6 +435,7 @@ export function bootCardBuilder() {
       worldbookNoKeys: noKeys,
       novelUnsyncedCount: countNovelUnsynced(),
       altGreetingCount: Array.isArray(window.__altGreetings__) ? window.__altGreetings__.length : 0,
+      extraIssues: extraIssues,
     });
   };
   window.__getExportChecklist__ = window.__assistantCardApi__.exportCheck;
@@ -437,6 +456,7 @@ export function bootCardBuilder() {
       ctx.panels.cardManager.updateCardManagerUI();
     }
     if (ctx.panels.character.renderNsfwBlock) ctx.panels.character.renderNsfwBlock();
+    if (ctx.panels.character.renderCorruptionBlock) ctx.panels.character.renderCorruptionBlock();
   });
 
   window.addEventListener('hashchange', function() {

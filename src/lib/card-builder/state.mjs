@@ -27,6 +27,13 @@ export function createDefaultCardState() {
     nsfwFlavor: '',
     ntlEnabled: false,
     ntlTabooTypes: [],
+    corruptionEnabled: false,
+    corruptionPreset: '5',
+    corruptionCustomBrief: '',
+    corruptionStageNames: [],
+    corruptionSelectedNames: [],
+    corruptionDefaultFemaleOnly: true,
+    corruptionSyncStatusBar: true,
   };
 }
 
@@ -59,6 +66,13 @@ export function buildDraftSnapshot(state) {
     nsfwFlavor: s.nsfwFlavor || '',
     ntlEnabled: !!s.ntlEnabled,
     ntlTabooTypes: (s.ntlTabooTypes || []).slice(),
+    corruptionEnabled: !!s.corruptionEnabled,
+    corruptionPreset: s.corruptionPreset || '5',
+    corruptionCustomBrief: s.corruptionCustomBrief || '',
+    corruptionStageNames: Array.isArray(s.corruptionStageNames) ? s.corruptionStageNames.slice() : [],
+    corruptionSelectedNames: Array.isArray(s.corruptionSelectedNames) ? s.corruptionSelectedNames.slice() : [],
+    corruptionDefaultFemaleOnly: s.corruptionDefaultFemaleOnly !== false,
+    corruptionSyncStatusBar: s.corruptionSyncStatusBar !== false,
     updatedAt: new Date().toLocaleTimeString('zh-CN', { hour12: false }),
   };
 }

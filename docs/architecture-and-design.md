@@ -143,7 +143,60 @@ tests/                             # 22 个测试文件，346 个测试，全部
 
 ### 全局配置 —— 角色设定是唯一入口
 
-NSFW/NTL 配置存储在 `st_v3_builder_ai_config`，**CharacterPanel 是唯一 UI 入口**。
+### NTL 禁忌类型（8 种，多选）
+
+```
+年龄差 / 身份差 / 情感禁忌 / 道德冲突 / 情境禁忌 / 权力胁迫 / 隐秘关系 / 俘获救赎
+```
+
+### 恶堕进度（世界书 + MVU，非独立 NSFW 口味）
+
+```
+默认 5 阶：未触碰 → 动摇 → 越界 → 沉沦 → 彻底恶堕
+可选：简洁 3 / 细腻 7 / 自定义描述生成（2–9 阶）
+
+世界书：
+  · 常驻「恶堕进度总则」1 条
+  · 每角色「恶堕档案·{名}」1 条（全阶段合集；靠角色名触发）
+状态栏模块：corruption_stage（恶堕进度）——变量选当前阶段
+入口：CharacterPanel NSFW 区块内；默认仅女角色；助手工具 generate_corruption_lore
+实现：src/lib/corruptionProgress.mjs
+```
+
+### NSFW_information 扩展结构
+
+```yaml
+NSFW_information:
+  body: {overall, breasts, waist_hips, genitals, other_features}
+  erogenous_zones: []
+  sexual_personality: ""
+  contrast: ""
+  xp_kinks: []
+  sensitive_triggers: []
+  inner_erotic_thoughts: ""
+  Sex_related_traits: {experiences, sexual_orientation, sexual_role, sexual_habits: []}
+  Kinks: []
+  Limits: []
+  # === 调色盘层 ===
+  desire_palette: {primary_hue, primary_intensity, accent_hue, accent_intensity, temperature, texture, forbidden_tint}
+  sexual_psychology: {core_desire, core_fear, shame_sources, pride_sources, desire_expression, arousal_signature, fantasy_vs_reality, attachment_after}
+  situational_modulation: {private_safe, private_charged, semi_public, post_conflict, first_time}
+  aftercare: {needs, emotional_shift, relationship_impact}
+```
+
+### 角色档案新增字段
+
+```yaml
+persona_layers: {surface, social, intimate, under_stress, secret_self}
+tension_pairs: [{trait_a, trait_b, resolution}]
+core_desire: ""
+```
+
+---
+
+## 全局配置 —— 角色设定是唯一入口
+
+**NSFW 口味 / NTL 禁忌配置** 存储于 `st_v3_builder_ai_config`（和 API Key 同级），**角色设定面板（CharacterPanel）是唯一 UI 入口**。
 
 ```
 CharacterPanel（唯一配置入口）

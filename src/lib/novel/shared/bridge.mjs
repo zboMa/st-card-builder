@@ -514,12 +514,15 @@ export function createBridge(ctx) {
         });
       }
       return list.map(function(e) {
+        var profile = (e.attrs && e.attrs.profile) || e.profile || {};
         return {
           id: e.id,
           type: e.type,
           name: e.name,
           aliases: e.aliases,
           summary: e.summary,
+          gender: profile.gender || '',
+          identity: profile.identity || '',
           selected: e.selected !== false,
           syncStatus: e.syncStatus,
           enriched: isEntityEnriched(e, !!state.strictQuality, getAdultMode(state)),

@@ -62,6 +62,7 @@ export const STATUS_BAR_MODULES = Object.freeze([
   { id: 'affection', label: '亲密度/好感', cast: 'both', hint: '好感/亲密度数值' },
   { id: 'trust', label: '信任', cast: 'both', hint: '信任度' },
   { id: 'relation_stage', label: '关系阶段', cast: 'both', hint: '陌生/朋友/恋人等阶段' },
+  { id: 'corruption_stage', label: '恶堕进度', nsfw: true, cast: 'both', hint: '未触碰/动摇/越界/沉沦/彻底恶堕等阶段' },
   { id: 'emotion', label: '情绪', cast: 'both', hint: '心情/张力' },
   { id: 'action', label: '行动', cast: 'both', hint: '当前行动/行为' },
   { id: 'location', label: '地点', cast: 'both', hint: '当前位置/场景' },
@@ -98,7 +99,7 @@ const MODS_ROMANCE = ['time_weather', 'location', 'emotion', 'affection', 'trust
 const MODS_NSFW_CORE = [
   'nsfw_vagina', 'nsfw_breasts', 'nsfw_legs', 'nsfw_feet', 'nsfw_anus', 'nsfw_thoughts',
   'nsfw_mouth', 'nsfw_erogenous', 'nsfw_orgasm', 'nsfw_fluids', 'nsfw_exposure',
-  'nsfw_training', 'nsfw_experience', 'nsfw_act_state',
+  'nsfw_training', 'nsfw_experience', 'nsfw_act_state', 'corruption_stage',
 ];
 /** 多人基础模块（无配角摘要） */
 const MODS_MULTI_BASE = ['time_weather', 'location', 'emotion', 'action', 'outfit', 'event_chips'];
@@ -121,8 +122,8 @@ export const STATUS_BAR_PRESETS = Object.freeze([
   { id: 'single_mystery', cast: 'single', label: '悬疑推理', hint: '记忆线索+事件', modules: ['time_weather', 'location', 'emotion', 'action', 'memory_summary', 'quest', 'event_chips', 'items'] },
   { id: 'single_military', cast: 'single', label: '军事行动', hint: '属性任务地点', modules: ['time_weather', 'location', 'attributes', 'action', 'outfit', 'items', 'quest', 'event_chips'] },
   { id: 'single_lovecraft', cast: 'single', label: '克苏鲁', hint: '理智向属性+记忆', modules: ['time_weather', 'location', 'attributes', 'emotion', 'action', 'memory_summary', 'event_chips', 'quest'] },
-  { id: 'single_ntl', cast: 'single', label: 'NTL 亲密', nsfw: true, hint: '恋爱+内心身体', modules: MODS_ROMANCE.concat(['nsfw_thoughts', 'nsfw_breasts', 'nsfw_legs', 'nsfw_orgasm', 'nsfw_act_state']) },
-  { id: 'single_ntr', cast: 'single', label: 'NTR 张力', nsfw: true, hint: '关系张力+身体', modules: MODS_ROMANCE.concat(['nsfw_thoughts', 'nsfw_vagina', 'nsfw_breasts', 'nsfw_fluids', 'nsfw_act_state']) },
+  { id: 'single_ntl', cast: 'single', label: 'NTL 亲密', nsfw: true, hint: '恋爱+内心身体', modules: MODS_ROMANCE.concat(['nsfw_thoughts', 'nsfw_breasts', 'nsfw_legs', 'nsfw_orgasm', 'nsfw_act_state', 'corruption_stage']) },
+  { id: 'single_ntr', cast: 'single', label: 'NTR 张力', nsfw: true, hint: '关系张力+身体', modules: MODS_ROMANCE.concat(['nsfw_thoughts', 'nsfw_vagina', 'nsfw_breasts', 'nsfw_fluids', 'nsfw_act_state', 'corruption_stage']) },
   {
     id: 'single_nsfw', cast: 'single', label: '亲密 NSFW', nsfw: true, hint: '全身体模块',
     modules: MODS_ROMANCE.concat(MODS_NSFW_CORE),
@@ -145,11 +146,11 @@ export const STATUS_BAR_PRESETS = Object.freeze([
   { id: 'multi_rpg', cast: 'multi', label: '多人冒险', hint: '属性物品任务', modules: MODS_MULTI_BASE.concat(['attributes', 'items', 'quest', 'memory_summary', 'money']) },
   {
     id: 'multi_ntl', cast: 'multi', label: 'NTL 群像', hint: '全员同套亲密模块', nsfw: true,
-    modules: MODS_MULTI_BASE.concat(['affection', 'trust', 'relation_stage', 'nsfw_thoughts', 'nsfw_breasts', 'nsfw_legs', 'nsfw_orgasm']),
+    modules: MODS_MULTI_BASE.concat(['affection', 'trust', 'relation_stage', 'nsfw_thoughts', 'nsfw_breasts', 'nsfw_legs', 'nsfw_orgasm', 'corruption_stage']),
   },
   {
     id: 'multi_ntr', cast: 'multi', label: 'NTR 张力', hint: '关系张力+内心', nsfw: true,
-    modules: MODS_MULTI_BASE.concat(['affection', 'trust', 'relation_stage', 'nsfw_thoughts', 'nsfw_vagina', 'nsfw_breasts', 'nsfw_act_state']),
+    modules: MODS_MULTI_BASE.concat(['affection', 'trust', 'relation_stage', 'nsfw_thoughts', 'nsfw_vagina', 'nsfw_breasts', 'nsfw_act_state', 'corruption_stage']),
   },
   {
     id: 'multi_nsfw', cast: 'multi', label: '群像 NSFW', hint: '主详+身体模块', nsfw: true,
@@ -774,6 +775,7 @@ export function buildPlaceholderPaths(opts) {
     if (flags.affection) push(prefix + '.好感度', '好感', group, '42', role);
     if (flags.trust) push(prefix + '.信任', '信任', group, '30', role);
     if (flags.relation_stage) push(prefix + '.关系阶段', '关系', group, '熟人', role);
+    if (flags.corruption_stage) push(prefix + '.恶堕进度', '恶堕进度', '亲密', '未触碰', role);
     if (flags.attributes) {
       push(prefix + '.体力', '体力', '属性', '78', role);
       push(prefix + '.魔力', '魔力', '属性', '55', role);
