@@ -420,7 +420,21 @@ describe('sidebar navigation contract', function() {
     assert.match(modal, /\[3\]\s*开场白|greetingPrompt/);
     assert.match(modal, /aiWorldviewSummary|世界与限定/);
     assert.doesNotMatch(modal, /id="aiWorldviewPresetPicker"/);
+    assert.doesNotMatch(modal, /id="aiWorldviewPreset"/);
     assert.match(modal, /__openAiEngineModal__/);
+    assert.match(modal, /ai-engine-wb-count-row/);
+    assert.match(modal, /工作重心/);
+    assert.match(modal, /\.ai-engine-continue-btn\[hidden\]/);
+    assert.match(modal, /btnAiContinueEnrich[^>]*hidden/);
+  });
+
+  it('全局下拉为可搜索选择，并跳过 hidden select', function() {
+    const layout = readFileSync(join(root, 'src/layouts/Layout.astro'), 'utf8');
+    assert.match(layout, /className = 'cs-search'|className = \"cs-search\"/);
+    assert.match(layout, /搜索选项/);
+    assert.match(layout, /hasAttribute\('hidden'\)|getAttribute\('aria-hidden'\)/);
+    assert.match(layout, /cs-native-skip/);
+    assert.match(layout, /applyFilter/);
   });
 
   it('角色设定右上角含 AI 引擎入口', function() {

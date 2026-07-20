@@ -17,10 +17,6 @@
         <div class="ai-engine-section__label">当前世界观</div>
         <p id="aiWorldviewSummary" class="ai-engine-wv-summary__text">未选择预设</p>
         <button type="button" id="btnAiEngineGotoWorldLimits" class="ai-engine-link-btn">去「世界与限定」配置</button>
-        <!-- 兼容旧单选读取：隐藏同步首项 id -->
-        <select id="aiWorldviewPreset" hidden aria-hidden="true" tabindex="-1">
-          <option value="">不使用预设</option>
-        </select>
       </div>
 
       <div class="ai-engine-section">
@@ -31,7 +27,8 @@
         </div>
         <div class="form-group ai-engine-stage">
           <label class="ai-stage-label ai-stage-label--wb" for="wbPrompt">[2] 世界书方向</label>
-          <textarea id="wbPrompt" placeholder="例如：围绕赛博废土展开，包含武器、势力、地点、NPC..." rows="2"></textarea>
+          <p class="ai-engine-field-hint ai-engine-field-hint--tight">写清本轮世界书的<strong>工作重心</strong>（人物 / 地点 / 势力 / 器物…）与<strong>自定义侧重</strong>；与上方世界观预设叠加，冲突时以本框为准。</p>
+          <textarea id="wbPrompt" placeholder="例如：优先写人物关系网与两处关键场所；自定义：少写宏大史诗，多写可触发的日常器物与规矩。" rows="2"></textarea>
         </div>
         <div class="form-group ai-engine-stage">
           <label class="ai-stage-label ai-stage-label--greeting" for="greetingPrompt">[3] 开场白</label>
@@ -56,19 +53,19 @@
           <input type="checkbox" id="aiEnginePauseAfterOutline" />
           <span>大纲完成后暂停（再点「继续丰满」）</span>
         </label>
-        <div class="ai-engine-skeleton-row">
+        <div class="ai-engine-wb-count-row" role="group" aria-label="世界书条数">
           <span class="ai-engine-field-hint ai-engine-field-hint--tight">世界书条数</span>
           <div class="ai-engine-skeleton-count">
             <input type="number" id="wbSkeletonCount" value="10" min="1" max="30" aria-label="世界书条数" />
             <span class="ai-engine-field-hint">条</span>
           </div>
-        </div>
-        <div class="ai-engine-skeleton-pills">
-          <button type="button" class="ui-pill-btn wb-count-btn" data-count="6">6</button>
-          <button type="button" class="ui-pill-btn wb-count-btn" data-count="10">10</button>
-          <button type="button" class="ui-pill-btn wb-count-btn" data-count="13">13</button>
-          <button type="button" class="ui-pill-btn wb-count-btn" data-count="16">16</button>
-          <button type="button" class="ui-pill-btn wb-count-btn" data-count="20">20</button>
+          <div class="ai-engine-skeleton-pills">
+            <button type="button" class="ui-pill-btn wb-count-btn" data-count="6">6</button>
+            <button type="button" class="ui-pill-btn wb-count-btn" data-count="10">10</button>
+            <button type="button" class="ui-pill-btn wb-count-btn" data-count="13">13</button>
+            <button type="button" class="ui-pill-btn wb-count-btn" data-count="16">16</button>
+            <button type="button" class="ui-pill-btn wb-count-btn" data-count="20">20</button>
+          </div>
         </div>
       </div>
 
@@ -234,11 +231,11 @@
     cursor: pointer;
   }
   .ai-engine-pause-row input { margin-top: 2px; }
-  .ai-engine-skeleton-row {
+  .ai-engine-wb-count-row {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    justify-content: space-between;
-    gap: 10px;
+    gap: 8px 10px;
   }
   .ai-engine-skeleton-count {
     display: flex;
@@ -257,8 +254,9 @@
   }
   .ai-engine-skeleton-pills {
     display: flex;
+    flex: 1 1 auto;
     gap: 4px;
-    margin-top: 8px;
+    min-width: 0;
   }
   .ai-engine-skeleton-pills .wb-count-btn {
     flex: 1;
@@ -277,6 +275,9 @@
     width: 100%;
     font-size: 0.8rem !important;
     padding: 7px 12px !important;
+  }
+  .ai-engine-continue-btn[hidden] {
+    display: none !important;
   }
 
   .ai-engine-modal__body textarea,
@@ -399,6 +400,9 @@
     document.body.classList.add('ai-engine-modal-open');
     if (typeof window.__refreshAiEngineWorldviewSummary__ === 'function') {
       window.__refreshAiEngineWorldviewSummary__();
+    }
+    if (typeof window.__syncAiContinueEnrichBtn__ === 'function') {
+      window.__syncAiContinueEnrichBtn__();
     }
     var ta = document.getElementById('aiPrompt');
     if (ta) setTimeout(function() { ta.focus(); }, 80);
