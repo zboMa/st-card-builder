@@ -14,8 +14,9 @@ import { PRESETS as FANTASY } from './data/fantasy.mjs';
 import { PRESETS as SUPERNATURAL } from './data/supernatural.mjs';
 import { PRESETS as SCIFI } from './data/scifi.mjs';
 import { PRESETS as TABOO_POWER } from './data/taboo_power.mjs';
+import { PRESETS as CATASTROPHE } from './data/catastrophe.mjs';
 
-var DATA_MODULES = [ORIENTAL, MODERN, FANTASY, SUPERNATURAL, SCIFI, TABOO_POWER];
+var DATA_MODULES = [ORIENTAL, MODERN, FANTASY, SUPERNATURAL, SCIFI, CATASTROPHE, TABOO_POWER];
 
 /** 多选上限：主 + 最多两个叠加 */
 export var MAX_WORLDVIEW_PRESET_ITEMS = 3;

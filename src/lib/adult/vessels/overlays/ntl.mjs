@@ -154,6 +154,90 @@ export var NTL_VESSEL_OVERLAYS = {
     antiPatterns: ['无替代结构的普通三角'],
     signals: ['替代', '文书', '撤换', '名额', '顶替'],
   },
+  mentor_disciple: {
+      mustCover: [ "拜师帖/传功器物", "教习场所门禁", "宗门处分条例物证" ],
+      writingGuide: "名分器物化。",
+      antiPatterns: [ "无师门结构的普通乱伦标签" ],
+      signals: [ "拜师", "传功", "处分" ]
+    },
+  doctor_patient_ethic: {
+      mustCover: [ "病历权限", "约束带/诊帘规则", "投诉与伦理委员会路径" ],
+      writingGuide: "医疗器物双义。",
+      antiPatterns: [ "无医疗逻辑刑具" ],
+      signals: [ "病历", "诊帘", "伦理委员会" ]
+    },
+  fan_idol_bond: {
+      mustCover: [ "应援物/后台通行证", "私生跟踪的反制安检", "解约公关" ],
+      writingGuide: "通告与安检进机制。",
+      antiPatterns: [ "无行业结构" ],
+      signals: [ "后台", "安检", "公关" ]
+    },
+  pow_asylum: {
+      mustCover: [ "战俘登记牌", "收留宅规则", "军法/国际法条款抄本" ],
+      writingGuide: "登记与军法可见。",
+      antiPatterns: [ "无登记的黑牢当甜" ],
+      signals: [ "登记", "军法", "收留" ]
+    },
+  workplace_quid: {
+      mustCover: [ "合同附件陷阱", "监控/录音证据位", "举报箱或形同虚设的制度" ],
+      writingGuide: "证据位要设计。",
+      antiPatterns: [ "无系统的个人色狼脸谱" ],
+      signals: [ "合同", "证据", "举报" ]
+    },
+  occupation_zone: {
+      mustCover: [ "通行证", "宵禁哨", "军法处" ],
+      writingGuide: "占领靠证件与宵禁运转。",
+      antiPatterns: [ "无占领制度的乱兵清单" ],
+      signals: [ "通行证", "宵禁", "军法" ]
+    },
+  drug_leverage: {
+      mustCover: [ "药剂编号", "戒断病房", "供应链打击点" ],
+      writingGuide: "编号可追责。",
+      antiPatterns: [ "无追责的魔法迷药" ],
+      signals: [ "编号", "病房", "供应链" ]
+    },
+  opinion_kidnap: {
+      mustCover: [ "匿名帖传播链", "公关危机手册", "证据保存箱" ],
+      writingGuide: "传播链可画出来。",
+      antiPatterns: [ "无媒介的空舆论" ],
+      signals: [ "传播", "公关", "证据箱" ]
+    },
+  cuckold_structure: {
+      mustCover: [ "规则文书或信物", "观看/回避的空间设计", "事后三方谈话场所" ],
+      writingGuide: "空间服务观看政治。",
+      antiPatterns: [ "无规则的突袭伤害当唯一" ],
+      signals: [ "规则", "空间", "三方" ]
+    },
+  public_punishment_culture: {
+      mustCover: [ "法场规制", "观众席等级", "医疗救护是否允许" ],
+      writingGuide: "法场是制度建筑。",
+      antiPatterns: [ "无法场的巷打" ],
+      signals: [ "法场", "观众席", "救护" ]
+    },
+  memory_rewrite: {
+      mustCover: [ "神经柜/咒印", "回滚备份", "非法篡改罪条文" ],
+      writingGuide: "备份与罪法并行。",
+      antiPatterns: [ "无备份的永久洗脑甜宠" ],
+      signals: [ "备份", "罪法", "咒印" ]
+    },
+  faked_death_return: {
+      mustCover: [ "假死亡证明", "替身契约", "揭露物证" ],
+      writingGuide: "文书与替身契是核心。",
+      antiPatterns: [ "无文书的肥皂剧" ],
+      signals: [ "死亡证明", "替身契", "物证" ]
+    },
+  breeding_politics: {
+      mustCover: [ "配额证", "查验机构", "地下避孕网络" ],
+      writingGuide: "证件政治。",
+      antiPatterns: [ "无机构的空政策" ],
+      signals: [ "配额证", "查验", "地下" ]
+    },
+  confession_blackmail_faith: {
+      mustCover: [ "告解室隔音作伪", "教廷法庭", "密档柜" ],
+      writingGuide: "密档是核心。",
+      antiPatterns: [ "无密档的空口勒索" ],
+      signals: [ "告解室", "密档", "法庭" ]
+    },
 };
 
 /**

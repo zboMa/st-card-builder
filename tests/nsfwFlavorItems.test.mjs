@@ -27,7 +27,7 @@ describe('nsfw flavor items', function() {
     assert.equal(NSFW_FLAVOR_PRESETS.contrast.group, '特殊风味');
     assert.ok(NSFWFLAVOR_IDS.indexOf('contrast') >= 0);
     assert.equal(MAX_NSFW_FLAVOR_ITEMS, 5);
-    assert.equal(NSFWFLAVOR_IDS.length, 42);
+    assert.ok(NSFWFLAVOR_IDS.length >= 60, 'got ' + NSFWFLAVOR_IDS.length);
   });
 
   it('normalize：去重、截断、旧字段迁移', function() {

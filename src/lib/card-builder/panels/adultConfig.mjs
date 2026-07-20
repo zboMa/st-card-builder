@@ -371,7 +371,19 @@ export function registerAdultConfig(ctx) {
 
       var selected = Object.create(null);
       items.forEach(function(it) { selected[it.id] = true; });
-      var groups = { '情绪基调': [], '关系动态': [], '特殊风味': [], '感官节奏': [] };
+      var groups = {};
+      var flavorGroupList = (window.__nsfwFlavorData__ && window.__nsfwFlavorData__.groups)
+        || [
+          { id: '情绪基调' }, { id: '关系动态' }, { id: '特殊风味' },
+          { id: '感官节奏' }, { id: '异质物质' },
+        ];
+      flavorGroupList.forEach(function(g) {
+        var gid = typeof g === 'string' ? g : (g.id || g.label);
+        if (gid) groups[gid] = [];
+      });
+      if (!Object.keys(groups).length) {
+        groups = { '情绪基调': [], '关系动态': [], '特殊风味': [], '感官节奏': [], '异质物质': [] };
+      }
       data.ids.forEach(function(id) {
         if (selected[id]) return;
         var f = data.presets[id];

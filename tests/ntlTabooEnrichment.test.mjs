@@ -23,8 +23,8 @@ import {
 import { createDefaultNovelState } from '../src/lib/novel/state.mjs';
 
 describe('ntl taboo enrichment', function() {
-  it('含百破且共 25 类，均有丰满字段与分组', function() {
-    assert.equal(NTL_TABOO_IDS.length, 25);
+  it('含百破且≥35 类，均有丰满字段与分组', function() {
+    assert.ok(NTL_TABOO_IDS.length >= 35, 'got ' + NTL_TABOO_IDS.length);
     assert.ok(NTL_TABOO_TYPES.yuri_destruction);
     assert.equal(NTL_TABOO_TYPES.yuri_destruction.label, '百破');
     assert.match(NTL_TABOO_TYPES.yuri_destruction.description, /百合破坏/);

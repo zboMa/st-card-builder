@@ -7,5 +7,6 @@ export var WORLDVIEW_GROUPS = [
   { id: 'fantasy', label: '奇幻异界' },
   { id: 'supernatural', label: '超自然族群' },
   { id: 'scifi', label: '科幻末日' },
+  { id: 'catastrophe', label: '灾变异质' },
   { id: 'taboo_power', label: '权力禁忌' },
 ];

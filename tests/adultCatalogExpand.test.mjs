@@ -20,8 +20,10 @@ import {
 import { buildWorldviewHint } from '../src/lib/presets/worldviews/index.mjs';
 
 describe('adultCatalogExpand', function() {
-  it('口味≥40 且每条有 enrichment', function() {
-    assert.ok(NSFWFLAVOR_IDS.length >= 40);
+  it('口味≥60 且每条有 enrichment/overlay；含异质物质组', function() {
+    assert.ok(NSFWFLAVOR_IDS.length >= 60, 'got ' + NSFWFLAVOR_IDS.length);
+    assert.ok(NSFW_FLAVOR_PRESETS.tentacle, 'tentacle');
+    assert.ok(NSFW_FLAVOR_PRESETS.bodily_fluids, 'bodily_fluids');
     NSFWFLAVOR_IDS.forEach(function(id) {
       assert.ok(NSFW_FLAVOR_PRESETS[id], id);
       assert.ok(NSFW_FLAVOR_ENRICHMENT[id], 'en ' + id);
@@ -29,8 +31,8 @@ describe('adultCatalogExpand', function() {
     });
   });
 
-  it('NTL≥20 且每条有 enrichment/overlay；age_gap 区分礼法成年', function() {
-    assert.ok(NTL_TABOO_IDS.length >= 20);
+  it('NTL≥35 且每条有 enrichment/overlay；age_gap 区分礼法成年', function() {
+    assert.ok(NTL_TABOO_IDS.length >= 35, 'got ' + NTL_TABOO_IDS.length);
     assert.match(String(NTL_TABOO_TYPES.age_gap.description || ''), /成年礼/);
     assert.match(String(NTL_TABOO_TYPES.age_gap.description || ''), /儿童性化/);
     NTL_TABOO_IDS.forEach(function(id) {
@@ -39,9 +41,10 @@ describe('adultCatalogExpand', function() {
     });
   });
 
-  it('载体框架≥14 含女尊宫廷等扩展', function() {
-    assert.ok(WORLDFRAME_IDS.length >= 14);
-    ['matriarchy', 'court', 'pirate', 'wasteland', 'idol_industry', 'medical', 'mecha', 'honghuang']
+  it('载体框架≥20 含血月卡界触手等', function() {
+    assert.ok(WORLDFRAME_IDS.length >= 20, 'got ' + WORLDFRAME_IDS.length);
+    ['matriarchy', 'court', 'pirate', 'wasteland', 'idol_industry', 'medical', 'mecha', 'honghuang',
+      'blood_moon', 'card_world', 'tentacle_abyss', 'slime_ecology', 'time_loop', 'bio_hive']
       .forEach(function(id) {
         assert.ok(WORLDFRAME_IDS.indexOf(id) >= 0, id);
       });

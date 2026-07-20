@@ -28,8 +28,8 @@ import {
 import { WORLDFRAME_IDS } from '../src/lib/adult/vessels/index.mjs';
 
 describe('worldviewPresets', function() {
-  it('至少 40 项且 id 唯一，达到厚度底线', function() {
-    assert.ok(WORLDVIEW_PRESETS.length >= 40, 'expected >=40, got ' + WORLDVIEW_PRESETS.length);
+  it('至少 70 项且 id 唯一，达到厚度底线', function() {
+    assert.ok(WORLDVIEW_PRESETS.length >= 70, 'expected >=70, got ' + WORLDVIEW_PRESETS.length);
     assert.equal(WORLDVIEW_PRESET_IDS.length, WORLDVIEW_PRESETS.length);
     var seen = Object.create(null);
     WORLDVIEW_PRESETS.forEach(function(p) {
@@ -59,6 +59,7 @@ describe('worldviewPresets', function() {
   it('关键项与扩展组合项存在', function() {
     ['xianxia', 'matriarchy', 'corruption_realm', 'succubus',
       'zhiguai_shanhai', 'modern_xianxia_hidden', 'folk_haunt', 'yaomeng_spirits',
+      'blood_moon_era', 'card_world', 'tentacle_abyss_civ',
     ].forEach(function(id) {
       var p = getWorldviewPreset(id);
       assert.ok(p, 'missing preset ' + id);

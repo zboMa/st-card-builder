@@ -256,4 +256,142 @@ export var FLAVOR_VESSEL_OVERLAYS = {
     antiPatterns: ['无权限结构的随机拒绝'],
     signals: ['高潮', '批准', '权限', '禁止', '请示'],
   },
+  tentacle: {
+      mustCover: [ "可公证的解缠口令器物", "缠缚场所的分区与退出通道", "清理粘液的药剂/清洗间" ],
+      writingGuide: "世界要提供解缠信物与清洗设施，禁止只有缠没有退。",
+      antiPatterns: [ "无退出的永久缠死装置当唯一玩法" ],
+      signals: [ "口令", "解缠", "清洗", "分区", "信物" ]
+    },
+  bodily_fluids: {
+      mustCover: [ "清洗间/换衣规则", "可接受的标记范围条例", "清洁药剂或沐浴设施" ],
+      writingGuide: "载体提供可清洗、可限制范围的物质条件。",
+      antiPatterns: [ "无清洁设施的强制弄脏" ],
+      signals: [ "清洗", "标记范围", "药剂", "沐浴" ]
+    },
+  oviposition_play: {
+      mustCover: [ "可取出的卵形器物规格", "检查与取出的医疗/仪式场所", "停止口令等价物" ],
+      writingGuide: "载体必须支持取出与中止，禁止不可逆强制孕育装置当甜宠。",
+      antiPatterns: [ "不可取出的永久植入当默认" ],
+      signals: [ "取出", "规格", "检查", "口令", "中止" ]
+    },
+  slime: {
+      mustCover: [ "中和剂配给点", "清洁律相关设施", "包裹可解除的机关" ],
+      writingGuide: "市政级清洁与中和必须存在。",
+      antiPatterns: [ "无解除机关的永久凝胶牢" ],
+      signals: [ "中和剂", "清洁", "解除", "机关" ]
+    },
+  pheromone: {
+      mustCover: [ "抑制贴/净味场所", "暴香罪相关条例物证", "嗅觉检测装置" ],
+      writingGuide: "世界提供抑制与执法，不只是「很香」。",
+      antiPatterns: [ "无抑制物资" ],
+      signals: [ "抑制贴", "净味", "检测", "条例" ]
+    },
+  body_morph: {
+      mustCover: [ "回滚药剂/装置", "变形许可证件", "镜像确认室" ],
+      writingGuide: "许可与回滚是公共基础设施。",
+      antiPatterns: [ "无回滚的永久改造刑具当默认情趣" ],
+      signals: [ "回滚", "许可", "镜像", "药剂" ]
+    },
+  nonhuman_orifice: {
+      mustCover: [ "物种生理手册类载体", "专用润滑/适配器物", "护理室" ],
+      writingGuide: "世界提供适配说明与护理，不是只有猎奇。",
+      antiPatterns: [ "无适配说明的伤害器具" ],
+      signals: [ "手册", "润滑", "适配", "护理" ]
+    },
+  symbiosis_parasite: {
+      mustCover: [ "剥离仪式/药剂", "共生契约文书", "自我边界检测" ],
+      writingGuide: "契约与剥离必须可执行。",
+      antiPatterns: [ "不可剥离的永久寄生当默认恋爱" ],
+      signals: [ "剥离", "契约", "检测", "药剂" ]
+    },
+  obsession: {
+      mustCover: [ "可切断的监视信物规则", "冷静期场所", "边界协议物证" ],
+      writingGuide: "世界提供冷静期与切断机制。",
+      antiPatterns: [ "不可关闭的监控当甜宠" ],
+      signals: [ "切断", "冷静期", "协议" ]
+    },
+  vengeful_desire: {
+      mustCover: [ "可记录的旧怨信物", "翻转权力的场所规则", "和解或永裂的仪式" ],
+      writingGuide: "旧怨要物证化。",
+      antiPatterns: [ "无动机的随机施暴" ],
+      signals: [ "旧怨", "信物", "翻转", "和解" ]
+    },
+  awe_dread_lust: {
+      mustCover: [ "请愿仪式器物", "可拒绝的神谕结构", "安放场所" ],
+      writingGuide: "拒绝必须可能。",
+      antiPatterns: [ "不可拒绝的神谕强奸机关" ],
+      signals: [ "请愿", "拒绝", "安放" ]
+    },
+  protocol_slave: {
+      mustCover: [ "可销毁的契约文本", "安全词信物", "复核日程装置" ],
+      writingGuide: "文本可毁、词可喊。",
+      antiPatterns: [ "不可毁永契当唯一" ],
+      signals: [ "文本", "信物", "复核" ]
+    },
+  public_protocol: {
+      mustCover: [ "可关闭的展示场", "观众准入名单", "紧急降下幕布机制" ],
+      writingGuide: "幕布必须降得下来。",
+      antiPatterns: [ "无降下的永久曝光台" ],
+      signals: [ "名单", "幕布", "准入" ]
+    },
+  group_power_field: {
+      mustCover: [ "否决信物", "轮转计时", "多人安抚空间" ],
+      writingGuide: "否决信物人人可见。",
+      antiPatterns: [ "无否决机制的围场" ],
+      signals: [ "否决", "计时", "安抚空间" ]
+    },
+  bondage_focus: {
+      mustCover: [ "安全剪固定位置", "束缚点设计规范", "解开后护理站" ],
+      writingGuide: "场所预装安全。",
+      antiPatterns: [ "无剪的死结刑架当情趣" ],
+      signals: [ "安全剪", "规范", "护理" ]
+    },
+  pain_edge: {
+      mustCover: [ "强度量表物证", "刹停铃", "护理药膏与记录" ],
+      writingGuide: "铃与药膏是基础设施。",
+      antiPatterns: [ "无刹停铃的刑具房" ],
+      signals: [ "量表", "铃", "药膏" ]
+    },
+  sacrilege: {
+      mustCover: [ "虚构圣器", "告解室规则", "可逆的符号污损清理" ],
+      writingGuide: "污损可清理，避免不可逆亵渎真实圣地。",
+      antiPatterns: [ "鼓励现实破坏宗教场所" ],
+      signals: [ "圣器", "告解", "清理" ]
+    },
+  objectification_prop: {
+      mustCover: [ "计时器", "复位袍/更衣", "安全词灯" ],
+      writingGuide: "计时结束自动提醒复位。",
+      antiPatterns: [ "无计时永久陈列" ],
+      signals: [ "计时", "复位", "灯" ]
+    },
+  uniform_ritual: {
+      mustCover: [ "更衣间规则", "衔级标识器物", "成人制服库（非校服）" ],
+      writingGuide: "库存与标识必须成人职业向。",
+      antiPatterns: [ "未成年校服库存" ],
+      signals: [ "更衣间", "衔级", "成人制服" ]
+    },
+  scent_focus: {
+      mustCover: [ "通风/散味装置", "许可香品清单", "禁迷香条例" ],
+      writingGuide: "通风是安全设施。",
+      antiPatterns: [ "密闭强制迷香室当甜" ],
+      signals: [ "通风", "清单", "禁令" ]
+    },
+  taste_focus: {
+      mustCover: [ "忌口卡片", "可拒的喂食器物", "清水/漱口站" ],
+      writingGuide: "忌口卡先于喂食。",
+      antiPatterns: [ "无视忌口的灌食器" ],
+      signals: [ "忌口", "清水", "拒" ]
+    },
+  voice_command: {
+      mustCover: [ "指令备案板", "静音否决铃", "复盘对讲" ],
+      writingGuide: "备案可见，铃可按。",
+      antiPatterns: [ "无否决的强制耳麦" ],
+      signals: [ "备案", "铃", "对讲" ]
+    },
+  blank_out: {
+      mustCover: [ "捞回口令卡", "保温毯与补水点", "过载熔断装置" ],
+      writingGuide: "熔断与毯子是标配。",
+      antiPatterns: [ "无熔断的过载刑" ],
+      signals: [ "熔断", "毯子", "口令卡" ]
+    },
 };
