@@ -339,8 +339,8 @@ const { title } = Astro.props;
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          width: 40px;
-          height: 40px;
+          width: 32px;
+          height: 32px;
           margin: 0;
           padding: 0;
           border: 1px solid var(--color-accent-border);
@@ -349,6 +349,10 @@ const { title } = Astro.props;
           color: var(--color-accent);
           cursor: pointer;
           flex-shrink: 0;
+        }
+        .app-mobile-nav-btn svg {
+          width: 16px;
+          height: 16px;
         }
         .app-mobile-nav-btn:focus-visible {
           outline: 2px solid var(--color-focus-ring);
