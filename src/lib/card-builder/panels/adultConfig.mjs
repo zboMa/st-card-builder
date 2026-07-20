@@ -4,6 +4,7 @@
  */
 import {
   CORRUPTION_PRESETS,
+  CORRUPTION_ARC_BRIEFS,
   DEFAULT_CORRUPTION_PRESET,
   normalizeCorruptionConfig,
   resolveStageNames,
@@ -1602,6 +1603,20 @@ export function registerAdultConfig(ctx) {
       if (corrBrief) corrBrief.addEventListener('change', function() {
         ctx.panels.adultConfig.syncCorruptionBlockFromUi({ skipRender: true });
       });
+      var corrArc = document.getElementById('adultCorruptionArcBrief');
+      if (corrArc) {
+        corrArc.addEventListener('change', function() {
+          var id = corrArc.value || '';
+          var pack = id && CORRUPTION_ARC_BRIEFS[id];
+          if (pack && corrBrief) {
+            corrBrief.value = pack.brief || '';
+            ctx.state.corruptionPreset = 'custom';
+            var presetEl = document.getElementById('adultCorruptionPreset');
+            if (presetEl) presetEl.value = 'custom';
+          }
+          ctx.panels.adultConfig.syncCorruptionBlockFromUi();
+        });
+      }
       if (corrFemale) corrFemale.addEventListener('change', function() {
         ctx.state.corruptionSelectedNames = [];
         ctx.panels.adultConfig.syncCorruptionBlockFromUi();

@@ -42,6 +42,30 @@ export var CORRUPTION_PRESETS = {
 
 export var CORRUPTION_PRESET_IDS = Object.keys(CORRUPTION_PRESETS);
 
+/** 自定义恶堕弧光母题包（填入 customBrief；不替代阶数预设） */
+export var CORRUPTION_ARC_BRIEFS = {
+  sacred_collapse: {
+    id: 'sacred_collapse',
+    label: '圣职崩坏弧',
+    brief:
+      '自持的圣职/守戒者在教义、告解与公开仪礼的缝隙里一步步失守：先把越界合理化成「试炼」或「牧养」，再在秘密与圣物账本之间撕裂，最终主动撕开戒律并要求他人共担污名。阶段应写出：守戒日常 → 裂缝合理化 → 秘密共犯 → 仪礼中的破绽 → 公开崩坏后的教籍代价。禁止儿童性化；同意与追责走告解、戒牒与教团处分文书。',
+  },
+  hero_complicity: {
+    id: 'hero_complicity',
+    label: '英雄同流弧',
+    brief:
+      '曾经的救场者/正义象征为了「更大胜利」与旧敌、黑市或压迫制度共饮：先是权宜结盟，再是分赃与沉默，最后发现自己已成结构的一部分。阶段应写出：理想宣言 → 第一次脏手 → 为胜利开脱 → 与旧敌同席 → 被昔日受庇护者指认。禁止把未成年人写成筹码；代价落在荣誉、编制与公开问责。',
+  },
+  vengeance_entry: {
+    id: 'vengeance_entry',
+    label: '复仇者入局弧',
+    brief:
+      '带着明确仇怨入局者，在取证、结盟与以彼之道还施彼身的过程中，逐渐采用对方的手段：监视、要挟、公开羞辱与交易身体/名誉。阶段应写出：仇恨清单 → 第一次越界取证 → 手段同化 → 分不清报复与欲望 → 复仇完成后的空账与反噬。禁止儿童性化；证据链与法律/舆论代价必须可见。',
+  },
+};
+
+export var CORRUPTION_ARC_BRIEF_IDS = Object.keys(CORRUPTION_ARC_BRIEFS);
+
 export var STAGE_SECTION_HINTS = [
   '心理状态',
   '性格与价值观偏移',
