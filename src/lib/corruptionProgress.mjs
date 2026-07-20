@@ -94,6 +94,7 @@ function asTrimmedList(v) {
  *   enabled: boolean,
  *   preset: string,
  *   customBrief: string,
+ *   extraNotes: string,
  *   stageNames: string[],
  *   selectedNames: string[],
  *   defaultFemaleOnly: boolean,
@@ -109,6 +110,7 @@ export function normalizeCorruptionConfig(cfg) {
     enabled: !!(c.enabled != null ? c.enabled : c.corruptionEnabled),
     preset: preset,
     customBrief: String(c.customBrief != null ? c.customBrief : (c.corruptionCustomBrief || '')).trim(),
+    extraNotes: String(c.extraNotes != null ? c.extraNotes : (c.corruptionExtraNotes || '')).trim(),
     stageNames: stageNames,
     selectedNames: asTrimmedList(c.selectedNames || c.corruptionSelectedNames),
     defaultFemaleOnly: c.defaultFemaleOnly !== false && c.corruptionDefaultFemaleOnly !== false,
@@ -318,7 +320,7 @@ export function buildArchiveExpandSystemPrompt() {
 }
 
 /**
- * @param {{ charName: string, stageNames: string[], worldbookContent?: string, identity?: string, customBrief?: string, nsfwFlavorHint?: string, ntlHint?: string }} opts
+ * @param {{ charName: string, stageNames: string[], worldbookContent?: string, identity?: string, customBrief?: string, extraNotes?: string, nsfwFlavorHint?: string, ntlHint?: string }} opts
  */
 export function buildArchiveUserPrompt(opts) {
   var o = opts || {};
@@ -333,6 +335,10 @@ export function buildArchiveUserPrompt(opts) {
     parts.push('【警告】未提供该角色世界书正文，请仍按角色名写出丰满分期，但勿编造与已知卡面冲突的设定。');
   }
   if (o.customBrief) parts.push('弧光补充：\n' + String(o.customBrief).trim().slice(0, CORRUPTION_BRIEF_CHARS));
+  if (o.extraNotes) {
+    parts.push('附加设定（须融入各阶段补完，禁止忽略）：\n'
+      + String(o.extraNotes).trim().slice(0, CORRUPTION_BRIEF_CHARS));
+  }
   if (o.nsfwFlavorHint) parts.push(String(o.nsfwFlavorHint).trim());
   if (o.ntlHint) parts.push(String(o.ntlHint).trim());
   if (o.canonDigest) parts.push(String(o.canonDigest).trim());

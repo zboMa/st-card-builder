@@ -130,6 +130,7 @@ export function createCardStateMachine(state) {
     state.corruptionEnabled = !!d.corruptionEnabled;
     state.corruptionPreset = d.corruptionPreset || '5';
     state.corruptionCustomBrief = d.corruptionCustomBrief || '';
+    state.corruptionExtraNotes = d.corruptionExtraNotes || '';
     state.corruptionStageNames = Array.isArray(d.corruptionStageNames) ? d.corruptionStageNames.slice() : [];
     state.corruptionSelectedNames = Array.isArray(d.corruptionSelectedNames) ? d.corruptionSelectedNames.slice() : [];
     state.corruptionDefaultFemaleOnly = d.corruptionDefaultFemaleOnly !== false;
@@ -166,6 +167,7 @@ export function createCardStateMachine(state) {
     state.corruptionEnabled = false;
     state.corruptionPreset = '5';
     state.corruptionCustomBrief = '';
+    state.corruptionExtraNotes = '';
     state.corruptionStageNames = [];
     state.corruptionSelectedNames = [];
     state.corruptionDefaultFemaleOnly = true;

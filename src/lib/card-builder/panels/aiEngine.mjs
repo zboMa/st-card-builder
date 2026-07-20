@@ -325,6 +325,7 @@ export function registerAiEngine(ctx) {
       corruptionEnabled: !!ctx.state.corruptionEnabled,
       corruptionPreset: ctx.state.corruptionPreset || '5',
       corruptionCustomBrief: ctx.state.corruptionCustomBrief || '',
+      corruptionExtraNotes: ctx.state.corruptionExtraNotes || '',
       corruptionStageNames: Array.isArray(ctx.state.corruptionStageNames) ? ctx.state.corruptionStageNames.slice() : [],
       corruptionSelectedNames: Array.isArray(ctx.state.corruptionSelectedNames) ? ctx.state.corruptionSelectedNames.slice() : [],
       corruptionDefaultFemaleOnly: ctx.state.corruptionDefaultFemaleOnly !== false,

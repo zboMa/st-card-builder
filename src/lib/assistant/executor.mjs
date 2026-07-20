@@ -674,7 +674,7 @@ export function createToolExecutor(bridge, snapApi) {
           || (typeof window !== 'undefined' ? window.__generateCorruptionLore__ : null);
         if (typeof genCorr !== 'function') return fail('恶堕进度生成桥接未就绪');
         maybeSnap();
-        if (a.preset || a.customBrief != null || a.enabled != null) {
+        if (a.preset || a.customBrief != null || a.extraNotes != null || a.enabled != null) {
           if (typeof bridge.setNsfwConfig === 'function') {
             var curB = typeof bridge.getNsfwConfig === 'function' ? bridge.getNsfwConfig() : {};
             bridge.setNsfwConfig({
@@ -682,6 +682,7 @@ export function createToolExecutor(bridge, snapApi) {
               corruptionEnabled: a.enabled !== false,
               corruptionPreset: a.preset || curB.corruptionPreset || '5',
               corruptionCustomBrief: a.customBrief != null ? String(a.customBrief) : (curB.corruptionCustomBrief || ''),
+              corruptionExtraNotes: a.extraNotes != null ? String(a.extraNotes) : (curB.corruptionExtraNotes || ''),
               corruptionSelectedNames: Array.isArray(a.selectedNames)
                 ? a.selectedNames
                 : (curB.corruptionSelectedNames || []),
@@ -693,6 +694,7 @@ export function createToolExecutor(bridge, snapApi) {
               corruptionEnabled: a.enabled !== false,
               corruptionPreset: a.preset || curCfg.corruptionPreset || '5',
               corruptionCustomBrief: a.customBrief != null ? String(a.customBrief) : (curCfg.corruptionCustomBrief || ''),
+              corruptionExtraNotes: a.extraNotes != null ? String(a.extraNotes) : (curCfg.corruptionExtraNotes || ''),
               corruptionSelectedNames: Array.isArray(a.selectedNames)
                 ? a.selectedNames
                 : (curCfg.corruptionSelectedNames || []),
