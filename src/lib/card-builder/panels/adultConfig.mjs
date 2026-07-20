@@ -366,6 +366,7 @@ export function registerAdultConfig(ctx) {
         enabled: ctx.state.corruptionEnabled,
         preset: ctx.state.corruptionPreset,
         customBrief: ctx.state.corruptionCustomBrief,
+        extraNotes: ctx.state.corruptionExtraNotes,
         stageNames: ctx.state.corruptionStageNames,
         selectedNames: ctx.state.corruptionSelectedNames,
         defaultFemaleOnly: ctx.state.corruptionDefaultFemaleOnly,
@@ -741,6 +742,7 @@ export function registerAdultConfig(ctx) {
       var presetEl = document.getElementById('adultCorruptionPreset');
       var customRow = document.getElementById('adultCorruptionCustomRow');
       var briefEl = document.getElementById('adultCorruptionCustomBrief');
+      var extraEl = document.getElementById('adultCorruptionExtraNotes');
       var femaleEl = document.getElementById('adultCorruptionFemaleOnly');
       var syncEl = document.getElementById('adultCorruptionSyncSb');
 
@@ -753,6 +755,9 @@ export function registerAdultConfig(ctx) {
       if (customRow) customRow.style.display = (ctx.state.corruptionPreset === 'custom') ? 'block' : 'none';
       if (briefEl && briefEl.value !== (ctx.state.corruptionCustomBrief || '')) {
         briefEl.value = ctx.state.corruptionCustomBrief || '';
+      }
+      if (extraEl && extraEl.value !== (ctx.state.corruptionExtraNotes || '')) {
+        extraEl.value = ctx.state.corruptionExtraNotes || '';
       }
       if (femaleEl) femaleEl.checked = ctx.state.corruptionDefaultFemaleOnly !== false;
       if (syncEl) syncEl.checked = ctx.state.corruptionSyncStatusBar !== false;
@@ -931,6 +936,7 @@ export function registerAdultConfig(ctx) {
       var enabledEl = document.getElementById('adultCorruptionEnabled');
       var presetEl = document.getElementById('adultCorruptionPreset');
       var briefEl = document.getElementById('adultCorruptionCustomBrief');
+      var extraEl = document.getElementById('adultCorruptionExtraNotes');
       var femaleEl = document.getElementById('adultCorruptionFemaleOnly');
       var syncEl = document.getElementById('adultCorruptionSyncSb');
 
@@ -938,6 +944,7 @@ export function registerAdultConfig(ctx) {
       ctx.state.corruptionPreset = presetEl ? presetEl.value : (ctx.state.corruptionPreset || '5');
       if (!CORRUPTION_PRESETS[ctx.state.corruptionPreset]) ctx.state.corruptionPreset = '5';
       ctx.state.corruptionCustomBrief = briefEl ? briefEl.value : (ctx.state.corruptionCustomBrief || '');
+      ctx.state.corruptionExtraNotes = extraEl ? extraEl.value : (ctx.state.corruptionExtraNotes || '');
       ctx.state.corruptionDefaultFemaleOnly = femaleEl ? !!femaleEl.checked : true;
       ctx.state.corruptionSyncStatusBar = syncEl ? !!syncEl.checked : true;
       if (document.getElementById('adultCorruptionTargets')) {
@@ -1104,6 +1111,7 @@ export function registerAdultConfig(ctx) {
               worldbookContent: worldbookContent,
               identity: meta.identity || '',
               customBrief: ctx.state.corruptionCustomBrief,
+              extraNotes: ctx.state.corruptionExtraNotes,
               nsfwFlavorHint: flavorHint + postureHint + speechHint,
               ntlHint: ntlHint,
               canonDigest: canonDigest,
@@ -1246,6 +1254,7 @@ export function registerAdultConfig(ctx) {
           corruptionEnabled: corr.enabled,
           corruptionPreset: corr.preset,
           corruptionCustomBrief: corr.customBrief,
+          corruptionExtraNotes: corr.extraNotes,
           corruptionStageNames: corr.stageNames.slice(),
           corruptionSelectedNames: corr.selectedNames.slice(),
           corruptionDefaultFemaleOnly: corr.defaultFemaleOnly,
@@ -1299,6 +1308,7 @@ export function registerAdultConfig(ctx) {
         if (cfg && typeof cfg.corruptionEnabled === 'boolean') ctx.state.corruptionEnabled = cfg.corruptionEnabled;
         if (cfg && typeof cfg.corruptionPreset === 'string') ctx.state.corruptionPreset = cfg.corruptionPreset;
         if (cfg && typeof cfg.corruptionCustomBrief === 'string') ctx.state.corruptionCustomBrief = cfg.corruptionCustomBrief;
+        if (cfg && typeof cfg.corruptionExtraNotes === 'string') ctx.state.corruptionExtraNotes = cfg.corruptionExtraNotes;
         if (cfg && Array.isArray(cfg.corruptionStageNames)) ctx.state.corruptionStageNames = cfg.corruptionStageNames.slice();
         if (cfg && Array.isArray(cfg.corruptionSelectedNames)) ctx.state.corruptionSelectedNames = cfg.corruptionSelectedNames.slice();
         if (cfg && typeof cfg.corruptionDefaultFemaleOnly === 'boolean') {
@@ -1590,6 +1600,7 @@ export function registerAdultConfig(ctx) {
       var corrEnabled = document.getElementById('adultCorruptionEnabled');
       var corrPreset = document.getElementById('adultCorruptionPreset');
       var corrBrief = document.getElementById('adultCorruptionCustomBrief');
+      var corrExtra = document.getElementById('adultCorruptionExtraNotes');
       var corrFemale = document.getElementById('adultCorruptionFemaleOnly');
       var corrSync = document.getElementById('adultCorruptionSyncSb');
       var corrRefresh = document.getElementById('btnRefreshCorruptionTargets');
@@ -1601,6 +1612,9 @@ export function registerAdultConfig(ctx) {
         ctx.panels.adultConfig.syncCorruptionBlockFromUi();
       });
       if (corrBrief) corrBrief.addEventListener('change', function() {
+        ctx.panels.adultConfig.syncCorruptionBlockFromUi({ skipRender: true });
+      });
+      if (corrExtra) corrExtra.addEventListener('change', function() {
         ctx.panels.adultConfig.syncCorruptionBlockFromUi({ skipRender: true });
       });
       var corrArc = document.getElementById('adultCorruptionArcBrief');

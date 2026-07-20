@@ -11,6 +11,7 @@ import {
   CORRUPTION_ARCHIVE_PREFIX,
   CORRUPTION_STATUS_MODULE_ID,
   DEFAULT_CORRUPTION_PRESET,
+  STAGE_SECTION_HINTS,
   normalizeCorruptionConfig,
   resolveStageNames,
   parseStageNamesFromText,
@@ -20,6 +21,7 @@ import {
   pickCorruptionTargets,
   buildRulesContent,
   buildArchiveContentTemplate,
+  buildArchiveUserPrompt,
   upsertWorldbookByComment,
   buildRulesWorldbookEntry,
   buildArchiveWorldbookEntry,
@@ -67,6 +69,28 @@ describe('corruptionProgress', function() {
     assert.equal(n.preset, '5');
     assert.equal(n.stageNames.length, 5);
     assert.equal(n.defaultFemaleOnly, true);
+    assert.equal(n.extraNotes, '');
+    assert.ok(Array.isArray(STAGE_SECTION_HINTS) && STAGE_SECTION_HINTS.length >= 4);
+  });
+
+  it('附加设定注入档案生成提示', function() {
+    var n = normalizeCorruptionConfig({
+      corruptionExtraNotes: '  触发：告解室钥匙  ',
+      corruptionCustomBrief: '圣职弧',
+    });
+    assert.equal(n.extraNotes, '触发：告解室钥匙');
+    assert.equal(n.customBrief, '圣职弧');
+    var prompt = buildArchiveUserPrompt({
+      charName: '林晚',
+      stageNames: CORRUPTION_PRESETS['3'].stages,
+      worldbookContent: '林晚是成年圣职者。',
+      customBrief: n.customBrief,
+      extraNotes: n.extraNotes,
+    });
+    assert.match(prompt, /弧光补充/);
+    assert.match(prompt, /圣职弧/);
+    assert.match(prompt, /附加设定/);
+    assert.match(prompt, /告解室钥匙/);
   });
 
   it('gender helpers and pick targets', function() {

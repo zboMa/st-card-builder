@@ -213,6 +213,7 @@ export function bootCardBuilder() {
       corruptionEnabled: !!ctx.state.corruptionEnabled,
       corruptionPreset: ctx.state.corruptionPreset || '5',
       corruptionCustomBrief: ctx.state.corruptionCustomBrief || '',
+      corruptionExtraNotes: ctx.state.corruptionExtraNotes || '',
       corruptionStageNames: Array.isArray(ctx.state.corruptionStageNames) ? ctx.state.corruptionStageNames.slice() : [],
       corruptionSelectedNames: Array.isArray(ctx.state.corruptionSelectedNames) ? ctx.state.corruptionSelectedNames.slice() : [],
       corruptionDefaultFemaleOnly: ctx.state.corruptionDefaultFemaleOnly !== false,
@@ -313,6 +314,7 @@ export function bootCardBuilder() {
       if (c.corruptionEnabled != null) ctx.state.corruptionEnabled = !!c.corruptionEnabled;
       if (c.corruptionPreset != null) ctx.state.corruptionPreset = String(c.corruptionPreset || '5');
       if (c.corruptionCustomBrief != null) ctx.state.corruptionCustomBrief = String(c.corruptionCustomBrief || '');
+      if (c.corruptionExtraNotes != null) ctx.state.corruptionExtraNotes = String(c.corruptionExtraNotes || '');
       if (Array.isArray(c.corruptionStageNames)) ctx.state.corruptionStageNames = c.corruptionStageNames.slice();
       if (Array.isArray(c.corruptionSelectedNames)) ctx.state.corruptionSelectedNames = c.corruptionSelectedNames.slice();
       if (c.corruptionDefaultFemaleOnly != null) ctx.state.corruptionDefaultFemaleOnly = !!c.corruptionDefaultFemaleOnly;
