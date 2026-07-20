@@ -23,20 +23,29 @@ import {
 import { createDefaultNovelState } from '../src/lib/novel/state.mjs';
 
 describe('ntl taboo enrichment', function() {
-  it('含百破且共 9 类，均有丰满字段', function() {
-    assert.equal(NTL_TABOO_IDS.length, 9);
+  it('含百破且共 25 类，均有丰满字段与分组', function() {
+    assert.equal(NTL_TABOO_IDS.length, 25);
     assert.ok(NTL_TABOO_TYPES.yuri_destruction);
     assert.equal(NTL_TABOO_TYPES.yuri_destruction.label, '百破');
     assert.match(NTL_TABOO_TYPES.yuri_destruction.description, /百合破坏/);
+    assert.equal(NTL_TABOO_TYPES.yuri_destruction.group, 'rupture');
+    assert.equal(NTL_TABOO_TYPES.power_coercion.group, 'coercion');
+    assert.equal(NTL_TABOO_TYPES.age_gap.group, 'bond');
+    assert.match(NTL_TABOO_TYPES.age_gap.description, /成年礼/);
+    assert.match(NTL_TABOO_TYPES.age_gap.description, /禁止儿童性化/);
+    assert.match(NTL_TABOO_TYPES.age_gap.writingGuide, /不得以历史早婚/);
     assert.equal(NTL_SHARED_DIMENSIONS.length, 5);
 
     NTL_TABOO_IDS.forEach(function(id) {
       var t = NTL_TABOO_TYPES[id];
       var en = NTL_TABOO_ENRICHMENT[id];
       assert.ok(en, id + ' 缺 enrichment');
+      assert.ok(t.group, id + ' 缺 group');
       assert.ok(Array.isArray(t.mustCover) && t.mustCover.length >= 3, id + ' mustCover');
+      assert.ok(Array.isArray(en.mustCover) && en.mustCover.length >= 3, id + ' en.mustCover');
       assert.ok(String(t.writingGuide || '').length > 20, id + ' writingGuide');
       assert.ok(Array.isArray(t.antiPatterns) && t.antiPatterns.length >= 2, id + ' antiPatterns');
+      assert.ok(Array.isArray(en.signals) && en.signals.length >= 1, id + ' signals');
       assert.ok(t.densityHint >= NTL_TABOO_DEFAULT_MIN_CHARS, id + ' densityHint');
     });
   });
