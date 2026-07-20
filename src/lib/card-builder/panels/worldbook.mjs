@@ -4,7 +4,7 @@
  */
 import { getDefaultWBEntry, normalizeWBEntry, clampInt } from '../state.mjs';
 import { strategyLabelZh } from '../../utils.mjs';
-import { buildWorldviewHint } from '../../presets/worldviews/index.mjs';
+import { buildWorldviewHintFromItems } from '../../presets/worldviews/index.mjs';
 
 export function registerWorldbook(ctx) {
   var escapeHtml = ctx.escapeHtml;
@@ -22,14 +22,17 @@ export function registerWorldbook(ctx) {
   var KEYGEN_MAX_RETRY_ROUNDS = 3;
 
   function getWorldviewHintBlock() {
-    var id = '';
-    if (ctx.panels.aiEngine && typeof ctx.panels.aiEngine.getWorldviewPresetId === 'function') {
-      id = ctx.panels.aiEngine.getWorldviewPresetId() || '';
+    var items = [];
+    if (ctx.panels.aiEngine && typeof ctx.panels.aiEngine.getWorldviewPresetItems === 'function') {
+      items = ctx.panels.aiEngine.getWorldviewPresetItems() || [];
+    } else if (ctx.panels.aiEngine && typeof ctx.panels.aiEngine.getWorldviewPresetId === 'function') {
+      var id = ctx.panels.aiEngine.getWorldviewPresetId() || '';
+      if (id) items = [{ id: id, note: '' }];
     } else {
       var el = ctx.$('aiWorldviewPreset');
-      if (el) id = String(el.value || '').trim();
+      if (el && el.value) items = [{ id: String(el.value).trim(), note: '' }];
     }
-    return buildWorldviewHint(id, { stage: 'worldbook' }) || '';
+    return buildWorldviewHintFromItems(items, { stage: 'worldbook' }) || '';
   }
 
   // ============================================================

@@ -14,11 +14,20 @@
 
     <div class="ai-engine-modal__body area-ai">
       <div class="form-group ai-engine-worldview">
-        <label class="ai-stage-label" for="aiWorldviewPreset">世界观预设</label>
-        <select id="aiWorldviewPreset" aria-label="选择世界观预设">
+        <label class="ai-stage-label">世界观预设（可多选组合）</label>
+        <div id="aiWorldviewPresetList" class="ai-wv-list" aria-live="polite"></div>
+        <div class="ai-wv-add-row">
+          <select id="aiWorldviewPresetPicker" aria-label="添加世界观预设">
+            <option value="">选择要添加的预设…</option>
+          </select>
+          <button type="button" id="btnAddWorldviewPreset" class="btn btn-ghost">＋添加</button>
+          <span id="aiWorldviewPresetCap" class="ai-engine-field-hint ai-engine-field-hint--tight"></span>
+        </div>
+        <!-- 兼容旧单选读取：隐藏同步首项 id -->
+        <select id="aiWorldviewPreset" hidden aria-hidden="true" tabindex="-1">
           <option value="">不使用预设</option>
         </select>
-        <p class="ai-engine-field-hint">预设提供世界观制度与语汇骨架；下方各阶段输入框写你的额外要求（可叠加，冲突时以你的要求为准）。</p>
+        <p class="ai-engine-field-hint">最多 3 项；首项为主世界观（定底盘），其余为叠加层（隐秘族群/飞地/双轨）。下方阶段输入可再补充；冲突时以你的要求与各项备注优先。</p>
       </div>
 
       <div class="form-group">
@@ -226,6 +235,77 @@
     border-radius: 8px;
     padding: 8px 10px;
     font-size: 0.85rem;
+  }
+  .ai-wv-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 8px;
+    min-height: 28px;
+  }
+  .ai-wv-item {
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    background: var(--color-surface-elevated);
+  }
+  .ai-wv-item-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .ai-wv-item-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--color-text);
+  }
+  .ai-wv-primary-tag {
+    display: inline-block;
+    margin-left: 6px;
+    font-size: 0.65rem;
+    font-weight: 500;
+    color: var(--color-success);
+    border: 1px solid rgba(16, 185, 129, 0.35);
+    border-radius: 4px;
+    padding: 0 5px;
+    vertical-align: middle;
+  }
+  .ai-wv-item-desc {
+    font-size: 0.7rem;
+    color: var(--color-text-muted);
+    margin-top: 4px;
+    line-height: 1.4;
+  }
+  .ai-wv-item-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+  .ai-wv-item-actions .btn {
+    font-size: 0.68rem;
+    padding: 2px 8px;
+  }
+  .ai-wv-item textarea {
+    width: 100%;
+    margin-top: 6px;
+    min-height: 44px;
+    font-size: 0.75rem;
+  }
+  .ai-wv-add-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+  .ai-wv-add-row select {
+    flex: 1;
+    min-width: 160px;
+  }
+  .ai-wv-empty {
+    font-size: 0.72rem;
+    color: var(--color-text-muted);
   }
   .ai-engine-modal__body textarea,
   .ai-engine-modal__body input[type="number"] {

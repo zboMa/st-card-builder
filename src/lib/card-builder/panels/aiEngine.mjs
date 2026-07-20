@@ -9,8 +9,10 @@ import {
 import {
   listWorldviewPresetsByGroup,
   getWorldviewPreset,
-  buildWorldviewHint,
-  WORLDVIEW_PRESET_IDS,
+  buildWorldviewHintFromItems,
+  normalizeWorldviewPresetItems,
+  primaryWorldviewPresetId,
+  MAX_WORLDVIEW_PRESET_ITEMS,
 } from '../../presets/worldviews/index.mjs';
 import {
   ENGINE_GEN_MODE_FULL,
@@ -32,7 +34,7 @@ const AI_KEY = 'st_v3_builder_ai_config';
 export function registerAiEngine(ctx) {
   var parsedPresetList = [];
   var cachedSearchResults = null;
-  var worldviewPresetId = '';
+  var worldviewPresetItems = [];
   var pendingOutlineSlots = null;
 
   // ====================================================================
@@ -174,42 +176,147 @@ export function registerAiEngine(ctx) {
     return new Promise(function(r) { setTimeout(r, ms); });
   }
 
-  function getWorldviewPresetId() {
-    var el = ctx.$('aiWorldviewPreset');
-    if (el) worldviewPresetId = String(el.value || '').trim();
-    return worldviewPresetId;
+  function getWorldviewPresetItems() {
+    worldviewPresetItems = normalizeWorldviewPresetItems(worldviewPresetItems);
+    return worldviewPresetItems.slice();
   }
 
-  function fillWorldviewSelect(selectedId) {
+  function getWorldviewPresetId() {
+    // 兼容旧单选 API：返回主世界观 id，并同步隐藏 select
+    var id = primaryWorldviewPresetId(getWorldviewPresetItems());
+    var el = ctx.$('aiWorldviewPreset');
+    if (el) el.value = id;
+    return id;
+  }
+
+  function setWorldviewPresetItems(raw, legacyId) {
+    worldviewPresetItems = normalizeWorldviewPresetItems(raw, legacyId);
+    syncHiddenWorldviewSelect();
+    return worldviewPresetItems.slice();
+  }
+
+  function syncHiddenWorldviewSelect() {
     var el = ctx.$('aiWorldviewPreset');
     if (!el) return;
+    var id = primaryWorldviewPresetId(worldviewPresetItems);
+    // 确保 option 存在
+    if (id && !Array.from(el.options).some(function(o) { return o.value === id; })) {
+      var opt = document.createElement('option');
+      opt.value = id;
+      opt.textContent = id;
+      el.appendChild(opt);
+    }
+    el.value = id || '';
+  }
+
+  function escapeHtmlWv(s) {
+    return String(s || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function renderWorldviewPresetList() {
+    var listEl = ctx.$('aiWorldviewPresetList');
+    var picker = ctx.$('aiWorldviewPresetPicker');
+    var capEl = ctx.$('aiWorldviewPresetCap');
+    var addBtn = ctx.$('btnAddWorldviewPreset');
+    var items = getWorldviewPresetItems();
+    syncHiddenWorldviewSelect();
+
+    if (listEl) {
+      if (!items.length) {
+        listEl.innerHTML = '<span class="ai-wv-empty">尚未添加世界观——可多选组合（如魅魔+修仙）。不选则须填写下方角色额外要求。</span>';
+      } else {
+        listEl.innerHTML = items.map(function(it, idx) {
+          var p = getWorldviewPreset(it.id) || { label: it.id, description: '' };
+          return '<div class="ai-wv-item" data-wv-idx="' + idx + '">'
+            + '<div class="ai-wv-item-head">'
+            + '<div>'
+            + '<div class="ai-wv-item-title">' + escapeHtmlWv(p.label)
+            + (idx === 0 ? '<span class="ai-wv-primary-tag">主世界观</span>' : '<span class="ai-wv-primary-tag">叠加</span>')
+            + '</div>'
+            + '<div class="ai-wv-item-desc">' + escapeHtmlWv((p.description || '').slice(0, 100))
+            + ((p.description || '').length > 100 ? '…' : '') + '</div>'
+            + '</div>'
+            + '<div class="ai-wv-item-actions">'
+            + (idx > 0 ? '<button type="button" class="btn btn-ghost" data-wv-up="' + idx + '">上移</button>' : '')
+            + (idx < items.length - 1 ? '<button type="button" class="btn btn-ghost" data-wv-down="' + idx + '">下移</button>' : '')
+            + '<button type="button" class="btn btn-ghost" data-wv-remove="' + idx + '">移除</button>'
+            + '</div></div>'
+            + '<textarea data-wv-note="' + idx + '" rows="2" placeholder="可选：本项叠加说明（如：修仙为壳，魅魔为隐秘族群）">'
+            + escapeHtmlWv(it.note || '') + '</textarea>'
+            + '</div>';
+        }).join('');
+      }
+    }
+
+    var selected = Object.create(null);
+    items.forEach(function(it) { selected[it.id] = true; });
     var groups = listWorldviewPresetsByGroup();
-    var html = '<option value="">不使用预设</option>';
-    groups.forEach(function(g) {
-      html += '<optgroup label="' + g.label + '">';
-      (g.items || []).forEach(function(it) {
-        html += '<option value="' + it.id + '"'
-          + (selectedId && selectedId === it.id ? ' selected' : '')
-          + '>' + it.label + '</option>';
+    if (picker) {
+      var opts = '<option value="">选择要添加的预设…</option>';
+      groups.forEach(function(g) {
+        var avail = (g.items || []).filter(function(it) { return !selected[it.id]; });
+        if (!avail.length) return;
+        opts += '<optgroup label="' + escapeHtmlWv(g.label) + '">';
+        avail.forEach(function(it) {
+          opts += '<option value="' + escapeHtmlWv(it.id) + '">' + escapeHtmlWv(it.label) + '</option>';
+        });
+        opts += '</optgroup>';
       });
-      html += '</optgroup>';
-    });
-    el.innerHTML = html;
-    if (selectedId && WORLDVIEW_PRESET_IDS.indexOf(selectedId) >= 0) {
-      el.value = selectedId;
-      worldviewPresetId = selectedId;
+      picker.innerHTML = opts;
+      picker.disabled = items.length >= MAX_WORLDVIEW_PRESET_ITEMS;
+    }
+    if (addBtn) addBtn.disabled = items.length >= MAX_WORLDVIEW_PRESET_ITEMS;
+    if (capEl) {
+      capEl.textContent = items.length
+        ? ('已选 ' + items.length + ' / ' + MAX_WORLDVIEW_PRESET_ITEMS)
+        : ('最多 ' + MAX_WORLDVIEW_PRESET_ITEMS + ' 项');
     }
   }
 
-  function syncWorldframeFromPreset(presetId) {
-    var p = getWorldviewPreset(presetId);
+  function fillWorldviewSelect(selectedId) {
+    // 兼容旧调用：单 id → 多选列表
+    if (selectedId) {
+      setWorldviewPresetItems([{ id: selectedId, note: '' }]);
+    }
+    // 填充隐藏 select 的全部 option（兼容外部读 value）
+    var el = ctx.$('aiWorldviewPreset');
+    if (el) {
+      var groups = listWorldviewPresetsByGroup();
+      var html = '<option value="">不使用预设</option>';
+      groups.forEach(function(g) {
+        html += '<optgroup label="' + g.label + '">';
+        (g.items || []).forEach(function(it) {
+          html += '<option value="' + it.id + '">' + it.label + '</option>';
+        });
+        html += '</optgroup>';
+      });
+      el.innerHTML = html;
+      syncHiddenWorldviewSelect();
+    }
+    renderWorldviewPresetList();
+  }
+
+  function syncWorldframeFromPresetItems(items) {
+    var primaryId = primaryWorldviewPresetId(items || getWorldviewPresetItems());
+    var p = getWorldviewPreset(primaryId);
     if (!p || !p.mapsToWorldframe) return;
     if (typeof window.__setNsfwConfig__ !== 'function') return;
     var cfg = window.__getNsfwConfig__ ? window.__getNsfwConfig__() : {};
-    // 仅建议同步框架：不改口味/NTL，不设 forced；交给 nsfw-config-changed 下推工坊
     if (cfg.adultWorldframeForced) return;
     cfg.adultWorldframe = p.mapsToWorldframe;
     window.__setNsfwConfig__(cfg);
+  }
+
+  function syncWorldframeFromPreset(presetId) {
+    syncWorldframeFromPresetItems(presetId ? [{ id: presetId, note: '' }] : getWorldviewPresetItems());
+  }
+
+  function buildActiveWorldviewHint(stage) {
+    return buildWorldviewHintFromItems(getWorldviewPresetItems(), { stage: stage || 'all' }) || '';
   }
 
   /** 唯一持久化入口：委托 browserApp.__persistAiConfig__（字段并集） */
@@ -236,6 +343,7 @@ export function registerAiEngine(ctx) {
           })(),
       presetList: parsedPresetList,
       worldviewPresetId: getWorldviewPresetId(),
+      worldviewPresetItems: getWorldviewPresetItems(),
       nsfwEnabled:   !!nsfwConfig.enabled,
       nsfwFlavor:    nsfwConfig.flavor || '',
       nsfwFlavorItems: Array.isArray(nsfwConfig.flavorItems)
@@ -498,21 +606,25 @@ export function registerAiEngine(ctx) {
       if (!model) { window.alert('请先拉取模型！'); return; }
 
       var charExtra = promptEl ? promptEl.value.trim() : '';
-      var wvId = getWorldviewPresetId();
+      var wvItems = getWorldviewPresetItems();
+      var wvId = primaryWorldviewPresetId(wvItems);
       var wvPreset = getWorldviewPreset(wvId);
-      var hasWorldview = Boolean(wvPreset);
+      var hasWorldview = wvItems.length > 0;
       if (!charExtra && !hasWorldview) {
-        window.alert('请选择世界观预设，或填写角色设定额外要求！');
+        window.alert('请添加世界观预设（可多选组合），或填写角色设定额外要求！');
         return;
       }
 
       var genMode = getEngineGenMode();
       var pauseOutline = genMode === ENGINE_GEN_MODE_FULL && isPauseAfterOutline();
-      var wvCharHint = buildWorldviewHint(wvId, { stage: 'char' });
-      var wvWbHint = buildWorldviewHint(wvId, { stage: 'worldbook' });
-      var wvGreetHint = buildWorldviewHint(wvId, { stage: 'greeting' });
+      var wvCharHint = buildActiveWorldviewHint('char');
+      var wvWbHint = buildActiveWorldviewHint('worldbook');
+      var wvGreetHint = buildActiveWorldviewHint('greeting');
       var searchQuery = charExtra
-        || (wvPreset ? (wvPreset.label + ' ' + (wvPreset.description || '')).trim() : '');
+        || (wvItems.map(function(it) {
+          var p = getWorldviewPreset(it.id);
+          return p ? (p.label + ' ' + (p.description || '')) : '';
+        }).filter(Boolean).join(' ') || '');
 
       var slotCount = window.__getSkeletonCount__ ? window.__getSkeletonCount__() : 10;
       slotCount = clampSlotCount(slotCount);
@@ -572,8 +684,12 @@ export function registerAiEngine(ctx) {
           + (wvCharHint || '')
           + searchInjection;
         var p1User = [
-          hasWorldview ? ('已选用世界观预设：' + wvPreset.label) : '',
-          charExtra ? ('角色额外要求（优先）：\n' + charExtra) : '角色额外要求：无（请严格按世界观预设生成）',
+          hasWorldview ? ('已选用世界观预设：' + wvItems.map(function(it, idx) {
+            var p = getWorldviewPreset(it.id);
+            var lab = p ? p.label : it.id;
+            return (idx === 0 ? '主·' : '叠加·') + lab;
+          }).join(' + ')) : '',
+          charExtra ? ('角色额外要求（优先）：\n' + charExtra) : '角色额外要求：无（请严格按世界观预设组合生成）',
         ].filter(Boolean).join('\n\n');
 
         var aiResp1 = await ctx.fetchAIContent({
@@ -954,9 +1070,9 @@ export function registerAiEngine(ctx) {
       var headers = { 'Content-Type': 'application/json' };
       if (key) headers['Authorization'] = 'Bearer ' + key;
       var presetsStr = ctx.panels.aiEngine.getActivePresetsStr();
-      var wvId = getWorldviewPresetId();
-      var wvWbHint = buildWorldviewHint(wvId, { stage: 'worldbook' });
-      var wvGreetHint = buildWorldviewHint(wvId, { stage: 'greeting' });
+      var wvItems = getWorldviewPresetItems();
+      var wvWbHint = buildActiveWorldviewHint('worldbook');
+      var wvGreetHint = buildActiveWorldviewHint('greeting');
       var charRef = formatCharRefForPrompt({
         charName: ctx.state.charName,
         charDesc: ctx.state.charDesc,
@@ -988,7 +1104,7 @@ export function registerAiEngine(ctx) {
         await ctx.panels.aiEngine._generateGreetingPhase({
           url: url, headers: headers, model: model,
           charRef: charRef, greetEl: greetEl,
-          hasWorldview: !!getWorldviewPreset(wvId),
+          hasWorldview: wvItems.length > 0,
           presetsStr: presetsStr, wvGreetHint: wvGreetHint, searchInjection: '',
           engineSignal: engineTask && engineTask.signal,
           engineTask: engineTask, aiCenter: aiCenter,
@@ -1054,7 +1170,7 @@ export function registerAiEngine(ctx) {
       var adultHints = (typeof window.__buildAdultPromptHints__ === 'function')
         ? window.__buildAdultPromptHints__()
         : { nsfw: buildNsfwFlavorHint(), ntl: buildNtlHintForPrompt(), canon: buildAdultCanonHint() };
-      var wvWbSingle = buildWorldviewHint(getWorldviewPresetId(), { stage: 'worldbook' });
+      var wvWbSingle = buildActiveWorldviewHint('worldbook');
       var sysPrompt   = (ctx.promptText('wbSingle') || '')
         + stepInfo + charBlock + '\n' + ctxStr + '\n' + presetBlock
         + (adultHints.nsfw || '') + (adultHints.ntl || '') + (adultHints.vessel || '')
@@ -1214,10 +1330,21 @@ export function registerAiEngine(ctx) {
       return getWorldviewPresetId();
     },
 
+    getWorldviewPresetItems: function() {
+      return getWorldviewPresetItems();
+    },
+
+    applyWorldviewPresetItems: function(items, legacyId) {
+      setWorldviewPresetItems(items, legacyId);
+      renderWorldviewPresetList();
+      syncWorldframeFromPresetItems(worldviewPresetItems);
+    },
+
     // ===== 绑定事件 =====
 
     bind: function() {
-      fillWorldviewSelect(worldviewPresetId || '');
+      fillWorldviewSelect(primaryWorldviewPresetId(worldviewPresetItems) || '');
+      renderWorldviewPresetList();
 
       var presetInput = ctx.$('presetInput');
       if (presetInput) {
@@ -1319,12 +1446,81 @@ export function registerAiEngine(ctx) {
         });
       }
 
-      // API 输入持久化由 browserApp 统一挂 __persistAiConfig__；此处只挂世界观（需弱联动）
-      var wvSelect = ctx.$('aiWorldviewPreset');
-      if (wvSelect) {
-        wvSelect.addEventListener('change', function() {
-          syncWorldframeFromPreset(wvSelect.value || '');
+      // 世界观多选：添加 / 排序 / 备注 / 移除
+      var addWvBtn = ctx.$('btnAddWorldviewPreset');
+      if (addWvBtn) {
+        addWvBtn.addEventListener('click', function() {
+          var picker = ctx.$('aiWorldviewPresetPicker');
+          var id = picker ? String(picker.value || '').trim() : '';
+          if (!id) return;
+          var items = getWorldviewPresetItems();
+          if (items.length >= MAX_WORLDVIEW_PRESET_ITEMS) return;
+          if (items.some(function(it) { return it.id === id; })) return;
+          items.push({ id: id, note: '' });
+          setWorldviewPresetItems(items);
+          renderWorldviewPresetList();
+          syncWorldframeFromPresetItems(items);
           persistAiConfig();
+        });
+      }
+      var wvListEl = ctx.$('aiWorldviewPresetList');
+      if (wvListEl) {
+        wvListEl.addEventListener('click', function(e) {
+          var t = e.target;
+          if (!t || !t.getAttribute) return;
+          var up = t.getAttribute('data-wv-up');
+          var down = t.getAttribute('data-wv-down');
+          var remove = t.getAttribute('data-wv-remove');
+          var items = getWorldviewPresetItems();
+          if (up != null) {
+            var ui = parseInt(up, 10);
+            if (ui > 0 && ui < items.length) {
+              var tmp = items[ui - 1];
+              items[ui - 1] = items[ui];
+              items[ui] = tmp;
+              setWorldviewPresetItems(items);
+              renderWorldviewPresetList();
+              syncWorldframeFromPresetItems(items);
+              persistAiConfig();
+            }
+            return;
+          }
+          if (down != null) {
+            var di = parseInt(down, 10);
+            if (di >= 0 && di < items.length - 1) {
+              var tmp2 = items[di + 1];
+              items[di + 1] = items[di];
+              items[di] = tmp2;
+              setWorldviewPresetItems(items);
+              renderWorldviewPresetList();
+              syncWorldframeFromPresetItems(items);
+              persistAiConfig();
+            }
+            return;
+          }
+          if (remove != null) {
+            var ri = parseInt(remove, 10);
+            if (ri >= 0 && ri < items.length) {
+              items.splice(ri, 1);
+              setWorldviewPresetItems(items);
+              renderWorldviewPresetList();
+              syncWorldframeFromPresetItems(items);
+              persistAiConfig();
+            }
+          }
+        });
+        wvListEl.addEventListener('change', function(e) {
+          var t = e.target;
+          if (!t || !t.getAttribute) return;
+          var noteIdx = t.getAttribute('data-wv-note');
+          if (noteIdx == null) return;
+          var ni = parseInt(noteIdx, 10);
+          var items = getWorldviewPresetItems();
+          if (ni >= 0 && ni < items.length) {
+            items[ni].note = String(t.value || '');
+            setWorldviewPresetItems(items);
+            persistAiConfig();
+          }
         });
       }
     },

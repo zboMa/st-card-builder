@@ -161,6 +161,9 @@ export function bootCardBuilder() {
     var worldviewPresetId = ctx.panels.aiEngine && ctx.panels.aiEngine.getWorldviewPresetId
       ? ctx.panels.aiEngine.getWorldviewPresetId()
       : ((document.getElementById('aiWorldviewPreset') || {}).value || '');
+    var worldviewPresetItems = ctx.panels.aiEngine && ctx.panels.aiEngine.getWorldviewPresetItems
+      ? ctx.panels.aiEngine.getWorldviewPresetItems()
+      : (worldviewPresetId ? [{ id: worldviewPresetId, note: '' }] : []);
     localStorage.setItem(AI_KEY, JSON.stringify({
       url: (document.getElementById('apiUrl') || {}).value || '',
       key: (document.getElementById('apiKey') || {}).value || '',
@@ -177,6 +180,11 @@ export function bootCardBuilder() {
         : { enabled: true, budget: 12000 },
       presetList: presetList,
       worldviewPresetId: String(worldviewPresetId || ''),
+      worldviewPresetItems: Array.isArray(worldviewPresetItems)
+        ? worldviewPresetItems.map(function(it) {
+            return { id: String((it && it.id) || ''), note: String((it && it.note) || '') };
+          }).filter(function(it) { return it.id; })
+        : [],
       nsfwEnabled: !!ctx.state.nsfwEnabled,
       nsfwFlavor: ctx.state.nsfwFlavor || '',
       nsfwFlavorItems: Array.isArray(ctx.state.nsfwFlavorItems)
@@ -297,7 +305,12 @@ export function bootCardBuilder() {
           ctx.panels.aiEngine.loadPresetsFromConfig(c.presetList);
         }
       }
-      if (ctx.panels.aiEngine && ctx.panels.aiEngine.applyWorldviewPresetId) {
+      if (ctx.panels.aiEngine && ctx.panels.aiEngine.applyWorldviewPresetItems) {
+        ctx.panels.aiEngine.applyWorldviewPresetItems(
+          c.worldviewPresetItems,
+          c.worldviewPresetId || ''
+        );
+      } else if (ctx.panels.aiEngine && ctx.panels.aiEngine.applyWorldviewPresetId) {
         ctx.panels.aiEngine.applyWorldviewPresetId(c.worldviewPresetId || '');
       } else {
         var wvEl = document.getElementById('aiWorldviewPreset');

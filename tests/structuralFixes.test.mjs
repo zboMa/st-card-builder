@@ -26,7 +26,7 @@ var __dirname = path.dirname(fileURLToPath(import.meta.url));
 var AI_CONFIG_UNION_KEYS = [
   'url', 'key', 'model', 'debug', 'tagContextChars',
   'embeddingModel', 'embeddingApiUrl', 'embeddingApiKey', 'novelRag',
-  'presetList', 'worldviewPresetId',
+  'presetList', 'worldviewPresetId', 'worldviewPresetItems',
   'nsfwEnabled', 'nsfwFlavor', 'nsfwFlavorItems',
   'ntlEnabled', 'ntlTabooTypes', 'ntlTabooItems',
   'corruptionEnabled', 'corruptionPreset', 'corruptionCustomBrief',
@@ -88,6 +88,7 @@ describe('structuralFixes', function() {
 
   it('AI 配置并集契约含 worldview 与 adultWorldframe 与恶堕', function() {
     assert.ok(AI_CONFIG_UNION_KEYS.indexOf('worldviewPresetId') >= 0);
+    assert.ok(AI_CONFIG_UNION_KEYS.indexOf('worldviewPresetItems') >= 0);
     assert.ok(AI_CONFIG_UNION_KEYS.indexOf('adultWorldframe') >= 0);
     assert.ok(AI_CONFIG_UNION_KEYS.indexOf('adultWorldframeForced') >= 0);
     assert.ok(AI_CONFIG_UNION_KEYS.indexOf('corruptionEnabled') >= 0);
