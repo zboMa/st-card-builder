@@ -106,6 +106,7 @@ function flavorItems() {
       group: p.group || '',
       description: String(p.description || ''),
       writingGuide: String(p.writingGuide || ''),
+      summary: String(p.summary || ''),
       mustCover: Array.isArray(p.mustCover) ? p.mustCover.slice() : [],
       antiPatterns: Array.isArray(p.antiPatterns) ? p.antiPatterns.slice() : [],
       focus: Array.isArray(p.focus) ? p.focus.slice() : [],
@@ -125,6 +126,7 @@ function ntlItems() {
       groupLabel: (gMeta && gMeta.label) || g,
       description: String(t.description || ''),
       writingGuide: String(t.writingGuide || ''),
+      summary: String(t.summary || ''),
       mustCover: Array.isArray(t.mustCover) ? t.mustCover.slice() : [],
       antiPatterns: Array.isArray(t.antiPatterns) ? t.antiPatterns.slice() : [],
     };
@@ -144,6 +146,7 @@ function worldviewItems() {
       groupLabel: groupLabel[p.group] || p.group || '',
       description: String(p.description || ''),
       writingGuide: String(p.writingGuide || ''),
+      summary: String(p.summary || ''),
       mustCover: Array.isArray(p.mustCover) ? p.mustCover.slice() : [],
       antiPatterns: Array.isArray(p.antiPatterns) ? p.antiPatterns.slice() : [],
       lexicon: Array.isArray(p.lexicon) ? p.lexicon.slice() : [],

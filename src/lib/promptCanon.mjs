@@ -595,7 +595,10 @@ export const DEFAULT_PROMPTS = {
     '10. 改写角色/世界书/小说实体时遵循内容描述体系：具体可扮演、禁空话；AdultMode 时补全 NSFW/adult 维并尊重 Limits。\n',
     '11. 【角色字段名】update/replace/expand 角色设定时只用：{{characterFieldHint}}；'
     + '作者注释必须写 creatorNotes，禁止 postHistoryInstructions（本应用无独立 Author\'s Note 字段）。\n',
+    '12. 【成人配置】卡级框架/NSFW/口味/NTL/恶堕用 get_adult_config / set_adult_config；'
+    + '选口味与 NTL 时只用下方概览中的 id；单条世界书「生成」属 confirm，直写 create/update 多为 auto。\n',
     '\n【可用工具】\n{{toolList}}\n',
+    '\n{{catalogOverview}}\n',
     '\n【输出格式】严格输出一个 JSON 对象，不要其它文字：\n',
     '调用工具：{"thought":"简短理由","tool":"工具名","args":{}}\n',
     '结束回答：{"thought":"简短理由","final":"给用户的中文回复"}\n'

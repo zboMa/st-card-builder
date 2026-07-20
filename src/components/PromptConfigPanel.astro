@@ -404,6 +404,7 @@
       + '<span class="prompt-catalog-item-id prompt-config-item-id">' + escapeHtml(item.id) + '</span></h3>'
       + '</div>'
       + metaLine
+      + renderTextBlock('摘要 summary', item.summary)
       + renderTextBlock('说明 description', item.description)
       + renderTextBlock('写作指引 writingGuide', item.writingGuide)
       + renderBulletBlock('必须覆盖 mustCover', item.mustCover)
