@@ -17,7 +17,7 @@ import {
   ADULT_CONSENT_BOUNDARY,
   ADULT_CONSENT_BOUNDARY_SHORT,
 } from '../src/lib/adult/shared/consentBoundary.mjs';
-import { buildWorldviewHint } from '../src/lib/presets/worldviews/index.mjs';
+import { buildWorldviewHint, WORLDVIEW_PRESETS } from '../src/lib/presets/worldviews/index.mjs';
 
 var BANNED_FORMULA_PHRASES = [
   '更适合把这种',
@@ -27,6 +27,25 @@ var BANNED_FORMULA_PHRASES = [
   '把关键张力落成可执行的场景流程与事后复盘',
   '只给标签氛围却不给可演机制',
   '双方须为已完成设定成年礼的成人；禁止儿童性化；冲突要写可见代价与可叙述的伦理账',
+  '只剩口味标签却不给场景机制、边界反馈或事后余波',
+  '把人物主体感让位给廉价刺激清单',
+  '只喊禁忌氛围却不给制度、证据链或事后合理化机制',
+  '把代价抹平到只剩廉价刺激或一次性反转',
+  '只有角色口头偏好，没有制度、器物或空间去承托该风味',
+  '像基础设施一样存在',
+  '不必每次解释，但一开门',
+  '挂到门禁、公共设施、维护清单或行业黑话里',
+  '只有角色私欲，没有制度、档案、门禁或舆论流程承托禁忌',
+  '把世界写成无后果背景板，无法解释禁忌为何持续逼人',
+  '最好安排一场让',
+  '角色会立刻长出选择压力',
+  '往往比空洞口号更先决定人的日子怎么过',
+  '这类口味最怕只剩标签',
+  '写进可被旁人撞见的门禁记录',
+  '留下可稽核的公共痕迹',
+  '与其只让角色口头偏好',
+  '好的 overlay 会让',
+  '读者只要看见门禁灯',
 ];
 
 describe('adultCatalogExpand', function() {
@@ -79,6 +98,7 @@ describe('adultCatalogExpand', function() {
       ['ntl types', JSON.stringify(NTL_TABOO_TYPES)],
       ['ntl enrichment', JSON.stringify(NTL_TABOO_ENRICHMENT)],
       ['ntl overlays', JSON.stringify(NTL_VESSEL_OVERLAYS)],
+      ['worldview presets', JSON.stringify(WORLDVIEW_PRESETS)],
     ].forEach(function(tuple) {
       var label = tuple[0];
       var text = tuple[1];

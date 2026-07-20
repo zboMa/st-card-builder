@@ -141,8 +141,8 @@ describe('worldviewPresets', function() {
   });
 
   it('质量底线常量合理且 re-export 可用', function() {
-    assert.ok(WORLDVIEW_QUALITY_FLOOR.description >= 120);
-    assert.ok(WORLDVIEW_QUALITY_FLOOR.writingGuide >= 180);
+    assert.ok(WORLDVIEW_QUALITY_FLOOR.description >= 140);
+    assert.ok(WORLDVIEW_QUALITY_FLOOR.writingGuide >= 200);
     assert.equal(REEXPORT_IDS.length, WORLDVIEW_PRESET_IDS.length);
     assert.equal(REEXPORT_MAX, 3);
     assert.ok(reexportHint('matriarchy').length > 200);

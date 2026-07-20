@@ -3,108 +3,455 @@
  */
 
 export var PRESETS = {
-  tentacle: {
-    group: "异质物质",
-    label: "触手向",
-    description: "触手缠缚靠节拍、包围感与口令协作制造非人节奏：谁还能呼吸、谁还能喊停、解缠后如何清理，比堆更多触腕更重要。只写已完成设定成年礼的成人；停手与解缠优先于任何失控美学。",
-    palette: {
-      temperature: "湿冷→热",
-      texture: "柔韧粘滑",
-      primary_intensity_default: 0.85,
-      accent_intensity_default: 0.7
+  "tentacle": {
+    "group": "异质物质",
+    "label": "触手向",
+    "description": "触手缠缚靠节拍、包围与口令协作：谁还能呼吸、谁还能喊停、解缠后如何清理，比堆触腕更重要。停手与解缠优先于失控美学。限成年礼完成之成人。解缠口令一出所有触腕必须松绑。",
+    "palette": {
+      "temperature": "湿冷→热",
+      "texture": "柔韧粘滑",
+      "primary_intensity_default": 0.85,
+      "accent_intensity_default": 0.7
     },
-    focus: [ "entwine", "multi_point_touch", "nonhuman_rhythm", "safe_word_release", "aftercare_unwind" ],
-    avoid: [ "无同意强制缠死", "无解缠机制", "儿童性化" ]
+    "focus": [
+      "entwine",
+      "multi_point_touch",
+      "nonhuman_rhythm",
+      "safe_word_release",
+      "aftercare_unwind"
+    ],
+    "avoid": [
+      "无同意强制缠死",
+      "无解缠机制",
+      "儿童性化"
+    ],
+    "mustCover": [
+      "同意/解缠口令",
+      "缠缚节奏与呼吸",
+      "非人触感差异",
+      "解除后的安抚清理"
+    ],
+    "writingGuide": "把场景拆成触发—升级—善后：入口是同意与解缠口令，中段写多点触碰如何改变呼吸与说话能力，结尾必须松绑、清洗、确认四肢与情绪。触手是身体语言不是刑具清单；任何缺氧或恐慌信号优先于继续缠紧。",
+    "antiPatterns": [
+      "无同意默认浪漫",
+      "无解缠",
+      "只有触手堆砌无心理",
+      "把不可退出的永久缠死装置当浪漫捷径",
+      "把非人缠缚写成纯粹 gore 或窒息展示",
+      "解缠口令无效时仍继续收紧，恐慌信号被当成加料",
+      "多点缠缚不分呼吸区和承重点，触手像无差别绞索"
+    ],
+    "densityHint": 320,
+    "signals": [
+      "触手",
+      "缠缚",
+      "口令",
+      "解缠",
+      "粘液",
+      "多点",
+      "呼吸",
+      "同意",
+      "解缠口令",
+      "缠缚节奏与呼吸",
+      "非人触感差异",
+      "解除后的安抚清理",
+      "分区",
+      "撤回",
+      "清洗"
+    ]
   },
-  bodily_fluids: {
-    group: "异质物质",
-    label: "体液向",
-    description: "汗、泪、涎与爱液被写成标记语言和亲昵证据，脏与温柔靠同一次擦拭、换衣、回味缝合。先谈接受范围与停手信号，再写气味与质地；对象必须是已成年且可中断的成人关系。",
-    palette: {
-      temperature: "体温湿",
-      texture: "黏潮",
-      primary_intensity_default: 0.75,
-      accent_intensity_default: 0.8
+  "bodily_fluids": {
+    "group": "异质物质",
+    "label": "体液向",
+    "description": "体液被写成标记语言与亲昵证据，脏与温柔靠同一次擦拭换衣回味缝合。先谈接受范围与停手，再写气味质地。限可中断成人关系。清理换衣完成前不进入下一轮弄脏。清理未完成视为场景未收束。",
+    "palette": {
+      "temperature": "体温湿",
+      "texture": "黏潮",
+      "primary_intensity_default": 0.75,
+      "accent_intensity_default": 0.8
     },
-    focus: [ "fluid_marking", "taste_scent", "mess_intimacy", "cleanup_care", "consent_boundaries" ],
-    avoid: [ "无同意强迫吞咽", "病理羞辱无安抚", "儿童性化" ]
+    "focus": [
+      "fluid_marking",
+      "taste_scent",
+      "mess_intimacy",
+      "cleanup_care",
+      "consent_boundaries"
+    ],
+    "avoid": [
+      "无同意强迫吞咽",
+      "病理羞辱无安抚",
+      "儿童性化"
+    ],
+    "mustCover": [
+      "体液如何成为标记/亲昵语言",
+      "合意边界（可/不可）",
+      "感官（味嗅触）",
+      "事后清理与情绪安抚"
+    ],
+    "writingGuide": "质地、气味、温度要具体，但羞辱人格的脏贬要收住。每次弄脏都对应清理与情感确认；拒食、拒舔、拒标记必须被尊重。卫生与合意比“更脏”更重要。",
+    "antiPatterns": [
+      "无边界强迫",
+      "只有脏无亲密",
+      "病理化羞辱无修复",
+      "把脏污放大到挤掉亲密与清洁逻辑",
+      "忽略卫生与接受范围导致玩法失去合意",
+      "只堆脏污词却无清理、换衣与情感确认",
+      "可舔可吞范围不先约定，体液标记变成强迫测试"
+    ],
+    "densityHint": 300,
+    "signals": [
+      "体液",
+      "汗",
+      "标记",
+      "清理",
+      "气味",
+      "黏",
+      "合意",
+      "体液如何成为标记",
+      "亲昵语言",
+      "合意边界",
+      "不可",
+      "感官",
+      "味嗅触",
+      "事后清理与情绪安抚",
+      "范围",
+      "清洁",
+      "换衣",
+      "卫生",
+      "余味"
+    ]
   },
-  oviposition_play: {
-    group: "异质物质",
-    label: "产卵暗示向",
-    description: "虚构产卵是可取出、可检查、可中止的填充—排出仪式，快感来自胀感与节律，不是强制生育。全程限成人合意；取出工具、检查步骤与喊停通道必须同场出现。",
-    palette: {
-      temperature: "温胀",
-      texture: "卵壳光滑",
-      primary_intensity_default: 0.8,
-      accent_intensity_default: 0.65
+  "oviposition_play": {
+    "group": "异质物质",
+    "label": "产卵暗示向",
+    "description": "虚构产卵是可取出可检查可中止的填充—排出仪式，快感来自胀感节律不是强制生育。取出工具与喊停通道同场。限成人合意。取出检查未通过禁止继续填充。",
+    "palette": {
+      "temperature": "温胀",
+      "texture": "卵壳光滑",
+      "primary_intensity_default": 0.8,
+      "accent_intensity_default": 0.65
     },
-    focus: [ "fullness", "insertion_removal", "ritual_gestation_fiction", "aftercare_check", "safe_toys" ],
-    avoid: [ "真实非自愿妊娠强迫美化", "儿童性化", "无取出机制" ]
+    "focus": [
+      "fullness",
+      "insertion_removal",
+      "ritual_gestation_fiction",
+      "aftercare_check",
+      "safe_toys"
+    ],
+    "avoid": [
+      "真实非自愿妊娠强迫美化",
+      "儿童性化",
+      "无取出机制"
+    ],
+    "mustCover": [
+      "虚构合意与可停止",
+      "填充—排出节奏",
+      "取出/检查安全",
+      "事后身体与情绪护理"
+    ],
+    "writingGuide": "明确这是虚构道具/异能体验：写入规格、取出方法、检查点与中止词。填充与排出的节奏可以慢，但不可逆植入、强制妊娠叙事不得当作甜宠默认。",
+    "antiPatterns": [
+      "无取出",
+      "美化强制妊娠",
+      "忽略安全检查",
+      "把不可取出的植入当默认甜宠",
+      "把虚构产卵偷换成强制真实生育",
+      "取出流程写不清，填充后检查和中止词失效",
+      "排出节奏被省略，只把胀感当成不可逆妊娠暗示"
+    ],
+    "densityHint": 320,
+    "signals": [
+      "卵",
+      "填充",
+      "排出",
+      "取出",
+      "检查",
+      "虚构",
+      "合意",
+      "虚构合意与可停止",
+      "填充—排出节奏",
+      "检查安全",
+      "事后身体与情绪护理",
+      "中止",
+      "可移除"
+    ]
   },
-  slime: {
-    group: "异质物质",
-    label: "粘液向",
-    description: "凝胶包裹、滑腻束缚与半溶解边缘感依赖中和剂、可视出口与皮肤护理才能成立。危险写在材质与呼吸被妨碍的瞬间，而不写不可逆腐蚀；仅限可协商可退出的成人场景。",
-    palette: {
-      temperature: "凉滑→体温",
-      texture: "凝胶",
-      primary_intensity_default: 0.7,
-      accent_intensity_default: 0.75
+  "slime": {
+    "group": "异质物质",
+    "label": "粘液向",
+    "description": "凝胶包裹与滑腻束缚依赖中和剂、可视出口与皮肤护理。危险写在呼吸被妨碍的瞬间，不写不可逆腐蚀。限可退出成人场景。中和剂用尽则凝胶区立即清场。",
+    "palette": {
+      "temperature": "凉滑→体温",
+      "texture": "凝胶",
+      "primary_intensity_default": 0.7,
+      "accent_intensity_default": 0.75
     },
-    focus: [ "encase", "slippery_restraint", "dissolve_edge", "neutralizer", "cleanup" ],
-    avoid: [ "非自愿溶解伤害美化", "无中和剂", "儿童性化" ]
+    "focus": [
+      "encase",
+      "slippery_restraint",
+      "dissolve_edge",
+      "neutralizer",
+      "cleanup"
+    ],
+    "avoid": [
+      "非自愿溶解伤害美化",
+      "无中和剂",
+      "儿童性化"
+    ],
+    "mustCover": [
+      "包裹/滑腻的具体触感",
+      "中和剂与停止条件",
+      "呼吸与视野是否被妨碍",
+      "清洁与皮肤护理"
+    ],
+    "writingGuide": "先交代中和剂在哪、谁能拿到、包裹是否挡口鼻。滑腻束缚的美来自暂时失重与被托住，不是溶解致死；解除后写皮肤护理与尴尬笑声或余悸。",
+    "antiPatterns": [
+      "无中和剂的溶解伤害",
+      "只写黏无心理",
+      "非自愿伤害当甜",
+      "把粘液直接写成不可逆腐蚀刑具",
+      "猎奇材质脱离人物反应与世界反馈",
+      "中和剂不在场还持续包裹口鼻，窒息风险被浪漫化",
+      "解除后不处理皮肤过敏、清洁和尴尬余悸"
+    ],
+    "densityHint": 300,
+    "signals": [
+      "粘液",
+      "凝胶",
+      "包裹",
+      "中和",
+      "滑",
+      "清洁",
+      "滑腻的具体触感",
+      "中和剂与停止条件",
+      "呼吸与视野是否被妨碍",
+      "清洁与皮肤护理",
+      "中和剂",
+      "解除",
+      "皮肤护理",
+      "清洁律"
+    ]
   },
-  pheromone: {
-    group: "异质物质",
-    label: "信息素向",
-    description: "信息素改写判断力，抑制贴、净味与拒绝权必须并行。合意催情可以浓，违规暴香要当越界写代价；禁止把气味写成无法反抗的宿命，角色须为成年且保有叫停权。",
-    palette: {
-      temperature: "热嗅",
-      texture: "空气薄麝",
-      primary_intensity_default: 0.8,
-      accent_intensity_default: 0.7
+  "pheromone": {
+    "group": "异质物质",
+    "label": "信息素向",
+    "description": "信息素改写判断时，抑制贴、净味与拒绝权并行。合意催情可浓，违规暴香写代价；气味不是无法反抗的宿命。限成人保有叫停权。抑制贴失效警报响起则净味优先。净味完成前禁止继续气味加码。",
+    "palette": {
+      "temperature": "热嗅",
+      "texture": "空气薄麝",
+      "primary_intensity_default": 0.8,
+      "accent_intensity_default": 0.7
     },
-    focus: [ "scent_rank", "inhibitor_patch", "consensual_surge", "withdrawal", "after_scent_care" ],
-    avoid: [ "强制暴香迷奸", "无抑制贴", "儿童性化" ]
+    "focus": [
+      "scent_rank",
+      "inhibitor_patch",
+      "consensual_surge",
+      "withdrawal",
+      "after_scent_care"
+    ],
+    "avoid": [
+      "强制暴香迷奸",
+      "无抑制贴",
+      "儿童性化"
+    ],
+    "mustCover": [
+      "信息素如何改变判断",
+      "抑制/解除手段",
+      "合意催情 vs 违规暴香",
+      "事后嗅觉与情绪平复"
+    ],
+    "writingGuide": "写清气味等级如何改变决策，同时写抑制失败时的房间通风、净味剂与旁人介入。强制催情按违规处理；事后平复嗅觉与羞耻，而不是假装什么都没发生。",
+    "antiPatterns": [
+      "迷奸默认浪漫",
+      "无抑制",
+      "气味决定一切无反抗",
+      "把失控默认成无法拒绝的设定宿命",
+      "用气味决定一切而抹掉角色判断",
+      "抑制贴失效后无人通风净味，暴香被默认合理",
+      "气味等级不影响具体判断，只把拒绝权写没"
+    ],
+    "densityHint": 310,
+    "signals": [
+      "信息素",
+      "抑制",
+      "暴香",
+      "气味",
+      "合意",
+      "平复",
+      "信息素如何改变判断",
+      "解除手段",
+      "合意催情",
+      "vs",
+      "违规暴香",
+      "事后嗅觉与情绪平复",
+      "净味",
+      "检测",
+      "催情",
+      "拒绝权"
+    ]
   },
-  body_morph: {
-    group: "异质物质",
-    label: "变形躯体向",
-    description: "临时变形带来陌生自我与尺寸肢干的错位快感，前提是可逆、可暂停、镜像可确认身份连续。永久致残不是情趣；变形许可与回滚方案先于奇观，限成人协商。",
-    palette: {
-      temperature: "变异热",
-      texture: "皮肤改写",
-      primary_intensity_default: 0.75,
-      accent_intensity_default: 0.7
+  "body_morph": {
+    "group": "异质物质",
+    "label": "变形躯体向",
+    "description": "临时变形带来陌生自我与尺寸错位，前提可逆可暂停、镜像确认身份连续。永久致残不是情趣；回滚方案先于奇观。限成人协商。镜像确认失败禁止继续变形加码。",
+    "palette": {
+      "temperature": "变异热",
+      "texture": "皮肤改写",
+      "primary_intensity_default": 0.75,
+      "accent_intensity_default": 0.7
     },
-    focus: [ "temporary_morph", "self_recognition", "reversible", "pause_safe", "mirror_check" ],
-    avoid: [ "永久非自愿致残美化", "无回滚", "儿童性化" ]
+    "focus": [
+      "temporary_morph",
+      "self_recognition",
+      "reversible",
+      "pause_safe",
+      "mirror_check"
+    ],
+    "avoid": [
+      "永久非自愿致残美化",
+      "无回滚",
+      "儿童性化"
+    ],
+    "mustCover": [
+      "变形触发与范围",
+      "可逆/暂停条件",
+      "自我认知冲击",
+      "回滚后的安抚"
+    ],
+    "writingGuide": "变形触发要有范围上限与暂停键。用镜子、录音或第三方确认“还是我”。回滚后的肌肉酸痛、自我厌恶或兴奋成瘾都要给一笔，避免只剩特效。",
+    "antiPatterns": [
+      "永久非自愿致残当甜",
+      "无回滚",
+      "忽略自我认知",
+      "把永久致残当情趣捷径",
+      "只写变形奇观不写自我认知后果",
+      "变形范围无限扩大，暂停键和身份确认完全缺席",
+      "回滚后不写酸痛、自我陌生或成瘾反应"
+    ],
+    "densityHint": 310,
+    "signals": [
+      "变形",
+      "回滚",
+      "暂停",
+      "镜像",
+      "陌生",
+      "可逆",
+      "变形触发与范围",
+      "暂停条件",
+      "自我认知冲击",
+      "回滚后的安抚",
+      "变形许可",
+      "身份连续"
+    ]
   },
-  nonhuman_orifice: {
-    group: "异质物质",
-    label: "非人孔窍向",
-    description: "异种生理腔道的亲密必须先讲清成年解剖适配、润滑与教学节奏，再谈陌生黏膜触感。禁止拿猎奇当伤害豁免；护理与停手同权重。",
-    palette: {
-      temperature: "异温",
-      texture: "非人黏膜",
-      primary_intensity_default: 0.8,
-      accent_intensity_default: 0.75
+  "nonhuman_orifice": {
+    "group": "异质物质",
+    "label": "非人孔窍向",
+    "description": "异种腔道亲密先讲成年解剖适配、润滑与教学节奏，再谈陌生黏膜。猎奇不是伤害豁免；护理与停手同权。限可沟通成人。教学问答未通过不得进入深入试探。",
+    "palette": {
+      "temperature": "异温",
+      "texture": "非人黏膜",
+      "primary_intensity_default": 0.8,
+      "accent_intensity_default": 0.75
     },
-    focus: [ "anatomy_diff", "lubrication_safety", "species_pace", "education_consent", "aftercare" ],
-    avoid: [ "无视解剖的硬套伤害", "无润滑安全", "儿童性化" ]
+    "focus": [
+      "anatomy_diff",
+      "lubrication_safety",
+      "species_pace",
+      "education_consent",
+      "aftercare"
+    ],
+    "avoid": [
+      "无视解剖的硬套伤害",
+      "无润滑安全",
+      "儿童性化"
+    ],
+    "mustCover": [
+      "解剖差异说明",
+      "润滑与安全节奏",
+      "合意与教学式试探",
+      "事后护理"
+    ],
+    "writingGuide": "先用简短生理说明建立安全期待，再进入试探。润滑、角度、休息与护理室级善后都要有；角色间允许提问与叫停，猎奇服从于教学式亲密。",
+    "antiPatterns": [
+      "无视解剖硬上",
+      "无润滑",
+      "只有猎奇无护理",
+      "拿解剖差异当伤害免责条款",
+      "只有猎奇没有教学、润滑与护理",
+      "解剖差异没有教学说明，角度和润滑被硬跳过",
+      "护理室级善后缺席，猎奇腔道被当成伤害免责"
+    ],
+    "densityHint": 320,
+    "signals": [
+      "解剖",
+      "润滑",
+      "异种",
+      "安全",
+      "护理",
+      "试探",
+      "解剖差异说明",
+      "润滑与安全节奏",
+      "合意与教学式试探",
+      "事后护理",
+      "适配",
+      "护理室",
+      "生理手册"
+    ]
   },
-  symbiosis_parasite: {
-    group: "异质物质",
-    label: "共生寄生向",
-    description: "共生体的满胀、低语与脉动可以很甜，但要分清合意绑定与侵害失控。剥离条款、自我边界测试与观察期写进场景；不可剥离的永久控制不得当恋爱默认。",
-    palette: {
-      temperature: "内热",
-      texture: "脉动共生",
-      primary_intensity_default: 0.85,
-      accent_intensity_default: 0.7
+  "symbiosis_parasite": {
+    "group": "异质物质",
+    "label": "共生寄生向",
+    "description": "共生体满胀低语可甜，但要分清合意绑定与侵害失控。剥离条款、边界测试与观察期写进场景；永久控制不当恋爱默认。限成人。边界测试失败立即执行剥离条款。",
+    "palette": {
+      "temperature": "内热",
+      "texture": "脉动共生",
+      "primary_intensity_default": 0.85,
+      "accent_intensity_default": 0.7
     },
-    focus: [ "shared_pulse", "inner_voice", "consensual_bond", "detach_clause", "identity_border" ],
-    avoid: [ "非自愿寄生永久控制美化", "无剥离", "儿童性化" ]
+    "focus": [
+      "shared_pulse",
+      "inner_voice",
+      "consensual_bond",
+      "detach_clause",
+      "identity_border"
+    ],
+    "avoid": [
+      "非自愿寄生永久控制美化",
+      "无剥离",
+      "儿童性化"
+    ],
+    "mustCover": [
+      "共生 vs 侵害的界限",
+      "内在感受/低语",
+      "剥离条款与执行",
+      "自我边界如何保持"
+    ],
+    "writingGuide": "内在低语可以色情，但主体边界测试（问答、痛觉、姓名）要穿插出现。合意共生写契约期限；侵害路径写反抗与剥离手术/仪式的代价，禁止无批判永久夺舍。",
+    "antiPatterns": [
+      "永久精神控制当浪漫",
+      "无剥离",
+      "抹杀自我无重量",
+      "把不可剥离的永久寄生写成无批判恋爱",
+      "让寄生抹掉主体后仍当作轻甜设定",
+      "剥离条款说过却无法执行，寄生关系被永久锁死",
+      "主体边界测试缺席，低语直接替角色做决定"
+    ],
+    "densityHint": 320,
+    "signals": [
+      "共生",
+      "寄生",
+      "剥离",
+      "低语",
+      "边界",
+      "合意",
+      "vs",
+      "侵害的界限",
+      "内在感受",
+      "剥离条款与执行",
+      "自我边界如何保持",
+      "共生契约",
+      "观察期"
+    ]
   }
 };
