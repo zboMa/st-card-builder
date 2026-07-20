@@ -1,18 +1,18 @@
 ---
-/** 提示词配置：按 Tab 分组编辑，localStorage 持久化 */
+/** 提示词配置：Tab 分组；可编辑提示词 + 目录只读（下拉选条） */
 ---
 <div class="panel prompt-config-panel">
   <h2>提示词配置</h2>
   <p class="prompt-config-hint">
-    按分类 Tab 编辑各生成环节提示词。留空或点「恢复默认」后回退到内置默认值。
-    支持占位符 <code>&#123;&#123;batchSize&#125;&#125;</code>、<code>&#123;&#123;query&#125;&#125;</code>、<code>&#123;&#123;charName&#125;&#125;</code> 等（与调用处约定一致）。
-    动态上下文（角色信息、预设、搜索结果等）仍由原逻辑拼接，语义不变。
+    上方 Tab 切换分类：前几项为可编辑生成提示词；其后为<strong>口味 / NTL / 世界观 / 载体 / 扩展规范</strong>只读目录。
+    目录类 Tab 用下方下拉选择具体条目查看（与源码同源，不可在此编辑）。
+    可编辑提示词支持占位符 <code>&#123;&#123;batchSize&#125;&#125;</code>、<code>&#123;&#123;query&#125;&#125;</code>、<code>&#123;&#123;charName&#125;&#125;</code> 等。
   </p>
 
   <div id="promptConfigTabs" class="ui-tabs prompt-config-tabs" role="tablist" aria-label="提示词分类"></div>
   <div id="promptConfigList" class="prompt-config-list" role="tabpanel"></div>
 
-  <div class="prompt-config-actions">
+  <div class="prompt-config-actions" id="promptConfigActions">
     <button type="button" id="btnPromptSaveAll" class="btn btn-ai">💾 保存全部</button>
     <button type="button" id="btnPromptResetTab" class="btn btn-fetch">↺ 恢复本页默认</button>
     <button type="button" id="btnPromptResetAll" class="btn btn-fetch">↺ 全部恢复默认</button>
@@ -98,6 +98,96 @@
     padding: 8px 14px;
     font-size: 0.8rem;
   }
+  .prompt-config-actions.is-catalog-mode .btn {
+    display: none;
+  }
+  .prompt-catalog-toolbar {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  .prompt-catalog-hint {
+    font-size: 0.72rem;
+    color: var(--color-text-muted);
+    line-height: 1.5;
+    margin: 0;
+  }
+  .prompt-catalog-select-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+  }
+  .prompt-catalog-select-row label {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+  }
+  .prompt-catalog-select {
+    flex: 1;
+    min-width: 200px;
+    max-width: 520px;
+    font-size: 0.8rem;
+    padding: 7px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--color-accent-soft);
+    background: rgba(0, 0, 0, 0.28);
+    color: var(--color-text);
+  }
+  .prompt-catalog-count {
+    font-size: 0.68rem;
+    color: var(--color-text-muted);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .prompt-catalog-block {
+    margin-top: 10px;
+  }
+  .prompt-catalog-block-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--color-accent-hover);
+    margin: 0 0 6px;
+    letter-spacing: 0.02em;
+  }
+  .prompt-catalog-block-body {
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-size: 0.74rem;
+    line-height: 1.55;
+    color: var(--color-text);
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    background: rgba(0, 0, 0, 0.22);
+    border: 1px solid rgba(148, 163, 184, 0.12);
+    border-radius: 8px;
+    padding: 10px 12px;
+    max-height: 280px;
+    overflow: auto;
+  }
+  .prompt-catalog-list {
+    margin: 0;
+    padding-left: 1.15rem;
+    font-size: 0.74rem;
+    line-height: 1.5;
+    color: var(--color-text);
+  }
+  .prompt-catalog-list li {
+    margin-bottom: 4px;
+  }
+  .prompt-catalog-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .prompt-catalog-chip {
+    font-size: 0.65rem;
+    padding: 2px 8px;
+    border-radius: 999px;
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    color: var(--color-text-muted);
+    background: rgba(148, 163, 184, 0.06);
+  }
 </style>
 
 <script is:inline>
@@ -105,6 +195,7 @@
   var tabsEl = document.getElementById('promptConfigTabs');
   var listEl = document.getElementById('promptConfigList');
   var statusEl = document.getElementById('promptConfigStatus');
+  var actionsEl = document.getElementById('promptConfigActions');
   var btnSave = document.getElementById('btnPromptSaveAll');
   var btnResetTab = document.getElementById('btnPromptResetTab');
   var btnReset = document.getElementById('btnPromptResetAll');
@@ -113,9 +204,15 @@
   /** 跨 Tab 编辑缓存（切页不丢） */
   var draftCache = {};
   var activeGroup = '';
+  /** 目录类 Tab：sectionKey -> 当前选中条目 id */
+  var catalogSelection = {};
 
   function store() {
     return window.__promptStore__;
+  }
+
+  function catalogBrowser() {
+    return window.__promptCatalogBrowser__ || null;
   }
 
   function setStatus(msg, ok) {
@@ -144,6 +241,33 @@
     return out;
   }
 
+  function catalogTabMeta() {
+    var cb = catalogBrowser();
+    return (cb && cb.tabMeta) || [];
+  }
+
+  function allTabKeys(ps) {
+    return groupsOf(ps).concat(catalogTabMeta().map(function(t) { return t.id; }));
+  }
+
+  function findCatalogTab(tabId) {
+    var list = catalogTabMeta();
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].id === tabId) return list[i];
+    }
+    return null;
+  }
+
+  function isCatalogTab(tabId) {
+    return !!findCatalogTab(tabId);
+  }
+
+  function setActionsMode(catalogMode) {
+    if (!actionsEl) return;
+    if (catalogMode) actionsEl.classList.add('is-catalog-mode');
+    else actionsEl.classList.remove('is-catalog-mode');
+  }
+
   /** 把当前 Tab 的 textarea 写入 draftCache */
   function stashActiveTab() {
     listEl.querySelectorAll('[data-prompt-ta]').forEach(function(ta) {
@@ -162,17 +286,20 @@
   }
 
   function renderTabs(ps) {
-    var groups = groupsOf(ps);
-    if (!activeGroup || groups.indexOf(activeGroup) < 0) {
-      activeGroup = groups[0] || '';
+    var keys = allTabKeys(ps);
+    if (!activeGroup || keys.indexOf(activeGroup) < 0) {
+      activeGroup = keys[0] || '';
     }
+    var labelMap = Object.create(null);
+    catalogTabMeta().forEach(function(t) { labelMap[t.id] = t.label; });
     var html = '';
-    groups.forEach(function(g) {
+    keys.forEach(function(g) {
       var active = g === activeGroup;
+      var label = labelMap[g] || g;
       html += '<button type="button" class="ui-tabs__tab prompt-config-tab'
         + (active ? ' is-active' : '') + '" role="tab" aria-selected="'
         + (active ? 'true' : 'false') + '" data-prompt-tab="' + escapeHtml(g) + '">'
-        + escapeHtml(g) + '</button>';
+        + escapeHtml(label) + '</button>';
     });
     tabsEl.innerHTML = html;
     tabsEl.querySelectorAll('[data-prompt-tab]').forEach(function(btn) {
@@ -187,7 +314,155 @@
     });
   }
 
-  function renderList(ps) {
+  function renderBulletBlock(title, arr) {
+    if (!arr || !arr.length) return '';
+    var lis = arr.map(function(x) {
+      return '<li>' + escapeHtml(x) + '</li>';
+    }).join('');
+    return '<div class="prompt-catalog-block">'
+      + '<p class="prompt-catalog-block-label">' + escapeHtml(title) + '</p>'
+      + '<ul class="prompt-catalog-list">' + lis + '</ul></div>';
+  }
+
+  function renderTextBlock(title, text) {
+    if (!text) return '';
+    return '<div class="prompt-catalog-block">'
+      + '<p class="prompt-catalog-block-label">' + escapeHtml(title) + '</p>'
+      + '<pre class="prompt-catalog-block-body">' + escapeHtml(text) + '</pre></div>';
+  }
+
+  function renderChips(title, arr) {
+    if (!arr || !arr.length) return '';
+    var chips = arr.map(function(x) {
+      return '<span class="prompt-catalog-chip">' + escapeHtml(x) + '</span>';
+    }).join('');
+    return '<div class="prompt-catalog-block">'
+      + '<p class="prompt-catalog-block-label">' + escapeHtml(title) + '</p>'
+      + '<div class="prompt-catalog-chips">' + chips + '</div></div>';
+  }
+
+  function buildSelectOptions(section, selectedId) {
+    var items = section.items || [];
+    var groups = section.optgroups || [];
+    var html = '';
+    if (groups.length) {
+      var byGroup = Object.create(null);
+      var ungrouped = [];
+      items.forEach(function(it) {
+        var g = it.group || '';
+        if (!g) { ungrouped.push(it); return; }
+        if (!byGroup[g]) byGroup[g] = [];
+        byGroup[g].push(it);
+      });
+      groups.forEach(function(og) {
+        var list = byGroup[og.id] || [];
+        if (!list.length) return;
+        html += '<optgroup label="' + escapeHtml(og.label || og.id) + '">';
+        list.forEach(function(it) {
+          html += '<option value="' + escapeHtml(it.id) + '"'
+            + (it.id === selectedId ? ' selected' : '') + '>'
+            + escapeHtml(it.label || it.id) + '</option>';
+        });
+        html += '</optgroup>';
+      });
+      ungrouped.forEach(function(it) {
+        html += '<option value="' + escapeHtml(it.id) + '"'
+          + (it.id === selectedId ? ' selected' : '') + '>'
+          + escapeHtml(it.label || it.id) + '</option>';
+      });
+    } else {
+      items.forEach(function(it) {
+        html += '<option value="' + escapeHtml(it.id) + '"'
+          + (it.id === selectedId ? ' selected' : '') + '>'
+          + escapeHtml(it.label || it.id) + '</option>';
+      });
+    }
+    return html;
+  }
+
+  function findItem(section, id) {
+    var items = section.items || [];
+    for (var i = 0; i < items.length; i++) {
+      if (items[i].id === id) return items[i];
+    }
+    return items[0] || null;
+  }
+
+  function renderCatalogDetail(item) {
+    if (!item) {
+      return '<p class="prompt-config-hint">本分类暂无条目</p>';
+    }
+    var metaBits = [];
+    if (item.groupLabel) metaBits.push(item.groupLabel);
+    else if (item.group) metaBits.push(item.group);
+    var metaLine = metaBits.length
+      ? '<p class="prompt-catalog-hint">' + escapeHtml(metaBits.join(' · ')) + '</p>'
+      : '';
+    return '<div class="prompt-config-item" data-catalog-id="' + escapeHtml(item.id) + '">'
+      + '<div class="prompt-config-item-head">'
+      + '<h3 class="prompt-config-item-title">' + escapeHtml(item.label || item.id)
+      + '<span class="prompt-catalog-item-id prompt-config-item-id">' + escapeHtml(item.id) + '</span></h3>'
+      + '</div>'
+      + metaLine
+      + renderTextBlock('说明 description', item.description)
+      + renderTextBlock('写作指引 writingGuide', item.writingGuide)
+      + renderBulletBlock('必须覆盖 mustCover', item.mustCover)
+      + renderBulletBlock('反模式 antiPatterns', item.antiPatterns)
+      + renderBulletBlock('回避 avoid', item.avoid)
+      + renderChips('焦点 focus', item.focus)
+      + renderChips('词表 lexicon', item.lexicon)
+      + renderChips('信号 signals', item.signals)
+      + '</div>';
+  }
+
+  function renderCatalogList(ps, tabMeta) {
+    setActionsMode(true);
+    var cb = catalogBrowser();
+    if (!cb || !cb.sections || !tabMeta) {
+      listEl.innerHTML = '<p class="prompt-config-hint">目录数据未加载（需重新构建页面）</p>';
+      return;
+    }
+    var section = cb.sections[tabMeta.section];
+    if (!section || !(section.items || []).length) {
+      listEl.innerHTML = '<p class="prompt-config-hint">本分类暂无条目</p>';
+      return;
+    }
+    var items = section.items;
+    var selectedId = catalogSelection[tabMeta.section];
+    var matched = null;
+    for (var i = 0; i < items.length; i++) {
+      if (items[i].id === selectedId) { matched = items[i]; break; }
+    }
+    if (!matched) {
+      selectedId = items[0].id;
+      matched = items[0];
+    }
+    catalogSelection[tabMeta.section] = selectedId;
+    var item = matched;
+
+    var html = '<div class="prompt-catalog-toolbar">'
+      + '<p class="prompt-catalog-hint">' + escapeHtml(section.hint || '只读目录') + '</p>'
+      + '<div class="prompt-catalog-select-row">'
+      + '<label for="promptCatalogSelect">查看条目</label>'
+      + '<select id="promptCatalogSelect" class="prompt-catalog-select">'
+      + buildSelectOptions(section, selectedId)
+      + '</select>'
+      + '<span class="prompt-catalog-count">' + items.length + ' 条</span>'
+      + '</div></div>'
+      + renderCatalogDetail(item);
+
+    listEl.innerHTML = html;
+    var sel = document.getElementById('promptCatalogSelect');
+    if (sel) {
+      sel.addEventListener('change', function() {
+        catalogSelection[tabMeta.section] = sel.value;
+        renderList(ps);
+      });
+    }
+  }
+
+  function renderEditableList(ps) {
+    setActionsMode(false);
     var items = metaInGroup(ps, activeGroup);
     if (!items.length) {
       listEl.innerHTML = '<p class="prompt-config-hint">本分类暂无提示词</p>';
@@ -223,6 +498,12 @@
     });
   }
 
+  function renderList(ps) {
+    var cat = findCatalogTab(activeGroup);
+    if (cat) renderCatalogList(ps, cat);
+    else renderEditableList(ps);
+  }
+
   function render() {
     var ps = store();
     if (!ps) {
@@ -230,7 +511,6 @@
       tabsEl.innerHTML = '';
       return;
     }
-    // 首次/刷新：以 store 为准重建缓存（避免陈旧 draft）
     draftCache = {};
     (ps.META || []).forEach(function(m) {
       if (m && m.id) draftCache[m.id] = ps.get(m.id);
@@ -255,8 +535,12 @@
     btnSave.addEventListener('click', function() {
       var ps = store();
       if (!ps) return;
+      if (isCatalogTab(activeGroup)) {
+        setStatus('目录类 Tab 只读，无需保存', true);
+        return;
+      }
       ps.setAll(collectAllValues(ps));
-      setStatus('已保存到 localStorage（含全部 Tab）', true);
+      setStatus('已保存到 localStorage（含全部可编辑 Tab）', true);
     });
   }
 
@@ -264,6 +548,10 @@
     btnResetTab.addEventListener('click', function() {
       var ps = store();
       if (!ps || !activeGroup) return;
+      if (isCatalogTab(activeGroup)) {
+        setStatus('目录类 Tab 只读，无默认可恢复', true);
+        return;
+      }
       if (!confirm('确定将「' + activeGroup + '」下全部提示词恢复为默认？')) return;
       metaInGroup(ps, activeGroup).forEach(function(m) {
         ps.reset(m.id);
@@ -278,7 +566,7 @@
     btnReset.addEventListener('click', function() {
       var ps = store();
       if (!ps) return;
-      if (!confirm('确定将全部提示词恢复为内置默认值？')) return;
+      if (!confirm('确定将全部可编辑提示词恢复为内置默认值？')) return;
       ps.reset();
       draftCache = {};
       render();

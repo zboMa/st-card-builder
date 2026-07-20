@@ -44,6 +44,8 @@ npm test             # Node.js native test runner (tests/**/*.test.mjs)
 | `src/lib/novel/` | Novel workshop: state (IDB buckets) + stateMachine + shared (context, bridge) + panels (source, chapters, setup, analyze, characters, worldbook, style) + analysis pipeline, entity store, RAG, sync, NSFW/NTL |
 | `src/lib/promptCanon.mjs` | Default prompt blocks shared across all generation pipelines |
 | `src/lib/promptStore.mjs` | User prompt overrides persisted to `st_v3_builder_prompts` |
+| `src/lib/promptCatalogBrowser.mjs` | 提示词配置 · 目录只读浏览（口味/NTL/世界观/载体） |
+| `docs/catalog-quality-standards.md` | **目录扩展质量标准**（增项必读：字数硬线、层职责、禁套话、成年边界） |
 | `src/lib/statusBarThemes/` | 30 visual themes (15 aesthetics × single/multi), filtered by character count |
 | `src/lib/statusBar.mjs` | Status bar designer: theme resolution, HTML generation, snippet building |
 | `src/lib/charTags.mjs` | Character tag normalization and merging |

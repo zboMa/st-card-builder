@@ -175,6 +175,11 @@ import AiTaskCenterUI from '../components/AiTaskCenterUI.astro';
     };
   </script>
 
+  <script>
+    import { buildPromptCatalogBrowser } from '../lib/promptCatalogBrowser.mjs';
+    window.__promptCatalogBrowser__ = buildPromptCatalogBrowser();
+  </script>
+
   <!-- IndexedDB：头像高清图 + 小说大文本（草稿 JSON 仅存轻量标记） -->
   <script>
     import { openIdbDatabase } from '../lib/idbStore.mjs';
