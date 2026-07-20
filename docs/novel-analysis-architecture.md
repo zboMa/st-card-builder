@@ -18,27 +18,45 @@
 ## 2. 目标架构
 
 ```
-原始资料 → 拆章
-              ↓
+                    模块化面板（src/lib/novel/panels/）
+                    ─────────────────────────────────
+原始资料 ──→ source.mjs（导入）
+                 ↓
+           chapters.mjs（拆章）
+                 ↓
      ┌── Chunk 索引层（关键词倒排 + Embedding 向量）──┐
      │         IndexedDB 按 cardId 分桶                 │
+     │         实现：src/lib/novel/rag/*.mjs             │
      └────────────────────┬────────────────────────────┘
                           ↓
-              统一分析管线（主路径）
+              analyze.mjs（统一分析管线）
               骨架扫描 → 实体丰满化 → 关系/时间线
+              实现：src/lib/novel/analyzePipeline.mjs
                           ↓
                    Entity Store（知识库）
+              src/lib/novel/entityStore.mjs
               person / faction / location / item / event / lore / nsfw
                           ↓
         ┌─────────────────┼─────────────────┐
         │                 │                 │
-   知识库 UI          关系图/时间线      助手 RAG 问答
-   （分类浏览编辑）    （实体+边视图）    （检索原文+实体后答/改）
+ characters.mjs      graphViz.mjs      assistant RAG 问答
+ + worldbook.mjs     （关系图/时间线）   （检索原文+实体后答/改）
+ （分类浏览编辑）     graphMerge.mjs     实现：src/lib/assistant/*.mjs
+        │                                   │
+        │            src/lib/novel/rag/inject.mjs
         │                                   │
         └────────── 同步到主卡 ─────────────┘
-                 （角色设定 / 世界书条目）
+           src/lib/novel/sync.mjs（角色设定 / 世界书条目）
 
-降级路径（保留）：人物扫描、世界书抽取（一体分析已删除，能力并入统一分析）
+降级路径（保留）：人物扫描、世界书抽取（旧一体分析已废止，能力由 `panels/analyze.mjs` 统一分析管线接替）
+
+模块总览：
+  src/lib/novel/panels/   source.mjs · chapters.mjs · setup.mjs · analyze.mjs · characters.mjs · worldbook.mjs · style.mjs
+  src/lib/novel/          browserApp.mjs（~684 行 orchestrator）· stateMachine.mjs · shared/context.mjs · shared/bridge.mjs
+  src/lib/novel/          state.mjs · schema.mjs · entityStore.mjs · analyzePipeline.mjs
+  src/lib/novel/          chapters.mjs · recall.mjs · graphMerge.mjs · graphViz.mjs · sync.mjs · nsfwSupport.mjs
+  src/lib/novel/rag/      chunker.mjs · embedClient.mjs · store.mjs · keywordSearch.mjs · vectorSearch.mjs · hybridSearch.mjs · indexBuild.mjs · inject.mjs · embeddingConfig.mjs
+  src/lib/assistant/      tools.mjs · executor.mjs · risk.mjs · parser.mjs
 ```
 
 **原则**
@@ -106,7 +124,7 @@
 
 **分步推断（AdultMode）**：骨架出 NSFW/`adult` 草稿 → 丰满用 RAG+已有摘要修订 → 关系补亲密边 → 抽取/扩展同规则；优先级：原文 → 实体互证 → 合理虚构；禁止整块「原文未提及」。
 
-### 3.4 状态扩展（`state.mjs`）
+### 3.4 状态扩展（`src/lib/novel/state.mjs`）
 
 在现有 novel state 上增加（hydrate 兼容）：
 
@@ -184,7 +202,7 @@ knowledgeGraph: { nodes, edges, updatedAt },  // 由 entities+relations 投影
 | `src/lib/novel/rag/chunker.mjs` | 章节 → chunk（默认 600 字，重叠 80） |
 | `src/lib/novel/rag/embedClient.mjs` | 调用 `{apiUrl}/embeddings`，批量、重试、可取消 |
 | `src/lib/novel/rag/store.mjs` | IndexedDB 读写索引 |
-| `src/lib/novel/rag/keywordSearch.mjs` | 基于词的命中（复用/扩展 `recall.mjs`） |
+| `src/lib/novel/rag/keywordSearch.mjs` | 基于词的命中（复用/扩展 `src/lib/novel/recall.mjs`） |
 | `src/lib/novel/rag/vectorSearch.mjs` | 余弦相似度 Top-K |
 | `src/lib/novel/rag/hybridSearch.mjs` | RRF 合并关键词 ∪ 向量 |
 | `src/lib/novel/rag/indexBuild.mjs` | 建索引流水线 + 任务中心类型 |
@@ -235,7 +253,7 @@ query
 | `novel-characters` | **人物列表** | 人物实体结果展示/编辑/「丰满所选」/同步；扫描为降级；无实体时行内 AI 扩展 |
 | `novel-worldbook` | **世界书条目** | 非人物实体结果展示/类型筛选/丰满/同步；AI 抽取为降级 |
 
-已移除独立「知识库 / 知识图谱」侧栏；图谱挂在小说分析页。旧一体分析已删除。人物工具栏不再提供批量「AI 扩展所选」。
+已移除独立「知识库 / 知识图谱」侧栏；图谱挂在小说分析页。旧一体分析已废止，由 `panels/analyze.mjs` 统一分析管线替代。人物工具栏不再提供批量「AI 扩展所选」。
 
 ### 5.2 流水线步骤
 
@@ -272,7 +290,7 @@ novel_analyze_relations  关系补全
 
 （可合并显示为一个父任务 + 子进度。）
 
-### 5.4 提示词（promptStore 新增）
+### 5.4 提示词（`src/lib/promptStore.mjs` 新增）
 
 | id | 用途 |
 |----|------|
@@ -281,7 +299,7 @@ novel_analyze_relations  关系补全
 | `novelAnalyzeRelations` | 关系补全 |
 | `assistantNovelRagHint` | 助手：有原文/实体时如何使用 |
 
-旧 scan / wbExtract **保留**给降级路径；`novelUnifiedShard` 已删除。
+旧 scan / wbExtract **保留**给降级路径；`novelUnifiedShard` 已废止，由 `panels/analyze.mjs` 统一分析管线替代。
 
 ---
 
@@ -297,7 +315,7 @@ novel_analyze_relations  关系补全
 
 ## 7. 同步到主卡
 
-扩展 `sync.mjs`：
+扩展 `src/lib/novel/sync.mjs`：
 
 - `syncEntities({ types?, selected?, policy? })`  
 - person → 角色设定 / `[小说人物]`  
@@ -379,26 +397,25 @@ novel_analyze_relations  关系补全
 - `src/lib/novel/analyzePipeline.mjs`（骨架/丰满/关系）
 - `src/components/novel/NovelAnalyzePanel.astro`
 - `tests/novelRag.test.mjs`
-- `tests/novelEntityStore.test.mjs`
 - `docs/novel-analysis-architecture.md`（本文）
 
 ### 修改
 
-- `state.mjs`：entities/relations/rag/analyze*；NOVEL_VIEWS；summarize  
-- `schema.mjs`：event/faction attrs 辅助（如需）  
-- `recall.mjs`：导出通用 keyword 能力供 hybrid 复用  
-- `graphMerge.mjs`：改为调用 entityStore 或保留作适配层  
-- `sync.mjs`：`syncEntities`  
-- `browserApp.mjs`：索引/分析绑定；人物/世界书列表承接实体；旧路径投影  
-- `promptStore.mjs`：新提示词 + META  
-- `aiTaskCenter.mjs`：新任务类型  
-- `AppSidebar.astro` / `index.astro` / `Layout.astro` / `NovelWorkshopStyles.astro`  
-- `AssistantPanel.astro`：注入 + bridge  
-- `tools.mjs` / `executor.mjs` / `risk.mjs`：新工具  
-- `AIPanel.astro`：embeddingModel + RAG 选项（或独立小组件）  
+- `src/lib/novel/state.mjs`：entities/relations/rag/analyze*；NOVEL_VIEWS；summarize  
+- `src/lib/novel/schema.mjs`：event/faction attrs 辅助（如需）  
+- `src/lib/novel/recall.mjs`：导出通用 keyword 能力供 hybrid 复用  
+- `src/lib/novel/graphMerge.mjs`：改为调用 entityStore 或保留作适配层  
+- `src/lib/novel/sync.mjs`：`syncEntities`  
+- `src/lib/novel/browserApp.mjs`（684 行 orchestrator）：索引/分析绑定；人物/世界书列表承接实体；旧路径投影；面板逻辑已拆分至 `src/lib/novel/panels/`（source/chapters/setup/analyze/characters/worldbook/style，合计 ~3,450 行）  
+- `src/lib/promptStore.mjs`：新提示词 + META  
+- `src/lib/aiTaskCenter.mjs`：新任务类型  
+- `src/components/AppSidebar.astro` / `src/pages/index.astro` / `src/layouts/Layout.astro` / `src/components/novel/NovelWorkshopStyles.astro`  
+- `src/components/AssistantPanel.astro`：注入 + bridge  
+- `src/lib/assistant/tools.mjs` / `executor.mjs` / `risk.mjs`：新工具  
+- `src/components/AIPanel.astro`：embeddingModel + RAG 选项（或独立小组件）  
 - 世界书主面板：识别 `event` category（或映射显示）  
 - `README.md` / `docs/card-writing-guide.md`  
-- 相关测试：`novelCore` / `sidebarNav` / `assistantCore` / `promptStore` / `aiTaskCenter`
+- 相关测试：`tests/novelCore.test.mjs` / `tests/sidebarNav.test.mjs` / `tests/assistantCore.test.mjs` / `tests/promptStore.test.mjs` / `tests/aiTaskCenter.test.mjs`
 
 ---
 
@@ -428,7 +445,7 @@ novel_analyze_relations  关系补全
 - [x] 落卡修复：多人 charName、YAML 占位跳过、syncStatus 双向、扩展回写实体、世界书批量合并草稿。  
 - [x] NSFW 分步推断体系：`attrs.adult` / `nsfwMeta`、kind 门槛、骨架→丰满→关系→抽取递进补全、成人质量门与丰满优先级。  
 - [x] NTL 禁忌张力层：与 NSFW 解耦可叠加；`set_novel_ntl_mode`；提示块与 RAG 增强独立注入。  
-- [x] 提示词描述体系（`promptCanon.mjs`）：内容维 + NSFW/NTL 维公共块组装全链路默认提示词。
+- [x] 提示词描述体系（`src/lib/promptCanon.mjs`）：内容维 + NSFW/NTL 维公共块组装全链路默认提示词。
 
 ---
 
