@@ -13,9 +13,17 @@
     </div>
 
     <div class="ai-engine-modal__body area-ai">
+      <div class="form-group ai-engine-worldview">
+        <label class="ai-stage-label" for="aiWorldviewPreset">世界观预设</label>
+        <select id="aiWorldviewPreset" aria-label="选择世界观预设">
+          <option value="">不使用预设</option>
+        </select>
+        <p class="ai-engine-field-hint">预设提供世界观制度与语汇骨架；下方各阶段输入框写你的额外要求（可叠加，冲突时以你的要求为准）。</p>
+      </div>
+
       <div class="form-group">
         <label class="ai-stage-label ai-stage-label--char">[阶段1] 角色设定提示词</label>
-        <textarea id="aiPrompt" placeholder="例如：一个在赛博朋克世界中靠捡垃圾为生的边缘黑客少女..." style="min-height: 64px;"></textarea>
+        <textarea id="aiPrompt" placeholder="例如：额外要求——她是底层黑客，性格冷淡但护短..." style="min-height: 64px;"></textarea>
       </div>
 
       <div class="form-group">
@@ -171,6 +179,15 @@
   .ai-engine-skeleton-pills .wb-count-btn { flex: 1; }
 
   /* 弹窗内输入：抬高背景对比，避免玻璃底上文字发灰 */
+  .ai-engine-worldview select {
+    width: 100%;
+    color: var(--color-text);
+    background-color: var(--color-surface-elevated);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 0.85rem;
+  }
   .ai-engine-modal__body textarea,
   .ai-engine-modal__body input[type="number"] {
     color: var(--color-text);

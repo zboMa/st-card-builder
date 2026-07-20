@@ -6,12 +6,19 @@ import {
   parseTagsFromAiText,
   DEFAULT_TAG_CONTEXT_CHARS,
 } from '../../charTags.mjs';
+import {
+  listWorldviewPresetsByGroup,
+  getWorldviewPreset,
+  buildWorldviewHint,
+  WORLDVIEW_PRESET_IDS,
+} from '../../presets/worldviews/index.mjs';
 
 const AI_KEY = 'st_v3_builder_ai_config';
 
 export function registerAiEngine(ctx) {
   var parsedPresetList = [];
   var cachedSearchResults = null;
+  var worldviewPresetId = '';
 
   // ====================================================================
   //  Internal helpers
@@ -107,6 +114,49 @@ export function registerAiEngine(ctx) {
     return new Promise(function(r) { setTimeout(r, ms); });
   }
 
+  function getWorldviewPresetId() {
+    var el = ctx.$('aiWorldviewPreset');
+    if (el) worldviewPresetId = String(el.value || '').trim();
+    return worldviewPresetId;
+  }
+
+  function fillWorldviewSelect(selectedId) {
+    var el = ctx.$('aiWorldviewPreset');
+    if (!el) return;
+    var groups = listWorldviewPresetsByGroup();
+    var html = '<option value="">不使用预设</option>';
+    groups.forEach(function(g) {
+      html += '<optgroup label="' + g.label + '">';
+      (g.items || []).forEach(function(it) {
+        html += '<option value="' + it.id + '"'
+          + (selectedId && selectedId === it.id ? ' selected' : '')
+          + '>' + it.label + '</option>';
+      });
+      html += '</optgroup>';
+    });
+    el.innerHTML = html;
+    if (selectedId && WORLDVIEW_PRESET_IDS.indexOf(selectedId) >= 0) {
+      el.value = selectedId;
+      worldviewPresetId = selectedId;
+    }
+  }
+
+  function syncWorldframeFromPreset(presetId) {
+    var p = getWorldviewPreset(presetId);
+    if (!p || !p.mapsToWorldframe) return;
+    if (typeof window.__setNsfwConfig__ !== 'function') return;
+    var cfg = window.__getNsfwConfig__ ? window.__getNsfwConfig__() : {};
+    // 仅建议同步框架，不强制改口味/NTL；无强制框架时写入建议值
+    if (!cfg.adultWorldframeForced) {
+      cfg.adultWorldframe = p.mapsToWorldframe;
+      window.__setNsfwConfig__(cfg);
+    }
+    var bridge = window.__novelWorkshopBridge__;
+    if (bridge && typeof bridge.setAdultWorldframe === 'function' && !cfg.adultWorldframeForced) {
+      bridge.setAdultWorldframe(p.mapsToWorldframe);
+    }
+  }
+
   function saveAiConfig() {
     var nsfwConfig = window.__getNsfwConfig__ ? window.__getNsfwConfig__() : {};
     localStorage.setItem(AI_KEY, JSON.stringify({
@@ -124,6 +174,7 @@ export function registerAiEngine(ctx) {
             try { var v = JSON.parse(localStorage.getItem('st_v3_builder_novel_rag')); return v || { enabled: true, budget: 12000 }; } catch(e) { return { enabled: true, budget: 12000 }; }
           })(),
       presetList: parsedPresetList,
+      worldviewPresetId: getWorldviewPresetId(),
       nsfwEnabled:   !!nsfwConfig.enabled,
       nsfwFlavor:    nsfwConfig.flavor || '',
       nsfwFlavorItems: Array.isArray(nsfwConfig.flavorItems)
@@ -373,7 +424,21 @@ export function registerAiEngine(ctx) {
       var key   = apiKeyEl ? apiKeyEl.value.trim() : '';
       var model = modelEl ? modelEl.value : '';
       if (!model) { window.alert('请先拉取模型！'); return; }
-      if (!promptEl || !promptEl.value.trim()) { window.alert('请填写角色设定提示词！'); return; }
+
+      var charExtra = promptEl ? promptEl.value.trim() : '';
+      var wvId = getWorldviewPresetId();
+      var wvPreset = getWorldviewPreset(wvId);
+      var hasWorldview = Boolean(wvPreset);
+      if (!charExtra && !hasWorldview) {
+        window.alert('请选择世界观预设，或填写角色设定额外要求！');
+        return;
+      }
+
+      var wvCharHint = buildWorldviewHint(wvId, { stage: 'char' });
+      var wvWbHint = buildWorldviewHint(wvId, { stage: 'worldbook' });
+      var wvGreetHint = buildWorldviewHint(wvId, { stage: 'greeting' });
+      var searchQuery = charExtra
+        || (wvPreset ? (wvPreset.label + ' ' + (wvPreset.description || '')).trim() : '');
 
       var skeletonCount = window.__getSkeletonCount__ ? window.__getSkeletonCount__() : 6;
       var searchEnabled = window.__searchConfig__ && window.__searchConfig__.isEnabled();
@@ -391,7 +456,7 @@ export function registerAiEngine(ctx) {
       var engineTask = aiCenter ? aiCenter.create({
         type: 'engine_generate',
         title: 'AI 引擎一键生成',
-        target: (promptEl.value.trim() || '').slice(0, 40),
+        target: (charExtra || (wvPreset && wvPreset.label) || '').slice(0, 40),
       }) : null;
       var engineSignal = engineTask && engineTask.signal;
 
@@ -408,7 +473,7 @@ export function registerAiEngine(ctx) {
           if (aiCenter && engineTask) aiCenter.setProgress(engineTask.id, currentStep / totalSteps, '联网搜索');
           if (hacker) { hacker.setPhase('\ud83c\udf10 [阶段 ' + currentStep + '/' + totalSteps + '] 联网搜索资料...'); hacker.setProgress(currentStep, totalSteps); hacker.setDetail('正在扫描互联网数据节点...'); }
           if (statusEl) { statusEl.textContent = '\ud83c\udf10 联网搜索中...'; statusEl.style.color = '#38bdf8'; }
-          var searchResult = await ctx.panels.aiEngine.performSearchIfEnabled(promptEl.value.trim());
+          var searchResult = await ctx.panels.aiEngine.performSearchIfEnabled(searchQuery);
           searchInjection = searchResult.searchText || '';
           if (searchResult.mode === 'engine') { if (hacker) hacker.setDetail('\u2705 搜索完成，获取到 ' + searchResult.searchResults.length + ' 条参考资料'); }
           else if (searchResult.mode === 'ai_native') { if (hacker) hacker.setDetail('\u2139\ufe0f 使用 AI 自带联网能力'); }
@@ -423,18 +488,25 @@ export function registerAiEngine(ctx) {
         if (hacker) { hacker.setPhase('\ud83e\uddec [阶段 ' + currentStep + '/' + totalSteps + '] 构建角色灵魂...'); hacker.setProgress(currentStep, totalSteps); hacker.setDetail(hacker.randomMsg()); }
         if (statusEl) { statusEl.textContent = '\u23f3 [阶段 1] 构思角色设定...'; statusEl.style.color = '#38bdf8'; }
 
-        // 主角设定：不注入 NSFW/NTL（成人配置仅服务世界书人物）
+        // 主角设定：不注入 NSFW/NTL（成人配置仅服务世界书人物）；世界观预设可注入
         var p1Sys = ctx.promptText('charGen')
           + (presetsStr ? '\n【文风要求】：\n' + presetsStr : '')
           + '\n【约束】主角 Description 禁止写入 NSFW_information、恶堕分期、情欲口味或 NTL 禁忌层；此类内容只属于世界书人物。'
+          + '\n【冲突处理】若「用户额外要求」与「世界观预设」冲突，以用户额外要求为准。'
+          + (wvCharHint || '')
           + searchInjection;
+
+        var p1User = [
+          hasWorldview ? ('已选用世界观预设：' + wvPreset.label) : '',
+          charExtra ? ('角色额外要求（优先）：\n' + charExtra) : '角色额外要求：无（请严格按世界观预设生成）',
+        ].filter(Boolean).join('\n\n');
 
         var aiResp1 = await ctx.fetchAIContent({
           context: '角色生成/阶段1',
           url: url,
           headers: headers,
           model: model,
-          messages: [{ role: 'system', content: p1Sys }, { role: 'user', content: promptEl.value.trim() }],
+          messages: [{ role: 'system', content: p1Sys }, { role: 'user', content: p1User }],
           temperature: 0.85,
           httpErrorPrefix: '角色生成失败 HTTP ',
           signal: engineSignal,
@@ -476,8 +548,10 @@ export function registerAiEngine(ctx) {
             + charRef
             + '\n【角色】：' + ctx.state.charName + ' | ' + ctx.state.charDesc.substring(0, 300)
             + existingRef
-            + (wbGoal ? '\n【方向】：' + wbGoal : '')
+            + (wbGoal ? '\n【方向·用户额外要求优先】：' + wbGoal : (hasWorldview ? '\n【方向】：请严格按世界观预设与角色卡设计骨架。' : ''))
             + (presetsStr ? '\n【文风】：' + presetsStr.substring(0, 200) : '')
+            + '\n【冲突处理】若「用户额外要求」与「世界观预设」冲突，以用户额外要求为准。'
+            + (wvWbHint || '')
             + searchInjection
             + '\n【输出】：JSON数组 [{ "comment":"===标题===", "content":"一句话", "keys":["词"], "strategy":"selective" }, ...]'
             + '\n要求：极简、不重复、覆盖多维度（地点/人物/组织/物品/事件/规则）';
@@ -538,13 +612,17 @@ export function registerAiEngine(ctx) {
         if (statusEl) { statusEl.textContent = '\u23f3 [阶段 3] 生成开场白...'; statusEl.style.color = '#38bdf8'; }
 
         var greetUserDir = (greetEl && greetEl.value.trim())
-          || '根据角色与世界书骨架，生成沉浸式主开场白与 2 条备选开场白';
-        // 主角开场白：不注入 NSFW/NTL
+          || (hasWorldview
+            ? '请基于世界观预设与角色/世界书骨架，生成沉浸式主开场白与 2 条备选开场白'
+            : '根据角色与世界书骨架，生成沉浸式主开场白与 2 条备选开场白');
+        // 主角开场白：不注入 NSFW/NTL；可注入世界观预设
         var greetSys = ctx.promptText('greetingGen')
           + charRef
           + formatWbSkeletonRef(ctx.state.worldbookEntries)
           + (presetsStr ? '\n【文风】：' + presetsStr.substring(0, 200) : '')
           + '\n【约束】开场白面向主角互动，勿写成恶堕进度或 NTL 调教说明书。'
+          + '\n【冲突处理】若「用户额外要求」与「世界观预设」冲突，以用户额外要求为准。'
+          + (wvGreetHint || '')
           + searchInjection;
 
         var aiResp3 = await ctx.fetchAIContent({
@@ -638,13 +716,17 @@ export function registerAiEngine(ctx) {
       var adultHints = (typeof window.__buildAdultPromptHints__ === 'function')
         ? window.__buildAdultPromptHints__()
         : { nsfw: buildNsfwFlavorHint(), ntl: buildNtlHintForPrompt(), canon: buildAdultCanonHint() };
+      var wvWbSingle = buildWorldviewHint(getWorldviewPresetId(), { stage: 'worldbook' });
       var sysPrompt   = (ctx.promptText('wbSingle') || '')
         + stepInfo + charBlock + '\n' + ctxStr + '\n' + presetBlock
         + (adultHints.nsfw || '') + (adultHints.ntl || '') + (adultHints.vessel || '')
-        + (adultHints.canon || '') + searchInjection
+        + (adultHints.canon || '')
+        + (wvWbSingle || '')
+        + searchInjection
         + '\n【说明】人物类条目标题建议「[小说人物] 名字」；成人内容只写世界书，勿写主角卡面。'
+        + '\n【冲突处理】若「用户额外要求」与「世界观预设」冲突，以用户额外要求为准。'
         + '\n【输出】：1个JSON对象 { "comment": "标题", "content": "详细设定(至少100字)", "keys": ["触发词"], "strategy": "selective 或 constant", "position": 4 }';
-      var userPrompt  = customDirection ? '【方向】：' + customDirection : '【自由发挥，拒绝重复】';
+      var userPrompt  = customDirection ? '【方向·优先】：' + customDirection : '【自由发挥，拒绝重复；有世界观预设则紧贴预设语汇】';
       var headers     = { 'Content-Type': 'application/json' };
       if (key) headers['Authorization'] = 'Bearer ' + key;
 
@@ -786,9 +868,19 @@ export function registerAiEngine(ctx) {
       if (window.updatePreviewPanel) window.updatePreviewPanel(fj);
     },
 
+    applyWorldviewPresetId: function(id) {
+      fillWorldviewSelect(String(id || '').trim());
+    },
+
+    getWorldviewPresetId: function() {
+      return getWorldviewPresetId();
+    },
+
     // ===== 绑定事件 =====
 
     bind: function() {
+      fillWorldviewSelect(worldviewPresetId || '');
+
       var presetInput = ctx.$('presetInput');
       if (presetInput) {
         presetInput.addEventListener('change', function(e) {
@@ -865,15 +957,27 @@ export function registerAiEngine(ctx) {
       var apiKey = ctx.$('apiKey');
       var modelSelect = ctx.$('modelSelect');
       var aiDebugEnable = ctx.$('aiDebugEnable');
+      var wvSelect = ctx.$('aiWorldviewPreset');
 
-      if (apiUrl) apiUrl.addEventListener('input', saveAiConfig);
-      if (apiKey) apiKey.addEventListener('input', saveAiConfig);
-      if (modelSelect) modelSelect.addEventListener('change', saveAiConfig);
+      function persistAi() {
+        if (typeof window.__persistAiConfig__ === 'function') window.__persistAiConfig__();
+        else saveAiConfig();
+      }
+
+      if (apiUrl) apiUrl.addEventListener('input', persistAi);
+      if (apiKey) apiKey.addEventListener('input', persistAi);
+      if (modelSelect) modelSelect.addEventListener('change', persistAi);
+      if (wvSelect) {
+        wvSelect.addEventListener('change', function() {
+          syncWorldframeFromPreset(wvSelect.value || '');
+          persistAi();
+        });
+      }
 
       if (aiDebugEnable) {
         aiDebugEnable.addEventListener('change', function() {
           ctx.updateAIDebugStatus();
-          saveAiConfig();
+          persistAi();
         });
       }
     },

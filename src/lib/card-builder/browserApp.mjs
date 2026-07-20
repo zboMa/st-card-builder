@@ -158,6 +158,9 @@ export function bootCardBuilder() {
     var presetList = ctx.panels.aiEngine && ctx.panels.aiEngine.getParsedPresetList
       ? ctx.panels.aiEngine.getParsedPresetList()
       : [];
+    var worldviewPresetId = ctx.panels.aiEngine && ctx.panels.aiEngine.getWorldviewPresetId
+      ? ctx.panels.aiEngine.getWorldviewPresetId()
+      : ((document.getElementById('aiWorldviewPreset') || {}).value || '');
     localStorage.setItem(AI_KEY, JSON.stringify({
       url: (document.getElementById('apiUrl') || {}).value || '',
       key: (document.getElementById('apiKey') || {}).value || '',
@@ -173,6 +176,7 @@ export function bootCardBuilder() {
         ? window.__getNovelRagOptions__()
         : { enabled: true, budget: 12000 },
       presetList: presetList,
+      worldviewPresetId: String(worldviewPresetId || ''),
       nsfwEnabled: !!ctx.state.nsfwEnabled,
       nsfwFlavor: ctx.state.nsfwFlavor || '',
       nsfwFlavorItems: Array.isArray(ctx.state.nsfwFlavorItems)
@@ -281,6 +285,12 @@ export function bootCardBuilder() {
           ctx.panels.aiEngine.loadPresetsFromConfig(c.presetList);
         }
       }
+      if (ctx.panels.aiEngine && ctx.panels.aiEngine.applyWorldviewPresetId) {
+        ctx.panels.aiEngine.applyWorldviewPresetId(c.worldviewPresetId || '');
+      } else {
+        var wvEl = document.getElementById('aiWorldviewPreset');
+        if (wvEl && c.worldviewPresetId) wvEl.value = String(c.worldviewPresetId || '');
+      }
     } catch (e) {
       console.warn('Loading AI config from storage failed', e);
     }
@@ -292,9 +302,11 @@ export function bootCardBuilder() {
   var apiKeyEl = document.getElementById('apiKey');
   var modelSelEl = document.getElementById('modelSelect');
   var dbgEl = document.getElementById('aiDebugEnable');
+  var wvSelEl = document.getElementById('aiWorldviewPreset');
   if (apiUrlEl) apiUrlEl.addEventListener('input', saveAIConfig);
   if (apiKeyEl) apiKeyEl.addEventListener('input', saveAIConfig);
   if (modelSelEl) modelSelEl.addEventListener('change', saveAIConfig);
+  if (wvSelEl) wvSelEl.addEventListener('change', saveAIConfig);
   if (dbgEl) dbgEl.addEventListener('change', function() {
     ctx.updateAIDebugStatus();
     saveAIConfig();

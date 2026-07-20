@@ -9,22 +9,24 @@
  */
 import { UNMENTIONED } from './schema.mjs';
 import {
+  NSFW_FLAVOR_PRESETS,
+  NSFWFLAVOR_IDS,
   NSFW_FLAVOR_DEFAULT_MIN_CHARS,
   NSFW_FLAVOR_ENRICHMENT,
   FLAVOR_SHARED_DIMENSIONS,
-  applyFlavorEnrichment,
   collectFlavorEnrichment,
   evaluateFlavorRichness,
   extractFlavorRichnessText,
   buildFlavorExpandSystemPrompt,
   buildFlavorExpandUserPrompt,
   compactCharCount,
-} from './nsfwFlavorEnrichment.mjs';
+} from '../adult/flavors/index.mjs';
 import {
+  NTL_TABOO_TYPES,
+  NTL_TABOO_IDS,
   NTL_TABOO_DEFAULT_MIN_CHARS,
   NTL_TABOO_ENRICHMENT,
   NTL_SHARED_DIMENSIONS,
-  applyNtlTabooEnrichment,
   collectNtlEnrichment,
   evaluateNtlRichness,
   extractNtlRichnessText,
@@ -32,7 +34,7 @@ import {
   buildNtlExpandUserPrompt,
   buildNtlTabooHintFromTypes,
   normalizeNtlTabooItems,
-} from './ntlTabooEnrichment.mjs';
+} from '../adult/ntl/index.mjs';
 import {
   ADULT_DIGEST_DEFAULT,
   ADULT_CANON_BUDGET,
@@ -47,7 +49,7 @@ import {
   EXPAND_CTX_CHARS,
   EXPAND_BODY_CHARS,
 } from './contextBudgets.mjs';
-import { buildAdultCanonDigest, formatCorruptionArchiveDigests } from './adultCanon.mjs';
+import { buildAdultCanonDigest, formatCorruptionArchiveDigests } from '../adult/canon.mjs';
 import {
   WORLDFRAMES,
   WORLDFRAME_IDS,
@@ -65,9 +67,11 @@ import {
   formatVesselCanonBlock,
   buildStatusBarVesselDraftFromEntities,
   isVesselEntity,
-} from './adultWorldVessels.mjs';
+} from '../adult/vessels/index.mjs';
 
 export {
+  NSFW_FLAVOR_PRESETS,
+  NSFWFLAVOR_IDS,
   NSFW_FLAVOR_DEFAULT_MIN_CHARS,
   NSFW_FLAVOR_ENRICHMENT,
   FLAVOR_SHARED_DIMENSIONS,
@@ -77,6 +81,8 @@ export {
   buildFlavorExpandSystemPrompt,
   buildFlavorExpandUserPrompt,
   compactCharCount,
+  NTL_TABOO_TYPES,
+  NTL_TABOO_IDS,
   NTL_TABOO_DEFAULT_MIN_CHARS,
   NTL_TABOO_ENRICHMENT,
   NTL_SHARED_DIMENSIONS,
@@ -144,213 +150,6 @@ export var ADULT_RAG_BOOST_TERMS = [
 export var NTL_RAG_BOOST_TERMS = [
   '禁忌', '背德', '权力', '强迫', '掌控', '服从', '越界', '秘密', '胁迫', '不对等',
 ];
-
-/**
- * NSFW 口味预设：21 种，分三组
- *   情绪基调（8）：纯爱/甜蜜/日常/救赎/恣意/虐恋/暗黑/绝望
- *   关系动态（8）：调教/叛逆/温柔支配/臣服/狩猎/引导/沦陷/敌对
- *   特殊风味（5）：惩戒/羞耻/架空/本能/反差
- * 可多选最多 5 项；首项为主调色盘，其余叠加 focus/avoid 与用户 note
- */
-export var NSFW_FLAVOR_PRESETS = {
-  // ======== 第一组：情绪基调 ========
-  vanilla: {
-    group: '情绪基调',
-    label: '纯爱向',
-    description: '情感优先，温柔细腻，强调 consent 与 aftercare',
-    palette: { temperature: '暖', texture: '棉布', primary_intensity_default: 0.5, accent_intensity_default: 0.6 },
-    focus: ['emotional_depth', 'consent', 'aftercare', 'tenderness', 'trust'],
-    avoid: ['强制', '羞辱', '血腥', '疼痛超出角色 Limits'],
-  },
-  sweet: {
-    group: '情绪基调',
-    label: '甜蜜向',
-    description: '撒娇宠溺，互相确认爱意，每一下触碰都在说喜欢你',
-    palette: { temperature: '暖甜', texture: '棉花糖', primary_intensity_default: 0.4, accent_intensity_default: 0.5 },
-    focus: ['spoiling', 'affection', 'playful', 'mutual_adoration', 'giggling'],
-    avoid: ['冷漠', '若即若离', '情感虐待', '欲擒故纵'],
-  },
-  slice_of_life: {
-    group: '情绪基调',
-    label: '日常向',
-    description: '自然发生，松弛感，幽默，生活气息——不是每场性都需要特别的理由',
-    palette: { temperature: '暖偏凉', texture: '棉麻', primary_intensity_default: 0.4, accent_intensity_default: 0.3 },
-    focus: ['casual_intimacy', 'humor', 'comfort', 'familiarity', 'domestic'],
-    avoid: ['过度戏剧化', '强行紧张', '脱离日常人设'],
-  },
-  healing: {
-    group: '情绪基调',
-    label: '救赎向',
-    description: '互相治愈，创伤后重建信任，每一次触碰都在说「你可以放心」',
-    palette: { temperature: '温→暖', texture: '温水', primary_intensity_default: 0.3, accent_intensity_default: 0.6 },
-    focus: ['healing', 'trust_building', 'past_trauma', 'gentle_pacing', 'emotional_safety'],
-    avoid: ['急于推进', '无视对方的退缩信号', '用性代替沟通'],
-  },
-  intense: {
-    group: '情绪基调',
-    label: '恣意向',
-    description: '高密度情欲描写，身体反应与感官细节压倒一切',
-    palette: { temperature: '炽热', texture: '丝绸', primary_intensity_default: 1.0, accent_intensity_default: 0.8 },
-    focus: ['sensory_details', 'body_reactions', 'loss_of_control', 'overwhelm', 'climax_buildup'],
-    avoid: ['油腻模板', '同义堆砌', '忽略心理层'],
-  },
-  angst: {
-    group: '情绪基调',
-    label: '虐恋向',
-    description: '情感痛苦与身体的交织，救赎与宿命——痛并需要着',
-    palette: { temperature: '冷→偶尔炽热', texture: '碎玻璃', primary_intensity_default: 0.7, accent_intensity_default: 0.9 },
-    focus: ['emotional_pain', 'redemption', 'fate', 'self_destruction', 'healing_through_pain'],
-    avoid: ['无代价的伤害', '美化暴力', '忽略情感后坐力'],
-  },
-  dark: {
-    group: '情绪基调',
-    label: '暗黑向',
-    description: '道德模糊，胁迫氛围，情感撕裂，每一次接近都是心理代价',
-    palette: { temperature: '冷', texture: '刀刃', primary_intensity_default: 0.9, accent_intensity_default: 0.7 },
-    focus: ['moral_ambiguity', 'coercion_atmosphere', 'emotional_cost', 'guilt', 'powerlessness'],
-    avoid: ['轻浮消解禁忌', '不经铺垫的转折', '美化伤害'],
-  },
-  despair: {
-    group: '情绪基调',
-    label: '绝望向',
-    description: '深渊中的性——用身体确认自己还活着，自毁与最后的挣扎',
-    palette: { temperature: '冰→短暂的烫', texture: '锈铁', primary_intensity_default: 0.8, accent_intensity_default: 0.9 },
-    focus: ['existential_despair', 'self_destruction', 'last_resort', 'numbness_breaking', 'hollow_after'],
-    avoid: ['浪漫化自毁', '忽略心理后果', '把绝望写成中二'],
-  },
-
-  // ======== 第二组：关系动态 ========
-  domination: {
-    group: '关系动态',
-    label: '调教向',
-    description: '权力交换，仪式感，渐进训练，心理转变',
-    palette: { temperature: '温→热', texture: '皮革', primary_intensity_default: 0.8, accent_intensity_default: 0.5 },
-    focus: ['power_exchange', 'rules', 'progression', 'psychological_transformation', 'ritual'],
-    avoid: ['无铺垫直接硬来', '忽略安全词', '超出 Limits 的极端'],
-  },
-  brat: {
-    group: '关系动态',
-    label: '叛逆向',
-    description: '表面反抗实则期待被压制——嘴硬身体诚实，每一次挑衅都是邀请',
-    palette: { temperature: '热', texture: '磨砂皮', primary_intensity_default: 0.7, accent_intensity_default: 0.8 },
-    focus: ['defiance', 'taming', 'sass_backfire', 'teasing', 'power_struggle_to_submission'],
-    avoid: ['真的愤怒', '完全压制没有过程', '忽视 brat 的主动性魅力'],
-  },
-  gentle_dom: {
-    group: '关系动态',
-    label: '温柔支配',
-    description: '以照顾之名行掌控之实——绑好绳子先问疼吗，命令用商量的语气',
-    palette: { temperature: '恒温', texture: '绒面革', primary_intensity_default: 0.6, accent_intensity_default: 0.7 },
-    focus: ['care_as_control', 'gentle_firmness', 'praise', 'safety', 'trust_based_power'],
-    avoid: ['冷暴力', '羞辱', '命令式语气', '忽视被支配方的反馈'],
-  },
-  service: {
-    group: '关系动态',
-    label: '臣服向',
-    description: '快感来自让对方满足——奉献、崇拜、以对方的愉悦为自己的成就',
-    palette: { temperature: '暖', texture: '丝绒', primary_intensity_default: 0.5, accent_intensity_default: 0.8 },
-    focus: ['devotion', 'worship', 'selfless_service', 'pleasure_in_giving', 'humility'],
-    avoid: ['强迫服务', '自我否定', '把奉献写成无自尊'],
-  },
-  pursuit: {
-    group: '关系动态',
-    label: '狩猎向',
-    description: '追逐与被追逐，猫鼠游戏，张力来自距离感——靠近一步退半步',
-    palette: { temperature: '温→热→凉交替', texture: '羽毛', primary_intensity_default: 0.6, accent_intensity_default: 0.7 },
-    focus: ['chase', 'tease', 'push_pull', 'anticipation', 'delayed_gratification'],
-    avoid: ['直接扑倒', '省略追逐过程', '单方面追逐无互动'],
-  },
-  seduction: {
-    group: '关系动态',
-    label: '引导向',
-    description: '引诱对方一步步堕落或觉醒——innocence 被侵蚀的过程比结果更迷人',
-    palette: { temperature: '凉→渐热', texture: '薄纱', primary_intensity_default: 0.5, accent_intensity_default: 0.9 },
-    focus: ['corruption', 'awakening', 'stepped_temptation', 'innocence_fading', 'point_of_no_return'],
-    avoid: ['跳过快进', '对方毫无挣扎', '把引导写成单纯操纵'],
-  },
-  denial_surrender: {
-    group: '关系动态',
-    label: '沦陷向',
-    description: '抗拒→动摇→崩溃→沉溺，完整的心理弧光——投降的那一秒值得一千字',
-    palette: { temperature: '冷→爆热→温', texture: '融化的冰', primary_intensity_default: 0.6, accent_intensity_default: 0.9 },
-    focus: ['resistance', 'crumbling', 'surrender', 'internal_conflict', 'relief_after_yielding'],
-    avoid: ['直接放弃抵抗', '没有内心挣扎', '沉溺后没有情绪余波'],
-  },
-  enemies: {
-    group: '关系动态',
-    label: '敌对向',
-    description: '明明该恨你却想要你——每一寸靠近都带着刀，亲密的暴力美学',
-    palette: { temperature: '冷+灼热点', texture: '淬火的钢', primary_intensity_default: 0.9, accent_intensity_default: 0.8 },
-    focus: ['hatred_and_desire', 'roughness', 'conflicted', 'verbal_hostility', 'reluctant_care'],
-    avoid: ['突然变甜', '消解敌对张力', '暴力无上下文'],
-  },
-
-  // ======== 第三组：特殊风味 ========
-  discipline: {
-    group: '特殊风味',
-    label: '惩戒向',
-    description: '规则→违规→惩罚→安抚的完整闭环，仪式感与情感修复同等重要',
-    palette: { temperature: '冷→温', texture: '竹', primary_intensity_default: 0.7, accent_intensity_default: 0.5 },
-    focus: ['rules', 'transgression', 'punishment', 'atonement', 'comfort_after_punish'],
-    avoid: ['只罚不安抚', '惩罚无规则前提下', '忽视事后情感'],
-  },
-  shame: {
-    group: '特殊风味',
-    label: '羞耻向',
-    description: '暴露与羞辱心理——脸红的细节、躲闪的眼神、说不出口的话，比身体反应更重',
-    palette: { temperature: '忽冷忽热', texture: '薄冰', primary_intensity_default: 0.6, accent_intensity_default: 0.8 },
-    focus: ['embarrassment', 'exposure', 'blushing', 'verbal_teasing', 'shame_arousal_loop'],
-    avoid: ['只羞辱不安抚', '践踏自尊无底线', '忽略羞耻后的情感需求'],
-  },
-  fantasy: {
-    group: '特殊风味',
-    label: '架空向',
-    description: '非人/奇幻种族/吸血鬼/妖魔/异种族——设定驱动的情欲，借用设定特性创作独特体验',
-    palette: { temperature: '变幻', texture: '星尘', primary_intensity_default: 0.5, accent_intensity_default: 0.7 },
-    focus: ['species_specific_traits', 'worldbuilding_eroticism', 'non_human_bodies', 'magical_intimacy', 'otherness'],
-    avoid: ['写成人形只换皮', '忽略种族设定', '把架空当成标签敷衍'],
-  },
-  primal: {
-    group: '特殊风味',
-    label: '本能向',
-    description: '兽化/返祖/本能压制——理性退场，只剩冲动、气味、原始的占有与臣服',
-    palette: { temperature: '原始的热', texture: '毛皮+汗', primary_intensity_default: 0.9, accent_intensity_default: 0.6 },
-    focus: ['instinct', 'feral', 'scent_marking', 'raw_power', 'rationality_losing'],
-    avoid: ['回归理性太快', '用社交规范约束', '写成普通野兽行为'],
-  },
-  contrast: {
-    group: '特殊风味',
-    label: '反差向',
-    description: '表面人设与情欲表现强烈错位——清冷/端庄/强势外壳下的失控、乖顺或淫靡；张力来自「不该这样」',
-    palette: { temperature: '冷外热内', texture: '西装内里的汗', primary_intensity_default: 0.7, accent_intensity_default: 0.85 },
-    focus: ['persona_vs_desire', 'public_vs_private', 'reluctant_reveal', 'shameful_enjoyment', 'identity_crack'],
-    avoid: ['无铺垫的突然崩人设', '把反差写成单纯双标脸谱', '忽略事后自我厌恶或沉溺'],
-  },
-};
-
-applyFlavorEnrichment(NSFW_FLAVOR_PRESETS);
-
-export var NSFWFLAVOR_IDS = Object.keys(NSFW_FLAVOR_PRESETS);
-
-/** NTL 禁忌类型：不只是"背德/权力差"，而是具体的禁忌方向（含百破） */
-export var NTL_TABOO_TYPES = {
-  age_gap: { label: '年龄差', description: '成熟度不对等带来的自然张力' },
-  status_gap: { label: '身份差', description: '师生/医患/僧俗/上下级等身份边界' },
-  emotional_forbidden: { label: '情感禁忌', description: '爱上不该爱的人：朋友伴侣/仇人之子/已故之人的影子' },
-  moral_conflict: { label: '道德冲突', description: '明知被利用但无法自拔/明知是错但停不下来' },
-  situational: { label: '情境禁忌', description: '公共场所/危险环境下的亲密，刺激来自场景而非关系' },
-  power_coercion: { label: '权力胁迫', description: '直接的权力压迫与服从（原 NTL 核心）' },
-  secret_affair: { label: '隐秘关系', description: '不能公开的地下关系，偷情/瞒着所有人' },
-  redemption_captor: { label: '俘获/救赎', description: '敌对关系中被对方吸引（斯德哥尔摩/反向救赎）' },
-  yuri_destruction: {
-    label: '百破',
-    description: '百合破坏：原有或潜在的女女亲密/爱恋被介入、瓦解、侵占或自我崩解；张力来自「本可完整的百合被撕开」',
-  },
-};
-
-applyNtlTabooEnrichment(NTL_TABOO_TYPES);
-
-export var NTL_TABOO_IDS = Object.keys(NTL_TABOO_TYPES);
 
 /** 占位判定 */
 export function isPlaceholderText(s) {
