@@ -71,7 +71,34 @@
       <div id="adultNsfwFlavorList" class="adult-dashed-list"></div>
     </section>
 
-    <!-- 5. NTL -->
+    <!-- 5. 表达层 -->
+    <section id="adultPostureSection" class="adult-expression-section" style="display:none;" aria-labelledby="adultPostureHeading">
+      <div class="char-nsfw-flavor-line" style="margin-bottom:6px;">
+        <span id="adultPostureHeading" class="char-nsfw-sub">姿势语言</span>
+        <span class="char-nsfw-subtitle">不占口味槽；可多选；禁止儿童性化</span>
+      </div>
+      <div class="adult-dashed-add-row">
+        <select id="adultPosturePicker" aria-label="选择要添加的姿势语言">
+          <option value="">选择姿势语言…</option>
+        </select>
+      </div>
+      <div id="adultPostureList" class="adult-dashed-list"></div>
+    </section>
+
+    <section id="adultSpeechSection" class="adult-expression-section" style="display:none;" aria-labelledby="adultSpeechHeading">
+      <div class="char-nsfw-flavor-line" style="margin-bottom:6px;">
+        <span id="adultSpeechHeading" class="char-nsfw-sub">情趣话风</span>
+        <span class="char-nsfw-subtitle">不占口味槽；可多选；禁止儿童性化</span>
+      </div>
+      <div class="adult-dashed-add-row">
+        <select id="adultSpeechPicker" aria-label="选择要添加的情趣话风">
+          <option value="">选择情趣话风…</option>
+        </select>
+      </div>
+      <div id="adultSpeechList" class="adult-dashed-list"></div>
+    </section>
+
+    <!-- 6. NTL -->
     <section class="adult-ntl-section" aria-labelledby="adultNtlHeading">
       <div class="char-nsfw-flavor-line" style="margin-bottom:4px;">
         <span id="adultNtlHeading" class="char-nsfw-sub">NTL 禁忌</span>
@@ -88,7 +115,7 @@
       </div>
     </section>
 
-    <!-- 6. 恶堕 -->
+    <!-- 7. 恶堕 -->
     <div id="adultCorruptionBlock" class="char-corruption-block" style="display:none;">
       <div class="char-nsfw-flavor-line" style="margin-bottom:6px;">
         <label class="novel-switch">
@@ -171,6 +198,7 @@
     white-space: nowrap;
   }
   .adult-flavor-section,
+  .adult-expression-section,
   .adult-ntl-section {
     margin-top: 12px;
     padding-top: 10px;

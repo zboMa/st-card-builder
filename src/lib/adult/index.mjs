@@ -5,6 +5,7 @@
 export * from './flavors/index.mjs';
 export * from './ntl/index.mjs';
 export * from './vessels/index.mjs';
+export * from './expression/index.mjs';
 export {
   buildAdultCanonDigest,
   formatCorruptionArchiveDigests,

@@ -42,7 +42,7 @@ export var CORRUPTION_PRESETS = {
 
 export var CORRUPTION_PRESET_IDS = Object.keys(CORRUPTION_PRESETS);
 
-var STAGE_SECTION_HINTS = [
+export var STAGE_SECTION_HINTS = [
   '心理状态',
   '性格与价值观偏移',
   '言行与反差',

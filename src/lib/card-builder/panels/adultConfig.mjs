@@ -102,11 +102,40 @@ export function registerAdultConfig(ctx) {
     return out.slice(0, maxFlavorItems());
   }
 
+  function normalizeExpressionItemsByKind(raw, kind) {
+    var data = window.__nsfwFlavorData__;
+    var validIds = kind === 'speech'
+      ? ((data && data.speechIds) || [])
+      : ((data && data.postureIds) || []);
+    var base = (data && typeof data.normalizeExpressionItems === 'function')
+      ? data.normalizeExpressionItems(raw)
+      : (Array.isArray(raw) ? raw : []).map(function(it) {
+          return {
+            id: String((it && it.id) || '').trim(),
+            note: String((it && it.note) || '').trim(),
+          };
+        }).filter(function(it) { return it.id; });
+    if (!validIds.length) return base;
+    return base.filter(function(it) {
+      return validIds.indexOf(it.id) >= 0;
+    });
+  }
+
   function ensureFlavorItemsOnState() {
     var items = normalizeFlavorItems(ctx.state.nsfwFlavorItems, ctx.state.nsfwFlavor);
     ctx.state.nsfwFlavorItems = items;
     ctx.state.nsfwFlavor = items.length ? items[0].id : '';
     return items;
+  }
+
+  function ensurePostureItemsOnState() {
+    ctx.state.eroticPostureItems = normalizeExpressionItemsByKind(ctx.state.eroticPostureItems, 'posture');
+    return ctx.state.eroticPostureItems;
+  }
+
+  function ensureSpeechItemsOnState() {
+    ctx.state.eroticSpeechItems = normalizeExpressionItemsByKind(ctx.state.eroticSpeechItems, 'speech');
+    return ctx.state.eroticSpeechItems;
   }
 
   function buildNsfwFlavorHint() {
@@ -136,6 +165,26 @@ export function registerAdultConfig(ctx) {
     return '';
   }
 
+  function buildPostureHintForPrompt() {
+    var data = window.__nsfwFlavorData__;
+    if (!ctx.state.nsfwEnabled || !data || typeof data.buildPostureHintFromItems !== 'function') return '';
+    var items = ensurePostureItemsOnState();
+    if (!items.length) return '';
+    return data.buildPostureHintFromItems(items, {
+      intro: '（仅用于世界书人物/恶堕，勿写入主角设定）',
+    });
+  }
+
+  function buildSpeechHintForPrompt() {
+    var data = window.__nsfwFlavorData__;
+    if (!ctx.state.nsfwEnabled || !data || typeof data.buildSpeechHintFromItems !== 'function') return '';
+    var items = ensureSpeechItemsOnState();
+    if (!items.length) return '';
+    return data.buildSpeechHintFromItems(items, {
+      intro: '（仅用于世界书人物/恶堕，勿写入主角设定）',
+    });
+  }
+
   function inferWorldframeFromCard() {
     var data = window.__nsfwFlavorData__;
     if (!data || typeof data.inferWorldframe !== 'function') {
@@ -158,6 +207,8 @@ export function registerAdultConfig(ctx) {
 
   ctx.panels.adultConfig = {
     buildNsfwFlavorHint: buildNsfwFlavorHint,
+    buildPostureHintForPrompt: buildPostureHintForPrompt,
+    buildSpeechHintForPrompt: buildSpeechHintForPrompt,
     buildNtlHintForPrompt: buildNtlHintForPrompt,
 
     renderWorldframeRow: function() {
@@ -523,11 +574,90 @@ export function registerAdultConfig(ctx) {
       }
     },
 
+    renderExpressionList: function(kind) {
+      var data = window.__nsfwFlavorData__;
+      if (!data) return;
+      var isSpeech = kind === 'speech';
+      var listEl = document.getElementById(isSpeech ? 'adultSpeechList' : 'adultPostureList');
+      var picker = document.getElementById(isSpeech ? 'adultSpeechPicker' : 'adultPosturePicker');
+      if (!listEl) return;
+
+      var items = isSpeech ? ensureSpeechItemsOnState() : ensurePostureItemsOnState();
+      var presets = isSpeech ? (data.speechPresets || {}) : (data.posturePresets || {});
+      var groups = isSpeech ? (data.speechGroups || []) : (data.postureGroups || []);
+      var ids = isSpeech ? (data.speechIds || []) : (data.postureIds || []);
+      var label = isSpeech ? '情趣话风' : '姿势语言';
+
+      if (!items.length) {
+        listEl.innerHTML = '<span class="adult-wv-empty">尚未添加' + label + '——上方下拉点选即可；不占口味槽，可按需要叠加。</span>';
+      } else {
+        listEl.innerHTML = items.map(function(it, idx) {
+          var p = presets[it.id] || { label: it.id, summary: '' };
+          var blurb = p.summary || '';
+          return '<div class="adult-dashed-item" data-expression-idx="' + idx + '">'
+            + '<div class="adult-dashed-item-head">'
+            + '<div class="adult-dashed-item-meta">'
+            + '<div class="adult-dashed-item-title">' + escapeHtml(p.label) + '</div>'
+            + (blurb ? '<div class="adult-dashed-item-desc">' + escapeHtml(blurb) + '</div>' : '')
+            + '</div>'
+            + '<div class="adult-dashed-item-actions">'
+            + (idx > 0 ? '<button type="button" class="adult-dashed-move" data-expression-up="' + kind + ':' + idx + '" title="上移">↑</button>' : '')
+            + (idx < items.length - 1 ? '<button type="button" class="adult-dashed-move" data-expression-down="' + kind + ':' + idx + '" title="下移">↓</button>' : '')
+            + '<button type="button" class="adult-dashed-remove" data-expression-remove="' + kind + ':' + idx + '">移除</button>'
+            + '</div></div>'
+            + '<textarea data-expression-note="' + kind + ':' + idx + '" rows="1" placeholder="可选：补充该条表达层的额外要求">'
+            + escapeHtml(it.note || '') + '</textarea>'
+            + '</div>';
+        }).join('');
+      }
+
+      if (picker) {
+        var selected = Object.create(null);
+        items.forEach(function(it) { selected[it.id] = true; });
+        var opts = '<option value="">选择' + label + '…</option>';
+        groups.forEach(function(g) {
+          var gid = typeof g === 'string' ? g : (g && (g.id || g.label));
+          if (!gid) return;
+          var groupIds = ids.filter(function(id) {
+            var p = presets[id];
+            return !selected[id] && p && (p.group || '') === gid;
+          });
+          if (!groupIds.length) return;
+          opts += '<optgroup label="' + gid + '">';
+          groupIds.forEach(function(id) {
+            var p = presets[id];
+            var sm = p && p.summary ? (' — ' + p.summary) : '';
+            opts += '<option value="' + id + '">' + escapeHtml((p && p.label) || id) + escapeHtml(sm) + '</option>';
+          });
+          opts += '</optgroup>';
+        });
+        var leftovers = ids.filter(function(id) {
+          var p = presets[id];
+          return !selected[id] && (!p || !p.group || !groups.some(function(g) {
+            return (typeof g === 'string' ? g : (g && (g.id || g.label))) === p.group;
+          }));
+        });
+        if (leftovers.length) {
+          opts += '<optgroup label="其他">';
+          leftovers.forEach(function(id) {
+            var p = presets[id];
+            var sm = p && p.summary ? (' — ' + p.summary) : '';
+            opts += '<option value="' + id + '">' + escapeHtml((p && p.label) || id) + escapeHtml(sm) + '</option>';
+          });
+          opts += '</optgroup>';
+        }
+        picker.innerHTML = opts;
+        picker.value = '';
+      }
+    },
+
     renderNsfwBlock: function() {
       var data = window.__nsfwFlavorData__;
       var adultEl = document.getElementById('adultNsfwEnabled');
       var ntlEl = document.getElementById('adultNtlEnabled');
       var flavorSection = document.getElementById('adultFlavorSection');
+      var postureSection = document.getElementById('adultPostureSection');
+      var speechSection = document.getElementById('adultSpeechSection');
       var ntlRow = document.getElementById('adultNtlTabooRow');
       var ntlContainer = document.getElementById('adultNtlTabooTypes');
 
@@ -538,6 +668,12 @@ export function registerAdultConfig(ctx) {
 
       if (flavorSection) flavorSection.style.display = ctx.state.nsfwEnabled ? 'block' : 'none';
       if (ctx.state.nsfwEnabled) ctx.panels.adultConfig.renderFlavorList();
+      if (postureSection) postureSection.style.display = ctx.state.nsfwEnabled ? 'block' : 'none';
+      if (speechSection) speechSection.style.display = ctx.state.nsfwEnabled ? 'block' : 'none';
+      if (ctx.state.nsfwEnabled) {
+        ctx.panels.adultConfig.renderExpressionList('posture');
+        ctx.panels.adultConfig.renderExpressionList('speech');
+      }
 
       if (ntlRow) ntlRow.style.display = ctx.state.ntlEnabled ? 'block' : 'none';
       ctx.panels.adultConfig.renderWorldframeRow();
@@ -634,6 +770,22 @@ export function registerAdultConfig(ctx) {
       return normalizeFlavorItems(items, '');
     },
 
+    readExpressionItemsFromUi: function(kind) {
+      var isSpeech = kind === 'speech';
+      var items = (isSpeech ? ensureSpeechItemsOnState() : ensurePostureItemsOnState()).map(function(it) {
+        return { id: it.id, note: it.note || '' };
+      });
+      document.querySelectorAll((isSpeech ? '#adultSpeechList' : '#adultPostureList') + ' [data-expression-note]').forEach(function(el) {
+        var token = String(el.getAttribute('data-expression-note') || '');
+        var parts = token.split(':');
+        if (parts[0] !== kind) return;
+        var idx = parseInt(parts[1], 10);
+        if (isNaN(idx) || !items[idx]) return;
+        items[idx].note = String(el.value || '').trim();
+      });
+      return normalizeExpressionItemsByKind(items, kind);
+    },
+
     readNtlItemsFromUi: function() {
       var noteMap = Object.create(null);
       ensureNtlItemsOnState().forEach(function(it) { noteMap[it.id] = it.note || ''; });
@@ -661,6 +813,8 @@ export function registerAdultConfig(ctx) {
       var items = ctx.panels.adultConfig.readFlavorItemsFromUi();
       ctx.state.nsfwFlavorItems = items;
       ctx.state.nsfwFlavor = items.length ? items[0].id : '';
+      ctx.state.eroticPostureItems = ctx.panels.adultConfig.readExpressionItemsFromUi('posture');
+      ctx.state.eroticSpeechItems = ctx.panels.adultConfig.readExpressionItemsFromUi('speech');
       ctx.state.ntlEnabled = ntlEl ? !!ntlEl.checked : false;
       var ntlItems = ctx.panels.adultConfig.readNtlItemsFromUi();
       ctx.state.ntlTabooItems = ntlItems;
@@ -678,6 +832,27 @@ export function registerAdultConfig(ctx) {
     commitFlavorItems: function(items) {
       ctx.state.nsfwFlavorItems = normalizeFlavorItems(items, '');
       ctx.state.nsfwFlavor = ctx.state.nsfwFlavorItems.length ? ctx.state.nsfwFlavorItems[0].id : '';
+      var adultEl = document.getElementById('adultNsfwEnabled');
+      var ntlEl = document.getElementById('adultNtlEnabled');
+      var chips = document.querySelectorAll('[data-adult-ntl].active');
+      var ntlTypes = [];
+      chips.forEach(function(c) { ntlTypes.push(c.dataset.adultNtl); });
+      ctx.state.nsfwEnabled = adultEl ? !!adultEl.checked : ctx.state.nsfwEnabled;
+      ctx.state.ntlEnabled = ntlEl ? !!ntlEl.checked : ctx.state.ntlEnabled;
+      ctx.state.ntlTabooTypes = ntlTypes;
+      ctx.panels.adultConfig.syncCorruptionBlockFromUi({ skipRender: true, silentEvent: true });
+      ctx.panels.adultConfig.renderNsfwBlock();
+      ctx.save();
+      if (typeof window.__persistAiConfig__ === 'function') window.__persistAiConfig__();
+      window.dispatchEvent(new CustomEvent('nsfw-config-changed', {
+        detail: window.__getNsfwConfig__ ? window.__getNsfwConfig__() : {},
+      }));
+    },
+
+    commitExpressionItems: function(kind, items) {
+      var next = normalizeExpressionItemsByKind(items, kind);
+      if (kind === 'speech') ctx.state.eroticSpeechItems = next;
+      else ctx.state.eroticPostureItems = next;
       var adultEl = document.getElementById('adultNsfwEnabled');
       var ntlEl = document.getElementById('adultNtlEnabled');
       var chips = document.querySelectorAll('[data-adult-ntl].active');
@@ -721,6 +896,33 @@ export function registerAdultConfig(ctx) {
       items[from] = items[to];
       items[to] = tmp;
       ctx.panels.adultConfig.commitFlavorItems(items);
+    },
+
+    addExpressionItem: function(kind, itemId) {
+      var id = String(itemId || '').trim();
+      if (!id) return;
+      var items = ctx.panels.adultConfig.readExpressionItemsFromUi(kind);
+      if (items.some(function(it) { return it.id === id; })) return;
+      items.push({ id: id, note: '' });
+      ctx.panels.adultConfig.commitExpressionItems(kind, items);
+    },
+
+    removeExpressionItem: function(kind, idx) {
+      var items = ctx.panels.adultConfig.readExpressionItemsFromUi(kind);
+      if (idx < 0 || idx >= items.length) return;
+      items.splice(idx, 1);
+      ctx.panels.adultConfig.commitExpressionItems(kind, items);
+    },
+
+    moveExpressionItem: function(kind, idx, delta) {
+      var items = ctx.panels.adultConfig.readExpressionItemsFromUi(kind);
+      var from = parseInt(idx, 10);
+      var to = from + (delta || 0);
+      if (isNaN(from) || to < 0 || to >= items.length) return;
+      var tmp = items[from];
+      items[from] = items[to];
+      items[to] = tmp;
+      ctx.panels.adultConfig.commitExpressionItems(kind, items);
     },
 
     syncCorruptionBlockFromUi: function(opts) {
@@ -842,7 +1044,7 @@ export function registerAdultConfig(ctx) {
               headers: headers,
               model: model,
               messages: [
-                { role: 'system', content: buildCustomStagesSystemPrompt() },
+                { role: 'system', content: ctx.promptText('corruptionStages', buildCustomStagesSystemPrompt()) },
                 { role: 'user', content: buildCustomStagesUserPrompt(ctx.state.corruptionCustomBrief) },
               ],
               temperature: 0.4,
@@ -864,6 +1066,8 @@ export function registerAdultConfig(ctx) {
           });
 
           var flavorHint = buildNsfwFlavorHint();
+          var postureHint = buildPostureHintForPrompt();
+          var speechHint = buildSpeechHintForPrompt();
           var ntlHint = buildNtlHintForPrompt();
           var minTotal = stageNames.length * CORRUPTION_MIN_CHARS_PER_STAGE;
           var novelBridge = window.__novelWorkshopBridge__;
@@ -899,7 +1103,7 @@ export function registerAdultConfig(ctx) {
               worldbookContent: worldbookContent,
               identity: meta.identity || '',
               customBrief: ctx.state.corruptionCustomBrief,
-              nsfwFlavorHint: flavorHint,
+              nsfwFlavorHint: flavorHint + postureHint + speechHint,
               ntlHint: ntlHint,
               canonDigest: canonDigest,
               siblingArchivesHint: siblingHint,
@@ -911,7 +1115,7 @@ export function registerAdultConfig(ctx) {
               headers: headers,
               model: model,
               messages: [
-                { role: 'system', content: buildArchiveSystemPrompt() },
+                { role: 'system', content: ctx.promptText('corruptionArchive', buildArchiveSystemPrompt()) },
                 { role: 'user', content: userPrompt },
               ],
               temperature: 0.75,
@@ -928,7 +1132,7 @@ export function registerAdultConfig(ctx) {
                 headers: headers,
                 model: model,
                 messages: [
-                  { role: 'system', content: buildArchiveExpandSystemPrompt() },
+                  { role: 'system', content: ctx.promptText('corruptionArchiveExpand', buildArchiveExpandSystemPrompt()) },
                   {
                     role: 'user',
                     content: '薄弱阶段：' + richness.weakStages.join('、')
@@ -1006,11 +1210,25 @@ export function registerAdultConfig(ctx) {
       window.__getNsfwConfig__ = function() {
         var corr = ctx.panels.adultConfig.getCorruptionConfig();
         var items = ensureFlavorItemsOnState();
+        var postureItems = ensurePostureItemsOnState();
+        var speechItems = ensureSpeechItemsOnState();
         var wvItems = ensureWorldviewPresetItemsOnState();
         return {
           enabled: ctx.state.nsfwEnabled,
           flavor: ctx.state.nsfwFlavor || (items[0] && items[0].id) || '',
           flavorItems: items.map(function(it) {
+            return { id: it.id, note: it.note || '' };
+          }),
+          postureItems: postureItems.map(function(it) {
+            return { id: it.id, note: it.note || '' };
+          }),
+          speechItems: speechItems.map(function(it) {
+            return { id: it.id, note: it.note || '' };
+          }),
+          eroticPostureItems: postureItems.map(function(it) {
+            return { id: it.id, note: it.note || '' };
+          }),
+          eroticSpeechItems: speechItems.map(function(it) {
             return { id: it.id, note: it.note || '' };
           }),
           ntlEnabled: ctx.state.ntlEnabled,
@@ -1043,6 +1261,18 @@ export function registerAdultConfig(ctx) {
           ctx.state.nsfwFlavorItems = cfg.flavor
             ? normalizeFlavorItems([{ id: cfg.flavor, note: '' }], '')
             : [];
+        }
+        if (cfg && (Array.isArray(cfg.postureItems) || Array.isArray(cfg.eroticPostureItems))) {
+          ctx.state.eroticPostureItems = normalizeExpressionItemsByKind(
+            cfg.postureItems || cfg.eroticPostureItems,
+            'posture'
+          );
+        }
+        if (cfg && (Array.isArray(cfg.speechItems) || Array.isArray(cfg.eroticSpeechItems))) {
+          ctx.state.eroticSpeechItems = normalizeExpressionItemsByKind(
+            cfg.speechItems || cfg.eroticSpeechItems,
+            'speech'
+          );
         }
         if (cfg && typeof cfg.ntlEnabled === 'boolean') ctx.state.ntlEnabled = cfg.ntlEnabled;
         if (cfg && Array.isArray(cfg.ntlTabooItems)) {
@@ -1108,6 +1338,9 @@ export function registerAdultConfig(ctx) {
         var canon = '';
         var wfLabel = '';
         var vessel = '';
+        var flavor = buildNsfwFlavorHint();
+        var posture = buildPostureHintForPrompt();
+        var speech = buildSpeechHintForPrompt();
         if (ctx.state.nsfwEnabled || ctx.state.ntlEnabled) {
           var wfInfo = inferWorldframeFromCard();
           wfLabel = wfInfo.label || '';
@@ -1132,7 +1365,9 @@ export function registerAdultConfig(ctx) {
           }
         }
         return {
-          nsfw: buildNsfwFlavorHint(),
+          nsfw: flavor + posture + speech,
+          posture: posture,
+          speech: speech,
           ntl: buildNtlHintForPrompt(),
           canon: canon,
           vessel: vessel,
@@ -1143,6 +1378,10 @@ export function registerAdultConfig(ctx) {
       var ntlEl = document.getElementById('adultNtlEnabled');
       var flavorList = document.getElementById('adultNsfwFlavorList');
       var flavorPicker = document.getElementById('adultNsfwFlavorPicker');
+      var postureList = document.getElementById('adultPostureList');
+      var posturePicker = document.getElementById('adultPosturePicker');
+      var speechList = document.getElementById('adultSpeechList');
+      var speechPicker = document.getElementById('adultSpeechPicker');
       if (adultEl) adultEl.addEventListener('change', ctx.panels.adultConfig.syncNsfwBlockFromUi);
       if (ntlEl) ntlEl.addEventListener('change', ctx.panels.adultConfig.syncNsfwBlockFromUi);
       if (flavorPicker) {
@@ -1176,6 +1415,58 @@ export function registerAdultConfig(ctx) {
           ctx.panels.adultConfig.syncNsfwBlockFromUi();
         });
       }
+      if (posturePicker) {
+        posturePicker.addEventListener('change', function() {
+          var id = posturePicker.value || '';
+          if (!id) return;
+          ctx.panels.adultConfig.addExpressionItem('posture', id);
+        });
+      }
+      if (speechPicker) {
+        speechPicker.addEventListener('change', function() {
+          var id = speechPicker.value || '';
+          if (!id) return;
+          ctx.panels.adultConfig.addExpressionItem('speech', id);
+        });
+      }
+      function bindExpressionList(listEl, kind) {
+        if (!listEl) return;
+        listEl.addEventListener('click', function(e) {
+          var t = e.target && e.target.closest
+            ? e.target.closest('[data-expression-remove], [data-expression-up], [data-expression-down]')
+            : null;
+          if (!t) return;
+          function parseExpressionToken(attr) {
+            var token = String(t.getAttribute(attr) || '');
+            var parts = token.split(':');
+            if (parts[0] !== kind) return null;
+            var idx = parseInt(parts[1], 10);
+            return isNaN(idx) ? null : idx;
+          }
+          if (t.hasAttribute('data-expression-remove')) {
+            var ri = parseExpressionToken('data-expression-remove');
+            if (ri != null) ctx.panels.adultConfig.removeExpressionItem(kind, ri);
+            return;
+          }
+          if (t.hasAttribute('data-expression-up')) {
+            var ui = parseExpressionToken('data-expression-up');
+            if (ui != null) ctx.panels.adultConfig.moveExpressionItem(kind, ui, -1);
+            return;
+          }
+          if (t.hasAttribute('data-expression-down')) {
+            var di = parseExpressionToken('data-expression-down');
+            if (di != null) ctx.panels.adultConfig.moveExpressionItem(kind, di, 1);
+          }
+        });
+        listEl.addEventListener('change', function(e) {
+          if (!e.target || !e.target.matches('[data-expression-note]')) return;
+          var token = String(e.target.getAttribute('data-expression-note') || '');
+          if (token.indexOf(kind + ':') !== 0) return;
+          ctx.panels.adultConfig.syncNsfwBlockFromUi();
+        });
+      }
+      bindExpressionList(postureList, 'posture');
+      bindExpressionList(speechList, 'speech');
 
       var wvPicker = document.getElementById('adultWorldviewPresetPicker');
       var wvList = document.getElementById('adultWorldviewPresetList');

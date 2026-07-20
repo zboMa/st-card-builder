@@ -5,6 +5,10 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { NSFW_FLAVOR_PRESETS, NSFWFLAVOR_IDS } from '../src/lib/adult/flavors/index.mjs';
 import { NTL_TABOO_TYPES, NTL_TABOO_IDS } from '../src/lib/adult/ntl/index.mjs';
+import {
+  EROTIC_POSTURE_PRESETS,
+  EROTIC_SPEECH_PRESETS,
+} from '../src/lib/adult/expression/index.mjs';
 import { WORLDVIEW_PRESETS } from '../src/lib/presets/worldviews/index.mjs';
 import { WORLDFRAMES, WORLDFRAME_IDS } from '../src/lib/adult/vessels/index.mjs';
 import { buildCatalogOverviewText } from '../src/lib/catalogSummaries.mjs';
@@ -38,14 +42,19 @@ describe('catalogSummaries', function() {
   it('buildCatalogOverviewText 含关键区', function() {
     var t = buildCatalogOverviewText({
       flavors: NSFW_FLAVOR_PRESETS,
+      postures: EROTIC_POSTURE_PRESETS,
+      speeches: EROTIC_SPEECH_PRESETS,
       ntl: NTL_TABOO_TYPES,
       worldframes: WORLDFRAMES,
       worldviews: WORLDVIEW_PRESETS,
     });
     assert.ok(t.includes('口味'));
+    assert.ok(t.includes('姿势语言'));
+    assert.ok(t.includes('情趣话风'));
     assert.ok(t.includes('NTL'));
     assert.ok(t.includes('世界观框架'));
     assert.ok(t.includes('vanilla'));
+    assert.ok(t.includes(Object.keys(EROTIC_POSTURE_PRESETS)[0]));
     assert.ok(t.includes('age_gap'));
   });
 });

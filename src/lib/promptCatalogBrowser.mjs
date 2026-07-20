@@ -4,8 +4,20 @@
  */
 import { NSFW_FLAVOR_PRESETS, FLAVOR_GROUPS } from './adult/flavors/index.mjs';
 import { NTL_TABOO_TYPES, NTL_GROUPS } from './adult/ntl/index.mjs';
+import {
+  EROTIC_POSTURE_PRESETS,
+  POSTURE_GROUPS,
+  EROTIC_SPEECH_PRESETS,
+  SPEECH_GROUPS,
+} from './adult/expression/index.mjs';
 import { WORLDVIEW_PRESETS, WORLDVIEW_GROUPS, WORLDVIEW_QUALITY_FLOOR } from './presets/worldviews/index.mjs';
 import { FLAVOR_VESSEL_OVERLAYS, NTL_VESSEL_OVERLAYS } from './adult/vessels/index.mjs';
+import {
+  CORRUPTION_PRESETS,
+  STAGE_SECTION_HINTS,
+  CORRUPTION_MIN_CHARS_PER_STAGE,
+  CORRUPTION_TARGET_CHARS_PER_STAGE,
+} from './corruptionProgress.mjs';
 
 /** 扩展规范：下拉分段（与 docs/catalog-quality-standards.md 对齐） */
 export var CATALOG_STANDARD_SECTIONS = [
@@ -13,10 +25,10 @@ export var CATALOG_STANDARD_SECTIONS = [
     id: 'overview',
     label: '总览与字数硬线',
     body:
-      '扩展 / 增补口味 · NTL · 世界观 · 载体时遵守本规范。完整文档见 docs/catalog-quality-standards.md。\n\n'
+      '扩展 / 增补口味 · 表达层 · NTL · 世界观 · 载体时遵守本规范。完整文档见 docs/catalog-quality-standards.md。\n\n'
       + '字数硬线（JS .length）：\n'
-      + '· description：300–450\n'
-      + '· writingGuide：350–500\n'
+      + '· 口味 / NTL / 世界观：description 300–450，writingGuide 350–500\n'
+      + '· 表达层（姿势 / 话风）：description 150–225，writingGuide 175–250，summary 12–28\n'
       + '· antiPatterns：4–6 条且独有\n\n'
       + '世界观质量底线常量 WORLDVIEW_QUALITY_FLOOR：description≥'
       + WORLDVIEW_QUALITY_FLOOR.description
@@ -40,10 +52,11 @@ export var CATALOG_STANDARD_SECTIONS = [
   },
   {
     id: 'layers',
-    label: '四层职责',
+    label: '五层职责',
     body:
       '世界观 = 制度 / 生存 / 权力结构（不要写成情欲教程或禁忌清单）。\n'
       + '口味 = 情欲质地 / 节奏 / 安全余波（不要抢制度全文或 NTL 证据链）。\n'
+      + '表达层 = 姿势语言 / 情趣话风（只改怎么做、怎么说；不占口味槽，不替代 Limits）。\n'
       + 'NTL = 禁忌结构 / 证据链 / 代价（不要写成感官教程）。\n'
       + '载体 overlays = 世界如何物化该口味或禁忌：设施、规章、礼法、器物维保'
       + '（不要写成人物层床戏教程）。',
@@ -54,6 +67,7 @@ export var CATALOG_STANDARD_SECTIONS = [
     body:
       '口味 presets：src/lib/adult/flavors/presets/\n'
       + '口味 enrichment：src/lib/adult/flavors/enrichment/\n'
+      + '表达层：src/lib/adult/expression/\n'
       + 'NTL types：src/lib/adult/ntl/types/\n'
       + 'NTL enrichment：src/lib/adult/ntl/enrichment/\n'
       + '世界观：src/lib/presets/worldviews/data/\n'
@@ -86,7 +100,10 @@ export var CATALOG_STANDARD_SECTIONS = [
 export var PROMPT_CATALOG_TAB_META = [
   { id: '__catalog_standards__', label: '扩展规范', section: 'standards' },
   { id: '__catalog_flavor__', label: '口味目录', section: 'flavor' },
+  { id: '__catalog_posture__', label: '姿势语言', section: 'posture' },
+  { id: '__catalog_speech__', label: '情趣话风', section: 'speech' },
   { id: '__catalog_ntl__', label: 'NTL目录', section: 'ntl' },
+  { id: '__catalog_corruption__', label: '恶堕', section: 'corruption' },
   { id: '__catalog_worldview__', label: '世界观', section: 'worldview' },
   { id: '__catalog_vessel_flavor__', label: '载体·口味', section: 'vesselFlavor' },
   { id: '__catalog_vessel_ntl__', label: '载体·NTL', section: 'vesselNtl' },
@@ -129,6 +146,65 @@ function ntlItems() {
       summary: String(t.summary || ''),
       mustCover: Array.isArray(t.mustCover) ? t.mustCover.slice() : [],
       antiPatterns: Array.isArray(t.antiPatterns) ? t.antiPatterns.slice() : [],
+    };
+  });
+}
+
+function postureItems() {
+  return listFromMap(EROTIC_POSTURE_PRESETS, function(id, p) {
+    return {
+      id: id,
+      label: p.label || id,
+      group: p.group || '',
+      description: String(p.description || ''),
+      writingGuide: String(p.writingGuide || ''),
+      summary: String(p.summary || ''),
+      mustCover: Array.isArray(p.mustCover) ? p.mustCover.slice() : [],
+      antiPatterns: Array.isArray(p.antiPatterns) ? p.antiPatterns.slice() : [],
+    };
+  });
+}
+
+function speechItems() {
+  return listFromMap(EROTIC_SPEECH_PRESETS, function(id, p) {
+    return {
+      id: id,
+      label: p.label || id,
+      group: p.group || '',
+      description: String(p.description || ''),
+      writingGuide: String(p.writingGuide || ''),
+      summary: String(p.summary || ''),
+      mustCover: Array.isArray(p.mustCover) ? p.mustCover.slice() : [],
+      antiPatterns: Array.isArray(p.antiPatterns) ? p.antiPatterns.slice() : [],
+    };
+  });
+}
+
+function corruptionItems() {
+  return ['3', '5', '7'].map(function(id) {
+    var preset = CORRUPTION_PRESETS[id];
+    return {
+      id: id,
+      label: '恶堕阶段 · ' + (preset.label || id) + ' ' + id + ' 阶',
+      group: '恶堕阶段预设',
+      description:
+        '阶段表：' + (preset.stages || []).join(' / ')
+        + '\n\n每阶段正文目标 ' + CORRUPTION_TARGET_CHARS_PER_STAGE.min
+        + '-' + CORRUPTION_TARGET_CHARS_PER_STAGE.max
+        + ' 字；最低门禁 ' + CORRUPTION_MIN_CHARS_PER_STAGE
+        + ' 字。仅适用于成人角色，禁止儿童性化。',
+      writingGuide:
+        '档案正文需按 Markdown ## 标题完整写出全部阶段，且标题必须与阶段表完全一致。'
+        + '\n开头须声明读取状态栏/MVU 当前值；相邻阶段要能感知递进，禁止跳阶、模板段、待填充。'
+        + '\n总则/档案应与人物世界书、已有成人层、其他恶堕档案互相可对读，不可孤立打架。',
+      summary: (preset.stages || []).join(' / '),
+      mustCover: STAGE_SECTION_HINTS.slice(),
+      antiPatterns: [
+        '禁止儿童性化',
+        '禁止输出（待填充）',
+        '禁止阶段之间复制粘贴',
+        '禁止跳阶或跳过阶段标题',
+      ],
     };
   });
 }
@@ -181,7 +257,10 @@ function vesselItems(overlays, labelOf) {
  */
 export function buildPromptCatalogBrowser() {
   var flavors = flavorItems();
+  var postures = postureItems();
+  var speeches = speechItems();
   var ntl = ntlItems();
+  var corruption = corruptionItems();
   var wv = worldviewItems();
   var flavorLabel = Object.create(null);
   flavors.forEach(function(f) { flavorLabel[f.id] = f.label; });
@@ -212,6 +291,20 @@ export function buildPromptCatalogBrowser() {
         }),
         items: flavors,
       },
+      posture: {
+        hint: '姿势语言目录（表达层）。只读；不占口味槽，可多选叠加；禁止儿童性化。',
+        optgroups: (POSTURE_GROUPS || []).map(function(g) {
+          return { id: g.id, label: g.label || g.id };
+        }),
+        items: postures,
+      },
+      speech: {
+        hint: '情趣话风目录（表达层）。只读；不占口味槽，可多选叠加；禁止儿童性化。',
+        optgroups: (SPEECH_GROUPS || []).map(function(g) {
+          return { id: g.id, label: g.label || g.id };
+        }),
+        items: speeches,
+      },
       ntl: {
         hint: 'NTL 禁忌目录（types + enrichment 合并后）。只读。',
         optgroups: Object.keys(NTL_GROUPS || {}).map(function(id) {
@@ -219,6 +312,10 @@ export function buildPromptCatalogBrowser() {
           return { id: id, label: (g && g.label) || id };
         }),
         items: ntl,
+      },
+      corruption: {
+        hint: '恶堕阶段预设与档案写法门禁。只读；展示 3/5/7 阶、必写维度与字数预算。禁止儿童性化。',
+        items: corruption,
       },
       worldview: {
         hint: '世界观预设目录。只读。',

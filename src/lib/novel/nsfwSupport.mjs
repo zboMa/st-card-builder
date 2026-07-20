@@ -2,10 +2,11 @@
  * 小说工坊成人/NTL：实体模板、质量门、分步推断、召回增强、互喂摘要、状态栏草案、口味预设
  * NSFW 与 NTL 解耦：可单独开，也可叠加
  *
- * 调色盘三层架构：
+ * 调色盘四层架构：
  *   第一层·角色核心调色盘（always）→ schema.mjs: persona_layers / tension_pairs / core_desire
  *   第二层·NSFW 口味（叠加）→ nsfwFlavorItems 多选（最多 5，首项为主调色盘）→ desire_palette / …
- *   第三层·NTL 禁忌层（可选叠加）→ ntlTabooItems[{id,note}] 多选 → 特定禁忌类别的张力引导
+ *   第三层·表达层（姿势语言 + 情趣话风）→ 与口味叠加，不占 flavor 5 槽
+ *   第四层·NTL 禁忌层（可选叠加）→ ntlTabooItems[{id,note}] 多选 → 特定禁忌类别的张力引导
  */
 import { UNMENTIONED } from './schema.mjs';
 import {
@@ -36,6 +37,18 @@ import {
   buildNtlTabooHintFromTypes,
   normalizeNtlTabooItems,
 } from '../adult/ntl/index.mjs';
+import {
+  POSTURE_GROUPS,
+  SPEECH_GROUPS,
+  EROTIC_POSTURE_PRESETS,
+  EROTIC_POSTURE_IDS,
+  EROTIC_SPEECH_PRESETS,
+  EROTIC_SPEECH_IDS,
+  normalizeExpressionItems,
+  buildPostureHintFromItems,
+  buildSpeechHintFromItems,
+  checkExpressionEntryQuality,
+} from '../adult/expression/index.mjs';
 import {
   ADULT_DIGEST_DEFAULT,
   ADULT_CANON_BUDGET,
@@ -95,6 +108,16 @@ export {
   buildNtlExpandUserPrompt,
   buildNtlTabooHintFromTypes,
   normalizeNtlTabooItems,
+  POSTURE_GROUPS,
+  SPEECH_GROUPS,
+  EROTIC_POSTURE_PRESETS,
+  EROTIC_POSTURE_IDS,
+  EROTIC_SPEECH_PRESETS,
+  EROTIC_SPEECH_IDS,
+  normalizeExpressionItems,
+  buildPostureHintFromItems,
+  buildSpeechHintFromItems,
+  checkExpressionEntryQuality,
   buildAdultCanonDigest,
   formatCorruptionArchiveDigests,
   ADULT_DIGEST_DEFAULT,

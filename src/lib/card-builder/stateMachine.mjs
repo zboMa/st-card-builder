@@ -94,6 +94,20 @@ export function createCardStateMachine(state) {
     } else {
       state.nsfwFlavorItems = [];
     }
+    if (Array.isArray(d.eroticPostureItems) && d.eroticPostureItems.length) {
+      state.eroticPostureItems = d.eroticPostureItems.map(function(it) {
+        return { id: String((it && it.id) || ''), note: String((it && it.note) || '') };
+      }).filter(function(it) { return it.id; });
+    } else {
+      state.eroticPostureItems = [];
+    }
+    if (Array.isArray(d.eroticSpeechItems) && d.eroticSpeechItems.length) {
+      state.eroticSpeechItems = d.eroticSpeechItems.map(function(it) {
+        return { id: String((it && it.id) || ''), note: String((it && it.note) || '') };
+      }).filter(function(it) { return it.id; });
+    } else {
+      state.eroticSpeechItems = [];
+    }
     state.ntlEnabled = !!d.ntlEnabled;
     if (Array.isArray(d.ntlTabooItems) && d.ntlTabooItems.length) {
       state.ntlTabooItems = d.ntlTabooItems.map(function(it) {
@@ -141,6 +155,8 @@ export function createCardStateMachine(state) {
     state.nsfwEnabled = false;
     state.nsfwFlavor = '';
     state.nsfwFlavorItems = [];
+    state.eroticPostureItems = [];
+    state.eroticSpeechItems = [];
     state.ntlEnabled = false;
     state.ntlTabooTypes = [];
     state.ntlTabooItems = [];

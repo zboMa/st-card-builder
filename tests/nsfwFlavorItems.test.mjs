@@ -114,10 +114,20 @@ describe('nsfw flavor items', function() {
       { id: 'contrast', note: 'a' },
       { id: 'dark', note: 'b' },
     ];
+    st.eroticPostureItems = [
+      { id: 'cowgirl', note: 'posture note' },
+    ];
+    st.eroticSpeechItems = [
+      { id: 'dirty_talk', note: 'speech note' },
+    ];
     st.nsfwFlavor = 'contrast';
     var snap = buildDraftSnapshot(st);
     assert.equal(snap.nsfwFlavor, 'contrast');
     assert.equal(snap.nsfwFlavorItems.length, 2);
     assert.equal(snap.nsfwFlavorItems[1].note, 'b');
+    assert.equal(snap.eroticPostureItems.length, 1);
+    assert.equal(snap.eroticPostureItems[0].note, 'posture note');
+    assert.equal(snap.eroticSpeechItems.length, 1);
+    assert.equal(snap.eroticSpeechItems[0].note, 'speech note');
   });
 });
