@@ -75,4 +75,31 @@ export var PRESETS = {
     focus: ['shared_pulse', 'inner_voice', 'consensual_bond', 'detach_clause', 'identity_border'],
     avoid: ['非自愿寄生永久控制美化', '无剥离', '儿童性化'],
   },
+  living_ink: {
+    group: '异质物质',
+    label: '活墨咒文纹身',
+    description:
+      '活墨咒文纹身把皮肤当会回应的契约纸，但必须可暂停、可洗退、可遮盖。开场先写墨源与权限：谁能唤醒哪一段咒文、持续多久、止墨盐或退纹灯放在哪；没有退路就只许画临时纹。中段让墨线沿脉搏游动、绕开旧伤、在被叫到真名时发热，快感来自「被文字读懂」与「文字也可能越界」的战栗。可以写文字性格：某个字偏要贴近心口，某笔画因害羞断开，又被本人按住要求重写。颜色与温度也要变化：新墨凉、旧墨痒、咒力过强时边缘泛红，像皮肤在回信。纹身不得替主体同意，也不得偷偷写入永久归属。若墨迹爬向喉口、眼周或禁区，立刻止墨护理。余波写清洗残痕、遮瑕、咒文作废或改写。限成人合意，禁止儿童性化；活墨若不可撤销，就不是风味而是侵害烙印。',
+    palette: { temperature: '墨凉转烫', texture: '湿墨皮肤', primary_intensity_default: 0.75, accent_intensity_default: 0.85 },
+    focus: ['animated_runes', 'skin_contract', 'ink_permission', 'safe_erasure', 'name_heat'],
+    avoid: ['永久强制纹身', '咒文代签同意', '无止墨退纹', '儿童性化'],
+  },
+  nanite_swarm: {
+    group: '异质物质',
+    label: '纳米集群',
+    description:
+      '纳米集群的质地是微粒同时触碰与算法边界，不是万能科技催情。开场要有控制台：权限密钥、剂量、回收磁场、紧急断链词、医疗监测谁负责；参数不明就只允许外部贴肤扫描。中段写集群像细砂、静电、冷雾一样沿皮肤排布，能放大某处触觉，也能因误判红灯而自动撤离。读数可制造羞耻：屏幕显示心率上升、肌电反应过快，却仍由本人决定要不要继续。也要写噪声与误差：传感器误报、延迟半秒、需要人工确认才可加档。角色要感到被精密照看与被系统读数窥见的羞耻，而非失去主体。集群不得绕过口头拒绝、不得黑箱升级、不得留在体内不可追踪。余波写回收计数、皮肤敏感、数据删除确认。限成人合意，禁止儿童性化；若技术取消拒绝权，整段按控制事故处理。',
+    palette: { temperature: '冷静电', texture: '金属细砂', primary_intensity_default: 0.7, accent_intensity_default: 0.8 },
+    focus: ['micro_touch', 'swarm_protocol', 'biofeedback', 'recall_field', 'data_aftercare'],
+    avoid: ['科技绕过拒绝', '黑箱剂量升级', '无回收追踪', '儿童性化'],
+  },
+  shadow_congress: {
+    group: '异质物质',
+    label: '影子交合',
+    description:
+      '影子交合写的是影子先替身体触碰、牵引与投诚，不能变成不可见强迫。开场交代光源、影长、谁能踩住或收回影子、停影词如何生效；灯一关或影子离身失控，必须中止。中段让影子贴墙先接吻、缠住手腕的只是暗面轮廓，身体本人仍在明处呼吸、点头或摇头。快感来自「被自己的暗面暴露欲望」与「还能把影子召回」的拉扯。可以让影子比本人诚实半拍：先伸手、先蜷缩、先靠近，又被主人红着脸踩住。光线变化会改写力度：烛火晃一下，影手就松半寸；月光被云遮住，两人必须停下等影归位。影子不得代替本人同意，也不能偷偷触碰第三者。余波写点灯检查、影子是否归位、脚边暗斑有无残留，脚尖重新贴回影根。限成人合意，禁止儿童性化；若影子不可召回，只剩灵异侵害。',
+    palette: { temperature: '灯热影冷', texture: '烟黑丝绒', primary_intensity_default: 0.75, accent_intensity_default: 0.85 },
+    focus: ['shadow_touch', 'light_source_rules', 'dark_self_reveal', 'recall_word', 'lamp_aftercare'],
+    avoid: ['影子代签同意', '不可召回失控', '偷触第三者', '儿童性化'],
+  },
 };

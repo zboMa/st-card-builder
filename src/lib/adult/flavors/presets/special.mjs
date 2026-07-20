@@ -139,4 +139,22 @@ export var PRESETS = {
     focus: ["dressing_ritual","rank_gesture","fabric_sound","role_voice","undress_reverse"],
     avoid: ["校服未成年性化","儿童性化"],
   },
+  money_power_texture: {
+    group: "特殊风味",
+    label: "金钱支配质地",
+    description:
+      "金钱支配质地写的是价格、账单与奢侈物如何给关系加压，不是 NTL 债务勒索。开场先钉清：礼物可拒、账单可分、转账可退，任何消费都不得换取默认身体许可。质地落在黑卡压在房卡旁、定制衣料被量身、账单夹合上时的沉默、昂贵香槟只喝一口却让人意识到差距。被照顾方可以被宠到发软，也要能说不收、不住、不继续；出钱方不能用「我都花了」追讨亲密。可以写价格带来的自我意识：不敢坐皱高价西装、偷偷查菜单、被一句「不用看价格」击中。出钱的一方也要暴露情绪：想被需要、想炫耀，又怕自己只剩钱包。余波写退礼、补账、约定下次价格上限，或承认被纵容的羞耻与甜。限成人合意，禁止儿童性化；若钱只成胁迫工具，直接滑向非合意压迫而非口味。",
+    palette: {"temperature":"冷金微热","texture":"钞纸+丝绒","primary_intensity_default":0.65,"accent_intensity_default":0.85},
+    focus: ["luxury_pressure","gift_boundary","paid_attention","class_gap_shiver","spending_aftercare"],
+    avoid: ["债务胁迫当甜", "消费换默认许可", "礼物不可拒不可退", "儿童性化"],
+  },
+  latex_leather_touch: {
+    group: "特殊风味",
+    label: "乳胶皮革触感",
+    description:
+      "乳胶与皮革触感要写贴合、声响、气味和护理，不是黑亮道具堆图。乳胶上身前先交代尺码、过敏、滑石粉或润滑剂、拉链是否会夹皮；皮革则写温度、硬边、磨合、金属扣压在骨点上的重量。穿戴过程本身是仪式：一点点排气、抚平褶皱、听到吱呀声时暂停问紧不紧。中段用材质控制节奏：乳胶贴汗变热，皮革限制弯曲，让姿势慢下来；气味也要分层，保养油、橡胶味和体温混在一起但不盖过呼吸。心理落点可写被包裹、被塑形、或因每次转身都发出声响而无处躲藏。若出现闷热头晕，材质立刻让路给空气，让皮肤重新散热。退出同样重要：剪开或解扣路径、补水、擦汗、清洁上油、皮肤红痕检查。限成人合意，禁止儿童性化；若没有过敏与解除机制，材质美感按风险失败。",
+    palette: {"temperature":"闷热黑亮","texture":"乳胶+皮革","primary_intensity_default":0.7,"accent_intensity_default":0.8},
+    focus: ["latex_fit","leather_weight","dressing_ritual","material_sound","release_cleanup"],
+    avoid: ["只写黑亮无触感", "忽略过敏尺码", "解除路径缺席", "儿童性化"],
+  },
 };
