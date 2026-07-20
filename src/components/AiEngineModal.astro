@@ -1,88 +1,81 @@
 ---
-/** AI 引擎弹窗：三阶段提示词 + 一键生成（由角色设定右上角入口打开） */
+/** AI 引擎弹窗：三阶段提示词 + 一键生成（世界观预设在「世界与限定」） */
 ---
 <div id="aiEngineModal" class="ai-engine-modal" hidden aria-hidden="true">
   <div class="ai-engine-modal__backdrop ui-modal-backdrop" data-ai-engine-close aria-hidden="true"></div>
   <div class="ui-modal-dialog ai-engine-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="aiEngineModalTitle">
     <div class="ai-engine-modal__head">
       <div>
-        <h2 id="aiEngineModalTitle">✨ AI 引擎</h2>
-        <p class="ai-engine-modal__tip">API / 模型 / 搜索 / 预设请到「配置 → AI 配置」。系统级提示词可在「提示词配置」中调整。</p>
+        <h2 id="aiEngineModalTitle">AI 引擎</h2>
+        <p class="ai-engine-modal__tip">API / 模型请到「配置 → AI 配置」。世界观预设与载体框架在「世界与限定」。</p>
       </div>
       <button type="button" id="btnCloseAiEngine" class="btn-icon btn-icon--sm" aria-label="关闭 AI 引擎">×</button>
     </div>
 
     <div class="ai-engine-modal__body area-ai">
-      <div class="form-group ai-engine-worldview">
-        <label class="ai-stage-label">世界观预设（可多选组合）</label>
-        <div id="aiWorldviewPresetList" class="ai-wv-list" aria-live="polite"></div>
-        <div class="ai-wv-add-row">
-          <select id="aiWorldviewPresetPicker" aria-label="添加世界观预设">
-            <option value="">选择要添加的预设…</option>
-          </select>
-          <button type="button" id="btnAddWorldviewPreset" class="btn btn-ghost">＋添加</button>
-          <span id="aiWorldviewPresetCap" class="ai-engine-field-hint ai-engine-field-hint--tight"></span>
-        </div>
+      <div class="ai-engine-section ai-engine-wv-summary">
+        <div class="ai-engine-section__label">当前世界观</div>
+        <p id="aiWorldviewSummary" class="ai-engine-wv-summary__text">未选择预设</p>
+        <button type="button" id="btnAiEngineGotoWorldLimits" class="ai-engine-link-btn">去「世界与限定」配置</button>
         <!-- 兼容旧单选读取：隐藏同步首项 id -->
         <select id="aiWorldviewPreset" hidden aria-hidden="true" tabindex="-1">
           <option value="">不使用预设</option>
         </select>
-        <p class="ai-engine-field-hint">最多 3 项；首项为主世界观（定底盘），其余为叠加层（隐秘族群/飞地/双轨）。下方阶段输入可再补充；冲突时以你的要求与各项备注优先。</p>
       </div>
 
-      <div class="form-group">
-        <label class="ai-stage-label ai-stage-label--char">[阶段1] 角色设定提示词</label>
-        <textarea id="aiPrompt" placeholder="例如：额外要求——她是底层黑客，性格冷淡但护短..." style="min-height: 64px;"></textarea>
+      <div class="ai-engine-section">
+        <div class="ai-engine-section__label">阶段提示词</div>
+        <div class="form-group ai-engine-stage">
+          <label class="ai-stage-label ai-stage-label--char" for="aiPrompt">[1] 角色设定</label>
+          <textarea id="aiPrompt" placeholder="例如：额外要求——她是底层黑客，性格冷淡但护短..." rows="2"></textarea>
+        </div>
+        <div class="form-group ai-engine-stage">
+          <label class="ai-stage-label ai-stage-label--wb" for="wbPrompt">[2] 世界书方向</label>
+          <textarea id="wbPrompt" placeholder="例如：围绕赛博废土展开，包含武器、势力、地点、NPC..." rows="2"></textarea>
+        </div>
+        <div class="form-group ai-engine-stage">
+          <label class="ai-stage-label ai-stage-label--greeting" for="greetingPrompt">[3] 开场白</label>
+          <textarea id="greetingPrompt" placeholder="例如：雨夜巷口初遇，用第二人称、带环境描写与角色小动作..." rows="2"></textarea>
+          <p class="ai-engine-field-hint">留空则按角色与世界书自动构思。</p>
+        </div>
       </div>
 
-      <div class="form-group">
-        <label class="ai-stage-label ai-stage-label--wb">[阶段2] 世界书方向提示词</label>
-        <textarea id="wbPrompt" placeholder="例如：围绕赛博废土展开，包含武器、势力、地点、NPC..." style="min-height: 52px; border-color: rgba(16, 185, 129, 0.3);"></textarea>
-      </div>
-
-      <div class="form-group">
-        <label class="ai-stage-label ai-stage-label--greeting">[阶段3] 开场白提示词</label>
-        <textarea id="greetingPrompt" placeholder="例如：雨夜巷口初遇，用第二人称、带环境描写与角色小动作..." style="min-height: 52px; border-color: rgba(167, 139, 250, 0.35);"></textarea>
-        <p class="ai-engine-field-hint">始终执行；留空则按角色与世界书自动构思。后续阶段会将前序结果注入参考。</p>
-      </div>
-
-      <div class="ai-engine-skeleton-box">
+      <div class="ai-engine-section ai-engine-skeleton-box">
+        <div class="ai-engine-section__label">生成选项</div>
         <div class="ai-engine-mode-row">
-          <label class="ai-stage-label ai-stage-label--wb ai-stage-label--sm" for="aiEngineGenMode">生成模式</label>
+          <label class="ai-stage-label ai-stage-label--wb ai-stage-label--sm" for="aiEngineGenMode">模式</label>
           <select id="aiEngineGenMode" aria-label="AI 引擎生成模式">
-            <option value="full" selected>完整生成（大纲→逐条丰满）</option>
-            <option value="skeleton">仅骨架（不自动展开）</option>
+            <option value="full" selected>完整（大纲→逐条丰满）</option>
+            <option value="skeleton">仅骨架</option>
           </select>
         </div>
         <p class="ai-engine-field-hint ai-engine-field-hint--tight" id="aiEngineModeHint">
-          默认：先出分类型大纲，再自动一条条写满（人物/地点/势力/事件/物品等互洽）。可选「仅骨架」节省时间。
+          默认先出大纲再逐条写满。可选「仅骨架」节省时间。
         </p>
         <label class="ai-engine-pause-row" for="aiEnginePauseAfterOutline">
           <input type="checkbox" id="aiEnginePauseAfterOutline" />
-          <span>大纲完成后暂停（确认后再点下方「继续丰满」）</span>
+          <span>大纲完成后暂停（再点「继续丰满」）</span>
         </label>
         <div class="ai-engine-skeleton-row">
-          <div class="ai-engine-skeleton-meta">
-            <label class="ai-stage-label ai-stage-label--wb ai-stage-label--sm">世界书条数</label>
-            <p class="ai-engine-field-hint ai-engine-field-hint--tight">完整模式=大纲槽位数；仅骨架=骨架条数。</p>
-          </div>
+          <span class="ai-engine-field-hint ai-engine-field-hint--tight">世界书条数</span>
           <div class="ai-engine-skeleton-count">
-            <label style="color: var(--color-text-muted); font-size: 0.75rem; white-space: nowrap; margin: 0;">生成</label>
-            <input type="number" id="wbSkeletonCount" value="10" min="1" max="30" style="width: 52px; text-align: center; padding: 6px 4px; font-size: 0.9rem; font-weight: 700; border-color: rgba(16,185,129,0.3);" />
-            <label style="color: var(--color-text-muted); font-size: 0.75rem; white-space: nowrap; margin: 0;">条</label>
+            <input type="number" id="wbSkeletonCount" value="10" min="1" max="30" aria-label="世界书条数" />
+            <span class="ai-engine-field-hint">条</span>
           </div>
         </div>
         <div class="ai-engine-skeleton-pills">
-          <button type="button" class="ui-pill-btn wb-count-btn" data-count="6">6条</button>
-          <button type="button" class="ui-pill-btn wb-count-btn" data-count="10">10条</button>
-          <button type="button" class="ui-pill-btn wb-count-btn" data-count="13">13条</button>
-          <button type="button" class="ui-pill-btn wb-count-btn" data-count="16">16条</button>
-          <button type="button" class="ui-pill-btn wb-count-btn" data-count="20">20条</button>
+          <button type="button" class="ui-pill-btn wb-count-btn" data-count="6">6</button>
+          <button type="button" class="ui-pill-btn wb-count-btn" data-count="10">10</button>
+          <button type="button" class="ui-pill-btn wb-count-btn" data-count="13">13</button>
+          <button type="button" class="ui-pill-btn wb-count-btn" data-count="16">16</button>
+          <button type="button" class="ui-pill-btn wb-count-btn" data-count="20">20</button>
         </div>
       </div>
 
-      <button type="button" id="btnAiGenerate" class="btn btn-ai">一键完整生成（角色·大纲·丰满·开场白）</button>
-      <button type="button" id="btnAiContinueEnrich" class="btn btn-fetch" hidden style="margin-top: 8px; width: 100%;">继续：按大纲逐条丰满</button>
+      <div class="ai-engine-actions">
+        <button type="button" id="btnAiGenerate" class="btn btn-ai ai-engine-gen-btn">一键完整生成</button>
+        <button type="button" id="btnAiContinueEnrich" class="btn btn-fetch ai-engine-continue-btn" hidden>继续：按大纲逐条丰满</button>
+      </div>
 
       <div id="hackerOverlay" style="display: none;">
         <div id="hackerCanvas"></div>
@@ -124,8 +117,8 @@
   .ai-engine-modal__dialog {
     position: relative;
     z-index: 1;
-    width: min(640px, 100%);
-    max-height: min(90vh, 920px);
+    width: min(560px, 100%);
+    max-height: min(90vh, 860px);
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -135,74 +128,109 @@
     align-items: flex-start;
     justify-content: space-between;
     gap: 12px;
-    padding: 16px 18px 10px;
+    padding: 12px 14px 8px;
     border-bottom: 1px solid var(--color-border-subtle);
     flex-shrink: 0;
   }
   .ai-engine-modal__head h2 {
-    margin: 0 0 6px;
-    font-size: 1.05rem;
+    margin: 0 0 4px;
+    font-size: 0.95rem;
     border-bottom: none;
     padding: 0;
   }
   .ai-engine-modal__tip {
-    font-size: 0.72rem;
+    font-size: 0.68rem;
     color: var(--color-text-muted);
     margin: 0;
-    line-height: 1.5;
+    line-height: 1.45;
     max-width: 36em;
   }
   .ai-engine-modal__body {
-    padding: 14px 18px 18px;
+    padding: 10px 14px 14px;
     overflow-y: auto;
     flex: 1;
     min-height: 0;
   }
+  .ai-engine-section {
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px dashed var(--color-border);
+  }
+  .ai-engine-section:last-of-type {
+    border-bottom: none;
+  }
+  .ai-engine-section__label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--color-text-muted);
+    letter-spacing: 0.02em;
+    margin-bottom: 6px;
+  }
+  .ai-engine-wv-summary__text {
+    margin: 0 0 6px;
+    font-size: 0.72rem;
+    color: var(--color-text);
+    line-height: 1.45;
+  }
+  .ai-engine-link-btn {
+    font-size: 0.68rem;
+    padding: 2px 0;
+    border: none;
+    background: transparent;
+    color: var(--color-accent);
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .ai-engine-stage {
+    margin-bottom: 8px;
+  }
   .ai-stage-label {
     display: block;
     font-weight: 600;
-    margin-bottom: 6px;
+    font-size: 0.74rem;
+    margin-bottom: 3px;
   }
   .ai-stage-label--char { color: var(--color-accent-hover); }
   .ai-stage-label--wb { color: var(--color-success); }
   .ai-stage-label--greeting { color: var(--color-accent-hover); }
-  .ai-stage-label--sm { font-size: 0.78rem; margin: 0 0 4px 0; }
+  .ai-stage-label--sm { font-size: 0.72rem; margin: 0 0 3px 0; }
   .ai-engine-field-hint {
-    font-size: 0.68rem;
+    font-size: 0.65rem;
     color: var(--color-text-muted);
-    margin: 6px 0 0;
-    line-height: 1.45;
+    margin: 4px 0 0;
+    line-height: 1.4;
   }
   .ai-engine-field-hint--tight { margin: 0; }
   .ai-engine-skeleton-box {
-    background: rgba(16, 185, 129, 0.06);
-    border: 1px solid rgba(16, 185, 129, 0.2);
-    border-radius: 10px;
-    padding: 12px 14px;
-    margin-bottom: 14px;
+    background: rgba(16, 185, 129, 0.05);
+    border: 1px dashed rgba(16, 185, 129, 0.28);
+    border-radius: 8px;
+    padding: 8px 10px;
+    border-bottom: 1px dashed rgba(16, 185, 129, 0.28);
   }
   .ai-engine-mode-row {
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    margin-bottom: 8px;
+    gap: 4px;
+    margin-bottom: 6px;
   }
   .ai-engine-mode-row select {
     width: 100%;
-    padding: 8px 10px;
-    border-radius: 8px;
+    padding: 4px 8px;
+    border-radius: 6px;
     border: 1px solid rgba(16, 185, 129, 0.35);
     background: var(--color-surface, #0f1419);
     color: var(--color-text);
-    font-size: 0.88rem;
+    font-size: 0.78rem;
   }
   .ai-engine-pause-row {
     display: flex;
     align-items: flex-start;
-    gap: 8px;
-    font-size: 0.75rem;
+    gap: 6px;
+    font-size: 0.7rem;
     color: var(--color-text-muted);
-    margin: 8px 0 10px;
+    margin: 6px 0 8px;
     cursor: pointer;
   }
   .ai-engine-pause-row input { margin-top: 2px; }
@@ -210,108 +238,58 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
+    gap: 10px;
   }
-  .ai-engine-skeleton-meta { flex: 1; }
   .ai-engine-skeleton-count {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     flex-shrink: 0;
+  }
+  .ai-engine-skeleton-count input[type="number"] {
+    width: 44px;
+    text-align: center;
+    padding: 3px 4px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    border-radius: 6px;
+    border: 1px solid rgba(16, 185, 129, 0.3);
   }
   .ai-engine-skeleton-pills {
     display: flex;
-    gap: 6px;
-    margin-top: 10px;
+    gap: 4px;
+    margin-top: 8px;
   }
-  .ai-engine-skeleton-pills .wb-count-btn { flex: 1; }
-
-  /* 弹窗内输入：抬高背景对比，避免玻璃底上文字发灰 */
-  .ai-engine-worldview select {
-    width: 100%;
-    color: var(--color-text);
-    background-color: var(--color-surface-elevated);
-    border: 1px solid var(--color-border);
-    border-radius: 8px;
-    padding: 8px 10px;
-    font-size: 0.85rem;
+  .ai-engine-skeleton-pills .wb-count-btn {
+    flex: 1;
+    font-size: 0.68rem;
+    padding: 3px 0;
+    min-height: 0;
   }
-  .ai-wv-list {
+  .ai-engine-actions {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    margin-bottom: 8px;
-    min-height: 28px;
-  }
-  .ai-wv-item {
-    border: 1px solid var(--color-border);
-    border-radius: 8px;
-    padding: 8px 10px;
-    background: var(--color-surface-elevated);
-  }
-  .ai-wv-item-head {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 8px;
-  }
-  .ai-wv-item-title {
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: var(--color-text);
-  }
-  .ai-wv-primary-tag {
-    display: inline-block;
-    margin-left: 6px;
-    font-size: 0.65rem;
-    font-weight: 500;
-    color: var(--color-success);
-    border: 1px solid rgba(16, 185, 129, 0.35);
-    border-radius: 4px;
-    padding: 0 5px;
-    vertical-align: middle;
-  }
-  .ai-wv-item-desc {
-    font-size: 0.7rem;
-    color: var(--color-text-muted);
+    gap: 6px;
     margin-top: 4px;
-    line-height: 1.4;
   }
-  .ai-wv-item-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    flex-shrink: 0;
-  }
-  .ai-wv-item-actions .btn {
-    font-size: 0.68rem;
-    padding: 2px 8px;
-  }
-  .ai-wv-item textarea {
+  .ai-engine-gen-btn,
+  .ai-engine-continue-btn {
     width: 100%;
-    margin-top: 6px;
-    min-height: 44px;
-    font-size: 0.75rem;
+    font-size: 0.8rem !important;
+    padding: 7px 12px !important;
   }
-  .ai-wv-add-row {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 8px;
-  }
-  .ai-wv-add-row select {
-    flex: 1;
-    min-width: 160px;
-  }
-  .ai-wv-empty {
-    font-size: 0.72rem;
-    color: var(--color-text-muted);
-  }
+
   .ai-engine-modal__body textarea,
   .ai-engine-modal__body input[type="number"] {
     color: var(--color-text);
     background-color: var(--color-surface-elevated);
     border-color: var(--color-border);
+  }
+  .ai-engine-modal__body textarea {
+    min-height: 0;
+    font-size: 0.78rem;
+    padding: 6px 8px;
+    border-radius: 6px;
   }
   .ai-engine-modal__body textarea::placeholder {
     color: var(--color-text-muted);
@@ -322,15 +300,14 @@
     background-color: oklch(28% 0.024 288);
   }
 
-  /* 黑客动画（生成进度） */
   #hackerOverlay {
     position: relative;
-    margin-top: 14px;
-    border-radius: 10px;
+    margin-top: 10px;
+    border-radius: 8px;
     overflow: hidden;
     border: 1px solid var(--color-accent-border);
     background: #050510;
-    min-height: 160px;
+    min-height: 140px;
   }
   #hackerCanvas {
     position: absolute;
@@ -348,16 +325,16 @@
   #hackerStatus {
     position: relative;
     z-index: 2;
-    padding: 20px 16px;
+    padding: 16px 12px;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    min-height: 160px;
-    gap: 12px;
+    min-height: 140px;
+    gap: 10px;
   }
   #hackerPhase {
-    font-size: 0.95rem;
+    font-size: 0.88rem;
     font-weight: 700;
     color: var(--color-accent-hover);
     text-shadow: 0 0 20px rgba(139, 92, 246, 0.5);
@@ -366,7 +343,7 @@
   }
   #hackerProgress {
     width: 80%;
-    max-width: 260px;
+    max-width: 240px;
     height: 4px;
     background: var(--color-accent-soft);
     border-radius: 99px;
@@ -385,7 +362,7 @@
     box-shadow: 0 0 12px rgba(139, 92, 246, 0.5);
   }
   #hackerDetail {
-    font-size: 0.7rem;
+    font-size: 0.68rem;
     color: var(--color-text-muted);
     text-align: center;
     font-family: 'JetBrains Mono', monospace;
@@ -420,6 +397,9 @@
     modal.hidden = false;
     modal.setAttribute('aria-hidden', 'false');
     document.body.classList.add('ai-engine-modal-open');
+    if (typeof window.__refreshAiEngineWorldviewSummary__ === 'function') {
+      window.__refreshAiEngineWorldviewSummary__();
+    }
     var ta = document.getElementById('aiPrompt');
     if (ta) setTimeout(function() { ta.focus(); }, 80);
   }
@@ -442,6 +422,14 @@
 
   var openBtn = document.getElementById('btnOpenAiEngine');
   if (openBtn) openBtn.addEventListener('click', openAiEngineModal);
+
+  var gotoBtn = document.getElementById('btnAiEngineGotoWorldLimits');
+  if (gotoBtn) {
+    gotoBtn.addEventListener('click', function() {
+      closeAiEngineModal();
+      location.hash = 'adult-config';
+    });
+  }
 
   document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape' && !modal.hidden) closeAiEngineModal();

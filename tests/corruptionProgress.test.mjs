@@ -158,7 +158,7 @@ describe('corruptionProgress', function() {
     assert.match(adult, /evaluateArchiveRichness/);
     var charPanel = readFileSync(join(root, 'src/components/CharacterPanel.astro'), 'utf8');
     assert.doesNotMatch(charPanel, /adultNsfwEnabled|charNsfwEnabled/);
-    assert.match(charPanel, /成人配置/);
+    assert.match(charPanel, /世界与限定/);
     var tools = readFileSync(join(root, 'src/lib/assistant/tools.mjs'), 'utf8');
     assert.match(tools, /generate_corruption_lore/);
     assert.match(tools, /adult-config/);

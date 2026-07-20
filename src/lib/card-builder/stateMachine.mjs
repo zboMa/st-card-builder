@@ -104,6 +104,13 @@ export function createCardStateMachine(state) {
       state.ntlTabooTypes = Array.isArray(d.ntlTabooTypes) ? d.ntlTabooTypes.slice() : [];
       state.ntlTabooItems = state.ntlTabooTypes.map(function(id) { return { id: id, note: '' }; });
     }
+    if (Array.isArray(d.worldviewPresetItems) && d.worldviewPresetItems.length) {
+      state.worldviewPresetItems = d.worldviewPresetItems.map(function(it) {
+        return { id: String((it && it.id) || ''), note: String((it && it.note) || '') };
+      }).filter(function(it) { return it.id; });
+    } else {
+      state.worldviewPresetItems = [];
+    }
     state.adultWorldframe = d.adultWorldframe || '';
     state.adultWorldframeForced = d.adultWorldframeForced || '';
     state.corruptionEnabled = !!d.corruptionEnabled;
@@ -137,6 +144,7 @@ export function createCardStateMachine(state) {
     state.ntlEnabled = false;
     state.ntlTabooTypes = [];
     state.ntlTabooItems = [];
+    state.worldviewPresetItems = [];
     state.adultWorldframe = '';
     state.adultWorldframeForced = '';
     state.corruptionEnabled = false;

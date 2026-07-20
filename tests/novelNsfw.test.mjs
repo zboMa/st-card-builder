@@ -417,15 +417,17 @@ describe('novel nsfwSupport', function() {
     assert.doesNotMatch(setup, /buildNsfwFlavorHint\(state\)\s*\n\s*\+\s*buildNtlTabooHint/);
   });
 
-  it('UI/桥接/助手工具接线：卡级 NSFW/NTL 在成人配置', function() {
+  it('UI/桥接/助手工具接线：卡级 NSFW/NTL 在世界与限定', function() {
     const adultPanel = readFileSync(join(root, 'src/components/AdultConfigPanel.astro'), 'utf8');
+    assert.match(adultPanel, /世界与限定/);
+    assert.match(adultPanel, /adultWorldviewPresetPicker/);
     assert.match(adultPanel, /adultNsfwEnabled/);
     assert.match(adultPanel, /adultNtlEnabled/);
     assert.match(adultPanel, /adultNsfwFlavor/);
     assert.match(adultPanel, /情欲|NSFW/);
     const charPanel = readFileSync(join(root, 'src/components/CharacterPanel.astro'), 'utf8');
     assert.doesNotMatch(charPanel, /adultNsfwEnabled|charNsfwEnabled/);
-    assert.match(charPanel, /成人配置/);
+    assert.match(charPanel, /世界与限定/);
     const source = readFileSync(join(root, 'src/components/novel/NovelSourcePanel.astro'), 'utf8');
     assert.doesNotMatch(source, /novelGlobalAdult|novelGlobalNtl/);
     const analyze = readFileSync(join(root, 'src/components/novel/NovelAnalyzePanel.astro'), 'utf8');

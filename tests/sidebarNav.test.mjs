@@ -20,7 +20,7 @@ function sidebarViewIndex(src, viewId) {
 
 /** 侧栏最终菜单 → data-view 映射（顺序即契约） */
 const EXPECTED_MENU = {
-  '角色卡制作': ['card-manager', 'character', 'greetings', 'worldbook', 'statusbar', 'mvu', 'regex', 'tavern-scripts'],
+  '角色卡制作': ['card-manager', 'adult-config', 'character', 'greetings', 'worldbook', 'statusbar', 'mvu', 'regex', 'tavern-scripts'],
   '小说': [
     'novel-source',
     'novel-chapters',
@@ -50,7 +50,7 @@ describe('sidebar navigation contract', function() {
   });
 
   // 校验「角色卡制作」内按钮出现顺序与契约一致
-  it('角色卡制作菜单顺序为 管理→设定→开场白→世界书→状态栏→MVU→正则→酒馆脚本', function() {
+  it('角色卡制作菜单顺序为 管理→世界与限定→设定→开场白→世界书→状态栏→MVU→正则→酒馆脚本', function() {
     const src = readFileSync(join(root, 'src/components/AppSidebar.astro'), 'utf8');
     let last = -1;
     EXPECTED_MENU['角色卡制作'].forEach(function(viewId) {
@@ -60,6 +60,7 @@ describe('sidebar navigation contract', function() {
     });
     assert.match(src, /DEFAULT_VIEW\s*=\s*'character'/);
     assert.match(src, /角色卡管理/);
+    assert.match(src, /世界与限定/);
   });
 
   it('角色卡管理与角色设定职责分离', function() {
@@ -416,7 +417,9 @@ describe('sidebar navigation contract', function() {
     assert.match(modal, /id="aiEngineModal"/);
     assert.match(modal, /id="btnAiGenerate"/);
     assert.match(modal, /id="greetingPrompt"/);
-    assert.match(modal, /\[阶段3\]/);
+    assert.match(modal, /\[3\]\s*开场白|greetingPrompt/);
+    assert.match(modal, /aiWorldviewSummary|世界与限定/);
+    assert.doesNotMatch(modal, /id="aiWorldviewPresetPicker"/);
     assert.match(modal, /__openAiEngineModal__/);
   });
 
