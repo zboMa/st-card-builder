@@ -12,6 +12,8 @@ export var POSTURE_GROUPS = [
   { id: '场景特化', label: '场景特化' },
   { id: '体感适配', label: '体感适配' },
   { id: '多人轮转', label: '多人轮转' },
+  { id: '寸止控制', label: '寸止控制' },
+  { id: '着衣隔衣', label: '着衣隔衣' },
 ];
 
 export var SPEECH_GROUPS = [
