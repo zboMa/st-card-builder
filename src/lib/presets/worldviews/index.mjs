@@ -23,11 +23,11 @@ export var MAX_WORLDVIEW_PRESET_ITEMS = 3;
 
 /** 单条预设质量底线（测试与扩展须遵守；禁止为多选而降级） */
 export var WORLDVIEW_QUALITY_FLOOR = {
-  description: 140,
-  writingGuide: 200,
+  description: 300,
+  writingGuide: 350,
   lexicon: 14,
   mustCover: 6,
-  antiPatterns: 3,
+  antiPatterns: 4,
   skeletonHints: 6,
 };
 
