@@ -66,10 +66,12 @@ npm test             # Node.js native test runner (tests/**/*.test.mjs)
 
 - Three-layer design: core persona palette → NSFW flavor items（最多 5，含反差向等 21 预设，首项为主调色盘 + 每项 note）→ NTL taboo layer（9 types 含百破，多选）. Layers are additive, not exclusive.
 - 数据：`nsfwFlavorItems: [{ id, note }]`；旧单字段 `nsfwFlavor` 自动迁为首项；拼装见 `buildNsfwFlavorHintFromItems`。
-- 口味丰满（对齐恶堕）：`nsfwFlavorEnrichment.mjs` 为每口味提供 `mustCover/writingGuide/antiPatterns/densityHint`；提示词含必写维度与硬约束；人物扩展/分析丰满/世界书扩写偏薄时自动扩写 1 次（`evaluateFlavorRichness`）。
-- NTL 丰满：`ntlTabooEnrichment.mjs` 同样字段；`yuri_destruction`（百破/百合破坏）；`evaluateNtlRichness` + 偏薄扩写；`buildNtlTabooHint` 注入必写维度。
+- 口味丰满（对齐恶堕）：`src/lib/adult/flavors/`（`presets.mjs` + `enrichment.mjs`）；旧路径 `novel/nsfwFlavorEnrichment.mjs` 仅兼容 re-export。
+- NTL 丰满：`src/lib/adult/ntl/`；含 `yuri_destruction`（百破）；旧路径 `novel/ntlTabooEnrichment.mjs` 仅兼容。
+- 世界观成人载体：`src/lib/adult/vessels/`；Canon：`src/lib/adult/canon.mjs`。
+- AI 引擎世界观预设：`src/lib/presets/worldviews/`（分组 data；扩展在对应文件追加）。
 - **两管道隔离**：`protagonist`（角色设定/开场白）与 `worldbook`（世界书/人物条/恶堕）独立，默认同步互不写入。小说「同步到角色设定」已重定向为世界书人物条。
-- **AdultConfigPanel（侧栏「成人配置」）** 是卡级 NSFW/NTL/恶堕唯一 UI，只服务世界书管道；口味为添加式多选。
+- **AdultConfigPanel（侧栏「成人配置」）** 是卡级 NSFW/NTL/恶堕唯一 UI，只服务世界书管道；口味为添加式多选。卡侧为真相源，小说工坊经 `nsfw-config-changed` 订阅；worldframe 区分 suggest（不强制）与 set（手动强制）。
 - **恶堕进度**：只认 `[小说人物]`/`[人物]` 条；状态栏多人 cast 绑这些名字；每阶≥220字；`src/lib/corruptionProgress.mjs` + `generate_corruption_lore`。
 - Novel source panel has NO NSFW/NTL UI — only chunking/recall/workflow config.
 - Full design philosophy in `docs/architecture-and-design.md`.

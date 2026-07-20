@@ -28,7 +28,7 @@ import {
   personNameFromWorldbookComment,
 } from '../../novel/sync.mjs';
 import { buildPlaceholderPaths, normalizeDesign } from '../../statusBar.mjs';
-import { buildAdultCanonDigest, formatCorruptionArchiveDigests } from '../../novel/adultCanon.mjs';
+import { buildAdultCanonDigest, formatCorruptionArchiveDigests } from '../../adult/canon.mjs';
 import { CORRUPTION_EXPAND_WB } from '../../novel/contextBudgets.mjs';
 
 export function registerAdultConfig(ctx) {
@@ -179,15 +179,20 @@ export function registerAdultConfig(ctx) {
         var src = info.source === 'forced' ? '手动' : (info.source === 'infer' ? '自动' : (info.source || ''));
         labelEl.textContent = (info.label || info.id || '未推断') + conf + (src ? '（' + src + '）' : '');
       }
-      // 同步小说工坊
+      // 同步小说工坊：手动 forced → set；自动建议 → suggest（不抢强制）
       var novelBridge = window.__novelWorkshopBridge__;
-      if (novelBridge && typeof novelBridge.setAdultWorldframe === 'function') {
-        novelBridge.setAdultWorldframe(forced || info.id);
-      } else if (novelBridge && typeof novelBridge.getState === 'function') {
-        var ns = novelBridge.getState();
-        if (ns) {
-          ns.adultWorldframe = info.id;
-          ns.adultWorldframeForced = forced;
+      if (novelBridge) {
+        if (forced && typeof novelBridge.setAdultWorldframe === 'function') {
+          novelBridge.setAdultWorldframe(forced);
+        } else if (!forced && typeof novelBridge.suggestAdultWorldframe === 'function') {
+          novelBridge.suggestAdultWorldframe(info.id);
+        } else if (typeof novelBridge.getState === 'function') {
+          var ns = novelBridge.getState();
+          if (ns) {
+            ns.adultWorldframe = info.id;
+            if (forced) ns.adultWorldframeForced = forced;
+            else if (!ns.adultWorldframeForced) ns.adultWorldframeForced = '';
+          }
         }
       }
     },
@@ -930,6 +935,7 @@ export function registerAdultConfig(ctx) {
         }
         ctx.save();
         ctx.panels.adultConfig.renderNsfwBlock();
+        if (typeof window.__persistAiConfig__ === 'function') window.__persistAiConfig__();
         window.dispatchEvent(new CustomEvent('nsfw-config-changed', {
           detail: window.__getNsfwConfig__(),
         }));

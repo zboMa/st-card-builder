@@ -31,6 +31,7 @@ import {
   buildStatusBarNsfwDraftFromEntities,
   buildStatusBarNtlDraftFromEntities,
   setAdultWorldframe,
+  suggestAdultWorldframe,
   resolveWorldframe,
   NSFW_FLAVOR_PRESETS,
   NTL_TABOO_TYPES,
@@ -712,6 +713,11 @@ export function createBridge(ctx) {
     getAdultWorldframe: function() { return resolveWorldframe(state); },
     setAdultWorldframe: function(frameId) {
       setAdultWorldframe(state, frameId);
+      ctx.save();
+      return resolveWorldframe(state);
+    },
+    suggestAdultWorldframe: function(frameId) {
+      suggestAdultWorldframe(state, frameId);
       ctx.save();
       return resolveWorldframe(state);
     },

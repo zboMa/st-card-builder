@@ -198,6 +198,8 @@ export function bootCardBuilder() {
       corruptionSelectedNames: Array.isArray(ctx.state.corruptionSelectedNames) ? ctx.state.corruptionSelectedNames.slice() : [],
       corruptionDefaultFemaleOnly: ctx.state.corruptionDefaultFemaleOnly !== false,
       corruptionSyncStatusBar: ctx.state.corruptionSyncStatusBar !== false,
+      adultWorldframe: ctx.state.adultWorldframe || '',
+      adultWorldframeForced: ctx.state.adultWorldframeForced || '',
     }));
     ctx.updateAIDebugStatus();
   }
@@ -280,6 +282,10 @@ export function bootCardBuilder() {
       if (Array.isArray(c.corruptionSelectedNames)) ctx.state.corruptionSelectedNames = c.corruptionSelectedNames.slice();
       if (c.corruptionDefaultFemaleOnly != null) ctx.state.corruptionDefaultFemaleOnly = !!c.corruptionDefaultFemaleOnly;
       if (c.corruptionSyncStatusBar != null) ctx.state.corruptionSyncStatusBar = !!c.corruptionSyncStatusBar;
+      if (typeof c.adultWorldframe === 'string') ctx.state.adultWorldframe = c.adultWorldframe || '';
+      if (typeof c.adultWorldframeForced === 'string') {
+        ctx.state.adultWorldframeForced = c.adultWorldframeForced || '';
+      }
       if (c.presetList && Array.isArray(c.presetList) && c.presetList.length > 0) {
         if (ctx.panels.aiEngine && ctx.panels.aiEngine.loadPresetsFromConfig) {
           ctx.panels.aiEngine.loadPresetsFromConfig(c.presetList);
@@ -290,6 +296,9 @@ export function bootCardBuilder() {
       } else {
         var wvEl = document.getElementById('aiWorldviewPreset');
         if (wvEl && c.worldviewPresetId) wvEl.value = String(c.worldviewPresetId || '');
+      }
+      if (ctx.panels.adultConfig && ctx.panels.adultConfig.renderWorldframeRow) {
+        try { ctx.panels.adultConfig.renderWorldframeRow(); } catch (eWf) { /* ignore */ }
       }
     } catch (e) {
       console.warn('Loading AI config from storage failed', e);

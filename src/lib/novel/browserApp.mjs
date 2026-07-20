@@ -48,6 +48,7 @@ import {
   setNtlTabooTypes,
   setNtlTabooItems,
   setAdultWorldframe,
+  suggestAdultWorldframe,
 } from './nsfwSupport.mjs';
 import { applyTemplate } from '../promptStore.mjs';
 import { normalizeCharacterPatch } from '../assistant/characterFields.mjs';
@@ -685,8 +686,7 @@ export function initNovelWorkshop() {
       if (typeof cfg.adultWorldframeForced === 'string' && cfg.adultWorldframeForced) {
         setAdultWorldframe(state, cfg.adultWorldframeForced);
       } else if (typeof cfg.adultWorldframe === 'string' && cfg.adultWorldframe) {
-        state.adultWorldframe = cfg.adultWorldframe;
-        state.adultWorldframeForced = '';
+        suggestAdultWorldframe(state, cfg.adultWorldframe);
       }
       ctx.save();
       renderGates();

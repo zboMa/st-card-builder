@@ -146,18 +146,19 @@ export function registerAiEngine(ctx) {
     if (!p || !p.mapsToWorldframe) return;
     if (typeof window.__setNsfwConfig__ !== 'function') return;
     var cfg = window.__getNsfwConfig__ ? window.__getNsfwConfig__() : {};
-    // 仅建议同步框架，不强制改口味/NTL；无强制框架时写入建议值
-    if (!cfg.adultWorldframeForced) {
-      cfg.adultWorldframe = p.mapsToWorldframe;
-      window.__setNsfwConfig__(cfg);
-    }
-    var bridge = window.__novelWorkshopBridge__;
-    if (bridge && typeof bridge.setAdultWorldframe === 'function' && !cfg.adultWorldframeForced) {
-      bridge.setAdultWorldframe(p.mapsToWorldframe);
-    }
+    // 仅建议同步框架：不改口味/NTL，不设 forced；交给 nsfw-config-changed 下推工坊
+    if (cfg.adultWorldframeForced) return;
+    cfg.adultWorldframe = p.mapsToWorldframe;
+    window.__setNsfwConfig__(cfg);
   }
 
-  function saveAiConfig() {
+  /** 唯一持久化入口：委托 browserApp.__persistAiConfig__（字段并集） */
+  function persistAiConfig() {
+    if (typeof window.__persistAiConfig__ === 'function') {
+      window.__persistAiConfig__();
+      return;
+    }
+    // boot 前兜底：写入并集字段，避免半截对象覆盖
     var nsfwConfig = window.__getNsfwConfig__ ? window.__getNsfwConfig__() : {};
     localStorage.setItem(AI_KEY, JSON.stringify({
       url:        (ctx.$('apiUrl') ? ctx.$('apiUrl').value.trim() : ''),
@@ -189,8 +190,15 @@ export function registerAiEngine(ctx) {
             return { id: String((it && it.id) || ''), note: String((it && it.note) || '') };
           }).filter(function(it) { return it.id; })
         : (nsfwConfig.ntlTabooTypes || []).map(function(id) { return { id: String(id), note: '' }; }),
-      adultWorldframe: nsfwConfig.adultWorldframe || '',
-      adultWorldframeForced: nsfwConfig.adultWorldframeForced || '',
+      corruptionEnabled: !!ctx.state.corruptionEnabled,
+      corruptionPreset: ctx.state.corruptionPreset || '5',
+      corruptionCustomBrief: ctx.state.corruptionCustomBrief || '',
+      corruptionStageNames: Array.isArray(ctx.state.corruptionStageNames) ? ctx.state.corruptionStageNames.slice() : [],
+      corruptionSelectedNames: Array.isArray(ctx.state.corruptionSelectedNames) ? ctx.state.corruptionSelectedNames.slice() : [],
+      corruptionDefaultFemaleOnly: ctx.state.corruptionDefaultFemaleOnly !== false,
+      corruptionSyncStatusBar: ctx.state.corruptionSyncStatusBar !== false,
+      adultWorldframe: nsfwConfig.adultWorldframe || ctx.state.adultWorldframe || '',
+      adultWorldframeForced: nsfwConfig.adultWorldframeForced || ctx.state.adultWorldframeForced || '',
     }));
   }
 
@@ -266,7 +274,7 @@ export function registerAiEngine(ctx) {
         container.querySelectorAll('input[type="checkbox"]').forEach(function(chk) {
           chk.addEventListener('change', function(e) {
             parsedPresetList[parseInt(e.target.getAttribute('data-index'))].enabled = e.target.checked;
-            saveAiConfig();
+            persistAiConfig();
           });
         });
       }
@@ -385,7 +393,7 @@ export function registerAiEngine(ctx) {
           try { saved = JSON.parse(localStorage.getItem(AI_KEY)) || {}; } catch (e) { console.warn('Parsing saved AI config failed', e); }
           if (saved.model && models.indexOf(saved.model) >= 0) modelEl.value = saved.model;
         }
-        saveAiConfig();
+        persistAiConfig();
         setFetchStatus('\u2705 成功获取 ' + models.length + ' 个模型', true);
         var modalStatus = ctx.$('aiStatus');
         if (modalStatus && modalStatus !== statusEl) {
@@ -909,7 +917,7 @@ export function registerAiEngine(ctx) {
                 });
               }
               ctx.panels.aiEngine.renderPresetList();
-              saveAiConfig();
+              persistAiConfig();
             } catch (err) {
               var presetStatus = ctx.$('presetStatus');
               if (presetStatus) {
@@ -938,12 +946,7 @@ export function registerAiEngine(ctx) {
         });
       }
 
-      var btnAiSingleWb = ctx.$('btnAiSingleWb');
-      if (btnAiSingleWb) {
-        btnAiSingleWb.addEventListener('click', function() {
-          ctx.panels.aiEngine.runSingleWbEntry();
-        });
-      }
+      // 单条世界书按钮由 worldbook.bind 独占（避免双绑定）
 
       var btnAiGenCharTags = ctx.$('btnAiGenCharTags');
       if (btnAiGenCharTags) {
@@ -952,32 +955,12 @@ export function registerAiEngine(ctx) {
         });
       }
 
-      // AI 配置输入持久化
-      var apiUrl = ctx.$('apiUrl');
-      var apiKey = ctx.$('apiKey');
-      var modelSelect = ctx.$('modelSelect');
-      var aiDebugEnable = ctx.$('aiDebugEnable');
+      // API 输入持久化由 browserApp 统一挂 __persistAiConfig__；此处只挂世界观（需弱联动）
       var wvSelect = ctx.$('aiWorldviewPreset');
-
-      function persistAi() {
-        if (typeof window.__persistAiConfig__ === 'function') window.__persistAiConfig__();
-        else saveAiConfig();
-      }
-
-      if (apiUrl) apiUrl.addEventListener('input', persistAi);
-      if (apiKey) apiKey.addEventListener('input', persistAi);
-      if (modelSelect) modelSelect.addEventListener('change', persistAi);
       if (wvSelect) {
         wvSelect.addEventListener('change', function() {
           syncWorldframeFromPreset(wvSelect.value || '');
-          persistAi();
-        });
-      }
-
-      if (aiDebugEnable) {
-        aiDebugEnable.addEventListener('change', function() {
-          ctx.updateAIDebugStatus();
-          persistAi();
+          persistAiConfig();
         });
       }
     },

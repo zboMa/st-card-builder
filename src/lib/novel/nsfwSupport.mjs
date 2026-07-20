@@ -791,6 +791,25 @@ export function setAdultWorldframe(state, frameId) {
   return resolveWorldframe(state, { recompute: true });
 }
 
+/**
+ * 建议世界观框架（不强制）：卡侧自动推断 / 预设弱联动用。
+ * 若已有 adultWorldframeForced，则不改动。
+ */
+export function suggestAdultWorldframe(state, frameId) {
+  if (!state) return null;
+  if (state.adultWorldframeForced) return resolveWorldframe(state);
+  var id = String(frameId || '').trim();
+  if (id && WORLDFRAMES[id]) {
+    state.adultWorldframe = id;
+    state.adultWorldframeForced = '';
+    state.adultWorldframeSource = 'suggest';
+    if (state.adultWorldframeConfidence == null || state.adultWorldframeConfidence < 0.5) {
+      state.adultWorldframeConfidence = 0.6;
+    }
+  }
+  return resolveWorldframe(state);
+}
+
 /** 丰满队列优先级：人物 NSFW → nsfw 实体 → 缺 adult 的条目 → 缺 NTL 的人物 → 其他 */
 export function adultEnrichPriority(ent, ntlMode) {
   if (!ent) return 9;

@@ -129,7 +129,7 @@ tests/                             # 22 个测试文件，346 个测试，全部
   └─ desire_palette / sexual_psychology / situational_modulation / aftercare
 
 第三层：NTL 禁忌层（开启 NTL 后叠加，与 NSFW 解耦）
-  └─ 8 种禁忌类型 + attrs.ntl
+  └─ 9 种禁忌类型（含百破）+ attrs.ntl
 ```
 
 ### 核心思想
@@ -139,7 +139,7 @@ tests/                             # 22 个测试文件，346 个测试，全部
 
 ### 21 种 NSFW 口味预设（多选最多 5）+ 9 种 NTL 禁忌类型
 
-详见 `src/lib/novel/nsfwSupport.mjs` + `nsfwFlavorEnrichment.mjs` + `ntlTabooEnrichment.mjs`：口味含「反差向」；NTL 含「百破」；均有 `mustCover/writingGuide/antiPatterns/densityHint`；偏薄自动扩写。
+详见 `src/lib/novel/nsfwSupport.mjs`（编排门面）与 `src/lib/adult/{flavors,ntl,vessels,canon}`：口味含「反差向」；NTL 含「百破」；均有 `mustCover/writingGuide/antiPatterns/densityHint`；偏薄自动扩写。世界观预设见 `src/lib/presets/worldviews/`。
 
 ### 全局配置 —— 侧栏「成人配置」是唯一入口
 

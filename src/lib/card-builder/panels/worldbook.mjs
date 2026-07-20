@@ -4,6 +4,7 @@
  */
 import { getDefaultWBEntry, normalizeWBEntry, clampInt } from '../state.mjs';
 import { strategyLabelZh } from '../../utils.mjs';
+import { buildWorldviewHint } from '../../presets/worldviews/index.mjs';
 
 export function registerWorldbook(ctx) {
   var escapeHtml = ctx.escapeHtml;
@@ -19,6 +20,17 @@ export function registerWorldbook(ctx) {
   var KEYGEN_BATCH_CHAR_LIMIT = 20000;
   var KEYGEN_BATCH_ITEM_LIMIT = 8;
   var KEYGEN_MAX_RETRY_ROUNDS = 3;
+
+  function getWorldviewHintBlock() {
+    var id = '';
+    if (ctx.panels.aiEngine && typeof ctx.panels.aiEngine.getWorldviewPresetId === 'function') {
+      id = ctx.panels.aiEngine.getWorldviewPresetId() || '';
+    } else {
+      var el = ctx.$('aiWorldviewPreset');
+      if (el) id = String(el.value || '').trim();
+    }
+    return buildWorldviewHint(id, { stage: 'worldbook' }) || '';
+  }
 
   // ============================================================
   //  工具函数
@@ -397,11 +409,15 @@ export function registerWorldbook(ctx) {
     var adultHints = (typeof window.__buildAdultPromptHints__ === 'function')
       ? (window.__buildAdultPromptHints__() || {})
       : {};
+    var wvHint = getWorldviewHintBlock();
     var sysPrompt = ctx.promptText('wbSingle', '') + stepInfo + charBlock + '\n' + ctxStr + '\n' + presetBlock
       + buildNsfwFlavorHint() + buildNtlHintForPrompt()
-      + (adultHints.vessel || '') + buildAdultCanonHint() + searchInjection
+      + (adultHints.vessel || '') + buildAdultCanonHint()
+      + (wvHint || '')
+      + '\n【冲突处理】若「用户额外要求」与「世界观预设」冲突，以用户额外要求为准。'
+      + searchInjection
       + '\n\u3010\u8F93\u51FA\u3011\uFF1A1\u4E2AJSON\u5BF9\u8C61 { "comment": "\u6807\u9898", "content": "\u8BE6\u7EC6\u8BBE\u5B9A(\u81F3\u5C11100\u5B57)", "keys": ["\u89E6\u53D1\u8BCD"], "strategy": "selective \u6216 constant", "position": 4 }';
-    var userPrompt = customDirection ? '\u3010\u65B9\u5411\u3011\uFF1A' + customDirection : '\u3010\u81EA\u7531\u53D1\u6325\uFF0C\u62D2\u7EDD\u91CD\u590D\u3011';
+    var userPrompt = customDirection ? '\u3010\u65B9\u5411\u00B7\u4F18\u5148\u3011\uFF1A' + customDirection : '\u3010\u81EA\u7531\u53D1\u6325\uFF0C\u62D2\u7EDD\u91CD\u590D\uFF1B\u6709\u4E16\u754C\u89C2\u9884\u8BBE\u5219\u7D27\u8D34\u8BED\u6C47\u3011';
     var headers = { 'Content-Type': 'application/json' };
     if (key) headers['Authorization'] = 'Bearer ' + key;
     var aiResp = await ctx.fetchAIContent({
@@ -458,7 +474,8 @@ export function registerWorldbook(ctx) {
           var sr = await performSearchIfEnabled(sq);
           searchInjection = sr.searchText || '';
         }
-        var sys = ctx.promptText('wbRewrite', '') + '\n\u3010\u539F\u8BCD\u6761\u3011: \u6807\u9898: ' + old.comment + ' | \u7B56\u7565: ' + old.strategy + ' | \u89E6\u53D1\u8BCD: ' + old.keys.join(',') + '\n\u5185\u5BB9: ' + old.content + (presetsStr ? '\n\u3010\u6587\u98CE\u3011\uFF1A\n' + presetsStr : '') + expandHint + searchInjection + '\n\u3010\u4EFB\u52A1\u3011\uFF1A\u91CD\u5199\u3002\u8F93\u51FAJSON\uFF1A{ "comment": "\u6807\u9898", "content": "\u8BE6\u7EC6\u8BBE\u5B9A", "keys": ["\u89E6\u53D1\u8BCD"], "strategy": "selective \u6216 constant", "position": ' + old.position + ' }';
+        var wvHint = getWorldviewHintBlock();
+        var sys = ctx.promptText('wbRewrite', '') + '\n\u3010\u539F\u8BCD\u6761\u3011: \u6807\u9898: ' + old.comment + ' | \u7B56\u7565: ' + old.strategy + ' | \u89E6\u53D1\u8BCD: ' + old.keys.join(',') + '\n\u5185\u5BB9: ' + old.content + (presetsStr ? '\n\u3010\u6587\u98CE\u3011\uFF1A\n' + presetsStr : '') + expandHint + (wvHint || '') + '\n【冲突处理】若「用户额外要求」与「世界观预设」冲突，以用户额外要求为准。' + searchInjection + '\n\u3010\u4EFB\u52A1\u3011\uFF1A\u91CD\u5199\u3002\u8F93\u51FAJSON\uFF1A{ "comment": "\u6807\u9898", "content": "\u8BE6\u7EC6\u8BBE\u5B9A", "keys": ["\u89E6\u53D1\u8BCD"], "strategy": "selective \u6216 constant", "position": ' + old.position + ' }';
         var h = { 'Content-Type': 'application/json' };
         if (key) h['Authorization'] = 'Bearer ' + key;
         var aiResp = await ctx.fetchAIContent({
