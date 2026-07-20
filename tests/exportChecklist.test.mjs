@@ -36,6 +36,17 @@ describe('exportChecklist', function() {
     assert.equal(b.canExportPng, true);
   });
 
+  it('protagonist desc with adult/person bleed is warning', function() {
+    var r = buildExportChecklist({
+      charName: '主角',
+      charDesc: 'Long enough character description text.\nNSFW_information:\n  body: x\ndesire_palette: hot',
+      firstMes: 'hi',
+      worldbookCount: 1,
+      hasAvatar: true,
+    });
+    assert.ok(r.items.some(function(i) { return i.id === 'protagonist_adult_bleed'; }));
+  });
+
   it('extraIssues from corruption checklist surface as warnings', function() {
     var r = buildExportChecklist({
       charName: 'A',

@@ -58,6 +58,15 @@ export function buildExportChecklist(input) {
       'novel-characters');
   }
 
+  if (/NSFW_information|恶堕档案|【小说人物·|desire_palette|sexual_psychology/i.test(desc)) {
+    push(
+      'protagonist_adult_bleed',
+      'warning',
+      '主角描述疑似混入世界书人物/成人内容——建议挪到世界书人物条（两管道应隔离）',
+      'character'
+    );
+  }
+
   var extras = Array.isArray(d.extraIssues) ? d.extraIssues : [];
   extras.forEach(function(x, i) {
     if (!x) return;

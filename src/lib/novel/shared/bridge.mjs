@@ -105,7 +105,20 @@ export function syncOutputs(ctx, opts) {
     setCharacterFields(fields, $);
   }
 
-  if (target === 'character' || target === 'characters') {
+  // 主角管道与世界书管道隔离：默认「人物同步」只进世界书。
+  // 写入主角 Description 必须显式 asProtagonist:true（高级/危险操作，UI 默认不提供）。
+  if ((target === 'character' || target === 'characters') && !opts.asProtagonist) {
+    var redirected = syncOutputs(ctx, Object.assign({}, opts, {
+      target: 'character_worldbook',
+      asProtagonist: false,
+    }));
+    return Object.assign({}, redirected, {
+      redirectedFrom: 'character',
+      note: '人物档案已改走世界书管道（不再写入主角角色设定）',
+    });
+  }
+
+  if ((target === 'character' || target === 'characters') && opts.asProtagonist) {
     function charCanSync(c) {
       if (!c) return false;
       if (c.profile) return true;
@@ -131,7 +144,7 @@ export function syncOutputs(ctx, opts) {
     sel.forEach(function(c, idx) {
       var policyOne = idx === 0 ? state.conflictPolicy : 'merge';
       var descNow = idx === 0 ? curDesc : (($('charDesc') && $('charDesc').value) || '');
-      var fieldOpts = { setCharName: idx === 0 };
+      var fieldOpts = { setCharName: idx === 0, omitNsfw: true };
       var r = c.profile
         ? profileToCharacterFields(c.profile, c.name, policyOne, descNow, fieldOpts)
         : entityPersonToCharacterFields(findPersonEntityForChar(c), policyOne, descNow, fieldOpts);
@@ -144,7 +157,13 @@ export function syncOutputs(ctx, opts) {
     });
     ctx.save();
     ctx.renderAll();
-    return { target: 'character', applied: applied, policy: state.conflictPolicy };
+    return {
+      target: 'character',
+      asProtagonist: true,
+      applied: applied,
+      policy: state.conflictPolicy,
+      warning: '已写入主角角色设定（高级操作）；成人字段已剥离，人物正文仍建议以世界书为准',
+    };
   }
 
   if (target === 'character_worldbook' || target === 'chars_wb') {
@@ -224,23 +243,11 @@ export function syncOutputs(ctx, opts) {
     if (selectedOnly) ents = ents.filter(function(e) { return e.selected !== false; });
     if (!ents.length) throw new Error('没有可同步的实体');
 
+    // 实体同步：人物只进世界书，绝不写主角 Description
     var charApplied = 0;
     var personWbDrafts = [];
-    var curDesc = ($('charDesc') && $('charDesc').value) || '';
     var persons = ents.filter(function(e) { return e.type === 'person'; });
-    persons.forEach(function(e, idx) {
-      var policyOne = idx === 0 ? state.conflictPolicy : 'merge';
-      var r = entityPersonToCharacterFields(
-        e,
-        policyOne,
-        idx === 0 ? curDesc : (($('charDesc') && $('charDesc').value) || ''),
-        { setCharName: idx === 0 }
-      );
-      if (!r.skipped && r.fields) {
-        setFields(r.fields);
-        e.syncStatus = 'synced';
-        charApplied++;
-      }
+    persons.forEach(function(e) {
       var pd = entityPersonToWorldbookDraft(e);
       if (pd) personWbDrafts.push(pd);
     });

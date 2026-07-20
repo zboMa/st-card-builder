@@ -65,8 +65,9 @@ npm test             # Node.js native test runner (tests/**/*.test.mjs)
 ## NSFW/NTL palette architecture
 
 - Three-layer design: core persona palette → NSFW flavor palette (20 presets) → NTL taboo layer (8 types, multi-select). Layers are additive, not exclusive.
-- **AdultConfigPanel（侧栏「成人配置」）是卡级 NSFW/NTL/恶堕的唯一 UI 入口**（在角色设定下方）。Changes dispatch `nsfw-config-changed` → novel workshop syncs pipeline flags. **主角角色设定/开场白不注入成人层。**
-- **恶堕进度**：默认 5 阶；世界书「恶堕进度总则」+「恶堕档案·{名}」（仅世界书人物，排除主角）；每阶≥220字门禁；逻辑见 `src/lib/corruptionProgress.mjs`；助手工具 `generate_corruption_lore`。
+- **两管道隔离**：`protagonist`（角色设定/开场白）与 `worldbook`（世界书/人物条/恶堕）独立，默认同步互不写入。小说「同步到角色设定」已重定向为世界书人物条。
+- **AdultConfigPanel（侧栏「成人配置」）** 是卡级 NSFW/NTL/恶堕唯一 UI，只服务世界书管道。
+- **恶堕进度**：只认 `[小说人物]`/`[人物]` 条；状态栏多人 cast 绑这些名字；每阶≥220字；`src/lib/corruptionProgress.mjs` + `generate_corruption_lore`。
 - Novel source panel has NO NSFW/NTL UI — only chunking/recall/workflow config.
 - Full design philosophy in `docs/architecture-and-design.md`.
 

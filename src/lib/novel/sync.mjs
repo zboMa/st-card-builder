@@ -10,6 +10,32 @@ export var SYNC_STATUSES = ['unsynced', 'synced', 'dirty'];
 export var CONFLICT_POLICIES = ['overwrite', 'merge', 'skip'];
 /** 文风同步到主世界书时的固定条目标题 */
 export var STYLE_WB_COMMENT = '文风';
+/** 世界书人物条目前缀（与主角 Description 分管道） */
+export var PERSON_WB_COMMENT_PREFIX = '[小说人物] ';
+export var PERSON_WB_COMMENT_PREFIX_ALT = '[人物] ';
+
+/** 是否为世界书「人物」条目（恶堕/成人层只认这类） */
+export function isPersonWorldbookComment(comment) {
+  var c = String(comment || '').trim();
+  return c.indexOf(PERSON_WB_COMMENT_PREFIX) === 0 || c.indexOf(PERSON_WB_COMMENT_PREFIX_ALT) === 0;
+}
+
+/** 从人物世界书 comment 解析显示名 */
+export function personNameFromWorldbookComment(comment) {
+  var c = String(comment || '').trim();
+  var m = c.match(/^\[(?:小说)?人物\]\s*(.+)$/);
+  return m ? String(m[1] || '').trim() : '';
+}
+
+/** 主角 Description 是否疑似混入了成人/人物档案块 */
+export function protagonistDescLooksContaminated(desc) {
+  var t = String(desc || '');
+  if (!t.trim()) return false;
+  if (/NSFW_information|恶堕档案|恶堕进度/i.test(t)) return true;
+  if (/【小说人物·/.test(t)) return true;
+  if (/desire_palette|sexual_psychology|situational_modulation/i.test(t)) return true;
+  return false;
+}
 
 /** 转义 merge 区块正则中的特殊字符 */
 function escapeRegExp(s) {

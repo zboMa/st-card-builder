@@ -23,6 +23,11 @@ import {
   evaluateArchiveRichness,
   CORRUPTION_MIN_CHARS_PER_STAGE,
 } from '../../corruptionProgress.mjs';
+import {
+  isPersonWorldbookComment,
+  personNameFromWorldbookComment,
+} from '../../novel/sync.mjs';
+import { buildPlaceholderPaths, normalizeDesign } from '../../statusBar.mjs';
 
 export function registerAdultConfig(ctx) {
   var escapeHtml = ctx.escapeHtml;
@@ -98,16 +103,11 @@ export function registerAdultConfig(ctx) {
       }
 
       var wb = Array.isArray(ctx.state.worldbookEntries) ? ctx.state.worldbookEntries : [];
+      // 只认世界书人物条（[小说人物]/[人物]），与主角管道隔离
       wb.forEach(function(e) {
-        if (!e) return;
-        var comment = String(e.comment || '').trim();
-        if (!comment) return;
-        if (comment.indexOf('恶堕') === 0 || comment === '恶堕进度总则') return;
-        if (comment.indexOf('文风') === 0) return;
-        var name = comment;
-        var m = comment.match(/^\[小说人物\]\s*(.+)$/);
-        if (m) name = m[1].trim();
-        else if (comment.indexOf('[') === 0) return; // 其他分类条目跳过
+        if (!e || !isPersonWorldbookComment(e.comment)) return;
+        var name = personNameFromWorldbookComment(e.comment);
+        if (!name) return;
         var ctxHit = findWorldbookPersonContext(wb, name);
         pushCand({
           name: name,
@@ -171,7 +171,7 @@ export function registerAdultConfig(ctx) {
       }
       corruptionTargetsCache = picks;
       if (!picks.length) {
-        box.innerHTML = '<span class="char-nsfw-subtitle">暂无世界书人物——请先在「世界书条目」添加人物（主角不会出现在此列表）</span>';
+        box.innerHTML = '<span class="char-nsfw-subtitle">暂无世界书人物条——请先同步/创建「[小说人物] 名字」类条目（主角设定不在此列）</span>';
         return;
       }
       box.innerHTML = picks.map(function(p, i) {
@@ -335,16 +335,30 @@ export function registerAdultConfig(ctx) {
       }
     },
 
-    syncCorruptionStatusBar: function(stageNames) {
+    syncCorruptionStatusBar: function(stageNames, selectedNames) {
       if (!window.__statusBarApi__ || typeof window.__statusBarApi__.getDesign !== 'function') {
         return { ok: false, reason: 'status_bar_api_missing' };
       }
-      var cur = window.__statusBarApi__.getDesign();
-      var next = ensureCorruptionModuleInDesign(cur, stageNames);
+      var cur = window.__statusBarApi__.getDesign() || {};
+      var names = Array.isArray(selectedNames) ? selectedNames.filter(Boolean) : [];
+      if (!names.length) {
+        return { ok: false, reason: 'no_worldbook_targets' };
+      }
+      var next = ensureCorruptionModuleInDesign(Object.assign({}, cur, {
+        castMode: 'multi',
+        nsfw: true,
+        femaleOnly: true,
+        characters: names.map(function(n) {
+          return { name: n, selected: true, aliases: [] };
+        }),
+        mainName: names[0],
+      }), stageNames);
+      next = normalizeDesign(next);
+      next.paths = buildPlaceholderPaths(next);
       if (typeof window.__statusBarApi__.setDesign === 'function') {
         window.__statusBarApi__.setDesign(next);
       }
-      return { ok: true };
+      return { ok: true, castMode: 'multi', names: names.slice() };
     },
 
     runGenerateCorruptionLore: async function(opts) {
@@ -513,7 +527,7 @@ export function registerAdultConfig(ctx) {
 
           var sb = { ok: false };
           if (ctx.state.corruptionSyncStatusBar !== false) {
-            sb = ctx.panels.adultConfig.syncCorruptionStatusBar(stageNames);
+            sb = ctx.panels.adultConfig.syncCorruptionStatusBar(stageNames, selected);
           }
           if (typeof window.__persistAiConfig__ === 'function') window.__persistAiConfig__();
 

@@ -195,20 +195,30 @@ core_desire: ""
 
 ---
 
-## 全局配置 —— 「成人配置」模块（卡级统一）
-
-**NSFW 口味 / NTL 禁忌 / 恶堕进度** 为整张卡统一配置，存储于 `st_v3_builder_ai_config`（和 API Key 同级）。  
-**UI 入口**：侧栏「成人配置」（`AdultConfigPanel`，在「角色设定」下方），**不是**角色设定本身。
-
-**主角（角色设定 / 开场白）禁止写入 NSFW/NTL/恶堕**；成人层只服务世界书人物、分析管线、恶堕档案与状态栏 NSFW 模块。
+## 两管道架构（主角 ↔ 世界书）
 
 ```
-AdultConfigPanel（侧栏「成人配置」，卡级统一）
-    ↓ 读写
-st_v3_builder_ai_config (localStorage)
-    ↓ nsfw-config-changed 事件
-    ├→ 世界书人物 / 恶堕档案生成注入（不进主角 Description/开场白）
-    └→ 小说工坊 pipeline 同步（adultMode/ntlMode/nsfwFlavor/ntlTabooTypes）
+protagonist 管道          worldbook 管道
+角色设定 / 开场白          世界书条目 / [小说人物] / 恶堕档案
+小说「角色设定·开场白」     小说「人物列表·世界书·文风」
+禁止成人配置注入            可读卡级成人配置（AdultConfigPanel）
+```
+
+- 人物默认同步只进世界书；`syncOutputs({ target:'character' })` 无 `asProtagonist:true` 时重定向为 `character_worldbook`
+- 世界书 AI 默认不融合主角 Description（`wbIncludeCharData` 默认关）
+- 恶堕目标只认 `[小说人物]` / `[人物]`；状态栏恶堕变量用多人 cast 绑这些名字
+
+## 全局配置 —— 「成人配置」模块（卡级统一 · 仅世界书管道）
+
+**NSFW / NTL / 恶堕** 存于 `st_v3_builder_ai_config`。UI：侧栏「成人配置」。
+
+```
+AdultConfigPanel
+    ↓
+st_v3_builder_ai_config
+    ↓ nsfw-config-changed
+    ├→ 世界书管道生成 / 恶堕档案
+    └→ 小说工坊 adultMode/ntlMode/nsfwFlavor/ntlTabooTypes
 ```
 
 **小说工坊原始资料面板**不包含任何 NSFW/NTL 配置 UI——只有分片/召回/处理模式等纯工作流配置。

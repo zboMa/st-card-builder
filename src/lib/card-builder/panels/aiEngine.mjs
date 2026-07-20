@@ -590,15 +590,18 @@ export function registerAiEngine(ctx) {
       var presetsStr  = ctx.panels.aiEngine.getActivePresetsStr();
       var presetBlock = presetsStr ? '\n\n【文风约束】：\n' + presetsStr : '';
       var wbIncludeCharData = ctx.$('wbIncludeCharData');
+      // 默认不注入主角 Description（两管道隔离）；仅高级勾选时作背景参考
       var includeChar = wbIncludeCharData && wbIncludeCharData.checked;
-      var charBlock   = includeChar ? '\n【角色】：' + ctx.state.charName + ' | ' + ctx.state.charDesc + '\n' : '';
+      var charBlock   = includeChar
+        ? '\n【高级·主角背景参考（勿写入本条为角色设定）】：' + ctx.state.charName + ' | ' + String(ctx.state.charDesc || '').slice(0, 400) + '\n'
+        : '\n【管道】世界书生成与主角角色设定分离；默认不读取主角 Description。\n';
       var adultHints = (typeof window.__buildAdultPromptHints__ === 'function')
         ? window.__buildAdultPromptHints__()
         : { nsfw: buildNsfwFlavorHint(), ntl: buildNtlHintForPrompt() };
       var sysPrompt   = (ctx.promptText('wbSingle') || '')
         + stepInfo + charBlock + '\n' + ctxStr + '\n' + presetBlock
         + (adultHints.nsfw || '') + (adultHints.ntl || '') + searchInjection
-        + '\n【说明】若生成世界书人物条目，可按成人配置写情欲/禁忌；勿把恶堕分期写进主角 Description。'
+        + '\n【说明】人物类条目标题建议「[小说人物] 名字」；成人内容只写世界书，勿写主角卡面。'
         + '\n【输出】：1个JSON对象 { "comment": "标题", "content": "详细设定(至少100字)", "keys": ["触发词"], "strategy": "selective 或 constant", "position": 4 }';
       var userPrompt  = customDirection ? '【方向】：' + customDirection : '【自由发挥，拒绝重复】';
       var headers     = { 'Content-Type': 'application/json' };

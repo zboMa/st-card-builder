@@ -182,4 +182,18 @@ describe('corruptionProgress', function() {
     assert.ok(hit);
     assert.match(hit.content, /学妹/);
   });
+
+  it('pipeline docs: adult config separate; worldbook person prefix', function() {
+    var adult = readFileSync(join(root, 'src/components/AdultConfigPanel.astro'), 'utf8');
+    assert.match(adult, /仅世界书管道|世界书管道/);
+    var chars = readFileSync(join(root, 'src/components/novel/NovelCharactersPanel.astro'), 'utf8');
+    assert.match(chars, /世界书人物条/);
+    assert.doesNotMatch(chars, /同步所选 → 角色设定/);
+    var wb = readFileSync(join(root, 'src/components/WorldbookPanel.astro'), 'utf8');
+    assert.match(wb, /wbIncludeCharData/);
+    assert.doesNotMatch(wb, /id="wbIncludeCharData" checked/);
+    var bridge = readFileSync(join(root, 'src/lib/novel/shared/bridge.mjs'), 'utf8');
+    assert.match(bridge, /redirectedFrom:\s*'character'|character_worldbook/);
+    assert.match(bridge, /asProtagonist/);
+  });
 });

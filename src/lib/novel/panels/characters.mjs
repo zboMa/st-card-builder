@@ -138,8 +138,7 @@ export function registerCharacters(ctx) {
         + '</div></div>'
         + '<div class="novel-list-actions">'
         + (canSync
-          ? ctx.iconBtn('data-char-sync-char="' + c.id + '"', '⇢', '同步到角色设定')
-            + ctx.iconBtn('data-char-sync-wb="' + c.id + '"', '📖', '同步到世界书')
+          ? ctx.iconBtn('data-char-sync-wb="' + c.id + '"', '📖', '同步到世界书人物条')
           : '')
         + (ent
           ? ctx.iconBtn(
@@ -201,16 +200,10 @@ export function registerCharacters(ctx) {
     grid.querySelectorAll('[data-char-edit]').forEach(function(btn) {
       btn.addEventListener('click', function() { panel.openProfileEditor(btn.getAttribute('data-char-edit')); });
     });
-    grid.querySelectorAll('[data-char-sync-char]').forEach(function(btn) {
-      btn.addEventListener('click', function() {
-        ctx.syncOutputs({ target: 'character', ids: [btn.getAttribute('data-char-sync-char')], selected: false });
-        ctx.setStatus('novelCharStatus', '已同步到角色设定');
-      });
-    });
     grid.querySelectorAll('[data-char-sync-wb]').forEach(function(btn) {
       btn.addEventListener('click', function() {
         ctx.syncOutputs({ target: 'character_worldbook', ids: [btn.getAttribute('data-char-sync-wb')], selected: false });
-        ctx.setStatus('novelCharStatus', '已同步到世界书');
+        ctx.setStatus('novelCharStatus', '已同步到世界书人物条（不写入主角设定）');
       });
     });
   };
@@ -676,8 +669,12 @@ export function registerCharacters(ctx) {
     var syncChars = ctx.$('btnSyncCharsSelected');
     if (syncChars) syncChars.addEventListener('click', function() {
       try {
-        var r = ctx.syncOutputs({ target: 'character', selected: true });
-        ctx.setStatus('novelCharStatus', '已同步 ' + (r.applied || 0) + ' 人到角色设定');
+        // 与世界书管道合一：人物只进世界书，不进主角
+        var r = ctx.syncOutputs({ target: 'character_worldbook', selected: true });
+        ctx.setStatus(
+          'novelCharStatus',
+          '人物→世界书：新增 ' + (r.added || 0) + ' / 更新 ' + (r.updated || 0) + ' / 跳过 ' + (r.skipped || 0)
+        );
       } catch (e) {
         alert(e.message || '同步失败');
       }

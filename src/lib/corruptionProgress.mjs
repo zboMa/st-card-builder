@@ -332,12 +332,14 @@ export function findWorldbookPersonContext(entries, charName) {
     var comment = String(e.comment || '').trim();
     var content = String(e.content || '').trim();
     if (!content) return -1;
+    // 优先人物条；非人物条大幅降权
+    var isPerson = comment.indexOf('[小说人物]') === 0 || comment.indexOf('[人物]') === 0;
     var keys = Array.isArray(e.keys) ? e.keys.map(function(k) { return String(k || '').trim(); }) : [];
-    var s = 0;
-    if (comment === name || comment === '[小说人物] ' + name) s += 100;
-    if (comment.indexOf(name) >= 0) s += 40;
-    if (keys.some(function(k) { return k === name || k.toLowerCase() === nameLower; })) s += 50;
-    if (content.indexOf(name) >= 0) s += 10;
+    var s = isPerson ? 20 : -5;
+    if (comment === '[小说人物] ' + name || comment === '[人物] ' + name) s += 100;
+    if (isPerson && comment.indexOf(name) >= 0) s += 40;
+    if (keys.some(function(k) { return k === name || k.toLowerCase() === nameLower; })) s += isPerson ? 50 : 5;
+    if (content.indexOf(name) >= 0) s += isPerson ? 10 : 1;
     return s;
   }
 
