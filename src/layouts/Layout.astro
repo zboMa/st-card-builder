@@ -325,7 +325,8 @@ const { title } = Astro.props;
           top: 0;
           left: 0;
           right: 0;
-          z-index: 8200;
+          /* 介于遮罩(8300)与抽屉(8400)之间：打开菜单时汉堡仍可点关闭 */
+          z-index: 8350;
           min-height: calc(48px + env(safe-area-inset-top, 0px));
           padding: env(safe-area-inset-top, 0px) 12px 8px 12px;
           background: var(--color-glass);
@@ -372,6 +373,7 @@ const { title } = Astro.props;
           display: block;
           position: fixed;
           inset: 0;
+          /* 叠放：主内容 < 遮罩(8300) < 顶栏(8350) < 侧栏(8400) < 助手(8500) */
           z-index: 8300;
           background: oklch(12% 0.02 285 / 0.55);
           opacity: 0;

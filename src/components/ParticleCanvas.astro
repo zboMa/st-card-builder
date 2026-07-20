@@ -14,9 +14,27 @@
     z-index: 0;
     opacity: 0;
   }
-  .app-shell, .app-container {
+  /*
+   * 勿给 .app-shell 设 z-index：会把壳内 fixed 侧栏/助手关进 z=1 叠放上下文，
+   * 移动端遮罩 #appShellBackdrop(8300) 就会盖住抽屉与 AI 弹层。
+   * 桌面：分别抬侧栏/主区/助手，使其高于粒子。
+   * 移动：与 Layout / AssistantPanel 对齐 fixed + 高层级（本文件可能后加载，须在此重申）。
+   */
+  .app-sidebar,
+  .app-container,
+  .assistant-panel {
     position: relative;
     z-index: 1;
+  }
+  @media (max-width: 900px) {
+    .app-sidebar {
+      position: fixed;
+      z-index: 8400;
+    }
+    .assistant-panel {
+      position: fixed;
+      z-index: 8500;
+    }
   }
 </style>
 
