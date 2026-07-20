@@ -103,4 +103,22 @@ export var PRESETS = {
     focus: ["overload","blank_moment","retrieve_protocol","grounding","hydrate_warm"],
     avoid: ["故意致昏迷伤害无护理","儿童性化"],
   },
+  fabric_friction: {
+    group: "感官节奏",
+    label: "织物触感",
+    description:
+      "织物触感把欲望落在布料与皮肤的摩擦差里，不是衣服名称展示。先写材质：粗麻擦过腰侧会痒，丝缎贴住汗意会滑，羊毛边缘让人缩肩，制服浆硬处压出浅痕；每一种触感都要改写呼吸和动作。衣物可保留、可解开、可剪开的权限先对齐，尤其昂贵、制服、纪念物不得被激情损坏后才道歉。中段写半隔着布料的延迟：指腹推过衬衫纹路、膝盖隔裙料相抵、拉链齿冷一下就停。可以让布料成为记忆钩子：某件旧衬衫洗到发软，某条领带仍带白日香水，越熟悉越让人失措。还要写声音：布面摩擦、扣子轻响、衣料被攥皱后又放开，提醒人仍隔着一层，隔层本身就是悬念。事后处理起球、皱褶、汗湿和洗涤，必要时赔偿或修补。限成人合意，禁止儿童性化；若布料不影响节奏，只剩换装贴图。",
+    palette: {"temperature":"贴肤渐热","texture":"丝麻摩擦","primary_intensity_default":0.55,"accent_intensity_default":0.8},
+    focus: ["fabric_texture","clothed_touch","friction_delay","garment_permission","laundry_after"],
+    avoid: ["只列服装无触感", "未经同意损坏衣物", "布料不改写动作", "儿童性化"],
+  },
+  ambient_weather: {
+    group: "感官节奏",
+    label: "天气浸染",
+    description:
+      "天气浸染不是给床戏贴雨雪滤镜，而是让气压、湿度、风声改写身体节奏。暴雨压低谈话音量，雷声盖住一瞬喘息；梅雨让床单潮，皮肤贴住又难分开；台风夜门缝灌风，取暖成为靠近理由；初雪让呼吸白雾与指尖发冷先出现。开场交代真实处置：关窗、擦干、换湿衣、避雷停电、暖炉或空调是否安全。天气不能替代同意，借躲雨留宿仍要确认睡哪、碰到哪。让人物听见外界：檐下水流忽急忽缓，窗框震动打断一句话，除湿机满水响起迫使暂停。天气也会改变情绪：闷雷让人急，雪夜让人慢，晴后潮热让衣领难受，风停时才敢说实话，湿发也提醒时间。余波写天亮后窗台水痕、被烘干的袜子、谁把伞还回门口。限成人，禁止儿童性化；若删掉天气仍无损亲密，说明只是氛围壁纸。",
+    palette: {"temperature":"外冷内潮","texture":"雨雾风压","primary_intensity_default":0.45,"accent_intensity_default":0.85},
+    focus: ["weather_pressure","humidity_touch","shelter_intimacy","sound_mask","morning_trace"],
+    avoid: ["天气只当滤镜", "借留宿绕过同意", "忽略湿冷安全", "儿童性化"],
+  },
 };

@@ -148,4 +148,13 @@ export var PRESETS = {
     focus: ["focus_rotate","veto_right","gaze_hierarchy","coalition","aftercare_all"],
     avoid: ["无否决的轮奸美化","儿童性化"],
   },
+  mirror_gaze_depth: {
+    group: "关系动态",
+    label: "镜像窥视加深",
+    description:
+      "镜像窥视加深不重复镜前自我观看，而写被长期观看、被记录成档案后的权力余波。开场要有观看结构：单向镜、训练室观察窗、审讯玻璃、术式水镜或监控回放；谁有观看权、谁能关灯、谁能封存记录，先说清。中段重点不是镜中姿势，而是知道某双眼在背后读懂自己后，身体如何迟疑、表演、反抗或故意暴露破绽。可以让观察记录反过来刺痛人物：编号、时间戳、停顿秒数、某句被低声复述，比镜面本身更有压迫。也要写被看者夺回主动的一刻：要求暂停、调换观察角度、或亲手按下封存键。观看方也要受约束：不得加人、不得留不可删档案、不得用沉默逼迫。事后写档案感：回放是否删除、观察记录谁签封、被看者如何在离场后仍觉得肩背发烫。限成人合意，禁止儿童性化；若只有镜面道具，应回到 mirror_play。",
+    palette: {"temperature":"玻璃冷压","texture":"单向镜+档案纸","primary_intensity_default":0.7,"accent_intensity_default":0.9},
+    focus: ["gaze_hierarchy", "archive_afterglow", "observed_power", "record_control", "watched_residue"],
+    avoid: ["复读镜前自我观看", "不可删监控档案", "观看权临时加人", "儿童性化"],
+  },
 };

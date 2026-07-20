@@ -138,4 +138,31 @@ export var PRESETS = {
     focus: ['kneel_awe', 'sacred_dread', 'trembling_desire', 'permission_ask', 'gentle_descend'],
     avoid: ['无同意神权强奸美化', '儿童性化', '敬畏来源不明', '结束后无人安放余悸'],
   },
+  reconciliation: {
+    group: '情绪基调',
+    label: '破镜重圆',
+    description:
+      '破镜重圆吃的不是一句「我还爱你」立刻清零旧账，而是旧裂纹被重新摸到时的迟疑。开场要让分开原因有物证：未寄出的道歉信、退回的钥匙、删除又恢复的聊天框、搬家箱底的合照；复合前先承认哪一步真的伤过人。亲密推进像试水：手碰到旧戒痕又停、对方提起那年雨夜时呼吸乱掉、吻到一半有人问「这次你会留下吗」。重圆必须允许退回朋友、改期、或只谈不碰；不能把久别重逢写成自动许可。最好写一次复合失败预演：旧习惯差点复发、有人先退半步、另一人没有追逼而是把灯调亮。若出现身体熟悉，必须同时写心里陌生：知道对方怕冷，却不知道现在还能不能抱。余波落在修复日程：谁补一句迟到的道歉、谁把新钥匙放到桌上而不强塞、谁承认还会害怕。限成人合意，禁止儿童性化；若旧错无承担，只剩怀旧滤镜。',
+    palette: { temperature: '旧冷回温', texture: '裂瓷金缮', primary_intensity_default: 0.55, accent_intensity_default: 0.85 },
+    focus: ['old_wound', 'repair_talk', 'hesitant_touch', 'earned_trust', 'after_repair'],
+    avoid: ['旧账一吻清零', '无道歉无承担', '重逢自动许可', '儿童性化'],
+  },
+  first_marriage_duty: {
+    group: '情绪基调',
+    label: '先婚后爱',
+    description:
+      '先婚后爱把亲密放进同居义务与陌生心跳之间，不是用婚书取消边界。开场先写契约或家庭安排如何压到日常：共用卧室、礼节性同席、财产条款、亲友问候；同时给出私人退出线，今晚分床、锁门、改称呼都必须有效。情欲从履行责任时的意外照顾长出来：替对方挡酒、记住药盒位置、在外人面前配合称呼，回房后却尴尬到不敢碰手。日常误会要小而具体：牙刷放错杯、睡衣叠得过于生疏、长辈电话一挂两人同时松气。可以写同床不同梦的距离：被子中线、床头两盏灯、谁先越线又收回。第一次真正靠近要有清醒确认，不得用「夫妻本分」逼迫。余波写义务变成选择的证据：谁主动续约、谁删掉冷冰冰的履约提醒、谁承认喜欢不是被安排出来的。双方成人，禁止儿童性化；责任若只剩索取，整段按婚内压迫写。',
+    palette: { temperature: '礼冷渐暖', texture: '婚书纸+棉被', primary_intensity_default: 0.5, accent_intensity_default: 0.8 },
+    focus: ['arranged_bond', 'domestic_duty', 'choice_after_contract', 'slow_affection', 'private_boundary'],
+    avoid: ['夫妻本分压过同意', '无私人退出线', '义务直接等于爱', '儿童性化'],
+  },
+  praise_hunger: {
+    group: '情绪基调',
+    label: '赞美饥渴',
+    description:
+      '赞美饥渴把「再夸我一次」写成情绪饥饿与身体反馈的闭环，而不是撒糖台词批发。人物需要听见具体被看见：不是「你好棒」，而是「你刚才忍住发抖还先问我疼不疼」「你低头等许可的样子让我心软」。赞美落下后要写身体反应：肩颈松开、呼吸重新接上、眼神湿亮却还想多要一句；也写羞耻，怕自己太需要认可。可以让他主动讨价还价：不要更重的动作，只要再说一遍名字和刚才做对了什么。若赞美卡住，要写沉默如何刺痛，另一人怎样补一句具体的看见而非敷衍。给夸的人要有责任：不把赞美当操控按钮，不用撤回夸奖惩罚人。余波是复盘哪些词太重、哪些词下次还想听，必要时允许只要拥抱不再继续。限成人合意，禁止儿童性化；若夸奖只是驯化口令，饥渴会变成依赖勒索。',
+    palette: { temperature: '耳热回甘', texture: '蜂蜜声纹', primary_intensity_default: 0.6, accent_intensity_default: 0.9 },
+    focus: ['specific_praise', 'validation_need', 'body_feedback', 'shame_need_loop', 'responsible_reassurance'],
+    avoid: ['泛泛夸奖刷屏', '撤回赞美当惩罚', '用夸奖绕过同意', '儿童性化'],
+  },
 };
