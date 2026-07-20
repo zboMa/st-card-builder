@@ -9,4 +9,5 @@ export var WORLDVIEW_GROUPS = [
   { id: 'scifi', label: '科幻末日' },
   { id: 'catastrophe', label: '灾变异质' },
   { id: 'taboo_power', label: '权力禁忌' },
+  { id: 'scenario_field', label: '猎艳与非常理场域' },
 ];

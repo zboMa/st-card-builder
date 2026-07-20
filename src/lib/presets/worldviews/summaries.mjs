@@ -75,4 +75,11 @@ export var WORLDVIEW_SUMMARIES = {
   summon_contract: '真名愿望与违约条款定边界，召来是两种命运短兵相接的妥协',
   inquisition_faith: '告密口供与连坐名单程序化恐惧，饭桌先学会删掉一句真心话',
   auction_society: '秘密护卫血统皆可估价转让，拍卖行公证人维持病态优雅金融',
+  boarding_usurpation: '客居契押金入门改称谓，餐桌座次门牌钥每换一次主客悄然翻转',
+  rank_harem_field: '位份册承宠签当众排名，失宠结算贴照壁，柔情先做通行证',
+  office_lattice_hunt: '汇报层级直属签把亲近做成表格，出差同房单要抄送三邮箱',
+  neighborhood_gaze: '物业群公告栏与业主大会织成裁判席，背影截图能改投票',
+  showbiz_resource_hunt: '试镜番位代言待播雪藏同桌讨价，柔情先写进通告表与合约',
+  closed_female_domain: '门规石碑访客章切边界，外男引荐簿签错人整层年卡冻结',
+  suggestion_service_trade: 'App订阅疗程包切同意，冥想舱瑜伽课录音存档反做免责证据',
 };
