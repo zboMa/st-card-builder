@@ -4,6 +4,13 @@
  */
 
 import { normalizeCharacterProfile } from './schema.mjs';
+import {
+  PRIOR_CHARS_BUDGET,
+  PRIOR_CHAR_NOTE,
+  PRIOR_WB_REF_BUDGET,
+  PRIOR_WB_REF_PER,
+  PRIOR_GRAPH_BUDGET,
+} from './contextBudgets.mjs';
 
 /** @returns {{ nodes: object[], edges: object[], updatedAt: string }} */
 export function emptyKnowledgeGraph() {
@@ -294,14 +301,14 @@ export function mergeGraphDelta(graph, delta) {
 export function formatPriorCharactersRef(characters, maxChars) {
   var list = characters || [];
   if (!list.length) return '';
-  var budget = maxChars || 4000;
+  var budget = maxChars || PRIOR_CHARS_BUDGET;
   var lines = [];
   var used = 0;
   for (var i = 0; i < list.length; i++) {
     var c = list[i];
     var line = '- ' + c.name
       + ((c.aliases || []).length ? ' aliases=' + c.aliases.join('/') : '')
-      + (c.note ? ' · ' + String(c.note).slice(0, 60) : '')
+      + (c.note ? ' · ' + String(c.note).slice(0, PRIOR_CHAR_NOTE) : '')
       + (c.profile ? ' [已有完整档案]' : '');
     if (used + line.length > budget) {
       lines.push('- …另有 ' + (list.length - i) + ' 人已省略');
@@ -317,14 +324,14 @@ export function formatPriorCharactersRef(characters, maxChars) {
 export function formatPriorWorldbookRef(wbEntries, maxChars) {
   var list = wbEntries || [];
   if (!list.length) return '';
-  var budget = maxChars || 5000;
+  var budget = maxChars || PRIOR_WB_REF_BUDGET;
   var lines = [];
   var used = 0;
   for (var i = 0; i < list.length; i++) {
     var e = list[i];
     var line = '- [' + (e.category || 'setting') + '] ' + e.name
       + ((e.keys || []).length ? ' keys=' + (e.keys || []).slice(0, 4).join('/') : '')
-      + ': ' + String(e.content || '').slice(0, 100);
+      + ': ' + String(e.content || '').slice(0, PRIOR_WB_REF_PER);
     if (used + line.length > budget) {
       lines.push('- …另有 ' + (list.length - i) + ' 条已省略');
       break;
@@ -341,7 +348,7 @@ export function formatPriorGraphRef(graph, maxChars) {
   var nodes = g.nodes || [];
   var edges = g.edges || [];
   if (!nodes.length && !edges.length) return '';
-  var budget = maxChars || 3500;
+  var budget = maxChars || PRIOR_GRAPH_BUDGET;
   var lines = ['节点 ' + nodes.length + ' · 边 ' + edges.length];
   var used = lines[0].length;
   nodes.slice(0, 80).forEach(function(n) {

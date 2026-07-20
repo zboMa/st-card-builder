@@ -12,9 +12,8 @@ import { escapeHtml, parseJsonLoose } from '../../utils.mjs';
 import {
   buildModeHintBlocks,
   buildPaletteGuidanceBlock,
-  buildNtlTabooHint,
-  buildNsfwFlavorHint,
 } from '../nsfwSupport.mjs';
+import { SETUP_ENTITY_SUMMARY } from '../contextBudgets.mjs';
 
 export function registerSetup(ctx) {
   var panel = {};
@@ -344,14 +343,14 @@ export function registerSetup(ctx) {
           'novelCharSetup',
           '你是 SillyTavern 角色卡写手。仅根据提供的小说原文，为指定角色生成角色设定。只输出 JSON：{ charName, wbName, charDesc, creatorNotes }'
         );
+        // 写入主卡角色设定 = 主角：禁止注入 NSFW/NTL/恶堕
         var user = head
           + '\n角色名称: ' + charName
-          + (corpus.entity ? '\n实体摘要: ' + String(corpus.entity.summary || '').slice(0, 200) : '')
+          + (corpus.entity ? '\n实体摘要: ' + String(corpus.entity.summary || '').slice(0, SETUP_ENTITY_SUMMARY) : '')
           + '\nContext: ' + (state.contextText || '无')
+          + '\n【硬约束】输出的 charDesc/creatorNotes 是主角卡面设定：禁止 NSFW_information、情欲口味、NTL、恶堕分期；成人层只属于世界书人物条目。'
           + buildModeHintBlocks(state, 'expand')
-          + buildPaletteGuidanceBlock(state)
-          + buildNsfwFlavorHint(state)
-          + buildNtlTabooHint(state)
+          + buildPaletteGuidanceBlock(state, { includeAdult: false })
           + '\n\n【原文】\n' + corpus.text;
         var text = await ctx.callAI(user, null, task.signal);
         var data = parseJsonLoose(text);
@@ -421,15 +420,14 @@ export function registerSetup(ctx) {
           '你是 SillyTavern 开场白写手。只输出 JSON：{ "firstMes":"...", "altGreetings":[...] }，altGreetings 长度必须刚好为 {{altCount}}。'
         );
         var head = applyTemplate(headTpl, { altCount: altCount });
+        // 主卡开场白面向主角互动：不注入 NSFW/NTL 调色盘
         var user = head
           + '\n角色名称: ' + charName
-          + (corpus.entity ? '\n实体摘要: ' + String(corpus.entity.summary || '').slice(0, 200) : '')
+          + (corpus.entity ? '\n实体摘要: ' + String(corpus.entity.summary || '').slice(0, SETUP_ENTITY_SUMMARY) : '')
           + '\n开场白总数: ' + total + '（主开场 1 + 备选 ' + altCount + '）'
           + '\nContext: ' + (state.contextText || '无')
-          + '\n【开场白语气】贴合全局 NSFW/NTL 调色盘：情欲温度与禁忌张力须体现在开场氛围、潜台词与边界感中，禁止未成年内容。'
+          + '\n【硬约束】开场白勿写成恶堕进度说明或 NTL 调教手册；禁止未成年内容。'
           + buildModeHintBlocks(state, 'expand')
-          + buildNsfwFlavorHint(state)
-          + buildNtlTabooHint(state)
           + '\n\n【原文】\n' + corpus.text;
         var text = await ctx.callAI(user, null, task.signal);
         var data = parseJsonLoose(text);

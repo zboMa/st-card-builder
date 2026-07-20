@@ -25,14 +25,63 @@ import {
   getAdultMode,
   getNtlMode,
   boostAdultSearchQuery,
-  buildAdultContextDigests,
   extractStyleNsfwSection,
   buildModeHintBlocks,
   buildContentModeFlags,
+  buildNsfwFlavorHint,
+  buildNtlTabooHint,
+  buildPaletteGuidanceBlock,
+  getNsfwFlavorItems,
+  evaluateFlavorRichness,
+  buildFlavorExpandSystemPrompt,
+  buildFlavorExpandUserPrompt,
+  NSFW_FLAVOR_PRESETS,
+  NTL_TABOO_TYPES,
+  getNtlTabooTypes,
+  evaluateNtlRichness,
+  buildNtlExpandSystemPrompt,
+  buildNtlExpandUserPrompt,
+  buildAdultCanonDigest,
+  ADULT_CANON_BUDGET,
   buildStatusBarNsfwDraftFromEntities,
   buildStatusBarNtlDraftFromEntities,
+  buildStatusBarVesselDraftFromEntities,
+  resolveWorldframe,
+  evaluateVesselRichness,
+  buildVesselExpandSystemPrompt,
+  buildVesselExpandUserPrompt,
+  buildVesselHintForState,
+  listVesselEntities,
+  personMentionsVessels,
 } from '../nsfwSupport.mjs';
+import { RAG_ENTITY_BUDGET } from '../contextBudgets.mjs';
 import { escapeHtml, parseJsonLoose } from '../../utils.mjs';
+
+function novelCanonBlock(state, focusName) {
+  var wf = resolveWorldframe(state);
+  return buildAdultCanonDigest({
+    entities: state.entities,
+    worldbookEntries: (state.wbEntries || []).map(function(e) {
+      return {
+        comment: e.comment || ('[小说' + (e.category || 'setting') + '] ' + e.name),
+        content: e.content || '',
+      };
+    }),
+    styleText: state.styleText,
+    focusName: focusName || '',
+    budget: ADULT_CANON_BUDGET,
+    worldframeLabel: wf.label,
+  });
+}
+
+function vesselOptsFromState(state) {
+  var wf = resolveWorldframe(state);
+  return {
+    worldframe: wf.id,
+    flavorItems: getAdultMode(state) ? getNsfwFlavorItems(state) : [],
+    ntlItems: getNtlMode(state) ? getNtlTabooTypes(state).map(function(id) { return { id: id }; }) : [],
+  };
+}
 
 var ENTITY_TYPE_ZH = {
   person: '人物',
@@ -294,6 +343,14 @@ export function registerAnalyze(ctx) {
         'st_v3_ntl_status_draft'
       );
     });
+    var vesselDraftBtn = $('btnNovelVesselStatusDraft');
+    if (vesselDraftBtn) vesselDraftBtn.addEventListener('click', function() {
+      var wf = resolveWorldframe(state);
+      showStatusBarDraft(
+        buildStatusBarVesselDraftFromEntities(state.entities, { worldframe: wf.id }),
+        'st_v3_vessel_status_draft'
+      );
+    });
     var ragBtn = $('btnNovelRagIndex');
     if (ragBtn) ragBtn.addEventListener('click', async function() {
       if (ctx.busyFlags.ragIndex) return;
@@ -473,11 +530,12 @@ export function registerAnalyze(ctx) {
               + ' · 实体 ' + (state.entities || []).length;
           }
           var prior = buildSkeletonPriorBlock(state);
-          var adultOn = getAdultMode(state);
           var user = head
             + prior
             + buildModeHintBlocks(state, 'skeleton')
-            + buildAdultContextDigests(state.entities, 2500, getNtlMode(state))
+            + (getAdultMode(state) ? buildNsfwFlavorHint(state) : '')
+            + (getNtlMode(state) ? buildNtlTabooHint(state) : '')
+            + novelCanonBlock(state, '')
             + buildContentModeFlags(state)
             + '\nMode: ' + state.narrativeMode
             + '\nContext: ' + (state.contextText || '')
@@ -586,13 +644,28 @@ export function registerAnalyze(ctx) {
               signal: task.signal,
             });
             var related = pickRelatedEntities(state.entities, query, 8);
-            var inject = buildRagInjectBlock(search, related, { entityBudget: 3000 });
+            var inject = buildRagInjectBlock(search, related, { entityBudget: RAG_ENTITY_BUDGET });
             var styleNsfw = adultOn ? extractStyleNsfwSection(state.styleText) : '';
+            var flavorItems = adultOn ? getNsfwFlavorItems(state) : [];
+            var ntlTypes = ntlOn ? getNtlTabooTypes(state) : [];
+            var needFlavor = flavorItems.length > 0 && (live.type === 'person' || live.type === 'nsfw');
+            var needNtl = ntlTypes.length > 0 && live.type === 'person';
+            var needVessel = (adultOn || ntlOn) && (
+              live.type === 'nsfw'
+              || live.type === 'item'
+              || live.type === 'location'
+              || live.type === 'lore'
+              || live.type === 'faction'
+            );
+            var vOpts = vesselOptsFromState(state);
             var user = head
               + '\n\n' + inject
               + styleNsfw
               + buildModeHintBlocks(state, 'enrich')
-              + buildAdultContextDigests(state.entities, 3000, getNtlMode(state))
+              + (needFlavor || needNtl ? buildPaletteGuidanceBlock(state) : '')
+              + (needFlavor ? buildNsfwFlavorHint(state) : '')
+              + (needNtl ? buildNtlTabooHint(state) : '')
+              + novelCanonBlock(state, live.name)
               + '\n\n【待丰满实体】\n'
               + JSON.stringify({
                 type: live.type,
@@ -604,8 +677,88 @@ export function registerAnalyze(ctx) {
               + buildContentModeFlags(state)
               + '\nStrictQuality: ' + (!!state.strictQuality)
               + '\nContext: ' + (state.contextText || '');
+            if (live.type === 'person') {
+              var vessels = listVesselEntities(state.entities);
+              if (vessels.length) {
+                user += '\n【软约束】正文须点名互动至少一件已有载体：'
+                  + vessels.slice(0, 8).map(function(v) { return v.name; }).join('、');
+              }
+            }
             var text = await ctx.callAI(user, null, task.signal);
             var parsed = parseJsonLoose(text);
+            if (needFlavor) {
+              var richness = evaluateFlavorRichness(parsed, flavorItems, { presets: NSFW_FLAVOR_PRESETS });
+              if (!richness.ok) {
+                var expandPrompt = buildFlavorExpandSystemPrompt(flavorItems, { presets: NSFW_FLAVOR_PRESETS })
+                  + '\n\n' + buildFlavorExpandUserPrompt({
+                    weakDimensions: richness.weakDimensions,
+                    minChars: richness.minChars,
+                    flavorHint: buildNsfwFlavorHint(state),
+                    context: live.type + ' · ' + live.name,
+                    text: JSON.stringify(parsed),
+                  })
+                  + '\n请输出加厚后的完整 JSON 实体（保持 type/name）。';
+                var expandText = await ctx.callAI(expandPrompt, null, task.signal);
+                var expanded = parseJsonLoose(expandText);
+                var richness2 = evaluateFlavorRichness(expanded, flavorItems, { presets: NSFW_FLAVOR_PRESETS });
+                if (richness2.total >= richness.total) parsed = expanded;
+              }
+            }
+            if (needNtl) {
+              var ntlRich = evaluateNtlRichness(parsed, ntlTypes, { tabooTypes: NTL_TABOO_TYPES });
+              if (!ntlRich.ok) {
+                var ntlExpandPrompt = buildNtlExpandSystemPrompt(ntlTypes, { tabooTypes: NTL_TABOO_TYPES })
+                  + '\n\n' + buildNtlExpandUserPrompt({
+                    weakDimensions: ntlRich.weakDimensions,
+                    minChars: ntlRich.minChars,
+                    ntlHint: buildNtlTabooHint(state),
+                    context: live.type + ' · ' + live.name,
+                    text: JSON.stringify(parsed),
+                  })
+                  + '\n请输出加厚后的完整 JSON 实体，写满 attrs.ntl。';
+                var ntlExpandText = await ctx.callAI(ntlExpandPrompt, null, task.signal);
+                var ntlExpanded = parseJsonLoose(ntlExpandText);
+                var ntlRich2 = evaluateNtlRichness(ntlExpanded, ntlTypes, { tabooTypes: NTL_TABOO_TYPES });
+                if (ntlRich2.total >= ntlRich.total) parsed = ntlExpanded;
+              }
+            }
+            if (needVessel) {
+              var vRich = evaluateVesselRichness(parsed, vOpts);
+              if (!vRich.ok) {
+                var vExpandPrompt = buildVesselExpandSystemPrompt(vOpts)
+                  + '\n\n' + buildVesselExpandUserPrompt({
+                    weakDimensions: vRich.weakDimensions,
+                    minChars: vRich.minChars,
+                    vesselHint: buildVesselHintForState(state),
+                    context: live.type + ' · ' + live.name,
+                    text: JSON.stringify(parsed),
+                  })
+                  + '\n请输出加厚后的完整 JSON 实体，写满 attrs.adult（含 powerLogic/vesselKind/costOrRisk/relatedPersons）。';
+                var vExpandText = await ctx.callAI(vExpandPrompt, null, task.signal);
+                var vExpanded = parseJsonLoose(vExpandText);
+                var vRich2 = evaluateVesselRichness(vExpanded, vOpts);
+                if (vRich2.total >= vRich.total) parsed = vExpanded;
+              }
+            }
+            if (live.type === 'person') {
+              var vesselList = listVesselEntities(state.entities);
+              var mention = personMentionsVessels(JSON.stringify(parsed), vesselList);
+              if (mention.missing) {
+                var avail = vesselList.map(function(v) { return v.name; }).filter(Boolean).slice(0, 10).join('、');
+                var hookPrompt = '你是角色卡编辑。下文未点名已有世界观成人载体，请改写使人物与至少一件载体产生互动（持有/被施加/惧怕/渴望），保持 JSON 结构。\n'
+                  + '可用载体：' + avail
+                  + '\n\n' + JSON.stringify(parsed);
+                try {
+                  var hookText = await ctx.callAI(hookPrompt, null, task.signal);
+                  var hooked = parseJsonLoose(hookText);
+                  if (hooked && (hooked.name || hooked.type || hooked.attrs || hooked.NSFW_information)) {
+                    parsed = hooked;
+                  }
+                } catch (hookErr) {
+                  if (ctx.isTrackedAbort(hookErr)) throw hookErr;
+                }
+              }
+            }
             applyEnrichResult(state, live.id, parsed);
             done++;
             state.failedShards = (state.failedShards || []).filter(function(f) {
@@ -702,12 +855,14 @@ export function registerAnalyze(ctx) {
           signal: task.signal,
         });
         var prior = buildSkeletonPriorBlock(state);
-        var inject = buildRagInjectBlock(search, state.entities.slice(0, 20), { entityBudget: 4000 });
+        var inject = buildRagInjectBlock(search, state.entities.slice(0, 40), { entityBudget: RAG_ENTITY_BUDGET });
         var head = ctx.promptText('novelAnalyzeRelations', '补全 relations JSON');
         var user = head
           + prior
           + buildModeHintBlocks(state, 'relations')
-          + buildAdultContextDigests(state.entities, 2000, getNtlMode(state))
+          + (adultOn ? buildNsfwFlavorHint(state) : '')
+          + (ntlOn ? buildNtlTabooHint(state) : '')
+          + novelCanonBlock(state, '')
           + '\n\n' + inject
           + buildContentModeFlags(state)
           + '\nContext: ' + (state.contextText || '');

@@ -1,15 +1,11 @@
 /**
  * 原始资料面板：渲染、绑定、输入同步
+ * 注意：NSFW/NTL/worldframe 由卡侧 AdultConfig 经 nsfw-config-changed 下推；
+ * 本面板 render 不得回写口味（避免冲掉多选 note）。
  */
 import { escapeHtml } from '../../utils.mjs';
 import { DEFAULT_EXPAND_BUDGET } from '../recall.mjs';
 import { createDefaultNovelState } from '../state.mjs';
-import {
-  setAdultMode,
-  setNtlMode,
-  setNsfwFlavor,
-  setNtlTabooTypes,
-} from '../nsfwSupport.mjs';
 
 /**
  * @param {object} ctx — 小说工坊上下文（由 shared/context.mjs 创建，含 $、save、busyFlags 等）
@@ -31,14 +27,6 @@ export function registerSource(ctx) {
     if (conc) conc.value = String(state.concurrency || 3);
     if (budget) budget.value = String(state.expandBudget || DEFAULT_EXPAND_BUDGET);
     if (strict) strict.checked = !!state.strictQuality;
-
-    var globalCfg = (typeof window.__getNsfwConfig__ === 'function') ? window.__getNsfwConfig__() : null;
-    if (globalCfg) {
-      setAdultMode(state, globalCfg.enabled || false);
-      setNtlMode(state, globalCfg.ntlEnabled || false);
-      setNsfwFlavor(state, globalCfg.flavor || '');
-      setNtlTabooTypes(state, globalCfg.ntlTabooTypes || []);
-    }
 
     var summary = ctx.$('novelFileSummary');
     var clearBtn = ctx.$('btnNovelClearFile');

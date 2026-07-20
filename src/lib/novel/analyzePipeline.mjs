@@ -16,6 +16,13 @@ import {
   adultEnrichPriority,
   getAdultMode,
 } from './nsfwSupport.mjs';
+import {
+  PRIOR_RELATIONS_BUDGET,
+  PRIOR_REL_EVIDENCE,
+  SKELETON_ENTITIES,
+  SKELETON_RELATIONS,
+  ENTITY_SUMMARY_STORE,
+} from './contextBudgets.mjs';
 
 /**
  * 应用骨架扫描 JSON
@@ -64,7 +71,7 @@ export function applySkeletonResult(state, parsed) {
       name: w.name,
       content: w.content,
       keys: w.keys,
-      summary: String(w.content || '').slice(0, 80),
+      summary: String(w.content || '').slice(0, ENTITY_SUMMARY_STORE),
       attrs: attrsWb,
       layer: w.layer,
       op: w.op,
@@ -170,14 +177,16 @@ export function formatPriorRelationsRef(relations, entities, maxChars) {
   (entities || []).forEach(function(e) {
     if (e && e.id) idToName[e.id] = e.name;
   });
-  var budget = maxChars || 2500;
+  var budget = maxChars || PRIOR_RELATIONS_BUDGET;
   var lines = ['【已有关系（可补 evidence / 更精确 rel；勿无意义重复）】共 ' + list.length];
   var used = lines[0].length;
-  list.slice(0, 120).forEach(function(r) {
+  list.slice(0, 200).forEach(function(r) {
     if (!r) return;
     var from = idToName[r.fromId] || r.from || r.fromId || '?';
     var to = idToName[r.toId] || r.to || r.toId || '?';
-    var ev = Array.isArray(r.evidence) && r.evidence[0] ? ' | ' + String(r.evidence[0]).slice(0, 40) : '';
+    var ev = Array.isArray(r.evidence) && r.evidence[0]
+      ? ' | ' + String(r.evidence[0]).slice(0, PRIOR_REL_EVIDENCE)
+      : '';
     var line = '- ' + from + ' -[' + (r.rel || 'related') + ']-> ' + to + ev;
     if (used + line.length > budget) return;
     lines.push(line);
@@ -188,8 +197,8 @@ export function formatPriorRelationsRef(relations, entities, maxChars) {
 
 /** 骨架提示用的 prior 块 */
 export function buildSkeletonPriorBlock(state) {
-  return formatPriorEntitiesRef(state.entities || [], 5000)
-    + formatPriorRelationsRef(state.relations, state.entities, 2500);
+  return formatPriorEntitiesRef(state.entities || [], SKELETON_ENTITIES)
+    + formatPriorRelationsRef(state.relations, state.entities, SKELETON_RELATIONS);
 }
 
 export { projectEntitiesToLegacy, isEntityEnriched };

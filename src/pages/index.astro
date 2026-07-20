@@ -3,6 +3,7 @@ import Layout from '../layouts/Layout.astro';
 import AIPanel from '../components/AIPanel.astro';
 import CardManagerPanel from '../components/CardManagerPanel.astro';
 import CharacterPanel from '../components/CharacterPanel.astro';
+import AdultConfigPanel from '../components/AdultConfigPanel.astro';
 import GreetingPanel from '../components/GreetingPanel.astro';
 import WorldbookPanel from '../components/WorldbookPanel.astro';
 import PreviewPanel from '../components/PreviewPanel.astro';
@@ -55,6 +56,7 @@ import AiTaskCenterUI from '../components/AiTaskCenterUI.astro';
       <!-- 视图顺序与侧栏一致；显隐由 data-view 控制 -->
       <div class="app-view" data-view="card-manager"><CardManagerPanel /></div>
       <div class="app-view" data-view="character"><CharacterPanel /></div>
+      <div class="app-view" data-view="adult-config"><AdultConfigPanel /></div>
       <div class="app-view" data-view="greetings"><GreetingPanel /></div>
       <div class="app-view" data-view="worldbook"><WorldbookPanel /></div>
       <div class="app-view" data-view="statusbar"><StatusBarPanel /></div>
@@ -126,14 +128,50 @@ import AiTaskCenterUI from '../components/AiTaskCenterUI.astro';
     import {
       NSFW_FLAVOR_PRESETS,
       NSFWFLAVOR_IDS,
+      FLAVOR_GROUPS,
       NTL_TABOO_TYPES,
       NTL_TABOO_IDS,
+      MAX_NSFW_FLAVOR_ITEMS,
+      NSFW_FLAVOR_DEFAULT_MIN_CHARS,
+      NTL_TABOO_DEFAULT_MIN_CHARS,
+      normalizeNsfwFlavorItems,
+      buildNsfwFlavorHintFromItems,
+      evaluateFlavorRichness,
+      collectFlavorEnrichment,
+      buildNtlTabooHintFromTypes,
+      normalizeNtlTabooItems,
+      evaluateNtlRichness,
+      collectNtlEnrichment,
+      WORLDFRAMES,
+      WORLDFRAME_IDS,
+      inferWorldframe,
+      collectVesselEnrichment,
+      buildVesselHint,
+      evaluateVesselRichness,
     } from '../lib/novel/nsfwSupport.mjs';
     window.__nsfwFlavorData__ = {
       presets: NSFW_FLAVOR_PRESETS,
       ids: NSFWFLAVOR_IDS,
+      groups: FLAVOR_GROUPS,
       tabooTypes: NTL_TABOO_TYPES,
       tabooIds: NTL_TABOO_IDS,
+      maxItems: MAX_NSFW_FLAVOR_ITEMS,
+      defaultMinChars: NSFW_FLAVOR_DEFAULT_MIN_CHARS,
+      ntlDefaultMinChars: NTL_TABOO_DEFAULT_MIN_CHARS,
+      normalizeItems: normalizeNsfwFlavorItems,
+      buildHintFromItems: buildNsfwFlavorHintFromItems,
+      evaluateRichness: evaluateFlavorRichness,
+      collectEnrichment: collectFlavorEnrichment,
+      buildNtlHintFromTypes: buildNtlTabooHintFromTypes,
+      normalizeNtlItems: normalizeNtlTabooItems,
+      evaluateNtlRichness: evaluateNtlRichness,
+      collectNtlEnrichment: collectNtlEnrichment,
+      worldframes: WORLDFRAMES,
+      worldframeIds: WORLDFRAME_IDS,
+      inferWorldframe: inferWorldframe,
+      collectVesselEnrichment: collectVesselEnrichment,
+      buildVesselHint: buildVesselHint,
+      evaluateVesselRichness: evaluateVesselRichness,
     };
   </script>
 

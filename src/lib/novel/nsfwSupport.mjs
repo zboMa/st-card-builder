@@ -4,10 +4,123 @@
  *
  * 调色盘三层架构：
  *   第一层·角色核心调色盘（always）→ schema.mjs: persona_layers / tension_pairs / core_desire
- *   第二层·NSFW 口味（叠加）→ nsfwFlavor 预设 → desire_palette / sexual_psychology / situational_modulation / aftercare
- *   第三层·NTL 禁忌层（可选叠加）→ ntlTabooType 预设 → 特定禁忌类别的张力引导
+ *   第二层·NSFW 口味（叠加）→ nsfwFlavorItems 多选（最多 5，首项为主调色盘）→ desire_palette / …
+ *   第三层·NTL 禁忌层（可选叠加）→ ntlTabooItems[{id,note}] 多选 → 特定禁忌类别的张力引导
  */
 import { UNMENTIONED } from './schema.mjs';
+import {
+  NSFW_FLAVOR_PRESETS,
+  NSFWFLAVOR_IDS,
+  NSFW_FLAVOR_DEFAULT_MIN_CHARS,
+  NSFW_FLAVOR_ENRICHMENT,
+  FLAVOR_SHARED_DIMENSIONS,
+  FLAVOR_GROUPS,
+  collectFlavorEnrichment,
+  evaluateFlavorRichness,
+  extractFlavorRichnessText,
+  buildFlavorExpandSystemPrompt,
+  buildFlavorExpandUserPrompt,
+  compactCharCount,
+} from '../adult/flavors/index.mjs';
+import {
+  NTL_TABOO_TYPES,
+  NTL_TABOO_IDS,
+  NTL_TABOO_DEFAULT_MIN_CHARS,
+  NTL_TABOO_ENRICHMENT,
+  NTL_SHARED_DIMENSIONS,
+  collectNtlEnrichment,
+  evaluateNtlRichness,
+  extractNtlRichnessText,
+  buildNtlExpandSystemPrompt,
+  buildNtlExpandUserPrompt,
+  buildNtlTabooHintFromTypes,
+  normalizeNtlTabooItems,
+} from '../adult/ntl/index.mjs';
+import {
+  ADULT_DIGEST_DEFAULT,
+  ADULT_CANON_BUDGET,
+  FIELD_PERSON_NSFW,
+  FIELD_PERSON_NTL,
+  FIELD_SUMMARY,
+  LIST_KINKS,
+  LIST_LIMITS,
+  LIST_TABOO,
+  STYLE_NSFW_SLICE,
+  STYLE_ADULT_FALLBACK,
+  EXPAND_CTX_CHARS,
+  EXPAND_BODY_CHARS,
+} from './contextBudgets.mjs';
+import { buildAdultCanonDigest, formatCorruptionArchiveDigests } from '../adult/canon.mjs';
+import {
+  WORLDFRAMES,
+  WORLDFRAME_IDS,
+  VESSEL_KINDS,
+  VESSEL_KIND_LABELS,
+  VESSEL_DEFAULT_MIN_CHARS,
+  inferWorldframe,
+  collectVesselEnrichment,
+  buildVesselHint,
+  evaluateVesselRichness,
+  buildVesselExpandSystemPrompt,
+  buildVesselExpandUserPrompt,
+  listVesselEntities,
+  personMentionsVessels,
+  formatVesselCanonBlock,
+  buildStatusBarVesselDraftFromEntities,
+  isVesselEntity,
+} from '../adult/vessels/index.mjs';
+
+export {
+  NSFW_FLAVOR_PRESETS,
+  NSFWFLAVOR_IDS,
+  NSFW_FLAVOR_DEFAULT_MIN_CHARS,
+  NSFW_FLAVOR_ENRICHMENT,
+  FLAVOR_SHARED_DIMENSIONS,
+  FLAVOR_GROUPS,
+  collectFlavorEnrichment,
+  evaluateFlavorRichness,
+  extractFlavorRichnessText,
+  buildFlavorExpandSystemPrompt,
+  buildFlavorExpandUserPrompt,
+  compactCharCount,
+  NTL_TABOO_TYPES,
+  NTL_TABOO_IDS,
+  NTL_TABOO_DEFAULT_MIN_CHARS,
+  NTL_TABOO_ENRICHMENT,
+  NTL_SHARED_DIMENSIONS,
+  collectNtlEnrichment,
+  evaluateNtlRichness,
+  extractNtlRichnessText,
+  buildNtlExpandSystemPrompt,
+  buildNtlExpandUserPrompt,
+  buildNtlTabooHintFromTypes,
+  normalizeNtlTabooItems,
+  buildAdultCanonDigest,
+  formatCorruptionArchiveDigests,
+  ADULT_DIGEST_DEFAULT,
+  ADULT_CANON_BUDGET,
+  EXPAND_CTX_CHARS,
+  EXPAND_BODY_CHARS,
+  WORLDFRAMES,
+  WORLDFRAME_IDS,
+  VESSEL_KINDS,
+  VESSEL_KIND_LABELS,
+  VESSEL_DEFAULT_MIN_CHARS,
+  inferWorldframe,
+  collectVesselEnrichment,
+  buildVesselHint,
+  evaluateVesselRichness,
+  buildVesselExpandSystemPrompt,
+  buildVesselExpandUserPrompt,
+  listVesselEntities,
+  personMentionsVessels,
+  formatVesselCanonBlock,
+  buildStatusBarVesselDraftFromEntities,
+  isVesselEntity,
+};
+
+/** 卡级 NSFW 口味最多叠加条数 */
+export var MAX_NSFW_FLAVOR_ITEMS = 5;
 
 /** NSFW 实体 kind */
 export var NSFW_ENTITY_KINDS = ['rule', 'place', 'item', 'dynamic', 'taboo', 'consent'];
@@ -39,197 +152,6 @@ export var ADULT_RAG_BOOST_TERMS = [
 export var NTL_RAG_BOOST_TERMS = [
   '禁忌', '背德', '权力', '强迫', '掌控', '服从', '越界', '秘密', '胁迫', '不对等',
 ];
-
-/**
- * NSFW 口味预设：20 种，分三组
- *   情绪基调（8）：纯爱/甜蜜/日常/救赎/恣意/虐恋/暗黑/绝望
- *   关系动态（8）：调教/叛逆/温柔支配/臣服/狩猎/引导/沦陷/敌对
- *   特殊风味（4）：惩戒/羞耻/架空/本能
- * 每种预设驱动不同的调色盘参数和 prompt 注入方向
- */
-export var NSFW_FLAVOR_PRESETS = {
-  // ======== 第一组：情绪基调 ========
-  vanilla: {
-    group: '情绪基调',
-    label: '纯爱向',
-    description: '情感优先，温柔细腻，强调 consent 与 aftercare',
-    palette: { temperature: '暖', texture: '棉布', primary_intensity_default: 0.5, accent_intensity_default: 0.6 },
-    focus: ['emotional_depth', 'consent', 'aftercare', 'tenderness', 'trust'],
-    avoid: ['强制', '羞辱', '血腥', '疼痛超出角色 Limits'],
-  },
-  sweet: {
-    group: '情绪基调',
-    label: '甜蜜向',
-    description: '撒娇宠溺，互相确认爱意，每一下触碰都在说喜欢你',
-    palette: { temperature: '暖甜', texture: '棉花糖', primary_intensity_default: 0.4, accent_intensity_default: 0.5 },
-    focus: ['spoiling', 'affection', 'playful', 'mutual_adoration', 'giggling'],
-    avoid: ['冷漠', '若即若离', '情感虐待', '欲擒故纵'],
-  },
-  slice_of_life: {
-    group: '情绪基调',
-    label: '日常向',
-    description: '自然发生，松弛感，幽默，生活气息——不是每场性都需要特别的理由',
-    palette: { temperature: '暖偏凉', texture: '棉麻', primary_intensity_default: 0.4, accent_intensity_default: 0.3 },
-    focus: ['casual_intimacy', 'humor', 'comfort', 'familiarity', 'domestic'],
-    avoid: ['过度戏剧化', '强行紧张', '脱离日常人设'],
-  },
-  healing: {
-    group: '情绪基调',
-    label: '救赎向',
-    description: '互相治愈，创伤后重建信任，每一次触碰都在说「你可以放心」',
-    palette: { temperature: '温→暖', texture: '温水', primary_intensity_default: 0.3, accent_intensity_default: 0.6 },
-    focus: ['healing', 'trust_building', 'past_trauma', 'gentle_pacing', 'emotional_safety'],
-    avoid: ['急于推进', '无视对方的退缩信号', '用性代替沟通'],
-  },
-  intense: {
-    group: '情绪基调',
-    label: '恣意向',
-    description: '高密度情欲描写，身体反应与感官细节压倒一切',
-    palette: { temperature: '炽热', texture: '丝绸', primary_intensity_default: 1.0, accent_intensity_default: 0.8 },
-    focus: ['sensory_details', 'body_reactions', 'loss_of_control', 'overwhelm', 'climax_buildup'],
-    avoid: ['油腻模板', '同义堆砌', '忽略心理层'],
-  },
-  angst: {
-    group: '情绪基调',
-    label: '虐恋向',
-    description: '情感痛苦与身体的交织，救赎与宿命——痛并需要着',
-    palette: { temperature: '冷→偶尔炽热', texture: '碎玻璃', primary_intensity_default: 0.7, accent_intensity_default: 0.9 },
-    focus: ['emotional_pain', 'redemption', 'fate', 'self_destruction', 'healing_through_pain'],
-    avoid: ['无代价的伤害', '美化暴力', '忽略情感后坐力'],
-  },
-  dark: {
-    group: '情绪基调',
-    label: '暗黑向',
-    description: '道德模糊，胁迫氛围，情感撕裂，每一次接近都是心理代价',
-    palette: { temperature: '冷', texture: '刀刃', primary_intensity_default: 0.9, accent_intensity_default: 0.7 },
-    focus: ['moral_ambiguity', 'coercion_atmosphere', 'emotional_cost', 'guilt', 'powerlessness'],
-    avoid: ['轻浮消解禁忌', '不经铺垫的转折', '美化伤害'],
-  },
-  despair: {
-    group: '情绪基调',
-    label: '绝望向',
-    description: '深渊中的性——用身体确认自己还活着，自毁与最后的挣扎',
-    palette: { temperature: '冰→短暂的烫', texture: '锈铁', primary_intensity_default: 0.8, accent_intensity_default: 0.9 },
-    focus: ['existential_despair', 'self_destruction', 'last_resort', 'numbness_breaking', 'hollow_after'],
-    avoid: ['浪漫化自毁', '忽略心理后果', '把绝望写成中二'],
-  },
-
-  // ======== 第二组：关系动态 ========
-  domination: {
-    group: '关系动态',
-    label: '调教向',
-    description: '权力交换，仪式感，渐进训练，心理转变',
-    palette: { temperature: '温→热', texture: '皮革', primary_intensity_default: 0.8, accent_intensity_default: 0.5 },
-    focus: ['power_exchange', 'rules', 'progression', 'psychological_transformation', 'ritual'],
-    avoid: ['无铺垫直接硬来', '忽略安全词', '超出 Limits 的极端'],
-  },
-  brat: {
-    group: '关系动态',
-    label: '叛逆向',
-    description: '表面反抗实则期待被压制——嘴硬身体诚实，每一次挑衅都是邀请',
-    palette: { temperature: '热', texture: '磨砂皮', primary_intensity_default: 0.7, accent_intensity_default: 0.8 },
-    focus: ['defiance', 'taming', 'sass_backfire', 'teasing', 'power_struggle_to_submission'],
-    avoid: ['真的愤怒', '完全压制没有过程', '忽视 brat 的主动性魅力'],
-  },
-  gentle_dom: {
-    group: '关系动态',
-    label: '温柔支配',
-    description: '以照顾之名行掌控之实——绑好绳子先问疼吗，命令用商量的语气',
-    palette: { temperature: '恒温', texture: '绒面革', primary_intensity_default: 0.6, accent_intensity_default: 0.7 },
-    focus: ['care_as_control', 'gentle_firmness', 'praise', 'safety', 'trust_based_power'],
-    avoid: ['冷暴力', '羞辱', '命令式语气', '忽视被支配方的反馈'],
-  },
-  service: {
-    group: '关系动态',
-    label: '臣服向',
-    description: '快感来自让对方满足——奉献、崇拜、以对方的愉悦为自己的成就',
-    palette: { temperature: '暖', texture: '丝绒', primary_intensity_default: 0.5, accent_intensity_default: 0.8 },
-    focus: ['devotion', 'worship', 'selfless_service', 'pleasure_in_giving', 'humility'],
-    avoid: ['强迫服务', '自我否定', '把奉献写成无自尊'],
-  },
-  pursuit: {
-    group: '关系动态',
-    label: '狩猎向',
-    description: '追逐与被追逐，猫鼠游戏，张力来自距离感——靠近一步退半步',
-    palette: { temperature: '温→热→凉交替', texture: '羽毛', primary_intensity_default: 0.6, accent_intensity_default: 0.7 },
-    focus: ['chase', 'tease', 'push_pull', 'anticipation', 'delayed_gratification'],
-    avoid: ['直接扑倒', '省略追逐过程', '单方面追逐无互动'],
-  },
-  seduction: {
-    group: '关系动态',
-    label: '引导向',
-    description: '引诱对方一步步堕落或觉醒——innocence 被侵蚀的过程比结果更迷人',
-    palette: { temperature: '凉→渐热', texture: '薄纱', primary_intensity_default: 0.5, accent_intensity_default: 0.9 },
-    focus: ['corruption', 'awakening', 'stepped_temptation', 'innocence_fading', 'point_of_no_return'],
-    avoid: ['跳过快进', '对方毫无挣扎', '把引导写成单纯操纵'],
-  },
-  denial_surrender: {
-    group: '关系动态',
-    label: '沦陷向',
-    description: '抗拒→动摇→崩溃→沉溺，完整的心理弧光——投降的那一秒值得一千字',
-    palette: { temperature: '冷→爆热→温', texture: '融化的冰', primary_intensity_default: 0.6, accent_intensity_default: 0.9 },
-    focus: ['resistance', 'crumbling', 'surrender', 'internal_conflict', 'relief_after_yielding'],
-    avoid: ['直接放弃抵抗', '没有内心挣扎', '沉溺后没有情绪余波'],
-  },
-  enemies: {
-    group: '关系动态',
-    label: '敌对向',
-    description: '明明该恨你却想要你——每一寸靠近都带着刀，亲密的暴力美学',
-    palette: { temperature: '冷+灼热点', texture: '淬火的钢', primary_intensity_default: 0.9, accent_intensity_default: 0.8 },
-    focus: ['hatred_and_desire', 'roughness', 'conflicted', 'verbal_hostility', 'reluctant_care'],
-    avoid: ['突然变甜', '消解敌对张力', '暴力无上下文'],
-  },
-
-  // ======== 第三组：特殊风味 ========
-  discipline: {
-    group: '特殊风味',
-    label: '惩戒向',
-    description: '规则→违规→惩罚→安抚的完整闭环，仪式感与情感修复同等重要',
-    palette: { temperature: '冷→温', texture: '竹', primary_intensity_default: 0.7, accent_intensity_default: 0.5 },
-    focus: ['rules', 'transgression', 'punishment', 'atonement', 'comfort_after_punish'],
-    avoid: ['只罚不安抚', '惩罚无规则前提下', '忽视事后情感'],
-  },
-  shame: {
-    group: '特殊风味',
-    label: '羞耻向',
-    description: '暴露与羞辱心理——脸红的细节、躲闪的眼神、说不出口的话，比身体反应更重',
-    palette: { temperature: '忽冷忽热', texture: '薄冰', primary_intensity_default: 0.6, accent_intensity_default: 0.8 },
-    focus: ['embarrassment', 'exposure', 'blushing', 'verbal_teasing', 'shame_arousal_loop'],
-    avoid: ['只羞辱不安抚', '践踏自尊无底线', '忽略羞耻后的情感需求'],
-  },
-  fantasy: {
-    group: '特殊风味',
-    label: '架空向',
-    description: '非人/奇幻种族/吸血鬼/妖魔/异种族——设定驱动的情欲，借用设定特性创作独特体验',
-    palette: { temperature: '变幻', texture: '星尘', primary_intensity_default: 0.5, accent_intensity_default: 0.7 },
-    focus: ['species_specific_traits', 'worldbuilding_eroticism', 'non_human_bodies', 'magical_intimacy', 'otherness'],
-    avoid: ['写成人形只换皮', '忽略种族设定', '把架空当成标签敷衍'],
-  },
-  primal: {
-    group: '特殊风味',
-    label: '本能向',
-    description: '兽化/返祖/本能压制——理性退场，只剩冲动、气味、原始的占有与臣服',
-    palette: { temperature: '原始的热', texture: '毛皮+汗', primary_intensity_default: 0.9, accent_intensity_default: 0.6 },
-    focus: ['instinct', 'feral', 'scent_marking', 'raw_power', 'rationality_losing'],
-    avoid: ['回归理性太快', '用社交规范约束', '写成普通野兽行为'],
-  },
-};
-
-export var NSFWFLAVOR_IDS = Object.keys(NSFW_FLAVOR_PRESETS);
-
-/** NTL 禁忌类型：不只是"背德/权力差"，而是具体的禁忌方向 */
-export var NTL_TABOO_TYPES = {
-  age_gap: { label: '年龄差', description: '成熟度不对等带来的自然张力' },
-  status_gap: { label: '身份差', description: '师生/医患/僧俗/上下级等身份边界' },
-  emotional_forbidden: { label: '情感禁忌', description: '爱上不该爱的人：朋友伴侣/仇人之子/已故之人的影子' },
-  moral_conflict: { label: '道德冲突', description: '明知被利用但无法自拔/明知是错但停不下来' },
-  situational: { label: '情境禁忌', description: '公共场所/危险环境下的亲密，刺激来自场景而非关系' },
-  power_coercion: { label: '权力胁迫', description: '直接的权力压迫与服从（原 NTL 核心）' },
-  secret_affair: { label: '隐秘关系', description: '不能公开的地下关系，偷情/瞒着所有人' },
-  redemption_captor: { label: '俘获/救赎', description: '敌对关系中被对方吸引（斯德哥尔摩/反向救赎）' },
-};
-
-export var NTL_TABOO_IDS = Object.keys(NTL_TABOO_TYPES);
 
 /** 占位判定 */
 export function isPlaceholderText(s) {
@@ -286,7 +208,7 @@ export function normalizeNsfwEntityAttrs(raw) {
   return base;
 }
 
-/** 非人物通用成人维空模板 */
+/** 非人物通用成人维空模板（含世界观载体字段） */
 export function emptyAdultAttrs() {
   return {
     eroticRole: '',
@@ -295,6 +217,13 @@ export function emptyAdultAttrs() {
     limits: [],
     playIdeas: [],
     relatedPersons: [],
+    vesselKind: '',
+    worldframe: '',
+    powerLogic: '',
+    costOrRisk: '',
+    socialCover: '',
+    flavorHooks: [],
+    ntlHooks: [],
     inferred: true,
     lastPass: '',
   };
@@ -306,7 +235,12 @@ export function normalizeAdultAttrs(raw) {
   if (!raw || typeof raw !== 'object') return base;
   if (raw.eroticRole != null) base.eroticRole = String(raw.eroticRole).trim();
   if (raw.atmosphere != null) base.atmosphere = String(raw.atmosphere).trim();
-  ['triggers', 'limits', 'playIdeas', 'relatedPersons'].forEach(function(key) {
+  if (raw.vesselKind != null) base.vesselKind = String(raw.vesselKind).trim();
+  if (raw.worldframe != null) base.worldframe = String(raw.worldframe).trim();
+  if (raw.powerLogic != null) base.powerLogic = String(raw.powerLogic).trim();
+  if (raw.costOrRisk != null) base.costOrRisk = String(raw.costOrRisk).trim();
+  if (raw.socialCover != null) base.socialCover = String(raw.socialCover).trim();
+  ['triggers', 'limits', 'playIdeas', 'relatedPersons', 'flavorHooks', 'ntlHooks'].forEach(function(key) {
     var list = asStringList(raw[key]);
     if (list.length) base[key] = list;
   });
@@ -322,7 +256,12 @@ export function mergeAdultAttrs(prev, next) {
   var b = normalizeAdultAttrs(next);
   if (!isPlaceholderText(b.eroticRole)) a.eroticRole = b.eroticRole;
   if (!isPlaceholderText(b.atmosphere)) a.atmosphere = b.atmosphere;
-  ['triggers', 'limits', 'playIdeas', 'relatedPersons'].forEach(function(key) {
+  if (!isPlaceholderText(b.vesselKind)) a.vesselKind = b.vesselKind;
+  if (!isPlaceholderText(b.worldframe)) a.worldframe = b.worldframe;
+  if (!isPlaceholderText(b.powerLogic)) a.powerLogic = b.powerLogic;
+  if (!isPlaceholderText(b.costOrRisk)) a.costOrRisk = b.costOrRisk;
+  if (!isPlaceholderText(b.socialCover)) a.socialCover = b.socialCover;
+  ['triggers', 'limits', 'playIdeas', 'relatedPersons', 'flavorHooks', 'ntlHooks'].forEach(function(key) {
     var seen = {};
     var out = [];
     (a[key] || []).concat(b[key] || []).forEach(function(x) {
@@ -339,14 +278,18 @@ export function mergeAdultAttrs(prev, next) {
   return a;
 }
 
-/** attrs.adult 是否达到成人门槛 */
+/** attrs.adult 是否达到成人门槛（含载体厚度） */
 export function isAdultAttrsFilled(adult) {
   var a = normalizeAdultAttrs(adult);
   var roleOk = !isPlaceholderText(a.eroticRole);
   var atmosOk = !isPlaceholderText(a.atmosphere);
   var ideasOk = (a.playIdeas && a.playIdeas.length) || (a.triggers && a.triggers.length);
   var limitsOk = a.limits && a.limits.length > 0;
-  return !!(roleOk && (atmosOk || ideasOk) && limitsOk);
+  var logicOk = !isPlaceholderText(a.powerLogic);
+  var vesselOk = !isPlaceholderText(a.vesselKind) || logicOk;
+  var personOk = a.relatedPersons && a.relatedPersons.length > 0;
+  var costOk = !isPlaceholderText(a.costOrRisk) || !isPlaceholderText(a.socialCover);
+  return !!(roleOk && (atmosOk || ideasOk) && limitsOk && vesselOk && logicOk && (personOk || costOk));
 }
 
 /** 该类型在成人模式下是否需要 adult 维 */
@@ -555,18 +498,20 @@ export function formatAdultAttrsForContent(adult) {
 
 /** 从实体库摘人物 NSFW 摘要（文风互喂） */
 export function formatPersonNsfwDigest(entities, maxChars) {
-  var budget = maxChars || 2500;
+  var budget = maxChars || Math.floor(ADULT_DIGEST_DEFAULT * 0.4);
   var lines = ['【已有人物 NSFW 摘要（文风须对齐尺度与禁忌）】'];
   var used = lines[0].length;
   (entities || []).filter(function(e) { return e && e.type === 'person'; }).forEach(function(e) {
     var n = e.attrs && e.attrs.profile && e.attrs.profile.NSFW_information;
     if (!n) return;
-    var kinks = [].concat(n.Kinks || [], n.xp_kinks || []).slice(0, 6).join('、');
-    var limits = (n.Limits || []).slice(0, 6).join('、');
+    var kinks = [].concat(n.Kinks || [], n.xp_kinks || []).slice(0, LIST_KINKS).join('、');
+    var limits = (n.Limits || []).slice(0, LIST_LIMITS).join('、');
     var meta = e.attrs && e.attrs.nsfwMeta ? normalizeNsfwMeta(e.attrs.nsfwMeta) : null;
     var line = '- ' + e.name
       + (n.sexual_personality && !isPlaceholderText(n.sexual_personality)
-        ? ' | 情欲性格:' + String(n.sexual_personality).slice(0, 40) : '')
+        ? ' | 情欲性格:' + String(n.sexual_personality).slice(0, FIELD_PERSON_NSFW) : '')
+      + (n.contrast && !isPlaceholderText(n.contrast)
+        ? ' | 反差:' + String(n.contrast).slice(0, FIELD_PERSON_NSFW) : '')
       + (kinks ? ' | XP:' + kinks : '')
       + (limits ? ' | Limits:' + limits : '')
       + (meta && meta.inferred ? ' | 推断' : '');
@@ -580,14 +525,15 @@ export function formatPersonNsfwDigest(entities, maxChars) {
 
 /** 从实体库摘 nsfw 条目摘要 */
 export function formatNsfwEntityDigest(entities, maxChars) {
-  var budget = maxChars || 2000;
+  var budget = maxChars || Math.floor(ADULT_DIGEST_DEFAULT * 0.25);
   var lines = ['【已有 NSFW 世界设定】'];
   var used = lines[0].length;
   (entities || []).filter(function(e) { return e && e.type === 'nsfw'; }).forEach(function(e) {
     var a = normalizeNsfwEntityAttrs(e.attrs || {});
     var line = '- [' + a.kind + '] ' + e.name
-      + (e.summary ? ': ' + String(e.summary).slice(0, 60) : '')
-      + (a.limits && a.limits.length ? ' | 禁:' + a.limits.slice(0, 3).join('/') : '');
+      + (e.summary ? ': ' + String(e.summary).slice(0, FIELD_SUMMARY) : '')
+      + (e.content ? ' | ' + String(e.content).slice(0, 400) : '')
+      + (a.limits && a.limits.length ? ' | 禁:' + a.limits.slice(0, LIST_LIMITS).join('/') : '');
     if (used + line.length > budget) return;
     lines.push(line);
     used += line.length;
@@ -598,7 +544,7 @@ export function formatNsfwEntityDigest(entities, maxChars) {
 
 /** 物品/地点/设定等 attrs.adult 摘要 */
 export function formatAdultSideDigest(entities, maxChars) {
-  var budget = maxChars || 2000;
+  var budget = maxChars || Math.floor(ADULT_DIGEST_DEFAULT * 0.25);
   var lines = ['【已有条目成人向用法（item/location/lore/faction）】'];
   var used = lines[0].length;
   (entities || []).filter(function(e) {
@@ -606,9 +552,13 @@ export function formatAdultSideDigest(entities, maxChars) {
   }).forEach(function(e) {
     var a = normalizeAdultAttrs(e.attrs.adult);
     if (isPlaceholderText(a.eroticRole) && !(a.playIdeas || []).length) return;
-    var line = '- [' + e.type + '] ' + e.name
-      + (a.eroticRole ? ': ' + String(a.eroticRole).slice(0, 50) : '')
-      + (a.limits && a.limits.length ? ' | 禁:' + a.limits.slice(0, 3).join('/') : '');
+    var line = '- [' + e.type + (a.vesselKind ? '/' + a.vesselKind : '') + '] ' + e.name
+      + (a.eroticRole ? ': ' + String(a.eroticRole).slice(0, FIELD_SUMMARY) : '')
+      + (a.powerLogic ? ' | 机制:' + String(a.powerLogic).slice(0, FIELD_SUMMARY) : '')
+      + (a.costOrRisk ? ' | 代价:' + String(a.costOrRisk).slice(0, 120) : '')
+      + (a.limits && a.limits.length ? ' | 禁:' + a.limits.slice(0, LIST_LIMITS).join('/') : '')
+      + (a.relatedPersons && a.relatedPersons.length
+        ? ' | 相关:' + a.relatedPersons.slice(0, 10).join('/') : '');
     if (used + line.length > budget) return;
     lines.push(line);
     used += line.length;
@@ -619,7 +569,7 @@ export function formatAdultSideDigest(entities, maxChars) {
 
 /** 从实体库摘人物 NTL 摘要（文风互喂） */
 export function formatPersonNtlDigest(entities, maxChars) {
-  var budget = maxChars || 2000;
+  var budget = maxChars || Math.floor(ADULT_DIGEST_DEFAULT * 0.25);
   var lines = ['【已有人物 NTL 摘要（禁忌张力须对齐）】'];
   var used = lines[0].length;
   (entities || []).filter(function(e) { return e && e.type === 'person'; }).forEach(function(e) {
@@ -627,10 +577,14 @@ export function formatPersonNtlDigest(entities, maxChars) {
     if (isPlaceholderText(ntl.powerDynamic) && !ntl.tabooThemes.length) return;
     var line = '- ' + e.name
       + (ntl.powerDynamic && !isPlaceholderText(ntl.powerDynamic)
-        ? ' | 权力动态:' + String(ntl.powerDynamic).slice(0, 40) : '')
-      + (ntl.tabooThemes.length ? ' | 禁忌:' + ntl.tabooThemes.slice(0, 4).join('/') : '')
+        ? ' | 权力动态:' + String(ntl.powerDynamic).slice(0, FIELD_PERSON_NTL) : '')
+      + (ntl.tabooThemes.length ? ' | 禁忌:' + ntl.tabooThemes.slice(0, LIST_TABOO).join('/') : '')
       + (ntl.coercionHint && !isPlaceholderText(ntl.coercionHint)
-        ? ' | 胁迫:' + String(ntl.coercionHint).slice(0, 30) : '')
+        ? ' | 胁迫:' + String(ntl.coercionHint).slice(0, FIELD_PERSON_NTL) : '')
+      + (ntl.moralConflict && !isPlaceholderText(ntl.moralConflict)
+        ? ' | 道德:' + String(ntl.moralConflict).slice(0, FIELD_PERSON_NTL) : '')
+      + (ntl.emotionalCost && !isPlaceholderText(ntl.emotionalCost)
+        ? ' | 代价:' + String(ntl.emotionalCost).slice(0, FIELD_PERSON_NTL) : '')
       + (ntl.dominantRole ? ' | 角色:' + ntl.dominantRole : '')
       + (ntl.inferred ? ' | 推断' : '');
     if (used + line.length > budget) return;
@@ -641,15 +595,15 @@ export function formatPersonNtlDigest(entities, maxChars) {
   return '\n' + lines.join('\n');
 }
 
-/** 合并成人相关摘要块（丰满/文风注入）；ntlMode 时包含 NTL 人物摘要 */
+/** 合并成人相关摘要块；预算默认已放宽。优先用 buildAdultCanonDigest 做完整联动 */
 export function buildAdultContextDigests(entities, maxChars, ntlMode) {
-  var budget = maxChars || 5000;
-  var ntlBudget = ntlMode ? Math.floor(budget * 0.2) : 0;
+  var budget = maxChars || ADULT_DIGEST_DEFAULT;
+  var ntlBudget = ntlMode ? Math.floor(budget * 0.25) : 0;
   var mainBudget = budget - ntlBudget;
   var parts = [
-    formatPersonNsfwDigest(entities, Math.floor(mainBudget * 0.4)),
+    formatPersonNsfwDigest(entities, Math.floor(mainBudget * 0.45)),
     formatNsfwEntityDigest(entities, Math.floor(mainBudget * 0.25)),
-    formatAdultSideDigest(entities, Math.floor(mainBudget * 0.25)),
+    formatAdultSideDigest(entities, Math.floor(mainBudget * 0.3)),
     ntlMode ? formatPersonNtlDigest(entities, ntlBudget) : null,
   ].filter(Boolean);
   return parts.join('');
@@ -661,10 +615,14 @@ export function extractStyleNsfwSection(styleText) {
   if (!t.trim()) return '';
   var m = t.match(/##\s*NSFW\s*文风指令([\s\S]*?)(?=\n##\s|$)/i);
   if (m && m[1] && m[1].trim()) {
-    return '\n【文风 NSFW 指令（人物描写须对齐）】\n' + m[1].trim().slice(0, 3000);
+    return '\n【文风 NSFW 指令（人物描写须对齐）】\n' + m[1].trim().slice(0, STYLE_NSFW_SLICE);
   }
-  if (/情欲|身体描写|敏感|NSFW/i.test(t)) {
-    return '\n【文风片段（含成人向）】\n' + t.slice(0, 1500);
+  var m2 = t.match(/##\s*NTL\s*文风指令([\s\S]*?)(?=\n##\s|$)/i);
+  if (m2 && m2[1] && m2[1].trim()) {
+    return '\n【文风 NTL 指令（禁忌张力须对齐）】\n' + m2[1].trim().slice(0, STYLE_NSFW_SLICE);
+  }
+  if (/情欲|身体描写|敏感|NSFW|禁忌|NTL/i.test(t)) {
+    return '\n【文风片段（含成人向）】\n' + t.slice(0, STYLE_ADULT_FALLBACK);
   }
   return '';
 }
@@ -686,31 +644,34 @@ export function buildAdultProgressiveHint(phase) {
       + '\n【本步·骨架】'
       + '\n- person：尽量附 attrs.profile.NSFW_information 初稿 + attrs.nsfwMeta:{inferred,confidence,lastPass:"skeleton"}；'
       + '至少填 body.overall、sexual_personality、Kinks/xp_kinks、Limits（可全推断）。'
-      + '\n- item/location/lore/faction：附 attrs.adult={eroticRole,atmosphere,triggers[],limits[],playIdeas[],relatedPersons[],inferred,lastPass:"skeleton"}。'
-      + '\n- 必须挖 type=nsfw（kind=rule|place|item|dynamic|taboo|consent），attrs 按 kind 填最低字段。'
-      + '\n- 亲密边/亲密 event.attrs.intimate=true。';
+      + '\n- item/location/lore/faction：附 attrs.adult={eroticRole,atmosphere,vesselKind,worldframe,powerLogic,costOrRisk,socialCover,triggers[],limits[],playIdeas[],relatedPersons[],flavorHooks[],ntlHooks[],inferred,lastPass:"skeleton"}。'
+      + '\n- 必须挖 type=nsfw（kind=rule|place|item|dynamic|taboo|consent），attrs 按 kind 填最低字段，并尽量补 powerLogic/costOrRisk。'
+      + '\n- 亲密边/亲密 event.attrs.intimate=true。'
+      + '\n- 成人载体须贴合世界观语汇（法器/异能/咒物等），禁止错位玩具清单。';
   }
   if (p === 'relations') {
     return common
       + '\n【本步·关系】优先补亲密边（' + INTIMATE_REL_LABELS.join('/') + '）；'
-      + 'attrs 可含 intimacy/power/taboo；边两端人物若 NSFW 空洞，在 evidence 旁用短注暗示张力（丰满步会写全）。';
+      + 'attrs 可含 intimacy/power/taboo；边两端人物若 NSFW 空洞，在 evidence 旁用短注暗示张力（丰满步会写全）。'
+      + '\n可补「人物—载体」使用/被施加/契约边。';
   }
   if (p === 'extract') {
     return common
-      + '\n【本步·世界书抽取】必须抽 category=nsfw；普通 item/location/setting 也尽量带 attrs.adult；'
-      + '可补充完善已有条目的成人维，勿重复空壳。';
+      + '\n【本步·世界书抽取】必须抽 category=nsfw；普通 item/location/setting 也尽量带完整 attrs.adult（含 powerLogic）；'
+      + '可补充完善已有条目的成人维与世界观载体，勿重复空壳。';
   }
   if (p === 'expand') {
     return common
-      + '\n【本步·扩展】据召回原文与已有档案修订 NSFW/adult；无原文则据已有字段推断补全。';
+      + '\n【本步·扩展】据召回原文与已有档案修订 NSFW/adult/载体机制；无原文则据已有字段与世界观语汇推断补全。';
   }
   // enrich 默认
   return common
     + '\n【本步·丰满】'
-    + '\n- person：写满 NSFW_information；attrs.nsfwMeta.lastPass="enrich"；有原文证据则 inferred=false。'
-    + '\n- type=nsfw：按 kind 填满 rules/limits/consent/triggers/atmosphere/playIdeas/relatedNames。'
-    + '\n- item/location/lore/faction：写满 attrs.adult，content 可含【成人向用法】指引。'
-    + '\n- 参考提示中的【已有人物/NSFW/条目成人向】摘要，保持 XP 与 Limits 一致。';
+    + '\n- person：写满 NSFW_information；attrs.nsfwMeta.lastPass="enrich"；有原文证据则 inferred=false；'
+    + '须点名与已有成人载体（法器/异能/场所等）的互动。'
+    + '\n- type=nsfw：按 kind 填满 rules/limits/consent/triggers/atmosphere/playIdeas/relatedNames，并写 powerLogic/costOrRisk。'
+    + '\n- item/location/lore/faction：写满 attrs.adult（机制/代价/伪装/人物挂钩），content 含【成人向用法】长文。'
+    + '\n- 参考提示中的【已有人物/NSFW/条目成人向/世界观载体】摘要，保持 XP 与 Limits 一致。';
 }
 
 /** 成人模式通用附加块（兼容旧调用；默认 enrich 口径） */
@@ -727,7 +688,7 @@ export function buildNtlHintBlock(phase) {
   var p = phase || 'enrich';
   var common = '\n【NTL 模式·禁忌张力（18+，与 NSFW 解耦可叠加）】'
     + '\n覆盖：权力不对等、背德/越界关系、强迫或胁迫氛围、精神操控、秘密与道德冲突、服从/掌控动态。'
-    + '\n须写出可 RP 的张力机制与情绪代价；禁止涉及未成年人；勿空喊「很禁忌」。'
+    + '\n须写出可 RP 的张力机制与情绪代价；禁止儿童性化（礼法成年制度可写，情欲仅限已完成设定成年礼的成人）；勿空喊「很禁忌」。'
     + '\n可与 NSFW 叠加：有身体描写时仍须尊重人物 Limits；NTL 侧重关系与心理张力。';
   if (p === 'skeleton') {
     return common
@@ -763,7 +724,92 @@ export function buildModeHintBlocks(state, phase) {
   var parts = [];
   if (getAdultMode(state)) parts.push(buildAdultProgressiveHint(phase));
   if (getNtlMode(state)) parts.push(buildNtlHintBlock(phase));
+  if (getAdultMode(state) || getNtlMode(state)) {
+    parts.push(buildVesselHintForState(state, { phase: phase }));
+  }
   return parts.join('');
+}
+
+/**
+ * 从 state 组装世界观载体 hint
+ * @param {object} state
+ * @param {{ phase?: string, intro?: string }} [opts]
+ */
+export function buildVesselHintForState(state, opts) {
+  opts = opts || {};
+  if (!state || (!getAdultMode(state) && !getNtlMode(state))) return '';
+  var inferred = resolveWorldframe(state);
+  return buildVesselHint({
+    enabled: true,
+    worldframe: inferred.id,
+    flavorItems: getAdultMode(state) ? getNsfwFlavorItems(state) : [],
+    ntlItems: getNtlMode(state) ? getNtlTabooItems(state) : [],
+    intro: opts.intro || '（仅世界书管道：物化口味/NTL，勿写入主角 Description）',
+  });
+}
+
+/** 读取或推断并缓存 adultWorldframe */
+export function resolveWorldframe(state, opts) {
+  opts = opts || {};
+  if (!state) return inferWorldframe({});
+  if (!opts.recompute && state.adultWorldframe && WORLDFRAMES[state.adultWorldframe]) {
+    return {
+      id: state.adultWorldframe,
+      label: WORLDFRAMES[state.adultWorldframe].label,
+      confidence: state.adultWorldframeConfidence != null ? state.adultWorldframeConfidence : 0.7,
+      source: state.adultWorldframeForced ? 'forced' : 'cached',
+    };
+  }
+  var result = inferWorldframe({
+    forced: opts.forced || state.adultWorldframeForced || '',
+    contextText: state.contextText,
+    entities: state.entities,
+    worldbookEntries: (state.wbEntries || []).map(function(e) {
+      return {
+        comment: e.comment || ('[小说' + (e.category || 'setting') + '] ' + e.name),
+        content: e.content || '',
+        category: e.category,
+        name: e.name,
+      };
+    }),
+  });
+  state.adultWorldframe = result.id;
+  state.adultWorldframeConfidence = result.confidence;
+  state.adultWorldframeSource = result.source;
+  return result;
+}
+
+export function setAdultWorldframe(state, frameId) {
+  if (!state) return null;
+  var id = String(frameId || '').trim();
+  if (id && WORLDFRAMES[id]) {
+    state.adultWorldframe = id;
+    state.adultWorldframeForced = id;
+    state.adultWorldframeConfidence = 1;
+    state.adultWorldframeSource = 'forced';
+    return resolveWorldframe(state);
+  }
+  state.adultWorldframeForced = '';
+  return resolveWorldframe(state, { recompute: true });
+}
+
+/**
+ * 建议世界观框架（不强制）：卡侧自动推断 / 预设弱联动用。
+ * 若已有 adultWorldframeForced，则不改动。
+ */
+export function suggestAdultWorldframe(state, frameId) {
+  if (!state) return null;
+  if (state.adultWorldframeForced) return resolveWorldframe(state);
+  var id = String(frameId || '').trim();
+  if (id && WORLDFRAMES[id]) {
+    state.adultWorldframe = id;
+    state.adultWorldframeForced = '';
+    state.adultWorldframeSource = 'suggest';
+    if (state.adultWorldframeConfidence == null || state.adultWorldframeConfidence < 0.5) {
+      state.adultWorldframeConfidence = 0.6;
+    }
+  }
+  return resolveWorldframe(state);
 }
 
 /** 丰满队列优先级：人物 NSFW → nsfw 实体 → 缺 adult 的条目 → 缺 NTL 的人物 → 其他 */
@@ -889,14 +935,64 @@ export function buildStatusBarNtlDraftFromEntities(entities, charName) {
 }
 
 /**
- * 获取/设置 NSFW 口味预设
+ * 规范化口味列表：[{ id, note }]，去重、校验、截断至 MAX；
+ * 若列表空且有旧版单字段 nsfwFlavor，则迁移为一项。
  */
+export function normalizeNsfwFlavorItems(rawItems, legacyFlavorId) {
+  var out = [];
+  var seen = Object.create(null);
+  var list = Array.isArray(rawItems) ? rawItems : [];
+  list.forEach(function(it) {
+    if (!it) return;
+    var id = typeof it === 'string' ? it : String(it.id || '').trim();
+    if (!id || NSFWFLAVOR_IDS.indexOf(id) < 0 || seen[id]) return;
+    seen[id] = true;
+    var note = typeof it === 'string' ? '' : String(it.note == null ? '' : it.note).trim();
+    out.push({ id: id, note: note });
+  });
+  if (!out.length) {
+    var legacy = String(legacyFlavorId || '').trim();
+    if (legacy && NSFWFLAVOR_IDS.indexOf(legacy) >= 0) {
+      out.push({ id: legacy, note: '' });
+    }
+  }
+  if (out.length > MAX_NSFW_FLAVOR_ITEMS) out = out.slice(0, MAX_NSFW_FLAVOR_ITEMS);
+  return out;
+}
+
+/** 主口味 id（首项），兼容旧单字段读取 */
 export function getNsfwFlavor(state) {
+  var items = getNsfwFlavorItems(state);
+  if (items.length) return items[0].id;
   return (state && state.nsfwFlavor) || '';
 }
 
+export function getNsfwFlavorItems(state) {
+  if (!state) return [];
+  return normalizeNsfwFlavorItems(state.nsfwFlavorItems, state.nsfwFlavor);
+}
+
+/** 写入口味列表，并同步主字段 nsfwFlavor = 首项 id */
+export function setNsfwFlavorItems(state, items) {
+  var next = normalizeNsfwFlavorItems(items, '');
+  state.nsfwFlavorItems = next.map(function(it) {
+    return { id: it.id, note: it.note || '' };
+  });
+  state.nsfwFlavor = next.length ? next[0].id : '';
+  return getNsfwFlavorItems(state);
+}
+
+/** 兼容旧 API：设为主口味（若已在列表中则移到首位，否则替换为单项） */
 export function setNsfwFlavor(state, flavorId) {
-  state.nsfwFlavor = NSFWFLAVOR_IDS.indexOf(flavorId) >= 0 ? flavorId : '';
+  var id = NSFWFLAVOR_IDS.indexOf(flavorId) >= 0 ? flavorId : '';
+  if (!id) {
+    state.nsfwFlavorItems = [];
+    state.nsfwFlavor = '';
+    return '';
+  }
+  var cur = getNsfwFlavorItems(state).filter(function(it) { return it.id !== id; });
+  cur.unshift({ id: id, note: '' });
+  setNsfwFlavorItems(state, cur);
   return state.nsfwFlavor;
 }
 
@@ -907,61 +1003,140 @@ export function getFlavorPalette(flavorId) {
 }
 
 /**
- * NTL 禁忌类型管理（多选）
+ * NTL 禁忌类型管理（多选 + 每项 note）
  */
+export function getNtlTabooItems(state) {
+  if (!state) return [];
+  return normalizeNtlTabooItems(state.ntlTabooItems, state.ntlTabooTypes, NTL_TABOO_IDS);
+}
+
 export function getNtlTabooTypes(state) {
-  return (state && Array.isArray(state.ntlTabooTypes)) ? state.ntlTabooTypes.slice() : [];
+  return getNtlTabooItems(state).map(function(it) { return it.id; });
+}
+
+export function setNtlTabooItems(state, items) {
+  var next = normalizeNtlTabooItems(items, [], NTL_TABOO_IDS);
+  state.ntlTabooItems = next.map(function(it) {
+    return { id: it.id, note: it.note || '' };
+  });
+  state.ntlTabooTypes = next.map(function(it) { return it.id; });
+  return getNtlTabooItems(state);
 }
 
 export function setNtlTabooTypes(state, types) {
+  var curNotes = Object.create(null);
+  getNtlTabooItems(state).forEach(function(it) { curNotes[it.id] = it.note || ''; });
   var list = Array.isArray(types) ? types.filter(function(t) { return NTL_TABOO_IDS.indexOf(t) >= 0; }) : [];
-  state.ntlTabooTypes = list;
-  return list.slice();
+  return setNtlTabooItems(state, list.map(function(id) {
+    return { id: id, note: curNotes[id] || '' };
+  }));
 }
 
 export function addNtlTabooType(state, type) {
-  var list = getNtlTabooTypes(state);
-  if (NTL_TABOO_IDS.indexOf(type) >= 0 && list.indexOf(type) < 0) {
-    list.push(type);
-    state.ntlTabooTypes = list;
+  var list = getNtlTabooItems(state);
+  if (NTL_TABOO_IDS.indexOf(type) >= 0 && !list.some(function(it) { return it.id === type; })) {
+    list.push({ id: type, note: '' });
+    setNtlTabooItems(state, list);
   }
-  return list.slice();
+  return getNtlTabooTypes(state);
+}
+
+/**
+ * 由口味条目列表构建注入块（供卡侧 / 小说侧共用）
+ * 对齐恶堕：必写维度 + 写作指南 + 反模式 + 密度硬约束
+ * @param {Array<{id:string,note?:string}>} items
+ * @param {{ presets?: object, intro?: string, footer?: string }} [opts]
+ */
+export function buildNsfwFlavorHintFromItems(items, opts) {
+  opts = opts || {};
+  var presets = opts.presets || NSFW_FLAVOR_PRESETS;
+  var list = normalizeNsfwFlavorItems(items, '');
+  if (!list.length) return '';
+
+  var focusSeen = Object.create(null);
+  var avoidSeen = Object.create(null);
+  var focusAll = [];
+  var avoidAll = [];
+  var lines = [];
+  var collected = collectFlavorEnrichment(list, presets);
+
+  if (list.length === 1) {
+    var f0 = presets[list[0].id];
+    if (!f0) return '';
+    lines.push('\n【NSFW 口味·' + f0.label + '·丰满写作规范】');
+  } else {
+    lines.push('\n【NSFW 口味组合·丰满写作规范】（首项为主调色盘）');
+  }
+  if (opts.intro) lines.push(opts.intro);
+
+  list.forEach(function(it, idx) {
+    var f = presets[it.id];
+    if (!f) return;
+    var notePart = it.note ? ('；用户补充：' + it.note) : '';
+    lines.push((idx + 1) + '. ' + f.label + '：' + f.description + notePart
+      + (idx === 0 ? '（主调色盘）' : '（叠加）'));
+    if (f.writingGuide) lines.push('   写法：' + f.writingGuide);
+    (f.focus || []).forEach(function(x) {
+      if (!focusSeen[x]) { focusSeen[x] = true; focusAll.push(x); }
+    });
+    (f.avoid || []).forEach(function(x) {
+      if (!avoidSeen[x]) { avoidSeen[x] = true; avoidAll.push(x); }
+    });
+  });
+
+  var primary = presets[list[0].id];
+  if (primary && primary.palette) {
+    var p = primary.palette;
+    lines.push('主调色盘参考：温度=' + p.temperature + ' | 触感=' + p.texture
+      + ' | 主色强度=' + p.primary_intensity_default + ' | 对比色强度=' + p.accent_intensity_default);
+  }
+
+  lines.push('【必写维度·须写透】');
+  FLAVOR_SHARED_DIMENSIONS.forEach(function(dim, i) {
+    lines.push((i + 1) + ') ' + dim.label);
+  });
+  collected.mustCover.forEach(function(lab) {
+    lines.push('- ' + lab);
+  });
+
+  if (collected.writingGuides.length) {
+    lines.push('【写作指南】');
+    collected.writingGuides.forEach(function(g) { lines.push('- ' + g); });
+  }
+  if (focusAll.length) lines.push('重点标签：' + focusAll.join(' / '));
+  var avoidMerged = avoidAll.concat(collected.antiPatterns || []);
+  if (avoidMerged.length) lines.push('禁止/避免：' + avoidMerged.join(' / '));
+  lines.push('【丰满硬约束】成人相关正文去空白后≥' + collected.densityHint
+    + '字；禁止提纲、空话、（待填充）、标签堆砌、一笔带过；须落到具体心理、身体反应、关系动态、边界与事后余波。');
+  if (opts.footer) lines.push(opts.footer);
+  return lines.join('\n');
 }
 
 /**
  * 构建 NSFW 口味注入块：告诉 AI 按什么风格/重点写 NSFW 内容
  */
 export function buildNsfwFlavorHint(state) {
-  var flavorId = getNsfwFlavor(state);
-  if (!flavorId) return '';
-  var f = NSFW_FLAVOR_PRESETS[flavorId];
-  if (!f) return '';
-  var p = f.palette;
-  return '\n【NSFW 口味·' + f.label + '】' + f.description
-    + '\n调色盘参考：温度=' + p.temperature + ' | 触感=' + p.texture
-    + ' | 主色强度=' + p.primary_intensity_default + ' | 对比色强度=' + p.accent_intensity_default
-    + '\n重点写出：' + f.focus.join(' / ')
-    + '\n避免：' + f.avoid.join(' / ');
+  if (!getAdultMode(state)) return '';
+  return buildNsfwFlavorHintFromItems(getNsfwFlavorItems(state));
 }
 
 /**
- * 构建 NTL 禁忌类型注入块：具体到每类禁忌的 RP 引导
+ * 构建 NTL 禁忌类型注入块：必写维度 + 指南 + 用户 note + 硬约束
  */
 export function buildNtlTabooHint(state) {
-  var types = getNtlTabooTypes(state);
-  if (!types.length) return '';
-  var lines = ['\n【NTL 禁忌方向（具体）】'];
-  types.forEach(function(t) {
-    var info = NTL_TABOO_TYPES[t];
-    if (info) lines.push('- ' + info.label + '：' + info.description);
-  });
-  return lines.join('\n');
+  if (!getNtlMode(state)) return '';
+  var items = getNtlTabooItems(state);
+  if (!items.length) return '';
+  return buildNtlTabooHintFromTypes(items, { tabooTypes: NTL_TABOO_TYPES });
 }
 
 /**
  * 构建调色盘引导块（角色核心层 + NSFW 口味层），注入到人物生成/扩展 prompt
+ * @param {{ includeAdult?: boolean }} [opts] includeAdult=false 时仅核心层（主角管道）
  */
-export function buildPaletteGuidanceBlock(state) {
+export function buildPaletteGuidanceBlock(state, opts) {
+  opts = opts || {};
+  var includeAdult = opts.includeAdult !== false;
   var parts = [];
   parts.push('\n【调色盘生成引导】');
   parts.push('不要列属性清单。用「调色盘」方式塑造人物：');
@@ -969,30 +1144,45 @@ export function buildPaletteGuidanceBlock(state) {
   parts.push('2. tension_pairs：至少一对内在矛盾（例如「掌控欲 vs 对被抛弃的恐惧」→ 用制造依赖来确保对方不离开）。每对写清 trait_a、trait_b、resolution（这两股力如何共存）。');
   parts.push('3. core_desire：一句话。角色最根本要什么（被认可/被需要/自由/安全/复仇/归属/遗忘）。');
 
-  var flavorId = getNsfwFlavor(state);
-  if (flavorId && getAdultMode(state)) {
-    var f = NSFW_FLAVOR_PRESETS[flavorId];
-    if (f) {
-      parts.push('4. NSFW 部分用「欲望调色盘」而非 Kinks 清单：');
-      parts.push('  - desire_palette：primary_hue（情欲主色）+ accent_hue（对比色）+ temperature + texture。同一张 Kinks 牌在不同调色盘下读起来完全不同。');
-      parts.push('  - forbidden_tint：明明想要但不愿承认的东西——这是最迷人的部分。');
-      parts.push('  - 口味：' + f.label + '（' + f.description + '），温度=' + f.palette.temperature + '，触感=' + f.palette.texture);
-      parts.push('  - sexual_psychology：core_desire/core_fear/shame_sources/desire_expression/arousal_signature/fantasy_vs_reality/attachment_after 全部写满。');
-      parts.push('  - situational_modulation：同一个人在不同场景下欲望表现不同。safe=intensity低/charged=intensity高/semi_public=克制暗流/post_conflict=粗暴确认/first_time=紧张试探。');
-      parts.push('  - aftercare：亲密后需要什么（拥抱/独处/语言确认/清洁）；对关系是拉近还是推远。');
+  var items = includeAdult && getAdultMode(state) ? getNsfwFlavorItems(state) : [];
+  if (items.length) {
+    var collected = collectFlavorEnrichment(items, NSFW_FLAVOR_PRESETS);
+    var labels = items.map(function(it) {
+      var f = NSFW_FLAVOR_PRESETS[it.id];
+      var base = f ? (f.label + '（' + f.description + '）') : it.id;
+      return it.note ? (base + '｜补充：' + it.note) : base;
+    });
+    var primary = NSFW_FLAVOR_PRESETS[items[0].id];
+    parts.push('4. NSFW 部分用「欲望调色盘」而非 Kinks 清单：');
+    parts.push('  - desire_palette：primary_hue（情欲主色）+ accent_hue（对比色）+ temperature + texture。同一张 Kinks 牌在不同调色盘下读起来完全不同。');
+    parts.push('  - forbidden_tint：明明想要但不愿承认的东西——这是最迷人的部分。');
+    parts.push('  - 口味组合（首项为主）：' + labels.join(' + '));
+    if (primary) {
+      parts.push('  - 主调色盘：温度=' + primary.palette.temperature + '，触感=' + primary.palette.texture);
     }
+    parts.push('  - 必写维度：' + FLAVOR_SHARED_DIMENSIONS.map(function(d) { return d.label; }).concat(collected.mustCover).join('；'));
+    parts.push('  - 成人相关正文≥' + collected.densityHint + '字；禁止提纲/空话/待填充。');
+    parts.push('  - sexual_psychology：core_desire/core_fear/shame_sources/desire_expression/arousal_signature/fantasy_vs_reality/attachment_after 全部写满。');
+    parts.push('  - situational_modulation：同一个人在不同场景下欲望表现不同。safe=intensity低/charged=intensity高/semi_public=克制暗流/post_conflict=粗暴确认/first_time=紧张试探。');
+    parts.push('  - aftercare：亲密后需要什么（拥抱/独处/语言确认/清洁）；对关系是拉近还是推远。');
   }
 
-  if (getNtlMode(state)) {
+  if (includeAdult && getNtlMode(state)) {
     var tabooTypes = getNtlTabooTypes(state);
+    var ntlCollected = collectNtlEnrichment(tabooTypes, NTL_TABOO_TYPES);
     parts.push('5. NTL 禁忌层：');
     if (tabooTypes.length) {
       tabooTypes.forEach(function(t) {
         var info = NTL_TABOO_TYPES[t];
-        if (info) parts.push('  - ' + info.label + '：' + info.description);
+        if (info) {
+          parts.push('  - ' + info.label + '：' + info.description);
+          if (info.writingGuide) parts.push('    写法：' + info.writingGuide);
+        }
       });
     }
-    parts.push('  - 写到 person.attrs.ntl 的完整字段（powerDynamic/coercionHint/moralConflict/dominantRole/emotionalCost/secrets）。');
+    parts.push('  - 必写维度：' + NTL_SHARED_DIMENSIONS.map(function(d) { return d.label; }).concat(ntlCollected.mustCover).join('；'));
+    parts.push('  - NTL 相关正文≥' + (ntlCollected.densityHint || NTL_TABOO_DEFAULT_MIN_CHARS) + '字；禁止提纲/空话/待填充。');
+    parts.push('  - 写到 person.attrs.ntl 的完整字段（powerDynamic/coercionHint/moralConflict/dominantRole/emotionalCost/secrets/tabooThemes）。');
     parts.push('  - 禁忌的核心不在「做了什么」而在「做了之后的感受」——罪恶感/刺激/理性化/偶尔无所谓/反复。');
   }
   return parts.join('\n');

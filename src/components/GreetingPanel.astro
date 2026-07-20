@@ -297,24 +297,13 @@
     if (!tip) return;
     var cfg = null;
     try { cfg = window.__getNsfwConfig__ ? window.__getNsfwConfig__() : null; } catch (e) { cfg = null; }
-    var data = window.__nsfwFlavorData__;
-    if (!cfg || (!cfg.enabled && !cfg.ntlEnabled)) {
+    if (!cfg || (!cfg.enabled && !cfg.ntlEnabled && !cfg.corruptionEnabled)) {
       tip.hidden = true;
       tip.textContent = '';
       return;
     }
-    var parts = [];
-    if (cfg.enabled) {
-      var flavorLabel = (data && data.presets && data.presets[cfg.flavor] && data.presets[cfg.flavor].label) || cfg.flavor || '已开';
-      parts.push('NSFW 口味：' + flavorLabel);
-    }
-    if (cfg.ntlEnabled) {
-      var taboo = (cfg.ntlTabooTypes || []).map(function(id) {
-        return (data && data.tabooTypes && data.tabooTypes[id] && data.tabooTypes[id].label) || id;
-      }).filter(Boolean);
-      parts.push('NTL：' + (taboo.length ? taboo.join(' / ') : '已开'));
-    }
-    tip.textContent = parts.join(' · ') + '。AI 引擎 / 助手改写开场白时会注入该调色盘。';
+    // 主角开场白不再注入成人调色盘；仅提示去「成人配置」
+    tip.textContent = '卡级成人配置已开启（见侧栏「成人配置」），用于世界书人物 / 恶堕档案；本页主角开场白不会注入 NSFW/NTL。';
     tip.hidden = false;
   }
 

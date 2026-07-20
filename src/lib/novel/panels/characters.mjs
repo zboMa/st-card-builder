@@ -18,15 +18,29 @@ import {
   getAdultMode,
   getNtlMode,
   boostAdultSearchQuery,
-  buildAdultContextDigests,
   extractStyleNsfwSection,
   buildModeHintBlocks,
   buildContentModeFlags,
   buildNsfwFlavorHint,
   buildNtlTabooHint,
   buildPaletteGuidanceBlock,
+  getNsfwFlavorItems,
+  evaluateFlavorRichness,
+  buildFlavorExpandSystemPrompt,
+  buildFlavorExpandUserPrompt,
+  NSFW_FLAVOR_PRESETS,
+  NTL_TABOO_TYPES,
+  getNtlTabooTypes,
+  evaluateNtlRichness,
+  buildNtlExpandSystemPrompt,
+  buildNtlExpandUserPrompt,
+  buildAdultCanonDigest,
+  ADULT_CANON_BUDGET,
   ADULT_RAG_BOOST_TERMS,
   NTL_RAG_BOOST_TERMS,
+  resolveWorldframe,
+  listVesselEntities,
+  personMentionsVessels,
 } from '../nsfwSupport.mjs';
 import {
   upsertEntity,
@@ -138,8 +152,7 @@ export function registerCharacters(ctx) {
         + '</div></div>'
         + '<div class="novel-list-actions">'
         + (canSync
-          ? ctx.iconBtn('data-char-sync-char="' + c.id + '"', '⇢', '同步到角色设定')
-            + ctx.iconBtn('data-char-sync-wb="' + c.id + '"', '📖', '同步到世界书')
+          ? ctx.iconBtn('data-char-sync-wb="' + c.id + '"', '📖', '同步到世界书人物条')
           : '')
         + (ent
           ? ctx.iconBtn(
@@ -201,16 +214,10 @@ export function registerCharacters(ctx) {
     grid.querySelectorAll('[data-char-edit]').forEach(function(btn) {
       btn.addEventListener('click', function() { panel.openProfileEditor(btn.getAttribute('data-char-edit')); });
     });
-    grid.querySelectorAll('[data-char-sync-char]').forEach(function(btn) {
-      btn.addEventListener('click', function() {
-        ctx.syncOutputs({ target: 'character', ids: [btn.getAttribute('data-char-sync-char')], selected: false });
-        ctx.setStatus('novelCharStatus', '已同步到角色设定');
-      });
-    });
     grid.querySelectorAll('[data-char-sync-wb]').forEach(function(btn) {
       btn.addEventListener('click', function() {
         ctx.syncOutputs({ target: 'character_worldbook', ids: [btn.getAttribute('data-char-sync-wb')], selected: false });
-        ctx.setStatus('novelCharStatus', '已同步到世界书');
+        ctx.setStatus('novelCharStatus', '已同步到世界书人物条（不写入主角设定）');
       });
     });
   };
@@ -345,8 +352,21 @@ export function registerCharacters(ctx) {
           + (adultOn ? extractStyleNsfwSection(state.styleText) : '')
           + buildModeHintBlocks(state, 'expand')
           + buildPaletteGuidanceBlock(state)
+          + buildNsfwFlavorHint(state)
           + buildNtlTabooHint(state)
-          + buildAdultContextDigests(state.entities, 2000, getNtlMode(state))
+          + buildAdultCanonDigest({
+            entities: state.entities,
+            worldbookEntries: (state.wbEntries || []).map(function(e) {
+              return {
+                comment: e.comment || ('[小说' + (e.category || 'setting') + '] ' + e.name),
+                content: e.content || '',
+              };
+            }),
+            styleText: state.styleText,
+            focusName: ch.name,
+            budget: ADULT_CANON_BUDGET,
+            worldframeLabel: resolveWorldframe(state).label,
+          })
           + '\n\n角色名: ' + ch.name
           + '\n别名: ' + (ch.aliases || []).join('、')
           + buildContentModeFlags(state)
@@ -355,12 +375,88 @@ export function registerCharacters(ctx) {
           + '\n匹配词: ' + recall.terms.join('、')
           + '\n\n【原文片段】\n' + recall.body
           + '\n\n请输出附录1完整 JSON，字段须含: Chinese name, Nickname, age, gender, identity, key_events, relationships, turning_points, appearance{hair,eyes,build,识别特征}, personality{core_traits}, persona_layers{surface,social,intimate,under_stress,secret_self}, tension_pairs[{trait_a,trait_b,resolution}], core_desire, values_and_drives, hidden_motives, goals, weakness, likes, dislikes, skills, speech_style, NSFW_information（含 body/erogenous_zones/sexual_personality/contrast/xp_kinks/sensitive_triggers/inner_erotic_thoughts/Sex_related_traits/Kinks/Limits/desire_palette/sexual_psychology/situational_modulation/aftercare）。'
-          + (adultOn ? '\nAdultMode=true：NSFW_information 禁止整块「原文未提及」，须填 Limits 与 Kinks/xp_kinks；无原文则据已有档案推断。' : '');
+          + (adultOn ? '\nAdultMode=true：NSFW_information 禁止整块「原文未提及」，须填 Limits 与 Kinks/xp_kinks；无原文则据已有档案推断。须按口味丰满规范写透必写维度。' : '');
+        var vesselNames = listVesselEntities(state.entities).map(function(v) { return v.name; }).filter(Boolean);
+        if ((adultOn || getNtlMode(state)) && vesselNames.length) {
+          user += '\n【软约束】须点名与已有世界观成人载体的互动：' + vesselNames.slice(0, 8).join('、');
+        }
         var text = await ctx.callAI(user, null, task.signal);
         var json = parseJsonLoose(text);
         var profile = normalizeCharacterProfile(json.profile || json, ch.name);
         if (mode === 'patch' && ch.profile) {
           profile = Object.assign({}, ch.profile, profile);
+        }
+        var flavorItems = adultOn ? getNsfwFlavorItems(state) : [];
+        var flavorThinTip = '';
+        if (flavorItems.length) {
+          var richness = evaluateFlavorRichness(profile, flavorItems, { presets: NSFW_FLAVOR_PRESETS });
+          if (!richness.ok) {
+            var expandPrompt = buildFlavorExpandSystemPrompt(flavorItems, { presets: NSFW_FLAVOR_PRESETS })
+              + '\n\n' + buildFlavorExpandUserPrompt({
+                weakDimensions: richness.weakDimensions,
+                minChars: richness.minChars,
+                flavorHint: buildNsfwFlavorHint(state),
+                context: ch.name + (ch.note ? (' · ' + ch.note) : ''),
+                text: JSON.stringify(profile),
+              })
+              + '\n请输出完整人物 JSON（含加厚后的 NSFW_information）。';
+            var expandText = await ctx.callAI(expandPrompt, null, task.signal);
+            var expandJson = parseJsonLoose(expandText);
+            var expandedProfile = normalizeCharacterProfile(expandJson.profile || expandJson, ch.name);
+            var richness2 = evaluateFlavorRichness(expandedProfile, flavorItems, { presets: NSFW_FLAVOR_PRESETS });
+            if (richness2.total >= richness.total) profile = expandedProfile;
+            if (!richness2.ok) {
+              flavorThinTip = '；口味层仍偏薄：' + richness2.weakDimensions.slice(0, 3).join('；');
+            }
+          }
+        }
+        var ntlTypes = getNtlMode(state) ? getNtlTabooTypes(state) : [];
+        if (ntlTypes.length) {
+          var ntlProbe = {
+            attrs: { ntl: (profile && profile.ntl) || (profile && profile.NSFW_information && profile.NSFW_information.ntl) || profile },
+            content: JSON.stringify(profile),
+          };
+          var ntlRich = evaluateNtlRichness(ntlProbe, ntlTypes, { tabooTypes: NTL_TABOO_TYPES });
+          if (!ntlRich.ok) {
+            var ntlExpandPrompt = buildNtlExpandSystemPrompt(ntlTypes, { tabooTypes: NTL_TABOO_TYPES })
+              + '\n\n' + buildNtlExpandUserPrompt({
+                weakDimensions: ntlRich.weakDimensions,
+                minChars: ntlRich.minChars,
+                ntlHint: buildNtlTabooHint(state),
+                context: ch.name + (ch.note ? (' · ' + ch.note) : ''),
+                text: JSON.stringify(profile),
+              })
+              + '\n请输出完整人物 JSON，并写满 attrs.ntl / 禁忌相关字段。';
+            var ntlExpandText = await ctx.callAI(ntlExpandPrompt, null, task.signal);
+            var ntlExpandJson = parseJsonLoose(ntlExpandText);
+            var ntlExpandedProfile = normalizeCharacterProfile(ntlExpandJson.profile || ntlExpandJson, ch.name);
+            var ntlRich2 = evaluateNtlRichness({
+              attrs: { ntl: ntlExpandedProfile },
+              content: JSON.stringify(ntlExpandedProfile),
+            }, ntlTypes, { tabooTypes: NTL_TABOO_TYPES });
+            if (ntlRich2.total >= ntlRich.total) profile = ntlExpandedProfile;
+            if (!ntlRich2.ok) {
+              flavorThinTip += '；NTL 仍偏薄：' + ntlRich2.weakDimensions.slice(0, 2).join('；');
+            }
+          }
+        }
+        if ((adultOn || getNtlMode(state)) && vesselNames.length) {
+          var mention = personMentionsVessels(JSON.stringify(profile), listVesselEntities(state.entities));
+          if (mention.missing) {
+            try {
+              var hookPrompt = '你是角色卡编辑。下文未点名已有世界观成人载体，请改写 NSFW/关系相关字段，使人物与至少一件载体互动（持有/被施加/惧怕/渴望）。保持完整人物 JSON。\n'
+                + '可用载体：' + vesselNames.slice(0, 10).join('、')
+                + '\n\n' + JSON.stringify(profile);
+              var hookText = await ctx.callAI(hookPrompt, null, task.signal);
+              var hookJson = parseJsonLoose(hookText);
+              var hooked = normalizeCharacterProfile(hookJson.profile || hookJson, ch.name);
+              if (hooked && (hooked.NSFW_information || hooked.identity)) profile = hooked;
+              var mention2 = personMentionsVessels(JSON.stringify(profile), listVesselEntities(state.entities));
+              if (mention2.missing) flavorThinTip += '；未挂钩世界观载体';
+            } catch (hookErr) {
+              if (ctx.isTrackedAbort(hookErr)) throw hookErr;
+            }
+          }
         }
         ch.profile = profile;
         ch.hits = recall.hitCount;
@@ -382,8 +478,11 @@ export function registerCharacters(ctx) {
         ctx.save();
         ctx.renderAll();
         if (options.openEditor !== false && !options.silent) panel.openProfileEditor(ch.id);
-        ctx.setStatus('novelCharStatus', '「' + ch.name + '」扩展完成（召回 ' + recall.totalChars + ' 字 / ' + recall.snippetCount + ' 片段）');
-        return { id: ch.id, name: ch.name, mode: mode, recallChars: recall.totalChars };
+        ctx.setStatus(
+          'novelCharStatus',
+          '「' + ch.name + '」扩展完成（召回 ' + recall.totalChars + ' 字 / ' + recall.snippetCount + ' 片段）' + flavorThinTip
+        );
+        return { id: ch.id, name: ch.name, mode: mode, recallChars: recall.totalChars, flavorThin: !!flavorThinTip };
       });
     } catch (e) {
       if (!ctx.isTrackedAbort(e)) {
@@ -406,7 +505,7 @@ export function registerCharacters(ctx) {
     if (!chars || !chars.length) return '';
     var lines = chars.map(function(c) {
       var alias = (c.aliases || []).length ? ' aliases=' + c.aliases.join('/') : '';
-      return '- ' + c.name + alias + (c.note ? ' · ' + String(c.note).substring(0, 80) : '');
+      return '- ' + c.name + alias + (c.note ? ' · ' + String(c.note).substring(0, 300) : '');
     }).join('\n');
     return '\n【已扫描人物（勿重复同名；可补 aliases/identity，可完善说明）】\n' + lines;
   }
@@ -676,8 +775,12 @@ export function registerCharacters(ctx) {
     var syncChars = ctx.$('btnSyncCharsSelected');
     if (syncChars) syncChars.addEventListener('click', function() {
       try {
-        var r = ctx.syncOutputs({ target: 'character', selected: true });
-        ctx.setStatus('novelCharStatus', '已同步 ' + (r.applied || 0) + ' 人到角色设定');
+        // 与世界书管道合一：人物只进世界书，不进主角
+        var r = ctx.syncOutputs({ target: 'character_worldbook', selected: true });
+        ctx.setStatus(
+          'novelCharStatus',
+          '人物→世界书：新增 ' + (r.added || 0) + ' / 更新 ' + (r.updated || 0) + ' / 跳过 ' + (r.skipped || 0)
+        );
       } catch (e) {
         alert(e.message || '同步失败');
       }

@@ -12,9 +12,28 @@ import {
   NTL_RAG_BOOST_TERMS,
   mergeAdultAttrs,
   buildModeHintBlocks,
-  buildAdultContextDigests,
   buildContentModeFlags,
+  buildNsfwFlavorHint,
+  getNsfwFlavorItems,
+  evaluateFlavorRichness,
+  buildFlavorExpandSystemPrompt,
+  buildFlavorExpandUserPrompt,
+  NSFW_FLAVOR_PRESETS,
+  NTL_TABOO_TYPES,
+  getNtlTabooTypes,
+  buildNtlTabooHint,
+  evaluateNtlRichness,
+  buildNtlExpandSystemPrompt,
+  buildNtlExpandUserPrompt,
+  buildAdultCanonDigest,
+  ADULT_CANON_BUDGET,
+  resolveWorldframe,
+  evaluateVesselRichness,
+  buildVesselExpandSystemPrompt,
+  buildVesselExpandUserPrompt,
+  buildVesselHintForState,
 } from '../nsfwSupport.mjs';
+import { PRIOR_WB_EXTRACT_PER, RAG_ENTITY_BUDGET, ENTITY_SUMMARY_STORE } from '../contextBudgets.mjs';
 import { findEntityMatch, upsertEntity, projectEntitiesToLegacy, isEntityEnriched, ingestLegacyIntoEntities } from '../entityStore.mjs';
 import { applyDraftsToWorldbook } from '../sync.mjs';
 import { escapeHtml, truncatePreviewLine, parseJsonLoose, normalizeNameList } from '../../utils.mjs';
@@ -41,7 +60,8 @@ function wbCategoryToEntityType(cat) {
 export function formatPriorWbExtractRef(entries) {
   if (!entries || !entries.length) return '';
   var lines = entries.map(function(e) {
-    return '- [' + (e.category || 'setting') + '] ' + e.name + ': ' + String(e.content || '').substring(0, 140);
+    return '- [' + (e.category || 'setting') + '] ' + e.name + ': '
+      + String(e.content || '').substring(0, PRIOR_WB_EXTRACT_PER);
   }).join('\n');
   return '\n【已抽取条目（勿重复同名；可补充完善 content/keys）】\n' + lines;
 }
@@ -247,7 +267,7 @@ export function registerWorldbook(ctx) {
         type: entType,
         name: saved.name,
         aliases: [],
-        summary: String(saved.content || '').slice(0, 120),
+        summary: String(saved.content || '').slice(0, ENTITY_SUMMARY_STORE),
         content: saved.content,
         keys: saved.keys,
         layer: saved.layer,
@@ -743,11 +763,28 @@ export function registerWorldbook(ctx) {
         var modeHint = mode === 'rewrite'
           ? '\n【模式】重写：依据原文重建内容，可大幅改写。'
           : '\n【模式】扩写：在已有内容上补全细节，保留可靠事实。';
+        var adultOn = getAdultMode(state);
+        var flavorItems = adultOn ? getNsfwFlavorItems(state) : [];
+        var ntlTypes = getNtlMode(state) ? getNtlTabooTypes(state) : [];
         var user = head
           + modeHint
           + (options.instruction ? '\n【用户要求】' + options.instruction : '')
           + buildModeHintBlocks(state, 'expand')
-          + buildAdultContextDigests(state.entities, 1500, getNtlMode(state))
+          + (flavorItems.length ? buildNsfwFlavorHint(state) : '')
+          + (ntlTypes.length ? buildNtlTabooHint(state) : '')
+          + buildAdultCanonDigest({
+            entities: state.entities,
+            worldbookEntries: (state.wbEntries || []).map(function(e) {
+              return {
+                comment: e.comment || ('[小说' + (e.category || 'setting') + '] ' + e.name),
+                content: e.content || '',
+              };
+            }),
+            styleText: state.styleText,
+            focusName: matchName,
+            budget: ADULT_CANON_BUDGET,
+            worldframeLabel: resolveWorldframe(state).label,
+          })
           + '\n条目标题: ' + matchName
           + '\n类别: ' + (entry.category || 'setting')
           + '\n现有触发词: ' + matchKeys.join('、')
@@ -758,9 +795,95 @@ export function registerWorldbook(ctx) {
           + '\n召回字数: ' + recall.totalChars + (recall.truncated ? '（已抽样截断）' : '')
           + '\n匹配词: ' + recall.terms.join('、')
           + '\n\n【原文片段】\n' + recall.body
-          + '\n\n请输出 JSON（AdultMode 时含 attrs.adult；NtlMode 时可含 attrs.ntl）。';
+          + '\n\n请输出 JSON（AdultMode 时含 attrs.adult；NtlMode 时可含 attrs.ntl；已选口味/禁忌时 content/attrs 须写透必写维度）。';
         var text = await ctx.callAI(user, null, task.signal);
         var json = parseJsonLoose(text);
+        if (flavorItems.length) {
+          var probe = {
+            content: json.content || entry.content || '',
+            attrs: json.attrs || entry.attrs || {},
+          };
+          var richness = evaluateFlavorRichness(probe, flavorItems, { presets: NSFW_FLAVOR_PRESETS });
+          if (!richness.ok) {
+            var expandPrompt = buildFlavorExpandSystemPrompt(flavorItems, { presets: NSFW_FLAVOR_PRESETS })
+              + '\n\n' + buildFlavorExpandUserPrompt({
+                weakDimensions: richness.weakDimensions,
+                minChars: richness.minChars,
+                flavorHint: buildNsfwFlavorHint(state),
+                context: matchName + ' · ' + (entry.category || 'setting'),
+                text: JSON.stringify(json),
+              })
+              + '\n请输出 JSON：{ "name", "content", "keys", "attrs"? }';
+            var expandText = await ctx.callAI(expandPrompt, null, task.signal);
+            var expanded = parseJsonLoose(expandText);
+            var richness2 = evaluateFlavorRichness({
+              content: expanded.content || '',
+              attrs: expanded.attrs || {},
+            }, flavorItems, { presets: NSFW_FLAVOR_PRESETS });
+            if (richness2.total >= richness.total) json = Object.assign({}, json, expanded);
+          }
+        }
+        if (ntlTypes.length) {
+          var ntlProbe = {
+            content: json.content || entry.content || '',
+            attrs: json.attrs || entry.attrs || {},
+          };
+          var ntlRich = evaluateNtlRichness(ntlProbe, ntlTypes, { tabooTypes: NTL_TABOO_TYPES });
+          if (!ntlRich.ok) {
+            var ntlExpandPrompt = buildNtlExpandSystemPrompt(ntlTypes, { tabooTypes: NTL_TABOO_TYPES })
+              + '\n\n' + buildNtlExpandUserPrompt({
+                weakDimensions: ntlRich.weakDimensions,
+                minChars: ntlRich.minChars,
+                ntlHint: buildNtlTabooHint(state),
+                context: matchName + ' · ' + (entry.category || 'setting'),
+                text: JSON.stringify(json),
+              })
+              + '\n请输出 JSON：{ "name", "content", "keys", "attrs"? }（含加厚 attrs.ntl）';
+            var ntlExpandText = await ctx.callAI(ntlExpandPrompt, null, task.signal);
+            var ntlExpanded = parseJsonLoose(ntlExpandText);
+            var ntlRich2 = evaluateNtlRichness({
+              content: ntlExpanded.content || '',
+              attrs: ntlExpanded.attrs || {},
+            }, ntlTypes, { tabooTypes: NTL_TABOO_TYPES });
+            if (ntlRich2.total >= ntlRich.total) json = Object.assign({}, json, ntlExpanded);
+          }
+        }
+        if (adultOn || getNtlMode(state)) {
+          var cat = String(entry.category || 'setting');
+          if (cat === 'item' || cat === 'location' || cat === 'nsfw' || cat === 'faction'
+            || cat === 'setting' || cat === 'worldview' || cat === 'history') {
+            var vOpts = {
+              worldframe: resolveWorldframe(state).id,
+              flavorItems: flavorItems,
+              ntlItems: ntlTypes.map(function(id) { return { id: id }; }),
+            };
+            var vProbe = {
+              type: cat === 'nsfw' ? 'nsfw' : (cat === 'item' ? 'item' : 'lore'),
+              name: matchName,
+              content: json.content || entry.content || '',
+              attrs: json.attrs || entry.attrs || {},
+            };
+            var vRich = evaluateVesselRichness(vProbe, vOpts);
+            if (!vRich.ok) {
+              var vExpandPrompt = buildVesselExpandSystemPrompt(vOpts)
+                + '\n\n' + buildVesselExpandUserPrompt({
+                  weakDimensions: vRich.weakDimensions,
+                  minChars: vRich.minChars,
+                  vesselHint: buildVesselHintForState(state),
+                  context: matchName + ' · ' + cat,
+                  text: JSON.stringify(json),
+                })
+                + '\n请输出 JSON：{ "name", "content", "keys", "attrs"? }（attrs.adult 须含 vesselKind/powerLogic/costOrRisk/relatedPersons）';
+              var vExpandText = await ctx.callAI(vExpandPrompt, null, task.signal);
+              var vExpanded = parseJsonLoose(vExpandText);
+              var vRich2 = evaluateVesselRichness({
+                content: vExpanded.content || '',
+                attrs: vExpanded.attrs || {},
+              }, vOpts);
+              if (vRich2.total >= vRich.total) json = Object.assign({}, json, vExpanded);
+            }
+          }
+        }
         if (json.name) entry.name = String(json.name).trim() || entry.name;
         if (json.content) entry.content = String(json.content);
         if (Array.isArray(json.keys) && json.keys.length) {
@@ -781,7 +904,7 @@ export function registerWorldbook(ctx) {
           name: entry.name,
           content: entry.content,
           keys: entry.keys,
-          summary: String(entry.content || '').slice(0, 80),
+          summary: String(entry.content || '').slice(0, ENTITY_SUMMARY_STORE),
           attrs: entry.attrs || {},
           layer: entry.layer,
         }, { source: 'expand' });
@@ -863,10 +986,30 @@ export function registerWorldbook(ctx) {
           var shard = shards[idx];
           if (queue) queue.textContent = '进度 ' + (idx + 1) + '/' + shards.length + ' · 已 ' + all.length + ' 条';
           var priorRef = formatPriorWbExtractRef(all);
+          var adultOn = getAdultMode(state);
+          var extractFlavorItems = adultOn ? getNsfwFlavorItems(state) : [];
+          var extractNtlTypes = getNtlMode(state) ? getNtlTabooTypes(state) : [];
           var user = head
             + priorRef
             + buildModeHintBlocks(state, 'extract')
-            + buildAdultContextDigests(state.entities, 2000, getNtlMode(state))
+            + (extractFlavorItems.length ? buildNsfwFlavorHint(state) : '')
+            + (extractNtlTypes.length ? buildNtlTabooHint(state) : '')
+            + buildAdultCanonDigest({
+              entities: state.entities,
+              worldbookEntries: (state.wbEntries || []).map(function(e) {
+                return {
+                  comment: e.comment || ('[小说' + (e.category || 'setting') + '] ' + e.name),
+                  content: e.content || '',
+                };
+              }).concat(all.map(function(e) {
+                return {
+                  comment: '[小说' + (e.category || 'setting') + '] ' + e.name,
+                  content: e.content || '',
+                };
+              })),
+              styleText: state.styleText,
+              budget: ADULT_CANON_BUDGET,
+            })
             + '\nFocus: ' + (state.wbFocus || []).join(',')
             + buildContentModeFlags(state)
             + '\nMode: ' + state.narrativeMode

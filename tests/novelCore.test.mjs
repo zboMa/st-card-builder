@@ -323,7 +323,7 @@ describe('novel sync', function() {
       type: 'person',
       name: '秦月',
       aliases: ['月儿'],
-      content: '女主，足够长的正文用于同步到角色设定与世界书。',
+      content: '女主，足够长的正文用于同步到世界书人物条。',
       provenance: [{ quote: '原文' }],
     };
     var fields = entityPersonToCharacterFields(e, 'overwrite', '');

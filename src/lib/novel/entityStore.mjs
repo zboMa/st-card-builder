@@ -17,6 +17,11 @@ import {
   formatAdultAttrsForContent,
   normalizeNtlPersonAttrs,
 } from './nsfwSupport.mjs';
+import {
+  PRIOR_ENTITIES_BUDGET,
+  PRIOR_ENTITIES_SUMMARY,
+  ENTITY_SUMMARY_STORE,
+} from './contextBudgets.mjs';
 
 export var ENTITY_TYPES = ['person', 'faction', 'location', 'item', 'event', 'lore', 'nsfw'];
 
@@ -455,7 +460,7 @@ export function ingestLegacyIntoEntities(state, source) {
       name: w.name,
       content: w.content,
       keys: w.keys,
-      summary: String(w.content || '').slice(0, 80),
+      summary: String(w.content || '').slice(0, ENTITY_SUMMARY_STORE),
       attrs: attrsIn,
       layer: w.layer || (w.strategy === 'constant' ? 'blue' : 'green'),
     }, { source: source || 'legacy_wb' });
@@ -476,13 +481,13 @@ export function countEntitiesByType(entities) {
 
 /** 格式化已有实体参考（分析提示用） */
 export function formatPriorEntitiesRef(entities, maxChars) {
-  var budget = maxChars || 6000;
+  var budget = maxChars || PRIOR_ENTITIES_BUDGET;
   var lines = ['【已有实体（同名/别名须合并 upsert，勿重复空壳）】'];
   var used = lines[0].length;
-  (entities || []).slice(0, 200).forEach(function(e) {
+  (entities || []).slice(0, 400).forEach(function(e) {
     var line = '- [' + e.type + '] ' + e.name
-      + (e.aliases && e.aliases.length ? ' aka ' + e.aliases.slice(0, 4).join('/') : '')
-      + (e.summary ? ' | ' + String(e.summary).slice(0, 60) : '');
+      + (e.aliases && e.aliases.length ? ' aka ' + e.aliases.slice(0, 6).join('/') : '')
+      + (e.summary ? ' | ' + String(e.summary).slice(0, PRIOR_ENTITIES_SUMMARY) : '');
     if (used + line.length > budget) return;
     lines.push(line);
     used += line.length;

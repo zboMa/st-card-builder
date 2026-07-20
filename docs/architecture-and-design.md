@@ -129,7 +129,7 @@ tests/                             # 22 个测试文件，346 个测试，全部
   └─ desire_palette / sexual_psychology / situational_modulation / aftercare
 
 第三层：NTL 禁忌层（开启 NTL 后叠加，与 NSFW 解耦）
-  └─ 8 种禁忌类型 + attrs.ntl
+  └─ 9 种禁忌类型（含百破）+ attrs.ntl
 ```
 
 ### 核心思想
@@ -137,16 +137,16 @@ tests/                             # 22 个测试文件，346 个测试，全部
 **不是给人物加标签，而是给 AI 一个调色盘**。用 `primary_hue`（主色调）、`accent_hue`（对比色）、`temperature`（冷暖）、`texture`（触感）来描述欲望——
 同一张 Kinks 牌在不同调色盘下读起来完全不同。
 
-### 20 种 NSFW 口味预设 + 8 种 NTL 禁忌类型
+### 21 种 NSFW 口味预设（多选最多 5）+ 9 种 NTL 禁忌类型
 
-详见 `src/lib/novel/nsfwSupport.mjs`（962 行），完整定义了口味的 `group/label/description/palette/focus/avoid` 和 NTL 禁忌 `attrs`。
+详见 `src/lib/novel/nsfwSupport.mjs`（编排门面）与 `src/lib/adult/{flavors,ntl,vessels,canon}`：口味含「反差向」；NTL 含「百破」；均有 `mustCover/writingGuide/antiPatterns/densityHint`；偏薄自动扩写。世界观预设见 `src/lib/presets/worldviews/`。
 
-### 全局配置 —— 角色设定是唯一入口
+### 全局配置 —— 侧栏「成人配置」是唯一入口
 
-### NTL 禁忌类型（8 种，多选）
+### NTL 禁忌类型（9 种，多选）
 
 ```
-年龄差 / 身份差 / 情感禁忌 / 道德冲突 / 情境禁忌 / 权力胁迫 / 隐秘关系 / 俘获救赎
+年龄差 / 身份差 / 情感禁忌 / 道德冲突 / 情境禁忌 / 权力胁迫 / 隐秘关系 / 俘获救赎 / 百破（百合破坏）
 ```
 
 ### 恶堕进度（世界书 + MVU，非独立 NSFW 口味）
@@ -159,8 +159,9 @@ tests/                             # 22 个测试文件，346 个测试，全部
   · 常驻「恶堕进度总则」1 条
   · 每角色「恶堕档案·{名}」1 条（全阶段合集；靠角色名触发）
 状态栏模块：corruption_stage（恶堕进度）——变量选当前阶段
-入口：CharacterPanel NSFW 区块内；默认仅女角色；助手工具 generate_corruption_lore
-实现：src/lib/corruptionProgress.mjs
+入口：侧栏「成人配置」；默认仅女角色（排除主角）；助手工具 generate_corruption_lore
+加厚：每阶段 ≥220 字，不足自动扩写；上下文取该角色世界书正文
+实现：src/lib/corruptionProgress.mjs + adultConfig.mjs
 ```
 
 ### NSFW_information 扩展结构
@@ -194,17 +195,30 @@ core_desire: ""
 
 ---
 
-## 全局配置 —— 角色设定是唯一入口
-
-**NSFW 口味 / NTL 禁忌配置** 存储于 `st_v3_builder_ai_config`（和 API Key 同级），**角色设定面板（CharacterPanel）是唯一 UI 入口**。
+## 两管道架构（主角 ↔ 世界书）
 
 ```
-CharacterPanel（唯一配置入口）
-    ↓ 读写
-st_v3_builder_ai_config (localStorage)
-    ↓ nsfw-config-changed 事件
-    ├→ 角色卡生成 prompt 注入（AI 引擎/开场白/世界书/标签）
-    └→ 小说工坊 pipeline 同步（browserApp 监听事件 → state.adultMode/ntlMode/nsfwFlavor/ntlTabooTypes）
+protagonist 管道          worldbook 管道
+角色设定 / 开场白          世界书条目 / [小说人物] / 恶堕档案
+小说「角色设定·开场白」     小说「人物列表·世界书·文风」
+禁止成人配置注入            可读卡级成人配置（AdultConfigPanel）
+```
+
+- 人物默认同步只进世界书；`syncOutputs({ target:'character' })` 无 `asProtagonist:true` 时重定向为 `character_worldbook`
+- 世界书 AI 默认不融合主角 Description（`wbIncludeCharData` 默认关）
+- 恶堕目标只认 `[小说人物]` / `[人物]`；状态栏恶堕变量用多人 cast 绑这些名字
+
+## 全局配置 —— 「成人配置」模块（卡级统一 · 仅世界书管道）
+
+**NSFW / NTL / 恶堕** 存于 `st_v3_builder_ai_config`。UI：侧栏「成人配置」。
+
+```
+AdultConfigPanel
+    ↓
+st_v3_builder_ai_config
+    ↓ nsfw-config-changed
+    ├→ 世界书管道生成 / 恶堕档案
+    └→ 小说工坊 adultMode/ntlMode/nsfwFlavorItems(+nsfwFlavor)/ntlTabooTypes
 ```
 
 **小说工坊原始资料面板**不包含任何 NSFW/NTL 配置 UI——只有分片/召回/处理模式等纯工作流配置。
@@ -255,7 +269,7 @@ st_v3_builder_ai_config (localStorage)
 
 ### NSFW/NTL 增强（历史）
 
-- 20 种口味预设 + 8 种 NTL 禁忌类型
+- 21 种口味预设（多选最多 5 + note）+ 9 种 NTL 禁忌类型（含百破）
 - NTL 人物数据模型（`emptyNtlPersonAttrs` / `normalizeNtlPersonAttrs` / `mergeNtlPersonAttrs`）
 - RAG 增强搜索覆盖 7 个 pipeline 场景
 - `promptCanon` 更新为调色盘引导写作法

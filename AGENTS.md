@@ -64,9 +64,16 @@ npm test             # Node.js native test runner (tests/**/*.test.mjs)
 
 ## NSFW/NTL palette architecture
 
-- Three-layer design: core persona palette → NSFW flavor palette (20 presets) → NTL taboo layer (8 types, multi-select). Layers are additive, not exclusive.
-- **CharacterPanel is the sole UI entry point** for NSFW/NTL config. Changes dispatch `nsfw-config-changed` → `browserApp` listens and syncs `state.adultMode`/`ntlMode`/`nsfwFlavor`/`ntlTabooTypes` to novel workshop pipeline.
-- **恶堕进度**（非独立口味）：默认 5 阶；世界书「恶堕进度总则」+「恶堕档案·{名}」；状态栏模块 `corruption_stage`；逻辑见 `src/lib/corruptionProgress.mjs`；助手工具 `generate_corruption_lore`。
+- Three-layer design: core persona palette → NSFW flavor items（最多 5，含反差/感官节奏等 **42** 预设，首项为主调色盘 + 每项 note）→ NTL taboo layer（**25** types 含百破，多选）. Layers are additive, not exclusive.
+- 数据：`nsfwFlavorItems: [{ id, note }]`；旧单字段 `nsfwFlavor` 自动迁为首项；拼装见 `buildNsfwFlavorHintFromItems`。
+- 口味丰满：`src/lib/adult/flavors/{presets,enrichment}/` 按组拆分（情绪/关系/特殊/感官）；旧路径仅兼容 re-export。
+- NTL 丰满：`src/lib/adult/ntl/{types,enrichment}/` 按 bond/coercion/rupture 拆分；含百破；`age_gap` 区分礼法成年 vs 禁止儿童性化。
+- 世界观成人载体：`src/lib/adult/vessels/{frames,overlays}/`（**15** 框架）；Canon：`src/lib/adult/canon.mjs`。
+- AI 引擎世界观预设：`src/lib/presets/worldviews/`（分组 data；扩展在对应文件追加）。
+- **成年边界**：禁止儿童性化；世界观可写礼法成年制度；情欲仅限已完成设定成年礼的成人角色（见 `adult/shared/consentBoundary.mjs`）。
+- **两管道隔离**：`protagonist`（角色设定/开场白）与 `worldbook`（世界书/人物条/恶堕）独立，默认同步互不写入。小说「同步到角色设定」已重定向为世界书人物条。
+- **AdultConfigPanel（侧栏「成人配置」）** 是卡级 NSFW/NTL/恶堕唯一 UI，只服务世界书管道；口味为添加式多选。卡侧为真相源，小说工坊经 `nsfw-config-changed` 订阅；worldframe 区分 suggest（不强制）与 set（手动强制）。
+- **恶堕进度**：只认 `[小说人物]`/`[人物]` 条；状态栏多人 cast 绑这些名字；每阶≥220字；`src/lib/corruptionProgress.mjs` + `generate_corruption_lore`。
 - Novel source panel has NO NSFW/NTL UI — only chunking/recall/workflow config.
 - Full design philosophy in `docs/architecture-and-design.md`.
 

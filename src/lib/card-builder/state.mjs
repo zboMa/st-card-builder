@@ -25,8 +25,12 @@ export function createDefaultCardState() {
     altGreetings: [],
     nsfwEnabled: false,
     nsfwFlavor: '',
+    nsfwFlavorItems: [],
     ntlEnabled: false,
     ntlTabooTypes: [],
+    ntlTabooItems: [],
+    adultWorldframe: '',
+    adultWorldframeForced: '',
     corruptionEnabled: false,
     corruptionPreset: '5',
     corruptionCustomBrief: '',
@@ -64,8 +68,20 @@ export function buildDraftSnapshot(state) {
     altGreetings: s.altGreetings || [],
     nsfwEnabled: !!s.nsfwEnabled,
     nsfwFlavor: s.nsfwFlavor || '',
+    nsfwFlavorItems: Array.isArray(s.nsfwFlavorItems)
+      ? s.nsfwFlavorItems.map(function(it) {
+          return { id: String((it && it.id) || ''), note: String((it && it.note) || '') };
+        }).filter(function(it) { return it.id; })
+      : (s.nsfwFlavor ? [{ id: s.nsfwFlavor, note: '' }] : []),
     ntlEnabled: !!s.ntlEnabled,
     ntlTabooTypes: (s.ntlTabooTypes || []).slice(),
+    ntlTabooItems: Array.isArray(s.ntlTabooItems)
+      ? s.ntlTabooItems.map(function(it) {
+          return { id: String((it && it.id) || ''), note: String((it && it.note) || '') };
+        }).filter(function(it) { return it.id; })
+      : (s.ntlTabooTypes || []).map(function(id) { return { id: String(id), note: '' }; }),
+    adultWorldframe: s.adultWorldframe || '',
+    adultWorldframeForced: s.adultWorldframeForced || '',
     corruptionEnabled: !!s.corruptionEnabled,
     corruptionPreset: s.corruptionPreset || '5',
     corruptionCustomBrief: s.corruptionCustomBrief || '',

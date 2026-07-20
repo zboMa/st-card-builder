@@ -1,6 +1,7 @@
 /**
  * 助手 / 分析用：把检索结果与实体摘要拼成注入块
  */
+import { RAG_ENTITY_BUDGET, FIELD_ENTITY_LINE } from '../contextBudgets.mjs';
 
 /**
  * @param {{ body?: string, snippets?: object[], mode?: string }} searchResult
@@ -17,14 +18,14 @@ export function buildRagInjectBlock(searchResult, entities, opts) {
     parts.push('【相关小说原文】未命中相关片段。若问题依赖原文，请说明未检索到。');
   }
 
-  var entBudget = opts.entityBudget != null ? opts.entityBudget : 3000;
+  var entBudget = opts.entityBudget != null ? opts.entityBudget : RAG_ENTITY_BUDGET;
   var lines = [];
   var used = 0;
   (entities || []).forEach(function(e) {
     if (!e || used >= entBudget) return;
     var line = '- [' + (e.type || '?') + '] ' + (e.name || '')
-      + (e.aliases && e.aliases.length ? '（' + e.aliases.slice(0, 3).join('/') + '）' : '')
-      + ': ' + String(e.summary || e.content || '').slice(0, 160);
+      + (e.aliases && e.aliases.length ? '（' + e.aliases.slice(0, 5).join('/') + '）' : '')
+      + ': ' + String(e.summary || e.content || '').slice(0, FIELD_ENTITY_LINE);
     if (used + line.length > entBudget) return;
     lines.push(line);
     used += line.length;

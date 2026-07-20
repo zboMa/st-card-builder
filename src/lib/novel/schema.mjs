@@ -193,7 +193,13 @@ export function isProfilePlaceholder(val, key) {
 }
 
 /** 将档案格式化为可读 YAML（跳过未提及/空字段） */
-export function formatProfileYaml(profile, displayName) {
+/**
+ * @param {object} profile
+ * @param {string} [displayName]
+ * @param {{ omitNsfw?: boolean }} [opts] omitNsfw=true 时跳过 NSFW_information（用于主角卡面）
+ */
+export function formatProfileYaml(profile, displayName, opts) {
+  opts = opts || {};
   var p = profile || emptyCharacterProfile(displayName);
   var title = displayName || p['Chinese name'] || '未命名';
   var cn = p['Chinese name'];
@@ -256,6 +262,7 @@ export function formatProfileYaml(profile, displayName) {
   CHARACTER_PROFILE_FIELDS.forEach(function(field) {
     // 标题行已含中文名，避免重复
     if (field === 'Chinese name') return;
+    if (opts.omitNsfw && field === 'NSFW_information') return;
     var v = p[field];
     if (isProfilePlaceholder(v)) return;
     if (v && typeof v === 'object') {

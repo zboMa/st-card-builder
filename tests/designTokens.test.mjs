@@ -120,17 +120,18 @@ describe('design tokens (Nocturne Atelier)', function() {
     assert.match(novelWb, /needExpand \? 'btn-ai-expand'/);
   });
 
-  it('人物行操作：同步在左、AI 扩展紧贴编辑', function() {
+  it('人物行操作：同步世界书在左、AI 扩展紧贴编辑', function() {
     const app = readFileSync(join(root, 'src/lib/novel/panels/characters.mjs'), 'utf8');
-    // 在 novel-list-actions 片段内断言顺序
+    // 在 novel-list-actions 片段内断言顺序（人物只同步世界书，不再同步主角设定）
     const start = app.indexOf("'+ '<div class=\"novel-list-actions\">'");
     const alt = app.indexOf("novel-list-actions");
     const from = start > 0 ? start : alt;
     const block = app.slice(from, from + 800);
-    const syncIdx = block.indexOf('data-char-sync-char');
+    const syncIdx = block.indexOf('data-char-sync-wb');
     const expandIdx = block.indexOf('data-char-expand');
     const editIdx = block.indexOf("data-char-edit=\"' + c.id");
-    assert.ok(syncIdx > 0, 'missing sync');
+    assert.ok(syncIdx > 0, 'missing worldbook sync');
+    assert.ok(block.indexOf('data-char-sync-char') < 0, 'must not sync person into protagonist');
     assert.ok(expandIdx > syncIdx, 'expand should follow sync');
     assert.ok(editIdx > expandIdx, 'edit should follow expand');
   });

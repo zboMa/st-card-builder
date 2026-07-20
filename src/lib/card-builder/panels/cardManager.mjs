@@ -397,8 +397,8 @@ export function registerCardManager(ctx) {
       var fj = buildCardJSONFromDraft(ctx.state);
       window.updatePreviewPanel(fj);
     }
-    if (ctx.panels.character && ctx.panels.character.renderNsfwBlock) {
-      ctx.panels.character.renderNsfwBlock();
+    if (ctx.panels.adultConfig && ctx.panels.adultConfig.renderNsfwBlock) {
+      ctx.panels.adultConfig.renderNsfwBlock();
     }
 
     // Dispatch events

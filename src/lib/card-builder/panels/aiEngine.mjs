@@ -6,39 +6,136 @@ import {
   parseTagsFromAiText,
   DEFAULT_TAG_CONTEXT_CHARS,
 } from '../../charTags.mjs';
+import {
+  listWorldviewPresetsByGroup,
+  getWorldviewPreset,
+  buildWorldviewHintFromItems,
+  normalizeWorldviewPresetItems,
+  primaryWorldviewPresetId,
+  MAX_WORLDVIEW_PRESET_ITEMS,
+} from '../../presets/worldviews/index.mjs';
+import {
+  ENGINE_GEN_MODE_FULL,
+  ENGINE_GEN_MODE_SKELETON,
+  normalizeEngineGenMode,
+  clampSlotCount,
+  buildScaledQuota,
+  formatQuotaForPrompt,
+  normalizeOutlineSlots,
+  slotToWorldbookEntry,
+  formatOutlineRef,
+  formatEnrichedEntriesRef,
+  isSkeletonEntry,
+  OUTLINE_TYPE_LABELS,
+} from '../enginePipeline.mjs';
 
 const AI_KEY = 'st_v3_builder_ai_config';
 
 export function registerAiEngine(ctx) {
   var parsedPresetList = [];
   var cachedSearchResults = null;
+  var worldviewPresetItems = [];
+  var pendingOutlineSlots = null;
 
   // ====================================================================
   //  Internal helpers
   // ====================================================================
 
+  function getEngineGenMode() {
+    var el = ctx.$('aiEngineGenMode');
+    return normalizeEngineGenMode(el ? el.value : ENGINE_GEN_MODE_FULL);
+  }
+
+  function isPauseAfterOutline() {
+    var el = ctx.$('aiEnginePauseAfterOutline');
+    return !!(el && el.checked);
+  }
+
+  function syncEngineModeUi() {
+    var mode = getEngineGenMode();
+    var hint = ctx.$('aiEngineModeHint');
+    var btn = ctx.$('btnAiGenerate');
+    var pauseRow = ctx.$('aiEnginePauseAfterOutline');
+    if (hint) {
+      hint.textContent = mode === ENGINE_GEN_MODE_SKELETON
+        ? '仅骨架：快速产出短条目，需稍后用「AI重写」展开。'
+        : '完整生成：先出分类型大纲，再自动逐条写满（可勾选大纲后暂停）。';
+    }
+    if (btn) {
+      btn.textContent = mode === ENGINE_GEN_MODE_SKELETON
+        ? '一键生成角色、世界书骨架与开场白'
+        : '一键完整生成（角色·大纲·丰满·开场白）';
+    }
+    if (pauseRow && pauseRow.parentElement) {
+      pauseRow.parentElement.style.opacity = mode === ENGINE_GEN_MODE_FULL ? '1' : '0.45';
+      pauseRow.disabled = mode !== ENGINE_GEN_MODE_FULL;
+    }
+  }
+
+  function buildAdultHintsForWbType(type) {
+    var adultHints = (typeof window.__buildAdultPromptHints__ === 'function')
+      ? (window.__buildAdultPromptHints__() || {})
+      : { nsfw: buildNsfwFlavorHint(), ntl: buildNtlHintForPrompt(), vessel: '', canon: buildAdultCanonHint() };
+    // 人物/物品/能力更需要成人与载体；规则地点少灌
+    if (type === 'person' || type === 'item' || type === 'ability') {
+      return (adultHints.nsfw || '') + (adultHints.ntl || '') + (adultHints.vessel || '') + (adultHints.canon || '');
+    }
+    if (type === 'faction' || type === 'location' || type === 'event') {
+      return (adultHints.vessel || '') + (adultHints.canon || '');
+    }
+    return adultHints.canon || '';
+  }
+
   function buildNsfwFlavorHint() {
+    if (typeof window.__buildAdultPromptHints__ === 'function') {
+      var hints = window.__buildAdultPromptHints__() || {};
+      return hints.nsfw || '';
+    }
     var nsfwConfig = window.__getNsfwConfig__ ? window.__getNsfwConfig__() : {};
     var data = window.__nsfwFlavorData__;
-    if (!nsfwConfig.enabled || !nsfwConfig.flavor || !data) return '';
-    var p = data.presets[nsfwConfig.flavor];
-    if (!p) return '';
-    return '\n【生成风格·' + p.label + '】' + p.description
-      + '\n温度=' + p.palette.temperature + ' | 触感=' + p.palette.texture
-      + '\n重点：' + p.focus.join(' / ')
-      + '\n避免：' + p.avoid.join(' / ');
+    if (!nsfwConfig.enabled || !data) return '';
+    var items = Array.isArray(nsfwConfig.flavorItems) ? nsfwConfig.flavorItems : [];
+    if (!items.length && nsfwConfig.flavor) items = [{ id: nsfwConfig.flavor, note: '' }];
+    if (!items.length) return '';
+    if (typeof data.buildHintFromItems === 'function') {
+      return data.buildHintFromItems(items);
+    }
+    return '';
   }
 
   function buildNtlHintForPrompt() {
+    if (typeof window.__buildAdultPromptHints__ === 'function') {
+      var hints = window.__buildAdultPromptHints__() || {};
+      return hints.ntl || '';
+    }
     var nsfwConfig = window.__getNsfwConfig__ ? window.__getNsfwConfig__() : {};
     var data = window.__nsfwFlavorData__;
-    if (!nsfwConfig.ntlEnabled || !nsfwConfig.ntlTabooTypes || !nsfwConfig.ntlTabooTypes.length || !data) return '';
+    if (!nsfwConfig.ntlEnabled || !data) return '';
+    var items = Array.isArray(nsfwConfig.ntlTabooItems) && nsfwConfig.ntlTabooItems.length
+      ? nsfwConfig.ntlTabooItems
+      : (nsfwConfig.ntlTabooTypes || []).map(function(id) { return { id: id, note: '' }; });
+    if (!items.length) return '';
+    if (typeof data.buildNtlHintFromTypes === 'function') {
+      return data.buildNtlHintFromTypes(items, { tabooTypes: data.tabooTypes });
+    }
     var lines = ['\n【NTL 禁忌方向】'];
-    nsfwConfig.ntlTabooTypes.forEach(function(t) {
-      var info = data.tabooTypes[t];
-      if (info) lines.push('- ' + info.label + '：' + info.description);
+    items.forEach(function(it) {
+      var id = it && it.id ? it.id : it;
+      var info = data.tabooTypes && data.tabooTypes[id];
+      if (info) {
+        lines.push('- ' + info.label + '：' + info.description
+          + (it && it.note ? '；用户补充：' + it.note : ''));
+      }
     });
     return lines.join('\n');
+  }
+
+  function buildAdultCanonHint() {
+    if (typeof window.__buildAdultPromptHints__ === 'function') {
+      var hints = window.__buildAdultPromptHints__() || {};
+      return hints.canon || '';
+    }
+    return '';
   }
 
   function getTagContextChars() {
@@ -79,7 +176,156 @@ export function registerAiEngine(ctx) {
     return new Promise(function(r) { setTimeout(r, ms); });
   }
 
-  function saveAiConfig() {
+  function getWorldviewPresetItems() {
+    worldviewPresetItems = normalizeWorldviewPresetItems(worldviewPresetItems);
+    return worldviewPresetItems.slice();
+  }
+
+  function getWorldviewPresetId() {
+    // 兼容旧单选 API：返回主世界观 id，并同步隐藏 select
+    var id = primaryWorldviewPresetId(getWorldviewPresetItems());
+    var el = ctx.$('aiWorldviewPreset');
+    if (el) el.value = id;
+    return id;
+  }
+
+  function setWorldviewPresetItems(raw, legacyId) {
+    worldviewPresetItems = normalizeWorldviewPresetItems(raw, legacyId);
+    syncHiddenWorldviewSelect();
+    return worldviewPresetItems.slice();
+  }
+
+  function syncHiddenWorldviewSelect() {
+    var el = ctx.$('aiWorldviewPreset');
+    if (!el) return;
+    var id = primaryWorldviewPresetId(worldviewPresetItems);
+    // 确保 option 存在
+    if (id && !Array.from(el.options).some(function(o) { return o.value === id; })) {
+      var opt = document.createElement('option');
+      opt.value = id;
+      opt.textContent = id;
+      el.appendChild(opt);
+    }
+    el.value = id || '';
+  }
+
+  function escapeHtmlWv(s) {
+    return String(s || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function renderWorldviewPresetList() {
+    var listEl = ctx.$('aiWorldviewPresetList');
+    var picker = ctx.$('aiWorldviewPresetPicker');
+    var capEl = ctx.$('aiWorldviewPresetCap');
+    var addBtn = ctx.$('btnAddWorldviewPreset');
+    var items = getWorldviewPresetItems();
+    syncHiddenWorldviewSelect();
+
+    if (listEl) {
+      if (!items.length) {
+        listEl.innerHTML = '<span class="ai-wv-empty">尚未添加世界观——可多选组合（如魅魔+修仙）。不选则须填写下方角色额外要求。</span>';
+      } else {
+        listEl.innerHTML = items.map(function(it, idx) {
+          var p = getWorldviewPreset(it.id) || { label: it.id, description: '' };
+          return '<div class="ai-wv-item" data-wv-idx="' + idx + '">'
+            + '<div class="ai-wv-item-head">'
+            + '<div>'
+            + '<div class="ai-wv-item-title">' + escapeHtmlWv(p.label)
+            + (idx === 0 ? '<span class="ai-wv-primary-tag">主世界观</span>' : '<span class="ai-wv-primary-tag">叠加</span>')
+            + '</div>'
+            + '<div class="ai-wv-item-desc">' + escapeHtmlWv((p.description || '').slice(0, 100))
+            + ((p.description || '').length > 100 ? '…' : '') + '</div>'
+            + '</div>'
+            + '<div class="ai-wv-item-actions">'
+            + (idx > 0 ? '<button type="button" class="btn btn-ghost" data-wv-up="' + idx + '">上移</button>' : '')
+            + (idx < items.length - 1 ? '<button type="button" class="btn btn-ghost" data-wv-down="' + idx + '">下移</button>' : '')
+            + '<button type="button" class="btn btn-ghost" data-wv-remove="' + idx + '">移除</button>'
+            + '</div></div>'
+            + '<textarea data-wv-note="' + idx + '" rows="2" placeholder="可选：本项叠加说明（如：修仙为壳，魅魔为隐秘族群）">'
+            + escapeHtmlWv(it.note || '') + '</textarea>'
+            + '</div>';
+        }).join('');
+      }
+    }
+
+    var selected = Object.create(null);
+    items.forEach(function(it) { selected[it.id] = true; });
+    var groups = listWorldviewPresetsByGroup();
+    if (picker) {
+      var opts = '<option value="">选择要添加的预设…</option>';
+      groups.forEach(function(g) {
+        var avail = (g.items || []).filter(function(it) { return !selected[it.id]; });
+        if (!avail.length) return;
+        opts += '<optgroup label="' + escapeHtmlWv(g.label) + '">';
+        avail.forEach(function(it) {
+          opts += '<option value="' + escapeHtmlWv(it.id) + '">' + escapeHtmlWv(it.label) + '</option>';
+        });
+        opts += '</optgroup>';
+      });
+      picker.innerHTML = opts;
+      picker.disabled = items.length >= MAX_WORLDVIEW_PRESET_ITEMS;
+    }
+    if (addBtn) addBtn.disabled = items.length >= MAX_WORLDVIEW_PRESET_ITEMS;
+    if (capEl) {
+      capEl.textContent = items.length
+        ? ('已选 ' + items.length + ' / ' + MAX_WORLDVIEW_PRESET_ITEMS)
+        : ('最多 ' + MAX_WORLDVIEW_PRESET_ITEMS + ' 项');
+    }
+  }
+
+  function fillWorldviewSelect(selectedId) {
+    // 兼容旧调用：单 id → 多选列表
+    if (selectedId) {
+      setWorldviewPresetItems([{ id: selectedId, note: '' }]);
+    }
+    // 填充隐藏 select 的全部 option（兼容外部读 value）
+    var el = ctx.$('aiWorldviewPreset');
+    if (el) {
+      var groups = listWorldviewPresetsByGroup();
+      var html = '<option value="">不使用预设</option>';
+      groups.forEach(function(g) {
+        html += '<optgroup label="' + g.label + '">';
+        (g.items || []).forEach(function(it) {
+          html += '<option value="' + it.id + '">' + it.label + '</option>';
+        });
+        html += '</optgroup>';
+      });
+      el.innerHTML = html;
+      syncHiddenWorldviewSelect();
+    }
+    renderWorldviewPresetList();
+  }
+
+  function syncWorldframeFromPresetItems(items) {
+    var primaryId = primaryWorldviewPresetId(items || getWorldviewPresetItems());
+    var p = getWorldviewPreset(primaryId);
+    if (!p || !p.mapsToWorldframe) return;
+    if (typeof window.__setNsfwConfig__ !== 'function') return;
+    var cfg = window.__getNsfwConfig__ ? window.__getNsfwConfig__() : {};
+    if (cfg.adultWorldframeForced) return;
+    cfg.adultWorldframe = p.mapsToWorldframe;
+    window.__setNsfwConfig__(cfg);
+  }
+
+  function syncWorldframeFromPreset(presetId) {
+    syncWorldframeFromPresetItems(presetId ? [{ id: presetId, note: '' }] : getWorldviewPresetItems());
+  }
+
+  function buildActiveWorldviewHint(stage) {
+    return buildWorldviewHintFromItems(getWorldviewPresetItems(), { stage: stage || 'all' }) || '';
+  }
+
+  /** 唯一持久化入口：委托 browserApp.__persistAiConfig__（字段并集） */
+  function persistAiConfig() {
+    if (typeof window.__persistAiConfig__ === 'function') {
+      window.__persistAiConfig__();
+      return;
+    }
+    // boot 前兜底：写入并集字段，避免半截对象覆盖
     var nsfwConfig = window.__getNsfwConfig__ ? window.__getNsfwConfig__() : {};
     localStorage.setItem(AI_KEY, JSON.stringify({
       url:        (ctx.$('apiUrl') ? ctx.$('apiUrl').value.trim() : ''),
@@ -96,10 +342,34 @@ export function registerAiEngine(ctx) {
             try { var v = JSON.parse(localStorage.getItem('st_v3_builder_novel_rag')); return v || { enabled: true, budget: 12000 }; } catch(e) { return { enabled: true, budget: 12000 }; }
           })(),
       presetList: parsedPresetList,
+      worldviewPresetId: getWorldviewPresetId(),
+      worldviewPresetItems: getWorldviewPresetItems(),
       nsfwEnabled:   !!nsfwConfig.enabled,
       nsfwFlavor:    nsfwConfig.flavor || '',
+      nsfwFlavorItems: Array.isArray(nsfwConfig.flavorItems)
+        ? nsfwConfig.flavorItems.map(function(it) {
+            return { id: String((it && it.id) || ''), note: String((it && it.note) || '') };
+          }).filter(function(it) { return it.id; })
+        : (nsfwConfig.flavor ? [{ id: nsfwConfig.flavor, note: '' }] : []),
       ntlEnabled:    !!nsfwConfig.ntlEnabled,
       ntlTabooTypes: (nsfwConfig.ntlTabooTypes || []).slice(),
+      ntlTabooItems: Array.isArray(nsfwConfig.ntlTabooItems)
+        ? nsfwConfig.ntlTabooItems.map(function(it) {
+            return { id: String((it && it.id) || ''), note: String((it && it.note) || '') };
+          }).filter(function(it) { return it.id; })
+        : (nsfwConfig.ntlTabooTypes || []).map(function(id) { return { id: String(id), note: '' }; }),
+      corruptionEnabled: !!ctx.state.corruptionEnabled,
+      corruptionPreset: ctx.state.corruptionPreset || '5',
+      corruptionCustomBrief: ctx.state.corruptionCustomBrief || '',
+      corruptionStageNames: Array.isArray(ctx.state.corruptionStageNames) ? ctx.state.corruptionStageNames.slice() : [],
+      corruptionSelectedNames: Array.isArray(ctx.state.corruptionSelectedNames) ? ctx.state.corruptionSelectedNames.slice() : [],
+      corruptionDefaultFemaleOnly: ctx.state.corruptionDefaultFemaleOnly !== false,
+      corruptionSyncStatusBar: ctx.state.corruptionSyncStatusBar !== false,
+      adultWorldframe: nsfwConfig.adultWorldframe || ctx.state.adultWorldframe || '',
+      adultWorldframeForced: nsfwConfig.adultWorldframeForced || ctx.state.adultWorldframeForced || '',
+      engineGenMode: getEngineGenMode(),
+      pauseAfterOutline: isPauseAfterOutline(),
+      skeletonCount: window.__getSkeletonCount__ ? window.__getSkeletonCount__() : 10,
     }));
   }
 
@@ -175,7 +445,7 @@ export function registerAiEngine(ctx) {
         container.querySelectorAll('input[type="checkbox"]').forEach(function(chk) {
           chk.addEventListener('change', function(e) {
             parsedPresetList[parseInt(e.target.getAttribute('data-index'))].enabled = e.target.checked;
-            saveAiConfig();
+            persistAiConfig();
           });
         });
       }
@@ -294,7 +564,7 @@ export function registerAiEngine(ctx) {
           try { saved = JSON.parse(localStorage.getItem(AI_KEY)) || {}; } catch (e) { console.warn('Parsing saved AI config failed', e); }
           if (saved.model && models.indexOf(saved.model) >= 0) modelEl.value = saved.model;
         }
-        saveAiConfig();
+        persistAiConfig();
         setFetchStatus('\u2705 成功获取 ' + models.length + ' 个模型', true);
         var modalStatus = ctx.$('aiStatus');
         if (modalStatus && modalStatus !== statusEl) {
@@ -317,7 +587,7 @@ export function registerAiEngine(ctx) {
       }
     },
 
-    // ===== AI 一键生成（3-stage pipeline） =====
+    // ===== AI 一键生成（完整：大纲→丰满 / 仅骨架） =====
 
     runFullGeneration: async function() {
       var apiUrlEl   = ctx.$('apiUrl');
@@ -328,30 +598,58 @@ export function registerAiEngine(ctx) {
       var greetEl    = ctx.$('greetingPrompt');
       var statusEl   = ctx.$('aiStatus');
       var btnEl      = ctx.$('btnAiGenerate');
+      var contBtn    = ctx.$('btnAiContinueEnrich');
 
       var url   = (apiUrlEl ? apiUrlEl.value : '').replace(/\/$/, '') + '/chat/completions';
       var key   = apiKeyEl ? apiKeyEl.value.trim() : '';
       var model = modelEl ? modelEl.value : '';
       if (!model) { window.alert('请先拉取模型！'); return; }
-      if (!promptEl || !promptEl.value.trim()) { window.alert('请填写角色设定提示词！'); return; }
 
-      var skeletonCount = window.__getSkeletonCount__ ? window.__getSkeletonCount__() : 6;
+      var charExtra = promptEl ? promptEl.value.trim() : '';
+      var wvItems = getWorldviewPresetItems();
+      var wvId = primaryWorldviewPresetId(wvItems);
+      var wvPreset = getWorldviewPreset(wvId);
+      var hasWorldview = wvItems.length > 0;
+      if (!charExtra && !hasWorldview) {
+        window.alert('请添加世界观预设（可多选组合），或填写角色设定额外要求！');
+        return;
+      }
+
+      var genMode = getEngineGenMode();
+      var pauseOutline = genMode === ENGINE_GEN_MODE_FULL && isPauseAfterOutline();
+      var wvCharHint = buildActiveWorldviewHint('char');
+      var wvWbHint = buildActiveWorldviewHint('worldbook');
+      var wvGreetHint = buildActiveWorldviewHint('greeting');
+      var searchQuery = charExtra
+        || (wvItems.map(function(it) {
+          var p = getWorldviewPreset(it.id);
+          return p ? (p.label + ' ' + (p.description || '')) : '';
+        }).filter(Boolean).join(' ') || '');
+
+      var slotCount = window.__getSkeletonCount__ ? window.__getSkeletonCount__() : 10;
+      slotCount = clampSlotCount(slotCount);
+      var quota = buildScaledQuota(slotCount);
       var searchEnabled = window.__searchConfig__ && window.__searchConfig__.isEnabled();
-      var totalSteps    = (searchEnabled ? 1 : 0) + 1 + Math.ceil(skeletonCount / 5) + 1;
-      var currentStep   = 0;
-      var hacker        = window.__hackerAnim__;
-      var charData      = null;
+      // steps: search? + char + outlineOrSkeletonBatches + enrich?(slots) + cross? + greet
+      var enrichSteps = genMode === ENGINE_GEN_MODE_FULL && !pauseOutline ? slotCount + 1 : 0;
+      var skBatches = genMode === ENGINE_GEN_MODE_SKELETON ? Math.ceil(slotCount / 5) : 1;
+      var totalSteps = (searchEnabled ? 1 : 0) + 1 + skBatches + enrichSteps + 1;
+      var currentStep = 0;
+      var hacker = window.__hackerAnim__;
+      var charData = null;
 
       if (btnEl) btnEl.disabled = true;
+      if (contBtn) contBtn.hidden = true;
       cachedSearchResults = null;
+      pendingOutlineSlots = null;
 
       if (hacker) { hacker.start(); hacker.setPhase('\u26a1 初始化引擎...'); hacker.setProgress(0, totalSteps); hacker.setDetail(hacker.randomMsg()); }
 
       var aiCenter = window.__aiTaskCenter__;
       var engineTask = aiCenter ? aiCenter.create({
         type: 'engine_generate',
-        title: 'AI 引擎一键生成',
-        target: (promptEl.value.trim() || '').slice(0, 40),
+        title: genMode === ENGINE_GEN_MODE_FULL ? 'AI 引擎完整生成' : 'AI 引擎骨架生成',
+        target: (charExtra || (wvPreset && wvPreset.label) || '').slice(0, 40),
       }) : null;
       var engineSignal = engineTask && engineTask.signal;
 
@@ -361,190 +659,210 @@ export function registerAiEngine(ctx) {
         var presetsStr = ctx.panels.aiEngine.getActivePresetsStr();
         var searchInjection = '';
 
-        // 阶段0：联网搜索
         if (searchEnabled) {
           if (engineSignal && engineSignal.aborted) throw new DOMException('已取消', 'AbortError');
           currentStep++;
           if (aiCenter && engineTask) aiCenter.setProgress(engineTask.id, currentStep / totalSteps, '联网搜索');
-          if (hacker) { hacker.setPhase('\ud83c\udf10 [阶段 ' + currentStep + '/' + totalSteps + '] 联网搜索资料...'); hacker.setProgress(currentStep, totalSteps); hacker.setDetail('正在扫描互联网数据节点...'); }
+          if (hacker) { hacker.setPhase('\ud83c\udf10 [阶段 ' + currentStep + '/' + totalSteps + '] 联网搜索...'); hacker.setProgress(currentStep, totalSteps); }
           if (statusEl) { statusEl.textContent = '\ud83c\udf10 联网搜索中...'; statusEl.style.color = '#38bdf8'; }
-          var searchResult = await ctx.panels.aiEngine.performSearchIfEnabled(promptEl.value.trim());
+          var searchResult = await ctx.panels.aiEngine.performSearchIfEnabled(searchQuery);
           searchInjection = searchResult.searchText || '';
-          if (searchResult.mode === 'engine') { if (hacker) hacker.setDetail('\u2705 搜索完成，获取到 ' + searchResult.searchResults.length + ' 条参考资料'); }
-          else if (searchResult.mode === 'ai_native') { if (hacker) hacker.setDetail('\u2139\ufe0f 使用 AI 自带联网能力'); }
-          else if (searchResult.mode === 'ai_fallback') { if (hacker) hacker.setDetail('\u26a0\ufe0f 搜索引擎出错，降级为 AI 联网: ' + (searchResult.error || '')); }
-          await sleep(400);
+          await sleep(300);
         }
 
-        // 阶段1：生成角色
+        // —— 阶段1：角色 ——
         if (engineSignal && engineSignal.aborted) throw new DOMException('已取消', 'AbortError');
         currentStep++;
         if (aiCenter && engineTask) aiCenter.setProgress(engineTask.id, currentStep / totalSteps, '构建角色');
-        if (hacker) { hacker.setPhase('\ud83e\uddec [阶段 ' + currentStep + '/' + totalSteps + '] 构建角色灵魂...'); hacker.setProgress(currentStep, totalSteps); hacker.setDetail(hacker.randomMsg()); }
-        if (statusEl) { statusEl.textContent = '\u23f3 [阶段 1] 构思角色设定...'; statusEl.style.color = '#38bdf8'; }
+        if (hacker) { hacker.setPhase('\ud83e\uddec [阶段 ' + currentStep + '/' + totalSteps + '] 构建角色...'); hacker.setProgress(currentStep, totalSteps); }
+        if (statusEl) { statusEl.textContent = '\u23f3 [阶段1] 角色设定...'; statusEl.style.color = '#38bdf8'; }
 
         var p1Sys = ctx.promptText('charGen')
           + (presetsStr ? '\n【文风要求】：\n' + presetsStr : '')
-          + buildNsfwFlavorHint()
-          + buildNtlHintForPrompt()
+          + '\n【约束】主角 Description 禁止写入 NSFW_information、恶堕分期、情欲口味或 NTL 禁忌层；此类内容只属于世界书人物。'
+          + '\n【冲突处理】若「用户额外要求」与「世界观预设」冲突，以用户额外要求为准。'
+          + (wvCharHint || '')
           + searchInjection;
+        var p1User = [
+          hasWorldview ? ('已选用世界观预设：' + wvItems.map(function(it, idx) {
+            var p = getWorldviewPreset(it.id);
+            var lab = p ? p.label : it.id;
+            return (idx === 0 ? '主·' : '叠加·') + lab;
+          }).join(' + ')) : '',
+          charExtra ? ('角色额外要求（优先）：\n' + charExtra) : '角色额外要求：无（请严格按世界观预设组合生成）',
+        ].filter(Boolean).join('\n\n');
 
         var aiResp1 = await ctx.fetchAIContent({
           context: '角色生成/阶段1',
-          url: url,
-          headers: headers,
-          model: model,
-          messages: [{ role: 'system', content: p1Sys }, { role: 'user', content: promptEl.value.trim() }],
+          url: url, headers: headers, model: model,
+          messages: [{ role: 'system', content: p1Sys }, { role: 'user', content: p1User }],
           temperature: 0.85,
           httpErrorPrefix: '角色生成失败 HTTP ',
           signal: engineSignal,
         });
-
         charData = ctx.extractJsonObj(aiResp1.content, '角色生成/阶段1');
-
-        ctx.state.charName     = charData.charName     || '';
-        ctx.state.wbName       = charData.wbName       || '';
-        ctx.state.charDesc     = charData.charDesc     || '';
+        ctx.state.charName = charData.charName || '';
+        ctx.state.wbName = charData.wbName || '';
+        ctx.state.charDesc = charData.charDesc || '';
         ctx.state.creatorNotes = charData.creatorNotes || '';
         if (Array.isArray(charData.tags) || Array.isArray(charData.charTags)) {
           setCharTags(charData.tags || charData.charTags, { save: false });
         }
         ctx.state.worldbookEntries = [];
         ctx.save();
-        if (hacker) hacker.setDetail('\u2705 角色「' + (charData.charName || '???') + '」锻造完成');
-        await sleep(500);
-
+        await sleep(300);
         var charRef = formatCharRefForPrompt(charData);
+        var wbGoal = wbPromptEl ? wbPromptEl.value.trim() : '';
 
-        // 阶段2：批量生成世界书骨架
-        var wbGoal    = wbPromptEl ? wbPromptEl.value.trim() : '';
-        var remaining = skeletonCount;
-        var batchIndex = 0;
+        var outlineSlots = [];
 
-        while (remaining > 0) {
+        if (genMode === ENGINE_GEN_MODE_FULL) {
+          // —— 大纲 ——
           if (engineSignal && engineSignal.aborted) throw new DOMException('已取消', 'AbortError');
-          var batchSize = Math.min(remaining, 5);
-          batchIndex++; currentStep++;
-          if (aiCenter && engineTask) aiCenter.setProgress(engineTask.id, currentStep / totalSteps, '骨架批次 ' + batchIndex);
-          if (hacker) { hacker.setPhase('\ud83e\uddb4 [阶段 ' + currentStep + '/' + totalSteps + '] 世界书骨架 (批次 ' + batchIndex + ')'); hacker.setProgress(currentStep, totalSteps); hacker.setDetail(hacker.randomMsg()); }
-          if (statusEl) statusEl.textContent = '\u23f3 生成世界书骨架... ' + ctx.state.worldbookEntries.length + '/' + skeletonCount;
+          currentStep++;
+          if (aiCenter && engineTask) aiCenter.setProgress(engineTask.id, currentStep / totalSteps, '世界书大纲');
+          if (hacker) { hacker.setPhase('\ud83d\uddd2\ufe0f 世界书大纲...'); hacker.setProgress(currentStep, totalSteps); }
+          if (statusEl) statusEl.textContent = '\u23f3 生成分类型大纲（' + formatQuotaForPrompt(quota) + '）...';
 
-          var existingTitles = ctx.state.worldbookEntries.map(function(e) { return e.comment; }).join('、');
-          var existingRef    = existingTitles ? '\n【本批次已有条目(禁止重复)】：' + existingTitles : '';
-
-          var skSys = ctx.promptText('wbSkeleton', { batchSize: batchSize })
+          var outlineSys = ctx.promptText('wbOutline')
             + charRef
-            + '\n【角色】：' + ctx.state.charName + ' | ' + ctx.state.charDesc.substring(0, 300)
-            + existingRef
-            + (wbGoal ? '\n【方向】：' + wbGoal : '')
+            + '\n【配额】共 ' + slotCount + ' 条：' + formatQuotaForPrompt(quota)
+            + (wbGoal ? '\n【方向·优先】：' + wbGoal : '')
             + (presetsStr ? '\n【文风】：' + presetsStr.substring(0, 200) : '')
-            + searchInjection
-            + '\n【输出】：JSON数组 [{ "comment":"===标题===", "content":"一句话", "keys":["词"], "strategy":"selective" }, ...]'
-            + '\n要求：极简、不重复、覆盖多维度（地点/人物/组织/物品/事件/规则）';
-
-          try {
-            var aiResp2 = await ctx.fetchAIContent({
-              context: '世界书骨架/批次' + batchIndex,
-              url: url,
-              headers: headers,
-              model: model,
-              messages: [{ role: 'system', content: skSys }, { role: 'user', content: '生成' + batchSize + '条骨架' }],
-              temperature: 0.9,
-              httpErrorPrefix: 'HTTP ',
-              signal: engineSignal,
-            });
-            var rawC = aiResp2.content;
-            var skeletons;
+            + (wvWbHint || '')
+            + searchInjection;
+          var outlineUser = '请输出恰好约 ' + slotCount + ' 条 slots 的 JSON 大纲。';
+          var aiOutline = await ctx.fetchAIContent({
+            context: '世界书大纲',
+            url: url, headers: headers, model: model,
+            messages: [{ role: 'system', content: outlineSys }, { role: 'user', content: outlineUser }],
+            temperature: 0.7,
+            httpErrorPrefix: '大纲生成失败 HTTP ',
+            signal: engineSignal,
+          });
+          var outlineObj = null;
+          try { outlineObj = ctx.extractJsonObj(aiOutline.content, '世界书大纲'); }
+          catch (e1) {
             try {
-              skeletons = ctx.extractJsonArray(rawC, '世界书骨架/批次' + batchIndex);
-            } catch (pe) {
-              try {
-                skeletons = [ctx.extractJsonObj(rawC, '世界书骨架/批次' + batchIndex + '/fallback')];
-              } catch (e2) {
-                throw new Error('返回格式异常');
-              }
-            }
-            skeletons.forEach(function(sk) {
-              if (!sk || !sk.comment) return;
-              ctx.state.worldbookEntries.push({
-                comment: sk.comment || '未命名',
-                content: sk.content || '(待展开)',
-                keys: Array.isArray(sk.keys) ? sk.keys : [],
-                strategy: sk.strategy || 'selective',
-                position: 4,
-                depth: 4,
-                role: 0,
-                order: 100,
-                prob: 100,
-              });
-            });
-            ctx.renderAll();
-            ctx.save();
-            if (hacker) hacker.setDetail('\u2705 批次 ' + batchIndex + ' 完成，已 ' + ctx.state.worldbookEntries.length + ' 条');
-            await sleep(300);
-          } catch (bErr) {
-            if (ctx.isTrackedAbort(bErr)) throw bErr;
-            if (hacker) hacker.setDetail('\u26a0\ufe0f 批次 ' + batchIndex + ': ' + bErr.message);
-            await sleep(500);
+              var arr = ctx.extractJsonArray(aiOutline.content, '世界书大纲/数组');
+              outlineObj = { slots: arr };
+            } catch (e2) { throw new Error('大纲 JSON 解析失败'); }
           }
-          remaining -= batchSize;
+          outlineSlots = normalizeOutlineSlots(outlineObj, slotCount);
+          if (!outlineSlots.length) throw new Error('大纲 slots 为空');
+          outlineSlots.forEach(function(s, i) { s._i = i; });
+          ctx.state.worldbookEntries = outlineSlots.map(function(s, i) {
+            return slotToWorldbookEntry(s, 100 + i);
+          });
+          pendingOutlineSlots = outlineSlots.slice();
+          ctx.renderAll();
+          ctx.save();
+          if (hacker) hacker.setDetail('\u2705 大纲 ' + outlineSlots.length + ' 槽');
+
+          if (pauseOutline) {
+            if (aiCenter && engineTask) aiCenter.succeed(engineTask.id);
+            if (hacker) {
+              hacker.stop();
+              hacker.setPhase('\u23f8 大纲已就绪');
+              hacker.setDetail('已暂停。确认大纲后点击「继续：按大纲逐条丰满」。');
+              setTimeout(function() { if (hacker) hacker.hide(); }, 4000);
+            }
+            if (statusEl) {
+              statusEl.textContent = '\u23f8 大纲 ' + outlineSlots.length + ' 条已写入（待丰满）。可编辑后点「继续丰满」。';
+              statusEl.style.color = '#f59e0b';
+            }
+            if (contBtn) contBtn.hidden = false;
+            return;
+          }
+
+          currentStep = await ctx.panels.aiEngine._enrichOutlineSlots({
+            url: url, headers: headers, model: model,
+            charRef: charRef, outlineSlots: outlineSlots,
+            wvWbHint: wvWbHint, presetsStr: presetsStr, searchInjection: searchInjection,
+            engineSignal: engineSignal, engineTask: engineTask, aiCenter: aiCenter,
+            hacker: hacker, statusEl: statusEl,
+            currentStep: currentStep, totalSteps: totalSteps,
+          });
+        } else {
+          // —— 仅骨架（旧批次逻辑）——
+          var remaining = slotCount;
+          var batchIndex = 0;
+          while (remaining > 0) {
+            if (engineSignal && engineSignal.aborted) throw new DOMException('已取消', 'AbortError');
+            var batchSize = Math.min(remaining, 5);
+            batchIndex++; currentStep++;
+            if (aiCenter && engineTask) aiCenter.setProgress(engineTask.id, currentStep / totalSteps, '骨架批次 ' + batchIndex);
+            if (hacker) { hacker.setPhase('\ud83e\uddb4 骨架批次 ' + batchIndex); hacker.setProgress(currentStep, totalSteps); }
+            if (statusEl) statusEl.textContent = '\u23f3 骨架... ' + ctx.state.worldbookEntries.length + '/' + slotCount;
+            var existingTitles = ctx.state.worldbookEntries.map(function(e) { return e.comment; }).join('、');
+            var skSys = ctx.promptText('wbSkeleton', { batchSize: batchSize })
+              + charRef
+              + '\n【角色】：' + ctx.state.charName + ' | ' + String(ctx.state.charDesc || '').substring(0, 300)
+              + (existingTitles ? '\n【已有条目禁止重复】：' + existingTitles : '')
+              + (wbGoal ? '\n【方向·优先】：' + wbGoal : '')
+              + (presetsStr ? '\n【文风】：' + presetsStr.substring(0, 200) : '')
+              + (wvWbHint || '')
+              + searchInjection
+              + '\n【输出】：JSON数组 [{ "comment":"标题", "content":"一句话", "keys":["词"], "strategy":"selective" }, ...]';
+            try {
+              var aiResp2 = await ctx.fetchAIContent({
+                context: '世界书骨架/批次' + batchIndex,
+                url: url, headers: headers, model: model,
+                messages: [{ role: 'system', content: skSys }, { role: 'user', content: '生成' + batchSize + '条骨架' }],
+                temperature: 0.9, httpErrorPrefix: 'HTTP ', signal: engineSignal,
+              });
+              var skeletons;
+              try { skeletons = ctx.extractJsonArray(aiResp2.content, '骨架' + batchIndex); }
+              catch (pe) { skeletons = [ctx.extractJsonObj(aiResp2.content, '骨架fb')]; }
+              skeletons.forEach(function(sk) {
+                if (!sk || !sk.comment) return;
+                ctx.state.worldbookEntries.push({
+                  comment: sk.comment || '未命名',
+                  content: sk.content || '(待展开)',
+                  keys: Array.isArray(sk.keys) ? sk.keys : [],
+                  strategy: sk.strategy || 'selective',
+                  position: 4, depth: 4, role: 0, order: 100, prob: 100,
+                });
+              });
+              ctx.renderAll();
+              ctx.save();
+            } catch (bErr) {
+              if (ctx.isTrackedAbort(bErr)) throw bErr;
+              if (hacker) hacker.setDetail('\u26a0\ufe0f 批次失败: ' + bErr.message);
+            }
+            remaining -= batchSize;
+            await sleep(200);
+          }
         }
 
-        // 阶段3：开场白
-        if (engineSignal && engineSignal.aborted) throw new DOMException('已取消', 'AbortError');
-        currentStep++;
-        if (aiCenter && engineTask) aiCenter.setProgress(engineTask.id, currentStep / totalSteps, '开场白');
-        if (hacker) { hacker.setPhase('\ud83d\udcac [阶段 ' + currentStep + '/' + totalSteps + '] 撰写开场白...'); hacker.setProgress(currentStep, totalSteps); hacker.setDetail(hacker.randomMsg()); }
-        if (statusEl) { statusEl.textContent = '\u23f3 [阶段 3] 生成开场白...'; statusEl.style.color = '#38bdf8'; }
-
-        var greetUserDir = (greetEl && greetEl.value.trim())
-          || '根据角色与世界书骨架，生成沉浸式主开场白与 2 条备选开场白';
-        var greetSys = ctx.promptText('greetingGen')
-          + charRef
-          + formatWbSkeletonRef(ctx.state.worldbookEntries)
-          + (presetsStr ? '\n【文风】：' + presetsStr.substring(0, 200) : '')
-          + buildNsfwFlavorHint()
-          + buildNtlHintForPrompt()
-          + searchInjection;
-
-        var aiResp3 = await ctx.fetchAIContent({
-          context: '开场白/阶段3',
-          url: url,
-          headers: headers,
-          model: model,
-          messages: [{ role: 'system', content: greetSys }, { role: 'user', content: greetUserDir }],
-          temperature: 0.88,
-          httpErrorPrefix: '开场白生成失败 HTTP ',
-          signal: engineSignal,
+        // —— 开场白 ——
+        await ctx.panels.aiEngine._generateGreetingPhase({
+          url: url, headers: headers, model: model,
+          charRef: charRef, greetEl: greetEl, hasWorldview: hasWorldview,
+          presetsStr: presetsStr, wvGreetHint: wvGreetHint, searchInjection: searchInjection,
+          engineSignal: engineSignal, engineTask: engineTask, aiCenter: aiCenter,
+          hacker: hacker, statusEl: statusEl,
+          currentStep: currentStep, totalSteps: totalSteps,
         });
-        var greetData = ctx.extractJsonObj(aiResp3.content, '开场白/阶段3');
-        ctx.state.firstMes = greetData.firstMes || '';
-        ctx.state.altGreetings = (greetData.altGreetings && Array.isArray(greetData.altGreetings)) ? greetData.altGreetings : [];
-        window.__altGreetings__ = ctx.state.altGreetings;
-        if (window.__renderAltGreetings__) window.__renderAltGreetings__();
-        ctx.save();
-        if (hacker) hacker.setDetail('\u2705 开场白已写入（主 + ' + ctx.state.altGreetings.length + ' 备选）');
-        await sleep(400);
 
-        // 完成
         if (aiCenter && engineTask) aiCenter.succeed(engineTask.id);
+        var doneMode = genMode === ENGINE_GEN_MODE_FULL ? '完整条目' : '骨架';
         if (hacker) {
-          hacker.stop(); hacker.setPhase('\ud83c\udf89 生成完毕！'); hacker.setProgress(totalSteps, totalSteps);
-          var doneMsg = '角色「' + ctx.state.charName + '」+ ' + ctx.state.worldbookEntries.length + ' 条骨架 + 开场白已就绪。';
-          if (searchEnabled && cachedSearchResults) doneMsg += ' (参考了 ' + cachedSearchResults.length + ' 条搜索结果)';
-          doneMsg += ' 请用「\u2728 AI重写」逐条展开骨架。';
-          hacker.setDetail(doneMsg);
+          hacker.stop();
+          hacker.setPhase('\ud83c\udf89 生成完毕');
+          hacker.setProgress(totalSteps, totalSteps);
+          hacker.setDetail('角色「' + ctx.state.charName + '」+ ' + ctx.state.worldbookEntries.length + ' 条' + doneMode + ' + 开场白');
           setTimeout(function() { if (hacker) hacker.hide(); }, 5000);
         }
         if (statusEl) {
-          statusEl.textContent = '\u2705 完毕！' + ctx.state.worldbookEntries.length + ' 条骨架 + 开场白' + (searchEnabled ? ' (已联网)' : '') + '。请逐条展开骨架。';
+          statusEl.textContent = '\u2705 完毕！' + ctx.state.worldbookEntries.length + ' 条' + doneMode
+            + (genMode === ENGINE_GEN_MODE_SKELETON ? '（可用 AI重写展开）' : '');
           statusEl.style.color = '#10b981';
         }
-
       } catch (err) {
         if (ctx.isTrackedAbort(err)) {
           if (aiCenter && engineTask && engineTask.status !== 'cancelled') aiCenter.cancel(engineTask.id);
-          if (hacker) { hacker.stop(); hacker.setPhase('\u23f9 已取消'); hacker.setDetail('用户停止'); setTimeout(function() { if (hacker) hacker.hide(); }, 2000); }
+          if (hacker) { hacker.stop(); hacker.setPhase('\u23f9 已取消'); setTimeout(function() { if (hacker) hacker.hide(); }, 2000); }
           if (statusEl) { statusEl.textContent = '\u23f9 已取消'; statusEl.style.color = 'var(--color-text-muted)'; }
         } else {
           if (aiCenter && engineTask) aiCenter.fail(engineTask.id, err);
@@ -553,6 +871,260 @@ export function registerAiEngine(ctx) {
         }
       } finally {
         if (btnEl) btnEl.disabled = false;
+      }
+    },
+
+    _enrichOutlineSlots: async function(o) {
+      var slots = o.outlineSlots || [];
+      var currentStep = o.currentStep || 0;
+      var failCount = 0;
+      for (var i = 0; i < slots.length; i++) {
+        if (o.engineSignal && o.engineSignal.aborted) throw new DOMException('已取消', 'AbortError');
+        currentStep++;
+        var slot = slots[i];
+        var typeLab = OUTLINE_TYPE_LABELS[slot.type] || slot.type;
+        if (o.aiCenter && o.engineTask) {
+          o.aiCenter.setProgress(o.engineTask.id, currentStep / o.totalSteps, '丰满 ' + (i + 1) + '/' + slots.length);
+        }
+        if (o.hacker) {
+          o.hacker.setPhase('\u2728 丰满 ' + (i + 1) + '/' + slots.length + ' · ' + typeLab);
+          o.hacker.setProgress(currentStep, o.totalSteps);
+          o.hacker.setDetail(slot.comment);
+        }
+        if (o.statusEl) {
+          o.statusEl.textContent = '\u23f3 丰满 ' + (i + 1) + '/' + slots.length + '「' + slot.comment + '」';
+          o.statusEl.style.color = '#38bdf8';
+        }
+
+        var entryIdx = -1;
+        for (var j = 0; j < ctx.state.worldbookEntries.length; j++) {
+          if (ctx.state.worldbookEntries[j].comment === slotToWorldbookEntry(slot, 0).comment
+            || ctx.state.worldbookEntries[j].comment === slot.comment
+            || (ctx.state.worldbookEntries[j].outlineBlurb === slot.blurb && isSkeletonEntry(ctx.state.worldbookEntries[j]))) {
+            entryIdx = j;
+            break;
+          }
+        }
+        if (entryIdx < 0) entryIdx = i;
+
+        var enrichSys = ctx.promptText('wbEnrichFromOutline')
+          + (o.charRef || '')
+          + formatOutlineRef(slots)
+          + formatEnrichedEntriesRef(ctx.state.worldbookEntries)
+          + buildAdultHintsForWbType(slot.type)
+          + (o.wvWbHint || '')
+          + (o.presetsStr ? '\n【文风】：' + String(o.presetsStr).substring(0, 200) : '')
+          + (o.searchInjection || '');
+        var enrichUser = [
+          '【本条大纲】type=' + slot.type + '（' + typeLab + '）',
+          '标题：' + slot.comment,
+          '职责：' + slot.blurb,
+          '关联：' + ((slot.links && slot.links.length) ? slot.links.join('、') : '无'),
+          '请展开为完整词条 JSON。',
+        ].join('\n');
+
+        var ok = false;
+        for (var attempt = 0; attempt < 2 && !ok; attempt++) {
+          try {
+            var aiEn = await ctx.fetchAIContent({
+              context: '大纲丰满/' + slot.comment,
+              url: o.url, headers: o.headers, model: o.model,
+              messages: [{ role: 'system', content: enrichSys }, { role: 'user', content: enrichUser }],
+              temperature: 0.75,
+              httpErrorPrefix: '丰满失败 HTTP ',
+              signal: o.engineSignal,
+            });
+            var ed = ctx.extractJsonObj(aiEn.content, '大纲丰满/' + slot.comment);
+            var target = ctx.state.worldbookEntries[entryIdx] || slotToWorldbookEntry(slot, 100 + i);
+            target.comment = ed.comment || target.comment || slot.comment;
+            target.content = ed.content || target.content;
+            target.keys = Array.isArray(ed.keys) ? ed.keys : (target.keys || slot.keys || []);
+            if (ed.strategy) target.strategy = ed.strategy;
+            if (ed.position != null) target.position = parseInt(ed.position, 10) || target.position;
+            target.outlineType = slot.type;
+            target.outlineLinks = (slot.links || []).slice();
+            ctx.state.worldbookEntries[entryIdx] = target;
+            ctx.renderAll();
+            ctx.save();
+            ok = true;
+          } catch (enErr) {
+            if (ctx.isTrackedAbort(enErr)) throw enErr;
+            if (attempt === 1) {
+              failCount++;
+              if (o.hacker) o.hacker.setDetail('\u26a0\ufe0f 跳过「' + slot.comment + '」: ' + enErr.message);
+            }
+          }
+        }
+        await sleep(180);
+      }
+
+      // 交叉补边
+      currentStep++;
+      if (o.aiCenter && o.engineTask) o.aiCenter.setProgress(o.engineTask.id, currentStep / o.totalSteps, '交叉补边');
+      if (o.hacker) { o.hacker.setPhase('\ud83e\udd1d 交叉补边...'); o.hacker.setProgress(currentStep, o.totalSteps); }
+      if (o.statusEl) o.statusEl.textContent = '\u23f3 交叉补边（互指）...';
+      try {
+        var crossSys = ctx.promptText('wbCrossLink')
+          + formatEnrichedEntriesRef(ctx.state.worldbookEntries, { maxEntries: 16, perEntryChars: 160 });
+        var crossResp = await ctx.fetchAIContent({
+          context: '世界书交叉补边',
+          url: o.url, headers: o.headers, model: o.model,
+          messages: [
+            { role: 'system', content: crossSys },
+            { role: 'user', content: '为需要互指的条目输出 patches。' },
+          ],
+          temperature: 0.5,
+          httpErrorPrefix: '交叉补边 HTTP ',
+          signal: o.engineSignal,
+        });
+        var crossObj = ctx.extractJsonObj(crossResp.content, '交叉补边');
+        var patches = Array.isArray(crossObj && crossObj.patches) ? crossObj.patches : [];
+        patches.forEach(function(p) {
+          if (!p || !p.comment || !p.append) return;
+          var hit = ctx.state.worldbookEntries.find(function(e) { return e.comment === p.comment; });
+          if (!hit) return;
+          var append = String(p.append).trim();
+          if (!append) return;
+          if (String(hit.content || '').indexOf(append.slice(0, 24)) >= 0) return;
+          hit.content = String(hit.content || '').trim() + '\n' + append;
+        });
+        if (patches.length) { ctx.renderAll(); ctx.save(); }
+      } catch (cErr) {
+        if (ctx.isTrackedAbort(cErr)) throw cErr;
+        if (o.hacker) o.hacker.setDetail('\u26a0\ufe0f 交叉补边跳过: ' + cErr.message);
+      }
+      if (failCount && o.statusEl) {
+        o.statusEl.textContent = '\u26a0\ufe0f 丰满完成（' + failCount + ' 条失败已跳过）';
+      }
+      return currentStep;
+    },
+
+    _generateGreetingPhase: async function(o) {
+      var currentStep = (o.currentStep || 0) + 1;
+      if (o.engineSignal && o.engineSignal.aborted) throw new DOMException('已取消', 'AbortError');
+      if (o.aiCenter && o.engineTask) o.aiCenter.setProgress(o.engineTask.id, currentStep / o.totalSteps, '开场白');
+      if (o.hacker) { o.hacker.setPhase('\ud83d\udcac 开场白...'); o.hacker.setProgress(currentStep, o.totalSteps); }
+      if (o.statusEl) { o.statusEl.textContent = '\u23f3 生成开场白...'; o.statusEl.style.color = '#38bdf8'; }
+      var greetUserDir = (o.greetEl && o.greetEl.value.trim())
+        || (o.hasWorldview
+          ? '请基于世界观预设与角色/世界书，生成沉浸式主开场白与 2 条备选'
+          : '根据角色与世界书生成沉浸式主开场白与 2 条备选');
+      var greetSys = ctx.promptText('greetingGen')
+        + (o.charRef || '')
+        + formatWbSkeletonRef(ctx.state.worldbookEntries)
+        + formatEnrichedEntriesRef(ctx.state.worldbookEntries, { maxEntries: 8, perEntryChars: 120 })
+        + (o.presetsStr ? '\n【文风】：' + String(o.presetsStr).substring(0, 200) : '')
+        + '\n【约束】开场白面向主角互动，勿写成恶堕进度或 NTL 调教说明书。'
+        + (o.wvGreetHint || '')
+        + (o.searchInjection || '');
+      var aiResp3 = await ctx.fetchAIContent({
+        context: '开场白/阶段3',
+        url: o.url, headers: o.headers, model: o.model,
+        messages: [{ role: 'system', content: greetSys }, { role: 'user', content: greetUserDir }],
+        temperature: 0.88,
+        httpErrorPrefix: '开场白生成失败 HTTP ',
+        signal: o.engineSignal,
+      });
+      var greetData = ctx.extractJsonObj(aiResp3.content, '开场白/阶段3');
+      ctx.state.firstMes = greetData.firstMes || '';
+      ctx.state.altGreetings = (greetData.altGreetings && Array.isArray(greetData.altGreetings)) ? greetData.altGreetings : [];
+      window.__altGreetings__ = ctx.state.altGreetings;
+      if (window.__renderAltGreetings__) window.__renderAltGreetings__();
+      ctx.save();
+      return currentStep;
+    },
+
+    /** 大纲暂停后继续丰满 + 开场白 */
+    continueEnrichFromOutline: async function() {
+      var contBtn = ctx.$('btnAiContinueEnrich');
+      var statusEl = ctx.$('aiStatus');
+      var apiUrlEl = ctx.$('apiUrl');
+      var apiKeyEl = ctx.$('apiKey');
+      var modelEl = ctx.$('modelSelect');
+      var greetEl = ctx.$('greetingPrompt');
+      var url = (apiUrlEl ? apiUrlEl.value : '').replace(/\/$/, '') + '/chat/completions';
+      var key = apiKeyEl ? apiKeyEl.value.trim() : '';
+      var model = modelEl ? modelEl.value : '';
+      if (!model) { window.alert('请先选择模型'); return; }
+
+      var slots = pendingOutlineSlots;
+      if (!slots || !slots.length) {
+        // 从现有骨架条目重建
+        slots = (ctx.state.worldbookEntries || []).filter(isSkeletonEntry).map(function(e, i) {
+          return {
+            type: e.outlineType || 'other',
+            comment: e.comment,
+            blurb: e.outlineBlurb || e.content || '（待展开）',
+            keys: e.keys || [],
+            links: e.outlineLinks || [],
+            strategy: e.strategy || 'selective',
+            _i: i,
+          };
+        });
+      }
+      if (!slots.length) {
+        window.alert('没有待丰满的大纲条目');
+        return;
+      }
+
+      var headers = { 'Content-Type': 'application/json' };
+      if (key) headers['Authorization'] = 'Bearer ' + key;
+      var presetsStr = ctx.panels.aiEngine.getActivePresetsStr();
+      var wvItems = getWorldviewPresetItems();
+      var wvWbHint = buildActiveWorldviewHint('worldbook');
+      var wvGreetHint = buildActiveWorldviewHint('greeting');
+      var charRef = formatCharRefForPrompt({
+        charName: ctx.state.charName,
+        charDesc: ctx.state.charDesc,
+        wbName: ctx.state.wbName,
+        creatorNotes: ctx.state.creatorNotes,
+        tags: ctx.state.charTags,
+      });
+      var totalSteps = slots.length + 2;
+      var hacker = window.__hackerAnim__;
+      var aiCenter = window.__aiTaskCenter__;
+      var engineTask = aiCenter ? aiCenter.create({
+        type: 'engine_enrich',
+        title: '按大纲丰满世界书',
+        target: slots.length + ' 条',
+      }) : null;
+      if (contBtn) contBtn.disabled = true;
+      if (hacker) { hacker.start(); hacker.setPhase('继续丰满...'); hacker.setProgress(0, totalSteps); }
+
+      try {
+        await ctx.panels.aiEngine._enrichOutlineSlots({
+          url: url, headers: headers, model: model,
+          charRef: charRef, outlineSlots: slots,
+          wvWbHint: wvWbHint, presetsStr: presetsStr, searchInjection: '',
+          engineSignal: engineTask && engineTask.signal,
+          engineTask: engineTask, aiCenter: aiCenter,
+          hacker: hacker, statusEl: statusEl,
+          currentStep: 0, totalSteps: totalSteps,
+        });
+        await ctx.panels.aiEngine._generateGreetingPhase({
+          url: url, headers: headers, model: model,
+          charRef: charRef, greetEl: greetEl,
+          hasWorldview: wvItems.length > 0,
+          presetsStr: presetsStr, wvGreetHint: wvGreetHint, searchInjection: '',
+          engineSignal: engineTask && engineTask.signal,
+          engineTask: engineTask, aiCenter: aiCenter,
+          hacker: hacker, statusEl: statusEl,
+          currentStep: slots.length + 1, totalSteps: totalSteps,
+        });
+        pendingOutlineSlots = null;
+        if (contBtn) contBtn.hidden = true;
+        if (aiCenter && engineTask) aiCenter.succeed(engineTask.id);
+        if (hacker) { hacker.stop(); hacker.setPhase('\u2705 丰满完成'); setTimeout(function() { if (hacker) hacker.hide(); }, 3000); }
+        if (statusEl) { statusEl.textContent = '\u2705 丰满与开场白完成'; statusEl.style.color = '#10b981'; }
+      } catch (err) {
+        if (aiCenter && engineTask) {
+          if (ctx.isTrackedAbort(err)) aiCenter.cancel(engineTask.id);
+          else aiCenter.fail(engineTask.id, err);
+        }
+        if (statusEl) { statusEl.textContent = '\u274c ' + (err.message || err); statusEl.style.color = '#ef4444'; }
+        if (hacker) { hacker.stop(); setTimeout(function() { if (hacker) hacker.hide(); }, 2000); }
+      } finally {
+        if (contBtn) contBtn.disabled = false;
       }
     },
 
@@ -590,13 +1162,25 @@ export function registerAiEngine(ctx) {
       var presetsStr  = ctx.panels.aiEngine.getActivePresetsStr();
       var presetBlock = presetsStr ? '\n\n【文风约束】：\n' + presetsStr : '';
       var wbIncludeCharData = ctx.$('wbIncludeCharData');
+      // 默认不注入主角 Description（两管道隔离）；仅高级勾选时作背景参考
       var includeChar = wbIncludeCharData && wbIncludeCharData.checked;
-      var charBlock   = includeChar ? '\n【角色】：' + ctx.state.charName + ' | ' + ctx.state.charDesc + '\n' : '';
+      var charBlock   = includeChar
+        ? '\n【高级·主角背景参考（勿写入本条为角色设定）】：' + ctx.state.charName + ' | ' + String(ctx.state.charDesc || '').slice(0, 2000) + '\n'
+        : '\n【管道】世界书生成与主角角色设定分离；默认不读取主角 Description。\n';
+      var adultHints = (typeof window.__buildAdultPromptHints__ === 'function')
+        ? window.__buildAdultPromptHints__()
+        : { nsfw: buildNsfwFlavorHint(), ntl: buildNtlHintForPrompt(), canon: buildAdultCanonHint() };
+      var wvWbSingle = buildActiveWorldviewHint('worldbook');
       var sysPrompt   = (ctx.promptText('wbSingle') || '')
         + stepInfo + charBlock + '\n' + ctxStr + '\n' + presetBlock
-        + buildNsfwFlavorHint() + buildNtlHintForPrompt() + searchInjection
+        + (adultHints.nsfw || '') + (adultHints.ntl || '') + (adultHints.vessel || '')
+        + (adultHints.canon || '')
+        + (wvWbSingle || '')
+        + searchInjection
+        + '\n【说明】人物类条目标题建议「[小说人物] 名字」；成人内容只写世界书，勿写主角卡面。'
+        + '\n【冲突处理】若「用户额外要求」与「世界观预设」冲突，以用户额外要求为准。'
         + '\n【输出】：1个JSON对象 { "comment": "标题", "content": "详细设定(至少100字)", "keys": ["触发词"], "strategy": "selective 或 constant", "position": 4 }';
-      var userPrompt  = customDirection ? '【方向】：' + customDirection : '【自由发挥，拒绝重复】';
+      var userPrompt  = customDirection ? '【方向·优先】：' + customDirection : '【自由发挥，拒绝重复；有世界观预设则紧贴预设语汇】';
       var headers     = { 'Content-Type': 'application/json' };
       if (key) headers['Authorization'] = 'Bearer ' + key;
 
@@ -685,7 +1269,7 @@ export function registerAiEngine(ctx) {
       if (key) headers['Authorization'] = 'Bearer ' + key;
       var sysPrompt = ctx.promptText('charTagsGen')
         || '根据角色设定与世界书，生成 5-12 个短中文分类标签。只输出 JSON 数组，例如 ["奇幻","恋爱"]。不要解释。';
-      sysPrompt += buildNsfwFlavorHint();
+      // 主角标签：不注入 NSFW 口味
 
       var btnEl = ctx.$('btnAiGenCharTags');
       if (btnEl) btnEl.disabled = true;
@@ -738,9 +1322,30 @@ export function registerAiEngine(ctx) {
       if (window.updatePreviewPanel) window.updatePreviewPanel(fj);
     },
 
+    applyWorldviewPresetId: function(id) {
+      fillWorldviewSelect(String(id || '').trim());
+    },
+
+    getWorldviewPresetId: function() {
+      return getWorldviewPresetId();
+    },
+
+    getWorldviewPresetItems: function() {
+      return getWorldviewPresetItems();
+    },
+
+    applyWorldviewPresetItems: function(items, legacyId) {
+      setWorldviewPresetItems(items, legacyId);
+      renderWorldviewPresetList();
+      syncWorldframeFromPresetItems(worldviewPresetItems);
+    },
+
     // ===== 绑定事件 =====
 
     bind: function() {
+      fillWorldviewSelect(primaryWorldviewPresetId(worldviewPresetItems) || '');
+      renderWorldviewPresetList();
+
       var presetInput = ctx.$('presetInput');
       if (presetInput) {
         presetInput.addEventListener('change', function(e) {
@@ -769,7 +1374,7 @@ export function registerAiEngine(ctx) {
                 });
               }
               ctx.panels.aiEngine.renderPresetList();
-              saveAiConfig();
+              persistAiConfig();
             } catch (err) {
               var presetStatus = ctx.$('presetStatus');
               if (presetStatus) {
@@ -798,12 +1403,41 @@ export function registerAiEngine(ctx) {
         });
       }
 
-      var btnAiSingleWb = ctx.$('btnAiSingleWb');
-      if (btnAiSingleWb) {
-        btnAiSingleWb.addEventListener('click', function() {
-          ctx.panels.aiEngine.runSingleWbEntry();
+      var btnAiContinueEnrich = ctx.$('btnAiContinueEnrich');
+      if (btnAiContinueEnrich) {
+        btnAiContinueEnrich.addEventListener('click', function() {
+          ctx.panels.aiEngine.continueEnrichFromOutline();
         });
       }
+
+      var genModeEl = ctx.$('aiEngineGenMode');
+      if (genModeEl) {
+        genModeEl.addEventListener('change', function() {
+          syncEngineModeUi();
+          persistAiConfig();
+        });
+      }
+      var pauseEl = ctx.$('aiEnginePauseAfterOutline');
+      if (pauseEl) {
+        pauseEl.addEventListener('change', function() {
+          persistAiConfig();
+        });
+      }
+      var skCountEl = ctx.$('wbSkeletonCount');
+      if (skCountEl) {
+        skCountEl.addEventListener('change', function() { persistAiConfig(); });
+        skCountEl.addEventListener('input', function() { persistAiConfig(); });
+      }
+      document.querySelectorAll('.wb-count-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          // AIPanel 已改 value；下一帧持久化
+          setTimeout(function() { persistAiConfig(); }, 0);
+        });
+      });
+
+      syncEngineModeUi();
+
+      // 单条世界书按钮由 worldbook.bind 独占（避免双绑定）
 
       var btnAiGenCharTags = ctx.$('btnAiGenCharTags');
       if (btnAiGenCharTags) {
@@ -812,22 +1446,100 @@ export function registerAiEngine(ctx) {
         });
       }
 
-      // AI 配置输入持久化
-      var apiUrl = ctx.$('apiUrl');
-      var apiKey = ctx.$('apiKey');
-      var modelSelect = ctx.$('modelSelect');
-      var aiDebugEnable = ctx.$('aiDebugEnable');
-
-      if (apiUrl) apiUrl.addEventListener('input', saveAiConfig);
-      if (apiKey) apiKey.addEventListener('input', saveAiConfig);
-      if (modelSelect) modelSelect.addEventListener('change', saveAiConfig);
-
-      if (aiDebugEnable) {
-        aiDebugEnable.addEventListener('change', function() {
-          ctx.updateAIDebugStatus();
-          saveAiConfig();
+      // 世界观多选：添加 / 排序 / 备注 / 移除
+      var addWvBtn = ctx.$('btnAddWorldviewPreset');
+      if (addWvBtn) {
+        addWvBtn.addEventListener('click', function() {
+          var picker = ctx.$('aiWorldviewPresetPicker');
+          var id = picker ? String(picker.value || '').trim() : '';
+          if (!id) return;
+          var items = getWorldviewPresetItems();
+          if (items.length >= MAX_WORLDVIEW_PRESET_ITEMS) return;
+          if (items.some(function(it) { return it.id === id; })) return;
+          items.push({ id: id, note: '' });
+          setWorldviewPresetItems(items);
+          renderWorldviewPresetList();
+          syncWorldframeFromPresetItems(items);
+          persistAiConfig();
         });
       }
+      var wvListEl = ctx.$('aiWorldviewPresetList');
+      if (wvListEl) {
+        wvListEl.addEventListener('click', function(e) {
+          var t = e.target;
+          if (!t || !t.getAttribute) return;
+          var up = t.getAttribute('data-wv-up');
+          var down = t.getAttribute('data-wv-down');
+          var remove = t.getAttribute('data-wv-remove');
+          var items = getWorldviewPresetItems();
+          if (up != null) {
+            var ui = parseInt(up, 10);
+            if (ui > 0 && ui < items.length) {
+              var tmp = items[ui - 1];
+              items[ui - 1] = items[ui];
+              items[ui] = tmp;
+              setWorldviewPresetItems(items);
+              renderWorldviewPresetList();
+              syncWorldframeFromPresetItems(items);
+              persistAiConfig();
+            }
+            return;
+          }
+          if (down != null) {
+            var di = parseInt(down, 10);
+            if (di >= 0 && di < items.length - 1) {
+              var tmp2 = items[di + 1];
+              items[di + 1] = items[di];
+              items[di] = tmp2;
+              setWorldviewPresetItems(items);
+              renderWorldviewPresetList();
+              syncWorldframeFromPresetItems(items);
+              persistAiConfig();
+            }
+            return;
+          }
+          if (remove != null) {
+            var ri = parseInt(remove, 10);
+            if (ri >= 0 && ri < items.length) {
+              items.splice(ri, 1);
+              setWorldviewPresetItems(items);
+              renderWorldviewPresetList();
+              syncWorldframeFromPresetItems(items);
+              persistAiConfig();
+            }
+          }
+        });
+        wvListEl.addEventListener('change', function(e) {
+          var t = e.target;
+          if (!t || !t.getAttribute) return;
+          var noteIdx = t.getAttribute('data-wv-note');
+          if (noteIdx == null) return;
+          var ni = parseInt(noteIdx, 10);
+          var items = getWorldviewPresetItems();
+          if (ni >= 0 && ni < items.length) {
+            items[ni].note = String(t.value || '');
+            setWorldviewPresetItems(items);
+            persistAiConfig();
+          }
+        });
+      }
+    },
+
+    /** 从 AI 配置恢复生成模式 / 暂停选项 / 条数 */
+    applyEnginePipelineOptions: function(cfg) {
+      if (!cfg || typeof cfg !== 'object') return;
+      var modeEl = ctx.$('aiEngineGenMode');
+      if (modeEl && cfg.engineGenMode != null) {
+        modeEl.value = normalizeEngineGenMode(cfg.engineGenMode);
+      }
+      var pauseEl = ctx.$('aiEnginePauseAfterOutline');
+      if (pauseEl && cfg.pauseAfterOutline != null) {
+        pauseEl.checked = !!cfg.pauseAfterOutline;
+      }
+      if (cfg.skeletonCount != null && window.__setSkeletonCount__) {
+        window.__setSkeletonCount__(cfg.skeletonCount);
+      }
+      syncEngineModeUi();
     },
   };
 }

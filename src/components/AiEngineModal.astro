@@ -13,45 +13,76 @@
     </div>
 
     <div class="ai-engine-modal__body area-ai">
-      <div class="form-group">
-        <label class="ai-stage-label ai-stage-label--char">[阶段1] 角色设定提示词</label>
-        <textarea id="aiPrompt" placeholder="例如：一个在赛博朋克世界中靠捡垃圾为生的边缘黑客少女..." style="min-height: 64px;"></textarea>
+      <div class="form-group ai-engine-worldview">
+        <label class="ai-stage-label">世界观预设（可多选组合）</label>
+        <div id="aiWorldviewPresetList" class="ai-wv-list" aria-live="polite"></div>
+        <div class="ai-wv-add-row">
+          <select id="aiWorldviewPresetPicker" aria-label="添加世界观预设">
+            <option value="">选择要添加的预设…</option>
+          </select>
+          <button type="button" id="btnAddWorldviewPreset" class="btn btn-ghost">＋添加</button>
+          <span id="aiWorldviewPresetCap" class="ai-engine-field-hint ai-engine-field-hint--tight"></span>
+        </div>
+        <!-- 兼容旧单选读取：隐藏同步首项 id -->
+        <select id="aiWorldviewPreset" hidden aria-hidden="true" tabindex="-1">
+          <option value="">不使用预设</option>
+        </select>
+        <p class="ai-engine-field-hint">最多 3 项；首项为主世界观（定底盘），其余为叠加层（隐秘族群/飞地/双轨）。下方阶段输入可再补充；冲突时以你的要求与各项备注优先。</p>
       </div>
 
       <div class="form-group">
-        <label class="ai-stage-label ai-stage-label--wb">[阶段2] 世界书骨架提示词</label>
+        <label class="ai-stage-label ai-stage-label--char">[阶段1] 角色设定提示词</label>
+        <textarea id="aiPrompt" placeholder="例如：额外要求——她是底层黑客，性格冷淡但护短..." style="min-height: 64px;"></textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="ai-stage-label ai-stage-label--wb">[阶段2] 世界书方向提示词</label>
         <textarea id="wbPrompt" placeholder="例如：围绕赛博废土展开，包含武器、势力、地点、NPC..." style="min-height: 52px; border-color: rgba(16, 185, 129, 0.3);"></textarea>
       </div>
 
       <div class="form-group">
         <label class="ai-stage-label ai-stage-label--greeting">[阶段3] 开场白提示词</label>
         <textarea id="greetingPrompt" placeholder="例如：雨夜巷口初遇，用第二人称、带环境描写与角色小动作..." style="min-height: 52px; border-color: rgba(167, 139, 250, 0.35);"></textarea>
-        <p class="ai-engine-field-hint">始终执行；留空则按角色与世界书骨架自动构思。后续阶段会将前序生成结果注入参考。</p>
+        <p class="ai-engine-field-hint">始终执行；留空则按角色与世界书自动构思。后续阶段会将前序结果注入参考。</p>
       </div>
 
-      <!-- 世界书条数 -->
       <div class="ai-engine-skeleton-box">
+        <div class="ai-engine-mode-row">
+          <label class="ai-stage-label ai-stage-label--wb ai-stage-label--sm" for="aiEngineGenMode">生成模式</label>
+          <select id="aiEngineGenMode" aria-label="AI 引擎生成模式">
+            <option value="full" selected>完整生成（大纲→逐条丰满）</option>
+            <option value="skeleton">仅骨架（不自动展开）</option>
+          </select>
+        </div>
+        <p class="ai-engine-field-hint ai-engine-field-hint--tight" id="aiEngineModeHint">
+          默认：先出分类型大纲，再自动一条条写满（人物/地点/势力/事件/物品等互洽）。可选「仅骨架」节省时间。
+        </p>
+        <label class="ai-engine-pause-row" for="aiEnginePauseAfterOutline">
+          <input type="checkbox" id="aiEnginePauseAfterOutline" />
+          <span>大纲完成后暂停（确认后再点下方「继续丰满」）</span>
+        </label>
         <div class="ai-engine-skeleton-row">
           <div class="ai-engine-skeleton-meta">
-            <label class="ai-stage-label ai-stage-label--wb ai-stage-label--sm">骨架模式</label>
-            <p class="ai-engine-field-hint ai-engine-field-hint--tight">一键生成时只产出简短骨架。后续用「✨ AI重写」逐条展开。</p>
+            <label class="ai-stage-label ai-stage-label--wb ai-stage-label--sm">世界书条数</label>
+            <p class="ai-engine-field-hint ai-engine-field-hint--tight">完整模式=大纲槽位数；仅骨架=骨架条数。</p>
           </div>
           <div class="ai-engine-skeleton-count">
             <label style="color: var(--color-text-muted); font-size: 0.75rem; white-space: nowrap; margin: 0;">生成</label>
-            <input type="number" id="wbSkeletonCount" value="6" min="1" max="30" style="width: 52px; text-align: center; padding: 6px 4px; font-size: 0.9rem; font-weight: 700; border-color: rgba(16,185,129,0.3);" />
+            <input type="number" id="wbSkeletonCount" value="10" min="1" max="30" style="width: 52px; text-align: center; padding: 6px 4px; font-size: 0.9rem; font-weight: 700; border-color: rgba(16,185,129,0.3);" />
             <label style="color: var(--color-text-muted); font-size: 0.75rem; white-space: nowrap; margin: 0;">条</label>
           </div>
         </div>
         <div class="ai-engine-skeleton-pills">
-          <button type="button" class="ui-pill-btn wb-count-btn" data-count="3">3条</button>
           <button type="button" class="ui-pill-btn wb-count-btn" data-count="6">6条</button>
           <button type="button" class="ui-pill-btn wb-count-btn" data-count="10">10条</button>
-          <button type="button" class="ui-pill-btn wb-count-btn" data-count="15">15条</button>
+          <button type="button" class="ui-pill-btn wb-count-btn" data-count="13">13条</button>
+          <button type="button" class="ui-pill-btn wb-count-btn" data-count="16">16条</button>
           <button type="button" class="ui-pill-btn wb-count-btn" data-count="20">20条</button>
         </div>
       </div>
 
-      <button type="button" id="btnAiGenerate" class="btn btn-ai">一键生成角色、世界书骨架与开场白</button>
+      <button type="button" id="btnAiGenerate" class="btn btn-ai">一键完整生成（角色·大纲·丰满·开场白）</button>
+      <button type="button" id="btnAiContinueEnrich" class="btn btn-fetch" hidden style="margin-top: 8px; width: 100%;">继续：按大纲逐条丰满</button>
 
       <div id="hackerOverlay" style="display: none;">
         <div id="hackerCanvas"></div>
@@ -150,6 +181,31 @@
     padding: 12px 14px;
     margin-bottom: 14px;
   }
+  .ai-engine-mode-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+  .ai-engine-mode-row select {
+    width: 100%;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(16, 185, 129, 0.35);
+    background: var(--color-surface, #0f1419);
+    color: var(--color-text);
+    font-size: 0.88rem;
+  }
+  .ai-engine-pause-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    margin: 8px 0 10px;
+    cursor: pointer;
+  }
+  .ai-engine-pause-row input { margin-top: 2px; }
   .ai-engine-skeleton-row {
     display: flex;
     align-items: center;
@@ -171,6 +227,86 @@
   .ai-engine-skeleton-pills .wb-count-btn { flex: 1; }
 
   /* 弹窗内输入：抬高背景对比，避免玻璃底上文字发灰 */
+  .ai-engine-worldview select {
+    width: 100%;
+    color: var(--color-text);
+    background-color: var(--color-surface-elevated);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 0.85rem;
+  }
+  .ai-wv-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 8px;
+    min-height: 28px;
+  }
+  .ai-wv-item {
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    background: var(--color-surface-elevated);
+  }
+  .ai-wv-item-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .ai-wv-item-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--color-text);
+  }
+  .ai-wv-primary-tag {
+    display: inline-block;
+    margin-left: 6px;
+    font-size: 0.65rem;
+    font-weight: 500;
+    color: var(--color-success);
+    border: 1px solid rgba(16, 185, 129, 0.35);
+    border-radius: 4px;
+    padding: 0 5px;
+    vertical-align: middle;
+  }
+  .ai-wv-item-desc {
+    font-size: 0.7rem;
+    color: var(--color-text-muted);
+    margin-top: 4px;
+    line-height: 1.4;
+  }
+  .ai-wv-item-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+  .ai-wv-item-actions .btn {
+    font-size: 0.68rem;
+    padding: 2px 8px;
+  }
+  .ai-wv-item textarea {
+    width: 100%;
+    margin-top: 6px;
+    min-height: 44px;
+    font-size: 0.75rem;
+  }
+  .ai-wv-add-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+  .ai-wv-add-row select {
+    flex: 1;
+    min-width: 160px;
+  }
+  .ai-wv-empty {
+    font-size: 0.72rem;
+    color: var(--color-text-muted);
+  }
   .ai-engine-modal__body textarea,
   .ai-engine-modal__body input[type="number"] {
     color: var(--color-text);

@@ -99,8 +99,10 @@ const MODS_ROMANCE = ['time_weather', 'location', 'emotion', 'affection', 'trust
 const MODS_NSFW_CORE = [
   'nsfw_vagina', 'nsfw_breasts', 'nsfw_legs', 'nsfw_feet', 'nsfw_anus', 'nsfw_thoughts',
   'nsfw_mouth', 'nsfw_erogenous', 'nsfw_orgasm', 'nsfw_fluids', 'nsfw_exposure',
-  'nsfw_training', 'nsfw_experience', 'nsfw_act_state', 'corruption_stage',
+  'nsfw_training', 'nsfw_experience', 'nsfw_act_state',
 ];
+/** 恶堕进度默认只进多人预设（绑世界书人物）；单人预设不挂主角「角色.恶堕进度」 */
+const MODS_CORRUPTION = ['corruption_stage'];
 /** 多人基础模块（无配角摘要） */
 const MODS_MULTI_BASE = ['time_weather', 'location', 'emotion', 'action', 'outfit', 'event_chips'];
 
@@ -122,8 +124,8 @@ export const STATUS_BAR_PRESETS = Object.freeze([
   { id: 'single_mystery', cast: 'single', label: '悬疑推理', hint: '记忆线索+事件', modules: ['time_weather', 'location', 'emotion', 'action', 'memory_summary', 'quest', 'event_chips', 'items'] },
   { id: 'single_military', cast: 'single', label: '军事行动', hint: '属性任务地点', modules: ['time_weather', 'location', 'attributes', 'action', 'outfit', 'items', 'quest', 'event_chips'] },
   { id: 'single_lovecraft', cast: 'single', label: '克苏鲁', hint: '理智向属性+记忆', modules: ['time_weather', 'location', 'attributes', 'emotion', 'action', 'memory_summary', 'event_chips', 'quest'] },
-  { id: 'single_ntl', cast: 'single', label: 'NTL 亲密', nsfw: true, hint: '恋爱+内心身体', modules: MODS_ROMANCE.concat(['nsfw_thoughts', 'nsfw_breasts', 'nsfw_legs', 'nsfw_orgasm', 'nsfw_act_state', 'corruption_stage']) },
-  { id: 'single_ntr', cast: 'single', label: 'NTR 张力', nsfw: true, hint: '关系张力+身体', modules: MODS_ROMANCE.concat(['nsfw_thoughts', 'nsfw_vagina', 'nsfw_breasts', 'nsfw_fluids', 'nsfw_act_state', 'corruption_stage']) },
+  { id: 'single_ntl', cast: 'single', label: 'NTL 亲密', nsfw: true, hint: '恋爱+内心身体', modules: MODS_ROMANCE.concat(['nsfw_thoughts', 'nsfw_breasts', 'nsfw_legs', 'nsfw_orgasm', 'nsfw_act_state']) },
+  { id: 'single_ntr', cast: 'single', label: 'NTR 张力', nsfw: true, hint: '关系张力+身体', modules: MODS_ROMANCE.concat(['nsfw_thoughts', 'nsfw_vagina', 'nsfw_breasts', 'nsfw_fluids', 'nsfw_act_state']) },
   {
     id: 'single_nsfw', cast: 'single', label: '亲密 NSFW', nsfw: true, hint: '全身体模块',
     modules: MODS_ROMANCE.concat(MODS_NSFW_CORE),
@@ -146,15 +148,15 @@ export const STATUS_BAR_PRESETS = Object.freeze([
   { id: 'multi_rpg', cast: 'multi', label: '多人冒险', hint: '属性物品任务', modules: MODS_MULTI_BASE.concat(['attributes', 'items', 'quest', 'memory_summary', 'money']) },
   {
     id: 'multi_ntl', cast: 'multi', label: 'NTL 群像', hint: '全员同套亲密模块', nsfw: true,
-    modules: MODS_MULTI_BASE.concat(['affection', 'trust', 'relation_stage', 'nsfw_thoughts', 'nsfw_breasts', 'nsfw_legs', 'nsfw_orgasm', 'corruption_stage']),
+    modules: MODS_MULTI_BASE.concat(['affection', 'trust', 'relation_stage', 'nsfw_thoughts', 'nsfw_breasts', 'nsfw_legs', 'nsfw_orgasm']).concat(MODS_CORRUPTION),
   },
   {
     id: 'multi_ntr', cast: 'multi', label: 'NTR 张力', hint: '关系张力+内心', nsfw: true,
-    modules: MODS_MULTI_BASE.concat(['affection', 'trust', 'relation_stage', 'nsfw_thoughts', 'nsfw_vagina', 'nsfw_breasts', 'nsfw_act_state', 'corruption_stage']),
+    modules: MODS_MULTI_BASE.concat(['affection', 'trust', 'relation_stage', 'nsfw_thoughts', 'nsfw_vagina', 'nsfw_breasts', 'nsfw_act_state']).concat(MODS_CORRUPTION),
   },
   {
     id: 'multi_nsfw', cast: 'multi', label: '群像 NSFW', hint: '主详+身体模块', nsfw: true,
-    modules: MODS_MULTI_BASE.concat(['affection', 'relation_stage']).concat(MODS_NSFW_CORE),
+    modules: MODS_MULTI_BASE.concat(['affection', 'relation_stage']).concat(MODS_NSFW_CORE).concat(MODS_CORRUPTION),
   },
 ]);
 
