@@ -72,7 +72,7 @@ export const PROMPT_BLOCKS = {
     + '\n- false：不强制权力/背德/越界张力。'
     + '\n- true：须补权力不对等、背德/越界、强迫或胁迫氛围、精神操控、秘密与道德冲突等可 RP 机制；'
     + '可选 attrs.ntl={powerDynamic,tabooThemes[],coercionHint,moralConflict,secrets[]}；'
-    + '禁止涉及未成年人；可与 NSFW 叠加，Limits 仍优先。',
+    + '禁止儿童性化；礼法成年制度可写，情欲仅限已完成设定成年礼的成人角色；可与 NSFW 叠加，Limits 仍优先。',
 };
 
 var B = PROMPT_BLOCKS;

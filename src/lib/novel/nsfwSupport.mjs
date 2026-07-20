@@ -686,7 +686,7 @@ export function buildNtlHintBlock(phase) {
   var p = phase || 'enrich';
   var common = '\n【NTL 模式·禁忌张力（18+，与 NSFW 解耦可叠加）】'
     + '\n覆盖：权力不对等、背德/越界关系、强迫或胁迫氛围、精神操控、秘密与道德冲突、服从/掌控动态。'
-    + '\n须写出可 RP 的张力机制与情绪代价；禁止涉及未成年人；勿空喊「很禁忌」。'
+    + '\n须写出可 RP 的张力机制与情绪代价；禁止儿童性化（礼法成年制度可写，情欲仅限已完成设定成年礼的成人）；勿空喊「很禁忌」。'
     + '\n可与 NSFW 叠加：有身体描写时仍须尊重人物 Limits；NTL 侧重关系与心理张力。';
   if (p === 'skeleton') {
     return common

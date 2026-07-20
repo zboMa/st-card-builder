@@ -100,7 +100,8 @@ export function buildWorldviewHint(presetId, opts) {
   if (opts.userExtra && String(opts.userExtra).trim()) {
     lines.push('【用户额外要求·优先于预设冲突细节】\n' + String(opts.userExtra).trim());
   }
-  lines.push('【硬约束】预设提供骨架语汇与制度；用户额外要求优先。禁止未成年内容。');
+  lines.push('【硬约束】预设提供骨架语汇与制度；用户额外要求优先。');
+  lines.push('【成年与情欲边界】禁止儿童性化。世界观可写礼法成年制度（及笄/冠礼/婚嫁年岁等）；情欲/亲密戏仅限已完成该设定成年礼、具备同意能力的成人角色。不得以历史早婚等为儿童情欲开脱。');
   return lines.join('\n');
 }
 
