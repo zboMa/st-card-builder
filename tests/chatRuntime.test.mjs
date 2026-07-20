@@ -18,6 +18,9 @@ import {
   PLACEMENT_USER,
   PLACEMENT_AI,
   PLACEMENT_WORLD,
+  buildTrialChatMessages,
+  formatWbTriggerTags,
+  applyDisplayRegex,
 } from '../src/lib/chatRuntime/index.mjs';
 
 describe('stCompat', function() {
@@ -396,5 +399,50 @@ describe('buildChatCompletionMessages', function() {
     assert.ok(sys.some(function(m) { return /AN for Max/.test(m.content); }));
     assert.ok(built.messages.some(function(m) { return m.content === 'Depth note'; }));
     assert.ok(built.messages.some(function(m) { return m.content === 'Start chat'; }));
+  });
+});
+
+describe('browserChat bridge', function() {
+  it('buildTrialChatMessages 经 getter 组装并返回 parityVersion', function() {
+    var res = buildTrialChatMessages({
+      getChar: function() {
+        return { name: 'A', description: 'desc of A', creatorNotes: '' };
+      },
+      getWb: function() {
+        return [{
+          id: 1,
+          comment: 'const',
+          content: 'ALWAYS',
+          keys: [],
+          strategy: 'constant',
+          position: 0,
+          order: 1,
+        }];
+      },
+      getRegex: function() { return []; },
+      getPresets: function() {
+        return [{ role: 'system', content: 'preset-x' }];
+      },
+      history: [{ role: 'user', content: 'hi' }],
+      scanDepth: 2,
+      userName: 'Bob',
+      rpCoreText: 'core {{char}}',
+    });
+    assert.equal(res.parityVersion, '1.18.0');
+    assert.ok(res.messages.some(function(m) { return /preset-x/.test(m.content); }));
+    assert.ok(res.debug.activated.some(function(e) { return e.comment === 'const'; }));
+
+    var tags = formatWbTriggerTags(res.debug);
+    assert.equal(tags.length, res.debug.activated.length);
+    assert.equal(tags[0].isTriggered, true);
+
+    var shown = applyDisplayRegex('hello world', [{
+      scriptName: 'md',
+      findRegex: 'world',
+      replaceString: 'WORLD',
+      placement: [PLACEMENT_AI],
+      markdownOnly: true,
+    }]);
+    assert.equal(shown, 'hello WORLD');
   });
 });

@@ -37,3 +37,9 @@ export {
 } from './regex/pipeline.mjs';
 
 export { buildChatCompletionMessages } from './prompt/build.mjs';
+
+export {
+  buildTrialChatMessages,
+  formatWbTriggerTags,
+  applyDisplayRegex,
+} from './browserChat.mjs';
