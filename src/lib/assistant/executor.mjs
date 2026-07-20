@@ -296,6 +296,10 @@ export function createToolExecutor(bridge, snapApi) {
       }
       case 'get_mvu_state':
         return ok(bridge.getMvu());
+      case 'infer_mvu_variables': {
+        if (bridge.inferMvuVariables) return ok(bridge.inferMvuVariables(a));
+        return fail('MVU 推定桥接未就绪');
+      }
       case 'get_novel_workspace':
         return ok(bridge.getNovel());
       case 'novel_list_outputs':

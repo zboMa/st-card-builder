@@ -28,6 +28,7 @@ export const ASSISTANT_TOOLS = [
   { name: 'get_worldbook_list', kind: 'read', risk: 'none', summary: '世界书条目列表', argsHint: '{ query? }' },
   { name: 'get_worldbook_entry', kind: 'read', risk: 'none', summary: '单条世界书详情', argsHint: '{ target|{index|id|titleMatch|comment} }' },
   { name: 'get_mvu_state', kind: 'read', risk: 'none', summary: '读取 MVU 设计/扩展状态', argsHint: '{}' },
+  { name: 'infer_mvu_variables', kind: 'read', risk: 'none', summary: '从卡规则推定 MVU 候选变量（只读预览，不写入）', argsHint: '{}' },
   { name: 'get_novel_workspace', kind: 'read', risk: 'none', summary: '小说工坊状态摘要（含实体/RAG）', argsHint: '{}' },
   { name: 'get_export_preview', kind: 'read', risk: 'none', summary: '导出 JSON 结构预览（不下载）', argsHint: '{ maxChars? }' },
   { name: 'export_card_check', kind: 'read', risk: 'none', summary: '校验当前卡可导出结构（不触发下载）', argsHint: '{}' },

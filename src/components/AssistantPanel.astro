@@ -800,6 +800,8 @@ const catalogOverviewText = buildCatalogOverviewText({
     pickRelatedEntities,
     formatRelationContextLines,
   } from '../lib/assistant/ragInject.mjs';
+  import { inferMvuCandidatesFromCard, corruptionProgressGap } from '../lib/mvu/inferFromCard.mjs';
+  import { STATUS_BAR_EXT_KEY } from '../lib/statusBar.mjs';
 
   (function initAssistantPanel() {
     var boot = window.__assistantBoot__ || {};
@@ -1339,6 +1341,39 @@ const catalogOverviewText = buildCatalogOverviewText({
         return {
           design: window.__getCardExtension__ ? window.__getCardExtension__('zmer_mvu_design') : null,
           runtime: window.__getCardExtension__ ? window.__getCardExtension__('zmer_mvu_runtime_graph') : null,
+        };
+      },
+      inferMvuVariables: function() {
+        if (window.__assistantMvuApi__ && window.__assistantMvuApi__.inferVariables) {
+          return window.__assistantMvuApi__.inferVariables();
+        }
+        if (window.__mvuInferApi__ && window.__mvuInferApi__.infer) {
+          var cardLike = window.__mvuInferApi__.buildCardLike
+            ? window.__mvuInferApi__.buildCardLike()
+            : null;
+          return {
+            candidates: window.__mvuInferApi__.infer(cardLike),
+            corruptionGap: window.__mvuInferApi__.gap
+              ? window.__mvuInferApi__.gap(cardLike)
+              : null,
+          };
+        }
+        var ch = getCharacter();
+        var card = {
+          name: ch.charName || '',
+          description: ch.charDesc || '',
+          worldbook: getWorldbook(),
+          adultConfig: (typeof window.__getNsfwConfig__ === 'function') ? window.__getNsfwConfig__() : {},
+          statusBarDesign: window.__getCardExtension__
+            ? window.__getCardExtension__(STATUS_BAR_EXT_KEY)
+            : null,
+          mvuDesign: window.__getCardExtension__
+            ? window.__getCardExtension__('zmer_mvu_design')
+            : null,
+        };
+        return {
+          candidates: inferMvuCandidatesFromCard(card),
+          corruptionGap: corruptionProgressGap(card),
         };
       },
       upsertMvu: function(design) {

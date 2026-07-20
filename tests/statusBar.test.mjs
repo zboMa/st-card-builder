@@ -641,6 +641,8 @@ describe('statusBar wiring', function() {
     assert.doesNotMatch(mvu, /btnGen\.addEventListener/);
     assert.match(mvu, /已迁至状态栏|请使用「状态栏」|整套变量请在「状态栏」/);
     assert.match(mvu, /__assistantMvuApi__/);
+    assert.match(mvu, /btnVcInfer|从卡推定变量/);
+    assert.match(mvu, /vcCorruptionGap/);
   });
 
   it('提示词与任务类型已登记', function() {
