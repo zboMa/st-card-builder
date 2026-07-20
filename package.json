@@ -7,11 +7,16 @@
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro",
-    "test": "node --test tests/**/*.test.mjs"
+    "test": "node --test tests/**/*.test.mjs",
+    "server": "npm --prefix server start",
+    "server:dev": "npm --prefix server run dev",
+    "server:test": "npm --prefix server test",
+    "couch": "docker compose up -d couchdb"
   },
   "dependencies": {
     "@antv/g-camera-api": "^2.0.45",
     "@antv/g6": "^5.1.1",
-    "astro": "^5.17.1"
+    "astro": "^5.17.1",
+    "pouchdb-browser": "^9.0.0"
   }
 }

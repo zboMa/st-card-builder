@@ -377,6 +377,21 @@ export function registerCardManager(ctx) {
   async function loadDraftAsync(id) {
     var dr = getAllDrafts();
     if (!dr[id]) return;
+
+    // 云端占位卡：懒同步正文
+    if (dr[id]._cloudStub || !dr[id].charDesc) {
+      try {
+        var sync = await import('../../sync/index.mjs');
+        var full = await sync.ensureCardLocal(id);
+        if (full) {
+          dr[id] = full;
+          try { localStorage.setItem('st_v3_builder_drafts', JSON.stringify(dr)); } catch (e) { /* ignore */ }
+        }
+      } catch (e) {
+        console.warn('[sync] ensureCardLocal', e);
+      }
+    }
+
     var loaded = ctx.sm.loadDraftIntoState(id);
     if (!loaded) return;
     var d = dr[id];
@@ -533,6 +548,10 @@ export function registerCardManager(ctx) {
     if (window.__novelIdb__) {
       window.__novelIdb__.removeNovelBucketIdb(id, localStorage).catch(function () { console.warn('Removing novel bucket from IDB failed'); });
     }
+    // Pouch 级联（RAG / storyStudio / card）
+    import('../../sync/cascade.mjs').then(function(mod) {
+      return mod.cascadeDeleteCardDocs(id, getAllDrafts());
+    }).catch(function(e) { console.warn('[sync] cascade delete', e); });
 
     // Navigate: if deleted was current, load next or create blank
     if (id === currentId) {

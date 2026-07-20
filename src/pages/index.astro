@@ -35,6 +35,7 @@ import StoryOutlinePanel from '../components/storyStudio/StoryOutlinePanel.astro
 import StoryWritePanel from '../components/storyStudio/StoryWritePanel.astro';
 import StoryReadPanel from '../components/storyStudio/StoryReadPanel.astro';
 import AiTaskCenterUI from '../components/AiTaskCenterUI.astro';
+import AccountSyncPanel from '../components/AccountSyncPanel.astro';
 ---
 
 <Layout title="简陋的制卡工具">
@@ -86,6 +87,7 @@ import AiTaskCenterUI from '../components/AiTaskCenterUI.astro';
       <div class="app-view" data-view="chat"><ChatPlayground /></div>
       <div class="app-view" data-view="preview"><PreviewPanel /></div>
       <div class="app-view" data-view="auditor"><WorldbookAuditor /></div>
+      <div class="app-view" data-view="account-sync"><AccountSyncPanel /></div>
       <div class="app-view" data-view="ai-config">
         <div class="app-view-slot" data-slot="ai-config"></div>
       </div>

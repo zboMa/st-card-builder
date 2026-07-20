@@ -1,0 +1,144 @@
+---
+/**
+ * 账户与云同步：Discord / 调试登录 / 手动同步
+ */
+---
+<div class="panel" id="accountSyncPanel">
+  <h2>账户与同步</h2>
+  <p class="ui-muted" style="font-size:0.85rem;margin-bottom:12px;">
+    云端存储采用 CouchDB，本地为 PouchDB。正式登录仅 Discord；须加入指定服务器与身份组（当前可留空配置，开启强制校验时将拒绝所有正式注册）。
+  </p>
+
+  <section class="ui-section" style="margin-bottom:16px;">
+    <h3 class="ui-section-title">登录状态</h3>
+    <div id="authUserLine" class="ui-muted" style="margin-bottom:8px;">未登录</div>
+    <div class="ui-row" style="gap:8px;flex-wrap:wrap;">
+      <a id="btnDiscordLogin" class="btn btn-primary" href="/api/auth/discord">Discord 登录</a>
+      <button type="button" id="btnAuthLogout" class="btn btn-ghost">退出</button>
+    </div>
+    <div id="devLoginBox" class="ui-section" style="margin-top:12px;display:none;">
+      <label for="devLoginName" class="ui-muted" style="font-size:0.8rem;">调试登录（临时用户名，仅开发开关开启时可用）</label>
+      <div class="ui-row" style="gap:8px;margin-top:6px;">
+        <input id="devLoginName" type="text" placeholder="输入用户名后进入" style="flex:1;min-width:140px;" />
+        <button type="button" id="btnDevLogin" class="btn btn-fetch">进入</button>
+      </div>
+    </div>
+    <div id="authStatusTip" class="ui-status-tip" role="status"></div>
+  </section>
+
+  <section class="ui-section">
+    <h3 class="ui-section-title">云同步</h3>
+    <p class="ui-muted" style="font-size:0.8rem;">默认每 5 分钟自动同步（不含 API 密钥）。重开后先读云端卡列表，点开某卡再懒同步正文。</p>
+    <div class="ui-row" style="gap:8px;flex-wrap:wrap;margin-top:8px;">
+      <button type="button" id="btnManualSync" class="btn btn-primary">立即同步</button>
+      <span id="syncStatusLine" class="ui-muted" style="font-size:0.8rem;">尚未同步</span>
+    </div>
+    <div id="syncTip" class="ui-status-tip" role="status"></div>
+  </section>
+</div>
+
+<script>
+  import {
+    fetchAuthStatus,
+    runSync,
+    startAutoSync,
+    stopAutoSync,
+    onSyncEvent,
+    getSyncStatus,
+    migrateLegacyToPouch,
+  } from '../lib/sync/index.mjs';
+  import { apiDevLogin, apiLogout } from '../lib/sync/authClient.mjs';
+  import { idbGetJson } from '../lib/idbStore.mjs';
+
+  async function refreshAuthUi() {
+    var tip = document.getElementById('authStatusTip');
+    var line = document.getElementById('authUserLine');
+    var devBox = document.getElementById('devLoginBox');
+    var discordBtn = document.getElementById('btnDiscordLogin');
+    try {
+      var st = await fetchAuthStatus();
+      if (devBox) devBox.style.display = st.devLoginEnabled ? 'block' : 'none';
+      if (discordBtn) {
+        if (!st.canAcceptDiscordRegistration) {
+          discordBtn.setAttribute('title', '正式注册暂不可用（校验开启且服务器/身份组未配置）');
+          discordBtn.classList.add('is-disabled');
+        } else {
+          discordBtn.removeAttribute('title');
+          discordBtn.classList.remove('is-disabled');
+        }
+        discordBtn.style.pointerEvents = st.canAcceptDiscordRegistration && st.discordConfigured ? '' : 'none';
+        discordBtn.style.opacity = st.canAcceptDiscordRegistration && st.discordConfigured ? '1' : '0.45';
+      }
+      if (st.user) {
+        if (line) line.textContent = '已登录：' + (st.user.displayName || st.user.username) + '（' + st.user.provider + '）';
+        startAutoSync();
+      } else {
+        if (line) line.textContent = '未登录';
+        stopAutoSync();
+      }
+      if (tip) tip.textContent = '';
+    } catch (e) {
+      if (line) line.textContent = '无法连接同步服务（请启动 server + CouchDB）';
+      if (tip) tip.textContent = String(e && e.message || e);
+    }
+  }
+
+  function setSyncLine() {
+    var el = document.getElementById('syncStatusLine');
+    var st = getSyncStatus();
+    if (!el) return;
+    if (st.syncing) el.textContent = '同步中…';
+    else if (st.lastSyncAt) el.textContent = '上次同步：' + st.lastSyncAt;
+    else el.textContent = '尚未同步';
+  }
+
+  document.getElementById('btnDevLogin')?.addEventListener('click', async function() {
+    var name = (document.getElementById('devLoginName') || {}).value || '';
+    var tip = document.getElementById('authStatusTip');
+    try {
+      await apiDevLogin(name);
+      if (tip) tip.textContent = '调试登录成功';
+      await refreshAuthUi();
+      await runSync({ refreshCred: true }).catch(function() {});
+      setSyncLine();
+    } catch (e) {
+      if (tip) tip.textContent = String(e && e.message || e);
+    }
+  });
+
+  document.getElementById('btnAuthLogout')?.addEventListener('click', async function() {
+    await apiLogout();
+    stopAutoSync();
+    await refreshAuthUi();
+  });
+
+  document.getElementById('btnManualSync')?.addEventListener('click', async function() {
+    var tip = document.getElementById('syncTip');
+    try {
+      if (tip) tip.textContent = '同步中…';
+      await runSync({ refreshCred: true });
+      if (tip) tip.textContent = '同步完成';
+    } catch (e) {
+      if (tip) tip.textContent = '同步失败：' + String(e && e.message || e);
+    }
+    setSyncLine();
+  });
+
+  onSyncEvent(function() { setSyncLine(); });
+
+  (async function boot() {
+    try {
+      await migrateLegacyToPouch({ idbGetJson: idbGetJson });
+    } catch (e) {
+      console.warn('[sync] migrate', e);
+    }
+    var hash = String(location.hash || '');
+    if (hash.indexOf('auth') >= 0) {
+      // 切到账户页
+      history.replaceState(null, '', '#account-sync');
+      window.dispatchEvent(new HashChangeEvent('hashchange'));
+    }
+    await refreshAuthUi();
+    setSyncLine();
+  })();
+</script>
