@@ -124,6 +124,24 @@ export const ASSISTANT_TOOLS = [
  */
 export const ASSISTANT_PRESET_CHIPS = [
   {
+    id: 'setup_card',
+    label: '帮我配卡',
+    prompt: '我想做一张新卡（可当空卡）。先听我描述想要的风格与关系；你推荐世界观/框架/口味/NTL 等搭配并讨论，确认后再用 set_adult_config 写入。不要强迫流程，也不要一上来就跑小说工坊。',
+    tool: 'get_adult_config',
+  },
+  {
+    id: 'recommend_adult',
+    label: '推荐搭配',
+    prompt: '根据当前卡面与我的偏好，用 get_adult_config 看现状，对照目录概览推荐口味/NTL/框架组合；我确认后再 set_adult_config。',
+    tool: 'get_adult_config',
+  },
+  {
+    id: 'start_generate',
+    label: '开始生成',
+    prompt: '配置若已就绪，请用 generate_character_draft 或生成世界书相关工具帮我开生成；也可 open_module 到角色设定让我自己点引擎。先确认我要生成哪一块。',
+    tool: 'generate_character_draft',
+  },
+  {
     id: 'audit',
     label: '检查世界书',
     prompt: '请调用 audit_worldbook，再 suggest_fixes，列出主要问题与可执行修复。',
