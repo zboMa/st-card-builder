@@ -661,6 +661,43 @@ export function createToolExecutor(bridge, snapApi) {
         if (!bridge.draftNsfwStatusBar) return fail('NSFW 状态栏草案桥接未就绪');
         return ok(bridge.draftNsfwStatusBar({ name: a.name || a.charName || '' }));
       }
+      case 'generate_corruption_lore': {
+        var genCorr = bridge.generateCorruptionLore
+          || (typeof window !== 'undefined' ? window.__generateCorruptionLore__ : null);
+        if (typeof genCorr !== 'function') return fail('恶堕进度生成桥接未就绪');
+        maybeSnap();
+        if (a.preset || a.customBrief != null || a.enabled != null) {
+          if (typeof bridge.setNsfwConfig === 'function') {
+            var curB = typeof bridge.getNsfwConfig === 'function' ? bridge.getNsfwConfig() : {};
+            bridge.setNsfwConfig({
+              enabled: true,
+              corruptionEnabled: a.enabled !== false,
+              corruptionPreset: a.preset || curB.corruptionPreset || '5',
+              corruptionCustomBrief: a.customBrief != null ? String(a.customBrief) : (curB.corruptionCustomBrief || ''),
+              corruptionSelectedNames: Array.isArray(a.selectedNames)
+                ? a.selectedNames
+                : (curB.corruptionSelectedNames || []),
+            });
+          } else if (typeof window !== 'undefined' && typeof window.__setNsfwConfig__ === 'function') {
+            var curCfg = typeof window.__getNsfwConfig__ === 'function' ? window.__getNsfwConfig__() : {};
+            window.__setNsfwConfig__({
+              enabled: true,
+              corruptionEnabled: a.enabled !== false,
+              corruptionPreset: a.preset || curCfg.corruptionPreset || '5',
+              corruptionCustomBrief: a.customBrief != null ? String(a.customBrief) : (curCfg.corruptionCustomBrief || ''),
+              corruptionSelectedNames: Array.isArray(a.selectedNames)
+                ? a.selectedNames
+                : (curCfg.corruptionSelectedNames || []),
+            });
+          }
+        }
+        var lore = await genCorr({
+          selectedNames: Array.isArray(a.selectedNames) ? a.selectedNames : undefined,
+          templateOnly: !!a.templateOnly,
+        });
+        if (!lore || lore.ok === false) return fail((lore && lore.error) || '恶堕世界书生成失败');
+        return ok(lore);
+      }
       case 'novel_patch_chapters': {
         if (!bridge.patchNovelChapters) return fail('章节补丁桥接未就绪');
         if (!a.action) return fail('缺少 action');

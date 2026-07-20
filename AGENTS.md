@@ -57,6 +57,7 @@ npm test             # Node.js native test runner (tests/**/*.test.mjs)
 
 - Three-layer design: core persona palette → NSFW flavor palette (20 presets) → NTL taboo layer (8 types, multi-select). Layers are additive, not exclusive.
 - **CharacterPanel is the sole UI entry point** for NSFW/NTL config. Changes dispatch `nsfw-config-changed` → `browserApp` listens and syncs `state.adultMode`/`ntlMode`/`nsfwFlavor`/`ntlTabooTypes` to novel workshop pipeline.
+- **恶堕进度**（非独立口味）：默认 5 阶；世界书「恶堕进度总则」+「恶堕档案·{名}」；状态栏模块 `corruption_stage`；逻辑见 `src/lib/corruptionProgress.mjs`；助手工具 `generate_corruption_lore`。
 - Novel source panel has NO NSFW/NTL UI — only chunking/recall/workflow config.
 - Full design philosophy in `docs/architecture-and-design.md`.
 

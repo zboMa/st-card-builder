@@ -72,6 +72,20 @@
 年龄差 / 身份差 / 情感禁忌 / 道德冲突 / 情境禁忌 / 权力胁迫 / 隐秘关系 / 俘获救赎
 ```
 
+### 恶堕进度（世界书 + MVU，非独立 NSFW 口味）
+
+```
+默认 5 阶：未触碰 → 动摇 → 越界 → 沉沦 → 彻底恶堕
+可选：简洁 3 / 细腻 7 / 自定义描述生成（2–9 阶）
+
+世界书：
+  · 常驻「恶堕进度总则」1 条
+  · 每角色「恶堕档案·{名}」1 条（全阶段合集；靠角色名触发）
+状态栏模块：corruption_stage（恶堕进度）——变量选当前阶段
+入口：CharacterPanel NSFW 区块内；默认仅女角色；助手工具 generate_corruption_lore
+实现：src/lib/corruptionProgress.mjs
+```
+
 ### NSFW_information 扩展结构
 
 ```yaml

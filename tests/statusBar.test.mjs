@@ -251,7 +251,7 @@ describe('statusBar core', function() {
     [
       'nsfw_vagina', 'nsfw_breasts', 'nsfw_legs', 'nsfw_feet', 'nsfw_anus', 'nsfw_thoughts',
       'nsfw_mouth', 'nsfw_erogenous', 'nsfw_orgasm', 'nsfw_fluids', 'nsfw_exposure',
-      'nsfw_training', 'nsfw_experience', 'nsfw_act_state',
+      'nsfw_training', 'nsfw_experience', 'nsfw_act_state', 'corruption_stage',
     ].forEach(function(id) {
       assert.ok(nsfwMods.indexOf(id) >= 0, 'missing nsfw ' + id);
     });
