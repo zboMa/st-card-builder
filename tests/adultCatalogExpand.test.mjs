@@ -19,6 +19,16 @@ import {
 } from '../src/lib/adult/shared/consentBoundary.mjs';
 import { buildWorldviewHint } from '../src/lib/presets/worldviews/index.mjs';
 
+var BANNED_FORMULA_PHRASES = [
+  '更适合把这种',
+  '写法上至少把',
+  '务必把',
+  '世界层要把',
+  '把关键张力落成可执行的场景流程与事后复盘',
+  '只给标签氛围却不给可演机制',
+  '双方须为已完成设定成年礼的成人；禁止儿童性化；冲突要写可见代价与可叙述的伦理账',
+];
+
 describe('adultCatalogExpand', function() {
   it('口味≥60 且每条有 enrichment/overlay；含异质物质组', function() {
     assert.ok(NSFWFLAVOR_IDS.length >= 60, 'got ' + NSFWFLAVOR_IDS.length);
@@ -59,5 +69,22 @@ describe('adultCatalogExpand', function() {
     assert.match(hint, /成年与情欲边界|礼法成年/);
     var vh = buildVesselHint({ worldframe: 'court' });
     assert.match(vh, /儿童性化|成年/);
+  });
+
+  it('源目录不含公式化 premium filler 语句', function() {
+    [
+      ['flavor presets', JSON.stringify(NSFW_FLAVOR_PRESETS)],
+      ['flavor enrichment', JSON.stringify(NSFW_FLAVOR_ENRICHMENT)],
+      ['flavor overlays', JSON.stringify(FLAVOR_VESSEL_OVERLAYS)],
+      ['ntl types', JSON.stringify(NTL_TABOO_TYPES)],
+      ['ntl enrichment', JSON.stringify(NTL_TABOO_ENRICHMENT)],
+      ['ntl overlays', JSON.stringify(NTL_VESSEL_OVERLAYS)],
+    ].forEach(function(tuple) {
+      var label = tuple[0];
+      var text = tuple[1];
+      BANNED_FORMULA_PHRASES.forEach(function(phrase) {
+        assert.equal(text.includes(phrase), false, label + ' contains banned filler: ' + phrase);
+      });
+    });
   });
 });

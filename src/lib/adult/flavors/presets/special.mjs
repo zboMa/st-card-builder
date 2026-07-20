@@ -1,200 +1,346 @@
 /**
- * 口味·特殊风味
+ * 口味·特殊玩法
  */
+
 export var PRESETS = {
-  discipline: {
-    group: "特殊风味",
-    label: "惩戒向",
-    description: "规则→违规→惩罚→安抚的完整闭环，仪式感与情感修复同等重要",
-    palette: {
-      temperature: "冷→温",
-      texture: "竹",
-      primary_intensity_default: 0.7,
-      accent_intensity_default: 0.5
+  "discipline": {
+    "group": "特殊风味",
+    "label": "惩戒向",
+    "description": "规则→违规→惩罚→安抚的完整闭环，仪式感与情感修复同等重要。 这类口味最怕只剩标签，最好让冷→温与竹落到可重复的做法、禁忌或恢复过程里，让人物知道自己究竟在冒什么险。",
+    "palette": {
+      "temperature": "冷→温",
+      "texture": "竹",
+      "primary_intensity_default": 0.7,
+      "accent_intensity_default": 0.5
     },
-    focus: [ "rules", "transgression", "punishment", "atonement", "comfort_after_punish" ],
-    avoid: [ "只罚不安抚", "惩罚无规则前提下", "忽视事后情感" ]
+    "focus": [
+      "rules",
+      "transgression",
+      "punishment",
+      "atonement",
+      "comfort_after_punish"
+    ],
+    "avoid": [
+      "只罚不安抚",
+      "惩罚无规则前提下",
+      "忽视事后情感"
+    ]
   },
-  shame: {
-    group: "特殊风味",
-    label: "羞耻向",
-    description: "暴露与羞辱心理——脸红的细节、躲闪的眼神、说不出口的话，比身体反应更重",
-    palette: {
-      temperature: "忽冷忽热",
-      texture: "薄冰",
-      primary_intensity_default: 0.6,
-      accent_intensity_default: 0.8
+  "shame": {
+    "group": "特殊风味",
+    "label": "羞耻向",
+    "description": "暴露与羞辱心理——脸红的细节、躲闪的眼神、说不出口的话，比身体反应更重。 别把它当作效果词堆砌；忽冷忽热与薄冰只是表层，真正的成色来自规则、器物或身体阈值怎样把这一味推成会反复出现的习惯。",
+    "palette": {
+      "temperature": "忽冷忽热",
+      "texture": "薄冰",
+      "primary_intensity_default": 0.6,
+      "accent_intensity_default": 0.8
     },
-    focus: [ "embarrassment", "exposure", "blushing", "verbal_teasing", "shame_arousal_loop" ],
-    avoid: [ "只羞辱不安抚", "践踏自尊无底线", "忽略羞耻后的情感需求" ]
+    "focus": [
+      "embarrassment",
+      "exposure",
+      "blushing",
+      "verbal_teasing",
+      "shame_arousal_loop"
+    ],
+    "avoid": [
+      "只羞辱不安抚",
+      "践踏自尊无底线",
+      "忽略羞耻后的情感需求"
+    ]
   },
-  fantasy: {
-    group: "特殊风味",
-    label: "架空向",
-    description: "非人/奇幻种族/吸血鬼/妖魔/异种族——设定驱动的情欲，借用设定特性创作独特体验",
-    palette: {
-      temperature: "变幻",
-      texture: "星尘",
-      primary_intensity_default: 0.5,
-      accent_intensity_default: 0.7
+  "fantasy": {
+    "group": "特殊风味",
+    "label": "架空向",
+    "description": "非人/奇幻种族/吸血鬼/妖魔/异种族——设定驱动的情欲，借用设定特性创作独特体验。 它耐看的点在于变幻和星尘如何被具体机制收束：越写清触发条件、耐受边界和善后流程，风味就越不会散成空喊。",
+    "palette": {
+      "temperature": "变幻",
+      "texture": "星尘",
+      "primary_intensity_default": 0.5,
+      "accent_intensity_default": 0.7
     },
-    focus: [ "species_specific_traits", "worldbuilding_eroticism", "non_human_bodies", "magical_intimacy", "otherness" ],
-    avoid: [ "写成人形只换皮", "忽略种族设定", "把架空当成标签敷衍" ]
+    "focus": [
+      "species_specific_traits",
+      "worldbuilding_eroticism",
+      "non_human_bodies",
+      "magical_intimacy",
+      "otherness"
+    ],
+    "avoid": [
+      "写成人形只换皮",
+      "忽略种族设定",
+      "把架空当成标签敷衍"
+    ]
   },
-  primal: {
-    group: "特殊风味",
-    label: "本能向",
-    description: "兽化/返祖/本能压制——理性退场，只剩冲动、气味、原始的占有与臣服",
-    palette: {
-      temperature: "原始的热",
-      texture: "毛皮+汗",
-      primary_intensity_default: 0.9,
-      accent_intensity_default: 0.6
+  "primal": {
+    "group": "特殊风味",
+    "label": "本能向",
+    "description": "兽化/返祖/本能压制——理性退场，只剩冲动、气味、原始的占有与臣服。 别把它当作效果词堆砌；原始的热与毛皮+汗只是表层，真正的成色来自规则、器物或身体阈值怎样把这一味推成会反复出现的习惯。",
+    "palette": {
+      "temperature": "原始的热",
+      "texture": "毛皮+汗",
+      "primary_intensity_default": 0.9,
+      "accent_intensity_default": 0.6
     },
-    focus: [ "instinct", "feral", "scent_marking", "raw_power", "rationality_losing" ],
-    avoid: [ "回归理性太快", "用社交规范约束", "写成普通野兽行为" ]
+    "focus": [
+      "instinct",
+      "feral",
+      "scent_marking",
+      "raw_power",
+      "rationality_losing"
+    ],
+    "avoid": [
+      "回归理性太快",
+      "用社交规范约束",
+      "写成普通野兽行为"
+    ]
   },
-  contrast: {
-    group: "特殊风味",
-    label: "反差向",
-    description: "表面人设与情欲表现强烈错位——清冷/端庄/强势外壳下的失控、乖顺或淫靡；张力来自「不该这样」",
-    palette: {
-      temperature: "冷外热内",
-      texture: "西装内里的汗",
-      primary_intensity_default: 0.7,
-      accent_intensity_default: 0.85
+  "contrast": {
+    "group": "特殊风味",
+    "label": "反差向",
+    "description": "表面人设与情欲表现强烈错位——清冷/端庄/强势外壳下的失控、乖顺或淫靡；张力来自「不该这样」。 它耐看的点在于冷外热内和西装内里的汗如何被具体机制收束：越写清触发条件、耐受边界和善后流程，风味就越不会散成空喊。",
+    "palette": {
+      "temperature": "冷外热内",
+      "texture": "西装内里的汗",
+      "primary_intensity_default": 0.7,
+      "accent_intensity_default": 0.85
     },
-    focus: [ "persona_vs_desire", "public_vs_private", "reluctant_reveal", "shameful_enjoyment", "identity_crack" ],
-    avoid: [ "无铺垫的突然崩人设", "把反差写成单纯双标脸谱", "忽略事后自我厌恶或沉溺" ]
+    "focus": [
+      "persona_vs_desire",
+      "public_vs_private",
+      "reluctant_reveal",
+      "shameful_enjoyment",
+      "identity_crack"
+    ],
+    "avoid": [
+      "无铺垫的突然崩人设",
+      "把反差写成单纯双标脸谱",
+      "忽略事后自我厌恶或沉溺"
+    ]
   },
-  temperature_play: {
-    group: "特殊风味",
-    label: "温差向",
-    description: "冰与火交替刺激——冰块、热蜡、呼吸温差，温度本身成为节奏与对话",
-    palette: {
-      temperature: "极冷↔极热",
-      texture: "冰晶+蜡",
-      primary_intensity_default: 0.75,
-      accent_intensity_default: 0.7
+  "temperature_play": {
+    "group": "特殊风味",
+    "label": "温差向",
+    "description": "冰与火交替刺激——冰块、热蜡、呼吸温差，温度本身成为节奏与对话。 这类口味最怕只剩标签，最好让极冷↔极热与冰晶+蜡落到可重复的做法、禁忌或恢复过程里，让人物知道自己究竟在冒什么险。",
+    "palette": {
+      "temperature": "极冷↔极热",
+      "texture": "冰晶+蜡",
+      "primary_intensity_default": 0.75,
+      "accent_intensity_default": 0.7
     },
-    focus: [ "cold_hot_contrast", "temperature_anticipation", "skin_reaction", "tool_ritual", "safe_limits" ],
-    avoid: [ "无安全铺垫的烫伤烫伤风险", "只有道具清单无心理", "忽略皮肤反馈与停顿" ]
+    "focus": [
+      "cold_hot_contrast",
+      "temperature_anticipation",
+      "skin_reaction",
+      "tool_ritual",
+      "safe_limits"
+    ],
+    "avoid": [
+      "无安全铺垫的烫伤烫伤风险",
+      "只有道具清单无心理",
+      "忽略皮肤反馈与停顿"
+    ]
   },
-  sensory_deprivation: {
-    group: "特殊风味",
-    label: "剥夺向",
-    description: "蒙眼/耳塞/束缚后的感官放大——看不见时每一次触碰都变成事件",
-    palette: {
-      temperature: "暗温",
-      texture: "盲绸",
-      primary_intensity_default: 0.7,
-      accent_intensity_default: 0.8
+  "sensory_deprivation": {
+    "group": "特殊风味",
+    "label": "剥夺向",
+    "description": "蒙眼/耳塞/束缚后的感官放大——看不见时每一次触碰都变成事件。 别把它当作效果词堆砌；暗温与盲绸只是表层，真正的成色来自规则、器物或身体阈值怎样把这一味推成会反复出现的习惯。",
+    "palette": {
+      "temperature": "暗温",
+      "texture": "盲绸",
+      "primary_intensity_default": 0.7,
+      "accent_intensity_default": 0.8
     },
-    focus: [ "blindfold_focus", "amplified_touch", "disorientation", "trust_hand_off", "release_aftercare" ],
-    avoid: [ "无协商突然剥夺", "忽视恐慌信号", "事后不解除不安" ]
+    "focus": [
+      "blindfold_focus",
+      "amplified_touch",
+      "disorientation",
+      "trust_hand_off",
+      "release_aftercare"
+    ],
+    "avoid": [
+      "无协商突然剥夺",
+      "忽视恐慌信号",
+      "事后不解除不安"
+    ]
   },
-  hypnosis_play: {
-    group: "特殊风味",
-    label: "暗示向",
-    description: "语言诱导、触发词、恍惚态扮演——同意框架下的意识边缘游戏，强调可唤醒与事后确认",
-    palette: {
-      temperature: "浮温",
-      texture: "雾纱",
-      primary_intensity_default: 0.55,
-      accent_intensity_default: 0.85
+  "hypnosis_play": {
+    "group": "特殊风味",
+    "label": "暗示向",
+    "description": "语言诱导、触发词、恍惚态扮演——同意框架下的意识边缘游戏，强调可唤醒与事后确认。 这类口味最怕只剩标签，最好让浮温与雾纱落到可重复的做法、禁忌或恢复过程里，让人物知道自己究竟在冒什么险。",
+    "palette": {
+      "temperature": "浮温",
+      "texture": "雾纱",
+      "primary_intensity_default": 0.55,
+      "accent_intensity_default": 0.85
     },
-    focus: [ "trance_play", "trigger_words", "soft_suggestion", "wake_protocol", "after_consent_check" ],
-    avoid: [ "真洗脑无同意", "抹除主体意志", "忽略唤醒与事后确认" ]
+    "focus": [
+      "trance_play",
+      "trigger_words",
+      "soft_suggestion",
+      "wake_protocol",
+      "after_consent_check"
+    ],
+    "avoid": [
+      "真洗脑无同意",
+      "抹除主体意志",
+      "忽略唤醒与事后确认"
+    ]
   },
-  marking_claim: {
-    group: "特殊风味",
-    label: "标记向",
-    description: "吻痕、气味、专属称呼——在身体与语言上留下「属于彼此」的可见痕迹",
-    palette: {
-      temperature: "热印",
-      texture: "齿痕皮",
-      primary_intensity_default: 0.75,
-      accent_intensity_default: 0.65
+  "marking_claim": {
+    "group": "特殊风味",
+    "label": "标记向",
+    "description": "吻痕、气味、专属称呼——在身体与语言上留下「属于彼此」的可见痕迹。 这类口味最怕只剩标签，最好让热印与齿痕皮落到可重复的做法、禁忌或恢复过程里，让人物知道自己究竟在冒什么险。",
+    "palette": {
+      "temperature": "热印",
+      "texture": "齿痕皮",
+      "primary_intensity_default": 0.75,
+      "accent_intensity_default": 0.65
     },
-    focus: [ "visible_marks", "scent_claim", "name_claim", "pride_shame_mix", "mark_aftercare" ],
-    avoid: [ "无同意的永久性伤害", "纯物化圈地", "忽略痕迹带来的社交/心理代价" ]
+    "focus": [
+      "visible_marks",
+      "scent_claim",
+      "name_claim",
+      "pride_shame_mix",
+      "mark_aftercare"
+    ],
+    "avoid": [
+      "无同意的永久性伤害",
+      "纯物化圈地",
+      "忽略痕迹带来的社交/心理代价"
+    ]
   },
-  size_difference: {
-    group: "特殊风味",
-    label: "体差向",
-    description: "体型/力量差带来的包裹感或被覆盖感——对比本身制造安全感或压迫美感（双方皆成人）",
-    palette: {
-      temperature: "对比温",
-      texture: "巨掌棉",
-      primary_intensity_default: 0.7,
-      accent_intensity_default: 0.7
+  "size_difference": {
+    "group": "特殊风味",
+    "label": "体差向",
+    "description": "体型/力量差带来的包裹感或被覆盖感——对比本身制造安全感或压迫美感（双方皆成人）。 这类口味最怕只剩标签，最好让对比温与巨掌棉落到可重复的做法、禁忌或恢复过程里，让人物知道自己究竟在冒什么险。",
+    "palette": {
+      "temperature": "对比温",
+      "texture": "巨掌棉",
+      "primary_intensity_default": 0.7,
+      "accent_intensity_default": 0.7
     },
-    focus: [ "scale_contrast", "enveloping", "strength_gap_care", "position_adaptation", "mutual_dignity" ],
-    avoid: [ "写成一方无人格", "忽略适配与舒适", "用体差合理化伤害" ]
+    "focus": [
+      "scale_contrast",
+      "enveloping",
+      "strength_gap_care",
+      "position_adaptation",
+      "mutual_dignity"
+    ],
+    "avoid": [
+      "写成一方无人格",
+      "忽略适配与舒适",
+      "用体差合理化伤害"
+    ]
   },
-  bondage_focus: {
-    group: "特殊风味",
-    label: "束缚向",
-    description: "绳/铐/固着带来的动线限制——循环检查血运与安全剪在场；限已完成设定成年礼的成人；须可协商、可中断；禁止儿童性化。",
-    palette: {
-      temperature: "紧压",
-      texture: "绳纤",
-      primary_intensity_default: 0.75,
-      accent_intensity_default: 0.65
+  "bondage_focus": {
+    "group": "特殊风味",
+    "label": "束缚向",
+    "description": "绳/铐/固着带来的动线限制——循环检查血运与安全剪在场；限已完成设定成年礼的成人；须可协商、可中断；禁止儿童性化。 这类口味最怕只剩标签，最好让紧压与绳纤落到可重复的做法、禁忌或恢复过程里，让人物知道自己究竟在冒什么险。",
+    "palette": {
+      "temperature": "紧压",
+      "texture": "绳纤",
+      "primary_intensity_default": 0.75,
+      "accent_intensity_default": 0.65
     },
-    focus: [ "restraint_geometry", "circulation_check", "safety_shears", "helpless_trust", "release_ritual" ],
-    avoid: [ "无检查的危险吊缚伤害", "儿童性化" ]
+    "focus": [
+      "restraint_geometry",
+      "circulation_check",
+      "safety_shears",
+      "helpless_trust",
+      "release_ritual"
+    ],
+    "avoid": [
+      "无检查的危险吊缚伤害",
+      "儿童性化"
+    ]
   },
-  pain_edge: {
-    group: "特殊风味",
-    label: "疼痛边缘向",
-    description: "协商的疼痛阈值与停止协议——痛是对话不是发泄；限已完成设定成年礼的成人；须可协商、可中断；禁止儿童性化。",
-    palette: {
-      temperature: "锐热",
-      texture: "鞭痕",
-      primary_intensity_default: 0.85,
-      accent_intensity_default: 0.6
+  "pain_edge": {
+    "group": "特殊风味",
+    "label": "疼痛边缘向",
+    "description": "协商的疼痛阈值与停止协议——痛是对话不是发泄；限已完成设定成年礼的成人；须可协商、可中断；禁止儿童性化。 别把它当作效果词堆砌；锐热与鞭痕只是表层，真正的成色来自规则、器物或身体阈值怎样把这一味推成会反复出现的习惯。",
+    "palette": {
+      "temperature": "锐热",
+      "texture": "鞭痕",
+      "primary_intensity_default": 0.85,
+      "accent_intensity_default": 0.6
     },
-    focus: [ "negotiated_intensity", "traffic_light", "pain_as_dialogue", "mark_care", "emotional_check" ],
-    avoid: [ "无协商施暴", "儿童性化" ]
+    "focus": [
+      "negotiated_intensity",
+      "traffic_light",
+      "pain_as_dialogue",
+      "mark_care",
+      "emotional_check"
+    ],
+    "avoid": [
+      "无协商施暴",
+      "儿童性化"
+    ]
   },
-  sacrilege: {
-    group: "特殊风味",
-    label: "圣渎向",
-    description: "神圣符号被情欲征用的亵渎张力——尊重真实宗教伤害，偏重虚构教团；限已完成设定成年礼的成人；须可协商、可中断；禁止儿童性化。",
-    palette: {
-      temperature: "烛火",
-      texture: "圣布撕开",
-      primary_intensity_default: 0.7,
-      accent_intensity_default: 0.85
+  "sacrilege": {
+    "group": "特殊风味",
+    "label": "圣渎向",
+    "description": "神圣符号被情欲征用的亵渎张力——尊重真实宗教伤害，偏重虚构教团；限已完成设定成年礼的成人；须可协商、可中断；禁止儿童性化。 别把它当作效果词堆砌；烛火与圣布撕开只是表层，真正的成色来自规则、器物或身体阈值怎样把这一味推成会反复出现的习惯。",
+    "palette": {
+      "temperature": "烛火",
+      "texture": "圣布撕开",
+      "primary_intensity_default": 0.7,
+      "accent_intensity_default": 0.85
     },
-    focus: [ "sacred_symbol", "transgression_thrill", "guilt_pleasure", "fictional_cult", "after_confession" ],
-    avoid: [ "针对真实宗教群体的仇恨色情", "儿童性化" ]
+    "focus": [
+      "sacred_symbol",
+      "transgression_thrill",
+      "guilt_pleasure",
+      "fictional_cult",
+      "after_confession"
+    ],
+    "avoid": [
+      "针对真实宗教群体的仇恨色情",
+      "儿童性化"
+    ]
   },
-  objectification_prop: {
-    group: "特殊风味",
-    label: "物化器物向",
-    description: "约定时间内把人当器物使用的角色框架——人格暂停有时限，事后必须复位；限已完成设定成年礼的成人；须可协商、可中断；禁止儿童性化。",
-    palette: {
-      temperature: "物冷",
-      texture: "瓷/金属",
-      primary_intensity_default: 0.8,
-      accent_intensity_default: 0.7
+  "objectification_prop": {
+    "group": "特殊风味",
+    "label": "物化器物向",
+    "description": "约定时间内把人当器物使用的角色框架——人格暂停有时限，事后必须复位；限已完成设定成年礼的成人；须可协商、可中断；禁止儿童性化。 它耐看的点在于物冷和瓷/金属如何被具体机制收束：越写清触发条件、耐受边界和善后流程，风味就越不会散成空喊。",
+    "palette": {
+      "temperature": "物冷",
+      "texture": "瓷/金属",
+      "primary_intensity_default": 0.8,
+      "accent_intensity_default": 0.7
     },
-    focus: [ "timed_object_role", "use_and_reset", "safeword_override", "dignity_return", "debrief" ],
-    avoid: [ "永久物化无复位", "儿童性化" ]
+    "focus": [
+      "timed_object_role",
+      "use_and_reset",
+      "safeword_override",
+      "dignity_return",
+      "debrief"
+    ],
+    "avoid": [
+      "永久物化无复位",
+      "儿童性化"
+    ]
   },
-  uniform_ritual: {
-    group: "特殊风味",
-    label: "制服仪式向",
-    description: "更衣、衔级、礼仪动作构成的制服情欲——制服属作成人职业/军警/礼仪设定；限已完成设定成年礼的成人；须可协商、可中断；禁止儿童性化。",
-    palette: {
-      temperature: "浆烫",
-      texture: "布料纹章",
-      primary_intensity_default: 0.65,
-      accent_intensity_default: 0.7
+  "uniform_ritual": {
+    "group": "特殊风味",
+    "label": "制服仪式向",
+    "description": "更衣、衔级、礼仪动作构成的制服情欲——制服属作成人职业/军警/礼仪设定；限已完成设定成年礼的成人；须可协商、可中断；禁止儿童性化。 这类口味最怕只剩标签，最好让浆烫与布料纹章落到可重复的做法、禁忌或恢复过程里，让人物知道自己究竟在冒什么险。",
+    "palette": {
+      "temperature": "浆烫",
+      "texture": "布料纹章",
+      "primary_intensity_default": 0.65,
+      "accent_intensity_default": 0.7
     },
-    focus: [ "dressing_ritual", "rank_gesture", "fabric_sound", "role_voice", "undress_reverse" ],
-    avoid: [ "校服未成年性化", "儿童性化" ]
+    "focus": [
+      "dressing_ritual",
+      "rank_gesture",
+      "fabric_sound",
+      "role_voice",
+      "undress_reverse"
+    ],
+    "avoid": [
+      "校服未成年性化",
+      "儿童性化"
+    ]
   }
 };
