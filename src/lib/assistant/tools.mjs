@@ -127,13 +127,13 @@ export const ASSISTANT_PRESET_CHIPS = [
   {
     id: 'setup_card',
     label: '帮我配卡',
-    prompt: '我想做一张新卡（可当空卡）。先听我描述想要的风格与关系；你推荐世界观预设/载体框架/口味/NTL 等搭配并讨论，确认后再用 set_adult_config 写入「世界与限定」。不要强迫流程，也不要一上来就跑小说工坊。',
+    prompt: '我想做一张新卡（可当空卡）。先听我描述想要的风格与关系；你推荐世界观预设/载体框架/口味/姿势语言/情趣话风/NTL 等搭配并讨论，确认后再用 set_adult_config 写入「世界与限定」。姿势与话风是特别偏好高亮，不锁死扮演范围。不要强迫流程，也不要一上来就跑小说工坊。',
     tool: 'get_adult_config',
   },
   {
     id: 'recommend_adult',
     label: '推荐搭配',
-    prompt: '根据当前卡面与我的偏好，用 get_adult_config 看现状，对照目录概览推荐世界观预设/口味/NTL/框架组合；我确认后再 set_adult_config。',
+    prompt: '根据当前卡面与我的偏好，用 get_adult_config 看现状，对照目录概览推荐世界观预设/口味/姿势语言/情趣话风/NTL/框架组合；我确认后再 set_adult_config。表达层多选不占口味槽，所选为偏好而非白名单。',
     tool: 'get_adult_config',
   },
   {
