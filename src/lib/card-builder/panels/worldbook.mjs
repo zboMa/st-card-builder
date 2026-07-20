@@ -25,12 +25,11 @@ export function registerWorldbook(ctx) {
     var items = [];
     if (ctx.panels.aiEngine && typeof ctx.panels.aiEngine.getWorldviewPresetItems === 'function') {
       items = ctx.panels.aiEngine.getWorldviewPresetItems() || [];
+    } else if (Array.isArray(ctx.state.worldviewPresetItems) && ctx.state.worldviewPresetItems.length) {
+      items = ctx.state.worldviewPresetItems;
     } else if (ctx.panels.aiEngine && typeof ctx.panels.aiEngine.getWorldviewPresetId === 'function') {
       var id = ctx.panels.aiEngine.getWorldviewPresetId() || '';
       if (id) items = [{ id: id, note: '' }];
-    } else {
-      var el = ctx.$('aiWorldviewPreset');
-      if (el && el.value) items = [{ id: String(el.value).trim(), note: '' }];
     }
     return buildWorldviewHintFromItems(items, { stage: 'worldbook' }) || '';
   }

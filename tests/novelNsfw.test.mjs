@@ -425,6 +425,11 @@ describe('novel nsfwSupport', function() {
     assert.match(adultPanel, /adultNtlEnabled/);
     assert.match(adultPanel, /adultNsfwFlavor/);
     assert.match(adultPanel, /情欲|NSFW/);
+    assert.match(adultPanel, /重新推断/);
+    assert.match(adultPanel, /清掉手动覆盖|按主预设/);
+    const adultLogic = readFileSync(join(root, 'src/lib/card-builder/panels/adultConfig.mjs'), 'utf8');
+    assert.match(adultLogic, /data-flavor-up/);
+    assert.match(adultLogic, /moveFlavorItem/);
     const charPanel = readFileSync(join(root, 'src/components/CharacterPanel.astro'), 'utf8');
     assert.doesNotMatch(charPanel, /adultNsfwEnabled|charNsfwEnabled/);
     assert.match(charPanel, /世界与限定/);

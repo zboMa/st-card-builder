@@ -346,11 +346,9 @@ export function bootCardBuilder() {
   var apiKeyEl = document.getElementById('apiKey');
   var modelSelEl = document.getElementById('modelSelect');
   var dbgEl = document.getElementById('aiDebugEnable');
-  var wvSelEl = document.getElementById('aiWorldviewPreset');
   if (apiUrlEl) apiUrlEl.addEventListener('input', saveAIConfig);
   if (apiKeyEl) apiKeyEl.addEventListener('input', saveAIConfig);
   if (modelSelEl) modelSelEl.addEventListener('change', saveAIConfig);
-  if (wvSelEl) wvSelEl.addEventListener('change', saveAIConfig);
   if (dbgEl) dbgEl.addEventListener('change', function() {
     ctx.updateAIDebugStatus();
     saveAIConfig();

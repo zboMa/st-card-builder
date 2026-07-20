@@ -7,7 +7,6 @@ import {
   DEFAULT_TAG_CONTEXT_CHARS,
 } from '../../charTags.mjs';
 import {
-  listWorldviewPresetsByGroup,
   getWorldviewPreset,
   buildWorldviewHintFromItems,
   normalizeWorldviewPresetItems,
@@ -29,6 +28,7 @@ import {
 } from '../enginePipeline.mjs';
 
 const AI_KEY = 'st_v3_builder_ai_config';
+const PENDING_OUTLINE_KEY = 'st_v3_ai_pending_outline';
 
 export function registerAiEngine(ctx) {
   var parsedPresetList = [];
@@ -181,41 +181,51 @@ export function registerAiEngine(ctx) {
   }
 
   function getWorldviewPresetId() {
-    var id = primaryWorldviewPresetId(getWorldviewPresetItems());
-    var el = ctx.$('aiWorldviewPreset');
-    if (el) el.value = id;
-    return id;
+    return primaryWorldviewPresetId(getWorldviewPresetItems());
   }
 
   function setWorldviewPresetItems(raw, legacyId) {
     ctx.state.worldviewPresetItems = normalizeWorldviewPresetItems(raw, legacyId);
-    syncHiddenWorldviewSelect();
     refreshWorldviewSummary();
     return ctx.state.worldviewPresetItems.slice();
   }
 
-  function syncHiddenWorldviewSelect() {
-    var el = ctx.$('aiWorldviewPreset');
-    if (!el) return;
-    var items = getWorldviewPresetItems();
-    var id = primaryWorldviewPresetId(items);
-    var groups = listWorldviewPresetsByGroup();
-    var html = '<option value="">不使用预设</option>';
-    groups.forEach(function(g) {
-      html += '<optgroup label="' + g.label + '">';
-      (g.items || []).forEach(function(it) {
-        html += '<option value="' + it.id + '">' + it.label + '</option>';
-      });
-      html += '</optgroup>';
-    });
-    el.innerHTML = html;
-    el.value = id || '';
+  function syncContinueEnrichBtn() {
+    var contBtn = ctx.$('btnAiContinueEnrich');
+    if (!contBtn) return;
+    var slots = getPendingOutlineSlots();
+    contBtn.hidden = !(slots && slots.length);
+  }
+
+  function getPendingOutlineSlots() {
+    if (pendingOutlineSlots && pendingOutlineSlots.length) return pendingOutlineSlots;
+    try {
+      var raw = sessionStorage.getItem(PENDING_OUTLINE_KEY);
+      if (!raw) return null;
+      var parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length) {
+        pendingOutlineSlots = parsed;
+        return pendingOutlineSlots;
+      }
+    } catch (e) { /* ignore */ }
+    return null;
+  }
+
+  function setPendingOutlineSlots(slots) {
+    pendingOutlineSlots = (slots && slots.length) ? slots.slice() : null;
+    try {
+      if (pendingOutlineSlots) {
+        sessionStorage.setItem(PENDING_OUTLINE_KEY, JSON.stringify(pendingOutlineSlots));
+      } else {
+        sessionStorage.removeItem(PENDING_OUTLINE_KEY);
+      }
+    } catch (e) { /* ignore */ }
+    syncContinueEnrichBtn();
   }
 
   function refreshWorldviewSummary() {
     var el = ctx.$('aiWorldviewSummary');
     var items = getWorldviewPresetItems();
-    syncHiddenWorldviewSelect();
     if (!el) return;
     if (!items.length) {
       el.textContent = '未选择预设——请到「世界与限定」添加，或在下方填写阶段提示词。';
@@ -240,7 +250,6 @@ export function registerAiEngine(ctx) {
     if (selectedId) {
       setWorldviewPresetItems([{ id: selectedId, note: '' }]);
     } else {
-      syncHiddenWorldviewSelect();
       refreshWorldviewSummary();
     }
   }
@@ -584,9 +593,8 @@ export function registerAiEngine(ctx) {
       var charData = null;
 
       if (btnEl) btnEl.disabled = true;
-      if (contBtn) contBtn.hidden = true;
+      setPendingOutlineSlots(null);
       cachedSearchResults = null;
-      pendingOutlineSlots = null;
 
       if (hacker) { hacker.start(); hacker.setPhase('\u26a1 初始化引擎...'); hacker.setProgress(0, totalSteps); hacker.setDetail(hacker.randomMsg()); }
 
@@ -699,12 +707,12 @@ export function registerAiEngine(ctx) {
           ctx.state.worldbookEntries = outlineSlots.map(function(s, i) {
             return slotToWorldbookEntry(s, 100 + i);
           });
-          pendingOutlineSlots = outlineSlots.slice();
           ctx.renderAll();
           ctx.save();
           if (hacker) hacker.setDetail('\u2705 大纲 ' + outlineSlots.length + ' 槽');
 
           if (pauseOutline) {
+            setPendingOutlineSlots(outlineSlots.slice());
             if (aiCenter && engineTask) aiCenter.succeed(engineTask.id);
             if (hacker) {
               hacker.stop();
@@ -716,9 +724,10 @@ export function registerAiEngine(ctx) {
               statusEl.textContent = '\u23f8 大纲 ' + outlineSlots.length + ' 条已写入（待丰满）。可编辑后点「继续丰满」。';
               statusEl.style.color = '#f59e0b';
             }
-            if (contBtn) contBtn.hidden = false;
             return;
           }
+
+          setPendingOutlineSlots(null);
 
           currentStep = await ctx.panels.aiEngine._enrichOutlineSlots({
             url: url, headers: headers, model: model,
@@ -992,23 +1001,10 @@ export function registerAiEngine(ctx) {
       var model = modelEl ? modelEl.value : '';
       if (!model) { window.alert('请先选择模型'); return; }
 
-      var slots = pendingOutlineSlots;
+      var slots = getPendingOutlineSlots();
       if (!slots || !slots.length) {
-        // 从现有骨架条目重建
-        slots = (ctx.state.worldbookEntries || []).filter(isSkeletonEntry).map(function(e, i) {
-          return {
-            type: e.outlineType || 'other',
-            comment: e.comment,
-            blurb: e.outlineBlurb || e.content || '（待展开）',
-            keys: e.keys || [],
-            links: e.outlineLinks || [],
-            strategy: e.strategy || 'selective',
-            _i: i,
-          };
-        });
-      }
-      if (!slots.length) {
-        window.alert('没有待丰满的大纲条目');
+        window.alert('没有待丰满的大纲条目。请先用「完整生成」并勾选「大纲完成后暂停」。');
+        syncContinueEnrichBtn();
         return;
       }
 
@@ -1056,8 +1052,7 @@ export function registerAiEngine(ctx) {
           hacker: hacker, statusEl: statusEl,
           currentStep: slots.length + 1, totalSteps: totalSteps,
         });
-        pendingOutlineSlots = null;
-        if (contBtn) contBtn.hidden = true;
+        setPendingOutlineSlots(null);
         if (aiCenter && engineTask) aiCenter.succeed(engineTask.id);
         if (hacker) { hacker.stop(); hacker.setPhase('\u2705 丰满完成'); setTimeout(function() { if (hacker) hacker.hide(); }, 3000); }
         if (statusEl) { statusEl.textContent = '\u2705 丰满与开场白完成'; statusEl.style.color = '#10b981'; }
@@ -1290,9 +1285,10 @@ export function registerAiEngine(ctx) {
     // ===== 绑定事件 =====
 
     bind: function() {
-      syncHiddenWorldviewSelect();
       refreshWorldviewSummary();
+      syncContinueEnrichBtn();
       window.__refreshAiEngineWorldviewSummary__ = refreshWorldviewSummary;
+      window.__syncAiContinueEnrichBtn__ = syncContinueEnrichBtn;
       window.addEventListener('worldview-presets-changed', function() {
         refreshWorldviewSummary();
       });

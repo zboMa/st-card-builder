@@ -36,11 +36,12 @@
     <div id="adultWorldframeRow" class="adult-worldframe-row" aria-labelledby="adultWorldframeHeading">
       <span id="adultWorldframeHeading" class="char-nsfw-sub">载体框架</span>
       <span id="adultWorldframeLabel" class="char-nsfw-subtitle">未推断</span>
-      <button type="button" id="btnAdultWorldframeRefresh" class="btn btn-ghost adult-btn-compact">重新推断</button>
+      <button type="button" id="btnAdultWorldframeRefresh" class="btn btn-ghost adult-btn-compact" title="清除手动覆盖，按主世界观预设（或卡面信号）重算框架">重新推断</button>
       <select id="adultWorldframeSelect" aria-label="覆盖载体框架" class="adult-select-compact">
         <option value="">自动（跟主预设）</option>
       </select>
       <span id="adultWorldframeMapHint" class="char-nsfw-subtitle"></span>
+      <span class="char-nsfw-subtitle adult-worldframe-refresh-hint">「重新推断」会清掉手动覆盖，按主预设映射重算；手选下拉仍可锁定覆盖。</span>
     </div>
 
     <!-- 3. NSFW 开关 -->
@@ -151,6 +152,10 @@
     margin: 8px 0 4px;
     border-top: 1px dashed var(--color-border);
     border-bottom: 1px dashed var(--color-border);
+  }
+  .adult-worldframe-refresh-hint {
+    flex: 1 1 100%;
+    margin: 0;
   }
   .adult-config-lead {
     margin: -4px 0 14px;

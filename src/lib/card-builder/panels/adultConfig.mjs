@@ -468,6 +468,8 @@ export function registerAdultConfig(ctx) {
             + (blurb ? '<div class="adult-dashed-item-desc">' + escapeHtml(blurb) + '</div>' : '')
             + '</div>'
             + '<div class="adult-dashed-item-actions">'
+            + (idx > 0 ? '<button type="button" class="adult-dashed-move" data-flavor-up="' + idx + '" title="上移（可切主调色盘）">↑</button>' : '')
+            + (idx < items.length - 1 ? '<button type="button" class="adult-dashed-move" data-flavor-down="' + idx + '" title="下移">↓</button>' : '')
             + '<button type="button" class="adult-dashed-remove" data-flavor-remove="' + idx + '">移除</button>'
             + '</div></div>'
             + '<textarea data-flavor-note="' + idx + '" rows="1" placeholder="可选：补充该口味的额外提示">'
@@ -708,6 +710,17 @@ export function registerAdultConfig(ctx) {
       var items = ctx.panels.adultConfig.readFlavorItemsFromUi();
       if (idx < 0 || idx >= items.length) return;
       items.splice(idx, 1);
+      ctx.panels.adultConfig.commitFlavorItems(items);
+    },
+
+    moveFlavorItem: function(idx, delta) {
+      var items = ctx.panels.adultConfig.readFlavorItemsFromUi();
+      var from = parseInt(idx, 10);
+      var to = from + (delta || 0);
+      if (isNaN(from) || to < 0 || to >= items.length) return;
+      var tmp = items[from];
+      items[from] = items[to];
+      items[to] = tmp;
       ctx.panels.adultConfig.commitFlavorItems(items);
     },
 
@@ -1142,10 +1155,22 @@ export function registerAdultConfig(ctx) {
       }
       if (flavorList) {
         flavorList.addEventListener('click', function(e) {
-          var btn = e.target && e.target.closest ? e.target.closest('[data-flavor-remove]') : null;
-          if (!btn) return;
-          var idx = parseInt(btn.getAttribute('data-flavor-remove'), 10);
-          if (!isNaN(idx)) ctx.panels.adultConfig.removeFlavorItem(idx);
+          var t = e.target && e.target.closest ? e.target.closest('[data-flavor-remove], [data-flavor-up], [data-flavor-down]') : null;
+          if (!t) return;
+          if (t.hasAttribute('data-flavor-remove')) {
+            var ri = parseInt(t.getAttribute('data-flavor-remove'), 10);
+            if (!isNaN(ri)) ctx.panels.adultConfig.removeFlavorItem(ri);
+            return;
+          }
+          if (t.hasAttribute('data-flavor-up')) {
+            var ui = parseInt(t.getAttribute('data-flavor-up'), 10);
+            if (!isNaN(ui)) ctx.panels.adultConfig.moveFlavorItem(ui, -1);
+            return;
+          }
+          if (t.hasAttribute('data-flavor-down')) {
+            var di = parseInt(t.getAttribute('data-flavor-down'), 10);
+            if (!isNaN(di)) ctx.panels.adultConfig.moveFlavorItem(di, 1);
+          }
         });
         flavorList.addEventListener('change', function(e) {
           if (!e.target || !e.target.matches('[data-flavor-note]')) return;
