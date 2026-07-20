@@ -5,6 +5,8 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import {
   CORRUPTION_PRESETS,
+  CORRUPTION_ARC_BRIEFS,
+  CORRUPTION_ARC_BRIEF_IDS,
   CORRUPTION_RULES_COMMENT,
   CORRUPTION_ARCHIVE_PREFIX,
   CORRUPTION_STATUS_MODULE_ID,
@@ -39,6 +41,14 @@ describe('corruptionProgress', function() {
     assert.deepEqual(resolveStageNames('5'), CORRUPTION_PRESETS['5'].stages);
     assert.equal(resolveStageNames('3').length, 3);
     assert.equal(resolveStageNames('7').length, 7);
+  });
+
+  it('弧光母题包含三则 brief', function() {
+    assert.ok(CORRUPTION_ARC_BRIEF_IDS.length >= 3);
+    ['sacred_collapse', 'hero_complicity', 'vengeance_entry'].forEach(function(id) {
+      assert.ok(CORRUPTION_ARC_BRIEFS[id], id);
+      assert.ok(String(CORRUPTION_ARC_BRIEFS[id].brief || '').length >= 40, id);
+    });
   });
 
   it('custom stages from array or arrow text', function() {
