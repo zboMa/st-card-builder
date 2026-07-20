@@ -145,15 +145,15 @@ export function registerAdultConfig(ctx) {
       var select = document.getElementById('adultWorldframeSelect');
       var data = window.__nsfwFlavorData__;
       if (!row) return;
-      var show = !!(ctx.state.nsfwEnabled || ctx.state.ntlEnabled);
-      row.style.display = show ? 'flex' : 'none';
-      if (!show) return;
+      // 框架始终展示在最上；不再依赖 NSFW/NTL 开关
+      row.style.display = 'flex';
       if (select && data && data.worldframeIds && !select.dataset.filled) {
         var opts = '<option value="">自动</option>';
         data.worldframeIds.forEach(function(id) {
           if (id === 'generic') return;
           var wf = data.worldframes[id];
-          opts += '<option value="' + id + '">' + escapeHtml((wf && wf.label) || id) + '</option>';
+          var sum = (wf && wf.summary) ? (' — ' + wf.summary) : '';
+          opts += '<option value="' + id + '">' + escapeHtml((wf && wf.label) || id) + escapeHtml(sum) + '</option>';
         });
         opts += '<option value="generic">通用</option>';
         select.innerHTML = opts;
@@ -345,21 +345,15 @@ export function registerAdultConfig(ctx) {
         listEl.innerHTML = '<span class="char-nsfw-subtitle">尚未添加口味——点击下方「＋添加口味」选择（可不选，用通用写法）</span>';
       } else {
         listEl.innerHTML = items.map(function(it, idx) {
-          var f = data.presets[it.id] || { label: it.id, description: '' };
-          var cover = Array.isArray(f.mustCover) && f.mustCover.length
-            ? ('必写：' + f.mustCover.slice(0, 3).join('、') + (f.mustCover.length > 3 ? '…' : ''))
-            : '';
-          var dens = f.densityHint ? ('≥' + f.densityHint + '字') : '';
+          var f = data.presets[it.id] || { label: it.id, summary: '', description: '' };
+          var blurb = f.summary || '';
           return '<div class="adult-flavor-item" data-flavor-idx="' + idx + '">'
             + '<div class="adult-flavor-item-head">'
             + '<div class="adult-flavor-item-meta">'
             + '<div class="adult-flavor-item-title">' + escapeHtml(f.label)
             + (idx === 0 ? '<span class="adult-flavor-primary-tag">主调色盘</span>' : '')
-            + (dens ? '<span class="adult-flavor-primary-tag">' + dens + '</span>' : '')
             + '</div>'
-            + '<div class="adult-flavor-item-desc">' + escapeHtml(f.description || '') + '</div>'
-            + (cover ? '<div class="adult-flavor-item-desc">' + escapeHtml(cover) + '</div>' : '')
-            + (f.writingGuide ? '<div class="adult-flavor-item-desc">' + escapeHtml(f.writingGuide) + '</div>' : '')
+            + (blurb ? '<div class="adult-flavor-item-desc">' + escapeHtml(blurb) + '</div>' : '')
             + '</div>'
             + '<button type="button" class="btn btn-ghost" data-flavor-remove="' + idx + '" style="font-size:0.7rem;padding:2px 8px;">移除</button>'
             + '</div>'
@@ -397,7 +391,10 @@ export function registerAdultConfig(ctx) {
           if (!groups[g].length) return;
           opts += '<optgroup label="' + g + '">';
           groups[g].forEach(function(id) {
-            opts += '<option value="' + id + '">' + data.presets[id].label + '</option>';
+            var pf = data.presets[id];
+            var lab = (pf && pf.label) || id;
+            var sm = (pf && pf.summary) ? (' — ' + pf.summary) : '';
+            opts += '<option value="' + id + '">' + lab + sm + '</option>';
           });
           opts += '</optgroup>';
         });
@@ -436,12 +433,7 @@ export function registerAdultConfig(ctx) {
         ntlContainer.innerHTML = data.tabooIds.map(function(id) {
           var info = data.tabooTypes[id];
           var active = !!activeSet[id];
-          var tip = info.description || '';
-          if (info.writingGuide) tip += '｜' + info.writingGuide;
-          if (Array.isArray(info.mustCover) && info.mustCover.length) {
-            tip += '｜必写：' + info.mustCover.slice(0, 2).join('、');
-          }
-          if (info.densityHint) tip += '｜≥' + info.densityHint + '字';
+          var tip = info.summary || info.label || id;
           return '<button type="button" class="novel-chip-btn' + (active ? ' active' : '') + '"'
             + ' data-adult-ntl="' + id + '" title="' + escapeHtml(tip) + '"'
             + ' aria-pressed="' + (active ? 'true' : 'false') + '">'
@@ -471,15 +463,15 @@ export function registerAdultConfig(ctx) {
         return;
       }
       listEl.innerHTML = items.map(function(it, idx) {
-        var info = data.tabooTypes[it.id] || { label: it.id, description: '' };
+        var info = data.tabooTypes[it.id] || { label: it.id, summary: '' };
+        var blurb = info.summary || '';
         return '<div class="adult-flavor-item" data-ntl-idx="' + idx + '">'
           + '<div class="adult-flavor-item-head">'
           + '<div class="adult-flavor-item-meta">'
           + '<div class="adult-flavor-item-title">' + escapeHtml(info.label)
           + (it.id === 'yuri_destruction' ? '<span class="adult-flavor-primary-tag">百合破坏</span>' : '')
           + '</div>'
-          + '<div class="adult-flavor-item-desc">' + escapeHtml(info.description || '') + '</div>'
-          + (info.writingGuide ? '<div class="adult-flavor-item-desc">' + escapeHtml(info.writingGuide) + '</div>' : '')
+          + (blurb ? '<div class="adult-flavor-item-desc">' + escapeHtml(blurb) + '</div>' : '')
           + '</div>'
           + '<button type="button" class="btn btn-ghost" data-ntl-remove="' + idx + '" style="font-size:0.7rem;padding:2px 8px;">移除</button>'
           + '</div>'

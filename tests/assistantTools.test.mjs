@@ -1,5 +1,5 @@
 /**
- * AI 助手工具全覆盖执行测试：74 个 ASSISTANT_TOOLS + 空参校验 + 桥接缺口
+ * AI 助手工具全覆盖执行测试：ASSISTANT_TOOLS + 空参校验 + 桥接缺口
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
@@ -27,6 +27,7 @@ const TOOL_MIN_ARGS = {
   list_cards: {},
   get_engine_options: {},
   get_prompt_ids: {},
+  get_adult_config: {},
   novel_list_outputs: {},
   update_character_fields: { fields: { charName: '新名' } },
   replace_character_section: { field: 'charDesc', content: '新描述' },
@@ -68,6 +69,7 @@ const TOOL_MIN_ARGS = {
   sync_novel_entities: {},
   set_novel_adult_mode: { enabled: true },
   set_novel_ntl_mode: { enabled: false },
+  set_adult_config: { enabled: true },
   draft_nsfw_statusbar: {},
   generate_corruption_lore: { templateOnly: true, selectedNames: ['测试'] },
   novel_distill_style: {},

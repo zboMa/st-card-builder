@@ -5,6 +5,8 @@
 import { NTL_GROUPS, NTL_GROUP_IDS } from './groups.mjs';
 import { NTL_TABOO_TYPES } from './types/catalog.mjs';
 import { NTL_TABOO_ENRICHMENT } from './enrichment/catalog.mjs';
+import { NTL_SUMMARIES } from './summaries.mjs';
+import { applySummaries } from '../../catalogSummaries.mjs';
 import {
   NTL_TABOO_DEFAULT_MIN_CHARS,
   NTL_SHARED_DIMENSIONS,
@@ -19,6 +21,7 @@ import {
 } from './enrichment/logic.mjs';
 
 applyNtlTabooEnrichment(NTL_TABOO_TYPES);
+applySummaries(NTL_TABOO_TYPES, NTL_SUMMARIES);
 
 export var NTL_TABOO_IDS = Object.keys(NTL_TABOO_TYPES);
 
@@ -26,6 +29,7 @@ export {
   NTL_GROUPS,
   NTL_GROUP_IDS,
   NTL_TABOO_TYPES,
+  NTL_SUMMARIES,
   NTL_TABOO_DEFAULT_MIN_CHARS,
   NTL_TABOO_ENRICHMENT,
   NTL_SHARED_DIMENSIONS,

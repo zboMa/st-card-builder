@@ -382,6 +382,14 @@ export function createToolExecutor(bridge, snapApi) {
       case 'get_prompt_ids':
         if (!bridge.getPromptIds) return fail('提示词桥接未就绪');
         return ok(bridge.getPromptIds());
+      case 'get_adult_config':
+        if (!bridge.getAdultConfig && !bridge.getNsfwConfig) return fail('成人配置桥接未就绪');
+        return ok((bridge.getAdultConfig || bridge.getNsfwConfig)());
+      case 'set_adult_config': {
+        if (!bridge.setAdultConfig && !bridge.setNsfwConfig) return fail('成人配置桥接未就绪');
+        maybeSnap();
+        return ok((bridge.setAdultConfig || bridge.setNsfwConfig)(a));
+      }
       case 'set_engine_options': {
         if (!bridge.setEngineOptions) return fail('引擎选项桥接未就绪');
         maybeSnap();

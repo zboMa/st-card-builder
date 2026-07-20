@@ -4,8 +4,13 @@
 import { FRAMES as EXISTING_FRAMES, ENRICHMENT as EXISTING_ENRICHMENT } from './existing.mjs';
 import { FRAMES as EXTENDED_FRAMES, ENRICHMENT as EXTENDED_ENRICHMENT } from './extended.mjs';
 import { FRAMES as WAVE2_FRAMES, ENRICHMENT as WAVE2_ENRICHMENT } from './wave2.mjs';
+import { WORLDFRAME_SUMMARIES } from './summaries.mjs';
+import { applySummaries } from '../../../catalogSummaries.mjs';
 
-export var WORLDFRAMES = Object.assign({}, EXISTING_FRAMES, EXTENDED_FRAMES, WAVE2_FRAMES);
+export var WORLDFRAMES = applySummaries(
+  Object.assign({}, EXISTING_FRAMES, EXTENDED_FRAMES, WAVE2_FRAMES),
+  WORLDFRAME_SUMMARIES
+);
 
 export var WORLDFRAME_IDS = Object.keys(WORLDFRAMES);
 
@@ -15,3 +20,5 @@ export var WORLDFRAME_VESSEL_ENRICHMENT = Object.assign(
   EXTENDED_ENRICHMENT,
   WAVE2_ENRICHMENT
 );
+
+export { WORLDFRAME_SUMMARIES };
