@@ -89,6 +89,7 @@ export var WORLDVIEW_SUMMARIES = {
   transit_capsule: '限时通行证锁住一夜共处，查铺广播与离站截止把亲密撕成一次性',
   live_gift_court: '礼物榜即位份，公屏见证后结算群把甜蜜折成返点与封号申诉',
   clan_name_debauch: '改口酒与族谱添笔给越界上锁，祠堂座次胙肉把名分变成全族背书',
+  ageless_beauties: '锁档认证让美貌停表，光龄信用与解档代价重写婚恋权力',
   legal_tribunal: '律所账单法庭排期相互咬合，证据与名誉先判人生',
   esports_league: '战队席位训练赛与直播合约压人，胜负之外仍有生计',
   railway_sleeper: '卧铺车厢乘务排班与临检同行，长夜把人压成流动社会',
