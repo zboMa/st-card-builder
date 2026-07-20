@@ -14,6 +14,8 @@ export var POSTURE_GROUPS = [
   { id: '多人轮转', label: '多人轮转' },
   { id: '寸止控制', label: '寸止控制' },
   { id: '着衣隔衣', label: '着衣隔衣' },
+  { id: '具名体位', label: '具名体位' },
+  { id: '多人动作', label: '多人动作' },
 ];
 
 export var SPEECH_GROUPS = [
@@ -29,4 +31,8 @@ export var SPEECH_GROUPS = [
   { id: '冷静临床', label: '冷静临床' },
   { id: '撒娇求欢', label: '撒娇求欢' },
   { id: '挑衅较劲', label: '挑衅较劲' },
+  { id: '情境口吻', label: '情境口吻' },
+  { id: '权力口吻', label: '权力口吻' },
+  { id: '气质变体', label: '气质变体' },
+  { id: '玩法联动', label: '玩法联动' },
 ];
