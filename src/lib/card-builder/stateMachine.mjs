@@ -95,7 +95,15 @@ export function createCardStateMachine(state) {
       state.nsfwFlavorItems = [];
     }
     state.ntlEnabled = !!d.ntlEnabled;
-    state.ntlTabooTypes = Array.isArray(d.ntlTabooTypes) ? d.ntlTabooTypes.slice() : [];
+    if (Array.isArray(d.ntlTabooItems) && d.ntlTabooItems.length) {
+      state.ntlTabooItems = d.ntlTabooItems.map(function(it) {
+        return { id: String((it && it.id) || ''), note: String((it && it.note) || '') };
+      }).filter(function(it) { return it.id; });
+      state.ntlTabooTypes = state.ntlTabooItems.map(function(it) { return it.id; });
+    } else {
+      state.ntlTabooTypes = Array.isArray(d.ntlTabooTypes) ? d.ntlTabooTypes.slice() : [];
+      state.ntlTabooItems = state.ntlTabooTypes.map(function(id) { return { id: id, note: '' }; });
+    }
     state.corruptionEnabled = !!d.corruptionEnabled;
     state.corruptionPreset = d.corruptionPreset || '5';
     state.corruptionCustomBrief = d.corruptionCustomBrief || '';
@@ -126,6 +134,7 @@ export function createCardStateMachine(state) {
     state.nsfwFlavorItems = [];
     state.ntlEnabled = false;
     state.ntlTabooTypes = [];
+    state.ntlTabooItems = [];
     state.corruptionEnabled = false;
     state.corruptionPreset = '5';
     state.corruptionCustomBrief = '';

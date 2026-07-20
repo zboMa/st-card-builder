@@ -18,7 +18,6 @@ import {
   getAdultMode,
   getNtlMode,
   boostAdultSearchQuery,
-  buildAdultContextDigests,
   extractStyleNsfwSection,
   buildModeHintBlocks,
   buildContentModeFlags,
@@ -35,6 +34,8 @@ import {
   evaluateNtlRichness,
   buildNtlExpandSystemPrompt,
   buildNtlExpandUserPrompt,
+  buildAdultCanonDigest,
+  ADULT_CANON_BUDGET,
   ADULT_RAG_BOOST_TERMS,
   NTL_RAG_BOOST_TERMS,
 } from '../nsfwSupport.mjs';
@@ -350,7 +351,18 @@ export function registerCharacters(ctx) {
           + buildPaletteGuidanceBlock(state)
           + buildNsfwFlavorHint(state)
           + buildNtlTabooHint(state)
-          + buildAdultContextDigests(state.entities, 2000, getNtlMode(state))
+          + buildAdultCanonDigest({
+            entities: state.entities,
+            worldbookEntries: (state.wbEntries || []).map(function(e) {
+              return {
+                comment: e.comment || ('[小说' + (e.category || 'setting') + '] ' + e.name),
+                content: e.content || '',
+              };
+            }),
+            styleText: state.styleText,
+            focusName: ch.name,
+            budget: ADULT_CANON_BUDGET,
+          })
           + '\n\n角色名: ' + ch.name
           + '\n别名: ' + (ch.aliases || []).join('、')
           + buildContentModeFlags(state)
@@ -467,7 +479,7 @@ export function registerCharacters(ctx) {
     if (!chars || !chars.length) return '';
     var lines = chars.map(function(c) {
       var alias = (c.aliases || []).length ? ' aliases=' + c.aliases.join('/') : '';
-      return '- ' + c.name + alias + (c.note ? ' · ' + String(c.note).substring(0, 80) : '');
+      return '- ' + c.name + alias + (c.note ? ' · ' + String(c.note).substring(0, 300) : '');
     }).join('\n');
     return '\n【已扫描人物（勿重复同名；可补 aliases/identity，可完善说明）】\n' + lines;
   }

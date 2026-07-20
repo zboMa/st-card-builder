@@ -5,7 +5,7 @@
  * 调色盘三层架构：
  *   第一层·角色核心调色盘（always）→ schema.mjs: persona_layers / tension_pairs / core_desire
  *   第二层·NSFW 口味（叠加）→ nsfwFlavorItems 多选（最多 5，首项为主调色盘）→ desire_palette / …
- *   第三层·NTL 禁忌层（可选叠加）→ ntlTabooType 预设 → 特定禁忌类别的张力引导
+ *   第三层·NTL 禁忌层（可选叠加）→ ntlTabooItems[{id,note}] 多选 → 特定禁忌类别的张力引导
  */
 import { UNMENTIONED } from './schema.mjs';
 import {
@@ -31,7 +31,23 @@ import {
   buildNtlExpandSystemPrompt,
   buildNtlExpandUserPrompt,
   buildNtlTabooHintFromTypes,
+  normalizeNtlTabooItems,
 } from './ntlTabooEnrichment.mjs';
+import {
+  ADULT_DIGEST_DEFAULT,
+  ADULT_CANON_BUDGET,
+  FIELD_PERSON_NSFW,
+  FIELD_PERSON_NTL,
+  FIELD_SUMMARY,
+  LIST_KINKS,
+  LIST_LIMITS,
+  LIST_TABOO,
+  STYLE_NSFW_SLICE,
+  STYLE_ADULT_FALLBACK,
+  EXPAND_CTX_CHARS,
+  EXPAND_BODY_CHARS,
+} from './contextBudgets.mjs';
+import { buildAdultCanonDigest, formatCorruptionArchiveDigests } from './adultCanon.mjs';
 
 export {
   NSFW_FLAVOR_DEFAULT_MIN_CHARS,
@@ -52,6 +68,13 @@ export {
   buildNtlExpandSystemPrompt,
   buildNtlExpandUserPrompt,
   buildNtlTabooHintFromTypes,
+  normalizeNtlTabooItems,
+  buildAdultCanonDigest,
+  formatCorruptionArchiveDigests,
+  ADULT_DIGEST_DEFAULT,
+  ADULT_CANON_BUDGET,
+  EXPAND_CTX_CHARS,
+  EXPAND_BODY_CHARS,
 };
 
 /** 卡级 NSFW 口味最多叠加条数 */
@@ -619,18 +642,20 @@ export function formatAdultAttrsForContent(adult) {
 
 /** 从实体库摘人物 NSFW 摘要（文风互喂） */
 export function formatPersonNsfwDigest(entities, maxChars) {
-  var budget = maxChars || 2500;
+  var budget = maxChars || Math.floor(ADULT_DIGEST_DEFAULT * 0.4);
   var lines = ['【已有人物 NSFW 摘要（文风须对齐尺度与禁忌）】'];
   var used = lines[0].length;
   (entities || []).filter(function(e) { return e && e.type === 'person'; }).forEach(function(e) {
     var n = e.attrs && e.attrs.profile && e.attrs.profile.NSFW_information;
     if (!n) return;
-    var kinks = [].concat(n.Kinks || [], n.xp_kinks || []).slice(0, 6).join('、');
-    var limits = (n.Limits || []).slice(0, 6).join('、');
+    var kinks = [].concat(n.Kinks || [], n.xp_kinks || []).slice(0, LIST_KINKS).join('、');
+    var limits = (n.Limits || []).slice(0, LIST_LIMITS).join('、');
     var meta = e.attrs && e.attrs.nsfwMeta ? normalizeNsfwMeta(e.attrs.nsfwMeta) : null;
     var line = '- ' + e.name
       + (n.sexual_personality && !isPlaceholderText(n.sexual_personality)
-        ? ' | 情欲性格:' + String(n.sexual_personality).slice(0, 40) : '')
+        ? ' | 情欲性格:' + String(n.sexual_personality).slice(0, FIELD_PERSON_NSFW) : '')
+      + (n.contrast && !isPlaceholderText(n.contrast)
+        ? ' | 反差:' + String(n.contrast).slice(0, FIELD_PERSON_NSFW) : '')
       + (kinks ? ' | XP:' + kinks : '')
       + (limits ? ' | Limits:' + limits : '')
       + (meta && meta.inferred ? ' | 推断' : '');
@@ -644,14 +669,15 @@ export function formatPersonNsfwDigest(entities, maxChars) {
 
 /** 从实体库摘 nsfw 条目摘要 */
 export function formatNsfwEntityDigest(entities, maxChars) {
-  var budget = maxChars || 2000;
+  var budget = maxChars || Math.floor(ADULT_DIGEST_DEFAULT * 0.25);
   var lines = ['【已有 NSFW 世界设定】'];
   var used = lines[0].length;
   (entities || []).filter(function(e) { return e && e.type === 'nsfw'; }).forEach(function(e) {
     var a = normalizeNsfwEntityAttrs(e.attrs || {});
     var line = '- [' + a.kind + '] ' + e.name
-      + (e.summary ? ': ' + String(e.summary).slice(0, 60) : '')
-      + (a.limits && a.limits.length ? ' | 禁:' + a.limits.slice(0, 3).join('/') : '');
+      + (e.summary ? ': ' + String(e.summary).slice(0, FIELD_SUMMARY) : '')
+      + (e.content ? ' | ' + String(e.content).slice(0, 400) : '')
+      + (a.limits && a.limits.length ? ' | 禁:' + a.limits.slice(0, LIST_LIMITS).join('/') : '');
     if (used + line.length > budget) return;
     lines.push(line);
     used += line.length;
@@ -662,7 +688,7 @@ export function formatNsfwEntityDigest(entities, maxChars) {
 
 /** 物品/地点/设定等 attrs.adult 摘要 */
 export function formatAdultSideDigest(entities, maxChars) {
-  var budget = maxChars || 2000;
+  var budget = maxChars || Math.floor(ADULT_DIGEST_DEFAULT * 0.25);
   var lines = ['【已有条目成人向用法（item/location/lore/faction）】'];
   var used = lines[0].length;
   (entities || []).filter(function(e) {
@@ -671,8 +697,10 @@ export function formatAdultSideDigest(entities, maxChars) {
     var a = normalizeAdultAttrs(e.attrs.adult);
     if (isPlaceholderText(a.eroticRole) && !(a.playIdeas || []).length) return;
     var line = '- [' + e.type + '] ' + e.name
-      + (a.eroticRole ? ': ' + String(a.eroticRole).slice(0, 50) : '')
-      + (a.limits && a.limits.length ? ' | 禁:' + a.limits.slice(0, 3).join('/') : '');
+      + (a.eroticRole ? ': ' + String(a.eroticRole).slice(0, FIELD_SUMMARY) : '')
+      + (a.limits && a.limits.length ? ' | 禁:' + a.limits.slice(0, LIST_LIMITS).join('/') : '')
+      + (a.relatedPersons && a.relatedPersons.length
+        ? ' | 相关:' + a.relatedPersons.slice(0, 10).join('/') : '');
     if (used + line.length > budget) return;
     lines.push(line);
     used += line.length;
@@ -683,7 +711,7 @@ export function formatAdultSideDigest(entities, maxChars) {
 
 /** 从实体库摘人物 NTL 摘要（文风互喂） */
 export function formatPersonNtlDigest(entities, maxChars) {
-  var budget = maxChars || 2000;
+  var budget = maxChars || Math.floor(ADULT_DIGEST_DEFAULT * 0.25);
   var lines = ['【已有人物 NTL 摘要（禁忌张力须对齐）】'];
   var used = lines[0].length;
   (entities || []).filter(function(e) { return e && e.type === 'person'; }).forEach(function(e) {
@@ -691,10 +719,14 @@ export function formatPersonNtlDigest(entities, maxChars) {
     if (isPlaceholderText(ntl.powerDynamic) && !ntl.tabooThemes.length) return;
     var line = '- ' + e.name
       + (ntl.powerDynamic && !isPlaceholderText(ntl.powerDynamic)
-        ? ' | 权力动态:' + String(ntl.powerDynamic).slice(0, 40) : '')
-      + (ntl.tabooThemes.length ? ' | 禁忌:' + ntl.tabooThemes.slice(0, 4).join('/') : '')
+        ? ' | 权力动态:' + String(ntl.powerDynamic).slice(0, FIELD_PERSON_NTL) : '')
+      + (ntl.tabooThemes.length ? ' | 禁忌:' + ntl.tabooThemes.slice(0, LIST_TABOO).join('/') : '')
       + (ntl.coercionHint && !isPlaceholderText(ntl.coercionHint)
-        ? ' | 胁迫:' + String(ntl.coercionHint).slice(0, 30) : '')
+        ? ' | 胁迫:' + String(ntl.coercionHint).slice(0, FIELD_PERSON_NTL) : '')
+      + (ntl.moralConflict && !isPlaceholderText(ntl.moralConflict)
+        ? ' | 道德:' + String(ntl.moralConflict).slice(0, FIELD_PERSON_NTL) : '')
+      + (ntl.emotionalCost && !isPlaceholderText(ntl.emotionalCost)
+        ? ' | 代价:' + String(ntl.emotionalCost).slice(0, FIELD_PERSON_NTL) : '')
       + (ntl.dominantRole ? ' | 角色:' + ntl.dominantRole : '')
       + (ntl.inferred ? ' | 推断' : '');
     if (used + line.length > budget) return;
@@ -705,15 +737,15 @@ export function formatPersonNtlDigest(entities, maxChars) {
   return '\n' + lines.join('\n');
 }
 
-/** 合并成人相关摘要块（丰满/文风注入）；ntlMode 时包含 NTL 人物摘要 */
+/** 合并成人相关摘要块；预算默认已放宽。优先用 buildAdultCanonDigest 做完整联动 */
 export function buildAdultContextDigests(entities, maxChars, ntlMode) {
-  var budget = maxChars || 5000;
-  var ntlBudget = ntlMode ? Math.floor(budget * 0.2) : 0;
+  var budget = maxChars || ADULT_DIGEST_DEFAULT;
+  var ntlBudget = ntlMode ? Math.floor(budget * 0.25) : 0;
   var mainBudget = budget - ntlBudget;
   var parts = [
-    formatPersonNsfwDigest(entities, Math.floor(mainBudget * 0.4)),
+    formatPersonNsfwDigest(entities, Math.floor(mainBudget * 0.45)),
     formatNsfwEntityDigest(entities, Math.floor(mainBudget * 0.25)),
-    formatAdultSideDigest(entities, Math.floor(mainBudget * 0.25)),
+    formatAdultSideDigest(entities, Math.floor(mainBudget * 0.3)),
     ntlMode ? formatPersonNtlDigest(entities, ntlBudget) : null,
   ].filter(Boolean);
   return parts.join('');
@@ -725,10 +757,14 @@ export function extractStyleNsfwSection(styleText) {
   if (!t.trim()) return '';
   var m = t.match(/##\s*NSFW\s*文风指令([\s\S]*?)(?=\n##\s|$)/i);
   if (m && m[1] && m[1].trim()) {
-    return '\n【文风 NSFW 指令（人物描写须对齐）】\n' + m[1].trim().slice(0, 3000);
+    return '\n【文风 NSFW 指令（人物描写须对齐）】\n' + m[1].trim().slice(0, STYLE_NSFW_SLICE);
   }
-  if (/情欲|身体描写|敏感|NSFW/i.test(t)) {
-    return '\n【文风片段（含成人向）】\n' + t.slice(0, 1500);
+  var m2 = t.match(/##\s*NTL\s*文风指令([\s\S]*?)(?=\n##\s|$)/i);
+  if (m2 && m2[1] && m2[1].trim()) {
+    return '\n【文风 NTL 指令（禁忌张力须对齐）】\n' + m2[1].trim().slice(0, STYLE_NSFW_SLICE);
+  }
+  if (/情欲|身体描写|敏感|NSFW|禁忌|NTL/i.test(t)) {
+    return '\n【文风片段（含成人向）】\n' + t.slice(0, STYLE_ADULT_FALLBACK);
   }
   return '';
 }
@@ -1021,25 +1057,42 @@ export function getFlavorPalette(flavorId) {
 }
 
 /**
- * NTL 禁忌类型管理（多选）
+ * NTL 禁忌类型管理（多选 + 每项 note）
  */
+export function getNtlTabooItems(state) {
+  if (!state) return [];
+  return normalizeNtlTabooItems(state.ntlTabooItems, state.ntlTabooTypes, NTL_TABOO_IDS);
+}
+
 export function getNtlTabooTypes(state) {
-  return (state && Array.isArray(state.ntlTabooTypes)) ? state.ntlTabooTypes.slice() : [];
+  return getNtlTabooItems(state).map(function(it) { return it.id; });
+}
+
+export function setNtlTabooItems(state, items) {
+  var next = normalizeNtlTabooItems(items, [], NTL_TABOO_IDS);
+  state.ntlTabooItems = next.map(function(it) {
+    return { id: it.id, note: it.note || '' };
+  });
+  state.ntlTabooTypes = next.map(function(it) { return it.id; });
+  return getNtlTabooItems(state);
 }
 
 export function setNtlTabooTypes(state, types) {
+  var curNotes = Object.create(null);
+  getNtlTabooItems(state).forEach(function(it) { curNotes[it.id] = it.note || ''; });
   var list = Array.isArray(types) ? types.filter(function(t) { return NTL_TABOO_IDS.indexOf(t) >= 0; }) : [];
-  state.ntlTabooTypes = list;
-  return list.slice();
+  return setNtlTabooItems(state, list.map(function(id) {
+    return { id: id, note: curNotes[id] || '' };
+  }));
 }
 
 export function addNtlTabooType(state, type) {
-  var list = getNtlTabooTypes(state);
-  if (NTL_TABOO_IDS.indexOf(type) >= 0 && list.indexOf(type) < 0) {
-    list.push(type);
-    state.ntlTabooTypes = list;
+  var list = getNtlTabooItems(state);
+  if (NTL_TABOO_IDS.indexOf(type) >= 0 && !list.some(function(it) { return it.id === type; })) {
+    list.push({ id: type, note: '' });
+    setNtlTabooItems(state, list);
   }
-  return list.slice();
+  return getNtlTabooTypes(state);
 }
 
 /**
@@ -1122,13 +1175,13 @@ export function buildNsfwFlavorHint(state) {
 }
 
 /**
- * 构建 NTL 禁忌类型注入块：必写维度 + 指南 + 硬约束（对齐口味丰满）
+ * 构建 NTL 禁忌类型注入块：必写维度 + 指南 + 用户 note + 硬约束
  */
 export function buildNtlTabooHint(state) {
   if (!getNtlMode(state)) return '';
-  var types = getNtlTabooTypes(state);
-  if (!types.length) return '';
-  return buildNtlTabooHintFromTypes(types, { tabooTypes: NTL_TABOO_TYPES });
+  var items = getNtlTabooItems(state);
+  if (!items.length) return '';
+  return buildNtlTabooHintFromTypes(items, { tabooTypes: NTL_TABOO_TYPES });
 }
 
 /**

@@ -182,6 +182,11 @@ export function bootCardBuilder() {
         : (ctx.state.nsfwFlavor ? [{ id: ctx.state.nsfwFlavor, note: '' }] : []),
       ntlEnabled: !!ctx.state.ntlEnabled,
       ntlTabooTypes: (ctx.state.ntlTabooTypes || []).slice(),
+      ntlTabooItems: Array.isArray(ctx.state.ntlTabooItems)
+        ? ctx.state.ntlTabooItems.map(function(it) {
+            return { id: String((it && it.id) || ''), note: String((it && it.note) || '') };
+          }).filter(function(it) { return it.id; })
+        : (ctx.state.ntlTabooTypes || []).map(function(id) { return { id: String(id), note: '' }; }),
       corruptionEnabled: !!ctx.state.corruptionEnabled,
       corruptionPreset: ctx.state.corruptionPreset || '5',
       corruptionCustomBrief: ctx.state.corruptionCustomBrief || '',
@@ -255,7 +260,15 @@ export function bootCardBuilder() {
       }
       if (c.nsfwEnabled != null) ctx.state.nsfwEnabled = !!c.nsfwEnabled;
       if (c.ntlEnabled != null) ctx.state.ntlEnabled = !!c.ntlEnabled;
-      if (Array.isArray(c.ntlTabooTypes)) ctx.state.ntlTabooTypes = c.ntlTabooTypes.slice();
+      if (Array.isArray(c.ntlTabooItems) && c.ntlTabooItems.length) {
+        ctx.state.ntlTabooItems = c.ntlTabooItems.map(function(it) {
+          return { id: String((it && it.id) || ''), note: String((it && it.note) || '') };
+        }).filter(function(it) { return it.id; });
+        ctx.state.ntlTabooTypes = ctx.state.ntlTabooItems.map(function(it) { return it.id; });
+      } else if (Array.isArray(c.ntlTabooTypes)) {
+        ctx.state.ntlTabooTypes = c.ntlTabooTypes.slice();
+        ctx.state.ntlTabooItems = ctx.state.ntlTabooTypes.map(function(id) { return { id: id, note: '' }; });
+      }
       if (c.corruptionEnabled != null) ctx.state.corruptionEnabled = !!c.corruptionEnabled;
       if (c.corruptionPreset != null) ctx.state.corruptionPreset = String(c.corruptionPreset || '5');
       if (c.corruptionCustomBrief != null) ctx.state.corruptionCustomBrief = String(c.corruptionCustomBrief || '');

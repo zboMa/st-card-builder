@@ -28,6 +28,7 @@ export function createDefaultCardState() {
     nsfwFlavorItems: [],
     ntlEnabled: false,
     ntlTabooTypes: [],
+    ntlTabooItems: [],
     corruptionEnabled: false,
     corruptionPreset: '5',
     corruptionCustomBrief: '',
@@ -72,6 +73,11 @@ export function buildDraftSnapshot(state) {
       : (s.nsfwFlavor ? [{ id: s.nsfwFlavor, note: '' }] : []),
     ntlEnabled: !!s.ntlEnabled,
     ntlTabooTypes: (s.ntlTabooTypes || []).slice(),
+    ntlTabooItems: Array.isArray(s.ntlTabooItems)
+      ? s.ntlTabooItems.map(function(it) {
+          return { id: String((it && it.id) || ''), note: String((it && it.note) || '') };
+        }).filter(function(it) { return it.id; })
+      : (s.ntlTabooTypes || []).map(function(id) { return { id: String(id), note: '' }; }),
     corruptionEnabled: !!s.corruptionEnabled,
     corruptionPreset: s.corruptionPreset || '5',
     corruptionCustomBrief: s.corruptionCustomBrief || '',

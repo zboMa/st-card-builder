@@ -26,6 +26,8 @@ import {
   setNsfwFlavorItems,
   getNtlTabooTypes,
   setNtlTabooTypes,
+  getNtlTabooItems,
+  setNtlTabooItems,
   buildStatusBarNsfwDraftFromEntities,
   buildStatusBarNtlDraftFromEntities,
   NSFW_FLAVOR_PRESETS,
@@ -686,6 +688,18 @@ export function createBridge(ctx) {
       if (typeof window.__setNsfwConfig__ === 'function') {
         var cfg = window.__getNsfwConfig__ ? window.__getNsfwConfig__() : {};
         cfg.ntlTabooTypes = types;
+        cfg.ntlTabooItems = getNtlTabooItems(state);
+        window.__setNsfwConfig__(cfg);
+      }
+      ctx.save();
+    },
+    getNtlTabooItems: function() { return getNtlTabooItems(state); },
+    setNtlTabooItems: function(items) {
+      setNtlTabooItems(state, items);
+      if (typeof window.__setNsfwConfig__ === 'function') {
+        var cfg = window.__getNsfwConfig__ ? window.__getNsfwConfig__() : {};
+        cfg.ntlTabooItems = getNtlTabooItems(state);
+        cfg.ntlTabooTypes = getNtlTabooTypes(state);
         window.__setNsfwConfig__(cfg);
       }
       ctx.save();

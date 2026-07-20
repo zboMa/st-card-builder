@@ -8,10 +8,11 @@ import {
   getNtlMode,
   buildContentModeFlags,
   buildModeHintBlocks,
-  buildAdultContextDigests,
   buildNtlTabooHint,
   buildPaletteGuidanceBlock,
   buildNsfwFlavorHint,
+  buildAdultCanonDigest,
+  ADULT_CANON_BUDGET,
 } from '../nsfwSupport.mjs';
 import { parseJsonLoose } from '../../utils.mjs';
 
@@ -148,7 +149,18 @@ export function registerStyle(ctx) {
           + (adultOn ? buildPaletteGuidanceBlock(state) : '')
           + (adultOn ? buildNsfwFlavorHint(state) : '')
           + buildNtlTabooHint(state)
-          + buildAdultContextDigests(state.entities, 4000, getNtlMode(state));
+          + buildAdultCanonDigest({
+            entities: state.entities,
+            worldbookEntries: (state.wbEntries || []).map(function(e) {
+              return {
+                comment: e.comment || ('[小说' + (e.category || 'setting') + '] ' + e.name),
+                content: e.content || '',
+              };
+            }),
+            styleText: '',
+            budget: ADULT_CANON_BUDGET,
+            includeStyle: false,
+          });
         var out = await ctx.callAI(user, null, task.signal);
         state.styleText = out.trim();
         state.styleSyncStatus = 'unsynced';

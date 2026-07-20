@@ -138,6 +138,7 @@ import AiTaskCenterUI from '../components/AiTaskCenterUI.astro';
       evaluateFlavorRichness,
       collectFlavorEnrichment,
       buildNtlTabooHintFromTypes,
+      normalizeNtlTabooItems,
       evaluateNtlRichness,
       collectNtlEnrichment,
     } from '../lib/novel/nsfwSupport.mjs';
@@ -154,6 +155,7 @@ import AiTaskCenterUI from '../components/AiTaskCenterUI.astro';
       evaluateRichness: evaluateFlavorRichness,
       collectEnrichment: collectFlavorEnrichment,
       buildNtlHintFromTypes: buildNtlTabooHintFromTypes,
+      normalizeNtlItems: normalizeNtlTabooItems,
       evaluateNtlRichness: evaluateNtlRichness,
       collectNtlEnrichment: collectNtlEnrichment,
     };

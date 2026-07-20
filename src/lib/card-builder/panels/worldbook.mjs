@@ -296,16 +296,32 @@ export function registerWorldbook(ctx) {
       return hints.ntl || '';
     }
     var data = window.__nsfwFlavorData__;
-    if (!ctx.state.ntlEnabled || !ctx.state.ntlTabooTypes.length || !data) return '';
+    if (!ctx.state.ntlEnabled || !data) return '';
+    var items = Array.isArray(ctx.state.ntlTabooItems) && ctx.state.ntlTabooItems.length
+      ? ctx.state.ntlTabooItems
+      : (ctx.state.ntlTabooTypes || []).map(function(id) { return { id: id, note: '' }; });
+    if (!items.length) return '';
     if (typeof data.buildNtlHintFromTypes === 'function') {
-      return data.buildNtlHintFromTypes(ctx.state.ntlTabooTypes, { tabooTypes: data.tabooTypes });
+      return data.buildNtlHintFromTypes(items, { tabooTypes: data.tabooTypes });
     }
     var lines = ['\n\u3010NTL \u7981\u5FCC\u65B9\u5411\u3011'];
-    ctx.state.ntlTabooTypes.forEach(function(t) {
-      var info = data.tabooTypes[t];
-      if (info) lines.push('- ' + info.label + '\uFF1A' + info.description);
+    items.forEach(function(it) {
+      var id = it && it.id ? it.id : it;
+      var info = data.tabooTypes[id];
+      if (info) {
+        lines.push('- ' + info.label + '\uFF1A' + info.description
+          + (it && it.note ? '\uFF1B\u7528\u6237\u8865\u5145\uFF1A' + it.note : ''));
+      }
     });
     return lines.join('\n');
+  }
+
+  function buildAdultCanonHint() {
+    if (typeof window.__buildAdultPromptHints__ === 'function') {
+      var hints = window.__buildAdultPromptHints__() || {};
+      return hints.canon || '';
+    }
+    return '';
   }
 
   // ============================================================
@@ -376,9 +392,9 @@ export function registerWorldbook(ctx) {
     var wbIncludeCharData = ctx.$('wbIncludeCharData');
     var includeChar = wbIncludeCharData && wbIncludeCharData.checked;
     var charBlock = includeChar
-      ? '\n【高级·主角背景参考】：' + ctx.val('charName') + ' | ' + String(ctx.val('charDesc') || '').slice(0, 400) + '\n'
+      ? '\n【高级·主角背景参考】：' + ctx.val('charName') + ' | ' + String(ctx.val('charDesc') || '').slice(0, 2000) + '\n'
       : '\n【管道】世界书与主角角色设定分离；默认不读取主角 Description。\n';
-    var sysPrompt = ctx.promptText('wbSingle', '') + stepInfo + charBlock + '\n' + ctxStr + '\n' + presetBlock + buildNsfwFlavorHint() + buildNtlHintForPrompt() + searchInjection + '\n\u3010\u8F93\u51FA\u3011\uFF1A1\u4E2AJSON\u5BF9\u8C61 { "comment": "\u6807\u9898", "content": "\u8BE6\u7EC6\u8BBE\u5B9A(\u81F3\u5C11100\u5B57)", "keys": ["\u89E6\u53D1\u8BCD"], "strategy": "selective \u6216 constant", "position": 4 }';
+    var sysPrompt = ctx.promptText('wbSingle', '') + stepInfo + charBlock + '\n' + ctxStr + '\n' + presetBlock + buildNsfwFlavorHint() + buildNtlHintForPrompt() + buildAdultCanonHint() + searchInjection + '\n\u3010\u8F93\u51FA\u3011\uFF1A1\u4E2AJSON\u5BF9\u8C61 { "comment": "\u6807\u9898", "content": "\u8BE6\u7EC6\u8BBE\u5B9A(\u81F3\u5C11100\u5B57)", "keys": ["\u89E6\u53D1\u8BCD"], "strategy": "selective \u6216 constant", "position": 4 }';
     var userPrompt = customDirection ? '\u3010\u65B9\u5411\u3011\uFF1A' + customDirection : '\u3010\u81EA\u7531\u53D1\u6325\uFF0C\u62D2\u7EDD\u91CD\u590D\u3011';
     var headers = { 'Content-Type': 'application/json' };
     if (key) headers['Authorization'] = 'Bearer ' + key;

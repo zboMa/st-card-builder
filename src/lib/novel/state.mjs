@@ -96,8 +96,10 @@ export function createDefaultNovelState() {
     adultMode: false,
     /** 全局 NTL：禁忌张力层，与 NSFW 解耦可叠加 */
     ntlMode: false,
-    /** NTL 禁忌类型（多选，空=原 NTL 通用模式） */
+    /** NTL 禁忌类型 id 列表（兼容；等于 ntlTabooItems[].id） */
     ntlTabooTypes: [],
+    /** NTL 禁忌多选：[{ id, note }] */
+    ntlTabooItems: [],
     /** NSFW 主口味 id（兼容旧字段；等于 nsfwFlavorItems[0].id） */
     nsfwFlavor: '',
     /** NSFW 口味多选：[{ id, note }]，最多 5；首项为主调色盘 */
@@ -205,6 +207,13 @@ export function hydrateNovelState(raw) {
   base.styleIncludeNSFW = !!base.adultMode;
   base.ntlMode = !!base.ntlMode;
   if (!Array.isArray(base.ntlTabooTypes)) base.ntlTabooTypes = [];
+  if (!Array.isArray(base.ntlTabooItems)) base.ntlTabooItems = [];
+  if (!base.ntlTabooItems.length && base.ntlTabooTypes.length) {
+    base.ntlTabooItems = base.ntlTabooTypes.map(function(id) { return { id: id, note: '' }; });
+  }
+  if (base.ntlTabooItems.length && !base.ntlTabooTypes.length) {
+    base.ntlTabooTypes = base.ntlTabooItems.map(function(it) { return it && it.id; }).filter(Boolean);
+  }
   if (typeof base.nsfwFlavor !== 'string') base.nsfwFlavor = '';
   if (!Array.isArray(base.nsfwFlavorItems)) base.nsfwFlavorItems = [];
   // 旧桶仅有 nsfwFlavor：迁入 items

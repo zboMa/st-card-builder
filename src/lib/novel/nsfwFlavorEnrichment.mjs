@@ -389,7 +389,9 @@ export function buildFlavorExpandUserPrompt(opts) {
   parts.push('【薄弱维度】' + (Array.isArray(o.weakDimensions) ? o.weakDimensions.join('、') : '信息密度不足'));
   parts.push('【目标最少字数】' + (o.minChars || NSFW_FLAVOR_DEFAULT_MIN_CHARS));
   if (o.flavorHint) parts.push(String(o.flavorHint).trim());
-  if (o.context) parts.push('【角色/条目上下文】\n' + String(o.context).trim().slice(0, 4000));
-  parts.push('【待加厚内容】\n' + String(o.text || '').trim().slice(0, 8000));
+  var ctxMax = o.contextMax != null ? o.contextMax : 20000;
+  var bodyMax = o.bodyMax != null ? o.bodyMax : 40000;
+  if (o.context) parts.push('【角色/条目上下文】\n' + String(o.context).trim().slice(0, ctxMax));
+  parts.push('【待加厚内容】\n' + String(o.text || '').trim().slice(0, bodyMax));
   return parts.join('\n\n');
 }

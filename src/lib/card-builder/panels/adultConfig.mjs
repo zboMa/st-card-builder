@@ -28,6 +28,8 @@ import {
   personNameFromWorldbookComment,
 } from '../../novel/sync.mjs';
 import { buildPlaceholderPaths, normalizeDesign } from '../../statusBar.mjs';
+import { buildAdultCanonDigest, formatCorruptionArchiveDigests } from '../../novel/adultCanon.mjs';
+import { CORRUPTION_EXPAND_WB } from '../../novel/contextBudgets.mjs';
 
 export function registerAdultConfig(ctx) {
   var escapeHtml = ctx.escapeHtml;
@@ -36,6 +38,27 @@ export function registerAdultConfig(ctx) {
   function maxFlavorItems() {
     var data = window.__nsfwFlavorData__;
     return (data && data.maxItems) || 5;
+  }
+
+  function ensureNtlItemsOnState() {
+    var data = window.__nsfwFlavorData__;
+    var valid = (data && data.tabooIds) || [];
+    var raw = Array.isArray(ctx.state.ntlTabooItems) ? ctx.state.ntlTabooItems : [];
+    var legacy = Array.isArray(ctx.state.ntlTabooTypes) ? ctx.state.ntlTabooTypes : [];
+    var items = [];
+    var seen = Object.create(null);
+    (raw.length ? raw : legacy.map(function(id) { return { id: id, note: '' }; })).forEach(function(it) {
+      var id = typeof it === 'string' ? it : String((it && it.id) || '');
+      if (!id || seen[id] || (valid.length && valid.indexOf(id) < 0)) return;
+      seen[id] = true;
+      items.push({
+        id: id,
+        note: typeof it === 'string' ? '' : String((it && it.note) || ''),
+      });
+    });
+    ctx.state.ntlTabooItems = items;
+    ctx.state.ntlTabooTypes = items.map(function(it) { return it.id; });
+    return items;
   }
 
   function normalizeFlavorItems(raw, legacy) {
@@ -80,19 +103,16 @@ export function registerAdultConfig(ctx) {
 
   function buildNtlHintForPrompt() {
     var data = window.__nsfwFlavorData__;
-    if (!ctx.state.ntlEnabled || !ctx.state.ntlTabooTypes.length || !data) return '';
+    if (!ctx.state.ntlEnabled || !data) return '';
+    var items = ensureNtlItemsOnState();
+    if (!items.length) return '';
     if (typeof data.buildNtlHintFromTypes === 'function') {
-      return data.buildNtlHintFromTypes(ctx.state.ntlTabooTypes, {
+      return data.buildNtlHintFromTypes(items, {
         tabooTypes: data.tabooTypes,
         intro: '（仅用于世界书人物/恶堕，勿写入主角设定）',
       });
     }
-    var lines = ['\n【NTL 禁忌方向】（仅用于世界书人物/恶堕，勿写入主角设定）'];
-    ctx.state.ntlTabooTypes.forEach(function(t) {
-      var info = data.tabooTypes[t];
-      if (info) lines.push('- ' + info.label + '：' + info.description);
-    });
-    return lines.join('\n');
+    return '';
   }
 
   ctx.panels.adultConfig = {
@@ -318,10 +338,13 @@ export function registerAdultConfig(ctx) {
       if (ctx.state.nsfwEnabled) ctx.panels.adultConfig.renderFlavorList();
 
       if (ntlRow) ntlRow.style.display = ctx.state.ntlEnabled ? 'block' : 'none';
+      ensureNtlItemsOnState();
       if (ntlContainer && data) {
+        var activeSet = Object.create(null);
+        (ctx.state.ntlTabooTypes || []).forEach(function(id) { activeSet[id] = true; });
         ntlContainer.innerHTML = data.tabooIds.map(function(id) {
           var info = data.tabooTypes[id];
-          var active = ctx.state.ntlTabooTypes.indexOf(id) >= 0;
+          var active = !!activeSet[id];
           var tip = info.description || '';
           if (info.writingGuide) tip += '｜' + info.writingGuide;
           if (Array.isArray(info.mustCover) && info.mustCover.length) {
@@ -343,7 +366,36 @@ export function registerAdultConfig(ctx) {
           });
         });
       }
+      if (ctx.state.ntlEnabled) ctx.panels.adultConfig.renderNtlList();
       ctx.panels.adultConfig.renderCorruptionBlock();
+    },
+
+    renderNtlList: function() {
+      var data = window.__nsfwFlavorData__;
+      var listEl = document.getElementById('adultNtlTabooList');
+      if (!listEl || !data) return;
+      var items = ensureNtlItemsOnState();
+      if (!items.length) {
+        listEl.innerHTML = '<span class="char-nsfw-subtitle">点击上方芯片添加禁忌方向</span>';
+        return;
+      }
+      listEl.innerHTML = items.map(function(it, idx) {
+        var info = data.tabooTypes[it.id] || { label: it.id, description: '' };
+        return '<div class="adult-flavor-item" data-ntl-idx="' + idx + '">'
+          + '<div class="adult-flavor-item-head">'
+          + '<div class="adult-flavor-item-meta">'
+          + '<div class="adult-flavor-item-title">' + escapeHtml(info.label)
+          + (it.id === 'yuri_destruction' ? '<span class="adult-flavor-primary-tag">百合破坏</span>' : '')
+          + '</div>'
+          + '<div class="adult-flavor-item-desc">' + escapeHtml(info.description || '') + '</div>'
+          + (info.writingGuide ? '<div class="adult-flavor-item-desc">' + escapeHtml(info.writingGuide) + '</div>' : '')
+          + '</div>'
+          + '<button type="button" class="btn btn-ghost" data-ntl-remove="' + idx + '" style="font-size:0.7rem;padding:2px 8px;">移除</button>'
+          + '</div>'
+          + '<textarea data-ntl-note="' + idx + '" rows="2" placeholder="可选：补充该禁忌方向的额外要求（写入世界书管道）">'
+          + escapeHtml(it.note || '') + '</textarea>'
+          + '</div>';
+      }).join('');
     },
 
     renderCorruptionBlock: function() {
@@ -383,19 +435,37 @@ export function registerAdultConfig(ctx) {
       return normalizeFlavorItems(items, '');
     },
 
+    readNtlItemsFromUi: function() {
+      var noteMap = Object.create(null);
+      ensureNtlItemsOnState().forEach(function(it) { noteMap[it.id] = it.note || ''; });
+      document.querySelectorAll('#adultNtlTabooList [data-ntl-note]').forEach(function(el) {
+        var idx = parseInt(el.getAttribute('data-ntl-note'), 10);
+        var items = ctx.state.ntlTabooItems || [];
+        if (isNaN(idx) || !items[idx]) return;
+        noteMap[items[idx].id] = String(el.value || '').trim();
+      });
+      var chips = document.querySelectorAll('[data-adult-ntl].active');
+      var out = [];
+      chips.forEach(function(c) {
+        var id = c.dataset.adultNtl;
+        if (!id) return;
+        out.push({ id: id, note: noteMap[id] || '' });
+      });
+      return out;
+    },
+
     syncNsfwBlockFromUi: function() {
       var adultEl = document.getElementById('adultNsfwEnabled');
       var ntlEl = document.getElementById('adultNtlEnabled');
-      var chips = document.querySelectorAll('[data-adult-ntl].active');
-      var ntlTypes = [];
-      chips.forEach(function(c) { ntlTypes.push(c.dataset.adultNtl); });
 
       ctx.state.nsfwEnabled = adultEl ? !!adultEl.checked : false;
       var items = ctx.panels.adultConfig.readFlavorItemsFromUi();
       ctx.state.nsfwFlavorItems = items;
       ctx.state.nsfwFlavor = items.length ? items[0].id : '';
       ctx.state.ntlEnabled = ntlEl ? !!ntlEl.checked : false;
-      ctx.state.ntlTabooTypes = ntlTypes;
+      var ntlItems = ctx.panels.adultConfig.readNtlItemsFromUi();
+      ctx.state.ntlTabooItems = ntlItems;
+      ctx.state.ntlTabooTypes = ntlItems.map(function(it) { return it.id; });
 
       ctx.panels.adultConfig.syncCorruptionBlockFromUi({ skipRender: true, silentEvent: true });
       ctx.panels.adultConfig.renderNsfwBlock();
@@ -586,6 +656,10 @@ export function registerAdultConfig(ctx) {
           var flavorHint = buildNsfwFlavorHint();
           var ntlHint = buildNtlHintForPrompt();
           var minTotal = stageNames.length * CORRUPTION_MIN_CHARS_PER_STAGE;
+          var novelBridge = window.__novelWorkshopBridge__;
+          var novelEntities = (novelBridge && typeof novelBridge.listEntities === 'function')
+            ? (novelBridge.listEntities({}) || [])
+            : [];
 
           for (var i = 0; i < selected.length; i++) {
             var name = selected[i];
@@ -596,6 +670,19 @@ export function registerAdultConfig(ctx) {
               throw new Error('「' + name + '」缺少世界书人物正文，请先完善该人物条目再生成恶堕档案');
             }
 
+            var siblingHint = formatCorruptionArchiveDigests(entries, { excludeName: name });
+            var canonDigest = buildAdultCanonDigest({
+              entities: novelEntities,
+              worldbookEntries: entries,
+              focusName: name,
+              excludeNames: [],
+              includeCorruption: true,
+              includeStyle: true,
+              styleText: (novelBridge && novelBridge.getState)
+                ? ((novelBridge.getState() || {}).styleText || '')
+                : '',
+            });
+
             var userPrompt = buildArchiveUserPrompt({
               charName: name,
               stageNames: stageNames,
@@ -604,6 +691,8 @@ export function registerAdultConfig(ctx) {
               customBrief: ctx.state.corruptionCustomBrief,
               nsfwFlavorHint: flavorHint,
               ntlHint: ntlHint,
+              canonDigest: canonDigest,
+              siblingArchivesHint: siblingHint,
             });
 
             var aiResp = await ctx.fetchAIContent({
@@ -634,7 +723,8 @@ export function registerAdultConfig(ctx) {
                     role: 'user',
                     content: '薄弱阶段：' + richness.weakStages.join('、')
                       + '\n目标每阶段≥' + CORRUPTION_MIN_CHARS_PER_STAGE + '字，全文≥' + minTotal + '字。\n\n'
-                      + '【该角色世界书】\n' + worldbookContent.slice(0, 4000)
+                      + '【该角色世界书】\n' + worldbookContent.slice(0, CORRUPTION_EXPAND_WB)
+                      + (siblingHint ? '\n' + siblingHint : '')
                       + '\n\n【待加厚正文】\n' + content,
                   },
                 ],
@@ -714,6 +804,9 @@ export function registerAdultConfig(ctx) {
           }),
           ntlEnabled: ctx.state.ntlEnabled,
           ntlTabooTypes: ctx.state.ntlTabooTypes.slice(),
+          ntlTabooItems: ensureNtlItemsOnState().map(function(it) {
+            return { id: it.id, note: it.note || '' };
+          }),
           corruptionEnabled: corr.enabled,
           corruptionPreset: corr.preset,
           corruptionCustomBrief: corr.customBrief,
@@ -735,7 +828,15 @@ export function registerAdultConfig(ctx) {
             : [];
         }
         if (cfg && typeof cfg.ntlEnabled === 'boolean') ctx.state.ntlEnabled = cfg.ntlEnabled;
-        if (cfg && Array.isArray(cfg.ntlTabooTypes)) ctx.state.ntlTabooTypes = cfg.ntlTabooTypes.slice();
+        if (cfg && Array.isArray(cfg.ntlTabooItems)) {
+          ctx.state.ntlTabooItems = cfg.ntlTabooItems.map(function(it) {
+            return { id: String((it && it.id) || ''), note: String((it && it.note) || '') };
+          }).filter(function(it) { return it.id; });
+          ctx.state.ntlTabooTypes = ctx.state.ntlTabooItems.map(function(it) { return it.id; });
+        } else if (cfg && Array.isArray(cfg.ntlTabooTypes)) {
+          ctx.state.ntlTabooTypes = cfg.ntlTabooTypes.slice();
+          ctx.state.ntlTabooItems = ctx.state.ntlTabooTypes.map(function(id) { return { id: id, note: '' }; });
+        }
         if (cfg && typeof cfg.corruptionEnabled === 'boolean') ctx.state.corruptionEnabled = cfg.corruptionEnabled;
         if (cfg && typeof cfg.corruptionPreset === 'string') ctx.state.corruptionPreset = cfg.corruptionPreset;
         if (cfg && typeof cfg.corruptionCustomBrief === 'string') ctx.state.corruptionCustomBrief = cfg.corruptionCustomBrief;
@@ -763,11 +864,29 @@ export function registerAdultConfig(ctx) {
           selectedNames: ctx.state.corruptionSelectedNames,
         });
       };
-      // 兼容旧桥：世界书生成仍可读
+      // 兼容旧桥：世界书生成仍可读（含成人 Canon 联动）
       window.__buildAdultPromptHints__ = function() {
+        var novelBridge = window.__novelWorkshopBridge__;
+        var novelEntities = (novelBridge && typeof novelBridge.listEntities === 'function')
+          ? (novelBridge.listEntities({}) || [])
+          : [];
+        var styleText = (novelBridge && typeof novelBridge.getState === 'function')
+          ? ((novelBridge.getState() || {}).styleText || '')
+          : '';
+        var canon = '';
+        if (ctx.state.nsfwEnabled || ctx.state.ntlEnabled) {
+          canon = buildAdultCanonDigest({
+            entities: novelEntities,
+            worldbookEntries: ctx.state.worldbookEntries || [],
+            styleText: styleText,
+            includeCorruption: true,
+            includeStyle: true,
+          });
+        }
         return {
           nsfw: buildNsfwFlavorHint(),
           ntl: buildNtlHintForPrompt(),
+          canon: canon,
         };
       };
 
@@ -794,6 +913,24 @@ export function registerAdultConfig(ctx) {
         });
         flavorList.addEventListener('change', function(e) {
           if (!e.target || !e.target.matches('[data-flavor-note]')) return;
+          ctx.panels.adultConfig.syncNsfwBlockFromUi();
+        });
+      }
+      var ntlList = document.getElementById('adultNtlTabooList');
+      if (ntlList) {
+        ntlList.addEventListener('click', function(e) {
+          var btn = e.target && e.target.closest ? e.target.closest('[data-ntl-remove]') : null;
+          if (!btn) return;
+          var idx = parseInt(btn.getAttribute('data-ntl-remove'), 10);
+          var items = ctx.panels.adultConfig.readNtlItemsFromUi();
+          if (isNaN(idx) || idx < 0 || idx >= items.length) return;
+          items.splice(idx, 1);
+          ctx.state.ntlTabooItems = items;
+          ctx.state.ntlTabooTypes = items.map(function(it) { return it.id; });
+          ctx.panels.adultConfig.syncNsfwBlockFromUi();
+        });
+        ntlList.addEventListener('change', function(e) {
+          if (!e.target || !e.target.matches('[data-ntl-note]')) return;
           ctx.panels.adultConfig.syncNsfwBlockFromUi();
         });
       }

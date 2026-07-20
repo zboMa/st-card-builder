@@ -12,7 +12,6 @@ import {
   NTL_RAG_BOOST_TERMS,
   mergeAdultAttrs,
   buildModeHintBlocks,
-  buildAdultContextDigests,
   buildContentModeFlags,
   buildNsfwFlavorHint,
   getNsfwFlavorItems,
@@ -26,7 +25,10 @@ import {
   evaluateNtlRichness,
   buildNtlExpandSystemPrompt,
   buildNtlExpandUserPrompt,
+  buildAdultCanonDigest,
+  ADULT_CANON_BUDGET,
 } from '../nsfwSupport.mjs';
+import { PRIOR_WB_EXTRACT_PER, RAG_ENTITY_BUDGET, ENTITY_SUMMARY_STORE } from '../contextBudgets.mjs';
 import { findEntityMatch, upsertEntity, projectEntitiesToLegacy, isEntityEnriched, ingestLegacyIntoEntities } from '../entityStore.mjs';
 import { applyDraftsToWorldbook } from '../sync.mjs';
 import { escapeHtml, truncatePreviewLine, parseJsonLoose, normalizeNameList } from '../../utils.mjs';
@@ -53,7 +55,8 @@ function wbCategoryToEntityType(cat) {
 export function formatPriorWbExtractRef(entries) {
   if (!entries || !entries.length) return '';
   var lines = entries.map(function(e) {
-    return '- [' + (e.category || 'setting') + '] ' + e.name + ': ' + String(e.content || '').substring(0, 140);
+    return '- [' + (e.category || 'setting') + '] ' + e.name + ': '
+      + String(e.content || '').substring(0, PRIOR_WB_EXTRACT_PER);
   }).join('\n');
   return '\n【已抽取条目（勿重复同名；可补充完善 content/keys）】\n' + lines;
 }
@@ -259,7 +262,7 @@ export function registerWorldbook(ctx) {
         type: entType,
         name: saved.name,
         aliases: [],
-        summary: String(saved.content || '').slice(0, 120),
+        summary: String(saved.content || '').slice(0, ENTITY_SUMMARY_STORE),
         content: saved.content,
         keys: saved.keys,
         layer: saved.layer,
@@ -764,7 +767,18 @@ export function registerWorldbook(ctx) {
           + buildModeHintBlocks(state, 'expand')
           + (flavorItems.length ? buildNsfwFlavorHint(state) : '')
           + (ntlTypes.length ? buildNtlTabooHint(state) : '')
-          + buildAdultContextDigests(state.entities, 1500, getNtlMode(state))
+          + buildAdultCanonDigest({
+            entities: state.entities,
+            worldbookEntries: (state.wbEntries || []).map(function(e) {
+              return {
+                comment: e.comment || ('[小说' + (e.category || 'setting') + '] ' + e.name),
+                content: e.content || '',
+              };
+            }),
+            styleText: state.styleText,
+            focusName: matchName,
+            budget: ADULT_CANON_BUDGET,
+          })
           + '\n条目标题: ' + matchName
           + '\n类别: ' + (entry.category || 'setting')
           + '\n现有触发词: ' + matchKeys.join('、')
@@ -848,7 +862,7 @@ export function registerWorldbook(ctx) {
           name: entry.name,
           content: entry.content,
           keys: entry.keys,
-          summary: String(entry.content || '').slice(0, 80),
+          summary: String(entry.content || '').slice(0, ENTITY_SUMMARY_STORE),
           attrs: entry.attrs || {},
           layer: entry.layer,
         }, { source: 'expand' });
@@ -930,10 +944,30 @@ export function registerWorldbook(ctx) {
           var shard = shards[idx];
           if (queue) queue.textContent = '进度 ' + (idx + 1) + '/' + shards.length + ' · 已 ' + all.length + ' 条';
           var priorRef = formatPriorWbExtractRef(all);
+          var adultOn = getAdultMode(state);
+          var extractFlavorItems = adultOn ? getNsfwFlavorItems(state) : [];
+          var extractNtlTypes = getNtlMode(state) ? getNtlTabooTypes(state) : [];
           var user = head
             + priorRef
             + buildModeHintBlocks(state, 'extract')
-            + buildAdultContextDigests(state.entities, 2000, getNtlMode(state))
+            + (extractFlavorItems.length ? buildNsfwFlavorHint(state) : '')
+            + (extractNtlTypes.length ? buildNtlTabooHint(state) : '')
+            + buildAdultCanonDigest({
+              entities: state.entities,
+              worldbookEntries: (state.wbEntries || []).map(function(e) {
+                return {
+                  comment: e.comment || ('[小说' + (e.category || 'setting') + '] ' + e.name),
+                  content: e.content || '',
+                };
+              }).concat(all.map(function(e) {
+                return {
+                  comment: '[小说' + (e.category || 'setting') + '] ' + e.name,
+                  content: e.content || '',
+                };
+              })),
+              styleText: state.styleText,
+              budget: ADULT_CANON_BUDGET,
+            })
             + '\nFocus: ' + (state.wbFocus || []).join(',')
             + buildContentModeFlags(state)
             + '\nMode: ' + state.narrativeMode

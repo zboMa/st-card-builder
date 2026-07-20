@@ -4,6 +4,10 @@
  * 结构：1 条「恶堕进度总则」+ 每角色 1 条「恶堕档案·{名}」（阶段全写在一条内）
  * 当前阶段由状态栏/MVU 变量「恶堕进度」指向，不靠多条目 key 匹配。
  */
+import {
+  CORRUPTION_WB_CHARS,
+  CORRUPTION_BRIEF_CHARS,
+} from './novel/contextBudgets.mjs';
 
 export var CORRUPTION_RULES_COMMENT = '恶堕进度总则';
 export var CORRUPTION_ARCHIVE_PREFIX = '恶堕档案·';
@@ -300,17 +304,20 @@ export function buildArchiveUserPrompt(opts) {
   if (o.identity) parts.push('身份：' + String(o.identity).trim());
   if (o.worldbookContent) {
     parts.push('【该角色世界书人物设定——必须据此写恶堕，禁止写成另一人或主角】\n'
-      + String(o.worldbookContent).trim().slice(0, 6000));
+      + String(o.worldbookContent).trim().slice(0, CORRUPTION_WB_CHARS));
   } else {
     parts.push('【警告】未提供该角色世界书正文，请仍按角色名写出丰满分期，但勿编造与已知卡面冲突的设定。');
   }
-  if (o.customBrief) parts.push('弧光补充：\n' + String(o.customBrief).trim().slice(0, 800));
+  if (o.customBrief) parts.push('弧光补充：\n' + String(o.customBrief).trim().slice(0, CORRUPTION_BRIEF_CHARS));
   if (o.nsfwFlavorHint) parts.push(String(o.nsfwFlavorHint).trim());
   if (o.ntlHint) parts.push(String(o.ntlHint).trim());
+  if (o.canonDigest) parts.push(String(o.canonDigest).trim());
+  if (o.siblingArchivesHint) parts.push(String(o.siblingArchivesHint).trim());
   parts.push('阶段表（须全部写出，## 标题与下列完全一致）：\n' + stages.map(function(s, i) {
     return (i + 1) + '. ' + s;
   }).join('\n'));
   parts.push('正文开头须含：【读取状态栏/MVU「' + CORRUPTION_STATUS_LABEL + '」；仅采用与当前值对应的阶段，禁止混用其他阶段】');
+  parts.push('须与已有人物成人层/其他恶堕档案气质可对读，禁止互相打架或孤立无互动。');
   return parts.join('\n\n');
 }
 

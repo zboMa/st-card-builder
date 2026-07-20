@@ -25,11 +25,11 @@ import {
   getAdultMode,
   getNtlMode,
   boostAdultSearchQuery,
-  buildAdultContextDigests,
   extractStyleNsfwSection,
   buildModeHintBlocks,
   buildContentModeFlags,
   buildNsfwFlavorHint,
+  buildNtlTabooHint,
   buildPaletteGuidanceBlock,
   getNsfwFlavorItems,
   evaluateFlavorRichness,
@@ -38,14 +38,31 @@ import {
   NSFW_FLAVOR_PRESETS,
   NTL_TABOO_TYPES,
   getNtlTabooTypes,
-  buildNtlTabooHint,
   evaluateNtlRichness,
   buildNtlExpandSystemPrompt,
   buildNtlExpandUserPrompt,
+  buildAdultCanonDigest,
+  ADULT_CANON_BUDGET,
   buildStatusBarNsfwDraftFromEntities,
   buildStatusBarNtlDraftFromEntities,
 } from '../nsfwSupport.mjs';
+import { RAG_ENTITY_BUDGET } from '../contextBudgets.mjs';
 import { escapeHtml, parseJsonLoose } from '../../utils.mjs';
+
+function novelCanonBlock(state, focusName) {
+  return buildAdultCanonDigest({
+    entities: state.entities,
+    worldbookEntries: (state.wbEntries || []).map(function(e) {
+      return {
+        comment: e.comment || ('[小说' + (e.category || 'setting') + '] ' + e.name),
+        content: e.content || '',
+      };
+    }),
+    styleText: state.styleText,
+    focusName: focusName || '',
+    budget: ADULT_CANON_BUDGET,
+  });
+}
 
 var ENTITY_TYPE_ZH = {
   person: '人物',
@@ -486,11 +503,12 @@ export function registerAnalyze(ctx) {
               + ' · 实体 ' + (state.entities || []).length;
           }
           var prior = buildSkeletonPriorBlock(state);
-          var adultOn = getAdultMode(state);
           var user = head
             + prior
             + buildModeHintBlocks(state, 'skeleton')
-            + buildAdultContextDigests(state.entities, 2500, getNtlMode(state))
+            + (getAdultMode(state) ? buildNsfwFlavorHint(state) : '')
+            + (getNtlMode(state) ? buildNtlTabooHint(state) : '')
+            + novelCanonBlock(state, '')
             + buildContentModeFlags(state)
             + '\nMode: ' + state.narrativeMode
             + '\nContext: ' + (state.contextText || '')
@@ -599,7 +617,7 @@ export function registerAnalyze(ctx) {
               signal: task.signal,
             });
             var related = pickRelatedEntities(state.entities, query, 8);
-            var inject = buildRagInjectBlock(search, related, { entityBudget: 3000 });
+            var inject = buildRagInjectBlock(search, related, { entityBudget: RAG_ENTITY_BUDGET });
             var styleNsfw = adultOn ? extractStyleNsfwSection(state.styleText) : '';
             var flavorItems = adultOn ? getNsfwFlavorItems(state) : [];
             var ntlTypes = ntlOn ? getNtlTabooTypes(state) : [];
@@ -612,7 +630,7 @@ export function registerAnalyze(ctx) {
               + (needFlavor || needNtl ? buildPaletteGuidanceBlock(state) : '')
               + (needFlavor ? buildNsfwFlavorHint(state) : '')
               + (needNtl ? buildNtlTabooHint(state) : '')
-              + buildAdultContextDigests(state.entities, 3000, getNtlMode(state))
+              + novelCanonBlock(state, live.name)
               + '\n\n【待丰满实体】\n'
               + JSON.stringify({
                 type: live.type,
@@ -758,12 +776,14 @@ export function registerAnalyze(ctx) {
           signal: task.signal,
         });
         var prior = buildSkeletonPriorBlock(state);
-        var inject = buildRagInjectBlock(search, state.entities.slice(0, 20), { entityBudget: 4000 });
+        var inject = buildRagInjectBlock(search, state.entities.slice(0, 40), { entityBudget: RAG_ENTITY_BUDGET });
         var head = ctx.promptText('novelAnalyzeRelations', '补全 relations JSON');
         var user = head
           + prior
           + buildModeHintBlocks(state, 'relations')
-          + buildAdultContextDigests(state.entities, 2000, getNtlMode(state))
+          + (adultOn ? buildNsfwFlavorHint(state) : '')
+          + (ntlOn ? buildNtlTabooHint(state) : '')
+          + novelCanonBlock(state, '')
           + '\n\n' + inject
           + buildContentModeFlags(state)
           + '\nContext: ' + (state.contextText || '');

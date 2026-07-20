@@ -41,16 +41,32 @@ export function registerAiEngine(ctx) {
     }
     var nsfwConfig = window.__getNsfwConfig__ ? window.__getNsfwConfig__() : {};
     var data = window.__nsfwFlavorData__;
-    if (!nsfwConfig.ntlEnabled || !nsfwConfig.ntlTabooTypes || !nsfwConfig.ntlTabooTypes.length || !data) return '';
+    if (!nsfwConfig.ntlEnabled || !data) return '';
+    var items = Array.isArray(nsfwConfig.ntlTabooItems) && nsfwConfig.ntlTabooItems.length
+      ? nsfwConfig.ntlTabooItems
+      : (nsfwConfig.ntlTabooTypes || []).map(function(id) { return { id: id, note: '' }; });
+    if (!items.length) return '';
     if (typeof data.buildNtlHintFromTypes === 'function') {
-      return data.buildNtlHintFromTypes(nsfwConfig.ntlTabooTypes, { tabooTypes: data.tabooTypes });
+      return data.buildNtlHintFromTypes(items, { tabooTypes: data.tabooTypes });
     }
     var lines = ['\n【NTL 禁忌方向】'];
-    nsfwConfig.ntlTabooTypes.forEach(function(t) {
-      var info = data.tabooTypes[t];
-      if (info) lines.push('- ' + info.label + '：' + info.description);
+    items.forEach(function(it) {
+      var id = it && it.id ? it.id : it;
+      var info = data.tabooTypes[id];
+      if (info) {
+        lines.push('- ' + info.label + '：' + info.description
+          + (it && it.note ? '；用户补充：' + it.note : ''));
+      }
     });
     return lines.join('\n');
+  }
+
+  function buildAdultCanonHint() {
+    if (typeof window.__buildAdultPromptHints__ === 'function') {
+      var hints = window.__buildAdultPromptHints__() || {};
+      return hints.canon || '';
+    }
+    return '';
   }
 
   function getTagContextChars() {
@@ -117,6 +133,11 @@ export function registerAiEngine(ctx) {
         : (nsfwConfig.flavor ? [{ id: nsfwConfig.flavor, note: '' }] : []),
       ntlEnabled:    !!nsfwConfig.ntlEnabled,
       ntlTabooTypes: (nsfwConfig.ntlTabooTypes || []).slice(),
+      ntlTabooItems: Array.isArray(nsfwConfig.ntlTabooItems)
+        ? nsfwConfig.ntlTabooItems.map(function(it) {
+            return { id: String((it && it.id) || ''), note: String((it && it.note) || '') };
+          }).filter(function(it) { return it.id; })
+        : (nsfwConfig.ntlTabooTypes || []).map(function(id) { return { id: String(id), note: '' }; }),
     }));
   }
 
@@ -610,14 +631,14 @@ export function registerAiEngine(ctx) {
       // 默认不注入主角 Description（两管道隔离）；仅高级勾选时作背景参考
       var includeChar = wbIncludeCharData && wbIncludeCharData.checked;
       var charBlock   = includeChar
-        ? '\n【高级·主角背景参考（勿写入本条为角色设定）】：' + ctx.state.charName + ' | ' + String(ctx.state.charDesc || '').slice(0, 400) + '\n'
+        ? '\n【高级·主角背景参考（勿写入本条为角色设定）】：' + ctx.state.charName + ' | ' + String(ctx.state.charDesc || '').slice(0, 2000) + '\n'
         : '\n【管道】世界书生成与主角角色设定分离；默认不读取主角 Description。\n';
       var adultHints = (typeof window.__buildAdultPromptHints__ === 'function')
         ? window.__buildAdultPromptHints__()
-        : { nsfw: buildNsfwFlavorHint(), ntl: buildNtlHintForPrompt() };
+        : { nsfw: buildNsfwFlavorHint(), ntl: buildNtlHintForPrompt(), canon: buildAdultCanonHint() };
       var sysPrompt   = (ctx.promptText('wbSingle') || '')
         + stepInfo + charBlock + '\n' + ctxStr + '\n' + presetBlock
-        + (adultHints.nsfw || '') + (adultHints.ntl || '') + searchInjection
+        + (adultHints.nsfw || '') + (adultHints.ntl || '') + (adultHints.canon || '') + searchInjection
         + '\n【说明】人物类条目标题建议「[小说人物] 名字」；成人内容只写世界书，勿写主角卡面。'
         + '\n【输出】：1个JSON对象 { "comment": "标题", "content": "详细设定(至少100字)", "keys": ["触发词"], "strategy": "selective 或 constant", "position": 4 }';
       var userPrompt  = customDirection ? '【方向】：' + customDirection : '【自由发挥，拒绝重复】';

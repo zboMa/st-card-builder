@@ -285,23 +285,63 @@ export function buildNtlExpandSystemPrompt(typeIds, opts) {
 
 export function buildNtlExpandUserPrompt(opts) {
   var o = opts || {};
+  var ctxMax = o.contextMax != null ? o.contextMax : 20000;
+  var bodyMax = o.bodyMax != null ? o.bodyMax : 40000;
   var parts = [];
   parts.push('【薄弱维度】' + (Array.isArray(o.weakDimensions) ? o.weakDimensions.join('、') : '信息密度不足'));
   parts.push('【目标最少字数】' + (o.minChars || NTL_TABOO_DEFAULT_MIN_CHARS));
   if (o.ntlHint) parts.push(String(o.ntlHint).trim());
-  if (o.context) parts.push('【角色/条目上下文】\n' + String(o.context).trim().slice(0, 4000));
-  parts.push('【待加厚内容】\n' + String(o.text || '').trim().slice(0, 8000));
+  if (o.context) parts.push('【角色/条目上下文】\n' + String(o.context).trim().slice(0, ctxMax));
+  parts.push('【待加厚内容】\n' + String(o.text || '').trim().slice(0, bodyMax));
   return parts.join('\n\n');
 }
 
 /**
- * 由已选 NTL 类型构建加厚提示块
+ * 规范化 NTL 条目：[{ id, note }] 或纯 id 列表
  */
-export function buildNtlTabooHintFromTypes(typeIds, opts) {
+export function normalizeNtlTabooItems(rawItems, legacyTypeIds, validIds) {
+  var out = [];
+  var seen = Object.create(null);
+  var allow = validIds || Object.keys(NTL_TABOO_ENRICHMENT);
+  var list = Array.isArray(rawItems) ? rawItems : [];
+  list.forEach(function(it) {
+    if (!it) return;
+    var id = typeof it === 'string' ? it : String(it.id || '').trim();
+    if (!id || seen[id] || allow.indexOf(id) < 0) return;
+    seen[id] = true;
+    var note = typeof it === 'string' ? '' : String(it.note == null ? '' : it.note).trim();
+    out.push({ id: id, note: note });
+  });
+  if (!out.length && Array.isArray(legacyTypeIds)) {
+    legacyTypeIds.forEach(function(id) {
+      var s = String(id || '').trim();
+      if (!s || seen[s] || allow.indexOf(s) < 0) return;
+      seen[s] = true;
+      out.push({ id: s, note: '' });
+    });
+  }
+  return out;
+}
+
+/**
+ * 由已选 NTL 类型构建加厚提示块
+ * @param {string[]|Array<{id:string,note?:string}>} typeIdsOrItems
+ */
+export function buildNtlTabooHintFromTypes(typeIdsOrItems, opts) {
   opts = opts || {};
   var tabooTypes = opts.tabooTypes;
-  var list = Array.isArray(typeIds) ? typeIds.filter(Boolean) : [];
+  var items = normalizeNtlTabooItems(typeIdsOrItems, []);
+  // 兼容纯 string[]
+  if (!items.length && Array.isArray(typeIdsOrItems)) {
+    items = normalizeNtlTabooItems([], typeIdsOrItems);
+  }
+  var list = items.map(function(it) { return it.id; }).filter(function(id) {
+    return tabooTypes && tabooTypes[id];
+  });
   if (!list.length || !tabooTypes) return '';
+
+  var noteMap = Object.create(null);
+  items.forEach(function(it) { if (it && it.id) noteMap[it.id] = it.note || ''; });
 
   var collected = collectNtlEnrichment(list, tabooTypes);
   var lines = [];
@@ -311,7 +351,8 @@ export function buildNtlTabooHintFromTypes(typeIds, opts) {
   list.forEach(function(id, idx) {
     var info = tabooTypes[id];
     if (!info) return;
-    lines.push((idx + 1) + '. ' + info.label + '：' + (info.description || ''));
+    var notePart = noteMap[id] ? ('；用户补充：' + noteMap[id]) : '';
+    lines.push((idx + 1) + '. ' + info.label + '：' + (info.description || '') + notePart);
     if (info.writingGuide) lines.push('   写法：' + info.writingGuide);
   });
 

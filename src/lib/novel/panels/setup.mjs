@@ -13,6 +13,7 @@ import {
   buildModeHintBlocks,
   buildPaletteGuidanceBlock,
 } from '../nsfwSupport.mjs';
+import { SETUP_ENTITY_SUMMARY } from '../contextBudgets.mjs';
 
 export function registerSetup(ctx) {
   var panel = {};
@@ -345,7 +346,7 @@ export function registerSetup(ctx) {
         // 写入主卡角色设定 = 主角：禁止注入 NSFW/NTL/恶堕
         var user = head
           + '\n角色名称: ' + charName
-          + (corpus.entity ? '\n实体摘要: ' + String(corpus.entity.summary || '').slice(0, 200) : '')
+          + (corpus.entity ? '\n实体摘要: ' + String(corpus.entity.summary || '').slice(0, SETUP_ENTITY_SUMMARY) : '')
           + '\nContext: ' + (state.contextText || '无')
           + '\n【硬约束】输出的 charDesc/creatorNotes 是主角卡面设定：禁止 NSFW_information、情欲口味、NTL、恶堕分期；成人层只属于世界书人物条目。'
           + buildModeHintBlocks(state, 'expand')
@@ -422,7 +423,7 @@ export function registerSetup(ctx) {
         // 主卡开场白面向主角互动：不注入 NSFW/NTL 调色盘
         var user = head
           + '\n角色名称: ' + charName
-          + (corpus.entity ? '\n实体摘要: ' + String(corpus.entity.summary || '').slice(0, 200) : '')
+          + (corpus.entity ? '\n实体摘要: ' + String(corpus.entity.summary || '').slice(0, SETUP_ENTITY_SUMMARY) : '')
           + '\n开场白总数: ' + total + '（主开场 1 + 备选 ' + altCount + '）'
           + '\nContext: ' + (state.contextText || '无')
           + '\n【硬约束】开场白勿写成恶堕进度说明或 NTL 调教手册；禁止未成年内容。'
