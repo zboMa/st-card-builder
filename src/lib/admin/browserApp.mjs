@@ -490,7 +490,10 @@ function showAdminWorkspace(st) {
   var workspace = $('adminWorkspace');
   var line = $('adminUserLine');
   document.body.classList.remove('admin-locked');
-  if (gate) gate.hidden = true;
+  if (gate) {
+    gate.classList.remove('is-ready');
+    gate.hidden = true;
+  }
   if (workspace) workspace.hidden = false;
   state.user = st.user;
   state.role = st.adminRole || 'ops';

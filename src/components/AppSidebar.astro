@@ -122,10 +122,52 @@ const CONFIG_ITEMS = [
       <button type="button" class="app-sidebar-item" data-view={item.view}>
         <svg class="app-sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" set:html={item.icon} />
         <span class="app-sidebar-label">{item.label}</span>
+        {item.view === 'account-sync' && (
+          <span class="app-sidebar-sync-eta" id="sidebarSyncEta" hidden aria-live="polite"></span>
+        )}
       </button>
     ))}
   </div>
 </aside>
+
+<script>
+  import {
+    onSyncEvent,
+    getMsUntilNextSync,
+    formatSyncCountdown,
+    getSyncStatus,
+  } from '../lib/sync/index.mjs';
+
+  var etaTimer = null;
+
+  function refreshSidebarSyncEta() {
+    var el = document.getElementById('sidebarSyncEta');
+    if (!el) return;
+    var loggedIn = document.body.classList.contains('is-account-logged-in');
+    var st = getSyncStatus();
+    var ms = getMsUntilNextSync();
+    if (!loggedIn || !st.autoSyncEnabled || ms == null) {
+      el.hidden = true;
+      el.textContent = '';
+      return;
+    }
+    el.hidden = false;
+    el.textContent = formatSyncCountdown(ms);
+  }
+
+  function startEtaTick() {
+    if (etaTimer) return;
+    etaTimer = setInterval(refreshSidebarSyncEta, 1000);
+  }
+
+  window.__refreshSidebarSyncEta__ = refreshSidebarSyncEta;
+  onSyncEvent(function() {
+    refreshSidebarSyncEta();
+    startEtaTick();
+  });
+  startEtaTick();
+  refreshSidebarSyncEta();
+</script>
 
 <script is:inline>
 (function() {

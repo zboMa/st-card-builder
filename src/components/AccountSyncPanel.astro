@@ -53,36 +53,161 @@
     </div>
   </div>
 
-  <div id="accountSessionBody" hidden>
-    <h2>账户与同步</h2>
-    <p class="ui-muted" style="font-size:0.85rem;margin-bottom:12px;">
-      登录后可自动备份到云端，便于多端继续编辑。
-    </p>
-
-    <section class="ui-section" style="margin-bottom:16px;">
-      <h3 class="ui-section-title">登录状态</h3>
-      <div id="authUserLine" class="ui-muted" style="margin-bottom:8px;">—</div>
-      <div class="ui-row" style="gap:8px;flex-wrap:wrap;">
-        <button type="button" id="btnAuthLogout" class="btn btn-ghost">退出</button>
-        <a id="btnOpenAdmin" class="btn btn-ghost" href="#" style="display:none;">打开管理端</a>
+  <div id="accountSessionBody" class="account-session" hidden>
+    <header class="account-session-head">
+      <div>
+        <p class="account-session-kicker">账户</p>
+        <h2 class="account-session-title">账户与同步</h2>
+        <p class="account-session-lead">云端自动备份草稿与进度，多端继续编辑。</p>
       </div>
+      <button type="button" id="btnAuthLogout" class="btn btn-ghost btn-inline">退出登录</button>
+    </header>
+
+    <section class="account-session-card" aria-labelledby="accountIdentityTitle">
+      <h3 id="accountIdentityTitle" class="account-session-card-title">登录身份</h3>
+      <p id="authUserLine" class="account-session-identity">—</p>
+      <p id="authUserMeta" class="account-session-meta"></p>
     </section>
 
-    <section class="ui-section">
-      <h3 class="ui-section-title">云同步</h3>
-      <p class="ui-muted" style="font-size:0.8rem;">默认每 5 分钟自动同步。也可手动立即同步。</p>
-      <div class="ui-row" style="gap:8px;flex-wrap:wrap;margin-top:8px;">
-        <button type="button" id="btnManualSync" class="btn btn-primary">立即同步</button>
-        <button type="button" id="btnRetrySync" class="btn btn-ghost">重试</button>
-        <span id="syncStatusLine" class="ui-muted" style="font-size:0.8rem;">尚未同步</span>
+    <section class="account-session-card" aria-labelledby="accountSyncTitle">
+      <div class="account-session-card-top">
+        <div>
+          <h3 id="accountSyncTitle" class="account-session-card-title">云同步</h3>
+          <p class="account-session-meta">每 5 分钟自动同步一次；也可立即推送。</p>
+        </div>
+        <button type="button" id="btnManualSync" class="btn btn-primary btn-inline">立即同步</button>
       </div>
-      <div id="syncTip" class="ui-status-tip" role="status"></div>
+      <div class="account-session-sync-row">
+        <span id="syncStatusLine" class="account-session-sync-status">尚未同步</span>
+        <span id="syncCountdownLine" class="account-session-sync-eta" hidden></span>
+      </div>
+      <div id="syncTip" class="account-session-tip" role="status"></div>
     </section>
   </div>
 </div>
 
 <style is:global>
   @import '../styles/auth-login.css';
+
+  .account-session {
+    max-width: 520px;
+  }
+
+  .account-session-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .account-session-kicker {
+    margin: 0 0 6px;
+    font-size: 0.72rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--color-text-label);
+  }
+
+  .account-session-title {
+    margin: 0 0 6px;
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--color-text);
+  }
+
+  .account-session-lead {
+    margin: 0;
+    font-size: 0.85rem;
+    line-height: 1.55;
+    color: var(--color-text-muted);
+  }
+
+  .account-session-card {
+    margin-bottom: 12px;
+    padding: 16px 18px;
+    border-radius: var(--radius-lg, 14px);
+    border: 1px solid var(--color-border-subtle);
+    background:
+      linear-gradient(180deg, oklch(76% 0.095 310 / 0.05), transparent 42%),
+      var(--color-surface-inset, transparent);
+  }
+
+  .account-session-card-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .account-session-card-title {
+    margin: 0 0 4px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--color-text);
+  }
+
+  .account-session-identity {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 560;
+    color: var(--color-text);
+    word-break: break-word;
+  }
+
+  .account-session-meta {
+    margin: 6px 0 0;
+    font-size: 0.78rem;
+    line-height: 1.45;
+    color: var(--color-text-muted);
+  }
+
+  .account-session-sync-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .account-session-sync-status {
+    font-size: 0.82rem;
+    color: var(--color-text-secondary);
+  }
+
+  .account-session-sync-status.is-err {
+    color: var(--color-danger, oklch(72% 0.16 25));
+  }
+
+  .account-session-sync-eta {
+    font-size: 0.82rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: oklch(72% 0.16 145);
+  }
+
+  .account-session-tip {
+    margin-top: 10px;
+    font-size: 0.78rem;
+    line-height: 1.45;
+    color: var(--color-text-muted);
+  }
+
+  .account-session-tip:empty {
+    display: none;
+  }
+
+  .account-session-tip.is-err {
+    color: var(--color-danger, oklch(72% 0.16 25));
+  }
+
+  .account-session-head .btn-inline,
+  .account-session-card-top .btn-inline {
+    flex-shrink: 0;
+    min-height: 32px;
+    padding: 6px 12px;
+  }
 </style>
 
 <script>
@@ -93,6 +218,9 @@
     stopAutoSync,
     onSyncEvent,
     getSyncStatus,
+    getMsUntilNextSync,
+    formatSyncCountdown,
+    friendlySyncError,
     migrateLegacyToPouch,
   } from '../lib/sync/index.mjs';
   import {
@@ -102,8 +230,9 @@
     apiEmailRegister,
     discordLoginUrlForCurrentPage,
   } from '../lib/sync/authClient.mjs';
-  import { getPublicAdminUrl } from '../lib/publicConfig.mjs';
   import { idbGetJson } from '../lib/idbStore.mjs';
+
+  var panelCountdownTimer = null;
 
   function setAuthTab(mode) {
     var loginForm = document.getElementById('formEmailLogin');
@@ -148,6 +277,13 @@
     if (!regOpen) setAuthTab('login');
   }
 
+  function setSidebarAuth(loggedIn) {
+    document.body.classList.toggle('is-account-logged-in', !!loggedIn);
+    if (typeof window.__refreshSidebarSyncEta__ === 'function') {
+      try { window.__refreshSidebarSyncEta__(); } catch (e) { /* ignore */ }
+    }
+  }
+
   function showLoggedOut(st, tipText, tipErr) {
     var gate = document.getElementById('accountLoginGate');
     var body = document.getElementById('accountSessionBody');
@@ -168,30 +304,42 @@
       tip.classList.toggle('is-err', !!tipErr);
     }
     stopAutoSync();
+    stopPanelCountdown();
+    setSidebarAuth(false);
   }
 
   function showLoggedIn(st) {
     var gate = document.getElementById('accountLoginGate');
     var body = document.getElementById('accountSessionBody');
     var line = document.getElementById('authUserLine');
-    var adminBtn = document.getElementById('btnOpenAdmin');
-    if (gate) gate.hidden = true;
+    var meta = document.getElementById('authUserMeta');
+    if (gate) {
+      gate.classList.remove('is-ready');
+      gate.hidden = true;
+    }
     if (body) body.hidden = false;
     if (line) {
       if (st.disabled) line.textContent = '账号已被禁用同步';
+      else line.textContent = st.user.displayName || st.user.username || st.user.email || '已登录';
+    }
+    if (meta) {
+      if (st.disabled) meta.textContent = '';
       else {
-        var who = st.user.displayName || st.user.username || '';
-        if (st.user.email) who += '（' + st.user.email + '）';
-        line.textContent = '已登录：' + who;
+        var bits = [];
+        if (st.user.email) bits.push(st.user.email);
+        if (st.user.provider) bits.push(st.user.provider === 'email' ? '邮箱登录' : st.user.provider);
+        meta.textContent = bits.join(' · ');
       }
     }
-    if (adminBtn) {
-      adminBtn.style.display = st.isAdmin ? '' : 'none';
-      var adminUrl = (st.publicAdminUrl || getPublicAdminUrl() || '').replace(/\/$/, '');
-      if (adminUrl) adminBtn.href = adminUrl + '/';
+    if (!st.disabled) {
+      startAutoSync();
+      startPanelCountdown();
+      setSidebarAuth(true);
+    } else {
+      stopAutoSync();
+      stopPanelCountdown();
+      setSidebarAuth(false);
     }
-    if (!st.disabled) startAutoSync();
-    else stopAutoSync();
   }
 
   async function refreshAuthUi() {
@@ -210,27 +358,85 @@
     }
   }
 
+  function fmtLastSync(iso) {
+    if (!iso) return '';
+    try {
+      return new Date(iso).toLocaleString('zh-CN', { hour12: false });
+    } catch (e) {
+      return String(iso);
+    }
+  }
+
   function setSyncLine() {
     var el = document.getElementById('syncStatusLine');
     var tip = document.getElementById('syncTip');
+    var eta = document.getElementById('syncCountdownLine');
     var st = getSyncStatus();
     if (!el) return;
+    el.classList.remove('is-err');
     if (st.syncing) el.textContent = '同步中…';
     else if (st.lastSyncError) {
       el.textContent = '同步失败';
-      if (tip) tip.textContent = st.lastSyncError;
-    } else if (st.lastSyncAt) el.textContent = '上次同步：' + st.lastSyncAt;
-    else el.textContent = '尚未同步';
+      el.classList.add('is-err');
+      if (tip) {
+        tip.textContent = friendlySyncError(st.lastSyncError);
+        tip.classList.add('is-err');
+      }
+    } else if (st.lastSyncAt) {
+      el.textContent = '上次同步 ' + fmtLastSync(st.lastSyncAt);
+      if (tip) {
+        tip.textContent = '';
+        tip.classList.remove('is-err');
+      }
+    } else {
+      el.textContent = '尚未同步';
+      if (tip && !tip.classList.contains('is-err')) tip.textContent = '';
+    }
+
+    var ms = getMsUntilNextSync();
+    if (eta) {
+      if (ms == null) {
+        eta.hidden = true;
+        eta.textContent = '';
+      } else {
+        eta.hidden = false;
+        eta.textContent = '下次 ' + formatSyncCountdown(ms);
+      }
+    }
+  }
+
+  function startPanelCountdown() {
+    stopPanelCountdown();
+    panelCountdownTimer = setInterval(function() { setSyncLine(); }, 1000);
+    setSyncLine();
+  }
+
+  function stopPanelCountdown() {
+    if (panelCountdownTimer) {
+      clearInterval(panelCountdownTimer);
+      panelCountdownTimer = null;
+    }
+    var eta = document.getElementById('syncCountdownLine');
+    if (eta) {
+      eta.hidden = true;
+      eta.textContent = '';
+    }
   }
 
   async function doSync(label) {
     var tip = document.getElementById('syncTip');
     try {
-      if (tip) tip.textContent = label || '同步中…';
+      if (tip) {
+        tip.textContent = label || '同步中…';
+        tip.classList.remove('is-err');
+      }
       await runSync({ refreshCred: true });
       if (tip) tip.textContent = '同步完成';
     } catch (e) {
-      if (tip) tip.textContent = '同步失败：' + String(e && e.message || e);
+      if (tip) {
+        tip.textContent = friendlySyncError(e);
+        tip.classList.add('is-err');
+      }
     }
     setSyncLine();
   }
@@ -302,9 +508,13 @@
   });
 
   document.getElementById('btnManualSync')?.addEventListener('click', function() { doSync('同步中…'); });
-  document.getElementById('btnRetrySync')?.addEventListener('click', function() { doSync('重试同步…'); });
 
-  onSyncEvent(function() { setSyncLine(); });
+  onSyncEvent(function() {
+    setSyncLine();
+    if (typeof window.__refreshSidebarSyncEta__ === 'function') {
+      try { window.__refreshSidebarSyncEta__(); } catch (e) { /* ignore */ }
+    }
+  });
 
   (async function boot() {
     try {
@@ -315,7 +525,7 @@
     var hash = String(location.hash || '');
     if (hash.indexOf('auth') >= 0) {
       history.replaceState(null, '', '#account-sync');
-      window.dispatchEvent(new HashChangeEvent('hashchange'));
+      window.dispatchEvent(new Event('hashchange'));
     }
     await refreshAuthUi();
     setSyncLine();
