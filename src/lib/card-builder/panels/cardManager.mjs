@@ -450,6 +450,9 @@ export function registerCardManager(ctx) {
   function openExportChecklistModal() {
     var modal = ctx.$('exportChecklistModal');
     if (!modal) return;
+    // 挂到 body，避免父级 transform/overflow 把 position:fixed 变成「嵌在面板里」
+    if (!modal._exportChecklistHome) modal._exportChecklistHome = modal.parentNode;
+    document.body.appendChild(modal);
     panel.refreshExportChecklist();
     modal.hidden = false;
     modal.setAttribute('aria-hidden', 'false');
@@ -462,6 +465,9 @@ export function registerCardManager(ctx) {
     modal.hidden = true;
     modal.setAttribute('aria-hidden', 'true');
     document.body.classList.remove('export-checklist-modal-open');
+    if (modal._exportChecklistHome && modal.parentNode !== modal._exportChecklistHome) {
+      modal._exportChecklistHome.appendChild(modal);
+    }
   }
 
   panel.bindExportChecklistUi = function () {

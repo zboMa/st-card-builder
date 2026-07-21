@@ -488,11 +488,12 @@
     }
   }
 
-  async function doSync(label) {
+  async function doSync() {
     var tip = document.getElementById('syncTip');
+    // 进行中只由 #syncStatusLine 显示「同步中…」，避免 tip 再写一遍
     try {
       if (tip) {
-        tip.textContent = label || '同步中…';
+        tip.textContent = '';
         tip.classList.remove('is-err');
       }
       await runSync({ refreshCred: true });
@@ -572,7 +573,7 @@
     await refreshAuthUi();
   });
 
-  document.getElementById('btnManualSync')?.addEventListener('click', function() { doSync('同步中…'); });
+  document.getElementById('btnManualSync')?.addEventListener('click', function() { doSync(); });
 
   function secretsTip(msg, isErr) {
     var el = document.getElementById('aiSecretsSyncTip');
