@@ -287,7 +287,7 @@ function renderGraph() {
   if (title) title.textContent = state.novel ? state.novel.title : '（未打开小说）';
   if (!box || !edgeBox) return;
   if (!state.novel) {
-    box.innerHTML = '<div class="ss-empty">请先在「管理」打开一部小说</div>';
+    box.innerHTML = '<div class="ss-empty ui-empty-tip">请先在「管理」打开一部小说</div>';
     edgeBox.innerHTML = '';
     return;
   }
@@ -302,10 +302,10 @@ function renderGraph() {
       + '</select>'
       + '<input class="ss-node-name" data-f="name" value="' + escapeHtml(n.name) + '" placeholder="名称" />'
       + '<input class="ss-node-note" data-f="note" value="' + escapeHtml(n.note) + '" placeholder="备注" />'
-      + '<button type="button" class="btn btn-sm btn-delete" data-ss-node-del>删</button>'
+      + '<button type="button" class="btn btn-ghost btn-inline" data-ss-node-del>删</button>'
       + '</div>'
     );
-  }).join('') || '<div class="ss-empty">暂无节点。可从卡面种子生成。</div>';
+  }).join('') || '<div class="ss-empty ui-empty-tip">暂无节点。可从卡面种子生成。</div>';
 
   var nodeOpts = (g.nodes || []).map(function(n) {
     return '<option value="' + escapeHtml(n.id) + '">' + escapeHtml(n.name) + '</option>';
@@ -322,17 +322,17 @@ function renderGraph() {
         'value="' + escapeHtml(e.to) + '"',
         'value="' + escapeHtml(e.to) + '" selected'
       ) + '</select>'
-      + '<button type="button" class="btn btn-sm btn-delete" data-ss-edge-del>删</button>'
+      + '<button type="button" class="btn btn-ghost btn-inline" data-ss-edge-del>删</button>'
       + '</div>'
     );
-  }).join('') || '<div class="ss-empty">暂无关系边</div>';
+  }).join('') || '<div class="ss-empty ui-empty-tip">暂无关系边</div>';
 }
 
 function renderOutline() {
   var box = $('ssOutlineList');
   if (!box) return;
   if (!state.novel) {
-    box.innerHTML = '<div class="ss-empty">请先打开一部小说</div>';
+    box.innerHTML = '<div class="ss-empty ui-empty-tip">请先打开一部小说</div>';
     return;
   }
   var items = state.novel.outline || [];
@@ -342,13 +342,13 @@ function renderOutline() {
       + '<div class="ss-outline-item__head">'
       + '<span class="ss-ol-idx">#' + (i + 1) + '</span>'
       + '<input class="ss-ol-title" value="' + escapeHtml(o.title) + '" />'
-      + '<button type="button" class="btn btn-sm btn-delete" data-ss-ol-discard title="从此章起废弃后续">废弃后续</button>'
-      + '<button type="button" class="btn btn-sm btn-delete" data-ss-ol-del>删</button>'
+      + '<button type="button" class="btn btn-ghost btn-inline" data-ss-ol-discard title="从此章起废弃后续">废弃后续</button>'
+      + '<button type="button" class="btn btn-ghost btn-inline" data-ss-ol-del>删</button>'
       + '</div>'
       + '<textarea class="ss-ol-summary" rows="2" placeholder="摘要">' + escapeHtml(o.summary) + '</textarea>'
       + '</div>'
     );
-  }).join('') || '<div class="ss-empty">暂无大纲。可分段生成或手动添加。</div>';
+  }).join('') || '<div class="ss-empty ui-empty-tip">暂无大纲。可分段生成或手动添加。</div>';
 }
 
 function renderWrite() {
@@ -402,7 +402,7 @@ function renderRead() {
   var pageInfo = $('ssReadPageInfo');
   if (!state.novel) {
     if (title) title.textContent = '未打开小说';
-    if (body) body.innerHTML = '<div class="ss-empty">请先在「管理」打开一部小说</div>';
+    if (body) body.innerHTML = '<div class="ss-empty ui-empty-tip">请先在「管理」打开一部小说</div>';
     if (toc) toc.innerHTML = '';
     return;
   }
@@ -418,11 +418,11 @@ function renderRead() {
     toc.innerHTML = chapters.map(function(c, i) {
       return '<button type="button" class="ss-toc-item' + (i === idx ? ' is-active' : '') + '" data-ch-id="'
         + escapeHtml(c.id) + '">' + (i + 1) + '. ' + escapeHtml(c.title || '未命名') + '</button>';
-    }).join('') || '<div class="ss-empty">暂无章节</div>';
+    }).join('') || '<div class="ss-empty ui-empty-tip">暂无章节</div>';
   }
 
   if (!ch) {
-    if (body) body.innerHTML = '<div class="ss-empty">暂无章节</div>';
+    if (body) body.innerHTML = '<div class="ss-empty ui-empty-tip">暂无章节</div>';
     if (pageInfo) pageInfo.textContent = '';
     return;
   }

@@ -3,7 +3,7 @@
 ---
 <div class="panel story-studio-panel" data-story-panel="read">
   <h2>在线阅读</h2>
-  <p class="ss-tip">一章一屏滑动，或分页阅读。无正文时显示摘要。支持书签与全屏。</p>
+  <p class="ss-tip ui-panel-lead">一章一屏滑动，或分页阅读。无正文时显示摘要。支持书签与全屏。</p>
   <div class="ss-toolbar">
     <strong id="ssReadTitle" style="margin-right:auto;">—</strong>
     <label style="display:flex;gap:6px;align-items:center;font-size:0.78rem;color:var(--color-text-muted);">
@@ -13,11 +13,11 @@
         <option value="page">分页</option>
       </select>
     </label>
-    <button type="button" id="btnSsReadBookmark" class="btn btn-ghost btn-sm">书签</button>
-    <button type="button" id="btnSsReadFullscreen" class="btn btn-ghost btn-sm">全屏</button>
+    <button type="button" id="btnSsReadBookmark" class="btn btn-ghost btn-inline">书签</button>
+    <button type="button" id="btnSsReadFullscreen" class="btn btn-ghost btn-inline">全屏</button>
   </div>
   <div class="ss-read-layout">
-    <aside>
+    <aside class="ss-read-aside">
       <div class="ss-card-head" style="padding:8px 0;border:none;"><strong>目录</strong></div>
       <div id="ssReadToc" class="ss-toc"></div>
       <div class="ss-card-head" style="padding:12px 0 6px;border:none;"><strong>书签</strong></div>
@@ -26,9 +26,9 @@
     <div id="ssReadStage" class="ss-read-stage">
       <div id="ssReadBody" class="ss-read-body"></div>
       <div class="ss-read-nav">
-        <button type="button" id="btnSsReadPrev" class="btn btn-ghost btn-sm">上一章/页</button>
+        <button type="button" id="btnSsReadPrev" class="btn btn-ghost btn-inline">上一章/页</button>
         <span id="ssReadPageInfo" class="ss-muted"></span>
-        <button type="button" id="btnSsReadNext" class="btn btn-ghost btn-sm">下一章/页</button>
+        <button type="button" id="btnSsReadNext" class="btn btn-ghost btn-inline">下一章/页</button>
       </div>
     </div>
   </div>

@@ -212,6 +212,16 @@ describe('storyStudio UI mount', function() {
     assert.match(app, /btn-inline/);
     assert.match(app, /data-ss-act="rename"/);
     assert.doesNotMatch(app, /iconBtn\('rename'/);
+    assert.match(app, /ui-empty-tip/);
+    const styles = readFileSync(join(root, 'src/components/storyStudio/StoryStudioStyles.astro'), 'utf8');
+    assert.match(styles, /max-width:\s*none/);
+    assert.doesNotMatch(styles, /max-width:\s*960px/);
+    const graph = readFileSync(join(root, 'src/components/storyStudio/StoryGraphPanel.astro'), 'utf8');
+    assert.match(graph, /btn-inline/);
+    assert.doesNotMatch(graph, /btn-fetch(?!-)/);
+    const outline = readFileSync(join(root, 'src/components/storyStudio/StoryOutlinePanel.astro'), 'utf8');
+    assert.match(outline, /btn-inline/);
+    assert.match(outline, /ss-outline-list/);
     const write = readFileSync(join(root, 'src/components/storyStudio/StoryWritePanel.astro'), 'utf8');
     assert.match(write, /id="ssWriteSyncMvu"/);
     assert.match(write, /写完同步变量与状态栏/);
