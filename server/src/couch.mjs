@@ -190,6 +190,111 @@ export async function readOwnerRelease(ownerUserId, cardId, novelId) {
   }
 }
 
+export function cardReleaseDocId(cardId) {
+  return 'card/' + String(cardId || '').trim() + '/release';
+}
+
+export function cardReleaseVersionDocId(cardId, characterVersion) {
+  var ver = encodeURIComponent(String(characterVersion || '1.0').trim() || '1.0');
+  return 'card/' + String(cardId || '').trim() + '/release/' + ver;
+}
+
+export async function readOwnerCardRelease(ownerUserId, cardId) {
+  var db = getUserDbAdmin(ownerUserId);
+  try {
+    return await db.get(cardReleaseDocId(cardId));
+  } catch (e) {
+    if (e && e.statusCode === 404) return null;
+    throw e;
+  }
+}
+
+export async function readOwnerCardReleaseVersion(ownerUserId, cardId, characterVersion) {
+  var db = getUserDbAdmin(ownerUserId);
+  try {
+    return await db.get(cardReleaseVersionDocId(cardId, characterVersion));
+  } catch (e) {
+    if (e && e.statusCode === 404) return null;
+    throw e;
+  }
+}
+
+export async function listOwnerCardReleaseVersions(ownerUserId, cardId) {
+  var db = getUserDbAdmin(ownerUserId);
+  var prefix = 'card/' + String(cardId || '').trim() + '/release/';
+  var res = await db.list({
+    include_docs: true,
+    startkey: prefix,
+    endkey: prefix + '\ufff0',
+  });
+  return (res.rows || [])
+    .map(function(r) { return r.doc; })
+    .filter(function(d) {
+      return d && d.type === 'card-release' && d._id !== cardReleaseDocId(cardId);
+    });
+}
+
+/**
+ * 写入/更新卡 release（含可选 PNG base64 附件）
+ * @param {object} releasePayload { characterVersion, title, publishedAt, cardJson, pngEnabled }
+ * @param {string|null} pngBase64 原始 PNG base64（无 data: 前缀）
+ */
+export async function putOwnerCardRelease(ownerUserId, cardId, releasePayload, pngBase64) {
+  var db = getUserDbAdmin(ownerUserId);
+  var idCurrent = cardReleaseDocId(cardId);
+  var ver = String(releasePayload.characterVersion || '1.0');
+  var idVer = cardReleaseVersionDocId(cardId, ver);
+
+  async function upsert(id) {
+    var existing = null;
+    try { existing = await db.get(id); } catch (e) {
+      if (!e || e.statusCode !== 404) throw e;
+    }
+    var doc = {
+      _id: id,
+      type: 'card-release',
+      cardId: String(cardId),
+      characterVersion: ver,
+      title: releasePayload.title,
+      publishedAt: releasePayload.publishedAt,
+      pngEnabled: !!releasePayload.pngEnabled,
+      data: {
+        cardJson: releasePayload.cardJson,
+        title: releasePayload.title,
+        characterVersion: ver,
+        publishedAt: releasePayload.publishedAt,
+      },
+      updatedAt: new Date().toISOString(),
+    };
+    if (existing && existing._rev) doc._rev = existing._rev;
+    if (existing && existing._attachments) doc._attachments = existing._attachments;
+    var saved = await db.insert(doc);
+    if (pngBase64) {
+      var buf = Buffer.from(String(pngBase64).replace(/^data:image\/png;base64,/, ''), 'base64');
+      await db.attachment.insert(id, 'card.png', buf, 'image/png', { rev: saved.rev });
+    }
+    return saved;
+  }
+
+  await upsert(idCurrent);
+  await upsert(idVer);
+  return { cardId: cardId, characterVersion: ver };
+}
+
+export async function getOwnerCardPng(ownerUserId, cardId, characterVersion) {
+  var db = getUserDbAdmin(ownerUserId);
+  var id = characterVersion
+    ? cardReleaseVersionDocId(cardId, characterVersion)
+    : cardReleaseDocId(cardId);
+  try {
+    var body = await db.attachment.get(id, 'card.png');
+    return Buffer.isBuffer(body) ? body : Buffer.from(body);
+  } catch (e) {
+    if (e && e.statusCode === 404) return null;
+    throw e;
+  }
+}
+
 export var ADMIN_DB = 'stcb-admin';
 
 export async function ensureAdminDatabase() {

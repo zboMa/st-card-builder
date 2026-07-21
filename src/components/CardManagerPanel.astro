@@ -5,7 +5,7 @@
   <div class="card-manager-header">
     <div class="card-manager-heading">
       <h2>角色卡管理</h2>
-      <p class="card-manager-tip">本地多卡草稿箱。点击卡片可切换为当前卡并进入「角色设定」。导出在各卡底部（该卡 ST JSON / PNG）；小说工坊仅本地按卡分桶，不写入导出。</p>
+      <p class="card-manager-tip">本地多卡草稿箱。点击卡片可切换为当前卡并进入「角色设定」。导出在各卡底部；「发布」固化分享可见版（按角色卡 character_version），「分享」生成需登录的信息链接（可选密码 / PNG 直链）。小说工坊仅本地按卡分桶，不写入导出。</p>
     </div>
     <!-- 右上角：仅新建 + 导入；导出在每张预览卡底部 -->
     <div class="card-manager-toolbar">
@@ -334,6 +334,7 @@
 
   .card-manager-item-actions {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
     gap: var(--space-1);
@@ -347,6 +348,23 @@
     align-items: center;
     gap: 4px;
     flex-shrink: 0;
+  }
+
+  .card-manager-item-share {
+    flex: 1 1 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 2px;
+  }
+
+  .card-mgr-share-btn {
+    font-size: 0.68rem;
+    padding: 2px 6px;
+  }
+
+  .card-manager-import-status.is-error {
+    color: var(--color-danger);
   }
 
   .card-mgr-icon {

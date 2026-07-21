@@ -13,6 +13,15 @@ import {
 } from '../state.mjs';
 import { crc32, createTextChunk, deepCopy, escapeHtml } from '../../utils.mjs';
 import { buildExportChecklist } from '../exportChecklist.mjs';
+import { buildCardReleasePayload, normalizeCharacterVersion } from '../cardRelease.mjs';
+import {
+  apiPublishCard,
+  apiCreateCardShare,
+  apiDeleteCardShare,
+  getCardShareMeta,
+  setCardShareMeta,
+  clearCardShareToken,
+} from '../cardShareClient.mjs';
 
 export function registerCardManager(ctx) {
   var panel = {};
@@ -114,8 +123,40 @@ export function registerCardManager(ctx) {
     window.__setAppView__(viewId);
   }
 
+  function setCardManagerStatus(msg, isError) {
+    var bar = ctx.$('importStatusBar');
+    if (!bar) return;
+    if (!msg) {
+      bar.style.display = 'none';
+      bar.textContent = '';
+      return;
+    }
+    bar.style.display = '';
+    bar.textContent = String(msg);
+    bar.classList.toggle('is-error', !!isError);
+  }
+
+  function draftWorkVersion(d) {
+    return normalizeCharacterVersion(d && d.characterVersion);
+  }
+
+  function buildShareMetaLine(d, meta) {
+    var work = draftWorkVersion(d);
+    var pub = meta && meta.publishedCharacterVersion
+      ? ('已发布 ' + meta.publishedCharacterVersion)
+      : '未发布';
+    var stale = meta && meta.publishedCharacterVersion
+      && meta.publishedCharacterVersion !== work
+      ? ' · 草稿版已超前'
+      : '';
+    var share = meta && meta.token ? ' · 分享中' : '';
+    var png = meta && meta.token && meta.pngPublic ? ' · PNG直链' : '';
+    return '工作 ' + work + ' · ' + pub + stale + share + png;
+  }
+
   // ---- Actions HTML ----
-  panel.buildCardManagerActionsHtml = function () {
+  panel.buildCardManagerActionsHtml = function (meta) {
+    meta = meta || {};
     function iconBtn(action, label, extraClass) {
       var cls = 'btn-icon btn-icon--sm card-mgr-icon' + (extraClass ? ' ' + extraClass : '');
       var icons = {
@@ -127,6 +168,10 @@ export function registerCardManager(ctx) {
       };
       return '<button type="button" class="' + cls + '" data-card-action="' + action + '" title="' + label + '" aria-label="' + label + '">' + (icons[action] || '') + '</button>';
     }
+    function textBtn(action, label) {
+      return '<button type="button" class="btn btn-sm btn-ghost card-mgr-share-btn" data-card-action="'
+        + action + '">' + label + '</button>';
+    }
     return ''
       + '<div class="card-manager-item-actions__group">'
       + iconBtn('dup', '复制')
@@ -136,6 +181,13 @@ export function registerCardManager(ctx) {
       + iconBtn('export-json', '导出 JSON', 'card-mgr-icon--export')
       + iconBtn('export-png', '导出 PNG', 'card-mgr-icon--export')
       + iconBtn('delete', '删除', 'card-mgr-icon--danger btn-icon--danger')
+      + '</div>'
+      + '<div class="card-manager-item-share">'
+      + textBtn('publish', '发布')
+      + textBtn('share', '分享')
+      + (meta.token ? textBtn('copy-share', '复制链接') : '')
+      + (meta.token ? textBtn('reset-share', '重置链接') : '')
+      + (meta.token ? textBtn('unshare', '停分享') : '')
       + '</div>';
   };
 
@@ -186,16 +238,18 @@ export function registerCardManager(ctx) {
         cover.appendChild(badge);
       }
 
+      var shareMeta = getCardShareMeta(id) || {};
       var main = document.createElement('div');
       main.className = 'card-manager-item-main';
       main.setAttribute('data-card-action', 'open');
       main.innerHTML =
         '<div class="card-manager-item-name">' + ctx.escapeHtml(draftDisplayName(d)) + '</div>' +
-        '<div class="card-manager-item-meta">更新 ' + ctx.escapeHtml(d.updatedAt || '—') + '</div>';
+        '<div class="card-manager-item-meta">更新 ' + ctx.escapeHtml(d.updatedAt || '—')
+        + '<br>' + ctx.escapeHtml(buildShareMetaLine(d, shareMeta)) + '</div>';
 
       var actions = document.createElement('div');
       actions.className = 'card-manager-item-actions';
-      actions.innerHTML = panel.buildCardManagerActionsHtml();
+      actions.innerHTML = panel.buildCardManagerActionsHtml(shareMeta);
 
       item.appendChild(cover);
       item.appendChild(main);
@@ -628,6 +682,256 @@ export function registerCardManager(ctx) {
     return { ok: true, id: id, name: next };
   };
 
+  // ---- PNG bytes for publish ----
+  panel.buildPngBase64ForDraft = async function (id) {
+    var json;
+    var avatar;
+    var currentId = getCurrentDraftId();
+    if (id === currentId) {
+      panel.saveCurrentDraft();
+      json = buildCardJSONFromDraft(ctx.state);
+      if (ctx.state.avatarInIdb) {
+        await ensureIdbReady();
+        avatar = window.__avatarIdb__
+          ? await window.__avatarIdb__.loadAvatarFullDataUrl(id)
+          : '';
+      } else {
+        avatar = ctx.state.avatarBase64;
+      }
+    } else {
+      var d = getAllDrafts()[id];
+      if (!d) return null;
+      json = buildCardJSONFromDraft(d);
+      if (d.avatarInIdb) {
+        await ensureIdbReady();
+        avatar = window.__avatarIdb__
+          ? await window.__avatarIdb__.loadAvatarFullDataUrl(id)
+          : '';
+      } else {
+        avatar = d.avatarBase64 || '';
+      }
+    }
+    if (!avatar) return null;
+    var ch = createTextChunk('chara', JSON.stringify(json));
+    var raw = atob(avatar.split(',')[1]);
+    var bytes = new Uint8Array(raw.length);
+    for (var i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+    var io = bytes.length - 12;
+    var bef = bytes.slice(0, io);
+    var ie = bytes.slice(io);
+    var fin = new Uint8Array(bef.length + ch.length + ie.length);
+    fin.set(bef, 0);
+    fin.set(ch, bef.length);
+    fin.set(ie, bef.length + ch.length);
+    var bin = '';
+    for (var j = 0; j < fin.length; j++) bin += String.fromCharCode(fin[j]);
+    return btoa(bin);
+  };
+
+  // ---- Publish / Share ----
+  panel.publishDraft = async function (id) {
+    if (!id) return;
+    var currentId = getCurrentDraftId();
+    if (id === currentId) panel.saveCurrentDraft();
+    var stored = getAllDrafts()[id];
+    if (id !== currentId && !stored) {
+      setCardManagerStatus('找不到该角色卡', true);
+      return;
+    }
+    var d = id === currentId
+      ? Object.assign({}, buildDraftSnapshot(ctx.state), { draftId: id })
+      : Object.assign({}, stored, { draftId: id });
+    var release = buildCardReleasePayload(d, {});
+    if (!window.confirm(
+      '发布角色卡为分享可见版「' + release.characterVersion + '」。\n'
+      + '分享链接只展示已发布快照；之后编辑需再次发布才会更新。继续？'
+    )) return;
+
+    var withPng = false;
+    if (d.avatarInIdb || d.avatarBase64 || (id === currentId && (ctx.state.avatarInIdb || ctx.state.avatarBase64))) {
+      withPng = window.confirm('同时上传嵌入角色数据的 PNG？（开启「PNG 直链」分享时需要）');
+    }
+
+    setCardManagerStatus('正在发布…');
+    try {
+      var pngBase64 = null;
+      if (withPng) {
+        pngBase64 = await panel.buildPngBase64ForDraft(id);
+        if (!pngBase64) {
+          setCardManagerStatus('无头像，已跳过 PNG；仍发布 JSON', true);
+        }
+      }
+      var data = await apiPublishCard({
+        cardId: id,
+        cardJson: release.cardJson,
+        characterVersion: release.characterVersion,
+        title: release.title,
+        pngEnabled: !!(withPng && pngBase64),
+        pngBase64: pngBase64,
+      });
+      try {
+        var mirror = await import('../../sync/cardMirror.mjs');
+        await mirror.mirrorCardReleaseToPouch(id, {
+          characterVersion: data.characterVersion,
+          title: release.title,
+          publishedAt: data.publishedAt,
+          pngEnabled: !!(withPng && pngBase64),
+          cardJson: release.cardJson,
+        });
+      } catch (e) { console.warn('[cardShare] mirror', e); }
+      setCardShareMeta(id, {
+        publishedCharacterVersion: data.characterVersion,
+        publishedAt: data.publishedAt,
+        title: release.title,
+      });
+      setCardManagerStatus('已发布 v' + data.characterVersion
+        + (data.pngStored ? '（含 PNG）' : ''));
+      panel.updateCardManagerUI();
+    } catch (err) {
+      if (err && err.status === 401) {
+        setCardManagerStatus('请先在「账户与同步」登录后再发布', true);
+      } else {
+        setCardManagerStatus('发布失败：' + (err.message || err), true);
+      }
+    }
+  };
+
+  panel.shareDraft = async function (id, opts) {
+    opts = opts || {};
+    if (!id) return;
+    var meta = getCardShareMeta(id) || {};
+    if (!meta.publishedCharacterVersion) {
+      setCardManagerStatus('请先「发布」角色卡版本后再分享', true);
+      return;
+    }
+    var currentId = getCurrentDraftId();
+    if (id === currentId) panel.saveCurrentDraft();
+    var d = id === currentId ? buildDraftSnapshot(ctx.state, id) : getAllDrafts()[id];
+    var work = draftWorkVersion(d || {});
+    if (meta.publishedCharacterVersion !== work) {
+      if (!window.confirm(
+        '当前工作版 ' + work + ' 已超前于已发布 ' + meta.publishedCharacterVersion
+        + '。分享仍只展示已发布版。继续？'
+      )) return;
+    }
+
+    var passRaw = window.prompt(
+      '可选：分享访问密码（留空=不修改；填 clear=清除密码）。\n'
+      + '查看信息/JSON 需登录同账号，并校验此密码。',
+      ''
+    );
+    if (passRaw === null) return;
+
+    var pngAns = window.confirm(
+      '是否开启 PNG 直链？\n'
+      + '开启后：持链接可不登录直接下载最新 PNG（内含完整卡数据）。\n'
+      + '信息页与 JSON 仍需登录。\n'
+      + '确定开启？'
+    );
+
+    var expRaw = window.prompt('可选：链接有效天数（留空=不修改；填 0=永不过期）', '');
+    if (expRaw === null) return;
+
+    setCardManagerStatus(opts.resetToken ? '重置分享链接…' : '创建分享链接…');
+    try {
+      var payload = {
+        cardId: id,
+        token: meta.token || '',
+        resetToken: !!opts.resetToken,
+        pngPublic: !!pngAns,
+      };
+      var pass = String(passRaw).trim();
+      if (pass.toLowerCase() === 'clear') payload.clearPassword = true;
+      else if (pass) payload.password = pass;
+
+      expRaw = String(expRaw).trim();
+      if (expRaw === '0') payload.expiresAt = null;
+      else if (expRaw) {
+        var days = parseInt(expRaw, 10);
+        if (!Number.isFinite(days) || days < 0) {
+          setCardManagerStatus('有效天数无效', true);
+          return;
+        }
+        if (days > 0) payload.expiresInDays = days;
+      }
+
+      var data = await apiCreateCardShare(payload);
+      setCardShareMeta(id, {
+        token: data.token,
+        infoUrl: data.infoUrl,
+        pngUrl: data.pngUrl || null,
+        pngPublic: !!data.pngPublic,
+        hasPassword: !!data.hasPassword,
+        publishedCharacterVersion: data.characterVersion || meta.publishedCharacterVersion,
+        title: data.title || meta.title,
+      });
+      var url = data.infoUrl || '';
+      try {
+        if (url && navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(url);
+          setCardManagerStatus('分享信息链接已复制：' + url
+            + (data.pngPublic && data.pngUrl ? '；PNG：' + data.pngUrl : '')
+            + (data.hasPassword ? '（需密码）' : ''));
+        } else {
+          window.prompt('复制分享信息链接', url);
+          setCardManagerStatus('请复制分享链接');
+        }
+      } catch (e2) {
+        window.prompt('复制分享信息链接', url);
+        setCardManagerStatus('请复制分享链接');
+      }
+      panel.updateCardManagerUI();
+    } catch (err) {
+      if (err && err.code === 'no_release') {
+        setCardManagerStatus('云端尚无发布版：请先发布并确保已登录', true);
+      } else if (err && err.status === 401) {
+        setCardManagerStatus('请先在「账户与同步」登录后再分享', true);
+      } else {
+        setCardManagerStatus('分享失败：' + (err.message || err), true);
+      }
+    }
+  };
+
+  panel.copyShareLink = async function (id) {
+    var meta = getCardShareMeta(id) || {};
+    if (!meta.token || !meta.infoUrl) {
+      setCardManagerStatus('尚未创建分享链接', true);
+      return;
+    }
+    var text = meta.infoUrl + (meta.pngUrl ? ('\nPNG: ' + meta.pngUrl) : '');
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(meta.infoUrl);
+        setCardManagerStatus('已复制：' + meta.infoUrl
+          + (meta.pngUrl ? '（另有 PNG 直链）' : ''));
+      } else {
+        window.prompt('复制分享信息链接', meta.infoUrl);
+      }
+    } catch (e) {
+      window.prompt('复制分享信息链接', text);
+    }
+  };
+
+  panel.unshareDraft = async function (id) {
+    var meta = getCardShareMeta(id) || {};
+    if (!meta.token) {
+      setCardManagerStatus('未在分享', true);
+      return;
+    }
+    if (!window.confirm('停止分享后链接将失效，确定？')) return;
+    try {
+      await apiDeleteCardShare(meta.token);
+    } catch (e) {
+      if (!(e && e.status === 401)) {
+        setCardManagerStatus('停分享失败：' + (e.message || e), true);
+        return;
+      }
+    }
+    clearCardShareToken(id);
+    setCardManagerStatus('已停止分享');
+    panel.updateCardManagerUI();
+  };
+
   // ---- Export ----
   panel.exportDraftAsJson = function (id) {
     if (!id) return;
@@ -762,6 +1066,36 @@ export function registerCardManager(ctx) {
           e.preventDefault();
           e.stopPropagation();
           panel.exportDraftAsPng(id);
+          return;
+        }
+        if (action === 'publish') {
+          e.preventDefault();
+          e.stopPropagation();
+          panel.publishDraft(id);
+          return;
+        }
+        if (action === 'share') {
+          e.preventDefault();
+          e.stopPropagation();
+          panel.shareDraft(id);
+          return;
+        }
+        if (action === 'reset-share') {
+          e.preventDefault();
+          e.stopPropagation();
+          panel.shareDraft(id, { resetToken: true });
+          return;
+        }
+        if (action === 'copy-share') {
+          e.preventDefault();
+          e.stopPropagation();
+          panel.copyShareLink(id);
+          return;
+        }
+        if (action === 'unshare') {
+          e.preventDefault();
+          e.stopPropagation();
+          panel.unshareDraft(id);
           return;
         }
         // Click cover/name area: switch to that draft and go to character view

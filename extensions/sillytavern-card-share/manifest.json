@@ -1,0 +1,12 @@
+{
+  "display_name": "ST Card Builder 分享导入",
+  "loading_order": 100,
+  "requires": [],
+  "optional": [],
+  "js": "index.js",
+  "css": "style.css",
+  "author": "ST Card Builder",
+  "version": "1.0.0",
+  "homePage": "https://github.com/zboMa/st-card-builder",
+  "auto_update": false
+}
