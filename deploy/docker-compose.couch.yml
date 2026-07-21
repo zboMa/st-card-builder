@@ -1,0 +1,20 @@
+# 生产：仅 CouchDB（与 API 同机；由部署脚本 / systemd 拉起）
+# 凭据来自同目录或 server/.env 注入的 COUCHDB_USER / COUCHDB_PASSWORD
+services:
+  couchdb:
+    image: couchdb:3.4
+    container_name: stcb-couchdb
+    restart: unless-stopped
+    ports:
+      - "5984:5984"
+    environment:
+      COUCHDB_USER: ${COUCHDB_USER:-admin}
+      COUCHDB_PASSWORD: ${COUCHDB_PASSWORD:?COUCHDB_PASSWORD required}
+    volumes:
+      - ./couch-data:/opt/couchdb/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:5984/_up"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 15s

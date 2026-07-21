@@ -1,0 +1,18 @@
+[Unit]
+Description=ST Card Builder CouchDB (Docker Compose)
+Requires=docker.service
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=__DEPLOY_USER__
+WorkingDirectory=__DEPLOY_HOME__/st-card-builder
+EnvironmentFile=__DEPLOY_HOME__/st-card-builder/server/.env
+ExecStart=/bin/bash __DEPLOY_HOME__/st-card-builder/deploy/ensure-couch.sh __DEPLOY_HOME__/st-card-builder
+ExecStop=/usr/bin/docker compose --project-directory __DEPLOY_HOME__/st-card-builder -f __DEPLOY_HOME__/st-card-builder/deploy/docker-compose.couch.yml stop
+TimeoutStartSec=120
+
+[Install]
+WantedBy=multi-user.target
