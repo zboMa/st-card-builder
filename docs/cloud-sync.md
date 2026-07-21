@@ -1,6 +1,6 @@
 # 云同步与账户（Node + CouchDB + PouchDB）
 
-> 将能力从「仅浏览器本地」扩展为可选上云同步。正式登录仅 Discord；调试可用临时用户名。
+> 将能力从「仅浏览器本地」扩展为可选上云同步。正式登录优先邮箱（邀请码注册）；Discord OAuth 仍保留，可用开关暂时隐藏。调试可用临时用户名。
 
 ## 组件
 
@@ -21,7 +21,11 @@ npm run server:dev     # :8787
 npm run dev            # Astro :4321，/api 代理到 8787
 ```
 
-打开侧栏 **配置 → 账户与同步**：若 `DEV_LOGIN_ENABLED=true`，输入用户名点「进入」即可调试。
+打开侧栏 **配置 → 账户与同步**：
+
+- `AUTH_EMAIL_ENABLED=true` 时用邮箱登录；注册需 `INVITE_CODES`（或 `INVITE_CODE`）中的邀请码。
+- `AUTH_DISCORD_LOGIN_ENABLED=false` 时隐藏 Discord 按钮（路由仍可用）。
+- `DEV_LOGIN_ENABLED=true` 时可输入用户名点「进入」调试。
 
 ## 同步行为
 
@@ -29,12 +33,21 @@ npm run dev            # Astro :4321，/api 代理到 8787
 - 重开后拉云端 **卡列表**（`meta/card-index`）；点开某卡再懒同步正文。
 - **API 密钥默认不上云**。在「AI 配置」中单独「同步密钥到云端 / 拉取 / 清除」。
 
+## 邮箱登录
+
+- `POST /api/auth/register`：`{ email, password, inviteCode }`（密码 ≥8，PBKDF2 存 Couch `email-auth/{email}`）
+- `POST /api/auth/login`：`{ email, password }`
+- Session `user`：`{ id: email_<hash>, provider: 'email', email, username, displayName }`
+- `/api/auth/status` 暴露 `emailAuthEnabled` / `emailRegistrationOpen` / `discordLoginEnabled`，**从不**返回邀请码
+- 管理端白名单：`ADMIN_EMAILS` / `ADMIN_READONLY_EMAILS`（与 Discord ID 白名单并存）
+
 ## Discord
 
 - OAuth：前端打开 `{PUBLIC_API_URL}/api/auth/discord?return_to=…` → API 再 302 到 Discord authorize → callback 写 Session → 回 `return_to`
 - 管理端独立静态站 `/var/www/card-admin`；主站 `/var/www/card`；Session 可用 `SESSION_COOKIE_DOMAIN` 共用
 - `AUTH_ENFORCE_DISCORD_MEMBERSHIP=false`（默认）：不校验服务器/身份组。
 - `=true` 且 `DISCORD_GUILD_ID` / `DISCORD_REQUIRED_ROLE_IDS` **留空**：**拒绝所有正式 Discord 注册**（调试登录仍可用）。
+- `AUTH_DISCORD_LOGIN_ENABLED`：仅控制 UI 展示；国内服务器若无法访问 Discord API，建议先关 UI，改用邮箱。
 
 ## 文档 ID 前缀
 
@@ -76,12 +89,12 @@ npm run dev            # Astro :4321，/api 代理到 8787
 
 - 页面：`/admin`（Nocturne 深色，与主站一致）
 - 权限：
-  - `ADMIN_DISCORD_IDS` → **运维**（读写）
-  - `ADMIN_READONLY_DISCORD_IDS` → **只读**
+  - `ADMIN_DISCORD_IDS` / `ADMIN_EMAILS` → **运维**（读写）
+  - `ADMIN_READONLY_DISCORD_IDS` / `ADMIN_READONLY_EMAILS` → **只读**
 - 模块：仪表盘、用户、分享（卡/小说 + 软停用/硬删）、插件 Token、Couch 库一览与孤儿提示、审计（筛选/导出）、系统健康与可选逻辑备份
 - API：`/api/admin/overview|users|shares|tokens|databases|audit|backup|me`
 - 写操作均记入 `stcb-admin` 审计；备份需 `ADMIN_BACKUP_ENABLED=true`
-- 管理库：`stcb-admin`（用户注册表 + 审计 + Bearer）
+- 管理库：`stcb-admin`（用户注册表 + 邮箱认证文档 + 审计 + Bearer）
 
 ## 生产清单
 

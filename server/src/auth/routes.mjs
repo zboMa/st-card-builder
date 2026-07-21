@@ -1,5 +1,5 @@
 /**
- * Auth routes: Discord OAuth + 调试用户名登录
+ * Auth routes: Discord OAuth + 邮箱注册/登录 + 调试用户名登录
  */
 import { Router } from 'express';
 import crypto from 'node:crypto';
@@ -12,10 +12,21 @@ import {
   discordConfigured,
 } from './discord.mjs';
 import { evaluateDiscordMembership, canAcceptDiscordRegistration } from './membership.mjs';
-import { upsertUserRegistry, getUserRegistry } from '../couch.mjs';
+import {
+  upsertUserRegistry,
+  getUserRegistry,
+  getEmailAuthDoc,
+  registerEmailUser,
+} from '../couch.mjs';
 import { issueBearerToken, revokeBearerToken } from './bearer.mjs';
 import { resolveRequestUser } from './requireUser.mjs';
 import { buildReturnToAllowlist, sanitizeReturnTo } from './returnTo.mjs';
+import {
+  assertEmailShape,
+  buildEmailSessionUser,
+  inviteCodeAccepted,
+} from './emailAuth.mjs';
+import { hashAccountPassword, verifyAccountPassword, assertPasswordShape } from './password.mjs';
 
 export var authRouter = Router();
 
@@ -49,8 +60,12 @@ function publicAuthFlags(req) {
   var user = req.session && req.session.user || null;
   return {
     discordConfigured: discordConfigured(),
+    discordLoginEnabled: !!config.discordLoginEnabled,
     enforceMembership: config.authEnforceDiscordMembership,
     canAcceptDiscordRegistration: canAcceptDiscordRegistration(),
+    emailAuthEnabled: !!config.emailAuthEnabled,
+    /** 是否可注册（邮箱开关开且至少配置了一个邀请码）；从不暴露邀请码本身 */
+    emailRegistrationOpen: !!(config.emailAuthEnabled && config.inviteCodes.length),
     devLoginEnabled: config.devLoginEnabled,
     isAdmin: isAdminUser(user),
     adminRole: getAdminRole(user),
@@ -58,6 +73,13 @@ function publicAuthFlags(req) {
     publicAdminUrl: config.publicAdminUrl || null,
     publicApiUrl: config.publicApiUrl || null,
   };
+}
+
+function authError(res, status, code, messageZh) {
+  return res.status(status).json({
+    error: code,
+    message: messageZh || code,
+  });
 }
 
 authRouter.get('/status', async function(req, res) {
@@ -111,6 +133,92 @@ authRouter.post('/dev-login', async function(req, res) {
   };
   try { await upsertUserRegistry(req.session.user); } catch (e) { console.warn('[auth] registry', e); }
   res.json({ ok: true, user: req.session.user });
+});
+
+/**
+ * 邮箱注册：{ email, password, inviteCode }
+ */
+authRouter.post('/register', async function(req, res) {
+  if (!config.emailAuthEnabled) {
+    return authError(res, 403, 'email_auth_disabled', '邮箱注册未开启');
+  }
+  if (!config.inviteCodes.length) {
+    return authError(res, 403, 'registration_closed', '暂未开放注册，请联系管理员');
+  }
+  var body = req.body || {};
+  var email;
+  try {
+    email = assertEmailShape(body.email);
+  } catch (e) {
+    return authError(res, 400, e.code || 'invalid_email', e.messageZh || '请输入有效邮箱');
+  }
+  if (!inviteCodeAccepted(body.inviteCode, config.inviteCodes)) {
+    return authError(res, 403, 'invalid_invite', '邀请码无效');
+  }
+  var password;
+  try {
+    password = assertPasswordShape(body.password);
+  } catch (e) {
+    return authError(res, 400, e.code || 'password_too_short', e.messageZh || '密码不符合要求');
+  }
+
+  try {
+    var packed = await hashAccountPassword(password);
+    var sessionUser = buildEmailSessionUser(email);
+    await registerEmailUser(sessionUser, packed);
+    req.session.user = sessionUser;
+    res.json({ ok: true, user: sessionUser });
+  } catch (e) {
+    if (e && e.code === 'email_taken') {
+      return authError(res, 409, 'email_taken', '该邮箱已注册，请直接登录');
+    }
+    console.error('[auth/register]', e);
+    return authError(res, 500, 'register_failed', '注册失败，请稍后重试');
+  }
+});
+
+/**
+ * 邮箱登录：{ email, password }
+ */
+authRouter.post('/login', async function(req, res) {
+  if (!config.emailAuthEnabled) {
+    return authError(res, 403, 'email_auth_disabled', '邮箱登录未开启');
+  }
+  var body = req.body || {};
+  var email;
+  try {
+    email = assertEmailShape(body.email);
+  } catch (e) {
+    return authError(res, 400, e.code || 'invalid_email', e.messageZh || '请输入有效邮箱');
+  }
+  var password = String(body.password || '');
+  if (!password) {
+    return authError(res, 400, 'password_required', '请输入密码');
+  }
+
+  try {
+    var authDoc = await getEmailAuthDoc(email);
+    if (!authDoc || !authDoc.passwordHash) {
+      return authError(res, 401, 'invalid_credentials', '邮箱或密码错误');
+    }
+    var ok = await verifyAccountPassword(password, authDoc.passwordHash);
+    if (!ok) {
+      return authError(res, 401, 'invalid_credentials', '邮箱或密码错误');
+    }
+    var reg = await getUserRegistry(authDoc.userId);
+    if (reg && reg.disabled) {
+      return authError(res, 403, 'account_disabled', '账号已被禁用');
+    }
+    var sessionUser = buildEmailSessionUser(email);
+    if (reg && reg.displayName) sessionUser.displayName = reg.displayName;
+    if (reg && reg.username) sessionUser.username = reg.username;
+    req.session.user = sessionUser;
+    try { await upsertUserRegistry(sessionUser); } catch (e) { console.warn('[auth] registry', e); }
+    res.json({ ok: true, user: sessionUser });
+  } catch (e) {
+    console.error('[auth/login]', e);
+    return authError(res, 500, 'login_failed', '登录失败，请稍后重试');
+  }
 });
 
 /**
