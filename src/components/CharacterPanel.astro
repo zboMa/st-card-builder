@@ -38,14 +38,16 @@ import PreviewPanel from './PreviewPanel.astro';
   </div>
 
   <div class="form-group">
-    <label for="characterVersion">卡片版本 (character_version)</label>
+    <div class="char-tags-label-row">
+      <label for="characterVersion">卡片版本 (character_version)</label>
+      <span class="ui-hint ui-hint--inline">酒馆字段；发布/分享按此版本固化。不可手改，请用按钮升级。</span>
+    </div>
     <div class="character-version-row">
       <input type="text" id="characterVersion" value="1.0" readonly tabindex="-1" title="仅可通过右侧按钮升级；SillyTavern data.character_version" />
       <button type="button" id="btnBumpVersionMajor" class="btn btn-meta" title="大版本 +1，小版本归零">大版本</button>
       <button type="button" id="btnBumpVersionMinor" class="btn btn-meta" title="小版本 +1">小版本</button>
       <button type="button" id="btnRevertVersion" class="btn btn-meta" hidden title="恢复到修改前的版本">回退</button>
     </div>
-    <span class="ui-hint ui-hint--inline">酒馆字段；发布/分享按此版本固化。不可手改，请用按钮升级。</span>
   </div>
 
   <!-- 角色标签：对接 ST tags / data.tags -->
@@ -65,13 +67,11 @@ import PreviewPanel from './PreviewPanel.astro';
     <span id="charTagsAiTip" class="ui-status-tip char-tags-ai-tip" role="status" aria-live="polite"></span>
   </div>
 
-  <div class="character-adult-hint-block">
-    <p class="ui-hint character-adult-hint">
-      本页只编辑<strong>主角</strong>卡面字段（名、描述、标签、版本等），不会写入世界书人物档案。
-      世界观预设、载体框架、口味、姿势语言、情趣话风、NTL、恶堕请到「世界与限定」配置——那些内容不进主角 Description。
-    </p>
+  <p class="ui-hint character-adult-hint">
+    本页只编辑<strong>主角</strong>卡面字段（名、描述、标签、版本等），不会写入世界书人物档案。
+    世界观预设、载体框架、口味、姿势语言、情趣话风、NTL、恶堕请到「世界与限定」配置——那些内容不进主角 Description。
     <button type="button" id="btnGotoWorldLimitsFromCharacter" class="ai-engine-link-btn">去「世界与限定」配置</button>
-  </div>
+  </p>
 
   <hr class="divider" />
 
@@ -114,12 +114,10 @@ import PreviewPanel from './PreviewPanel.astro';
     margin: 4px 0 0;
     line-height: 1.45;
   }
-  .character-adult-hint-block {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
-    margin: 4px 0 0;
+  .character-adult-hint .ai-engine-link-btn {
+    display: inline;
+    margin-left: 0.35em;
+    vertical-align: baseline;
   }
   .character-version-row {
     display: flex;

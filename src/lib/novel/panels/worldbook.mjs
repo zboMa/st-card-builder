@@ -312,7 +312,7 @@ export function registerWorldbook(ctx) {
     if (!prev) return;
     var q = String(es.novelWbSearchQuery || '').trim().toLowerCase();
     if (!(state.wbEntries || []).length) {
-      prev.innerHTML = '<div class="novel-status-text">暂无条目。请先「小说分析」，或 AI 抽取 / 新建。</div>';
+      prev.innerHTML = '<div class="wb-entries-empty novel-wb-empty-tip">暂无条目。请先「小说分析」，或 AI 抽取 / 新建。</div>';
       return;
     }
 

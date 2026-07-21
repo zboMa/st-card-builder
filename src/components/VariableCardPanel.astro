@@ -3,8 +3,8 @@
 <div class="panel varcard-panel">
   <div id="vcCorruptionGap" class="vc-corruption-gap" hidden role="status">
     <strong>恶堕进度缺失</strong>
-    <span id="vcCorruptionGapMsg">已启用恶堕，但 MVU 尚无「恶堕进度」变量。</span>
-    <button type="button" class="btn btn-sm vc-gap-action" id="vcGapInferBtn">从卡推定补齐</button>
+    <span id="vcCorruptionGapMsg">已启用恶堕，但 MVU 尚无「恶堕进度」变量。可用「从卡推定变量」勾选补齐，或到状态栏重新生成。</span>
+    <button type="button" class="btn btn-ghost adult-btn-compact vc-gap-action" id="vcGapInferBtn">从卡推定补齐</button>
   </div>
 
   <div class="vc-node-workbench">
@@ -12,11 +12,12 @@
       <div>
         <h2>MVU 变量节点</h2>
         <!-- 整套生成在状态栏；本页负责链路与变量查看/编辑 -->
-        <p>节点编排与变量查看/编辑。整套变量请在「状态栏」生成并覆盖写入；也可「从卡推定变量」规则合并。</p>
+        <p>节点编排与变量查看/编辑。整套变量请在「状态栏」生成并覆盖写入；也可
+          <button type="button" class="btn btn-ghost adult-btn-compact" id="btnVcInfer">从卡推定变量</button>
+          规则合并。</p>
       </div>
       <div class="vc-workbench-meta">
         <span class="vc-mode-pill">手动链路模式</span>
-        <button type="button" class="btn btn-sm" id="btnVcInfer">从卡推定变量</button>
         <span id="vcStatus" class="vc-status">自动同步角色卡中的 MVU…</span>
       </div>
     </div>
@@ -317,10 +318,7 @@
   }
 
   .vc-corruption-gap {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 8px 12px;
+    display: block;
     margin: 0 0 12px;
     padding: 10px 12px;
     border: 1px solid rgba(248, 113, 113, 0.45);
@@ -334,8 +332,28 @@
   .vc-corruption-gap strong {
     color: #fee2e2;
     letter-spacing: 0.02em;
+    margin-right: 0.35em;
   }
-  .vc-gap-action { flex-shrink: 0; }
+  .vc-gap-action {
+    display: inline-flex !important;
+    width: auto !important;
+    margin: 0 0 0 0.35em !important;
+    vertical-align: baseline;
+    color: #fde68a !important;
+    border-color: rgba(253, 230, 138, 0.35) !important;
+  }
+  .vc-workbench-head p .adult-btn-compact,
+  .vc-workbench-head p #btnVcInfer {
+    display: inline-flex !important;
+    width: auto !important;
+    margin: 0 0.2em !important;
+    vertical-align: baseline;
+  }
+  /* 与世界与限定行内按钮同款（本面板未挂 AdultConfig 样式时兜底） */
+  .varcard-panel .adult-btn-compact {
+    font-size: 0.7rem !important;
+    padding: 2px 8px !important;
+  }
 
   .vc-infer-panel {
     margin: 0 0 14px;

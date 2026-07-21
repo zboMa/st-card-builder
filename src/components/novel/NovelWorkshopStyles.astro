@@ -156,6 +156,10 @@
   }
   @media (max-width: 900px) {
     .novel-source-layout { grid-template-columns: 1fr; }
+    .novel-source-global-grid { grid-template-columns: 1fr; }
+  }
+  @media (min-width: 901px) and (max-width: 1100px) {
+    .novel-source-global-grid { grid-template-columns: 1fr 1fr; }
   }
 
   .novel-gate-hint {
@@ -453,6 +457,22 @@
   }
   .novel-entity-list.wb-entries-list .entry-actions {
     max-width: none;
+  }
+  .novel-entity-list .wb-entries-empty,
+  .novel-entity-list .novel-wb-empty-tip {
+    margin: auto;
+    padding: 28px 18px;
+    max-width: 28rem;
+    width: calc(100% - 24px);
+    text-align: center;
+    font-size: 0.78rem;
+    font-weight: 500;
+    line-height: 1.55;
+    color: var(--color-text-muted);
+    border: 1px dashed var(--color-accent-border);
+    border-radius: 8px;
+    background: var(--color-accent-soft);
+    box-sizing: border-box;
   }
 
   .novel-switch {

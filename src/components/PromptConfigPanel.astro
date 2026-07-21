@@ -20,24 +20,26 @@
   </div>
 </div>
 
-<style>
+<style is:global>
+  /* 列表由脚本 innerHTML 注入，必须 global，否则标题/分隔/正文层级全部失效 */
   .prompt-config-panel {
     max-width: 100%;
     overflow-x: hidden;
     min-width: 0;
   }
-  .prompt-config-hint {
+  .prompt-config-panel > .prompt-config-hint {
     font-size: 0.75rem;
     color: var(--color-text-muted);
     line-height: 1.55;
     margin: -6px 0 12px;
     padding: 8px 10px;
-    border: 1px dashed var(--color-border);
-    border-radius: 8px;
+    border-left: 2px solid var(--color-accent, #8a7a5a);
+    border-radius: 0 8px 8px 0;
+    background: color-mix(in srgb, var(--color-surface) 88%, var(--color-accent, #8a7a5a) 12%);
     overflow-wrap: anywhere;
     word-break: break-word;
   }
-  .prompt-config-hint code {
+  .prompt-config-panel > .prompt-config-hint code {
     font-family: 'JetBrains Mono', monospace;
     font-size: 0.7rem;
     color: var(--color-text-muted);
@@ -47,7 +49,7 @@
     white-space: normal;
     overflow-wrap: anywhere;
   }
-  .prompt-config-tabs {
+  .prompt-config-panel .prompt-config-tabs {
     margin-bottom: 14px;
     flex-wrap: nowrap;
     overflow-x: auto;
@@ -56,13 +58,13 @@
     scrollbar-width: thin;
     max-width: 100%;
   }
-  .prompt-config-tabs .ui-tabs__tab,
-  .prompt-config-tabs .prompt-config-tab {
+  .prompt-config-panel .prompt-config-tabs .ui-tabs__tab,
+  .prompt-config-panel .prompt-config-tabs .prompt-config-tab {
     flex: 0 0 auto;
     white-space: nowrap;
     min-width: max-content;
   }
-  .prompt-config-list {
+  .prompt-config-panel .prompt-config-list {
     display: flex;
     flex-direction: column;
     gap: 14px;
@@ -71,7 +73,7 @@
     max-width: 100%;
     overflow-x: hidden;
   }
-  .prompt-config-item {
+  .prompt-config-panel .prompt-config-item {
     border: 1px solid var(--color-accent-soft);
     border-radius: 10px;
     padding: 12px;
@@ -83,7 +85,7 @@
     flex-direction: column;
     gap: 10px;
   }
-  .prompt-config-item textarea {
+  .prompt-config-panel .prompt-config-item textarea {
     width: 100%;
     max-width: 100%;
     box-sizing: border-box;
@@ -96,8 +98,9 @@
     border-radius: 8px;
     background: rgba(0, 0, 0, 0.28);
     padding: 10px;
+    color: var(--color-text-secondary);
   }
-  .prompt-config-item-head {
+  .prompt-config-panel .prompt-config-item-head {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
@@ -106,14 +109,14 @@
     padding-bottom: 8px;
     border-bottom: 1px dashed var(--color-border-subtle);
   }
-  .prompt-config-item-title {
+  .prompt-config-panel .prompt-config-item-title {
     margin: 0;
     font-size: 0.88rem;
     font-weight: 700;
-    color: var(--color-text);
+    color: var(--color-accent);
     line-height: 1.35;
   }
-  .prompt-config-item-id {
+  .prompt-config-panel .prompt-config-item-id {
     display: inline-block;
     font-size: 0.62rem;
     color: var(--color-text-muted);
@@ -122,12 +125,14 @@
     font-family: 'JetBrains Mono', monospace;
     opacity: 0.85;
   }
-  .prompt-config-item-actions {
+  .prompt-config-panel .prompt-config-item-actions {
     display: flex;
     gap: 8px;
     margin: 0;
+    padding-top: 2px;
+    border-top: 1px dashed var(--color-border-subtle);
   }
-  .prompt-config-actions {
+  .prompt-config-panel .prompt-config-actions {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -136,16 +141,16 @@
     padding-top: 14px;
     border-top: 1px solid var(--color-accent-soft);
   }
-  .prompt-config-actions .btn {
+  .prompt-config-panel .prompt-config-actions .btn {
     width: auto;
     margin: 0;
     padding: 8px 14px;
     font-size: 0.8rem;
   }
-  .prompt-config-actions.is-catalog-mode .btn {
+  .prompt-config-panel .prompt-config-actions.is-catalog-mode .btn {
     display: none;
   }
-  .prompt-catalog-toolbar {
+  .prompt-config-panel .prompt-catalog-toolbar {
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -155,19 +160,20 @@
     min-width: 0;
     max-width: 100%;
   }
-  .prompt-catalog-hint {
+  .prompt-config-panel .prompt-catalog-hint,
+  .prompt-config-panel .prompt-config-list > .prompt-config-hint {
     font-size: 0.7rem;
     color: var(--color-text-muted);
     line-height: 1.5;
     margin: 0;
-    padding: 8px 10px;
-    border: 1px dashed var(--color-border);
-    border-radius: 8px;
-    background: rgba(0, 0, 0, 0.14);
+    padding: 6px 8px;
+    border-left: 2px solid var(--color-accent, #8a7a5a);
+    border-radius: 0 6px 6px 0;
+    background: color-mix(in srgb, var(--color-surface) 88%, var(--color-accent, #8a7a5a) 12%);
     overflow-wrap: anywhere;
     word-break: break-word;
   }
-  .prompt-catalog-select-row {
+  .prompt-config-panel .prompt-catalog-select-row {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -175,22 +181,18 @@
     min-width: 0;
     max-width: 100%;
   }
-  .prompt-catalog-select-row label {
+  .prompt-config-panel .prompt-catalog-select-row label {
     font-size: 0.75rem;
     color: var(--color-text-muted);
     white-space: nowrap;
   }
-  .prompt-catalog-select-row .cs-wrap {
+  .prompt-config-panel .prompt-catalog-select-row .cs-wrap,
+  .prompt-config-panel .prompt-catalog-select-row select {
     flex: 1 1 200px;
     min-width: 160px;
     max-width: 100%;
   }
-  .prompt-catalog-count {
-    font-size: 0.68rem;
-    color: var(--color-text-muted);
-    font-family: 'JetBrains Mono', monospace;
-  }
-  .prompt-catalog-block {
+  .prompt-config-panel .prompt-catalog-block {
     margin: 0;
     min-width: 0;
     max-width: 100%;
@@ -199,27 +201,29 @@
     border-radius: 8px;
     background: rgba(0, 0, 0, 0.16);
   }
-  .prompt-catalog-block-label {
+  .prompt-config-panel .prompt-catalog-block-label {
     font-size: 0.72rem;
     font-weight: 700;
     color: var(--color-text-secondary);
     margin: 0 0 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px dashed var(--color-border-subtle);
     letter-spacing: 0.01em;
     display: flex;
     flex-wrap: wrap;
     align-items: baseline;
     gap: 6px;
   }
-  .prompt-catalog-block-label-main {
-    color: var(--color-text);
+  .prompt-config-panel .prompt-catalog-block-label-main {
+    color: var(--color-accent);
   }
-  .prompt-catalog-block-label-sub {
+  .prompt-config-panel .prompt-catalog-block-label-sub {
     font-size: 0.62rem;
     font-weight: 500;
     color: var(--color-text-muted);
     font-family: 'JetBrains Mono', monospace;
   }
-  .prompt-catalog-block-body {
+  .prompt-config-panel .prompt-catalog-block-body {
     margin: 0;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
@@ -238,7 +242,7 @@
     overflow-y: auto;
     box-sizing: border-box;
   }
-  .prompt-catalog-list {
+  .prompt-config-panel .prompt-catalog-list {
     margin: 0;
     padding-left: 1.15rem;
     font-size: 0.74rem;
@@ -247,15 +251,15 @@
     overflow-wrap: anywhere;
     word-break: break-word;
   }
-  .prompt-catalog-list li {
+  .prompt-config-panel .prompt-catalog-list li {
     margin-bottom: 4px;
   }
-  .prompt-catalog-chips {
+  .prompt-config-panel .prompt-catalog-chips {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
   }
-  .prompt-catalog-chip {
+  .prompt-config-panel .prompt-catalog-chip {
     font-size: 0.65rem;
     padding: 2px 8px;
     border-radius: 999px;
@@ -263,7 +267,7 @@
     color: var(--color-text-muted);
     background: rgba(148, 163, 184, 0.06);
   }
-  .prompt-catalog-blocks {
+  .prompt-config-panel .prompt-catalog-blocks {
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -551,7 +555,6 @@
       + '<select id="promptCatalogSelect">'
       + buildSelectOptions(section, selectedId)
       + '</select>'
-      + '<span class="prompt-catalog-count">' + items.length + ' 条</span>'
       + '</div></div>'
       + renderCatalogDetail(item);
 
@@ -614,7 +617,7 @@
   function render() {
     var ps = store();
     if (!ps) {
-      listEl.innerHTML = '<p style="color:var(--color-danger);font-size:0.8rem;">提示词仓库未加载</p>';
+      listEl.innerHTML = '<p class="prompt-config-hint" style="color:var(--color-danger);">提示词仓库未加载</p>';
       tabsEl.innerHTML = '';
       return;
     }
