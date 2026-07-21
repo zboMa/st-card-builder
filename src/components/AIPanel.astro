@@ -25,23 +25,6 @@ import AiEngineModal from './AiEngineModal.astro';
       </div>
     </div>
 
-    <div class="ui-section" id="aiSecretsSyncBox" style="margin:10px 0 12px;padding:10px;border:1px dashed var(--color-border);border-radius:8px;">
-      <div style="font-size:0.8rem;font-weight:600;margin-bottom:6px;">云端密钥同步（口令加密）</div>
-      <p class="ui-muted" style="font-size:0.75rem;margin:0 0 8px;line-height:1.4;">
-        默认不同步。上传前用你自设的同步口令在本地加密；服务端只存密文，新设备同步后需同一口令解密。口令不会上传。
-      </p>
-      <div class="form-group" style="margin-bottom:8px;">
-        <label for="aiSecretsPassphrase">同步口令（至少 6 位）</label>
-        <input type="password" id="aiSecretsPassphrase" placeholder="用于加密/解密云端密钥" autocomplete="new-password" style="width:100%;" />
-      </div>
-      <div class="ui-row" style="gap:8px;flex-wrap:wrap;">
-        <button type="button" id="btnUploadAiSecrets" class="btn btn-ghost" style="font-size:0.75rem;">加密同步到云端</button>
-        <button type="button" id="btnDownloadAiSecrets" class="btn btn-ghost" style="font-size:0.75rem;">拉取并解密到本地</button>
-        <button type="button" id="btnClearCloudAiSecrets" class="btn btn-ghost" style="font-size:0.75rem;">清除云端密钥</button>
-      </div>
-      <div id="aiSecretsSyncTip" class="ui-status-tip" role="status"></div>
-    </div>
-
     <div id="apiUrlHint" style="display:none;margin-bottom:8px;"></div>
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%;margin-bottom:8px;">
@@ -1137,62 +1120,4 @@ import AiEngineModal from './AiEngineModal.astro';
   };
 
 })();
-</script>
-
-<script>
-  import {
-    uploadAiSecretsToCloud,
-    downloadAiSecretsFromCloud,
-    clearCloudAiSecrets,
-  } from '../lib/sync/secrets.mjs';
-
-  function tip(msg) {
-    var el = document.getElementById('aiSecretsSyncTip');
-    if (el) el.textContent = msg || '';
-  }
-
-  function readPassphrase() {
-    var el = document.getElementById('aiSecretsPassphrase');
-    return el ? String(el.value || '') : '';
-  }
-
-  document.getElementById('btnUploadAiSecrets')?.addEventListener('click', async function() {
-    var pass = readPassphrase();
-    if (pass.length < 6) {
-      tip('请先填写至少 6 位同步口令');
-      return;
-    }
-    tip('加密上传中…');
-    try {
-      await uploadAiSecretsToCloud(pass);
-      tip('已加密同步到云端（服务端无法解密）');
-    } catch (e) {
-      tip('失败：' + String(e && e.message || e));
-    }
-  });
-  document.getElementById('btnDownloadAiSecrets')?.addEventListener('click', async function() {
-    var pass = readPassphrase();
-    if (pass.length < 6) {
-      tip('请先填写同步口令以解密');
-      return;
-    }
-    tip('拉取并解密中…');
-    try {
-      await downloadAiSecretsFromCloud(pass);
-      tip('已解密写入本地；正在刷新…');
-      location.reload();
-    } catch (e) {
-      tip('失败：' + String(e && e.message || e));
-    }
-  });
-  document.getElementById('btnClearCloudAiSecrets')?.addEventListener('click', async function() {
-    if (!confirm('确认清除云端密钥文档？本地密钥不会删除。')) return;
-    tip('清除中…');
-    try {
-      await clearCloudAiSecrets();
-      tip('云端密钥已清除');
-    } catch (e) {
-      tip('失败：' + String(e && e.message || e));
-    }
-  });
 </script>

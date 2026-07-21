@@ -31,7 +31,7 @@ npm run dev            # Astro :4321，/api 代理到 8787
 
 - 每 **5 分钟**自动同步（已登录时）；也可点「立即同步」。
 - 重开后拉云端 **卡列表**（`meta/card-index`）；点开某卡再懒同步正文。
-- **API 密钥默认不上云**。在「AI 配置」中单独「同步密钥到云端 / 拉取 / 清除」。
+- **API 密钥默认不上云**。在「账户与同步 → 云同步」中用口令加密后上传 / 拉取 / 清除。
 - 浏览器经 `/api/sync/credentials` 拿到 `dbUrl` 后，由 PouchDB **直连** Couch（Basic Auth）。
   - 生产 `dbUrl` 必须是 `PUBLIC_COUCH_URL`（如 `https://card-api.taojiu.love/couch/userdb-…`）
   - **不要**把服务端本机 `COUCHDB_URL=http://127.0.0.1:5984` 发给浏览器
@@ -85,7 +85,7 @@ npm run dev            # Astro :4321，/api 代理到 8787
 
 ## 密钥加密上云
 
-- AI 配置中填写**同步口令**（≥6）后「加密同步到云端」。
+- 「账户与同步 → 云同步」填写**同步口令**（≥6）后「加密同步到云端」。
 - 文档形态：`secrets/ai-config` 含 `enc`（PBKDF2 + AES-GCM），**无明文**。
 - 新设备：同步后「拉取并解密」；口令错误则失败，服务端无法代解密。
 
