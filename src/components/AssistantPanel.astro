@@ -13,6 +13,7 @@ import {
 import { WORLDFRAMES } from '../lib/adult/vessels/index.mjs';
 import { WORLDVIEW_PRESETS } from '../lib/presets/worldviews/index.mjs';
 import { buildCatalogOverviewText } from '../lib/catalogSummaries.mjs';
+import ChatPlayground from './ChatPlayground.astro';
 
 const chipsJson = JSON.stringify(ASSISTANT_PRESET_CHIPS);
 const toolListText = formatToolsForPrompt(ASSISTANT_TOOLS);
@@ -38,48 +39,63 @@ const catalogOverviewText = buildCatalogOverviewText({
     <div class="assistant-panel__title-row">
       <!-- 就绪态：绿点；忙碌/提示时变色，无独立「就绪」文案位 -->
       <span class="assistant-ready-dot is-ready" id="assistantReadyDot" title="就绪" aria-label="就绪"></span>
-      <h2 class="assistant-panel__title">AI 助手</h2>
+      <h2 class="assistant-panel__title" id="assistantPanelTitle">AI 助手</h2>
+      <div class="assistant-mode-switch" id="assistantModeSwitch" role="tablist" aria-label="右侧栏模式">
+        <span class="assistant-mode-switch__thumb" id="assistantModeThumb" aria-hidden="true"></span>
+        <button type="button" class="assistant-mode-switch__btn is-active" role="tab" aria-selected="true" data-assistant-mode="assistant">助手</button>
+        <button type="button" class="assistant-mode-switch__btn" role="tab" aria-selected="false" data-assistant-mode="chat">试聊</button>
+      </div>
       <span class="assistant-panel__tip" id="assistantStatusTip" hidden></span>
       <button type="button" class="assistant-panel__close" id="btnAssistantClose" aria-label="关闭 AI 助手" title="关闭">×</button>
     </div>
-    <p class="assistant-panel__sub">ReAct 工具调用 · 与卡片状态同步</p>
+    <p class="assistant-panel__sub" id="assistantPanelSub">ReAct 工具调用 · 与卡片状态同步</p>
   </header>
 
-  <div class="assistant-panel__messages" id="assistantMessages" role="log" aria-live="polite"></div>
+  <div class="assistant-panel__stages" id="assistantPanelStages">
+    <div class="assistant-panel__stage is-active" data-stage="assistant" id="assistantStageAssistant">
+      <div class="assistant-panel__messages" id="assistantMessages" role="log" aria-live="polite"></div>
 
-  <div class="assistant-panel__pending" id="assistantPendingBox" hidden>
-    <div class="assistant-panel__pending-summary" id="assistantPendingSummary">待确认变更</div>
-    <div class="assistant-panel__preview-wrap">
-      <pre class="assistant-panel__preview" id="assistantPendingPreview"></pre>
-    </div>
-    <div class="assistant-panel__pending-actions">
-      <button type="button" class="btn btn-sm btn-primary assistant-btn-apply" id="assistantApplyBtn">应用</button>
-      <button type="button" class="btn btn-sm btn-ghost assistant-btn-reject" id="assistantRejectBtn">拒绝</button>
-    </div>
-  </div>
-
-  <div class="assistant-panel__composer">
-    <textarea id="assistantInput" class="assistant-panel__input" rows="3" placeholder="描述想做的卡或关系，我来帮你配世界观/口味并改设定…"></textarea>
-    <div class="composer-bar assistant-panel__composer-bar">
-      <div class="composer-bar__left assistant-panel__quick-wrap">
-        <button type="button" class="assistant-btn-quick" id="assistantQuickBtn" aria-haspopup="listbox" aria-expanded="false">快捷</button>
-        <button type="button" class="btn-icon btn-icon--sm assistant-btn-rag-preview" id="assistantRagPreviewBtn" title="查看当前匹配 RAG" aria-label="查看当前匹配 RAG">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/><path d="M8 11h6M11 8v6"/></svg>
-        </button>
-        <div class="assistant-quick-menu" id="assistantQuickMenu" role="listbox" hidden></div>
+      <div class="assistant-panel__pending" id="assistantPendingBox" hidden>
+        <div class="assistant-panel__pending-summary" id="assistantPendingSummary">待确认变更</div>
+        <div class="assistant-panel__preview-wrap">
+          <pre class="assistant-panel__preview" id="assistantPendingPreview"></pre>
+        </div>
+        <div class="assistant-panel__pending-actions">
+          <button type="button" class="btn btn-sm btn-primary assistant-btn-apply" id="assistantApplyBtn">应用</button>
+          <button type="button" class="btn btn-sm btn-ghost assistant-btn-reject" id="assistantRejectBtn">拒绝</button>
+        </div>
       </div>
-      <span id="assistantTokenCount" class="assistant-token-count composer-bar__meta" role="button" tabindex="0" aria-label="查看上下文内容" aria-live="polite"></span>
-      <div class="composer-bar__actions assistant-panel__composer-actions">
-        <button type="button" class="btn-icon assistant-btn-undo" id="assistantUndoBtn" title="撤销上一补丁" aria-label="撤销上一补丁">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 7H5v4"/><path d="M5 11a7 7 0 1 1 2 5.2L5 11z"/></svg>
-        </button>
-        <button type="button" class="btn-icon assistant-btn-clear" id="assistantClearBtn" title="清空会话" aria-label="清空会话">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><path d="M10 11v6M14 11v6"/><path d="M7 7l1 12a1 1 0 0 0 1 .9h6a1 1 0 0 0 1-.9l1-12"/></svg>
-        </button>
-        <button type="button" class="btn-icon btn-icon--primary assistant-btn-action" id="assistantActionBtn" title="发送" aria-label="发送">
-          <svg class="btn-icon__glyph--send" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l14-7-7 14-2-5-5-2z"/></svg>
-          <svg class="btn-icon__glyph--stop" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="1.5"/></svg>
-        </button>
+
+      <div class="assistant-panel__composer">
+        <textarea id="assistantInput" class="assistant-panel__input" rows="3" placeholder="描述想做的卡或关系，我来帮你配世界观/口味并改设定…"></textarea>
+        <div class="composer-bar assistant-panel__composer-bar">
+          <div class="composer-bar__left assistant-panel__quick-wrap">
+            <button type="button" class="assistant-btn-quick" id="assistantQuickBtn" aria-haspopup="listbox" aria-expanded="false">快捷</button>
+            <button type="button" class="btn-icon btn-icon--sm assistant-btn-rag-preview" id="assistantRagPreviewBtn" title="查看当前匹配 RAG" aria-label="查看当前匹配 RAG">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/><path d="M8 11h6M11 8v6"/></svg>
+            </button>
+            <div class="assistant-quick-menu" id="assistantQuickMenu" role="listbox" hidden></div>
+          </div>
+          <span id="assistantTokenCount" class="assistant-token-count composer-bar__meta" role="button" tabindex="0" aria-label="查看上下文内容" aria-live="polite"></span>
+          <div class="composer-bar__actions assistant-panel__composer-actions">
+            <button type="button" class="btn-icon assistant-btn-undo" id="assistantUndoBtn" title="撤销上一补丁" aria-label="撤销上一补丁">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 7H5v4"/><path d="M5 11a7 7 0 1 1 2 5.2L5 11z"/></svg>
+            </button>
+            <button type="button" class="btn-icon assistant-btn-clear" id="assistantClearBtn" title="清空会话" aria-label="清空会话">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><path d="M10 11v6M14 11v6"/><path d="M7 7l1 12a1 1 0 0 0 1 .9h6a1 1 0 0 0 1-.9l1-12"/></svg>
+            </button>
+            <button type="button" class="btn-icon btn-icon--primary assistant-btn-action" id="assistantActionBtn" title="发送" aria-label="发送">
+              <svg class="btn-icon__glyph--send" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l14-7-7 14-2-5-5-2z"/></svg>
+              <svg class="btn-icon__glyph--stop" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="1.5"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="assistant-panel__stage" data-stage="chat" id="assistantStageChat" aria-hidden="true">
+      <div class="assistant-chat-host">
+        <ChatPlayground />
       </div>
     </div>
   </div>
@@ -170,14 +186,58 @@ const catalogOverviewText = buildCatalogOverviewText({
     flex-shrink: 0;
     font-style: normal;
   }
-  .assistant-panel__tip {
+  .assistant-mode-switch {
+    position: relative;
+    display: inline-grid;
+    grid-template-columns: 1fr 1fr;
     margin-left: auto;
+    flex-shrink: 0;
+    padding: 2px;
+    border-radius: 999px;
+    background: oklch(22% 0.02 280 / 0.85);
+    border: 1px solid var(--color-border-subtle);
+    min-width: 108px;
+  }
+  .assistant-mode-switch__thumb {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: calc(50% - 2px);
+    height: calc(100% - 4px);
+    border-radius: 999px;
+    background: oklch(42% 0.08 305 / 0.55);
+    border: 1px solid oklch(72% 0.12 305 / 0.35);
+    transition: transform 0.26s ease;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .assistant-mode-switch[data-mode="chat"] .assistant-mode-switch__thumb {
+    transform: translateX(100%);
+  }
+  .assistant-mode-switch__btn {
+    position: relative;
+    z-index: 1;
+    border: none;
+    background: transparent;
+    color: var(--color-text-muted);
+    font-size: 0.62rem;
+    font-weight: 650;
+    padding: 4px 8px;
+    border-radius: 999px;
+    cursor: pointer;
+    line-height: 1.2;
+    font-family: inherit;
+  }
+  .assistant-mode-switch__btn.is-active {
+    color: var(--color-text);
+  }
+  .assistant-panel__tip {
     font-size: 0.62rem;
     color: var(--color-text-muted);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 46%;
+    max-width: 28%;
   }
   .assistant-panel__tip.is-warn {
     color: var(--color-warning);
@@ -186,6 +246,62 @@ const catalogOverviewText = buildCatalogOverviewText({
     margin: 4px 0 0;
     font-size: 0.68rem;
     color: var(--color-text-muted);
+  }
+  .assistant-panel__stages {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .assistant-panel__stage {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    opacity: 0;
+    transform: translateX(14px);
+    pointer-events: none;
+    transition: opacity 0.26s ease, transform 0.26s ease;
+  }
+  .assistant-panel__stage.is-active {
+    opacity: 1;
+    transform: translateX(0);
+    pointer-events: auto;
+    z-index: 1;
+  }
+  .assistant-panel__stage.is-exit-left {
+    opacity: 0;
+    transform: translateX(-14px);
+  }
+  .assistant-panel__stage[data-stage="assistant"].is-active {
+    /* keep flex children filling */
+  }
+  .assistant-chat-host {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    height: 100%;
+    padding: 8px 10px 10px;
+  }
+  .assistant-chat-host .chat-playground {
+    height: 100%;
+    max-height: none;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+  }
+  .assistant-chat-host .chat-panel-header {
+    margin-bottom: 6px;
+  }
+  .assistant-chat-host .chat-panel-header h2 {
+    display: none;
+  }
+  .assistant-chat-host .chat-header-actions {
+    width: 100%;
+    justify-content: flex-end;
   }
   .assistant-panel__messages {
     flex: 1;
@@ -743,6 +859,97 @@ const catalogOverviewText = buildCatalogOverviewText({
     }
   }
 </style>
+
+<script is:inline>
+(function() {
+  function initAssistantModeSwitch() {
+    var panel = document.getElementById('assistantPanel');
+    var switchEl = document.getElementById('assistantModeSwitch');
+    var titleEl = document.getElementById('assistantPanelTitle');
+    var subEl = document.getElementById('assistantPanelSub');
+    var stageAssistant = document.getElementById('assistantStageAssistant');
+    var stageChat = document.getElementById('assistantStageChat');
+    if (!panel || !switchEl || !stageAssistant || !stageChat) return;
+
+    var current = 'assistant';
+    var busy = false;
+
+    function setMode(next, opts) {
+      opts = opts || {};
+      next = next === 'chat' ? 'chat' : 'assistant';
+      if (!opts.force && next === current) return;
+      if (busy) return;
+      var prev = current;
+      current = next;
+      busy = true;
+
+      switchEl.setAttribute('data-mode', next);
+      switchEl.querySelectorAll('[data-assistant-mode]').forEach(function(btn) {
+        var on = btn.getAttribute('data-assistant-mode') === next;
+        btn.classList.toggle('is-active', on);
+        btn.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+
+      if (titleEl) titleEl.textContent = next === 'chat' ? 'AI 试聊' : 'AI 助手';
+      if (subEl) {
+        subEl.textContent = next === 'chat'
+          ? '按当前卡设定试聊 · 世界书/正则试运行'
+          : 'ReAct 工具调用 · 与卡片状态同步';
+      }
+      panel.classList.toggle('is-chat-mode', next === 'chat');
+      panel.setAttribute('aria-label', next === 'chat' ? 'AI 试聊' : 'AI 辅助助手');
+
+      var leaving = prev === 'chat' ? stageChat : stageAssistant;
+      var entering = next === 'chat' ? stageChat : stageAssistant;
+      leaving.classList.remove('is-active');
+      leaving.classList.add('is-exit-left');
+      leaving.setAttribute('aria-hidden', 'true');
+      entering.classList.remove('is-exit-left');
+      entering.setAttribute('aria-hidden', 'false');
+      // force reflow for enter animation
+      void entering.offsetWidth;
+      entering.classList.add('is-active');
+
+      window.setTimeout(function() {
+        leaving.classList.remove('is-exit-left');
+        busy = false;
+      }, 280);
+
+      try {
+        window.dispatchEvent(new CustomEvent('assistant-mode-changed', { detail: { mode: next } }));
+      } catch (e) {}
+
+      if (next === 'chat' && typeof window.__openAssistantSheet__ === 'function') {
+        try {
+          if (window.matchMedia('(max-width: 900px)').matches) window.__openAssistantSheet__();
+        } catch (e2) {}
+      }
+    }
+
+    switchEl.querySelectorAll('[data-assistant-mode]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        setMode(btn.getAttribute('data-assistant-mode'));
+      });
+    });
+
+    window.__setAssistantPanelMode__ = function(mode) {
+      setMode(mode, { force: false });
+      if (mode === 'chat' && typeof window.__openAssistantSheet__ === 'function') {
+        try { window.__openAssistantSheet__(); } catch (e) {}
+      }
+    };
+    window.__getAssistantPanelMode__ = function() { return current; };
+
+    switchEl.setAttribute('data-mode', 'assistant');
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initAssistantModeSwitch);
+  } else {
+    initAssistantModeSwitch();
+  }
+})();
+</script>
 
 <script is:inline>
 (function() {

@@ -43,6 +43,9 @@ const REQUIRED_UI_CLASSES = [
   '.btn-primary',
   '.btn-ghost',
   '.btn-toolbar',
+  '.btn-panel-tool',
+  '.btn-ai-engine',
+  '.btn-meta',
 ];
 
 describe('design tokens (Nocturne Atelier)', function() {
@@ -71,10 +74,12 @@ describe('design tokens (Nocturne Atelier)', function() {
     assert.match(layout, /ui-patterns\.css/);
   });
 
-  it('CharacterPanel 使用 form-section 与 btn-toolbar', function() {
+  it('CharacterPanel 使用 form-section 与分级按钮', function() {
     const panel = readFileSync(join(root, 'src/components/CharacterPanel.astro'), 'utf8');
     assert.match(panel, /form-section/);
-    assert.match(panel, /btn-toolbar/);
+    assert.match(panel, /btn-ai-engine/);
+    assert.match(panel, /btn-panel-tool/);
+    assert.match(panel, /btn-meta/);
     assert.match(panel, /chip-list/);
   });
 

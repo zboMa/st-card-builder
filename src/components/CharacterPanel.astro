@@ -1,12 +1,14 @@
 ---
 /** 角色设定：编辑当前卡主角字段；多卡切换在「角色卡管理」；成人配置见侧栏「成人配置」 */
+import PreviewPanel from './PreviewPanel.astro';
 ---
 <div class="panel area-character">
   <div class="panel-header character-panel-head">
     <h2>角色设定</h2>
     <span class="ui-hint ui-hint--inline" style="margin-left:8px;">主角卡面 · 与世界书分管道</span>
     <div class="panel-header__end">
-      <button type="button" id="btnOpenAiEngine" class="btn btn-toolbar">AI 引擎</button>
+      <button type="button" id="btnOpenJsonPreview" class="btn btn-panel-tool" title="查看当前卡 JSON">JSON</button>
+      <button type="button" id="btnOpenAiEngine" class="btn btn-ai-engine" title="打开 AI 引擎">AI 引擎</button>
       <span id="saveIndicator" class="panel-header__badge character-saved" style="display: none;">已保存</span>
     </div>
   </div>
@@ -39,9 +41,9 @@
     <label for="characterVersion">卡片版本 (character_version)</label>
     <div class="character-version-row">
       <input type="text" id="characterVersion" value="1.0" readonly tabindex="-1" title="仅可通过右侧按钮升级；SillyTavern data.character_version" />
-      <button type="button" id="btnBumpVersionMajor" class="btn btn-sm btn-ghost" title="大版本 +1，小版本归零">升级大版本</button>
-      <button type="button" id="btnBumpVersionMinor" class="btn btn-sm btn-ghost" title="小版本 +1">升级小版本</button>
-      <button type="button" id="btnRevertVersion" class="btn btn-sm btn-ghost" hidden title="恢复到修改前的版本">回退</button>
+      <button type="button" id="btnBumpVersionMajor" class="btn btn-meta" title="大版本 +1，小版本归零">大版本</button>
+      <button type="button" id="btnBumpVersionMinor" class="btn btn-meta" title="小版本 +1">小版本</button>
+      <button type="button" id="btnRevertVersion" class="btn btn-meta" hidden title="恢复到修改前的版本">回退</button>
     </div>
     <span class="ui-hint ui-hint--inline">酒馆字段；发布/分享按此版本固化。不可手改，请用按钮升级。</span>
   </div>
@@ -56,8 +58,8 @@
       <div id="charTagsList" class="chip-list char-tags-list" aria-live="polite"></div>
       <div class="char-tags-add-row">
         <input type="text" id="charTagInput" class="char-tag-input" placeholder="输入标签，回车添加" autocomplete="off" />
-        <button type="button" id="btnAddCharTag" class="btn btn-sm">添加</button>
-        <button type="button" id="btnAiGenCharTags" class="btn btn-sm btn-ai-tag">AI 生成</button>
+        <button type="button" id="btnAddCharTag" class="btn btn-meta">添加</button>
+        <button type="button" id="btnAiGenCharTags" class="btn btn-panel-tool btn-ai-tag">AI 生成</button>
       </div>
     </div>
     <span id="charTagsAiTip" class="ui-status-tip char-tags-ai-tip" role="status" aria-live="polite"></span>
@@ -88,6 +90,19 @@
   </div>
 </div>
 
+<div id="jsonPreviewModal" class="panel-feature-modal" hidden aria-hidden="true">
+  <div class="ui-modal-backdrop" data-json-preview-close aria-hidden="true"></div>
+  <div class="ui-modal-dialog panel-feature-modal__dialog panel-feature-modal__dialog--wide" role="dialog" aria-modal="true" aria-labelledby="jsonPreviewModalTitle">
+    <div class="panel-feature-modal__head">
+      <h2 id="jsonPreviewModalTitle">JSON 实时追踪</h2>
+      <button type="button" class="btn-icon btn-icon--sm" data-json-preview-close aria-label="关闭">×</button>
+    </div>
+    <div class="panel-feature-modal__body">
+      <PreviewPanel />
+    </div>
+  </div>
+</div>
+
 <style is:global>
   .panel-header__end {
     display: flex;
@@ -110,7 +125,7 @@
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
   }
   .character-version-row #characterVersion {
     flex: 0 1 120px;
@@ -119,12 +134,8 @@
     opacity: 0.92;
     cursor: default;
   }
-  .character-version-row .btn {
-    width: auto;
-    min-width: 0;
-    margin: 0;
-    padding: 6px 10px;
-    font-size: 0.78rem;
+  .character-version-row .btn-meta {
+    opacity: 0.9;
   }
   /* 与 AI 引擎跳转按钮同款 */
   .ai-engine-link-btn {
@@ -252,4 +263,38 @@
   });
 
   captureBaseline();
+
+  (function bindJsonPreviewModal() {
+    var modal = document.getElementById('jsonPreviewModal');
+    if (!modal) return;
+    function openModal() {
+      modal.hidden = false;
+      modal.setAttribute('aria-hidden', 'false');
+      document.body.classList.add('panel-feature-modal-open');
+      try {
+        var json = null;
+        if (typeof window.__buildCurrentCardJSON__ === 'function') {
+          json = window.__buildCurrentCardJSON__();
+        }
+        if (!json && window.getPreviewJSON) json = window.getPreviewJSON();
+        if (typeof window.updatePreviewPanel === 'function' && json) {
+          window.updatePreviewPanel(json);
+        }
+      } catch (e) {}
+    }
+    function closeModal() {
+      modal.hidden = true;
+      modal.setAttribute('aria-hidden', 'true');
+      document.body.classList.remove('panel-feature-modal-open');
+    }
+    window.__openJsonPreviewModal__ = openModal;
+    window.__closeJsonPreviewModal__ = closeModal;
+    document.getElementById('btnOpenJsonPreview')?.addEventListener('click', openModal);
+    modal.querySelectorAll('[data-json-preview-close]').forEach(function(el) {
+      el.addEventListener('click', closeModal);
+    });
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape' && !modal.hidden) closeModal();
+    });
+  })();
 </script>
