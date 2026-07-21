@@ -1,6 +1,7 @@
 [Unit]
-Description=ST Card Builder API (Node + CouchDB)
-After=network.target
+Description=ST Card Builder API (Node)
+After=network.target st-card-builder-couch.service
+Wants=st-card-builder-couch.service
 
 [Service]
 Type=simple
@@ -11,7 +12,6 @@ EnvironmentFile=__DEPLOY_HOME__/st-card-builder/server/.env
 ExecStart=/usr/bin/node src/index.mjs
 Restart=on-failure
 RestartSec=5
-# 给 Node 足够文件描述符
 LimitNOFILE=65535
 
 [Install]
