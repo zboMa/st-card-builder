@@ -21,6 +21,8 @@ import {
   deleteNovel,
   loadActiveNovelId,
   saveActiveNovelId,
+  saveRelease,
+  deleteRelease,
 } from './idb.mjs';
 import { downloadNovelTxt } from './exportTxt.mjs';
 import { seedGraphFromCard, mergeGraphSeed } from './graphSeed.mjs';
@@ -33,6 +35,18 @@ import {
   parseOutlineAiText,
   CHILD_SAFETY_RULE,
 } from './prompts.mjs';
+import {
+  bumpNovelVersion,
+  buildDisplayVersion,
+  buildReleasePayload,
+  normalizeCharacterVersion,
+} from './version.mjs';
+import {
+  apiCreateNovelShare,
+  apiDeleteNovelShare,
+  buildLocalShareUrl,
+} from './shareClient.mjs';
+import { DRAFTS_KEY, CURRENT_KEY } from '../card-builder/state.mjs';
 
 var state = {
   cardId: '',
@@ -124,6 +138,35 @@ function isAbort(err) {
   return !!(err && (err.name === 'AbortError' || /abort|取消/i.test(String(err.message || ''))));
 }
 
+function getCharacterVersion() {
+  try {
+    var el = $('characterVersion');
+    if (el && String(el.value || '').trim()) {
+      return normalizeCharacterVersion(el.value);
+    }
+  } catch (e) { /* ignore */ }
+  try {
+    var id = localStorage.getItem(CURRENT_KEY);
+    var drafts = JSON.parse(localStorage.getItem(DRAFTS_KEY) || '{}') || {};
+    var d = id && drafts[id];
+    if (d && d.characterVersion) return normalizeCharacterVersion(d.characterVersion);
+  } catch (e2) { /* ignore */ }
+  return '1.0';
+}
+
+async function mirrorStoryDocs(cardId, novel, catalog) {
+  try {
+    var mod = await import('../sync/storyMirror.mjs');
+    if (catalog) await mod.mirrorCatalogToPouch(cardId, catalog);
+    if (novel) {
+      await mod.mirrorNovelToPouch(cardId, novel);
+      await mod.mirrorActiveToPouch(cardId, novel.id);
+    }
+  } catch (e) {
+    console.warn('[storyStudio] pouch mirror', e);
+  }
+}
+
 async function persistNovel() {
   if (!state.novel) return;
   var cardId = getCardId();
@@ -134,6 +177,7 @@ async function persistNovel() {
   state.catalog = upsertCatalogEntry(state.catalog, state.novel);
   await saveCatalog(cardId, state.catalog);
   await saveActiveNovelId(cardId, state.novel.id);
+  await mirrorStoryDocs(cardId, state.novel, state.catalog);
 }
 
 async function reloadCatalog() {
@@ -173,18 +217,30 @@ function renderManage() {
     return;
   }
   var activeId = state.novel ? state.novel.id : '';
+  var charVer = getCharacterVersion();
   list.innerHTML = state.catalog.map(function(item) {
     var active = item.id === activeId ? ' is-active' : '';
+    var workVer = buildDisplayVersion(charVer, item.novelVersion || '1');
+    var pub = item.publishedDisplayVersion
+      ? ('已发布 ' + item.publishedDisplayVersion)
+      : '未发布';
+    var share = item.shareToken ? ' · 分享中' : '';
     return (
       '<div class="ss-novel-item' + active + '" data-novel-id="' + escapeHtml(item.id) + '">'
       + '<div class="ss-novel-item__main">'
       + '<strong class="ss-novel-title">' + escapeHtml(item.title || '未命名') + '</strong>'
       + '<span class="ss-novel-meta">' + (item.chapterCount || 0) + ' 章 · '
-      + (item.outlineCount || 0) + ' 大纲</span>'
+      + (item.outlineCount || 0) + ' 大纲 · 工作 ' + escapeHtml(workVer)
+      + ' · ' + escapeHtml(pub) + escapeHtml(share) + '</span>'
       + '</div>'
       + '<div class="ss-novel-item__actions">'
       + '<button type="button" class="btn btn-sm btn-ghost" data-ss-act="open">打开</button>'
       + '<button type="button" class="btn btn-sm btn-ghost" data-ss-act="rename">重命名</button>'
+      + '<button type="button" class="btn btn-sm btn-ghost" data-ss-act="bump" title="把当前草稿固化为分享可见版">增版</button>'
+      + '<button type="button" class="btn btn-sm btn-ghost" data-ss-act="share">分享</button>'
+      + (item.shareToken
+        ? '<button type="button" class="btn btn-sm btn-ghost" data-ss-act="unshare">停分享</button>'
+        : '')
       + '<button type="button" class="btn btn-sm btn-ghost" data-ss-act="export">导出 TXT</button>'
       + '<button type="button" class="btn btn-sm btn-delete" data-ss-act="delete">删除</button>'
       + '</div></div>'
@@ -444,14 +500,162 @@ async function renameNovel(novelId) {
 async function removeNovel(novelId) {
   if (!window.confirm('确定删除这部小说？不可恢复。')) return;
   var cardId = getCardId();
+  var raw = await loadNovel(cardId, novelId);
+  var token = raw && raw.shareToken;
+  if (token) {
+    try { await apiDeleteNovelShare(token); } catch (e) { /* ignore */ }
+  }
   await deleteNovel(cardId, novelId);
+  try { await deleteRelease(cardId, novelId); } catch (e2) { /* ignore */ }
+  try {
+    var mod = await import('../sync/storyMirror.mjs');
+    await mod.removeStoryNovelFromPouch(cardId, novelId);
+  } catch (e3) { /* ignore */ }
   state.catalog = removeCatalogEntry(state.catalog, novelId);
   await saveCatalog(cardId, state.catalog);
+  await mirrorStoryDocs(cardId, null, state.catalog);
   if (state.novel && state.novel.id === novelId) {
     state.novel = null;
     await saveActiveNovelId(cardId, '');
   }
   setStatus('已删除');
+  renderAll();
+}
+
+async function bumpNovel(novelId) {
+  var cardId = getCardId();
+  var raw = await loadNovel(cardId, novelId);
+  if (!raw) {
+    setStatus('增版失败：找不到小说');
+    return;
+  }
+  var novel = normalizeNovel(raw);
+  var charVer = getCharacterVersion();
+  var isFirstPublish = !novel.publishedDisplayVersion;
+  var nextVer = isFirstPublish
+    ? (novel.novelVersion || '1')
+    : bumpNovelVersion(novel.novelVersion);
+  var display = buildDisplayVersion(charVer, nextVer);
+  if (!window.confirm(
+    (isFirstPublish
+      ? '首次发布为分享可见版「' + display + '」。\n'
+      : '增版并固化为分享可见版「' + display + '」。\n')
+    + '未再增版前，分享链接不会看到之后的编辑。继续？'
+  )) return;
+
+  novel.novelVersion = nextVer;
+  var publishedAt = Date.now();
+  var release = buildReleasePayload(novel, charVer, {
+    novelVersion: nextVer,
+    publishedAt: publishedAt,
+  });
+  novel.publishedDisplayVersion = release.displayVersion;
+  novel.publishedAt = publishedAt;
+  novel.updatedAt = publishedAt;
+  await saveNovel(cardId, novelId, novel);
+  await saveRelease(cardId, novelId, release);
+  state.catalog = upsertCatalogEntry(state.catalog, novel);
+  await saveCatalog(cardId, state.catalog);
+  if (state.novel && state.novel.id === novelId) state.novel = novel;
+  await mirrorStoryDocs(cardId, novel, state.catalog);
+  try {
+    var mod = await import('../sync/storyMirror.mjs');
+    await mod.mirrorReleaseToPouch(cardId, novelId, release);
+  } catch (e) {
+    console.warn('[storyStudio] release mirror', e);
+  }
+  try {
+    var sync = await import('../sync/syncEngine.mjs');
+    await sync.runSync({ refreshCred: true });
+    setStatus('已增版 ' + display + ' 并已同步');
+  } catch (e2) {
+    setStatus('已增版 ' + display + '（本地已保存；同步失败：' + (e2.message || e2) + '）');
+  }
+  renderAll();
+}
+
+async function shareNovel(novelId) {
+  var cardId = getCardId();
+  var raw = await loadNovel(cardId, novelId);
+  if (!raw) {
+    setStatus('分享失败：找不到小说');
+    return;
+  }
+  var novel = normalizeNovel(raw);
+  if (!novel.publishedDisplayVersion) {
+    setStatus('请先「增版」发布后再分享');
+    return;
+  }
+  setStatus('创建分享链接…');
+  try {
+    // 确保 release 已上云
+    try {
+      var sync = await import('../sync/syncEngine.mjs');
+      await sync.runSync({ refreshCred: true });
+    } catch (e) { /* may be offline login */ }
+
+    var data = await apiCreateNovelShare({
+      cardId: cardId,
+      novelId: novelId,
+      token: novel.shareToken || '',
+    });
+    novel.shareToken = data.token;
+    await saveNovel(cardId, novelId, novel);
+    state.catalog = upsertCatalogEntry(state.catalog, novel);
+    await saveCatalog(cardId, state.catalog);
+    if (state.novel && state.novel.id === novelId) state.novel = novel;
+    await mirrorStoryDocs(cardId, novel, state.catalog);
+
+    var url = data.url || buildLocalShareUrl(data.token);
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(url);
+        setStatus('分享链接已复制：' + url);
+      } else {
+        window.prompt('复制分享链接', url);
+        setStatus('请复制分享链接');
+      }
+    } catch (e2) {
+      window.prompt('复制分享链接', url);
+      setStatus('请复制分享链接');
+    }
+    renderAll();
+  } catch (err) {
+    if (err && err.code === 'no_release') {
+      setStatus('云端尚无发布版：请先增版并确保已登录同步');
+    } else if (err && err.status === 401) {
+      setStatus('请先在「账户与同步」登录后再分享');
+    } else {
+      setStatus('分享失败：' + (err.message || err));
+    }
+  }
+}
+
+async function unshareNovel(novelId) {
+  var cardId = getCardId();
+  var raw = await loadNovel(cardId, novelId);
+  if (!raw) return;
+  var novel = normalizeNovel(raw);
+  if (!novel.shareToken) {
+    setStatus('未在分享');
+    return;
+  }
+  if (!window.confirm('停止分享后链接将失效，确定？')) return;
+  try {
+    await apiDeleteNovelShare(novel.shareToken);
+  } catch (e) {
+    if (!(e && e.status === 401)) {
+      setStatus('停分享失败：' + (e.message || e));
+      return;
+    }
+  }
+  novel.shareToken = '';
+  await saveNovel(cardId, novelId, novel);
+  state.catalog = upsertCatalogEntry(state.catalog, novel);
+  await saveCatalog(cardId, state.catalog);
+  if (state.novel && state.novel.id === novelId) state.novel = novel;
+  await mirrorStoryDocs(cardId, novel, state.catalog);
+  setStatus('已停止分享');
   renderAll();
 }
 
@@ -708,6 +912,9 @@ function bindEvents() {
       var act = btn.getAttribute('data-ss-act');
       if (act === 'open') openNovel(id);
       else if (act === 'rename') renameNovel(id);
+      else if (act === 'bump') bumpNovel(id);
+      else if (act === 'share') shareNovel(id);
+      else if (act === 'unshare') unshareNovel(id);
       else if (act === 'export') exportNovel(id);
       else if (act === 'delete') removeNovel(id);
     });

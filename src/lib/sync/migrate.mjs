@@ -73,33 +73,49 @@ export async function migrateLegacyToPouch(bridges) {
       try {
         var catalog = await bridges.idbGetJson('storyStudioV1:catalog:card:' + id);
         if (catalog) {
+          var catalogList = Array.isArray(catalog)
+            ? catalog
+            : (Array.isArray(catalog.novels) ? catalog.novels : (catalog.data != null ? catalog.data : catalog));
+          if (!Array.isArray(catalogList)) catalogList = [];
           await putDoc({
             _id: storyCatalogDocId(id),
             type: 'story-catalog',
             cardId: id,
-            data: catalog.data != null ? catalog.data : catalog,
+            data: catalogList,
             updatedAt: catalog.updatedAt || new Date().toISOString(),
           });
-          var novels = (catalog.data && catalog.data.novels) || catalog.novels || [];
-          if (Array.isArray(novels)) {
-            for (var j = 0; j < novels.length; j++) {
-              var nid = novels[j] && (novels[j].id || novels[j].novelId);
-              if (!nid) continue;
-              try {
-                var sn = await bridges.idbGetJson('storyStudioV1:card:' + id + ':' + nid);
-                if (sn) {
-                  await putDoc({
-                    _id: storyNovelDocId(id, nid),
-                    type: 'story-novel',
-                    cardId: id,
-                    novelId: nid,
-                    data: sn.data != null ? sn.data : sn,
-                    updatedAt: sn.updatedAt || new Date().toISOString(),
-                  });
-                  report.stories++;
-                }
-              } catch (e2) { /* ignore */ }
-            }
+          for (var j = 0; j < catalogList.length; j++) {
+            var nid = catalogList[j] && (catalogList[j].id || catalogList[j].novelId);
+            if (!nid) continue;
+            try {
+              var sn = await bridges.idbGetJson('storyStudioV1:card:' + id + ':' + nid);
+              if (sn) {
+                await putDoc({
+                  _id: storyNovelDocId(id, nid),
+                  type: 'story-novel',
+                  cardId: id,
+                  novelId: nid,
+                  data: sn.data != null ? sn.data : sn,
+                  updatedAt: sn.updatedAt || new Date().toISOString(),
+                });
+                report.stories++;
+              }
+              var rel = await bridges.idbGetJson('storyStudioV1:release:card:' + id + ':' + nid);
+              if (rel) {
+                await putDoc({
+                  _id: 'story/' + id + '/' + nid + '/release',
+                  type: 'story-release',
+                  cardId: id,
+                  novelId: nid,
+                  characterVersion: rel.characterVersion,
+                  novelVersion: rel.novelVersion,
+                  displayVersion: rel.displayVersion,
+                  publishedAt: rel.publishedAt,
+                  data: rel.data != null ? rel.data : rel,
+                  updatedAt: new Date().toISOString(),
+                });
+              }
+            } catch (e2) { /* ignore */ }
           }
         }
         var active = await bridges.idbGetJson('storyStudioV1:active:card:' + id);

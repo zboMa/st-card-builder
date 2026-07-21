@@ -143,6 +143,7 @@ export function createCardStateMachine(state) {
     state.corruptionSelectedNames = Array.isArray(d.corruptionSelectedNames) ? d.corruptionSelectedNames.slice() : [];
     state.corruptionDefaultFemaleOnly = d.corruptionDefaultFemaleOnly !== false;
     state.corruptionSyncStatusBar = d.corruptionSyncStatusBar !== false;
+    state.characterVersion = String(d.characterVersion != null ? d.characterVersion : '1.0').trim() || '1.0';
     return true;
   }
 
@@ -180,6 +181,7 @@ export function createCardStateMachine(state) {
     state.corruptionSelectedNames = [];
     state.corruptionDefaultFemaleOnly = true;
     state.corruptionSyncStatusBar = true;
+    state.characterVersion = '1.0';
   }
 
   function deleteDraft(id) {

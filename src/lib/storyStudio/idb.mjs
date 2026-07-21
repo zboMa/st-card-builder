@@ -81,3 +81,31 @@ export async function saveActiveNovelId(cardId, novelId) {
   await idbSetJson(key, { novelId: String(novelId || ''), updatedAt: Date.now() });
   return true;
 }
+
+/** 已发布快照：storyStudioV1:release:card:{cardId}:{novelId} */
+export function storyReleaseKey(cardId, novelId) {
+  var c = String(cardId || '').trim();
+  var n = String(novelId || '').trim();
+  if (!c || !n) return '';
+  return STORY_STUDIO_PREFIX + ':release:card:' + c + ':' + n;
+}
+
+export async function loadRelease(cardId, novelId) {
+  var key = storyReleaseKey(cardId, novelId);
+  if (!key) return null;
+  return idbGetJson(key);
+}
+
+export async function saveRelease(cardId, novelId, data) {
+  var key = storyReleaseKey(cardId, novelId);
+  if (!key) return false;
+  await idbSetJson(key, data);
+  return true;
+}
+
+export async function deleteRelease(cardId, novelId) {
+  var key = storyReleaseKey(cardId, novelId);
+  if (!key) return false;
+  await idbDeleteJson(key);
+  return true;
+}

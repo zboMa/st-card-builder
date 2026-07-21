@@ -42,6 +42,8 @@ export function createDefaultCardState() {
     corruptionSelectedNames: [],
     corruptionDefaultFemaleOnly: true,
     corruptionSyncStatusBar: true,
+    /** ST data.character_version */
+    characterVersion: '1.0',
   };
 }
 
@@ -109,6 +111,7 @@ export function buildDraftSnapshot(state) {
     corruptionSelectedNames: Array.isArray(s.corruptionSelectedNames) ? s.corruptionSelectedNames.slice() : [],
     corruptionDefaultFemaleOnly: s.corruptionDefaultFemaleOnly !== false,
     corruptionSyncStatusBar: s.corruptionSyncStatusBar !== false,
+    characterVersion: String(s.characterVersion != null ? s.characterVersion : '1.0').trim() || '1.0',
     updatedAt: new Date().toLocaleTimeString('zh-CN', { hour12: false }),
   };
 }
@@ -228,6 +231,7 @@ export function buildCardJSONFromDraft(d) {
   }
   var altG = (d.altGreetings || []).filter(function(g) { return g && String(g).trim(); });
   var tags = normalizeTags(d.charTags || d.tags || []);
+  var characterVersion = String(d.characterVersion != null ? d.characterVersion : '1.0').trim() || '1.0';
   return {
     name: cn,
     description: d.charDesc || '',
@@ -254,7 +258,7 @@ export function buildCardJSONFromDraft(d) {
       post_history_instructions: '',
       tags: tags.slice(),
       creator: '',
-      character_version: '1.0',
+      character_version: characterVersion,
       alternate_greetings: altG,
       extensions: ext,
       character_book: { name: wn, entries: fe },
@@ -275,5 +279,6 @@ export function generateCardJSON(state) {
     tavernHelperScripts: state.tavernHelperScripts,
     cardBuilderExtensions: state.cardBuilderExtensions,
     altGreetings: state.altGreetings || [],
+    characterVersion: state.characterVersion,
   });
 }

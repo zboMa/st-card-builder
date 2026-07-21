@@ -8,6 +8,7 @@ import { config } from './config.mjs';
 import { couchHealth } from './couch.mjs';
 import { authRouter } from './auth/routes.mjs';
 import { syncRouter } from './sync/routes.mjs';
+import { shareRouter } from './share/routes.mjs';
 
 var app = express();
 
@@ -20,7 +21,7 @@ app.use(cors({
   },
   credentials: true,
 }));
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json({ limit: '8mb' }));
 app.use(cookieSession({
   name: 'stcb_sess',
   keys: [config.sessionSecret],
@@ -45,6 +46,7 @@ app.get('/api/health', async function(req, res) {
 
 app.use('/api/auth', authRouter);
 app.use('/api/sync', syncRouter);
+app.use('/api/share', shareRouter);
 
 app.use(function(err, req, res, next) {
   console.error('[api]', err);
