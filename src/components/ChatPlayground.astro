@@ -62,15 +62,15 @@
 
             <div class="chat-setting-item">
               <div class="setting-label-row">
-                <span class="setting-label" title="ST 1.18：最近 N 条">扫描深度 scanDepth</span>
+                <span class="setting-label" title="ST 1.18：最近 N 条消息作为世界书扫描缓冲">扫描深度</span>
                 <input type="number" id="chatScanDepth" class="token-number-input" value="2" min="0" max="100" step="1" title="ST 1.18：最近 N 条" />
               </div>
             </div>
 
-            <div class="chat-setting-item" style="margin-top: 10px;">
+            <div class="chat-setting-item">
               <div class="setting-label-row">
                 <span class="setting-label" title="替换 {{user}}">用户名</span>
-                <input type="text" id="chatUserName" class="token-number-input" value="User" title="用于 {{user}}" style="width: 7rem; text-align: left;" />
+                <input type="text" id="chatUserName" class="token-number-input chat-user-name-input" value="User" title="用于 {{user}}" />
               </div>
             </div>
           </div>
@@ -210,7 +210,7 @@
     box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
     transform: translateY(-108%);
     transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
-    max-height: min(70%, 420px);
+    max-height: min(78%, 520px);
     overflow-x: hidden;
     overflow-y: auto;
   }
@@ -276,14 +276,17 @@
     flex-direction: column;
     gap: 8px;
   }
+  /* 抽屉内始终纵向：窄栏/移动端不再横挤四列 */
   .chat-setting-group {
     display: flex;
+    flex-direction: column;
     align-items: stretch;
-    gap: 14px;
+    gap: 12px;
   }
   .chat-setting-item {
-    flex: 1;
+    flex: none;
     min-width: 0;
+    width: 100%;
     display: flex;
     flex-direction: column;
   }
@@ -297,7 +300,8 @@
     flex-shrink: 0;
   }
   .setting-divider {
-    width: 1px;
+    width: 100%;
+    height: 1px;
     background: var(--color-accent-soft);
     align-self: stretch;
     flex-shrink: 0;
@@ -307,7 +311,7 @@
     align-items: center;
     gap: 4px;
     margin-bottom: 6px;
-    height: 24px;
+    min-height: 24px;
   }
   .setting-icon {
     font-size: 0.9rem;
@@ -374,6 +378,14 @@
   .token-slider {
     background: var(--color-slider-track) !important;
   }
+  .chat-user-name-input {
+    width: auto;
+    min-width: 5.5rem;
+    max-width: 12rem;
+    text-align: left;
+    padding-left: 8px;
+    padding-right: 8px;
+  }
 
   .debug-toggle {
     display: flex;
@@ -397,17 +409,6 @@
   }
   .debug-toggle input {
     margin: 0;
-  }
-
-  @media (max-width: 640px) {
-    .chat-setting-group {
-      flex-direction: column;
-      gap: 12px;
-    }
-    .setting-divider {
-      width: 100%;
-      height: 1px;
-    }
   }
 
   /* 中间层吃满剩余高度并滚动：触发标签过长不撑破整页 */
@@ -764,6 +765,12 @@
   .chat-compose-hint {
     font-size: 0.65rem;
     color: var(--color-text-muted);
+  }
+  /* 触屏 / 窄屏无物理 Enter，隐藏桌面快捷键提示 */
+  @media (max-width: 900px), (hover: none) and (pointer: coarse) {
+    .chat-compose-hint {
+      display: none;
+    }
   }
   .chat-typing-indicator {
     font-size: 0.7rem;

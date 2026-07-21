@@ -3,6 +3,7 @@
  */
 import { SYNC_INTERVAL_MS, DOC, buildCardIndexFromDrafts, cardDocId } from './docIds.mjs';
 import { getLocalDb, getDoc, putDoc, getCardDraft, putCardDraft, replicateWithRemote, getCardIndex } from './pouch.mjs';
+import { clearLocalDirty, isLocalDirty } from './localDirty.mjs';
 import { apiFetch } from '../publicConfig.mjs';
 
 var timer = null;
@@ -36,6 +37,7 @@ export function getSyncStatus() {
     autoSyncEnabled: autoSyncEnabled,
     hasCredentials: !!lastCred,
     intervalMs: SYNC_INTERVAL_MS,
+    localDirty: isLocalDirty(),
   };
 }
 
@@ -65,6 +67,54 @@ export function friendlySyncError(err) {
   return s || '同步失败';
 }
 
+/**
+ * 自动同步是否应跳过：本地无变更且已成功同步过至少一次。
+ * 从未同步过时仍执行（首拉云端）。
+ */
+export function computeShouldSkipSyncWhenClean(opts, state) {
+  opts = opts || {};
+  state = state || {};
+  if (opts.force) return false;
+  if (!opts.skipIfClean) return false;
+  if (!state.lastSyncAt) return false;
+  return !state.localDirty;
+}
+
+function shouldSkipSyncWhenClean(opts) {
+  return computeShouldSkipSyncWhenClean(opts, {
+    lastSyncAt: lastSyncAt,
+    localDirty: isLocalDirty(),
+  });
+}
+
+async function readSyncPrefsDoc() {
+  var prefs = await getDoc(DOC.syncPrefs);
+  return prefs && typeof prefs === 'object' ? prefs : {};
+}
+
+async function patchSyncPrefs(patch) {
+  var prefs = await readSyncPrefsDoc();
+  var next = Object.assign({}, prefs, patch, {
+    _id: DOC.syncPrefs,
+    type: 'sync-prefs',
+    updatedAt: new Date().toISOString(),
+  });
+  // 偏好写入不标记 dirty，避免「改开关」本身触发无意义全量同步
+  await putDoc(next, { skipDirty: true });
+  return next;
+}
+
+/** 自动同步偏好；缺省 / 未写视为 false */
+export async function getAutoSyncPref() {
+  var prefs = await readSyncPrefsDoc();
+  return !!prefs.autoSync;
+}
+
+export async function setAutoSyncPref(on) {
+  await patchSyncPrefs({ autoSync: !!on });
+  return !!on;
+}
+
 export async function fetchAuthStatus() {
   var res = await apiFetch('/api/auth/status');
   return res.json();
@@ -92,10 +142,16 @@ export async function refreshCardIndexFromLocalDrafts(draftsMap) {
 
 /**
  * 全量同步（不含 secrets，除非 includeSecrets）
+ * @param {{ refreshCred?: boolean, includeSecrets?: boolean, force?: boolean, skipIfClean?: boolean }} opts
  */
 export async function runSync(opts) {
   opts = opts || {};
   if (syncing) return { skipped: true, reason: 'busy' };
+  if (shouldSkipSyncWhenClean(opts)) {
+    emit('skipped', { reason: 'clean' });
+    if (autoSyncEnabled) armAutoSyncTimer();
+    return { skipped: true, reason: 'clean' };
+  }
   syncing = true;
   lastSyncError = null;
   emit('start', {});
@@ -113,6 +169,7 @@ export async function runSync(opts) {
     await mergePulledCardsIntoLocalStorage();
     lastSyncAt = new Date().toISOString();
     lastSyncError = null;
+    clearLocalDirty();
     if (autoSyncEnabled) armAutoSyncTimer();
     emit('complete', { at: lastSyncAt, result: result, nextSyncAt: nextSyncAt });
     return { ok: true, at: lastSyncAt, result: result };
@@ -171,7 +228,7 @@ function armAutoSyncTimer() {
   clearAutoSyncTimerOnly();
   nextSyncAt = Date.now() + SYNC_INTERVAL_MS;
   timer = setInterval(function() {
-    runSync({}).catch(function(e) {
+    runSync({ skipIfClean: true }).catch(function(e) {
       console.warn('[sync] auto', e);
     });
   }, SYNC_INTERVAL_MS);
@@ -191,6 +248,17 @@ export function stopAutoSync() {
 }
 
 /**
+ * 按持久化偏好启停自动同步（默认关）
+ * @returns {Promise<boolean>} 是否已开启
+ */
+export async function applyAutoSyncPref() {
+  var on = await getAutoSyncPref();
+  if (on) startAutoSync();
+  else stopAutoSync();
+  return on;
+}
+
+/**
  * 懒同步：确保某张卡正文在本地
  * 策略：先 pull（过滤由 replicate 全库完成时已带上；此处若无本地则触发一次 sync）
  */
@@ -201,7 +269,7 @@ export async function ensureCardLocal(cardId) {
   if (local) return local;
   // 无本地则尝试同步后再读
   try {
-    await runSync({});
+    await runSync({ force: true });
   } catch (e) {
     console.warn('[sync] ensureCardLocal', e);
   }
@@ -218,3 +286,4 @@ export async function upsertLocalCardAndIndex(cardId, draft, allDraftsMap) {
 }
 
 export { getCardDraft, putCardDraft, getLocalDb, DOC, cardDocId };
+export { isLocalDirty, markLocalDirty, clearLocalDirty } from './localDirty.mjs';

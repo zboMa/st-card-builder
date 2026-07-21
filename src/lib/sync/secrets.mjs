@@ -18,12 +18,14 @@ export async function getSyncSecretsPref() {
 }
 
 export async function setSyncSecretsPref(on) {
-  await putDoc({
+  var prefs = await getDoc(DOC.syncPrefs);
+  var next = Object.assign({}, prefs || {}, {
     _id: DOC.syncPrefs,
     type: 'sync-prefs',
     syncSecrets: !!on,
     updatedAt: new Date().toISOString(),
   });
+  await putDoc(next, { skipDirty: true });
 }
 
 function readLocalAiConfig() {
