@@ -1,0 +1,38 @@
+# 小说工坊
+
+> SoT：本文（状态/面板）+ [`novel-analysis.md`](./novel-analysis.md)（分析管道设计）。
+
+## Boot
+
+`NovelWorkshopApp` → `initNovelWorkshop()`（`src/lib/novel/browserApp.mjs`）。
+
+## 流水线（产品）
+
+`原始资料 → 拆章 →（分析 / 角色设定 / 开场白 / 人物 / 世界书 / 文风）`
+
+未完成前置时后续禁用。视图 id 前缀 `novel-*`，勿与主卡 `character` / `greetings` 混淆。
+
+## 状态
+
+- IndexedDB 桶：`novelWorkshopV3:card:{cardId}`  
+- RAG：`novelRagV1:card:{cardId}`  
+- **不**进入导出卡文件  
+
+## 结构（摘要）
+
+| 路径 | 职责 |
+|---|---|
+| `state.mjs` / `stateMachine.mjs` | 状态与持久化 |
+| `analyzePipeline.mjs` / `entityStore.mjs` / `rag/` | 分析与检索 |
+| `panels/*` | 各视图 |
+| `shared/bridge.mjs` | 助手桥 + 同步到主卡 |
+| `nsfwSupport.mjs` | 提示拼装（配置来自卡侧事件） |
+
+## NSFW
+
+原始资料面板 **无** NSFW/NTL UI；订阅 `nsfw-config-changed`。见 [`../domains/nsfw-ntl.md`](../domains/nsfw-ntl.md)。
+
+## 相关
+
+- 分析深文：[`novel-analysis.md`](./novel-analysis.md)
+- 写卡指南小说段：[`../guides/card-writing-guide.md`](../guides/card-writing-guide.md)
