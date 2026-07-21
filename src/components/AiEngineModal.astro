@@ -15,8 +15,10 @@
     <div class="ai-engine-modal__body area-ai">
       <div class="ai-engine-section ai-engine-wv-summary">
         <div class="ai-engine-section__label">当前世界观</div>
-        <p id="aiWorldviewSummary" class="ai-engine-wv-summary__text">未选择预设</p>
-        <button type="button" id="btnAiEngineGotoWorldLimits" class="ai-engine-link-btn">去「世界与限定」配置</button>
+        <p class="ai-engine-wv-summary__text">
+          <span id="aiWorldviewSummary">未选择预设</span>
+          <button type="button" id="btnAiEngineGotoWorldLimits" class="ai-engine-link-btn">去「世界与限定」配置</button>
+        </p>
       </div>
 
       <div class="ai-engine-section">
@@ -164,10 +166,15 @@
     margin-bottom: 6px;
   }
   .ai-engine-wv-summary__text {
-    margin: 0 0 6px;
+    margin: 0;
     font-size: 0.72rem;
     color: var(--color-text);
     line-height: 1.45;
+  }
+  .ai-engine-wv-summary__text .ai-engine-link-btn {
+    display: inline;
+    margin-left: 0.35em;
+    vertical-align: baseline;
   }
   .ai-engine-link-btn {
     font-size: 0.68rem;

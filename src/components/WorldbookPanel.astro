@@ -117,9 +117,9 @@ import WorldbookAuditor from './WorldbookAuditor.astro';
   <div id="entriesList" class="wb-entries-list" aria-live="polite"></div>
 </div>
 
-<style>
-  /* 标题行：左标题 右小号操作横排 */
-  .wb-panel-head {
+<style is:global>
+  /* 标题行：左标题 右小号操作横排；动态列表节点需 global 才能吃到样式 */
+  .area-worldbook .wb-panel-head {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -432,21 +432,27 @@ import WorldbookAuditor from './WorldbookAuditor.astro';
     cursor: pointer;
   }
 
-  /* 列表占满剩余高度；条目不参与压缩 */
-  .wb-entries-list {
+  /* 列表占满剩余高度；空态居中 tip 视觉（动态节点，依赖 is:global） */
+  .area-worldbook .wb-entries-list {
     display: flex;
     flex-direction: column;
     gap: 8px;
+    min-height: 100%;
   }
-  .wb-entries-empty {
-    margin: auto 0;
-    padding: 24px 14px;
+  .area-worldbook .wb-entries-empty {
+    margin: auto;
+    padding: 28px 18px;
+    max-width: 28rem;
+    width: calc(100% - 24px);
     text-align: center;
-    font-size: 0.8rem;
+    font-size: 0.78rem;
+    font-weight: 500;
+    line-height: 1.55;
     color: var(--color-text-muted);
     border: 1px dashed var(--color-accent-border);
     border-radius: 8px;
     background: var(--color-accent-soft);
+    box-sizing: border-box;
   }
 
   @media (max-width: 720px) {
