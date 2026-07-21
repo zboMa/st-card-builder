@@ -3,146 +3,162 @@ import Layout from '../layouts/Layout.astro';
 ---
 <Layout title="管理端 · ST Card Builder">
   <div class="admin-app" id="adminApp">
-    <header class="admin-head">
-      <div class="admin-brand">
-        <strong>ST Card Builder · 管理端</strong>
-        <span class="admin-muted" id="adminUserLine">校验中…</span>
+    <!-- 未登录 / 非管理员：全屏门禁，不露出仪表盘结构 -->
+    <div id="adminLoginGate" class="auth-login-screen auth-login-screen--full" aria-live="polite">
+      <div class="auth-login-ambient" aria-hidden="true"></div>
+      <div class="auth-login-panel">
+        <p class="auth-login-brand">ST Card Builder</p>
+        <p class="auth-login-kicker">Admin</p>
+        <h1 class="auth-login-title">管理端登录</h1>
+        <p class="auth-login-lead">
+          运维与只读管理员入口。使用 Discord 授权；账号须在服务端白名单
+          （ADMIN_DISCORD_IDS / ADMIN_READONLY_DISCORD_IDS）内。
+        </p>
+        <a class="btn btn-primary auth-login-cta" id="btnAdminDiscordLogin" href="#">使用 Discord 登录</a>
+        <div class="auth-login-actions" id="adminLoginExtra" hidden>
+          <button type="button" id="btnAdminGateLogout" class="btn btn-ghost btn-sm">退出当前账号</button>
+        </div>
+        <p class="auth-login-tip" id="adminGateTip">正在校验登录状态…</p>
+        <a class="auth-login-back" id="btnAdminBackApp" href="#">返回主站</a>
       </div>
-      <div class="admin-actions">
-        <a class="btn btn-ghost btn-sm" id="btnAdminBackApp" href="#">返回应用</a>
-        <a class="btn btn-primary btn-sm" id="btnAdminDiscordLogin" href="#">Discord 登录</a>
-        <button type="button" id="btnAdminLogout" class="btn btn-ghost btn-sm">退出</button>
-      </div>
-    </header>
-
-    <div id="adminBanner" class="admin-banner" hidden></div>
-    <p class="admin-muted" id="adminGateTip">仅管理员白名单可访问。</p>
-    <div id="adminStatus" class="admin-status" aria-live="polite"></div>
-
-    <div id="adminGate" class="admin-gate" hidden>
-      <p>请使用白名单 Discord 账号登录后访问管理功能。</p>
-      <p class="admin-muted">运维：ADMIN_DISCORD_IDS · 只读：ADMIN_READONLY_DISCORD_IDS</p>
     </div>
 
-    <div id="adminShell" class="admin-layout" hidden>
-      <nav class="admin-nav" aria-label="管理导航">
-        <button type="button" data-admin-nav="dashboard" class="is-active">仪表盘</button>
-        <button type="button" data-admin-nav="users">用户</button>
-        <button type="button" data-admin-nav="shares">分享</button>
-        <button type="button" data-admin-nav="tokens">插件 Token</button>
-        <button type="button" data-admin-nav="databases">Couch 库</button>
-        <button type="button" data-admin-nav="audit">审计</button>
-        <button type="button" data-admin-nav="system">系统</button>
-      </nav>
+    <div id="adminWorkspace" hidden>
+      <header class="admin-head">
+        <div class="admin-brand">
+          <strong>ST Card Builder · 管理端</strong>
+          <span class="admin-muted" id="adminUserLine">—</span>
+        </div>
+        <div class="admin-actions">
+          <a class="btn btn-ghost btn-sm" id="btnAdminBackAppTop" href="#">返回应用</a>
+          <button type="button" id="btnAdminLogout" class="btn btn-ghost btn-sm">退出</button>
+        </div>
+      </header>
 
-      <div class="admin-main">
-        <section class="admin-panel" data-admin-view="dashboard">
-          <h2>仪表盘</h2>
-          <div id="adminDashGrid" class="admin-stat-grid"></div>
-          <h2>配置开关（只读）</h2>
-          <div id="adminDashFlags" class="admin-flag-grid"></div>
-        </section>
+      <div id="adminBanner" class="admin-banner" hidden></div>
+      <div id="adminStatus" class="admin-status" aria-live="polite"></div>
 
-        <section class="admin-panel" data-admin-view="users" hidden>
-          <div class="admin-panel-head">
-            <h2>用户管理</h2>
-          </div>
-          <div class="admin-toolbar">
-            <input id="adminUserQ" type="search" placeholder="搜索 userId / 名 / Discord" />
-            <select id="adminUserStatus">
-              <option value="all">全部状态</option>
-              <option value="active">正常</option>
-              <option value="disabled">已禁用</option>
-            </select>
-            <button type="button" id="btnAdminLoadUsers" class="btn btn-sm btn-fetch">刷新</button>
-          </div>
-          <div id="adminUserTable"></div>
-        </section>
+      <div id="adminShell" class="admin-layout">
+        <nav class="admin-nav" aria-label="管理导航">
+          <button type="button" data-admin-nav="dashboard" class="is-active">仪表盘</button>
+          <button type="button" data-admin-nav="users">用户</button>
+          <button type="button" data-admin-nav="shares">分享</button>
+          <button type="button" data-admin-nav="tokens">插件 Token</button>
+          <button type="button" data-admin-nav="databases">Couch 库</button>
+          <button type="button" data-admin-nav="audit">审计</button>
+          <button type="button" data-admin-nav="system">系统</button>
+        </nav>
 
-        <section class="admin-panel" data-admin-view="shares" hidden>
-          <div class="admin-panel-head">
-            <h2>分享管理</h2>
-          </div>
-          <div class="admin-toolbar">
-            <input id="adminShareQ" type="search" placeholder="搜索 token / 标题 / 所有者" />
-            <select id="adminShareType">
-              <option value="all">全部类型</option>
-              <option value="card-share">角色卡</option>
-              <option value="novel-share">小说</option>
-            </select>
-            <select id="adminShareStatus">
-              <option value="all">全部状态</option>
-              <option value="active">有效</option>
-              <option value="disabled">已停用</option>
-              <option value="expired">已过期</option>
-            </select>
-            <button type="button" id="btnAdminLoadShares" class="btn btn-sm btn-fetch">刷新</button>
-          </div>
-          <div id="adminShareTable"></div>
-        </section>
+        <div class="admin-main">
+          <section class="admin-panel" data-admin-view="dashboard">
+            <h2>仪表盘</h2>
+            <div id="adminDashGrid" class="admin-stat-grid"></div>
+            <h2>配置开关（只读）</h2>
+            <div id="adminDashFlags" class="admin-flag-grid"></div>
+          </section>
 
-        <section class="admin-panel" data-admin-view="tokens" hidden>
-          <div class="admin-panel-head">
-            <h2>插件 Bearer Token</h2>
-            <button type="button" id="btnAdminPurgeTokens" class="btn btn-sm btn-ghost admin-ops-only">清理过期</button>
-          </div>
-          <div class="admin-toolbar">
-            <input id="adminTokenQ" type="search" placeholder="搜索用户 / Discord" />
-            <select id="adminTokenStatus">
-              <option value="all">全部</option>
-              <option value="active">有效</option>
-              <option value="expired">过期</option>
-            </select>
-            <button type="button" id="btnAdminLoadTokens" class="btn btn-sm btn-fetch">刷新</button>
-          </div>
-          <div id="adminTokenTable"></div>
-        </section>
+          <section class="admin-panel" data-admin-view="users" hidden>
+            <div class="admin-panel-head">
+              <h2>用户管理</h2>
+            </div>
+            <div class="admin-toolbar">
+              <input id="adminUserQ" type="search" placeholder="搜索 userId / 名 / Discord" />
+              <select id="adminUserStatus">
+                <option value="all">全部状态</option>
+                <option value="active">正常</option>
+                <option value="disabled">已禁用</option>
+              </select>
+              <button type="button" id="btnAdminLoadUsers" class="btn btn-sm btn-fetch">刷新</button>
+            </div>
+            <div id="adminUserTable"></div>
+          </section>
 
-        <section class="admin-panel" data-admin-view="databases" hidden>
-          <div class="admin-panel-head">
-            <h2>Couch 库</h2>
-            <button type="button" id="btnAdminLoadDbs" class="btn btn-sm btn-fetch">刷新</button>
-          </div>
-          <div id="adminDbAnalysis" class="admin-mb"></div>
-          <div id="adminDbTable"></div>
-        </section>
+          <section class="admin-panel" data-admin-view="shares" hidden>
+            <div class="admin-panel-head">
+              <h2>分享管理</h2>
+            </div>
+            <div class="admin-toolbar">
+              <input id="adminShareQ" type="search" placeholder="搜索 token / 标题 / 所有者" />
+              <select id="adminShareType">
+                <option value="all">全部类型</option>
+                <option value="card-share">角色卡</option>
+                <option value="novel-share">小说</option>
+              </select>
+              <select id="adminShareStatus">
+                <option value="all">全部状态</option>
+                <option value="active">有效</option>
+                <option value="disabled">已停用</option>
+                <option value="expired">已过期</option>
+              </select>
+              <button type="button" id="btnAdminLoadShares" class="btn btn-sm btn-fetch">刷新</button>
+            </div>
+            <div id="adminShareTable"></div>
+          </section>
 
-        <section class="admin-panel" data-admin-view="audit" hidden>
-          <div class="admin-panel-head">
-            <h2>审计日志</h2>
-            <button type="button" id="btnAdminExportAudit" class="btn btn-sm btn-ghost">导出 JSON</button>
-          </div>
-          <div class="admin-toolbar">
-            <input id="adminAuditBy" type="search" placeholder="操作者" />
-            <select id="adminAuditAction">
-              <option value="">全部动作</option>
-              <option value="user.disable">user.disable</option>
-              <option value="user.enable">user.enable</option>
-              <option value="share.disable">share.disable</option>
-              <option value="share.enable">share.enable</option>
-              <option value="share.force_delete">share.force_delete</option>
-              <option value="token.revoke">token.revoke</option>
-              <option value="token.purge_expired">token.purge_expired</option>
-              <option value="backup.run">backup.run</option>
-            </select>
-            <button type="button" id="btnAdminLoadAudit" class="btn btn-sm btn-fetch">刷新</button>
-          </div>
-          <div id="adminAuditTable"></div>
-        </section>
+          <section class="admin-panel" data-admin-view="tokens" hidden>
+            <div class="admin-panel-head">
+              <h2>插件 Bearer Token</h2>
+              <button type="button" id="btnAdminPurgeTokens" class="btn btn-sm btn-ghost admin-ops-only">清理过期</button>
+            </div>
+            <div class="admin-toolbar">
+              <input id="adminTokenQ" type="search" placeholder="搜索用户 / Discord" />
+              <select id="adminTokenStatus">
+                <option value="all">全部</option>
+                <option value="active">有效</option>
+                <option value="expired">过期</option>
+              </select>
+              <button type="button" id="btnAdminLoadTokens" class="btn btn-sm btn-fetch">刷新</button>
+            </div>
+            <div id="adminTokenTable"></div>
+          </section>
 
-        <section class="admin-panel" data-admin-view="system" hidden>
-          <div class="admin-panel-head">
-            <h2>系统与备份</h2>
-            <button type="button" id="btnAdminBackup" class="btn btn-sm btn-primary admin-ops-only">执行逻辑备份</button>
-          </div>
-          <div id="adminSystemBody"></div>
-        </section>
+          <section class="admin-panel" data-admin-view="databases" hidden>
+            <div class="admin-panel-head">
+              <h2>Couch 库</h2>
+              <button type="button" id="btnAdminLoadDbs" class="btn btn-sm btn-fetch">刷新</button>
+            </div>
+            <div id="adminDbAnalysis" class="admin-mb"></div>
+            <div id="adminDbTable"></div>
+          </section>
+
+          <section class="admin-panel" data-admin-view="audit" hidden>
+            <div class="admin-panel-head">
+              <h2>审计日志</h2>
+              <button type="button" id="btnAdminExportAudit" class="btn btn-sm btn-ghost">导出 JSON</button>
+            </div>
+            <div class="admin-toolbar">
+              <input id="adminAuditBy" type="search" placeholder="操作者" />
+              <select id="adminAuditAction">
+                <option value="">全部动作</option>
+                <option value="user.disable">user.disable</option>
+                <option value="user.enable">user.enable</option>
+                <option value="share.disable">share.disable</option>
+                <option value="share.enable">share.enable</option>
+                <option value="share.force_delete">share.force_delete</option>
+                <option value="token.revoke">token.revoke</option>
+                <option value="token.purge_expired">token.purge_expired</option>
+                <option value="backup.run">backup.run</option>
+              </select>
+              <button type="button" id="btnAdminLoadAudit" class="btn btn-sm btn-fetch">刷新</button>
+            </div>
+            <div id="adminAuditTable"></div>
+          </section>
+
+          <section class="admin-panel" data-admin-view="system" hidden>
+            <div class="admin-panel-head">
+              <h2>系统与备份</h2>
+              <button type="button" id="btnAdminBackup" class="btn btn-sm btn-primary admin-ops-only">执行逻辑备份</button>
+            </div>
+            <div id="adminSystemBody"></div>
+          </section>
+        </div>
       </div>
     </div>
   </div>
 </Layout>
 
 <style is:global>
+  @import '../styles/auth-login.css';
   @import '../styles/admin.css';
 </style>
 

@@ -7,11 +7,22 @@ body.admin-body {
   min-height: 100dvh;
 }
 
+body.admin-body.admin-locked {
+  padding: 0;
+  overflow: hidden !important;
+}
+
 .admin-app {
   max-width: 1200px;
   margin: 0 auto;
   padding: var(--space-4) var(--space-4) 64px;
   color: var(--color-text);
+}
+
+body.admin-locked .admin-app {
+  max-width: none;
+  margin: 0;
+  padding: 0;
 }
 
 .admin-head {
@@ -335,14 +346,6 @@ body.admin-body {
 }
 
 .admin-mt { margin-top: 10px; }
-
-.admin-gate {
-  padding: 24px;
-  border-radius: 12px;
-  border: 1px solid var(--color-border-subtle);
-  background: var(--color-surface-inset);
-  text-align: center;
-}
 
 body.admin-readonly .admin-ops-only {
   opacity: 0.55;
