@@ -1,89 +1,65 @@
 # AGENTS.md — ST Card Builder
 
+Agent / 贡献者契约。**详细规则只维护在 `docs/` 真相源（SoT）**；改行为须同 PR 更新对应 SoT。
+
+## 文档入口（必读）
+
+→ **[`docs/README.md`](docs/README.md)**（索引 + SoT 表）
+
+| 主题 | SoT |
+|---|---|
+| UI | [`docs/ui/design-system.md`](docs/ui/design-system.md) + `src/styles/ui-patterns.css` |
+| 认证 | [`docs/systems/auth.md`](docs/systems/auth.md) |
+| 同步 / Couch | [`docs/systems/cloud-sync.md`](docs/systems/cloud-sync.md) |
+| NSFW / NTL | [`docs/domains/nsfw-ntl.md`](docs/domains/nsfw-ntl.md)（数量以 `src/lib/adult/**` 为准） |
+| ST 字段 | [`docs/domains/st-card-fields.md`](docs/domains/st-card-fields.md) |
+| 架构总览 | [`docs/architecture/overview.md`](docs/architecture/overview.md) |
+| 部署 | [`docs/ops/production.md`](docs/ops/production.md) |
+
 ## Quick commands
 
 ```bash
-npm run dev          # Astro dev server → http://localhost:4321
-npm run build        # Static build → dist/
-npm run preview      # Preview static build
-npm test             # Node.js native test runner (tests/**/*.test.mjs)
+npm run dev              # Astro → http://localhost:4321
+npm run build            # → dist/ + dist-card / dist-card-admin
+npm test                 # tests/**/*.test.mjs
+npm --prefix server test # server/tests
+npm run server:dev       # API :8787
+npm run couch            # 本地 CouchDB
 ```
 
-- Verify with `npm test` then `npm run build` before submitting changes.
-- No lint, typecheck, or CI scripts. No pre-commit hooks.
+提交前：`npm test` 然后 `npm run build`（涉及 API 时再跑 `npm --prefix server test`）。无 lint/typecheck/pre-commit。
 
-## Conventions
+## 硬约束（不可违反）
 
-- **UI 须遵循 `docs/design-system.md`**：文本分层、搜索条、空态、行内 tip/按钮、封面卡叠字与角标等标准模式；新增控件优先复用 `src/styles/ui-patterns.css`。
-- **All JS modules use `.mjs` extension and ESM imports.** There are no `.js` source files.
-- Astro components use `.astro` extension with `---` frontmatter fences. Client-side code goes in `<script>` tags, not the frontmatter.
-- **No SSR** — Astro output is static (`dist/`). Frontmatter code runs at build time only.
-- Tests import directly from `../src/lib/*.mjs` — no transpilation, no DOM/browser environment.
-- Run a single test file: `node --test tests/aiTaskCenter.test.mjs`
-- The `SecurityCordon` component is an intentional soft-lock for incomplete features; bypassed by clicking N times. Do not remove without understanding the context.
+1. **UI**：行内操作用 `.btn-inline`；复用 `ui-patterns.css`；禁止另起一套 tip/搜索/大按钮。
+2. **作者注释字段** = `creatorNotes`（勿用 `postHistoryInstructions` 当独立字段）。
+3. **NSFW/NTL UI 入口** = 侧栏「成人配置」`AdultConfigPanel`（不是 CharacterPanel；小说原始资料无此 UI）。
+4. **浏览器 Couch 地址** = `PUBLIC_COUCH_URL`（或 `{PUBLIC_API_URL}/couch`），禁止把 `COUCHDB_URL=127.0.0.1` 发给前端。
+5. **JS**：源码一律 `.mjs` + ESM；Astro 无 SSR；测试直跑 Node，无 DOM。
+6. **`SecurityCordon`** 是故意软锁，勿随意删除。
 
-## Architecture
+## 架构一句话
 
-- **Astro 5** single-page app (`src/pages/index.astro`). All views coexist in the DOM; switching toggles `data-view` visibility based on `window.location.hash`.
-- **Three-column layout**: `AppSidebar` (left: sticky brand + scrollable nav + fixed config) | main views | `AssistantPanel` (right).
-- `html`/`body` are `overflow: hidden`. Only inner panels scroll independently.
-- **No state management library** — data flows through `window.__get*__` / `window.__set*__` bridges and `CustomEvent` dispatches (`card-builder-data-changed`, `card-draft-changed`, `nsfw-config-changed`).
-- State persists to `localStorage` (drafts, config, prompts) and **IndexedDB** (`st-card-builder` db: `json` store for novel workshop, `blob` store for avatars).
-- **Card-builder boot**: `src/lib/card-builder/browserApp.mjs` exports `initCardBuilder()` — the sole card-side startup (called from `index.astro`). Novel side: `NovelWorkshopApp` → `initNovelWorkshop()`. Large `.astro` panels (VariableCard / Assistant / StatusBar) are still bulky.
+Astro 5 静态 SPA；三栏布局；状态靠 `window.__get*__` / CustomEvent；卡侧 `initCardBuilder()`、小说 `initNovelWorkshop()`、管理端独立 `/admin`；可选云同步 = Express + Couch + Pouch。模块地图见 [`docs/architecture/overview.md`](docs/architecture/overview.md)。
 
-## Key directories
+## 关键目录（速查）
 
 | Path | Purpose |
 |---|---|
-| `src/lib/utils.mjs` | Shared pure-function utilities: uid, escapeHtml, crc32, createTextChunk, deepCopy, strategyLabelZh, parseJsonLoose |
-| `src/lib/idbReady.mjs` | IDB async wait helper (event-driven + 100ms poll fallback) |
-| `src/lib/idbStore.mjs` | IndexedDB database open helper |
-| `src/lib/avatarIdb.mjs` | Avatar blob read/write in IndexedDB |
-| `src/lib/aiTaskCenter.mjs` | Global AI task queue with AbortController cancellation |
-| `src/lib/assistant/` | AI assistant: tools, risk, reactParse, executor, session, ragInject, tokenEstimate, characterFields, toolTraceSummary |
-| `src/lib/card-builder/` | Main card builder: state + stateMachine + shared context + panels (cardManager, character, worldbook, aiEngine, export) |
-| `src/lib/novel/` | Novel workshop: state (IDB buckets) + stateMachine + shared (context, bridge) + panels (source, chapters, setup, analyze, characters, worldbook, style) + analysis pipeline, entity store, RAG, sync, NSFW/NTL |
-| `src/lib/promptCanon.mjs` | Default prompt blocks shared across all generation pipelines |
-| `src/lib/promptStore.mjs` | User prompt overrides persisted to `st_v3_builder_prompts` |
-| `src/lib/promptCatalogBrowser.mjs` | 提示词配置 · 目录只读浏览（口味/NTL/世界观/载体） |
-| `docs/catalog-quality-standards.md` | **目录扩展质量标准**（增项必读：字数硬线、层职责、禁套话、成年边界） |
-| `src/lib/statusBarThemes/` | 30 visual themes (15 aesthetics × single/multi), filtered by character count |
-| `src/lib/statusBar.mjs` | Status bar designer: theme resolution, HTML generation, snippet building |
-| `src/lib/charTags.mjs` | Character tag normalization and merging |
-| `src/lib/tavernScripts.mjs` | Tavern helper scripts normalization |
-| `src/lib/regexScripts.mjs` | Regex scripts normalization |
-| `src/styles/tokens.css` | Design tokens ("Nocturne" dark theme) |
-| `src/styles/ui-patterns.css` | Shared UI components (panels, buttons, chips, etc.) |
-| `scripts/genStatusBarThemes.mjs` | Generates status bar theme CSS (standalone node script, not npm-registered) |
+| `src/lib/card-builder/` | 制卡 boot + panels |
+| `src/lib/novel/` | 小说工坊 |
+| `src/lib/storyStudio/` | 小说创作 |
+| `src/lib/assistant/` | 右栏助手 |
+| `src/lib/sync/` | 云同步客户端 |
+| `src/lib/adult/` | NSFW/NTL 目录与拼装 |
+| `src/lib/admin/` | 管理端客户端 |
+| `server/src/` | API：auth / sync / share / admin / couch |
+| `src/styles/tokens.css` / `ui-patterns.css` | 设计 token + 共享控件 |
+| `deploy/` | systemd / compose / nginx 示例 |
 
-## ST card data conventions
+## Quirks
 
-- **Author's Note field** is `creatorNotes` (NOT ST's `postHistoryInstructions`). The assistant executor maps `postHistoryInstructions` writes to `creatorNotes`.
-- Novel workshop data lives in IndexedDB keyed by cardId: `novelWorkshopV3:card:{cardId}`. It is **not** included in exported JSON/PNG card files.
-- RAG index: IndexedDB `novelRagV1:card:{cardId}`.
-- Draft localStorage key: `st_v3_builder_drafts`, current card: `st_v3_builder_current_id`.
-- AI config localStorage key: `st_v3_builder_ai_config` (API keys, engine options, NSFW/NTL flavors).
-- Worldbook entry `comment` field serves as the title/identifier for deduplication and sync.
-
-## NSFW/NTL palette architecture
-
-- Three-layer design: core persona palette → NSFW flavor items（最多 5，含反差/感官节奏等 **42** 预设，首项为主调色盘 + 每项 note）→ NTL taboo layer（**25** types 含百破，多选）. Layers are additive, not exclusive.
-- 数据：`nsfwFlavorItems: [{ id, note }]`；旧单字段 `nsfwFlavor` 自动迁为首项；拼装见 `buildNsfwFlavorHintFromItems`。
-- 口味丰满：`src/lib/adult/flavors/{presets,enrichment}/` 按组拆分（情绪/关系/特殊/感官）；旧路径仅兼容 re-export。
-- NTL 丰满：`src/lib/adult/ntl/{types,enrichment}/` 按 bond/coercion/rupture 拆分；含百破；`age_gap` 区分礼法成年 vs 禁止儿童性化。
-- 世界观成人载体：`src/lib/adult/vessels/{frames,overlays}/`（**15** 框架）；Canon：`src/lib/adult/canon.mjs`。
-- AI 引擎世界观预设：`src/lib/presets/worldviews/`（分组 data；扩展在对应文件追加）。
-- **成年边界**：禁止儿童性化；世界观可写礼法成年制度；情欲仅限已完成设定成年礼的成人角色（见 `adult/shared/consentBoundary.mjs`）。
-- **两管道隔离**：`protagonist`（角色设定/开场白）与 `worldbook`（世界书/人物条/恶堕）独立，默认同步互不写入。小说「同步到角色设定」已重定向为世界书人物条。
-- **AdultConfigPanel（侧栏「成人配置」）** 是卡级 NSFW/NTL/恶堕唯一 UI，只服务世界书管道；口味为添加式多选。卡侧为真相源，小说工坊经 `nsfw-config-changed` 订阅；worldframe 区分 suggest（不强制）与 set（手动强制）。
-- **恶堕进度**：只认 `[小说人物]`/`[人物]` 条；状态栏多人 cast 绑这些名字；每阶≥220字；`src/lib/corruptionProgress.mjs` + `generate_corruption_lore`。
-- Novel source panel has NO NSFW/NTL UI — only chunking/recall/workflow config.
-- Full design philosophy in `docs/architecture-and-design.md`.
-
-## Dependencies & quirks
-
-- **GSAP 3** loaded via CDN in `Layout.astro` (`<script is:inline src="...gsap.min.js">`) — available globally, not bundled.
-- **@antv/g6 5.x** used client-side for relationship graphs in novel analysis.
-- AI backend: OpenAI-compatible Chat Completions API (configured in-app, keys in localStorage, never in repo).
-- `beforeunload`/`pagehide` refresh protection with 280ms debounce — be careful when modifying save logic.
-- No CI/CD, no Docker files, no pre-commit hooks.
+- GSAP 经 CDN 全局注入；G6 仅客户端图谱。
+- AI 密钥在 localStorage；上云须口令加密（账户页「云同步」区块）。
+- `beforeunload`/`pagehide` 存盘有 debounce——改保存逻辑要小心。
+- **有** CI（`.github/workflows/deploy.yml`）与 Docker Compose（Couch）；细节见 ops 文档。

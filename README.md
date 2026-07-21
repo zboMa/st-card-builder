@@ -17,11 +17,13 @@
 - 独立「角色卡管理」模块：预览卡片网格（默认 4 列，窄屏自适应；封面/卡名/更新时间/当前标记）、新建/切换/删除/复制/重命名；右上角新建+导入；**每张卡底部**可导出该卡 JSON/PNG（ST 格式，不含小说工坊）；浏览器本地保存。头像高清图（长边 ≤2048px）与封面缩略图（≤512px）存 **IndexedDB**，草稿 JSON 仅存 `avatarInIdb` 标记；小说工坊大文本同样走 IndexedDB 分桶。
 - 「角色设定」支持角色标签（紧凑 chip +「AI 生成」/ 输入 / 添加）；对接 ST `tags` / `data.tags`；AI 生成合并进现有标签，上下文按「AI 配置 → AI 引擎」字数上限截断（默认 12k）。
 - 「世界书条目」：标题行右上小号横排（单条生成 / 智能整理 / 补全触发词 / 新建）；下方仅搜索筛选 + 条目列表；搜索结果为单列紧凑命中行（整行可点跳转展开）；AI 配置为真弹窗；列表为折叠预览（标题 + 常驻/可选彩色 tag + 右侧图标操作），点编辑/新建走居中弹窗。
-- 小说工坊：原始资料 → 拆章 → 角色设定/开场白 → **小说分析**（RAG + 实体抽取 + G6 关系图谱）→ **人物列表 / 世界书条目**（结果展示，扫描/抽取为降级）→ 文风蒸馏；助手问答可混合检索原文注入。详见 [`docs/novel-analysis-architecture.md`](docs/novel-analysis-architecture.md)。
+- 小说工坊：原始资料 → 拆章 → 角色设定/开场白 → **小说分析**（RAG + 实体抽取 + G6 关系图谱）→ **人物列表 / 世界书条目**（结果展示，扫描/抽取为降级）→ 文风蒸馏；助手问答可混合检索原文注入。详见 [`docs/architecture/novel-analysis.md`](docs/architecture/novel-analysis.md)。
+- **成人配置**（侧栏）：NSFW / NTL / 恶堕唯一 UI 入口；规则见 [`docs/domains/nsfw-ntl.md`](docs/domains/nsfw-ntl.md)。
+- **账户与同步**：邮箱邀请码登录（可关 Discord UI）；云同步与密钥口令加密；见 [`docs/systems/auth.md`](docs/systems/auth.md)、[`docs/systems/cloud-sync.md`](docs/systems/cloud-sync.md)。
 
 ## 界面结构
 
-三栏布局：`左侧菜单（顶部品牌区）` + `主工作区` + `右栏 AI 助手`。全站壳层视觉见 [`docs/design-system.md`](docs/design-system.md)（**夜庭 Nocturne** token + `ui-patterns.css` 共享组件：深靛底 + 玫瑰紫 accent + 磨砂面板 + chip/按钮层级）。无全宽顶栏；侧栏顶部品牌区为「卡片构建器 / 一个简单的制卡器」，标题右侧为 AI 任务进度徽章（无任务时隐藏），无版本或访客 tag。侧栏导航为线性 SVG 图标（非 emoji）。助手不是侧栏菜单项，默认与主区并排且占满右栏高度。视口高度锁死（`html/body` 与主壳 `overflow: hidden`），仅主工作区、助手对话区与侧栏中间菜单各自内部滚动；侧栏为三段式——顶固定品牌、中可滚业务菜单、底固定「配置」组。世界书 / 拆章 / 角色设定·开场白生成 / 人物·世界书抽取 / 文风蒸馏 / 角色试聊激活时面板占满主区剩余高度（配置固定，列表或预览区内滚）。
+三栏布局：`左侧菜单（顶部品牌区）` + `主工作区` + `右栏 AI 助手`。全站壳层视觉见 [`docs/ui/design-system.md`](docs/ui/design-system.md)（**夜庭 Nocturne** token + `ui-patterns.css` 共享组件）。文档总索引：[`docs/README.md`](docs/README.md)。
 
 | 分区 | 菜单项 | 说明 |
 |---|---|---|
@@ -71,7 +73,7 @@
 
 | 模块 | 视图 id | 能力 |
 |---|---|---|
-| 原始资料 | `novel-source` | 导入/拖拽/手动补充/AI Context；处理模式、并行数、AI 扩展召回预算（默认 30000）；**不含** NSFW/NTL UI（入口在「角色设定」）；**不含**分片字数；「重置并清空结果」清空章节/人物/世界书草稿/文风等产出，保留原文与分片等配置 |
+| 原始资料 | `novel-source` | 导入/拖拽/手动补充/AI Context；处理模式、并行数、AI 扩展召回预算（默认 30000）；**不含** NSFW/NTL UI（入口在侧栏「成人配置」）；**不含**分片字数；「重置并清空结果」清空章节/人物/世界书草稿/文风等产出，保留原文与分片等配置 |
 | 拆章 | `novel-chapters` | 标题/空行/字数拆分（含本模块单片字数）；顶栏批量；行内图标操作；点标题/预览弹窗看正文；列表内滚 |
 | 角色设定 | `novel-character-setup` | 可从实体库选人；优先 RAG 召回原文，无命中回退字数/章节范围；生成写入当前卡 `charName`/`wbName`/`charDesc`/`creatorNotes` |
 | 开场白 | `novel-greetings` | 同上（实体+RAG / 范围回退）+ 开场白数量；写入 `first_mes` + `alternate_greetings` |
@@ -98,7 +100,7 @@
 - **人物**：用人名 + 别名匹配原文；输出附录 1；未写明字段合理虚构补全（禁止留「原文未提及」）；结果回写实体库。
 - **世界书条目**：用标题 + 触发词匹配原文，扩写 `content`。
 - **落卡**：多人仅首人写 `charName`；YAML 跳过空/占位字段；`syncStatus` 与实体一致；世界书同步合并实体与未入库草稿。
-- **NSFW / NTL（角色设定·全局配置）**：CharacterPanel 为唯一 UI 入口；NSFW 分步补情欲向（`attrs.adult` / NSFW 档案）；NTL 独立补禁忌张力（可只开或叠加）；质量门仅 NSFW 强制身体向门槛。
+- **NSFW / NTL**：侧栏「成人配置」`AdultConfigPanel` 为唯一 UI 入口（见 [`docs/domains/nsfw-ntl.md`](docs/domains/nsfw-ntl.md)）；质量门仅 NSFW 强制身体向门槛。
 - 召回预算默认 **30000** 字（原始资料可改）；超预算按首现 / 共现 / 分散章抽样。
 - UI 点击扩展：**先居中弹窗**展示将使用的原文摘录与字数，确认后才调用；走任务中心，可停。
 - 助手工具（`novel_expand_character` / `novel_expand_worldbook`）直跑并跳过确认弹窗。
@@ -139,7 +141,7 @@ npm run preview
 
 `npm run build` 会生成静态文件到 `dist/`，可直接部署到任意静态 Web 服务。项目当前部署示例使用 Caddy/Nginx 提供静态文件，并保留 `/api/*` 反向代理到本机 API（`:8787`）。
 
-GitHub Actions（push `master`）：主站 `dist-card/` → `/var/www/card`；管理端 `dist-card-admin/` → `/var/www/card-admin`；API → **`/home/st-card-builder/server`**（systemd `st-card-builder-api`）；同机 CouchDB 自动探活拉起。Discord 登录经 API 再跳 authorize，成功后按 `return_to` 回原页。详见 [`docs/production.md`](docs/production.md)。
+GitHub Actions（push `master`）：主站 `dist-card/` → `/var/www/card`；管理端 `dist-card-admin/` → `/var/www/card-admin`；API → **`/home/st-card-builder/server`**（systemd `st-card-builder-api`）；同机 CouchDB 自动探活拉起。登录优先邮箱邀请码（Discord 可关 UI）。详见 [`docs/ops/production.md`](docs/ops/production.md)。
 
 ## AI 接口
 
@@ -188,9 +190,10 @@ npm install --prefix server
 npm run server:dev     # API :8787（Astro 已代理 /api）
 ```
 
-侧栏 **配置 → 账户与同步**：Discord 门禁登录（生产关 `DEV_LOGIN`）；AI 配置内用**同步口令加密**后上传密钥。小说分享见云同步文档。管理端独立站点（`PUBLIC_ADMIN_URL`，运维/只读白名单）。
+侧栏 **配置 → 账户与同步**：邮箱邀请码登录（可关 Discord UI）；**同步口令加密**后上传密钥。小说分享见云同步文档。管理端独立站点（`PUBLIC_ADMIN_URL`，运维/只读白名单）。
 
-- 说明：[`docs/cloud-sync.md`](docs/cloud-sync.md)
-- 生产清单 / 备份：[`docs/production.md`](docs/production.md)、`scripts/backup-couch.sh`
+- 文档索引：[`docs/README.md`](docs/README.md)
+- 认证 / 同步：[`docs/systems/auth.md`](docs/systems/auth.md)、[`docs/systems/cloud-sync.md`](docs/systems/cloud-sync.md)
+- 生产清单 / 备份：[`docs/ops/production.md`](docs/ops/production.md)、`scripts/backup-couch.sh`
 
-架构说明见 [`docs/architecture-and-design.md`](docs/architecture-and-design.md)，快速上手见 [`AGENTS.md`](AGENTS.md)。
+架构总览见 [`docs/architecture/overview.md`](docs/architecture/overview.md)，Agent 契约见 [`AGENTS.md`](AGENTS.md)。
