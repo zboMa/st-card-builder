@@ -27,6 +27,11 @@ export function userDbName(userId) {
   return 'userdb-stcb-' + safe;
 }
 
+/** 浏览器复制用库 URL（PUBLIC_COUCH_URL），勿用本机 COUCHDB_URL */
+export function publicUserDbUrl(dbName) {
+  return String(config.publicCouchUrl || '').replace(/\/$/, '') + '/' + String(dbName || '');
+}
+
 export function couchUserName(userId) {
   return 'stcb_' + String(userId || '')
     .toLowerCase()
@@ -100,7 +105,7 @@ export async function ensureUserDatabase(userId) {
 
   return {
     dbName: dbName,
-    dbUrl: config.couch.url + '/' + dbName,
+    dbUrl: publicUserDbUrl(dbName),
     username: username,
     password: password,
   };

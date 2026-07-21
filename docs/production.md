@@ -36,6 +36,8 @@ ADMIN_BACKUP_ENABLED=false
 PUBLIC_APP_URL=https://card.taojiu.love
 PUBLIC_ADMIN_URL=https://card-admin.taojiu.love
 PUBLIC_API_URL=https://card-api.taojiu.love
+# 浏览器同步用；Nginx 将 /couch/ 反代到本机 Couch。见 deploy/nginx-card-api.conf.example
+PUBLIC_COUCH_URL=https://card-api.taojiu.love/couch
 # Discord Redirect 只登记 API：https://card-api.taojiu.love/api/auth/discord/callback
 # CORS：主站/管理端 Origin 已由 PUBLIC_* 自动加入。CORS_ORIGINS=* 表示放行任意源并反射 Origin（勿指望字面 ACAO:*）。
 # CORS_ORIGINS=*
@@ -60,6 +62,13 @@ COUCH_AUTO_PROVISION=true
 4. 302 回校验过的 `return_to`（须为 PUBLIC_APP_URL / PUBLIC_ADMIN_URL Origin）
 
 > 若 API 主机无法访问 Discord（如国内出网超时），callback 会失败；此时保持 `AUTH_DISCORD_LOGIN_ENABLED=false`，改用邮箱。
+
+## 云同步与 Couch 对外地址
+
+- **服务端**用 `COUCHDB_URL=http://127.0.0.1:5984`（仅本机）
+- **浏览器**用 `PUBLIC_COUCH_URL`（或默认 `{PUBLIC_API_URL}/couch`）
+- `/api/sync/credentials` 返回的 `dbUrl` 必须是浏览器可达地址，**禁止**把 `127.0.0.1` 发给前端
+- Nginx 示例：`deploy/nginx-card-api.conf.example`（`/api/` → `:8787`，`/couch/` → `:5984`）
 
 ## GitHub Actions 部署
 
