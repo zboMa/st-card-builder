@@ -388,19 +388,36 @@ export function bootCardBuilder() {
   window.triggerGlobalUpdate = function() { ctx.save(); };
   window.__getCurrentDraftId__ = function() { return ctx.sm.getCurrentDraftId(); };
   window.__getWorldbookEntries__ = function() {
-    return ctx.state.worldbookEntries.map(function(e) {
-      return {
+    return ctx.state.worldbookEntries.map(function(e, i) {
+      var out = {
+        id: e.id != null ? e.id : i,
         comment: e.comment || '',
         content: e.content || '',
         keys: e.keys || [],
         strategy: e.strategy || 'selective',
-        position: e.position || 4,
-        depth: e.depth || 4,
-        role: e.role || 0,
-        order: e.order || 100,
-        prob: e.prob || 100,
+        position: e.position != null ? e.position : 4,
+        depth: e.depth != null ? e.depth : 4,
+        role: e.role != null ? e.role : 0,
+        order: e.order != null ? e.order : 100,
+        prob: e.prob != null ? e.prob : 100,
         enabled: e.enabled !== false,
       };
+      if (e.secondaryKeys != null) out.secondaryKeys = e.secondaryKeys;
+      if (e.secondary_keys != null) out.secondary_keys = e.secondary_keys;
+      if (e.selectiveLogic != null) out.selectiveLogic = e.selectiveLogic;
+      if (e.group != null) out.group = e.group;
+      if (e.groupWeight != null) out.groupWeight = e.groupWeight;
+      if (e.group_weight != null) out.group_weight = e.group_weight;
+      if (e.groupOverride != null) out.groupOverride = e.groupOverride;
+      if (e.group_override != null) out.group_override = e.group_override;
+      if (e.preventRecursion != null) out.preventRecursion = e.preventRecursion;
+      if (e.prevent_recursion != null) out.prevent_recursion = e.prevent_recursion;
+      if (e.delayUntilRecursion != null) out.delayUntilRecursion = e.delayUntilRecursion;
+      if (e.delay_until_recursion != null) out.delay_until_recursion = e.delay_until_recursion;
+      if (e.useProbability != null) out.useProbability = e.useProbability;
+      if (e.useRegex != null) out.useRegex = e.useRegex;
+      if (e.extensions) out.extensions = e.extensions;
+      return out;
     });
   };
   window.__setWorldbookEntries__ = function(entries) {
@@ -530,6 +547,35 @@ export function bootCardBuilder() {
   window.__isAiAbortError__ = ctx.isTrackedAbort;
   window.__assistantFetchAI__ = ctx.fetchAIContent;
   window.__persistAiConfig__ = saveAIConfig;
+
+  // 试聊：预设消息桥（aiEngine 未就绪时返回 []）
+  window.__getActivePresetMessages__ = function() {
+    if (ctx.panels.aiEngine && typeof ctx.panels.aiEngine.getActivePresetMessages === 'function') {
+      return ctx.panels.aiEngine.getActivePresetMessages();
+    }
+    return [];
+  };
+
+  // 试聊：角色卡字段桥（缺字段用空字符串，不抛错）
+  window.__getChatCharacterPayload__ = function() {
+    var s = ctx.state || {};
+    var domVal = function(id) {
+      var el = document.getElementById(id);
+      return el && el.value != null ? String(el.value) : '';
+    };
+    return {
+      name: s.charName || domVal('charName') || '角色',
+      description: s.charDesc || domVal('charDesc') || '',
+      personality: s.personality != null ? String(s.personality) : '',
+      scenario: s.scenario != null ? String(s.scenario) : '',
+      mesExample: s.mesExample != null ? String(s.mesExample)
+        : (s.mes_example != null ? String(s.mes_example) : ''),
+      systemPrompt: s.systemPrompt != null ? String(s.systemPrompt)
+        : (s.system_prompt != null ? String(s.system_prompt) : ''),
+      creatorNotes: s.creatorNotes || domVal('creatorNotes') || '',
+      firstMes: s.firstMes || domVal('firstMes') || '你好。',
+    };
+  };
 
   window.__assistantCardApi__ = window.__assistantCardApi__ || {};
   window.__assistantCardApi__.exportCheck = function() {

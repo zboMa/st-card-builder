@@ -57,6 +57,22 @@
                 <option value="2000" selected>2000</option>
               </select>
             </div>
+
+            <div class="setting-divider"></div>
+
+            <div class="chat-setting-item">
+              <div class="setting-label-row">
+                <span class="setting-label" title="ST 1.18：最近 N 条">扫描深度 scanDepth</span>
+                <input type="number" id="chatScanDepth" class="token-number-input" value="2" min="0" max="100" step="1" title="ST 1.18：最近 N 条" />
+              </div>
+            </div>
+
+            <div class="chat-setting-item" style="margin-top: 10px;">
+              <div class="setting-label-row">
+                <span class="setting-label" title="替换 {{user}}">用户名</span>
+                <input type="text" id="chatUserName" class="token-number-input" value="User" title="用于 {{user}}" style="width: 7rem; text-align: left;" />
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -72,7 +88,7 @@
     <div id="chatMessages" class="chat-messages">
       <div class="chat-empty-hint">
         <div style="color: var(--color-text-muted); font-size: 0.82rem;">点击「开始试聊」加载开场白</div>
-        <div style="color: var(--color-text-muted); font-size: 0.72rem; margin-top: 4px;">将使用当前角色设定 + 世界书 + 预设进行模拟对话</div>
+        <div style="color: var(--color-text-muted); font-size: 0.72rem; margin-top: 4px;">世界书/正则按 SillyTavern 1.18.0 规则试运行</div>
       </div>
     </div>
   </div>
@@ -761,11 +777,15 @@
   }
 </style>
 
-<script is:inline>
+<script>
+import {
+  buildTrialChatMessages,
+  formatWbTriggerTags,
+  applyDisplayRegex,
+  ST_PARITY_VERSION,
+} from '../lib/chatRuntime/browserChat.mjs';
+
 (function() {
-  
-  
-  
   var chatConversation = document.getElementById('chatConversation');
   var chatMessages = document.getElementById('chatMessages');
   var chatInput = document.getElementById('chatInput');
@@ -786,6 +806,8 @@
   var chatTokenIndicator = document.getElementById('chatTokenIndicator');
   var chatWbTriggerBar = document.getElementById('chatWbTriggerBar');
   var chatWbTriggerList = document.getElementById('chatWbTriggerList');
+  var chatScanDepth = document.getElementById('chatScanDepth');
+  var chatUserName = document.getElementById('chatUserName');
 
   function setChatConfigOpen(open) {
     if (!chatConfigDrawer || !btnChatConfig) return;
@@ -876,16 +898,40 @@
   
   
   function getCurrentCharData() {
+    if (typeof window.__getChatCharacterPayload__ === 'function') {
+      try {
+        var p = window.__getChatCharacterPayload__() || {};
+        return {
+          name: p.name || '角色',
+          description: p.description || '',
+          personality: p.personality || '',
+          scenario: p.scenario || '',
+          mesExample: p.mesExample || p.mes_example || '',
+          systemPrompt: p.systemPrompt || p.system_prompt || '',
+          creatorNotes: p.creatorNotes || '',
+          firstMes: p.firstMes || '你好。',
+        };
+      } catch (err) { /* fall through */ }
+    }
     return {
       name: (document.getElementById('charName') || {}).value || '角色',
       description: (document.getElementById('charDesc') || {}).value || '',
-      firstMes: (document.getElementById('firstMes') || {}).value || '你好。',
+      personality: '',
+      scenario: '',
+      mesExample: '',
+      systemPrompt: '',
       creatorNotes: (document.getElementById('creatorNotes') || {}).value || '',
+      firstMes: (document.getElementById('firstMes') || {}).value || '你好。',
     };
   }
 
   function getWorldbookEntries() {
     if (window.__getWorldbookEntries__) return window.__getWorldbookEntries__();
+    return [];
+  }
+
+  function getRegexScripts() {
+    if (window.__getRegexScripts__) return window.__getRegexScripts__() || [];
     return [];
   }
 
@@ -898,134 +944,68 @@
     return [];
   }
 
-  
-  
-  
-  function detectTriggeredEntries(text) {
-    var entries = getWorldbookEntries();
-    var triggered = [];
-    var allText = text.toLowerCase();
-
-    entries.forEach(function(entry) {
-      if (entry.enabled === false) return;
-      var isTriggered = false;
-      if (entry.strategy === 'constant') {
-        isTriggered = true;
-      } else if (entry.keys && entry.keys.length > 0) {
-        for (var k = 0; k < entry.keys.length; k++) {
-          if (entry.keys[k] && allText.indexOf(entry.keys[k].toLowerCase()) >= 0) {
-            isTriggered = true;
-            break;
-          }
-        }
-      }
-      triggered.push({
-        comment: entry.comment, content: entry.content,
-        strategy: entry.strategy, isTriggered: isTriggered
-      });
-    });
-    return triggered;
+  function getScanDepth() {
+    var n = chatScanDepth ? parseInt(chatScanDepth.value, 10) : 2;
+    return isNaN(n) ? 2 : Math.max(0, n);
   }
 
-  function updateWbTriggerDisplay(allText) {
-    var triggered = detectTriggeredEntries(allText);
-    if (triggered.length === 0) {
-      chatWbTriggerBar.style.display = 'none';
-      chatWbIndicator.textContent = '📖 0';
-      chatWbIndicator.classList.remove('active');
-      return [];
+  function getUserName() {
+    var v = chatUserName && chatUserName.value != null ? String(chatUserName.value).trim() : '';
+    return v || 'User';
+  }
+
+  function getRpCoreText(char) {
+    var name = (char && char.name) || 'Character';
+    if (window.__promptStore__ && typeof window.__promptStore__.applyTemplate === 'function') {
+      try {
+        return window.__promptStore__.applyTemplate(
+          window.__promptStore__.get('chatRpCore'),
+          { charName: name, user: '{{user}}' }
+        ) || '';
+      } catch (e) { /* fall through */ }
     }
-
-    var activeCount = triggered.filter(function(t) { return t.isTriggered; }).length;
-    chatWbIndicator.textContent = '📖 ' + activeCount + '/' + triggered.length;
-    chatWbIndicator.classList.toggle('active', activeCount > 0);
-
-    chatWbTriggerBar.style.display = 'block';
-    chatWbTriggerList.innerHTML = triggered.map(function(t) {
-      return '<span class="wb-trigger-tag ' + (t.isTriggered ? 'active' : 'inactive') + '">'
-        + (t.isTriggered ? '✅ ' : '💤 ') + (t.comment || '未命名')
-        + (t.strategy === 'constant' ? ' [常驻]' : '') + '</span>';
-    }).join('');
-
-    return triggered.filter(function(t) { return t.isTriggered; });
-  }
-
-  
-  
-  
-  function buildMessages(triggeredEntries) {
-    var char = getCurrentCharData();
-    var presetMsgs = getPresetMessages();
-    var messages = [];
-
-    
-    var coreParts = [];
-    var rpCore = (window.__promptStore__ && window.__promptStore__.applyTemplate(
-      window.__promptStore__.get('chatRpCore'),
-      { charName: char.name, user: '{{user}}' }
-    )) || (
-      'Write ' + char.name + '\'s next reply in a fictional roleplay chat between ' + char.name + ' and {{user}}.\n'
+    return (
+      'Write ' + name + '\'s next reply in a fictional roleplay chat between ' + name + ' and {{user}}.\n'
       + 'Write 1 reply only in internet RP style, italicize actions, and avoid quotation marks. '
       + 'Use markdown. Be proactive, creative, and drive the plot and conversation forward. '
       + 'Write at least 1 paragraph, up to 4. Always stay in character and avoid repetition.\n'
       + 'IMPORTANT: 每次回复至少写3-5段，包含详细的动作描写、心理活动、环境描述和对话。不要只回复一句话。'
     );
-    coreParts.push(rpCore);
-    if (char.description) {
-      coreParts.push('[Character: ' + char.name + ']\n' + char.description);
-    }
-    messages.push({ role: 'system', content: coreParts.join('\n\n') });
+  }
 
-    
-    var presetSystem = [];
-    var presetFewShots = [];
-    presetMsgs.forEach(function(msg) {
-      if (msg.role === 'system') presetSystem.push(msg.content);
-      else presetFewShots.push(msg);
+  function updateWbTriggerDisplay(debug) {
+    var triggered = formatWbTriggerTags(debug);
+    if (triggered.length === 0) {
+      chatWbTriggerBar.style.display = 'none';
+      chatWbIndicator.textContent = 'WB 0';
+      chatWbIndicator.classList.remove('active');
+      return [];
+    }
+
+    chatWbIndicator.textContent = 'WB ' + triggered.length;
+    chatWbIndicator.classList.add('active');
+    chatWbTriggerBar.style.display = 'block';
+    chatWbTriggerList.innerHTML = triggered.map(function(t) {
+      return '<span class="wb-trigger-tag active">'
+        + '✅ ' + (t.comment || '未命名')
+        + (t.strategy === 'constant' ? ' [常驻]' : '') + '</span>';
+    }).join('');
+
+    return triggered;
+  }
+
+  function buildTrialMessages() {
+    var char = getCurrentCharData();
+    return buildTrialChatMessages({
+      getChar: getCurrentCharData,
+      getWb: getWorldbookEntries,
+      getRegex: getRegexScripts,
+      getPresets: getPresetMessages,
+      history: chatHistory,
+      scanDepth: getScanDepth(),
+      userName: getUserName(),
+      rpCoreText: getRpCoreText(char),
     });
-    if (presetSystem.length > 0) {
-      messages.push({ role: 'system', content: presetSystem.join('\n\n') });
-    }
-
-    
-    if (triggeredEntries && triggeredEntries.length > 0) {
-      var wbParts = triggeredEntries.map(function(e) {
-        return '[' + (e.comment || '设定') + ']\n' + e.content;
-      });
-      messages.push({ role: 'system', content: '[World Book / Lorebook]\n' + wbParts.join('\n\n') });
-    }
-
-    
-    if (presetFewShots.length > 0) {
-      messages.push({ role: 'system', content: '[Start a new chat]' });
-      presetFewShots.forEach(function(msg) {
-        messages.push({
-          role: msg.role,
-          content: msg.content.replace(/\{\{char\}\}/gi, char.name).replace(/\{\{user\}\}/gi, '{{user}}')
-        });
-      });
-    }
-
-    
-    messages.push({ role: 'system', content: '[Start a new chat]' });
-
-    
-    chatHistory.forEach(function(m) {
-      messages.push({ role: m.role, content: m.content });
-    });
-
-    
-    if (char.creatorNotes) {
-      messages.push({ role: 'system', content: '[Author\'s Note: ' + char.creatorNotes + ']' });
-    }
-    messages.push({
-      role: 'system',
-      content: '[System: Continue the roleplay. Write a detailed response as ' + char.name + '. '
-        + 'Include actions, dialogue, thoughts, and environmental details. '
-        + 'Write at least 3 paragraphs. Stay in character. Do not write as {{user}}.]'
-    });
-
-    return messages;
   }
 
   function estimateTokens(text) {
@@ -1367,26 +1347,33 @@
     chatTypingIndicator.style.display = 'inline';
 
     var char = getCurrentCharData();
+    var userLabel = getUserName();
 
     if (userText) {
       chatHistory.push({ role: 'user', content: userText });
-      renderMessage('user', '{{user}}', userText);
+      renderMessage('user', userLabel, userText);
     }
 
-    var allText = chatHistory.map(function(m) { return m.content; }).join(' ');
-    var triggeredWb = updateWbTriggerDisplay(allText);
-    var messages = buildMessages(triggeredWb);
+    var built = buildTrialMessages();
+    var messages = built.messages;
+    updateWbTriggerDisplay(built.debug);
 
     var totalText = messages.map(function(m) { return m.content; }).join('');
     var tokens = estimateTokens(totalText);
-    chatTokenIndicator.textContent = '🎫 ~' + tokens;
+    chatTokenIndicator.textContent = '~' + tokens + ' tok';
 
-    
     if (chatShowPrompt.checked) {
       chatPromptDebug.style.display = 'block';
+      var activatedComments = ((built.debug && built.debug.activated) || []).map(function(e) {
+        return e.comment || e.id || '?';
+      });
       chatPromptDebug.textContent = messages.map(function(m, i) {
         return '--- [' + i + '] ' + m.role.toUpperCase() + ' (' + m.content.length + '字) ---\n' + m.content;
-      }).join('\n\n') + '\n\n=== 消息数: ' + messages.length + ' | Token: ~' + tokens + ' | max_tokens: ' + (parseInt(chatMaxTokens.value) || 2000) + ' ===';
+      }).join('\n\n')
+        + '\n\n=== ST_PARITY_VERSION: ' + (built.parityVersion || ST_PARITY_VERSION)
+        + ' | activated: ' + (activatedComments.length ? activatedComments.join(', ') : '(none)')
+        + ' | 消息数: ' + messages.length + ' | Token: ~' + tokens
+        + ' | max_tokens: ' + (parseInt(chatMaxTokens.value) || 2000) + ' ===';
     }
 
     var msgDiv = renderMessage('assistant', char.name, '', true);
@@ -1401,7 +1388,6 @@
       var response = await sendToAI(messages, true, chatTask && chatTask.signal);
       var aiText = await streamResponse(response, msgDiv);
 
-      
       if (!aiText || aiText.trim().length === 0) {
         updateLastMessage(msgDiv, '⏳ 流式失败，重试中...', false);
         var r2 = await sendToAI(messages, false, chatTask && chatTask.signal);
@@ -1416,8 +1402,12 @@
 
       if (aiText) {
         var clean = aiText.replace(/\n\n⚠️ \[.*?\]/g, '');
+        // history：prompt 侧（未做 display/markdownOnly 替换），供后续扫描
         chatHistory.push({ role: 'assistant', content: clean });
-        updateWbTriggerDisplay(chatHistory.map(function(m) { return m.content; }).join(' '));
+        var displayText = applyDisplayRegex(clean, getRegexScripts());
+        updateLastMessage(msgDiv, displayText, true);
+        var afterBuilt = buildTrialMessages();
+        updateWbTriggerDisplay(afterBuilt.debug);
       }
       if (center && chatTask) center.succeed(chatTask.id);
     } catch(err) {
@@ -1453,8 +1443,10 @@
 
     var fm = char.firstMes || '（' + char.name + '出现在你面前）';
     chatHistory.push({ role: 'assistant', content: fm });
-    renderMessage('assistant', char.name, fm);
-    updateWbTriggerDisplay(fm);
+    var displayFm = applyDisplayRegex(fm, getRegexScripts());
+    renderMessage('assistant', char.name, displayFm);
+    var startBuilt = buildTrialMessages();
+    updateWbTriggerDisplay(startBuilt.debug);
     chatInput.focus();
   });
 
@@ -1477,10 +1469,10 @@
     chatInputRow.style.display = 'none';
     chatWbTriggerBar.style.display = 'none';
     chatPromptDebug.style.display = 'none';
-    chatWbIndicator.textContent = '📖 0';
+    chatWbIndicator.textContent = 'WB 0';
     chatWbIndicator.classList.remove('active');
-    chatTokenIndicator.textContent = '🎫 ~0';
-    chatMessages.innerHTML = '<div class="chat-empty-hint"><div style="font-size:2rem;margin-bottom:8px;">💬</div><div style="color:var(--color-text-muted);font-size:0.82rem;">点击「▶️ 开始试聊」加载开场白</div><div style="color:var(--color-text-muted);font-size:0.72rem;margin-top:4px;">将使用当前角色设定 + 世界书 + 预设进行模拟对话</div></div>';
+    chatTokenIndicator.textContent = '~0 tok';
+    chatMessages.innerHTML = '<div class="chat-empty-hint"><div style="color:var(--color-text-muted);font-size:0.82rem;">点击「开始试聊」加载开场白</div><div style="color:var(--color-text-muted);font-size:0.72rem;margin-top:4px;">世界书/正则按 SillyTavern 1.18.0 规则试运行</div></div>';
   });
 
   btnChatRegenerate.addEventListener('click', async function() {
