@@ -45,6 +45,17 @@ export function storyReleaseDocId(cardId, novelId) {
   return 'story/' + String(cardId || '').trim() + '/' + String(novelId || '').trim() + '/release';
 }
 
+/** 角色卡当前发布快照 */
+export function cardReleaseDocId(cardId) {
+  return 'card/' + String(cardId || '').trim() + '/release';
+}
+
+/** 角色卡按 character_version 存档 */
+export function cardReleaseVersionDocId(cardId, characterVersion) {
+  var ver = encodeURIComponent(String(characterVersion || '1.0').trim() || '1.0');
+  return 'card/' + String(cardId || '').trim() + '/release/' + ver;
+}
+
 /** 默认同步过滤器：排除 secrets（除非用户显式开启密钥同步） */
 export function buildSyncSelector(includeSecrets) {
   return {

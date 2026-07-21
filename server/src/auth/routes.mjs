@@ -13,6 +13,8 @@ import {
 } from './discord.mjs';
 import { evaluateDiscordMembership, canAcceptDiscordRegistration } from './membership.mjs';
 import { upsertUserRegistry, getUserRegistry } from '../couch.mjs';
+import { issueBearerToken, revokeBearerToken } from './bearer.mjs';
+import { resolveRequestUser } from './requireUser.mjs';
 
 export var authRouter = Router();
 
@@ -83,10 +85,13 @@ authRouter.get('/discord', function(req, res) {
   }
   var state = crypto.randomBytes(16).toString('hex');
   req.session.oauthState = state;
+  var client = String(req.query.client || '');
+  req.session.oauthClient = client === 'st_plugin' ? 'st_plugin' : '';
   res.redirect(discordAuthUrl(state));
 });
 
 authRouter.get('/discord/callback', async function(req, res) {
+  var oauthClient = (req.session && req.session.oauthClient) || '';
   try {
     if (!discordConfigured()) {
       return res.redirect(config.publicAppUrl + '/#auth?error=discord_not_configured');
@@ -99,6 +104,7 @@ authRouter.get('/discord/callback', async function(req, res) {
       return res.redirect(config.publicAppUrl + '/#auth?error=bad_state');
     }
     req.session.oauthState = null;
+    req.session.oauthClient = null;
     var code = String(req.query.code || '');
     if (!code) return res.redirect(config.publicAppUrl + '/#auth?error=no_code');
 
@@ -121,6 +127,13 @@ authRouter.get('/discord/callback', async function(req, res) {
       avatar: me.avatar || null,
     };
     try { await upsertUserRegistry(req.session.user); } catch (e) { console.warn('[auth] registry', e); }
+
+    if (oauthClient === 'st_plugin') {
+      var issued = await issueBearerToken(req.session.user);
+      return res.redirect('/api/auth/plugin-done#token=' + encodeURIComponent(issued.token)
+        + '&expiresAt=' + encodeURIComponent(issued.expiresAt));
+    }
+
     var dest = isAdminUser(req.session.user)
       ? (config.publicAppUrl + '/admin')
       : (config.publicAppUrl + '/#auth?ok=1');
@@ -129,4 +142,33 @@ authRouter.get('/discord/callback', async function(req, res) {
     console.error('[auth/discord/callback]', e);
     res.redirect(config.publicAppUrl + '/#auth?error=callback_failed');
   }
+});
+
+/** 插件登录完成页：把 token postMessage 给 opener */
+authRouter.get('/plugin-done', function(req, res) {
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.send('<!doctype html><meta charset="utf-8"><title>登录完成</title>'
+    + '<p>登录成功，可关闭此窗口返回酒馆。</p>'
+    + '<script>(function(){'
+    + 'var h=location.hash.replace(/^#/,"");'
+    + 'var p=new URLSearchParams(h);'
+    + 'var token=p.get("token")||"";'
+    + 'var expiresAt=p.get("expiresAt")||"";'
+    + 'if(window.opener){try{window.opener.postMessage({type:"stcb-plugin-auth",token:token,expiresAt:expiresAt},"*");}catch(e){}}'
+    + '})();</script>');
+});
+
+authRouter.get('/plugin-me', async function(req, res) {
+  var user = await resolveRequestUser(req);
+  if (!user) return res.status(401).json({ error: 'unauthorized' });
+  res.json({ ok: true, user: user });
+});
+
+authRouter.post('/plugin-logout', async function(req, res) {
+  var hdr = String(req.headers.authorization || '');
+  var m = /^Bearer\s+(.+)$/i.exec(hdr);
+  if (m) {
+    try { await revokeBearerToken(m[1]); } catch (e) { /* ignore */ }
+  }
+  res.json({ ok: true });
 });

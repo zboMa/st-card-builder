@@ -4,25 +4,31 @@
 import express from 'express';
 import cors from 'cors';
 import cookieSession from 'cookie-session';
-import { config } from './config.mjs';
+import { config, corsAllowlist } from './config.mjs';
 import { couchHealth } from './couch.mjs';
 import { authRouter } from './auth/routes.mjs';
 import { syncRouter } from './sync/routes.mjs';
 import { shareRouter } from './share/routes.mjs';
+import { cardShareRouter } from './share/cardRoutes.mjs';
 import { adminRouter } from './admin/routes.mjs';
 
 var app = express();
+var allow = corsAllowlist();
 
 app.set('trust proxy', 1);
 app.use(cors({
   origin: function(origin, cb) {
     if (!origin) return cb(null, true);
-    var allowed = [config.publicAppUrl, 'http://localhost:4321', 'http://127.0.0.1:4321'];
-    cb(null, allowed.indexOf(origin) >= 0);
+    if (allow.indexOf(origin) >= 0) return cb(null, true);
+    // SillyTavern 常见本地端口放宽；生产可再用 CORS_ORIGINS 加源
+    if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin)) {
+      return cb(null, true);
+    }
+    cb(null, false);
   },
   credentials: true,
 }));
-app.use(express.json({ limit: '8mb' }));
+app.use(express.json({ limit: '25mb' }));
 app.use(cookieSession({
   name: 'stcb_sess',
   keys: [config.sessionSecret],
@@ -49,6 +55,7 @@ app.get('/api/health', async function(req, res) {
 
 app.use('/api/auth', authRouter);
 app.use('/api/sync', syncRouter);
+app.use('/api/share/cards', cardShareRouter);
 app.use('/api/share', shareRouter);
 app.use('/api/admin', adminRouter);
 
