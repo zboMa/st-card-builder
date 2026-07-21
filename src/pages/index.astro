@@ -6,9 +6,6 @@ import CharacterPanel from '../components/CharacterPanel.astro';
 import AdultConfigPanel from '../components/AdultConfigPanel.astro';
 import GreetingPanel from '../components/GreetingPanel.astro';
 import WorldbookPanel from '../components/WorldbookPanel.astro';
-import PreviewPanel from '../components/PreviewPanel.astro';
-import ChatPlayground from '../components/ChatPlayground.astro';
-import WorldbookAuditor from '../components/WorldbookAuditor.astro';
 import VariableCardPanel from '../components/VariableCardPanel.astro';
 import StatusBarPanel from '../components/StatusBarPanel.astro';
 import RegexPanel from '../components/RegexPanel.astro';
@@ -86,9 +83,6 @@ import AccountSyncPanel from '../components/AccountSyncPanel.astro';
       <div class="app-view" data-view="story-outline"><StoryOutlinePanel /></div>
       <div class="app-view" data-view="story-write"><StoryWritePanel /></div>
       <div class="app-view" data-view="story-read"><StoryReadPanel /></div>
-      <div class="app-view" data-view="chat"><ChatPlayground /></div>
-      <div class="app-view" data-view="preview"><PreviewPanel /></div>
-      <div class="app-view" data-view="auditor"><WorldbookAuditor /></div>
       <div class="app-view" data-view="account-sync"><AccountSyncPanel /></div>
       <div class="app-view" data-view="ai-config">
         <div class="app-view-slot" data-slot="ai-config"></div>
@@ -110,6 +104,10 @@ import AccountSyncPanel from '../components/AccountSyncPanel.astro';
     /* AI 引擎弹窗挂到 body，避免被主区 overflow 裁切 */
     var modal = document.getElementById('aiEngineModal');
     if (modal) document.body.appendChild(modal);
+    var jsonModal = document.getElementById('jsonPreviewModal');
+    if (jsonModal) document.body.appendChild(jsonModal);
+    var auditModal = document.getElementById('wbAuditorModal');
+    if (auditModal) document.body.appendChild(auditModal);
     var src = document.getElementById('aiPanelSource');
     if (src) src.remove();
   })();

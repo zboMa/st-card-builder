@@ -39,7 +39,6 @@ const EXPECTED_MENU = {
     'story-write',
     'story-read',
   ],
-  '完成制作': ['chat', 'preview', 'auditor'],
   '配置': ['account-sync', 'ai-config', 'prompt-config'],
 };
 
@@ -53,7 +52,7 @@ describe('sidebar navigation contract', function() {
     assert.match(src, /角色卡制作/);
     assert.match(src, /小说/);
     assert.match(src, /小说创作/);
-    assert.match(src, /完成制作/);
+    assert.doesNotMatch(src, /title:\s*'完成制作'/);
     assert.match(src, /配置/);
   });
 
@@ -88,7 +87,7 @@ describe('sidebar navigation contract', function() {
     assert.match(charSrc, /id="saveIndicator"/);
   });
 
-  // 导入在管理页顶栏；导出在每张卡底部；JSON 追踪仅预览
+  // 导入在管理页顶栏；导出在每张卡底部；JSON 追踪入口在角色设定弹窗
   it('导入在角色卡管理顶栏，导出在卡片底部，JSON 追踪无导入导出按钮', function() {
     const mgr = readFileSync(join(root, 'src/components/CardManagerPanel.astro'), 'utf8');
     assert.match(mgr, /id="btnNewDraft"/);
@@ -105,9 +104,14 @@ describe('sidebar navigation contract', function() {
     assert.doesNotMatch(preview, /id="importCardInput"/);
     assert.match(preview, /id="annotatedPreview"/);
     assert.match(preview, /id="toggleAnnotations"/);
+    const charSrc = readFileSync(join(root, 'src/components/CharacterPanel.astro'), 'utf8');
+    assert.match(charSrc, /id="btnOpenJsonPreview"/);
+    assert.match(charSrc, /id="jsonPreviewModal"/);
+    assert.match(charSrc, /JSON 实时追踪/);
     const sidebar = readFileSync(join(root, 'src/components/AppSidebar.astro'), 'utf8');
-    assert.match(sidebar, /JSON 实时追踪/);
-    assert.doesNotMatch(sidebar, /JSON 实时追踪 \/ 导出/);
+    assert.doesNotMatch(sidebar, /JSON 实时追踪/);
+    assert.doesNotMatch(sidebar, /角色试聊/);
+    assert.doesNotMatch(sidebar, /世界书内容监测/);
   });
 
   // 管理页网格渲染与点击切换契约（存储逻辑仍在 index）
@@ -154,8 +158,9 @@ describe('sidebar navigation contract', function() {
     assert.match(charSrc, /char-tags-tip/);
     assert.match(charSrc, /form-section char-tags-section/);
     assert.match(charSrc, /char-tags-add-row/);
-    assert.match(charSrc, /btn btn-sm btn-ai-tag/);
-    assert.match(charSrc, /class="btn btn-sm"/);
+    assert.match(charSrc, /btn-ai-tag/);
+    assert.match(charSrc, /btn-panel-tool btn-ai-tag|btn btn-panel-tool btn-ai-tag/);
+    assert.match(charSrc, /btn btn-meta/);
     assert.doesNotMatch(charSrc, /char-tags-hint/);
     const indexSrc = readFileSync(join(root, 'src/pages/index.astro'), 'utf8');
     assert.match(indexSrc, /charTags/);
@@ -256,16 +261,24 @@ describe('sidebar navigation contract', function() {
     assert.match(layout, /\.wb-strategy-tag\.is-selective/);
   });
 
-  it('完成制作菜单顺序为 试聊→JSON追踪→世界书监测', function() {
+  it('完成制作入口已迁出侧栏：试聊在右栏，JSON/监测在面板弹窗', function() {
     const src = readFileSync(join(root, 'src/components/AppSidebar.astro'), 'utf8');
-    let last = -1;
-    EXPECTED_MENU['完成制作'].forEach(function(viewId) {
-      const idx = sidebarViewIndex(src, viewId);
-      assert.ok(idx > last, 'finish order broken at ' + viewId);
-      last = idx;
-    });
-    assert.match(src, /角色试聊/);
-    assert.match(src, /JSON 实时追踪/);
+    assert.doesNotMatch(src, /title:\s*'完成制作'/);
+    assert.doesNotMatch(src, sidebarViewPattern('chat'));
+    assert.doesNotMatch(src, sidebarViewPattern('preview'));
+    assert.doesNotMatch(src, sidebarViewPattern('auditor'));
+    assert.match(src, /hash === 'chat'/);
+    assert.match(src, /__setAssistantPanelMode__/);
+    assert.match(src, /__openJsonPreviewModal__/);
+    assert.match(src, /__openWbAuditorModal__/);
+    const asst = readFileSync(join(root, 'src/components/AssistantPanel.astro'), 'utf8');
+    assert.match(asst, /assistant-mode-switch/);
+    assert.match(asst, /data-assistant-mode="chat"/);
+    assert.match(asst, /ChatPlayground/);
+    const wb = readFileSync(join(root, 'src/components/WorldbookPanel.astro'), 'utf8');
+    assert.match(wb, /id="btnOpenWbAuditor"/);
+    assert.match(wb, /id="wbAuditorModal"/);
+    assert.match(wb, /WorldbookAuditor/);
   });
 
   it('角色试聊：右上角配置按钮 + 顶部滑出浮层 + flex 占满 + 对话区内滚', function() {
@@ -302,9 +315,12 @@ describe('sidebar navigation contract', function() {
     assert.doesNotMatch(chat, /max-height:\s*600px/);
     assert.doesNotMatch(chat, /max-height:\s*380px/);
     const layout = readFileSync(join(root, 'src/layouts/Layout.astro'), 'utf8');
-    assert.match(layout, /\[data-view="chat"\]\.is-active/);
     assert.match(layout, /\.panel\.chat-playground/);
     assert.match(layout, /\.chat-playground\s+\.chat-conversation/);
+    // 试聊已嵌入右栏，主栏不再挂 chat view
+    const asst = readFileSync(join(root, 'src/components/AssistantPanel.astro'), 'utf8');
+    assert.match(asst, /assistant-chat-host/);
+    assert.match(asst, /ChatPlayground/);
   });
 
   it('小说菜单顺序为 资料→拆章→分析→设定→开场白→人物列表→世界书条目→文风', function() {

@@ -1,13 +1,15 @@
 ---
+import WorldbookAuditor from './WorldbookAuditor.astro';
 ---
 <div class="panel area-worldbook">
   <!-- 标题行右上：小号操作按钮；下方仅搜索 + 列表 -->
   <div class="wb-panel-head">
     <h2>世界书条目</h2>
     <div class="wb-head-actions">
-      <button id="btnOpenWbAiSingle" class="btn btn-ai wb-ai-open-btn" type="button" title="AI 单条生成">单条生成</button>
-      <button id="btnOpenWbAiOrganize" class="btn wb-ai-open-btn" type="button" title="AI 智能整理">智能整理</button>
-      <button id="btnOpenWbAiKeygen" class="btn wb-ai-open-btn" type="button" title="AI 补全触发词">补全触发词</button>
+      <button id="btnOpenWbAuditor" class="btn btn-wb-audit" type="button" title="世界书内容监测">监测</button>
+      <button id="btnOpenWbAiSingle" class="btn btn-panel-tool wb-ai-open-btn" type="button" title="AI 单条生成">单条生成</button>
+      <button id="btnOpenWbAiOrganize" class="btn btn-panel-tool wb-ai-open-btn" type="button" title="AI 智能整理">智能整理</button>
+      <button id="btnOpenWbAiKeygen" class="btn btn-panel-tool wb-ai-open-btn" type="button" title="AI 补全触发词">补全触发词</button>
       <button id="btnCreateEntry" class="btn btn-add wb-entry-create-btn" type="button">新建</button>
     </div>
   </div>
@@ -457,3 +459,43 @@
     }
   }
 </style>
+
+<div id="wbAuditorModal" class="panel-feature-modal" hidden aria-hidden="true">
+  <div class="ui-modal-backdrop" data-wb-auditor-close aria-hidden="true"></div>
+  <div class="ui-modal-dialog panel-feature-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="wbAuditorModalTitle">
+    <div class="panel-feature-modal__head">
+      <h2 id="wbAuditorModalTitle">世界书内容监测</h2>
+      <button type="button" class="btn-icon btn-icon--sm" data-wb-auditor-close aria-label="关闭">×</button>
+    </div>
+    <div class="panel-feature-modal__body">
+      <WorldbookAuditor />
+    </div>
+  </div>
+</div>
+
+<script is:inline>
+(function() {
+  var modal = document.getElementById('wbAuditorModal');
+  if (!modal) return;
+  function openModal() {
+    modal.hidden = false;
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('panel-feature-modal-open');
+  }
+  function closeModal() {
+    modal.hidden = true;
+    modal.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('panel-feature-modal-open');
+  }
+  window.__openWbAuditorModal__ = openModal;
+  window.__closeWbAuditorModal__ = closeModal;
+  var openBtn = document.getElementById('btnOpenWbAuditor');
+  if (openBtn) openBtn.addEventListener('click', openModal);
+  modal.querySelectorAll('[data-wb-auditor-close]').forEach(function(el) {
+    el.addEventListener('click', closeModal);
+  });
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && !modal.hidden) closeModal();
+  });
+})();
+</script>

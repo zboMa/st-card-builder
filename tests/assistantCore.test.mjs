@@ -694,9 +694,11 @@ describe('assistant prompts & UI wiring', function() {
     const wbSrc = readFileSync(join(root, 'src/lib/card-builder/panels/worldbook.mjs'), 'utf8');
     assert.match(wbSrc, /__assistantWbAi__/);
     const layout = readFileSync(join(root, 'src/layouts/Layout.astro'), 'utf8');
-    assert.match(layout, /minmax\(280px,\s*340px\)/);
+    assert.match(layout, /minmax\(300px,\s*380px\)/);
     const panel = readFileSync(join(root, 'src/components/AssistantPanel.astro'), 'utf8');
     assert.match(panel, /assistantPanel/);
+    assert.match(panel, /assistant-mode-switch/);
+    assert.match(panel, /__setAssistantPanelMode__/);
     assert.match(panel, /createToolExecutor/);
     assert.match(panel, /normalizeCharacterPatch|characterFields/);
     assert.match(panel, /CHARACTER_FIELD_HINT/);

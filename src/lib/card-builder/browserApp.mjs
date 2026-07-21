@@ -600,6 +600,12 @@ export function bootCardBuilder() {
     });
   };
   window.__getExportChecklist__ = window.__assistantCardApi__.exportCheck;
+  window.__buildCurrentCardJSON__ = function() {
+    if (ctx.panels.cardManager && typeof ctx.panels.cardManager.generateCardJSON === 'function') {
+      return ctx.panels.cardManager.generateCardJSON();
+    }
+    return null;
+  };
 
   if (!window.__altGreetings__) window.__altGreetings__ = [];
   if (!window.__aiDebugLog__) window.__aiDebugLog__ = [];

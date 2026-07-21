@@ -68,14 +68,6 @@ const GROUPS = [
       { view: 'story-read', label: '阅读', icon: NAV_ICON.book },
     ],
   },
-  {
-    title: '完成制作',
-    items: [
-      { view: 'chat', label: '角色试聊', icon: NAV_ICON.chat },
-      { view: 'preview', label: 'JSON 实时追踪', icon: NAV_ICON.code },
-      { view: 'auditor', label: '世界书内容监测', icon: NAV_ICON.search },
-    ],
-  },
 ];
 
 const CONFIG_ITEMS = [
@@ -228,6 +220,25 @@ const CONFIG_ITEMS = [
       if (hash.indexOf('share/') === 0) return DEFAULT_VIEW;
       if (hash === 'novel') hash = 'novel-source';
       if (hash === 'novel-outputs') hash = 'novel-characters';
+      // 旧深链兼容：试聊进右栏；JSON/监测进对应面板弹窗
+      if (hash === 'chat') {
+        if (typeof window.__setAssistantPanelMode__ === 'function') {
+          setTimeout(function() { window.__setAssistantPanelMode__('chat'); }, 0);
+        }
+        return 'character';
+      }
+      if (hash === 'preview') {
+        if (typeof window.__openJsonPreviewModal__ === 'function') {
+          setTimeout(function() { window.__openJsonPreviewModal__(); }, 0);
+        }
+        return 'character';
+      }
+      if (hash === 'auditor') {
+        if (typeof window.__openWbAuditorModal__ === 'function') {
+          setTimeout(function() { window.__openWbAuditorModal__(); }, 0);
+        }
+        return 'worldbook';
+      }
       if (!hash) return DEFAULT_VIEW;
       var exists = document.querySelector('.app-view[data-view="' + hash + '"]');
       return exists ? hash : DEFAULT_VIEW;
