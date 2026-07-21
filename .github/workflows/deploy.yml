@@ -68,20 +68,20 @@ jobs:
           rsync -az --delete ./dist-card/ ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:/var/temp-card/
           rsync -az --delete ./dist-card-admin/ ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:/var/temp-card-admin/
 
-      - name: Upload server app + deploy assets to $HOME
+      - name: Upload server app + deploy assets to /home/st-card-builder
         run: |
-          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} 'mkdir -p $HOME/st-card-builder/server $HOME/st-card-builder/deploy $HOME/st-card-builder/couch-data'
+          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} 'mkdir -p /home/st-card-builder/server /home/st-card-builder/deploy /home/st-card-builder/couch-data'
           rsync -az --delete \
             --exclude node_modules \
             --exclude .env \
             /tmp/stcb-server-pack/ \
-            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:~/st-card-builder/server/
+            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:/home/st-card-builder/server/
           scp deploy/st-card-builder-api.service \
             deploy/st-card-builder-couch.service \
             deploy/docker-compose.couch.yml \
             deploy/ensure-couch.sh \
-            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:~/st-card-builder/deploy/
-          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} 'chmod +x $HOME/st-card-builder/deploy/ensure-couch.sh'
+            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:/home/st-card-builder/deploy/
+          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} 'chmod +x /home/st-card-builder/deploy/ensure-couch.sh'
 
       - name: Deploy static sites + CouchDB + API on server
         uses: appleboy/ssh-action@master
@@ -105,7 +105,8 @@ jobs:
             deploy_static /var/temp-card /var/www/card
             deploy_static /var/temp-card-admin /var/www/card-admin
 
-            APP_HOME="$HOME/st-card-builder"
+            # 应用目录固定，不跟 SSH 登录用户 $HOME 走（root 部署时仍用 /home/st-card-builder）
+            APP_HOME="/home/st-card-builder"
             SERVER_DIR="$APP_HOME/server"
             DEPLOY_DIR="$APP_HOME/deploy"
 
@@ -115,7 +116,7 @@ jobs:
             fi
 
             DEPLOY_USER="$(id -un)"
-            DEPLOY_HOME="$HOME"
+            DEPLOY_HOME="/home"
 
             install_unit() {
               local src="$1"
