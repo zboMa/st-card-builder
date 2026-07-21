@@ -118,11 +118,13 @@
 }
 
 .auth-login-cta {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
+  width: fit-content;
   min-width: 220px;
+  margin: 0 auto;
   padding: 12px 24px;
   font-size: 0.95rem;
   text-decoration: none;
@@ -173,13 +175,15 @@
 }
 
 .auth-login-back {
-  display: inline-block;
-  margin-top: 28px;
+  display: block;
+  width: fit-content;
+  margin: 20px auto 0;
   font-size: 0.8rem;
   color: var(--color-text-muted);
   text-decoration: none;
   border-bottom: 1px solid transparent;
   transition: color 0.15s ease, border-color 0.15s ease;
+  text-align: center;
 }
 
 .auth-login-back:hover {
