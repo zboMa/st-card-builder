@@ -20,7 +20,8 @@ DISCORD_GUILD_ID=...
 DISCORD_REQUIRED_ROLE_IDS=role1,role2
 SESSION_SECRET=<长随机串>
 COOKIE_SECURE=true          # HTTPS 下必须 true
-ADMIN_DISCORD_IDS=123,456   # 纯数字 Discord 用户雪花 ID
+ADMIN_DISCORD_IDS=            # 纯数字雪花 ID，逗号分隔；只写服务器 .env，勿进 Git
+
 PUBLIC_APP_URL=https://your.domain
 COUCHDB_URL=http://couchdb:5984
 COUCHDB_USER=...
