@@ -206,6 +206,47 @@ export function registerAdultConfig(ctx) {
     });
   }
 
+  function withAppScrollPreserved(fn) {
+    var scroller = document.querySelector('.app-container');
+    var savedScroll = scroller ? scroller.scrollTop : 0;
+    try {
+      fn();
+    } finally {
+      if (scroller) {
+        requestAnimationFrame(function() {
+          requestAnimationFrame(function() {
+            scroller.scrollTop = savedScroll;
+          });
+        });
+      }
+    }
+  }
+
+  function confirmAdultOp(message) {
+    return window.confirm(String(message || '确认执行此操作？'));
+  }
+
+  function labelFlavor(id) {
+    var data = window.__nsfwFlavorData__;
+    var p = data && data.presets && data.presets[id];
+    return (p && p.label) || id;
+  }
+
+  function labelExpression(kind, id) {
+    var data = window.__nsfwFlavorData__;
+    var map = kind === 'speech'
+      ? (data && data.speechPresets)
+      : (data && data.posturePresets);
+    var p = map && map[id];
+    return (p && p.label) || id;
+  }
+
+  function labelNtl(id) {
+    var data = window.__nsfwFlavorData__;
+    var t = data && data.tabooTypes && data.tabooTypes[id];
+    return (t && t.label) || id;
+  }
+
   ctx.panels.adultConfig = {
     buildNsfwFlavorHint: buildNsfwFlavorHint,
     buildPostureHintForPrompt: buildPostureHintForPrompt,
@@ -346,11 +387,16 @@ export function registerAdultConfig(ctx) {
       var items = ensureWorldviewPresetItemsOnState();
       if (items.length >= MAX_WORLDVIEW_PRESET_ITEMS) return;
       if (items.some(function(it) { return it.id === id; })) return;
+      var preset = getWorldviewPreset(id);
+      var lab = (preset && preset.label) || id;
+      if (!confirmAdultOp('添加世界观预设「' + lab + '」？')) return;
       items.push({ id: id, note: '' });
       ctx.state.worldviewPresetItems = items;
       syncWorldframeFromPresets();
-      ctx.panels.adultConfig.renderWorldviewPresetList();
-      ctx.panels.adultConfig.renderWorldframeRow();
+      withAppScrollPreserved(function() {
+        ctx.panels.adultConfig.renderWorldviewPresetList();
+        ctx.panels.adultConfig.renderWorldframeRow();
+      });
       ctx.save();
       if (typeof window.__persistAiConfig__ === 'function') window.__persistAiConfig__();
       window.dispatchEvent(new CustomEvent('nsfw-config-changed', {
@@ -654,6 +700,12 @@ export function registerAdultConfig(ctx) {
     },
 
     renderNsfwBlock: function() {
+      withAppScrollPreserved(function() {
+        ctx.panels.adultConfig._renderNsfwBlockInner();
+      });
+    },
+
+    _renderNsfwBlockInner: function() {
       var data = window.__nsfwFlavorData__;
       var adultEl = document.getElementById('adultNsfwEnabled');
       var ntlEl = document.getElementById('adultNtlEnabled');
@@ -696,6 +748,10 @@ export function registerAdultConfig(ctx) {
         }).join('');
         ntlContainer.querySelectorAll('[data-adult-ntl]').forEach(function(btn) {
           btn.addEventListener('click', function() {
+            var id = btn.getAttribute('data-adult-ntl') || '';
+            var willOn = !btn.classList.contains('active');
+            var lab = labelNtl(id);
+            if (!confirmAdultOp((willOn ? '启用' : '取消') + ' NTL「' + lab + '」？')) return;
             btn.classList.toggle('active');
             btn.setAttribute('aria-pressed', btn.classList.contains('active'));
             ctx.panels.adultConfig.syncNsfwBlockFromUi();
@@ -882,6 +938,7 @@ export function registerAdultConfig(ctx) {
       var items = ctx.panels.adultConfig.readFlavorItemsFromUi();
       if (items.length >= maxFlavorItems()) return;
       if (items.some(function(it) { return it.id === id; })) return;
+      if (!confirmAdultOp('添加口味「' + labelFlavor(id) + '」？')) return;
       items.push({ id: id, note: '' });
       ctx.panels.adultConfig.commitFlavorItems(items);
     },
@@ -889,6 +946,8 @@ export function registerAdultConfig(ctx) {
     removeFlavorItem: function(idx) {
       var items = ctx.panels.adultConfig.readFlavorItemsFromUi();
       if (idx < 0 || idx >= items.length) return;
+      var lab = labelFlavor(items[idx].id);
+      if (!confirmAdultOp('移除口味「' + lab + '」？')) return;
       items.splice(idx, 1);
       ctx.panels.adultConfig.commitFlavorItems(items);
     },
@@ -909,6 +968,8 @@ export function registerAdultConfig(ctx) {
       if (!id) return;
       var items = ctx.panels.adultConfig.readExpressionItemsFromUi(kind);
       if (items.some(function(it) { return it.id === id; })) return;
+      var kindLabel = kind === 'speech' ? '情趣话风' : '姿势语言';
+      if (!confirmAdultOp('添加' + kindLabel + '「' + labelExpression(kind, id) + '」？')) return;
       items.push({ id: id, note: '' });
       ctx.panels.adultConfig.commitExpressionItems(kind, items);
     },
@@ -916,6 +977,9 @@ export function registerAdultConfig(ctx) {
     removeExpressionItem: function(kind, idx) {
       var items = ctx.panels.adultConfig.readExpressionItemsFromUi(kind);
       if (idx < 0 || idx >= items.length) return;
+      var kindLabel = kind === 'speech' ? '情趣话风' : '姿势语言';
+      var lab = labelExpression(kind, items[idx].id);
+      if (!confirmAdultOp('移除' + kindLabel + '「' + lab + '」？')) return;
       items.splice(idx, 1);
       ctx.panels.adultConfig.commitExpressionItems(kind, items);
     },
@@ -1393,8 +1457,24 @@ export function registerAdultConfig(ctx) {
       var posturePicker = document.getElementById('adultPosturePicker');
       var speechList = document.getElementById('adultSpeechList');
       var speechPicker = document.getElementById('adultSpeechPicker');
-      if (adultEl) adultEl.addEventListener('change', ctx.panels.adultConfig.syncNsfwBlockFromUi);
-      if (ntlEl) ntlEl.addEventListener('change', ctx.panels.adultConfig.syncNsfwBlockFromUi);
+      if (adultEl) adultEl.addEventListener('change', function() {
+        var on = !!adultEl.checked;
+        if (!confirmAdultOp(on
+          ? '启用 NSFW？将显示口味 / 姿势语言 / 情趣话风配置。'
+          : '关闭 NSFW？口味与表达层将隐藏（已选项仍保留在卡内）。')) {
+          adultEl.checked = !on;
+          return;
+        }
+        ctx.panels.adultConfig.syncNsfwBlockFromUi();
+      });
+      if (ntlEl) ntlEl.addEventListener('change', function() {
+        var on = !!ntlEl.checked;
+        if (!confirmAdultOp(on ? '启用 NTL 禁忌层？' : '关闭 NTL 禁忌层？已选项仍保留在卡内。')) {
+          ntlEl.checked = !on;
+          return;
+        }
+        ctx.panels.adultConfig.syncNsfwBlockFromUi();
+      });
       if (flavorPicker) {
         flavorPicker.addEventListener('change', function() {
           var id = flavorPicker.value || '';
@@ -1497,6 +1577,9 @@ export function registerAdultConfig(ctx) {
           if (t.hasAttribute('data-wv-remove')) {
             var ri = parseInt(t.getAttribute('data-wv-remove'), 10);
             if (!isNaN(ri) && ri >= 0 && ri < items.length) {
+              var rem = getWorldviewPreset(items[ri].id);
+              var remLab = (rem && rem.label) || items[ri].id;
+              if (!confirmAdultOp('移除世界观预设「' + remLab + '」？')) return;
               items.splice(ri, 1);
               changed = true;
             }
@@ -1520,8 +1603,10 @@ export function registerAdultConfig(ctx) {
           if (!changed) return;
           ctx.state.worldviewPresetItems = items;
           syncWorldframeFromPresets();
-          ctx.panels.adultConfig.renderWorldviewPresetList();
-          ctx.panels.adultConfig.renderWorldframeRow();
+          withAppScrollPreserved(function() {
+            ctx.panels.adultConfig.renderWorldviewPresetList();
+            ctx.panels.adultConfig.renderWorldframeRow();
+          });
           ctx.save();
           if (typeof window.__persistAiConfig__ === 'function') window.__persistAiConfig__();
           window.dispatchEvent(new CustomEvent('nsfw-config-changed', {
@@ -1547,11 +1632,14 @@ export function registerAdultConfig(ctx) {
       var wfSelect = document.getElementById('adultWorldframeSelect');
       if (wfRefresh) {
         wfRefresh.addEventListener('click', function() {
+          if (!confirmAdultOp('重新推断载体框架？将清除手动覆盖，按主预设映射重算。')) return;
           ctx.state.adultWorldframeForced = '';
           syncWorldframeFromPresets();
           var info = inferWorldframeFromCard();
           if (!ctx.state.adultWorldframe) ctx.state.adultWorldframe = info.id;
-          ctx.panels.adultConfig.renderWorldframeRow();
+          withAppScrollPreserved(function() {
+            ctx.panels.adultConfig.renderWorldframeRow();
+          });
           ctx.save();
           if (typeof window.__persistAiConfig__ === 'function') window.__persistAiConfig__();
           window.dispatchEvent(new CustomEvent('nsfw-config-changed', {
@@ -1562,6 +1650,16 @@ export function registerAdultConfig(ctx) {
       if (wfSelect) {
         wfSelect.addEventListener('change', function() {
           var v = wfSelect.value || '';
+          var data = window.__nsfwFlavorData__;
+          var lab = v && data && data.worldframes && data.worldframes[v]
+            ? data.worldframes[v].label
+            : (v || '自动（跟主预设）');
+          if (!confirmAdultOp(v
+            ? '手动锁定载体框架为「' + lab + '」？'
+            : '取消手动覆盖，改回自动跟随主预设？')) {
+            wfSelect.value = ctx.state.adultWorldframeForced || '';
+            return;
+          }
           ctx.state.adultWorldframeForced = v;
           if (v) ctx.state.adultWorldframe = v;
           else {
@@ -1569,7 +1667,9 @@ export function registerAdultConfig(ctx) {
             var info = inferWorldframeFromCard();
             if (!ctx.state.adultWorldframe) ctx.state.adultWorldframe = info.id;
           }
-          ctx.panels.adultConfig.renderWorldframeRow();
+          withAppScrollPreserved(function() {
+            ctx.panels.adultConfig.renderWorldframeRow();
+          });
           ctx.save();
           if (typeof window.__persistAiConfig__ === 'function') window.__persistAiConfig__();
           window.dispatchEvent(new CustomEvent('nsfw-config-changed', {
@@ -1586,10 +1686,14 @@ export function registerAdultConfig(ctx) {
           var idx = parseInt(btn.getAttribute('data-ntl-remove'), 10);
           var items = ctx.panels.adultConfig.readNtlItemsFromUi();
           if (isNaN(idx) || idx < 0 || idx >= items.length) return;
+          var remLab = labelNtl(items[idx].id);
+          if (!confirmAdultOp('移除 NTL「' + remLab + '」？')) return;
           items.splice(idx, 1);
           ctx.state.ntlTabooItems = items;
           ctx.state.ntlTabooTypes = items.map(function(it) { return it.id; });
-          ctx.panels.adultConfig.syncNsfwBlockFromUi();
+          withAppScrollPreserved(function() {
+            ctx.panels.adultConfig.syncNsfwBlockFromUi();
+          });
         });
         ntlList.addEventListener('change', function(e) {
           if (!e.target || !e.target.matches('[data-ntl-note]')) return;
@@ -1606,10 +1710,21 @@ export function registerAdultConfig(ctx) {
       var corrRefresh = document.getElementById('btnRefreshCorruptionTargets');
       var corrGen = document.getElementById('btnGenCorruptionLore');
       if (corrEnabled) corrEnabled.addEventListener('change', function() {
-        ctx.panels.adultConfig.syncCorruptionBlockFromUi();
+        var on = !!corrEnabled.checked;
+        if (!confirmAdultOp(on
+          ? '启用恶堕进度线？将显示阶段与档案生成配置。'
+          : '关闭恶堕进度线？已生成内容仍保留在世界书中。')) {
+          corrEnabled.checked = !on;
+          return;
+        }
+        withAppScrollPreserved(function() {
+          ctx.panels.adultConfig.syncCorruptionBlockFromUi();
+        });
       });
       if (corrPreset) corrPreset.addEventListener('change', function() {
-        ctx.panels.adultConfig.syncCorruptionBlockFromUi();
+        withAppScrollPreserved(function() {
+          ctx.panels.adultConfig.syncCorruptionBlockFromUi();
+        });
       });
       if (corrBrief) corrBrief.addEventListener('change', function() {
         ctx.panels.adultConfig.syncCorruptionBlockFromUi({ skipRender: true });
@@ -1628,21 +1743,28 @@ export function registerAdultConfig(ctx) {
             var presetEl = document.getElementById('adultCorruptionPreset');
             if (presetEl) presetEl.value = 'custom';
           }
-          ctx.panels.adultConfig.syncCorruptionBlockFromUi();
+          withAppScrollPreserved(function() {
+            ctx.panels.adultConfig.syncCorruptionBlockFromUi();
+          });
         });
       }
       if (corrFemale) corrFemale.addEventListener('change', function() {
         ctx.state.corruptionSelectedNames = [];
-        ctx.panels.adultConfig.syncCorruptionBlockFromUi();
+        withAppScrollPreserved(function() {
+          ctx.panels.adultConfig.syncCorruptionBlockFromUi();
+        });
       });
       if (corrSync) corrSync.addEventListener('change', function() {
         ctx.panels.adultConfig.syncCorruptionBlockFromUi({ skipRender: true });
       });
       if (corrRefresh) corrRefresh.addEventListener('click', function() {
-        ctx.panels.adultConfig.renderCorruptionTargets();
+        withAppScrollPreserved(function() {
+          ctx.panels.adultConfig.renderCorruptionTargets();
+        });
         ctx.panels.adultConfig.setCorruptionTip('已刷新角色列表', 'ok');
       });
       if (corrGen) corrGen.addEventListener('click', function() {
+        if (!confirmAdultOp('生成/更新恶堕世界书条目？可能覆盖已有同名条目。')) return;
         ctx.panels.adultConfig.runGenerateCorruptionLore();
       });
       var corrTargets = document.getElementById('adultCorruptionTargets');
