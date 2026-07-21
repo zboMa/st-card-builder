@@ -15,3 +15,14 @@ export {
   mirrorReleaseToPouch,
   removeStoryNovelFromPouch,
 } from './storyMirror.mjs';
+export {
+  mirrorCardDraftToPouch,
+  mirrorCardIndexFromDraftsMap,
+  mirrorNovelWorkshopToPouch,
+  mirrorRagToPouch,
+} from './cardMirror.mjs';
+export {
+  encryptJsonWithPassphrase,
+  decryptJsonWithPassphrase,
+  isEncryptedSecretsDoc,
+} from './secretCrypto.mjs';

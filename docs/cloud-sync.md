@@ -44,9 +44,28 @@ npm run dev            # Astro :4321，/api 代理到 8787
 - **工作稿** `story/{cardId}/{novelId}` 随同步更新，供作者多端编辑。
 - **发布快照** `story/{cardId}/{novelId}/release`：仅用户在「小说管理」点 **增版** 时写入；分享链接**只读 release**，不会暴露开发态草稿。
 - **版号**：完整展示版 = 酒馆 `character_version` + `-` + 小说 `novelVersion`（如 `1.2-3`）。卡版本不另开字段；小说版号仅主动增版时变化，**不用同步时间当版本**。
-- **映射**：公开库 `stcb-public-shares` 文档 `share/{token}` → `{ ownerUserId, cardId, novelId }`。
-- **API**：`POST /api/share/novels`（登录）、`GET /api/share/novels/:token`（公开）、`DELETE /api/share/novels/:token`（登录停用）。
+- **映射**：公开库 `stcb-public-shares` 文档 `share/{token}` → `{ ownerUserId, cardId, novelId, expiresAt? }`。
+- **API**：`POST /api/share/novels`（登录；可 `resetToken` / `expiresInDays`）、`GET /api/share/novels/:token`（公开）、`DELETE /api/share/novels/:token`（登录停用）。
 - **读者入口**：`/#share/{token}` 只渲染阅读壳。
+- **管理 UI**：落后提示（草稿超前于已发布）、重置链接、可选过期天数。
+
+## 密钥加密上云
+
+- AI 配置中填写**同步口令**（≥6）后「加密同步到云端」。
+- 文档形态：`secrets/ai-config` 含 `enc`（PBKDF2 + AES-GCM），**无明文**。
+- 新设备：同步后「拉取并解密」；口令错误则失败，服务端无法代解密。
+
+## 管理端
+
+- 页面：`/admin`（独立于制卡壳）
+- 权限：`ADMIN_DISCORD_IDS`（Discord 雪花 ID 白名单）
+- API：`/api/admin/overview|users|shares|audit`
+- 能力：总览、禁用/启用用户（并轮换 Couch 同步密码）、强制停用分享、审计日志
+- 管理库：`stcb-admin`（用户注册表 + 审计）
+
+## 生产清单
+
+见 [`production.md`](./production.md)。
 
 ## 迁移
 

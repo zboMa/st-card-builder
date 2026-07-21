@@ -224,6 +224,10 @@ function renderManage() {
     var pub = item.publishedDisplayVersion
       ? ('已发布 ' + item.publishedDisplayVersion)
       : '未发布';
+    var stale = item.publishedDisplayVersion
+      && item.publishedDisplayVersion !== workVer
+      ? ' · 草稿已超前'
+      : '';
     var share = item.shareToken ? ' · 分享中' : '';
     return (
       '<div class="ss-novel-item' + active + '" data-novel-id="' + escapeHtml(item.id) + '">'
@@ -231,13 +235,16 @@ function renderManage() {
       + '<strong class="ss-novel-title">' + escapeHtml(item.title || '未命名') + '</strong>'
       + '<span class="ss-novel-meta">' + (item.chapterCount || 0) + ' 章 · '
       + (item.outlineCount || 0) + ' 大纲 · 工作 ' + escapeHtml(workVer)
-      + ' · ' + escapeHtml(pub) + escapeHtml(share) + '</span>'
+      + ' · ' + escapeHtml(pub) + escapeHtml(stale) + escapeHtml(share) + '</span>'
       + '</div>'
       + '<div class="ss-novel-item__actions">'
       + '<button type="button" class="btn btn-sm btn-ghost" data-ss-act="open">打开</button>'
       + '<button type="button" class="btn btn-sm btn-ghost" data-ss-act="rename">重命名</button>'
       + '<button type="button" class="btn btn-sm btn-ghost" data-ss-act="bump" title="把当前草稿固化为分享可见版">增版</button>'
       + '<button type="button" class="btn btn-sm btn-ghost" data-ss-act="share">分享</button>'
+      + (item.shareToken
+        ? '<button type="button" class="btn btn-sm btn-ghost" data-ss-act="reset-share" title="作废旧链接并生成新 token">重置链接</button>'
+        : '')
       + (item.shareToken
         ? '<button type="button" class="btn btn-sm btn-ghost" data-ss-act="unshare">停分享</button>'
         : '')
@@ -574,7 +581,8 @@ async function bumpNovel(novelId) {
   renderAll();
 }
 
-async function shareNovel(novelId) {
+async function shareNovel(novelId, opts) {
+  opts = opts || {};
   var cardId = getCardId();
   var raw = await loadNovel(cardId, novelId);
   if (!raw) {
@@ -586,19 +594,47 @@ async function shareNovel(novelId) {
     setStatus('请先「增版」发布后再分享');
     return;
   }
-  setStatus('创建分享链接…');
+  var charVer = getCharacterVersion();
+  var workVer = buildDisplayVersion(charVer, novel.novelVersion);
+  if (novel.publishedDisplayVersion !== workVer) {
+    if (!window.confirm(
+      '当前草稿版号 ' + workVer + ' 已超前于已发布 ' + novel.publishedDisplayVersion
+      + '。分享仍只展示已发布版。继续？'
+    )) return;
+  }
+  var expiresInDays = undefined;
+  if (!opts.skipExpirePrompt) {
+    var expRaw = window.prompt('可选：链接有效天数（留空=不修改过期设置；填 0=永不过期）', '');
+    if (expRaw === null) return;
+    expRaw = String(expRaw).trim();
+    if (expRaw === '0') expiresInDays = 0;
+    else if (expRaw) {
+      expiresInDays = parseInt(expRaw, 10);
+      if (!Number.isFinite(expiresInDays) || expiresInDays < 0) {
+        setStatus('有效天数无效');
+        return;
+      }
+    }
+  }
+  setStatus(opts.resetToken ? '重置分享链接…' : '创建分享链接…');
   try {
-    // 确保 release 已上云
     try {
       var sync = await import('../sync/syncEngine.mjs');
       await sync.runSync({ refreshCred: true });
     } catch (e) { /* may be offline login */ }
 
-    var data = await apiCreateNovelShare({
+    var payload = {
       cardId: cardId,
       novelId: novelId,
       token: novel.shareToken || '',
-    });
+      resetToken: !!opts.resetToken,
+    };
+    if (expiresInDays === 0) payload.expiresAt = null;
+    else if (typeof expiresInDays === 'number' && expiresInDays > 0) {
+      payload.expiresInDays = expiresInDays;
+    }
+
+    var data = await apiCreateNovelShare(payload);
     novel.shareToken = data.token;
     await saveNovel(cardId, novelId, novel);
     state.catalog = upsertCatalogEntry(state.catalog, novel);
@@ -610,7 +646,8 @@ async function shareNovel(novelId) {
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(url);
-        setStatus('分享链接已复制：' + url);
+        setStatus('分享链接已复制：' + url
+          + (data.expiresAt ? '（到期 ' + data.expiresAt + '）' : ''));
       } else {
         window.prompt('复制分享链接', url);
         setStatus('请复制分享链接');
@@ -914,6 +951,7 @@ function bindEvents() {
       else if (act === 'rename') renameNovel(id);
       else if (act === 'bump') bumpNovel(id);
       else if (act === 'share') shareNovel(id);
+      else if (act === 'reset-share') shareNovel(id, { resetToken: true });
       else if (act === 'unshare') unshareNovel(id);
       else if (act === 'export') exportNovel(id);
       else if (act === 'delete') removeNovel(id);

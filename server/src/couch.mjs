@@ -190,3 +190,142 @@ export async function readOwnerRelease(ownerUserId, cardId, novelId) {
   }
 }
 
+export var ADMIN_DB = 'stcb-admin';
+
+export async function ensureAdminDatabase() {
+  var n = getAdmin();
+  try {
+    await n.db.create(ADMIN_DB);
+  } catch (e) {
+    if (!e || e.statusCode !== 412) throw e;
+  }
+  var db = n.use(ADMIN_DB);
+  try {
+    await db.insert({
+      admins: { names: [], roles: ['_admin'] },
+      members: { names: [], roles: ['_admin'] },
+    }, '_security');
+  } catch (e) { /* ignore */ }
+  return db;
+}
+
+export function registryUserDocId(userId) {
+  return 'user/' + String(userId || '').trim();
+}
+
+export async function upsertUserRegistry(user, extra) {
+  if (!user || !user.id) return null;
+  var db = await ensureAdminDatabase();
+  var id = registryUserDocId(user.id);
+  var existing = null;
+  try { existing = await db.get(id); } catch (e) {
+    if (!e || e.statusCode !== 404) throw e;
+  }
+  var doc = Object.assign({}, existing || {}, {
+    _id: id,
+    type: 'user-registry',
+    userId: user.id,
+    username: user.username || '',
+    displayName: user.displayName || '',
+    provider: user.provider || '',
+    discordId: user.discordId || '',
+    updatedAt: new Date().toISOString(),
+  }, extra || {});
+  if (!existing) doc.createdAt = new Date().toISOString();
+  if (existing && existing.disabled) doc.disabled = true;
+  if (existing && existing._rev) doc._rev = existing._rev;
+  if (!Object.prototype.hasOwnProperty.call(doc, 'disabled')) doc.disabled = false;
+  return db.insert(doc);
+}
+
+export async function getUserRegistry(userId) {
+  var db = await ensureAdminDatabase();
+  try {
+    return await db.get(registryUserDocId(userId));
+  } catch (e) {
+    if (e && e.statusCode === 404) return null;
+    throw e;
+  }
+}
+
+export async function setUserDisabled(userId, disabled, byAdmin) {
+  var db = await ensureAdminDatabase();
+  var id = registryUserDocId(userId);
+  var existing = null;
+  try { existing = await db.get(id); } catch (e) {
+    if (!e || e.statusCode !== 404) throw e;
+  }
+  var doc = Object.assign({}, existing || {
+    _id: id,
+    type: 'user-registry',
+    userId: String(userId),
+    createdAt: new Date().toISOString(),
+  }, {
+    disabled: !!disabled,
+    disabledAt: disabled ? new Date().toISOString() : null,
+    disabledBy: byAdmin || null,
+    updatedAt: new Date().toISOString(),
+  });
+  if (existing && existing._rev) doc._rev = existing._rev;
+  return db.insert(doc);
+}
+
+export async function listUserRegistry(limit) {
+  var db = await ensureAdminDatabase();
+  var res = await db.list({
+    include_docs: true,
+    startkey: 'user/',
+    endkey: 'user/\ufff0',
+    limit: limit || 500,
+  });
+  return (res.rows || []).map(function(r) { return r.doc; }).filter(Boolean);
+}
+
+export async function listShareMappings(limit) {
+  var db = await ensureSharesDatabase();
+  var res = await db.list({
+    include_docs: true,
+    startkey: 'share/',
+    endkey: 'share/\ufff0',
+    limit: limit || 500,
+  });
+  return (res.rows || []).map(function(r) { return r.doc; }).filter(Boolean);
+}
+
+export async function appendAdminAudit(entry) {
+  var db = await ensureAdminDatabase();
+  var id = 'audit/' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+  return db.insert(Object.assign({
+    _id: id,
+    type: 'admin-audit',
+    at: new Date().toISOString(),
+  }, entry || {}));
+}
+
+export async function listAdminAudit(limit) {
+  var db = await ensureAdminDatabase();
+  var res = await db.list({
+    include_docs: true,
+    startkey: 'audit/',
+    endkey: 'audit/\ufff0',
+    descending: true,
+    limit: limit || 100,
+  });
+  return (res.rows || []).map(function(r) { return r.doc; }).filter(Boolean);
+}
+
+export async function countUserDatabases() {
+  var n = getAdmin();
+  var list = await n.db.list();
+  var users = (list || []).filter(function(name) {
+    return String(name).indexOf('userdb-stcb-') === 0;
+  });
+  return users.length;
+}
+
+/** 轮换用户 Couch 密码以踢掉现有复制会话 */
+export async function revokeUserSyncAccess(userId) {
+  return ensureUserDatabase(userId);
+}
+
+

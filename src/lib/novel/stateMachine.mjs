@@ -80,6 +80,12 @@ export function createNovelStateMachine(opts) {
         _debug('stateMachine: localStorage 回退也失败', e);
       }
     });
+    // 双写 Pouch 供云同步
+    if (boundCardId && typeof window !== 'undefined') {
+      import('../sync/cardMirror.mjs').then(function(m) {
+        return m.mirrorNovelWorkshopToPouch(boundCardId, raw);
+      }).catch(function(e) { _debug('stateMachine: pouch mirror', e); });
+    }
   }
 
   function _debouncedSave() {

@@ -9,6 +9,7 @@ import {
   deleteShareMapping,
   readOwnerRelease,
   ensureSharesDatabase,
+  getUserRegistry,
 } from '../couch.mjs';
 import { config } from '../config.mjs';
 
@@ -45,6 +46,27 @@ function shareUrl(token) {
   return config.publicAppUrl + '/#share/' + encodeURIComponent(token);
 }
 
+function isExpired(mapping) {
+  if (!mapping || !mapping.expiresAt) return false;
+  var t = Date.parse(mapping.expiresAt);
+  if (!Number.isFinite(t)) return false;
+  return Date.now() > t;
+}
+
+function parseExpiresAt(body) {
+  if (!body) return null;
+  if (body.expiresAt) {
+    var d = new Date(body.expiresAt);
+    return Number.isFinite(d.getTime()) ? d.toISOString() : null;
+  }
+  if (body.expiresInDays != null && body.expiresInDays !== '') {
+    var days = Number(body.expiresInDays);
+    if (!Number.isFinite(days) || days <= 0) return null;
+    return new Date(Date.now() + days * 86400000).toISOString();
+  }
+  return undefined; // undefined = 不改；null = 清除
+}
+
 /** 创建或复用分享（需已有 release） */
 shareRouter.post('/novels', requireUser, async function(req, res) {
   try {
@@ -53,11 +75,17 @@ shareRouter.post('/novels', requireUser, async function(req, res) {
     var cardId = String(body.cardId || '').trim();
     var novelId = String(body.novelId || '').trim();
     var existingToken = String(body.token || '').trim();
+    var resetToken = !!body.resetToken;
     if (!cardId || !novelId) {
       return res.status(400).json({ error: 'missing_ids' });
     }
 
     var ownerId = req.session.user.id;
+    var reg = await getUserRegistry(ownerId);
+    if (reg && reg.disabled) {
+      return res.status(403).json({ error: 'user_disabled' });
+    }
+
     var release = await readOwnerRelease(ownerId, cardId, novelId);
     if (!release) {
       return res.status(409).json({
@@ -67,9 +95,14 @@ shareRouter.post('/novels', requireUser, async function(req, res) {
     }
 
     var token = existingToken;
-    var mapping = token ? await getShareMapping(token) : null;
+    var mapping = token && !resetToken ? await getShareMapping(token) : null;
     if (mapping && mapping.ownerUserId !== ownerId) {
       return res.status(403).json({ error: 'forbidden' });
+    }
+    if (resetToken && existingToken) {
+      try { await deleteShareMapping(existingToken); } catch (e) { /* ignore */ }
+      mapping = null;
+      token = '';
     }
     if (!mapping) {
       token = genToken();
@@ -93,6 +126,9 @@ shareRouter.post('/novels', requireUser, async function(req, res) {
     );
     mapping.displayVersionHint = String(release.displayVersion || '');
     mapping.updatedAt = new Date().toISOString();
+    var exp = parseExpiresAt(body);
+    if (exp === null) mapping.expiresAt = null;
+    else if (typeof exp === 'string') mapping.expiresAt = exp;
 
     await putShareMapping(mapping);
     var publicPayload = sanitizeReleaseDoc(release);
@@ -102,6 +138,7 @@ shareRouter.post('/novels', requireUser, async function(req, res) {
       url: shareUrl(token),
       displayVersion: publicPayload.displayVersion,
       title: publicPayload.title,
+      expiresAt: mapping.expiresAt || null,
     });
   } catch (e) {
     console.error('[share/create]', e);
@@ -118,6 +155,9 @@ shareRouter.get('/novels/:token', async function(req, res) {
     if (!mapping || mapping.enabled === false) {
       return res.status(404).json({ error: 'not_found' });
     }
+    if (isExpired(mapping)) {
+      return res.status(410).json({ error: 'expired', message: '分享链接已过期' });
+    }
     var release = await readOwnerRelease(mapping.ownerUserId, mapping.cardId, mapping.novelId);
     if (!release) {
       return res.status(404).json({ error: 'release_missing', message: '已分享但尚无发布版' });
@@ -125,6 +165,7 @@ shareRouter.get('/novels/:token', async function(req, res) {
     res.json({
       ok: true,
       token: token,
+      expiresAt: mapping.expiresAt || null,
       novel: sanitizeReleaseDoc(release),
     });
   } catch (e) {

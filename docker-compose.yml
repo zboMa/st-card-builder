@@ -14,5 +14,16 @@ services:
       timeout: 5s
       retries: 10
 
+  # 可选：与静态站同机时取消注释，并挂载 server/.env
+  # api:
+  #   build:
+  #     context: ./server
+  #   env_file: ./server/.env
+  #   ports:
+  #     - "8787:8787"
+  #   depends_on:
+  #     couchdb:
+  #       condition: service_healthy
+
 volumes:
   couchdata:

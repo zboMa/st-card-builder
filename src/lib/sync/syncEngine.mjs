@@ -7,6 +7,7 @@ import { getLocalDb, getDoc, putDoc, getCardDraft, putCardDraft, replicateWithRe
 var timer = null;
 var lastCred = null;
 var lastSyncAt = null;
+var lastSyncError = null;
 var syncing = false;
 var listeners = [];
 
@@ -27,6 +28,7 @@ export function getSyncStatus() {
   return {
     syncing: syncing,
     lastSyncAt: lastSyncAt,
+    lastSyncError: lastSyncError,
     hasCredentials: !!lastCred,
     intervalMs: SYNC_INTERVAL_MS,
   };
@@ -64,6 +66,7 @@ export async function runSync(opts) {
   opts = opts || {};
   if (syncing) return { skipped: true, reason: 'busy' };
   syncing = true;
+  lastSyncError = null;
   emit('start', {});
   try {
     if (!lastCred || opts.refreshCred) {
@@ -78,10 +81,12 @@ export async function runSync(opts) {
     var result = await replicateWithRemote(lastCred, { includeSecrets: includeSecrets });
     await mergePulledCardsIntoLocalStorage();
     lastSyncAt = new Date().toISOString();
+    lastSyncError = null;
     emit('complete', { at: lastSyncAt, result: result });
     return { ok: true, at: lastSyncAt, result: result };
   } catch (e) {
-    emit('error', { message: String(e && e.message || e) });
+    lastSyncError = String(e && e.message || e);
+    emit('error', { message: lastSyncError });
     throw e;
   } finally {
     syncing = false;
@@ -100,13 +105,13 @@ async function mergePulledCardsIntoLocalStorage() {
   for (var i = 0; i < idx.length; i++) {
     var meta = idx[i];
     if (!meta || !meta.id) continue;
-    if (!drafts[meta.id]) {
+    var existing = drafts[meta.id];
+    if (!existing || existing._cloudStub) {
       var full = await getCardDraft(meta.id);
       if (full) {
         drafts[meta.id] = full;
         changed = true;
-      } else {
-        // 仅占位，点开时 ensureCardLocal 再拉
+      } else if (!existing) {
         drafts[meta.id] = {
           draftId: meta.id,
           charName: meta.charName || '（云端）',
