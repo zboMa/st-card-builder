@@ -40,7 +40,7 @@ const EXPECTED_MENU = {
     'story-read',
   ],
   '完成制作': ['chat', 'preview', 'auditor'],
-  '配置': ['ai-config', 'prompt-config'],
+  '配置': ['account-sync', 'ai-config', 'prompt-config'],
 };
 
 describe('sidebar navigation contract', function() {

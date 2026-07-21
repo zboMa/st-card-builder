@@ -25,6 +25,19 @@ import AiEngineModal from './AiEngineModal.astro';
       </div>
     </div>
 
+    <div class="ui-section" id="aiSecretsSyncBox" style="margin:10px 0 12px;padding:10px;border:1px dashed var(--color-border);border-radius:8px;">
+      <div style="font-size:0.8rem;font-weight:600;margin-bottom:6px;">云端密钥同步（默认不同步）</div>
+      <p class="ui-muted" style="font-size:0.75rem;margin:0 0 8px;line-height:1.4;">
+        全局同步不会上传 API Key。仅当你主动操作时，才把密钥写入云端专属文档。
+      </p>
+      <div class="ui-row" style="gap:8px;flex-wrap:wrap;">
+        <button type="button" id="btnUploadAiSecrets" class="btn btn-ghost" style="font-size:0.75rem;">同步密钥到云端</button>
+        <button type="button" id="btnDownloadAiSecrets" class="btn btn-ghost" style="font-size:0.75rem;">从云端拉取密钥</button>
+        <button type="button" id="btnClearCloudAiSecrets" class="btn btn-ghost" style="font-size:0.75rem;">清除云端密钥</button>
+      </div>
+      <div id="aiSecretsSyncTip" class="ui-status-tip" role="status"></div>
+    </div>
+
     <div id="apiUrlHint" style="display:none;margin-bottom:8px;"></div>
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%;margin-bottom:8px;">
@@ -1120,4 +1133,47 @@ import AiEngineModal from './AiEngineModal.astro';
   };
 
 })();
+</script>
+
+<script>
+  import {
+    uploadAiSecretsToCloud,
+    downloadAiSecretsFromCloud,
+    clearCloudAiSecrets,
+  } from '../lib/sync/secrets.mjs';
+
+  function tip(msg) {
+    var el = document.getElementById('aiSecretsSyncTip');
+    if (el) el.textContent = msg || '';
+  }
+
+  document.getElementById('btnUploadAiSecrets')?.addEventListener('click', async function() {
+    tip('上传中…');
+    try {
+      await uploadAiSecretsToCloud();
+      tip('密钥已同步到云端（请确认你信任该服务器）');
+    } catch (e) {
+      tip('失败：' + String(e && e.message || e));
+    }
+  });
+  document.getElementById('btnDownloadAiSecrets')?.addEventListener('click', async function() {
+    tip('拉取中…');
+    try {
+      await downloadAiSecretsFromCloud();
+      tip('已从云端拉取并写入本地；请刷新页面或重新打开 AI 配置以见密钥。');
+      location.reload();
+    } catch (e) {
+      tip('失败：' + String(e && e.message || e));
+    }
+  });
+  document.getElementById('btnClearCloudAiSecrets')?.addEventListener('click', async function() {
+    if (!confirm('确认清除云端密钥文档？本地密钥不会删除。')) return;
+    tip('清除中…');
+    try {
+      await clearCloudAiSecrets();
+      tip('云端密钥已清除');
+    } catch (e) {
+      tip('失败：' + String(e && e.message || e));
+    }
+  });
 </script>

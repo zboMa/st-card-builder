@@ -12,6 +12,7 @@
 - 三栏布局：AppSidebar（左）| 主视图 | AssistantPanel（右）
 - 状态管理无框架：`window.__get*__/__set*__` 桥接 + CustomEvent + localStorage/IndexedDB
 - AI 后端：OpenAI 兼容 Chat Completions API，密钥存 localStorage（明文，用户自管）
+- **云同步（可选）**：Node API + CouchDB（一用户一库）+ 前端 PouchDB；详见 [`docs/cloud-sync.md`](./cloud-sync.md)。API 密钥默认不上云，须在 AI 配置中显式同步。
 
 ---
 

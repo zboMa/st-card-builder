@@ -46,6 +46,14 @@ export function createCardStateMachine(state) {
       if (typeof alert !== 'undefined') alert(tip);
       console.warn('[stateMachine] save failed', e);
     }
+    // 双写 Pouch（供云同步）；失败不阻断本地保存
+    if (saved && typeof window !== 'undefined') {
+      try {
+        import('../sync/index.mjs').then(function(sync) {
+          return sync.upsertLocalCardAndIndex(state.draftId, dr[state.draftId], dr);
+        }).catch(function(err) { console.warn('[sync] pouch upsert', err); });
+      } catch (e2) { /* ignore */ }
+    }
     return { saved: saved, drafts: dr, id: state.draftId };
   }
 
