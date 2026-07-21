@@ -7,6 +7,8 @@ import {
   novelDocId,
   storyNovelDocId,
   storyReleaseDocId,
+  cardReleaseDocId,
+  cardReleaseVersionDocId,
   shouldReplicateDocId,
   buildCardIndexFromDrafts,
 } from '../src/lib/sync/docIds.mjs';
@@ -23,6 +25,8 @@ describe('sync docIds', function() {
     assert.equal(novelDocId('draft_1'), 'novel/draft_1');
     assert.equal(storyNovelDocId('c1', 'n1'), 'story/c1/n1');
     assert.equal(storyReleaseDocId('c1', 'n1'), 'story/c1/n1/release');
+    assert.equal(cardReleaseDocId('c1'), 'card/c1/release');
+    assert.equal(cardReleaseVersionDocId('c1', '2.0'), 'card/c1/release/2.0');
   });
 
   it('secrets 默认不同步', function() {

@@ -37,7 +37,23 @@ npm run dev            # Astro :4321，/api 代理到 8787
 
 ## 文档 ID 前缀
 
-`meta/card-index` · `card/{id}` · `novel/{id}` · `rag/{id}` · `story/{id}/…` · `story/{cardId}/{novelId}/release` · `secrets/ai-config` · `prefs/*`
+`meta/card-index` · `card/{id}` · `card/{id}/release` · `card/{id}/release/{character_version}` · `novel/{id}` · `rag/{id}` · `story/{id}/…` · `story/{cardId}/{novelId}/release` · `secrets/ai-config` · `prefs/*`
+
+## 角色卡分享（登录 + 可选密码）
+
+- **工作稿** `card/{id}` 随同步更新；**不等于**分享可见内容。
+- **发布快照** `card/{id}/release` + 版本档 `card/{id}/release/{character_version}`：仅在「角色卡管理」点 **发布** 时写入（版号 = 酒馆 `character_version`）。
+- **映射**：`stcb-public-shares` 文档 `share/{token}`，`type: card-share` → `{ ownerUserId, cardId, passwordHash?, pngPublic?, expiresAt? }`。
+- **访问规则**：
+  - 信息页 / 版本 JSON：必须登录（Session 或插件 Bearer）+ 可选分享密码。
+  - PNG 直链（作者开启 `pngPublic`）：持链可匿名下载**最新** PNG（内含完整卡数据）。
+- **API**（前缀 `/api/share/cards`）：
+  - `POST /publish`（登录）发布 JSON + 可选 PNG
+  - `POST /`（登录）创建/更新分享；`DELETE /:token` 停分享
+  - `GET /:token`、`GET /:token/versions/:ver/json`（登录 + 密码）
+  - `GET /:token/png`（可选匿名）
+- **插件**：仓库 `extensions/sillytavern-card-share/`；API 固定 `PUBLIC_API_URL`（生产 `https://card-api.taojiu.love`）；登录走 `/api/auth/discord?client=st_plugin` → Bearer。
+- **环境变量**：`PUBLIC_API_URL`（分享链接 Origin）、`CORS_ORIGINS`（额外跨域源；本地 SillyTavern 已默认放宽）。
 
 ## 小说分享（只读链接）
 
