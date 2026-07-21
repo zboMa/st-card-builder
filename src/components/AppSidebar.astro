@@ -214,6 +214,11 @@ const CONFIG_ITEMS = [
           history.replaceState(null, '', '#' + id);
         }
       } catch (e) {}
+      // 各视图共用 .app-container 滚动；切换时置顶，避免停在上一页中部
+      try {
+        var scroller = document.querySelector('.app-container');
+        if (scroller) scroller.scrollTop = 0;
+      } catch (e2) {}
       window.dispatchEvent(new CustomEvent('app-view-changed', { detail: { view: id } }));
     }
     window.__setAppView__ = setActiveView;

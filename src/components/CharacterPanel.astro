@@ -41,6 +41,7 @@
       <input type="text" id="characterVersion" value="1.0" readonly tabindex="-1" title="仅可通过右侧按钮升级；SillyTavern data.character_version" />
       <button type="button" id="btnBumpVersionMajor" class="btn btn-sm btn-ghost" title="大版本 +1，小版本归零">升级大版本</button>
       <button type="button" id="btnBumpVersionMinor" class="btn btn-sm btn-ghost" title="小版本 +1">升级小版本</button>
+      <button type="button" id="btnRevertVersion" class="btn btn-sm btn-ghost" hidden title="恢复到修改前的版本">回退</button>
     </div>
     <span class="ui-hint ui-hint--inline">酒馆字段；发布/分享按此版本固化。不可手改，请用按钮升级。</span>
   </div>
@@ -168,27 +169,87 @@
 
 <script>
   import {
+    normalizeCharacterVersion,
     bumpCharacterVersionMajor,
     bumpCharacterVersionMinor,
   } from '../lib/card-builder/cardRelease.mjs';
 
+  var versionBaseline = '1.0';
+
+  function versionEl() {
+    return document.getElementById('characterVersion');
+  }
+
+  function revertBtn() {
+    return document.getElementById('btnRevertVersion');
+  }
+
+  function syncRevertVisibility() {
+    var el = versionEl();
+    var btn = revertBtn();
+    if (!el || !btn) return;
+    var cur = normalizeCharacterVersion(el.value);
+    btn.hidden = cur === normalizeCharacterVersion(versionBaseline);
+  }
+
+  function captureBaseline() {
+    var el = versionEl();
+    versionBaseline = normalizeCharacterVersion(el && el.value);
+    syncRevertVisibility();
+  }
+
   function applyVersion(next) {
-    var el = document.getElementById('characterVersion');
+    var el = versionEl();
     if (!el) return;
-    el.value = next;
+    el.value = normalizeCharacterVersion(next);
     el.dispatchEvent(new Event('input', { bubbles: true }));
     el.dispatchEvent(new Event('change', { bubbles: true }));
+    syncRevertVisibility();
   }
 
   document.getElementById('btnBumpVersionMajor')?.addEventListener('click', function() {
-    var el = document.getElementById('characterVersion');
-    applyVersion(bumpCharacterVersionMajor(el && el.value));
+    var el = versionEl();
+    var from = normalizeCharacterVersion(el && el.value);
+    var to = bumpCharacterVersionMajor(from);
+    if (!window.confirm('升级大版本：' + from + ' → ' + to + '？\n小版本将归零。')) return;
+    applyVersion(to);
   });
   document.getElementById('btnBumpVersionMinor')?.addEventListener('click', function() {
-    var el = document.getElementById('characterVersion');
-    applyVersion(bumpCharacterVersionMinor(el && el.value));
+    var el = versionEl();
+    var from = normalizeCharacterVersion(el && el.value);
+    var to = bumpCharacterVersionMinor(from);
+    if (!window.confirm('升级小版本：' + from + ' → ' + to + '？')) return;
+    applyVersion(to);
+  });
+  document.getElementById('btnRevertVersion')?.addEventListener('click', function() {
+    var el = versionEl();
+    var cur = normalizeCharacterVersion(el && el.value);
+    var back = normalizeCharacterVersion(versionBaseline);
+    if (cur === back) {
+      syncRevertVisibility();
+      return;
+    }
+    if (!window.confirm('回退版本：' + cur + ' → ' + back + '？')) return;
+    applyVersion(back);
   });
   document.getElementById('btnGotoWorldLimitsFromCharacter')?.addEventListener('click', function() {
     location.hash = 'adult-config';
   });
+
+  // 草稿加载后 input 会被赋值；监听 change 以在外部 setVal 后刷新基准
+  var verInput = versionEl();
+  if (verInput) {
+    verInput.addEventListener('change', function() {
+      // bump/revert 已自行 sync；外部 loadDraft 也会触发 change——若与基准相同则仅刷新显隐
+      syncRevertVisibility();
+    });
+  }
+
+  window.addEventListener('card-draft-changed', function() {
+    // 下一帧读取 DOM（loadDraft 先写 state 再写 input）
+    // 仅在切换/加载草稿时重置基准，避免离开角色页再回来后丢失「回退」能力
+    setTimeout(captureBaseline, 0);
+  });
+
+  captureBaseline();
 </script>

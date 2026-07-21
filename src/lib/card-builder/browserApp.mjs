@@ -611,7 +611,12 @@ export function bootCardBuilder() {
     await ensureFn();
     var lastId = localStorage.getItem('st_v3_builder_current_id');
     if (lastId && ctx.sm.getAllDrafts()[lastId]) {
-      ctx.sm.loadDraftIntoState(lastId);
+      // 完整 loadDraft：同步 DOM（含 characterVersion）并派发 card-draft-changed，供版本回退基准捕获
+      if (ctx.panels.cardManager && typeof ctx.panels.cardManager.loadDraft === 'function') {
+        ctx.panels.cardManager.loadDraft(lastId);
+      } else {
+        ctx.sm.loadDraftIntoState(lastId);
+      }
     }
     if (ctx.panels.cardManager && ctx.panels.cardManager.updateCardManagerUI) {
       ctx.panels.cardManager.updateCardManagerUI();
