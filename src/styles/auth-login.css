@@ -1,5 +1,6 @@
 /* 未登录门禁：主站账户区 / 管理端共用 */
 
+.auth-login-screen[hidden],
 .auth-login-screen [hidden] {
   display: none !important;
 }

@@ -255,6 +255,19 @@ const { title } = Astro.props;
         min-width: 0;
         flex: 1;
       }
+      .app-sidebar-sync-eta {
+        flex-shrink: 0;
+        margin-left: 4px;
+        font-size: 0.72rem;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: 0.02em;
+        color: oklch(72% 0.16 145);
+        line-height: 1;
+      }
+      .app-sidebar-sync-eta[hidden] {
+        display: none !important;
+      }
       .app-sidebar-item:hover {
         color: var(--color-text);
         background: var(--color-accent-soft);

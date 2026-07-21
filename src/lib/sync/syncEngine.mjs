@@ -9,6 +9,8 @@ var timer = null;
 var lastCred = null;
 var lastSyncAt = null;
 var lastSyncError = null;
+var nextSyncAt = null;
+var autoSyncEnabled = false;
 var syncing = false;
 var listeners = [];
 
@@ -30,9 +32,37 @@ export function getSyncStatus() {
     syncing: syncing,
     lastSyncAt: lastSyncAt,
     lastSyncError: lastSyncError,
+    nextSyncAt: nextSyncAt,
+    autoSyncEnabled: autoSyncEnabled,
     hasCredentials: !!lastCred,
     intervalMs: SYNC_INTERVAL_MS,
   };
+}
+
+/** 距下次自动同步剩余毫秒；未调度返回 null */
+export function getMsUntilNextSync() {
+  if (!autoSyncEnabled || nextSyncAt == null) return null;
+  return Math.max(0, nextSyncAt - Date.now());
+}
+
+export function formatSyncCountdown(ms) {
+  if (ms == null || !Number.isFinite(ms)) return '';
+  var total = Math.max(0, Math.ceil(ms / 1000));
+  var m = Math.floor(total / 60);
+  var s = total % 60;
+  return m + ':' + String(s).padStart(2, '0');
+}
+
+export function friendlySyncError(err) {
+  var s = String(err && err.message || err || '');
+  if (/Class extends|is not a constructor|import_events|EventEmitter/i.test(s)) {
+    return '本地同步组件加载失败，请硬刷新页面后重试';
+  }
+  if (/unauthorized/i.test(s)) return '登录已失效，请重新登录';
+  if (/credentials_failed/i.test(s)) return '无法获取同步凭证，请稍后重试';
+  if (/Failed to fetch|NetworkError|network/i.test(s)) return '网络异常，请检查连接后重试';
+  if (s.length > 140) return s.slice(0, 140) + '…';
+  return s || '同步失败';
 }
 
 export async function fetchAuthStatus() {
@@ -83,7 +113,8 @@ export async function runSync(opts) {
     await mergePulledCardsIntoLocalStorage();
     lastSyncAt = new Date().toISOString();
     lastSyncError = null;
-    emit('complete', { at: lastSyncAt, result: result });
+    if (autoSyncEnabled) armAutoSyncTimer();
+    emit('complete', { at: lastSyncAt, result: result, nextSyncAt: nextSyncAt });
     return { ok: true, at: lastSyncAt, result: result };
   } catch (e) {
     lastSyncError = String(e && e.message || e);
@@ -129,20 +160,34 @@ async function mergePulledCardsIntoLocalStorage() {
   }
 }
 
-export function startAutoSync() {
-  stopAutoSync();
+function clearAutoSyncTimerOnly() {
+  if (timer) {
+    clearInterval(timer);
+    timer = null;
+  }
+}
+
+function armAutoSyncTimer() {
+  clearAutoSyncTimerOnly();
+  nextSyncAt = Date.now() + SYNC_INTERVAL_MS;
   timer = setInterval(function() {
     runSync({}).catch(function(e) {
       console.warn('[sync] auto', e);
     });
   }, SYNC_INTERVAL_MS);
+  emit('schedule', { nextSyncAt: nextSyncAt });
+}
+
+export function startAutoSync() {
+  autoSyncEnabled = true;
+  armAutoSyncTimer();
 }
 
 export function stopAutoSync() {
-  if (timer) {
-    clearInterval(timer);
-    timer = null;
-  }
+  autoSyncEnabled = false;
+  clearAutoSyncTimerOnly();
+  nextSyncAt = null;
+  emit('schedule', { nextSyncAt: null });
 }
 
 /**

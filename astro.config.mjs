@@ -2,6 +2,14 @@ import { defineConfig } from 'astro/config';
 
 export default defineConfig({
   vite: {
+    define: {
+      global: 'globalThis',
+    },
+    resolve: {
+      alias: {
+        events: 'events',
+      },
+    },
     server: {
       proxy: {
         '/api': {
@@ -11,7 +19,7 @@ export default defineConfig({
       },
     },
     optimizeDeps: {
-      include: ['pouchdb-browser'],
+      include: ['pouchdb-browser', 'events'],
     },
   },
 });
