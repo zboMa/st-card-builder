@@ -64,7 +64,16 @@ function setStatus(msg) {
   state.status = String(msg || '');
   ['ssManageStatus', 'ssGraphStatus', 'ssOutlineStatus', 'ssWriteStatus', 'ssReadStatus'].forEach(function(id) {
     var el = $(id);
-    if (el) el.textContent = state.status;
+    if (!el) return;
+    el.textContent = state.status;
+    if (id === 'ssManageStatus') {
+      if (state.status) {
+        el.hidden = false;
+        el.style.display = '';
+      } else {
+        el.hidden = true;
+      }
+    }
   });
 }
 
@@ -209,11 +218,38 @@ function escapeHtml(s) {
     .replace(/"/g, '&quot;');
 }
 
+function buildNovelActionsHtml(item) {
+  function iconBtn(act, label, extraClass, svg) {
+    var cls = 'btn-icon btn-icon--sm ss-novel-icon' + (extraClass ? ' ' + extraClass : '');
+    return '<button type="button" class="' + cls + '" data-ss-act="' + act
+      + '" title="' + label + '" aria-label="' + label + '">' + svg + '</button>';
+  }
+  function textBtn(act, label, title) {
+    return '<button type="button" class="btn btn-sm btn-ghost ss-novel-share-btn" data-ss-act="'
+      + act + '"' + (title ? ' title="' + title + '"' : '') + '>' + label + '</button>';
+  }
+  var renameSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M15.5 5.5l3 3L8 19l-4 1 1-4 10.5-10.5z"/></svg>';
+  var exportSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="M8 11l4 4 4-4"/><path d="M5 19h14"/></svg>';
+  var deleteSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><path d="M10 11v6M14 11v6"/><path d="M7 7l1 12a1 1 0 0 0 1 .9h6a1 1 0 0 0 1-.9l1-12"/></svg>';
+  return ''
+    + '<div class="ss-novel-item__actions-group">'
+    + iconBtn('rename', '重命名', '', renameSvg)
+    + iconBtn('export', '导出 TXT', 'ss-novel-icon--export', exportSvg)
+    + iconBtn('delete', '删除', 'ss-novel-icon--danger btn-icon--danger', deleteSvg)
+    + '</div>'
+    + '<div class="ss-novel-item__share">'
+    + textBtn('bump', '增版', '把当前草稿固化为分享可见版')
+    + textBtn('share', '分享')
+    + (item.shareToken ? textBtn('reset-share', '重置链接', '作废旧链接并生成新 token') : '')
+    + (item.shareToken ? textBtn('unshare', '停分享') : '')
+    + '</div>';
+}
+
 function renderManage() {
   var list = $('ssNovelList');
   if (!list) return;
   if (!state.catalog.length) {
-    list.innerHTML = '<div class="ss-empty">尚无小说。点击「新建小说」开始。</div>';
+    list.innerHTML = '<p class="ss-empty ss-empty--panel">尚无小说。点击右上角「新建」开始。</p>';
     return;
   }
   var activeId = state.novel ? state.novel.id : '';
@@ -231,25 +267,14 @@ function renderManage() {
     var share = item.shareToken ? ' · 分享中' : '';
     return (
       '<div class="ss-novel-item' + active + '" data-novel-id="' + escapeHtml(item.id) + '">'
-      + '<div class="ss-novel-item__main">'
+      + '<div class="ss-novel-item__main" data-ss-act="open" role="button" tabindex="0" title="打开">'
       + '<strong class="ss-novel-title">' + escapeHtml(item.title || '未命名') + '</strong>'
       + '<span class="ss-novel-meta">' + (item.chapterCount || 0) + ' 章 · '
       + (item.outlineCount || 0) + ' 大纲 · 工作 ' + escapeHtml(workVer)
       + ' · ' + escapeHtml(pub) + escapeHtml(stale) + escapeHtml(share) + '</span>'
       + '</div>'
       + '<div class="ss-novel-item__actions">'
-      + '<button type="button" class="btn btn-sm btn-ghost" data-ss-act="open">打开</button>'
-      + '<button type="button" class="btn btn-sm btn-ghost" data-ss-act="rename">重命名</button>'
-      + '<button type="button" class="btn btn-sm btn-ghost" data-ss-act="bump" title="把当前草稿固化为分享可见版">增版</button>'
-      + '<button type="button" class="btn btn-sm btn-ghost" data-ss-act="share">分享</button>'
-      + (item.shareToken
-        ? '<button type="button" class="btn btn-sm btn-ghost" data-ss-act="reset-share" title="作废旧链接并生成新 token">重置链接</button>'
-        : '')
-      + (item.shareToken
-        ? '<button type="button" class="btn btn-sm btn-ghost" data-ss-act="unshare">停分享</button>'
-        : '')
-      + '<button type="button" class="btn btn-sm btn-ghost" data-ss-act="export">导出 TXT</button>'
-      + '<button type="button" class="btn btn-sm btn-delete" data-ss-act="delete">删除</button>'
+      + buildNovelActionsHtml(item)
       + '</div></div>'
     );
   }).join('');
@@ -955,6 +980,15 @@ function bindEvents() {
       else if (act === 'unshare') unshareNovel(id);
       else if (act === 'export') exportNovel(id);
       else if (act === 'delete') removeNovel(id);
+    });
+    list.addEventListener('keydown', function(ev) {
+      if (ev.key !== 'Enter' && ev.key !== ' ') return;
+      var main = ev.target.closest('.ss-novel-item__main[data-ss-act="open"]');
+      if (!main) return;
+      ev.preventDefault();
+      var item = main.closest('[data-novel-id]');
+      if (!item) return;
+      openNovel(item.getAttribute('data-novel-id'));
     });
   }
 

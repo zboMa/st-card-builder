@@ -19,6 +19,8 @@ describe('promptCatalogBrowser', function() {
     assert.ok(ids.indexOf('__catalog_speech__') >= 0);
     assert.ok(ids.indexOf('__catalog_ntl__') >= 0);
     assert.ok(ids.indexOf('__catalog_corruption__') >= 0);
+    var corrTab = PROMPT_CATALOG_TAB_META.find(function(t) { return t.id === '__catalog_corruption__'; });
+    assert.equal(corrTab.label, '恶堕目录');
     assert.ok(ids.indexOf('__catalog_worldview__') >= 0);
   });
 
