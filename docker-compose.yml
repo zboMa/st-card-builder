@@ -1,6 +1,7 @@
 services:
   couchdb:
-    image: couchdb:3.4
+    # 与生产一致：DaoCloud 代理，减轻国内直连 Docker Hub 超时
+    image: docker.m.daocloud.io/library/couchdb:3.4
     ports:
       - "5984:5984"
     environment:

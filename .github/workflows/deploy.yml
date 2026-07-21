@@ -90,6 +90,8 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           port: ${{ secrets.SSH_PORT }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          # 首次拉 Couch 镜像可能较久（即使已用国内代理）
+          command_timeout: 30m
           script: |
             set -euo pipefail
 

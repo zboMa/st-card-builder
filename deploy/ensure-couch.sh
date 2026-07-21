@@ -112,6 +112,18 @@ COMPOSE="$(compose_cmd "$DBIN")" || {
 echo "[couch] 使用 Docker 拉起：$COMPOSE -f deploy/docker-compose.couch.yml"
 mkdir -p "$COUCH_DATA"
 export COUCHDB_USER COUCHDB_PASSWORD
+
+# 先显式 pull（国内代理镜像，见 docker-compose.couch.yml），避免 up 时静默卡死
+COUCH_IMAGE="$(
+  awk '
+    $1 == "image:" { print $2; exit }
+  ' "$COMPOSE_FILE"
+)"
+COUCH_IMAGE="${COUCH_IMAGE:-docker.m.daocloud.io/library/couchdb:3.4}"
+echo "[couch] 预拉镜像：$COUCH_IMAGE"
+# shellcheck disable=SC2086
+$DBIN pull "$COUCH_IMAGE"
+
 # shellcheck disable=SC2086
 $COMPOSE --project-directory "$APP_HOME" -f "$COMPOSE_FILE" up -d
 
