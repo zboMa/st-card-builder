@@ -17,6 +17,20 @@
 
   <div id="importStatusBar" class="card-manager-import-status" style="display:none;"></div>
 
+  <div class="card-manager-filters" id="cardManagerFilters">
+    <div class="card-manager-filter-search">
+      <input type="search" id="cardManagerSearch" placeholder="搜索角色名…" autocomplete="off" aria-label="搜索角色卡" />
+    </div>
+    <div class="card-manager-tag-bar" id="cardManagerTagBar">
+      <button type="button" id="btnCardTagPicker" class="card-manager-tag-picker-btn" title="多选标签筛选" aria-label="打开标签筛选" aria-haspopup="listbox" aria-expanded="false">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M20.6 13.1 12.7 21a2 2 0 0 1-2.8 0L3 14.1V4h10.1l7.5 7.5a2 2 0 0 1 0 1.6z"/><circle cx="7.5" cy="8.5" r="1.2"/></svg>
+      </button>
+      <div class="card-manager-tag-scroll" id="cardManagerTagScroll" aria-label="标签筛选"></div>
+      <button type="button" id="btnCardTagClear" class="card-manager-tag-clear" hidden>清除筛选</button>
+    </div>
+    <div id="cardManagerTagPopup" class="card-manager-tag-popup" hidden role="listbox" aria-multiselectable="true" aria-label="全部标签"></div>
+  </div>
+
   <div id="exportChecklistBox" class="export-checklist-bar" hidden>
     <div class="export-checklist-bar__main">
       <span class="export-checklist-bar__label">导出前检查</span>
@@ -300,9 +314,6 @@
   }
 
   .card-manager-badge {
-    position: absolute;
-    top: 8px;
-    right: 8px;
     padding: 2px 7px;
     font-size: 0.65rem;
     font-weight: 600;
@@ -310,6 +321,27 @@
     background: var(--color-paper-deep);
     border: 1px solid oklch(72% 0.14 155 / 0.4);
     border-radius: var(--radius-sm);
+  }
+
+  .card-manager-cover-badges {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    z-index: 1;
+  }
+
+  .card-manager-version-badge {
+    padding: 2px 7px;
+    font-size: 0.65rem;
+    font-weight: 650;
+    color: var(--color-text-secondary);
+    background: var(--color-paper-deep);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-sm);
+    font-variant-numeric: tabular-nums;
   }
 
   .card-manager-item-main {
@@ -336,8 +368,7 @@
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    justify-content: space-between;
-    gap: var(--space-1);
+    gap: 4px;
     padding: var(--space-1) var(--space-2) var(--space-2);
     border-top: 1px solid var(--color-border-subtle);
     background: var(--color-surface-inset);
@@ -351,16 +382,114 @@
   }
 
   .card-manager-item-share {
-    flex: 1 1 100%;
     display: flex;
     flex-wrap: wrap;
+    align-items: center;
     gap: 4px;
-    margin-top: 2px;
+    margin-left: auto;
   }
 
   .card-mgr-share-btn {
     font-size: 0.68rem;
     padding: 2px 6px;
+  }
+
+  .card-manager-filters {
+    position: relative;
+    margin-bottom: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .card-manager-filter-search input {
+    width: 100%;
+    margin: 0;
+    padding: 7px 10px;
+    font-size: 0.8rem;
+  }
+  .card-manager-tag-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+  }
+  .card-manager-tag-picker-btn {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    display: grid;
+    place-items: center;
+    border-radius: 8px;
+    border: 1px solid var(--color-border-subtle);
+    background: var(--color-surface-elevated);
+    color: var(--color-text-secondary);
+    cursor: pointer;
+  }
+  .card-manager-tag-picker-btn:hover,
+  .card-manager-tag-picker-btn[aria-expanded="true"] {
+    border-color: var(--color-accent-border);
+    color: var(--color-accent);
+  }
+  .card-manager-tag-scroll {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    overflow-x: auto;
+    min-width: 0;
+    flex: 1;
+    padding: 2px 0;
+    scrollbar-width: thin;
+  }
+  .card-manager-tag-chip {
+    flex-shrink: 0;
+    border: 1px solid var(--color-border-subtle);
+    background: var(--color-surface-inset);
+    color: var(--color-text-muted);
+    border-radius: 999px;
+    padding: 3px 10px;
+    font-size: 0.7rem;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .card-manager-tag-chip.is-active {
+    border-color: var(--color-accent-border);
+    background: var(--color-accent-soft);
+    color: var(--color-accent-hover);
+  }
+  .card-manager-tag-clear {
+    flex-shrink: 0;
+    border: none;
+    background: transparent;
+    color: var(--color-text-muted);
+    font-size: 0.7rem;
+    cursor: pointer;
+    text-decoration: underline;
+    padding: 0 2px;
+  }
+  .card-manager-tag-popup {
+    position: absolute;
+    left: 0;
+    top: calc(100% + 4px);
+    z-index: 30;
+    width: min(320px, 100%);
+    max-height: 240px;
+    overflow: auto;
+    padding: 8px;
+    border-radius: 10px;
+    border: 1px solid var(--color-accent-border);
+    background: var(--color-surface-elevated);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .card-manager-tag-popup[hidden] {
+    display: none !important;
+  }
+  .card-manager-tag-popup-empty {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    padding: 8px;
   }
 
   .card-manager-import-status.is-error {

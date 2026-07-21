@@ -10,6 +10,7 @@ import {
   formatTokenCount,
   formatAssistantContextLabel,
   formatAssistantContextTitle,
+  buildAssistantContextSections,
 } from '../src/lib/assistant/tokenEstimate.mjs';
 
 describe('tokenEstimate', function() {
@@ -62,5 +63,19 @@ describe('tokenEstimate', function() {
     assert.match(title, /系统: 100/);
     assert.match(title, /历史: 200/);
     assert.match(title, /待发送: 50/);
+  });
+
+  it('buildAssistantContextSections 分区', function() {
+    var secs = buildAssistantContextSections({
+      systemPrompt: 'sys',
+      toolList: 'tools',
+      pendingInput: 'hi',
+      historyMessages: [{ role: 'user', content: 'a' }],
+    });
+    var ids = secs.map(function(s) { return s.id; });
+    assert.ok(ids.indexOf('system') >= 0);
+    assert.ok(ids.indexOf('tools') >= 0);
+    assert.ok(ids.indexOf('history') >= 0);
+    assert.ok(ids.indexOf('pending') >= 0);
   });
 });

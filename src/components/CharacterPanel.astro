@@ -36,9 +36,13 @@
   </div>
 
   <div class="form-group">
-    <label>卡片版本 (character_version)</label>
-    <input type="text" id="characterVersion" placeholder="1.0" value="1.0" title="SillyTavern data.character_version；小说分享版号前缀" />
-    <span class="ui-hint ui-hint--inline">酒馆字段；小说分享完整版号为「卡版本-小说版本」，需主动增版后才更新分享可见内容</span>
+    <label for="characterVersion">卡片版本 (character_version)</label>
+    <div class="character-version-row">
+      <input type="text" id="characterVersion" value="1.0" readonly tabindex="-1" title="仅可通过右侧按钮升级；SillyTavern data.character_version" />
+      <button type="button" id="btnBumpVersionMajor" class="btn btn-sm btn-ghost" title="大版本 +1，小版本归零">升级大版本</button>
+      <button type="button" id="btnBumpVersionMinor" class="btn btn-sm btn-ghost" title="小版本 +1">升级小版本</button>
+    </div>
+    <span class="ui-hint ui-hint--inline">酒馆字段；发布/分享按此版本固化。不可手改，请用按钮升级。</span>
   </div>
 
   <!-- 角色标签：对接 ST tags / data.tags -->
@@ -58,7 +62,13 @@
     <span id="charTagsAiTip" class="ui-status-tip char-tags-ai-tip" role="status" aria-live="polite"></span>
   </div>
 
-  <p class="ui-hint character-adult-hint">本页只编辑<strong>主角</strong>设定。世界观预设 / 载体框架 / NSFW / NTL / 恶堕请到侧栏「世界与限定」。</p>
+  <div class="character-adult-hint-block">
+    <p class="ui-hint character-adult-hint">
+      本页只编辑<strong>主角</strong>卡面字段（名、描述、标签、版本等），不会写入世界书人物档案。
+      世界观预设、载体框架、口味、姿势语言、情趣话风、NTL、恶堕请到「世界与限定」配置——那些内容不进主角 Description。
+    </p>
+    <button type="button" id="btnGotoWorldLimitsFromCharacter" class="ai-engine-link-btn">去「世界与限定」配置</button>
+  </div>
 
   <hr class="divider" />
 
@@ -87,6 +97,44 @@
   .character-adult-hint {
     margin: 4px 0 0;
     line-height: 1.45;
+  }
+  .character-adult-hint-block {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    margin: 4px 0 0;
+  }
+  .character-version-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+  .character-version-row #characterVersion {
+    flex: 0 1 120px;
+    min-width: 88px;
+    max-width: 160px;
+    opacity: 0.92;
+    cursor: default;
+  }
+  .character-version-row .btn {
+    width: auto;
+    min-width: 0;
+    margin: 0;
+    padding: 6px 10px;
+    font-size: 0.78rem;
+  }
+  /* 与 AI 引擎跳转按钮同款 */
+  .ai-engine-link-btn {
+    font-size: 0.68rem;
+    padding: 2px 0;
+    border: none;
+    background: transparent;
+    color: var(--color-accent);
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
   }
   .char-tags-add-row {
     display: flex;
@@ -117,3 +165,30 @@
     color: var(--color-text);
   }
 </style>
+
+<script>
+  import {
+    bumpCharacterVersionMajor,
+    bumpCharacterVersionMinor,
+  } from '../lib/card-builder/cardRelease.mjs';
+
+  function applyVersion(next) {
+    var el = document.getElementById('characterVersion');
+    if (!el) return;
+    el.value = next;
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
+  document.getElementById('btnBumpVersionMajor')?.addEventListener('click', function() {
+    var el = document.getElementById('characterVersion');
+    applyVersion(bumpCharacterVersionMajor(el && el.value));
+  });
+  document.getElementById('btnBumpVersionMinor')?.addEventListener('click', function() {
+    var el = document.getElementById('characterVersion');
+    applyVersion(bumpCharacterVersionMinor(el && el.value));
+  });
+  document.getElementById('btnGotoWorldLimitsFromCharacter')?.addEventListener('click', function() {
+    location.hash = 'adult-config';
+  });
+</script>
