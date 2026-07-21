@@ -1,8 +1,9 @@
 # 生产：仅 CouchDB（与 API 同机；由部署脚本 / systemd 拉起）
 # 凭据来自同目录或 server/.env 注入的 COUCHDB_USER / COUCHDB_PASSWORD
+# 镜像走 DaoCloud 代理 Docker Hub，避免国内直连 Hub 超时
 services:
   couchdb:
-    image: couchdb:3.4
+    image: docker.m.daocloud.io/library/couchdb:3.4
     container_name: stcb-couchdb
     restart: unless-stopped
     ports:
