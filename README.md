@@ -139,7 +139,7 @@ npm run preview
 
 `npm run build` 会生成静态文件到 `dist/`，可直接部署到任意静态 Web 服务。项目当前部署示例使用 Caddy/Nginx 提供静态文件，并保留 `/api/*` 反向代理到本机 API（`:8787`）。
 
-GitHub Actions（push `master`）：主站 `dist-card/` → `/var/www/card`；管理端 `dist-card-admin/` → `/var/www/card-admin`；API → **`$HOME/st-card-builder/server`**（systemd `st-card-builder-api`）；同机 CouchDB 自动探活拉起。Discord 登录经 API 再跳 authorize，成功后按 `return_to` 回原页。详见 [`docs/production.md`](docs/production.md)。
+GitHub Actions（push `master`）：主站 `dist-card/` → `/var/www/card`；管理端 `dist-card-admin/` → `/var/www/card-admin`；API → **`/home/st-card-builder/server`**（systemd `st-card-builder-api`）；同机 CouchDB 自动探活拉起。Discord 登录经 API 再跳 authorize，成功后按 `return_to` 回原页。详见 [`docs/production.md`](docs/production.md)。
 
 ## AI 接口
 
