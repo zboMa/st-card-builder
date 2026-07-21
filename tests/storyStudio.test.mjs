@@ -203,7 +203,12 @@ describe('storyStudio UI mount', function() {
     const manage = readFileSync(join(root, 'src/components/storyStudio/StoryManagePanel.astro'), 'utf8');
     assert.match(manage, /id="btnSsNewNovel"/);
     assert.match(manage, /id="ssNovelList"/);
-    assert.match(manage, /导出 TXT/);
+    assert.match(manage, /ss-manage-header/);
+    assert.match(manage, /id="ssManageStatus"/);
+    const app = readFileSync(join(root, 'src/lib/storyStudio/browserApp.mjs'), 'utf8');
+    assert.match(app, /导出 TXT/);
+    assert.match(app, /btn-icon btn-icon--sm ss-novel-icon/);
+    assert.match(app, /ss-novel-item__main/);
     const write = readFileSync(join(root, 'src/components/storyStudio/StoryWritePanel.astro'), 'utf8');
     assert.match(write, /id="ssWriteSyncMvu"/);
     assert.match(write, /写完同步变量与状态栏/);

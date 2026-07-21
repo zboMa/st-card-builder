@@ -2,11 +2,15 @@
 /** 小说管理：多部小说列表，打开 / 重命名 / 删除 / 导出 TXT / 增版 / 分享 */
 ---
 <div class="panel story-studio-panel" data-story-panel="manage">
-  <h2>小说管理</h2>
-  <p class="ss-tip">一张卡可创建多部小说。分享链接只展示「已增版」的发布快照，不会暴露正在编辑的草稿。完整版号 = 卡 character_version +「-」+ 小说版本。</p>
-  <div class="ss-toolbar">
-    <button type="button" id="btnSsNewNovel" class="btn btn-fetch">新建小说</button>
+  <div class="ss-manage-header">
+    <div class="ss-manage-heading">
+      <h2>小说管理</h2>
+      <p class="ss-tip">一张卡可创建多部小说。分享链接只展示「已增版」的发布快照，不会暴露正在编辑的草稿。完整版号 = 卡 character_version +「-」+ 小说版本。</p>
+    </div>
+    <div class="ss-manage-toolbar">
+      <button type="button" id="btnSsNewNovel" class="btn btn-add btn-sm">新建</button>
+    </div>
   </div>
+  <div id="ssManageStatus" class="ss-manage-status" hidden></div>
   <div id="ssNovelList" class="ss-novel-list"></div>
-  <div id="ssManageStatus" class="ss-status"></div>
 </div>

@@ -103,7 +103,7 @@ export var PROMPT_CATALOG_TAB_META = [
   { id: '__catalog_posture__', label: '姿势语言', section: 'posture' },
   { id: '__catalog_speech__', label: '情趣话风', section: 'speech' },
   { id: '__catalog_ntl__', label: 'NTL目录', section: 'ntl' },
-  { id: '__catalog_corruption__', label: '恶堕', section: 'corruption' },
+  { id: '__catalog_corruption__', label: '恶堕目录', section: 'corruption' },
   { id: '__catalog_worldview__', label: '世界观', section: 'worldview' },
   { id: '__catalog_vessel_flavor__', label: '载体·口味', section: 'vesselFlavor' },
   { id: '__catalog_vessel_ntl__', label: '载体·NTL', section: 'vesselNtl' },

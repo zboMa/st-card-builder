@@ -4,7 +4,7 @@
 <div class="panel prompt-config-panel">
   <h2>提示词配置</h2>
   <p class="prompt-config-hint">
-    上方 Tab 切换分类：前几项为可编辑生成提示词；其后为<strong>口味 / 姿势语言 / 情趣话风 / NTL / 恶堕 / 世界观 / 载体 / 扩展规范</strong>只读目录。
+    上方 Tab 切换分类：前几项为可编辑生成提示词；其后为<strong>口味目录 / 姿势语言 / 情趣话风 / NTL目录 / 恶堕目录 / 世界观 / 载体 / 扩展规范</strong>只读目录。
     目录类 Tab 用下方下拉选择具体条目查看（与源码同源，不可在此编辑）。
     可编辑提示词支持占位符 <code>&#123;&#123;batchSize&#125;&#125;</code>、<code>&#123;&#123;query&#125;&#125;</code>、<code>&#123;&#123;charName&#125;&#125;</code> 等。
   </p>
@@ -75,10 +75,13 @@
     border: 1px solid var(--color-accent-soft);
     border-radius: 10px;
     padding: 12px;
-    background: rgba(0, 0, 0, 0.18);
+    background: rgba(0, 0, 0, 0.22);
     min-width: 0;
     max-width: 100%;
     overflow-wrap: anywhere;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
   }
   .prompt-config-item textarea {
     width: 100%;
@@ -88,31 +91,41 @@
     font-family: 'JetBrains Mono', monospace;
     font-size: 0.72rem;
     line-height: 1.45;
+    margin: 0;
+    border: 1px dashed var(--color-border);
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.28);
+    padding: 10px;
   }
   .prompt-config-item-head {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
     gap: 10px;
-    margin-bottom: 8px;
+    margin: 0;
+    padding-bottom: 8px;
+    border-bottom: 1px dashed var(--color-border-subtle);
   }
   .prompt-config-item-title {
     margin: 0;
-    font-size: 0.82rem;
+    font-size: 0.88rem;
     font-weight: 700;
-    color: var(--color-accent-hover);
+    color: var(--color-text);
+    line-height: 1.35;
   }
   .prompt-config-item-id {
+    display: inline-block;
     font-size: 0.62rem;
     color: var(--color-text-muted);
     margin-left: 8px;
     font-weight: 500;
     font-family: 'JetBrains Mono', monospace;
+    opacity: 0.85;
   }
   .prompt-config-item-actions {
     display: flex;
     gap: 8px;
-    margin-top: 8px;
+    margin: 0;
   }
   .prompt-config-actions {
     display: flex;
@@ -135,8 +148,10 @@
   .prompt-catalog-toolbar {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    margin-bottom: 4px;
+    gap: 10px;
+    margin-bottom: 8px;
+    padding-bottom: 12px;
+    border-bottom: 1px dashed var(--color-border-subtle);
     min-width: 0;
     max-width: 100%;
   }
@@ -148,6 +163,7 @@
     padding: 8px 10px;
     border: 1px dashed var(--color-border);
     border-radius: 8px;
+    background: rgba(0, 0, 0, 0.14);
     overflow-wrap: anywhere;
     word-break: break-word;
   }
@@ -164,17 +180,10 @@
     color: var(--color-text-muted);
     white-space: nowrap;
   }
-  .prompt-catalog-select {
-    flex: 1 1 160px;
-    min-width: 0;
+  .prompt-catalog-select-row .cs-wrap {
+    flex: 1 1 200px;
+    min-width: 160px;
     max-width: 100%;
-    width: 100%;
-    font-size: 0.8rem;
-    padding: 7px 10px;
-    border-radius: 8px;
-    border: 1px solid var(--color-accent-soft);
-    background: rgba(0, 0, 0, 0.28);
-    color: var(--color-text);
   }
   .prompt-catalog-count {
     font-size: 0.68rem;
@@ -182,35 +191,48 @@
     font-family: 'JetBrains Mono', monospace;
   }
   .prompt-catalog-block {
-    margin-top: 10px;
+    margin: 0;
     min-width: 0;
     max-width: 100%;
-    padding: 8px 10px;
+    padding: 10px 12px;
     border: 1px dashed var(--color-border);
     border-radius: 8px;
-    background: transparent;
+    background: rgba(0, 0, 0, 0.16);
   }
   .prompt-catalog-block-label {
-    font-size: 0.65rem;
-    font-weight: 600;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--color-text-secondary);
+    margin: 0 0 8px;
+    letter-spacing: 0.01em;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px;
+  }
+  .prompt-catalog-block-label-main {
+    color: var(--color-text);
+  }
+  .prompt-catalog-block-label-sub {
+    font-size: 0.62rem;
+    font-weight: 500;
     color: var(--color-text-muted);
-    margin: 0 0 6px;
-    letter-spacing: 0.02em;
+    font-family: 'JetBrains Mono', monospace;
   }
   .prompt-catalog-block-body {
     margin: 0;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
     word-break: break-word;
-    font-size: 0.7rem;
-    line-height: 1.5;
-    color: var(--color-text-muted);
+    font-size: 0.74rem;
+    line-height: 1.55;
+    color: var(--color-text-secondary);
     font-family: inherit;
     background: transparent;
     border: none;
     border-radius: 0;
     padding: 0;
-    max-height: 280px;
+    max-height: 320px;
     max-width: 100%;
     overflow-x: hidden;
     overflow-y: auto;
@@ -219,9 +241,9 @@
   .prompt-catalog-list {
     margin: 0;
     padding-left: 1.15rem;
-    font-size: 0.7rem;
-    line-height: 1.5;
-    color: var(--color-text-muted);
+    font-size: 0.74rem;
+    line-height: 1.55;
+    color: var(--color-text-secondary);
     overflow-wrap: anywhere;
     word-break: break-word;
   }
@@ -240,6 +262,12 @@
     border: 1px solid rgba(148, 163, 184, 0.22);
     color: var(--color-text-muted);
     background: rgba(148, 163, 184, 0.06);
+  }
+  .prompt-catalog-blocks {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
   }
 </style>
 
@@ -367,20 +395,41 @@
     });
   }
 
+  function splitBlockTitle(title) {
+    var raw = String(title || '').trim();
+    var idx = raw.lastIndexOf(' ');
+    if (idx <= 0) return { main: raw, sub: '' };
+    var maybeEn = raw.slice(idx + 1);
+    if (/^[a-zA-Z][a-zA-Z0-9_.-]*$/.test(maybeEn)) {
+      return { main: raw.slice(0, idx), sub: maybeEn };
+    }
+    return { main: raw, sub: '' };
+  }
+
+  function renderBlockLabel(title) {
+    var parts = splitBlockTitle(title);
+    return '<p class="prompt-catalog-block-label">'
+      + '<span class="prompt-catalog-block-label-main">' + escapeHtml(parts.main) + '</span>'
+      + (parts.sub
+        ? '<span class="prompt-catalog-block-label-sub">' + escapeHtml(parts.sub) + '</span>'
+        : '')
+      + '</p>';
+  }
+
   function renderBulletBlock(title, arr) {
     if (!arr || !arr.length) return '';
     var lis = arr.map(function(x) {
       return '<li>' + escapeHtml(x) + '</li>';
     }).join('');
     return '<div class="prompt-catalog-block">'
-      + '<p class="prompt-catalog-block-label">' + escapeHtml(title) + '</p>'
+      + renderBlockLabel(title)
       + '<ul class="prompt-catalog-list">' + lis + '</ul></div>';
   }
 
   function renderTextBlock(title, text) {
     if (!text) return '';
     return '<div class="prompt-catalog-block">'
-      + '<p class="prompt-catalog-block-label">' + escapeHtml(title) + '</p>'
+      + renderBlockLabel(title)
       + '<pre class="prompt-catalog-block-body">' + escapeHtml(text) + '</pre></div>';
   }
 
@@ -390,7 +439,7 @@
       return '<span class="prompt-catalog-chip">' + escapeHtml(x) + '</span>';
     }).join('');
     return '<div class="prompt-catalog-block">'
-      + '<p class="prompt-catalog-block-label">' + escapeHtml(title) + '</p>'
+      + renderBlockLabel(title)
       + '<div class="prompt-catalog-chips">' + chips + '</div></div>';
   }
 
@@ -454,9 +503,10 @@
     return '<div class="prompt-config-item" data-catalog-id="' + escapeHtml(item.id) + '">'
       + '<div class="prompt-config-item-head">'
       + '<h3 class="prompt-config-item-title">' + escapeHtml(item.label || item.id)
-      + '<span class="prompt-catalog-item-id prompt-config-item-id">' + escapeHtml(item.id) + '</span></h3>'
+      + '<span class="prompt-config-item-id">' + escapeHtml(item.id) + '</span></h3>'
       + '</div>'
       + metaLine
+      + '<div class="prompt-catalog-blocks">'
       + renderTextBlock('摘要 summary', item.summary)
       + renderTextBlock('说明 description', item.description)
       + renderTextBlock('写作指引 writingGuide', item.writingGuide)
@@ -466,7 +516,7 @@
       + renderChips('焦点 focus', item.focus)
       + renderChips('词表 lexicon', item.lexicon)
       + renderChips('信号 signals', item.signals)
-      + '</div>';
+      + '</div></div>';
   }
 
   function renderCatalogList(ps, tabMeta) {
@@ -498,7 +548,7 @@
       + '<p class="prompt-catalog-hint">' + escapeHtml(section.hint || '只读目录') + '</p>'
       + '<div class="prompt-catalog-select-row">'
       + '<label for="promptCatalogSelect">查看条目</label>'
-      + '<select id="promptCatalogSelect" class="prompt-catalog-select">'
+      + '<select id="promptCatalogSelect">'
       + buildSelectOptions(section, selectedId)
       + '</select>'
       + '<span class="prompt-catalog-count">' + items.length + ' 条</span>'
@@ -512,6 +562,9 @@
         catalogSelection[tabMeta.section] = sel.value;
         renderList(ps);
       });
+      if (typeof window.__enhanceSelect__ === 'function') {
+        try { window.__enhanceSelect__(sel); } catch (e) {}
+      }
     }
   }
 
