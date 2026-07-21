@@ -9,6 +9,7 @@ import { couchHealth } from './couch.mjs';
 import { authRouter } from './auth/routes.mjs';
 import { syncRouter } from './sync/routes.mjs';
 import { shareRouter } from './share/routes.mjs';
+import { adminRouter } from './admin/routes.mjs';
 
 var app = express();
 
@@ -28,7 +29,7 @@ app.use(cookieSession({
   maxAge: 14 * 24 * 60 * 60 * 1000,
   sameSite: 'lax',
   httpOnly: true,
-  secure: false,
+  secure: !!config.cookieSecure,
 }));
 
 app.get('/api/health', async function(req, res) {
@@ -40,6 +41,8 @@ app.get('/api/health', async function(req, res) {
     auth: {
       devLoginEnabled: config.devLoginEnabled,
       enforceMembership: config.authEnforceDiscordMembership,
+      cookieSecure: config.cookieSecure,
+      adminIdsConfigured: config.adminDiscordIds.length > 0,
     },
   });
 });
@@ -47,6 +50,7 @@ app.get('/api/health', async function(req, res) {
 app.use('/api/auth', authRouter);
 app.use('/api/sync', syncRouter);
 app.use('/api/share', shareRouter);
+app.use('/api/admin', adminRouter);
 
 app.use(function(err, req, res, next) {
   console.error('[api]', err);
@@ -56,5 +60,7 @@ app.use(function(err, req, res, next) {
 app.listen(config.port, function() {
   console.log('[server] listening on :' + config.port);
   console.log('[server] DEV_LOGIN_ENABLED=' + config.devLoginEnabled
-    + ' AUTH_ENFORCE=' + config.authEnforceDiscordMembership);
+    + ' AUTH_ENFORCE=' + config.authEnforceDiscordMembership
+    + ' COOKIE_SECURE=' + config.cookieSecure
+    + ' ADMIN_IDS=' + config.adminDiscordIds.length);
 });

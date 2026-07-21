@@ -20,6 +20,11 @@ export async function apiCreateNovelShare(payload) {
   return data;
 }
 
+/** 重置 token 或设置过期：body 可含 resetToken / expiresInDays / expiresAt */
+export async function apiUpdateNovelShare(payload) {
+  return apiCreateNovelShare(payload);
+}
+
 export async function apiFetchSharedNovel(token) {
   var res = await fetch('/api/share/novels/' + encodeURIComponent(token), {
     method: 'GET',

@@ -8,63 +8,113 @@ jobs:
   build-deploy:
     runs-on: ubuntu-latest
     steps:
-      # 清除npm缓存
       - name: 清除npm缓存
         run: npm cache clean --force
 
-      # 1.拉取代码
       - name: Checkout code
         uses: actions/checkout@v5
 
-      # 2.安装Node环境（前端Vue/React通用）
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: "npm"
 
-      # 3.安装依赖、打包
-      - name: Install & Build
+      - name: Install & Build (frontend)
         run: |
           npm ci
           npm run build
-          # 校验是否生成dist打包文件夹
           test -d dist || exit 1
 
-      # 4.设置SSH代理
+      - name: Prepare server package (no node_modules / no .env)
+        run: |
+          mkdir -p /tmp/stcb-server-pack
+          rsync -a \
+            --exclude node_modules \
+            --exclude .env \
+            --exclude '.env.*' \
+            --exclude tests \
+            server/ /tmp/stcb-server-pack/
+          test -f /tmp/stcb-server-pack/package.json
+          test -f /tmp/stcb-server-pack/src/index.mjs
+
       - name: Setup SSH agent
         uses: webfactory/ssh-agent@v0.5.3
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      # 5.添加SSH已知主机
       - name: Add SSH known hosts
         run: |
           ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
 
-      # 6.上传打包后的dist文件
-      - name: Upload dist file
+      - name: Upload dist (static site)
         run: |
-          scp -r ./dist/* root@${{ secrets.SERVER_IP }}:/var/temp-card/
+          scp -r ./dist/* ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:/var/temp-card/
 
-      # 7.连接服务器、替换网站文件、重载Nginx
-      - name: Deploy to Linux Server
+      - name: Upload server app to $HOME
+        run: |
+          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} 'mkdir -p $HOME/st-card-builder/server $HOME/st-card-builder/deploy'
+          rsync -az --delete \
+            --exclude node_modules \
+            --exclude .env \
+            /tmp/stcb-server-pack/ \
+            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:~/st-card-builder/server/
+          scp deploy/st-card-builder-api.service \
+            ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:~/st-card-builder/deploy/st-card-builder-api.service
+
+      - name: Deploy static site + API on server
         uses: appleboy/ssh-action@master
         with:
-          # ==========下面4项全部改成你自己的信息==========
-          host: ${{ secrets.SERVER_IP }} # 服务器公网IP
-          username: ${{ secrets.SERVER_USER }} # 登录用户名，一般root
-          port: ${{ secrets.SSH_PORT }} # SSH端口，默认22
-          key: ${{ secrets.SSH_PRIVATE_KEY }} # 刚才复制的完整私钥
-          # =============================================
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          port: ${{ secrets.SSH_PORT }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            # 你的网站目录，替换成1Panel里网站路径
+            set -euo pipefail
+
+            # —— 静态站（保持原路径）——
             WEB_PATH="/var/www/card"
-            # 先备份旧文件（回滚用）
-            cp -r $WEB_PATH /var/www/card-bak-$(date +%Y%m%d-%H%M)
-            # 清空旧站点
-            rm -rf $WEB_PATH/*
-            # 上传打包后的dist文件覆盖
-            cp -r /var/temp-card/* $WEB_PATH/
-            # 重载Nginx，不中断访问
-            # systemctl reload nginx
+            mkdir -p /var/temp-card "$WEB_PATH"
+            cp -r "$WEB_PATH" "/var/www/card-bak-$(date +%Y%m%d-%H%M)" || true
+            rm -rf "$WEB_PATH"/*
+            cp -r /var/temp-card/* "$WEB_PATH/"
+
+            # —— API：放在 $HOME/st-card-builder/server ——
+            APP_HOME="$HOME/st-card-builder"
+            SERVER_DIR="$APP_HOME/server"
+            UNIT_SRC="$APP_HOME/deploy/st-card-builder-api.service"
+            UNIT_DST="/etc/systemd/system/st-card-builder-api.service"
+
+            cd "$SERVER_DIR"
+            if [[ ! -f .env ]]; then
+              echo "[deploy] 缺少 $SERVER_DIR/.env —— 请先在服务器创建生产环境变量（不会被 CI 覆盖）"
+              exit 1
+            fi
+
+            # 确保 .env 里 HOME 路径相关 PUBLIC_APP_URL 等已人工配好
+            npm ci --omit=dev
+
+            # 安装/更新 systemd 单元（User= 用当前 SSH 用户）
+            DEPLOY_USER="$(id -un)"
+            DEPLOY_HOME="$HOME"
+            sed \
+              -e "s|__DEPLOY_USER__|${DEPLOY_USER}|g" \
+              -e "s|__DEPLOY_HOME__|${DEPLOY_HOME}|g" \
+              "$UNIT_SRC" > /tmp/st-card-builder-api.service
+            if [[ "$(id -u)" -eq 0 ]]; then
+              cp /tmp/st-card-builder-api.service "$UNIT_DST"
+              systemctl daemon-reload
+              systemctl enable st-card-builder-api.service
+              systemctl restart st-card-builder-api.service
+            else
+              sudo cp /tmp/st-card-builder-api.service "$UNIT_DST"
+              sudo systemctl daemon-reload
+              sudo systemctl enable st-card-builder-api.service
+              sudo systemctl restart st-card-builder-api.service
+            fi
+
+            # 探活
+            sleep 2
+            curl -sf --max-time 10 "http://127.0.0.1:8787/api/health" | head -c 400
+            echo
+            echo "[deploy] static + api ok"
