@@ -3,7 +3,7 @@
  */
 import { Router } from 'express';
 import crypto from 'node:crypto';
-import { config, isAdminUser } from '../config.mjs';
+import { config, isAdminUser, getAdminRole } from '../config.mjs';
 import {
   discordAuthUrl,
   exchangeDiscordCode,
@@ -26,6 +26,7 @@ function publicAuthFlags(req) {
     canAcceptDiscordRegistration: canAcceptDiscordRegistration(),
     devLoginEnabled: config.devLoginEnabled,
     isAdmin: isAdminUser(user),
+    adminRole: getAdminRole(user),
   };
 }
 

@@ -4,251 +4,152 @@ import Layout from '../layouts/Layout.astro';
 <Layout title="管理端 · ST Card Builder">
   <div class="admin-app" id="adminApp">
     <header class="admin-head">
-      <div>
-        <strong>管理端</strong>
+      <div class="admin-brand">
+        <strong>ST Card Builder · 管理端</strong>
         <span class="admin-muted" id="adminUserLine">校验中…</span>
       </div>
       <div class="admin-actions">
         <a class="btn btn-ghost btn-sm" href="/">返回应用</a>
         <a class="btn btn-primary btn-sm" href="/api/auth/discord">Discord 登录</a>
+        <button type="button" id="btnAdminLogout" class="btn btn-ghost btn-sm">退出</button>
       </div>
     </header>
-    <p class="admin-muted" id="adminGateTip">仅 ADMIN_DISCORD_IDS 白名单可访问。</p>
 
-    <section class="admin-card" id="adminOverview">
-      <h2>总览</h2>
-      <pre id="adminOverviewPre" class="admin-pre">—</pre>
-    </section>
+    <div id="adminBanner" class="admin-banner" hidden></div>
+    <p class="admin-muted" id="adminGateTip">仅管理员白名单可访问。</p>
+    <div id="adminStatus" class="admin-status" aria-live="polite"></div>
 
-    <section class="admin-card">
-      <h2>用户</h2>
-      <div class="admin-row">
-        <input id="adminUserQ" type="search" placeholder="搜索 userId / 名 / Discord" />
-        <button type="button" id="btnAdminLoadUsers" class="btn btn-sm btn-fetch">刷新</button>
+    <div id="adminGate" class="admin-gate" hidden>
+      <p>请使用白名单 Discord 账号登录后访问管理功能。</p>
+      <p class="admin-muted">运维：ADMIN_DISCORD_IDS · 只读：ADMIN_READONLY_DISCORD_IDS</p>
+    </div>
+
+    <div id="adminShell" class="admin-layout" hidden>
+      <nav class="admin-nav" aria-label="管理导航">
+        <button type="button" data-admin-nav="dashboard" class="is-active">仪表盘</button>
+        <button type="button" data-admin-nav="users">用户</button>
+        <button type="button" data-admin-nav="shares">分享</button>
+        <button type="button" data-admin-nav="tokens">插件 Token</button>
+        <button type="button" data-admin-nav="databases">Couch 库</button>
+        <button type="button" data-admin-nav="audit">审计</button>
+        <button type="button" data-admin-nav="system">系统</button>
+      </nav>
+
+      <div class="admin-main">
+        <section class="admin-panel" data-admin-view="dashboard">
+          <h2>仪表盘</h2>
+          <div id="adminDashGrid" class="admin-stat-grid"></div>
+          <h2>配置开关（只读）</h2>
+          <div id="adminDashFlags" class="admin-flag-grid"></div>
+        </section>
+
+        <section class="admin-panel" data-admin-view="users" hidden>
+          <div class="admin-panel-head">
+            <h2>用户管理</h2>
+          </div>
+          <div class="admin-toolbar">
+            <input id="adminUserQ" type="search" placeholder="搜索 userId / 名 / Discord" />
+            <select id="adminUserStatus">
+              <option value="all">全部状态</option>
+              <option value="active">正常</option>
+              <option value="disabled">已禁用</option>
+            </select>
+            <button type="button" id="btnAdminLoadUsers" class="btn btn-sm btn-fetch">刷新</button>
+          </div>
+          <div id="adminUserTable"></div>
+        </section>
+
+        <section class="admin-panel" data-admin-view="shares" hidden>
+          <div class="admin-panel-head">
+            <h2>分享管理</h2>
+          </div>
+          <div class="admin-toolbar">
+            <input id="adminShareQ" type="search" placeholder="搜索 token / 标题 / 所有者" />
+            <select id="adminShareType">
+              <option value="all">全部类型</option>
+              <option value="card-share">角色卡</option>
+              <option value="novel-share">小说</option>
+            </select>
+            <select id="adminShareStatus">
+              <option value="all">全部状态</option>
+              <option value="active">有效</option>
+              <option value="disabled">已停用</option>
+              <option value="expired">已过期</option>
+            </select>
+            <button type="button" id="btnAdminLoadShares" class="btn btn-sm btn-fetch">刷新</button>
+          </div>
+          <div id="adminShareTable"></div>
+        </section>
+
+        <section class="admin-panel" data-admin-view="tokens" hidden>
+          <div class="admin-panel-head">
+            <h2>插件 Bearer Token</h2>
+            <button type="button" id="btnAdminPurgeTokens" class="btn btn-sm btn-ghost admin-ops-only">清理过期</button>
+          </div>
+          <div class="admin-toolbar">
+            <input id="adminTokenQ" type="search" placeholder="搜索用户 / Discord" />
+            <select id="adminTokenStatus">
+              <option value="all">全部</option>
+              <option value="active">有效</option>
+              <option value="expired">过期</option>
+            </select>
+            <button type="button" id="btnAdminLoadTokens" class="btn btn-sm btn-fetch">刷新</button>
+          </div>
+          <div id="adminTokenTable"></div>
+        </section>
+
+        <section class="admin-panel" data-admin-view="databases" hidden>
+          <div class="admin-panel-head">
+            <h2>Couch 库</h2>
+            <button type="button" id="btnAdminLoadDbs" class="btn btn-sm btn-fetch">刷新</button>
+          </div>
+          <div id="adminDbAnalysis" class="admin-mb"></div>
+          <div id="adminDbTable"></div>
+        </section>
+
+        <section class="admin-panel" data-admin-view="audit" hidden>
+          <div class="admin-panel-head">
+            <h2>审计日志</h2>
+            <button type="button" id="btnAdminExportAudit" class="btn btn-sm btn-ghost">导出 JSON</button>
+          </div>
+          <div class="admin-toolbar">
+            <input id="adminAuditBy" type="search" placeholder="操作者" />
+            <select id="adminAuditAction">
+              <option value="">全部动作</option>
+              <option value="user.disable">user.disable</option>
+              <option value="user.enable">user.enable</option>
+              <option value="share.disable">share.disable</option>
+              <option value="share.enable">share.enable</option>
+              <option value="share.force_delete">share.force_delete</option>
+              <option value="token.revoke">token.revoke</option>
+              <option value="token.purge_expired">token.purge_expired</option>
+              <option value="backup.run">backup.run</option>
+            </select>
+            <button type="button" id="btnAdminLoadAudit" class="btn btn-sm btn-fetch">刷新</button>
+          </div>
+          <div id="adminAuditTable"></div>
+        </section>
+
+        <section class="admin-panel" data-admin-view="system" hidden>
+          <div class="admin-panel-head">
+            <h2>系统与备份</h2>
+            <button type="button" id="btnAdminBackup" class="btn btn-sm btn-primary admin-ops-only">执行逻辑备份</button>
+          </div>
+          <div id="adminSystemBody"></div>
+        </section>
       </div>
-      <div id="adminUserList" class="admin-list"></div>
-    </section>
-
-    <section class="admin-card">
-      <h2>分享</h2>
-      <button type="button" id="btnAdminLoadShares" class="btn btn-sm btn-fetch">刷新分享</button>
-      <div id="adminShareList" class="admin-list"></div>
-    </section>
-
-    <section class="admin-card">
-      <h2>审计</h2>
-      <button type="button" id="btnAdminLoadAudit" class="btn btn-sm btn-fetch">刷新审计</button>
-      <pre id="adminAuditPre" class="admin-pre">—</pre>
-    </section>
+    </div>
   </div>
 </Layout>
 
 <style is:global>
-  html, body { overflow: auto !important; height: auto !important; }
-  .admin-app {
-    max-width: 960px;
-    margin: 0 auto;
-    padding: 20px 16px 48px;
-    color: var(--color-text, #e8e6f0);
-  }
-  .admin-head {
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-    align-items: center;
-    margin-bottom: 8px;
-  }
-  .admin-muted { color: var(--color-text-muted, #9aa0b4); font-size: 0.85rem; margin-left: 8px; }
-  .admin-card {
-    margin-top: 18px;
-    padding: 14px;
-    border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 12px;
-    background: rgba(0,0,0,0.22);
-  }
-  .admin-card h2 { margin: 0 0 10px; font-size: 1rem; }
-  .admin-pre {
-    white-space: pre-wrap;
-    font-size: 0.78rem;
-    line-height: 1.45;
-    margin: 0;
-  }
-  .admin-row { display: flex; gap: 8px; margin-bottom: 10px; }
-  .admin-row input { flex: 1; }
-  .admin-list { display: flex; flex-direction: column; gap: 8px; }
-  .admin-item {
-    display: flex;
-    justify-content: space-between;
-    gap: 8px;
-    align-items: center;
-    padding: 8px 10px;
-    border-radius: 8px;
-    background: rgba(255,255,255,0.03);
-    font-size: 0.82rem;
-  }
-  .admin-item.is-disabled { opacity: 0.65; }
+  @import '../styles/admin.css';
 </style>
 
 <script>
-  function $(id) { return document.getElementById(id); }
-
-  function escapeHtml(s) {
-    return String(s == null ? '' : s)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
-  }
-
-  async function api(path, opts) {
-    var res = await fetch(path, Object.assign({ credentials: 'include' }, opts || {}));
-    var data = await res.json().catch(function() { return {}; });
-    if (!res.ok) {
-      var err = new Error(data.message || data.error || ('HTTP ' + res.status));
-      err.status = res.status;
-      err.data = data;
-      throw err;
-    }
-    return data;
-  }
-
-  async function boot() {
-    var tip = $('adminGateTip');
-    var line = $('adminUserLine');
-    try {
-      var st = await api('/api/auth/status');
-      if (!st.user) {
-        if (line) line.textContent = '未登录';
-        if (tip) tip.textContent = '请先 Discord 登录（须在 ADMIN_DISCORD_IDS 白名单）。';
-        return;
-      }
-      if (!st.isAdmin) {
-        if (line) line.textContent = st.user.displayName || st.user.username;
-        if (tip) tip.textContent = '当前账号不是管理员（403）。';
-        return;
-      }
-      if (line) line.textContent = (st.user.displayName || st.user.username) + ' · 管理员';
-      if (tip) tip.textContent = '';
-      await loadOverview();
-      await loadUsers();
-      await loadShares();
-      await loadAudit();
-    } catch (e) {
-      if (tip) tip.textContent = '无法连接 API：' + (e.message || e);
-    }
-  }
-
-  async function loadOverview() {
-    var pre = $('adminOverviewPre');
-    try {
-      var data = await api('/api/admin/overview');
-      if (pre) pre.textContent = JSON.stringify(data, null, 2);
-    } catch (e) {
-      if (pre) pre.textContent = String(e.message || e);
-    }
-  }
-
-  async function loadUsers() {
-    var box = $('adminUserList');
-    var q = ($('adminUserQ') || {}).value || '';
-    try {
-      var data = await api('/api/admin/users?q=' + encodeURIComponent(q));
-      var users = data.users || [];
-      if (!box) return;
-      if (!users.length) {
-        box.innerHTML = '<div class="admin-muted">无用户注册记录（用户登录后会出现）</div>';
-        return;
-      }
-      box.innerHTML = users.map(function(u) {
-        var disabled = !!u.disabled;
-        return '<div class="admin-item' + (disabled ? ' is-disabled' : '') + '" data-uid="' + escapeHtml(u.userId) + '">'
-          + '<div><strong>' + escapeHtml(u.displayName || u.username || u.userId) + '</strong>'
-          + '<div class="admin-muted">' + escapeHtml(u.userId) + (u.discordId ? ' · discord ' + escapeHtml(u.discordId) : '')
-          + (disabled ? ' · 已禁用' : '') + '</div></div>'
-          + '<button type="button" class="btn btn-sm btn-ghost" data-admin-user="' + (disabled ? 'enable' : 'disable') + '">'
-          + (disabled ? '启用' : '禁用') + '</button></div>';
-      }).join('');
-    } catch (e) {
-      if (box) box.innerHTML = '<div class="admin-muted">' + escapeHtml(e.message || e) + '</div>';
-    }
-  }
-
-  async function loadShares() {
-    var box = $('adminShareList');
-    try {
-      var data = await api('/api/admin/shares');
-      var shares = data.shares || [];
-      if (!box) return;
-      if (!shares.length) {
-        box.innerHTML = '<div class="admin-muted">暂无分享</div>';
-        return;
-      }
-      box.innerHTML = shares.map(function(s) {
-        return '<div class="admin-item" data-token="' + escapeHtml(s.token) + '">'
-          + '<div><strong>' + escapeHtml(s.titleHint || s.token) + '</strong>'
-          + '<div class="admin-muted">' + escapeHtml(s.token) + ' · ' + escapeHtml(s.ownerUserId || '')
-          + ' · ' + escapeHtml(s.displayVersionHint || '') + '</div></div>'
-          + '<button type="button" class="btn btn-sm btn-delete" data-admin-share-stop>停用</button></div>';
-      }).join('');
-    } catch (e) {
-      if (box) box.innerHTML = '<div class="admin-muted">' + escapeHtml(e.message || e) + '</div>';
-    }
-  }
-
-  async function loadAudit() {
-    var pre = $('adminAuditPre');
-    try {
-      var data = await api('/api/admin/audit');
-      if (pre) pre.textContent = JSON.stringify(data.audit || [], null, 2);
-    } catch (e) {
-      if (pre) pre.textContent = String(e.message || e);
-    }
-  }
-
-  document.addEventListener('DOMContentLoaded', function() {
-    boot();
-    $('btnAdminLoadUsers')?.addEventListener('click', loadUsers);
-    $('adminUserQ')?.addEventListener('keydown', function(ev) {
-      if (ev.key === 'Enter') loadUsers();
-    });
-    $('btnAdminLoadShares')?.addEventListener('click', loadShares);
-    $('btnAdminLoadAudit')?.addEventListener('click', loadAudit);
-
-    $('adminUserList')?.addEventListener('click', async function(ev) {
-      var btn = ev.target.closest('[data-admin-user]');
-      if (!btn) return;
-      var row = btn.closest('[data-uid]');
-      if (!row) return;
-      var uid = row.getAttribute('data-uid');
-      var disable = btn.getAttribute('data-admin-user') === 'disable';
-      try {
-        await api('/api/admin/users/' + encodeURIComponent(uid) + '/disable', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ disabled: disable }),
-        });
-        await loadUsers();
-        await loadAudit();
-        await loadOverview();
-      } catch (e) {
-        alert(e.message || e);
-      }
-    });
-
-    $('adminShareList')?.addEventListener('click', async function(ev) {
-      var btn = ev.target.closest('[data-admin-share-stop]');
-      if (!btn) return;
-      var row = btn.closest('[data-token]');
-      if (!row) return;
-      var token = row.getAttribute('data-token');
-      if (!confirm('强制停用分享 ' + token + '？')) return;
-      try {
-        await api('/api/admin/shares/' + encodeURIComponent(token), { method: 'DELETE' });
-        await loadShares();
-        await loadAudit();
-      } catch (e) {
-        alert(e.message || e);
-      }
-    });
-  });
+  document.documentElement.classList.add('admin-html');
+  document.body.classList.add('admin-body');
+</script>
+<script>
+  import '../lib/admin/browserApp.mjs';
 </script>

@@ -428,6 +428,83 @@ export async function countUserDatabases() {
   return users.length;
 }
 
+/** 软停用分享（保留映射，enabled=false） */
+export async function setShareEnabled(token, enabled) {
+  var mapping = await getShareMapping(token);
+  if (!mapping) throw Object.assign(new Error('not_found'), { statusCode: 404 });
+  mapping.enabled = !!enabled;
+  mapping.updatedAt = new Date().toISOString();
+  if (!enabled) mapping.disabledAt = mapping.updatedAt;
+  else mapping.disabledAt = null;
+  await putShareMapping(mapping);
+  return mapping;
+}
+
+/**
+ * Couch 库一览（名称、文档数、磁盘近似）
+ * @returns {Promise<Array<{name:string,docCount:number,diskSize:number,type:string}>>}
+ */
+export async function listDatabaseInfos() {
+  var n = getAdmin();
+  var names = await n.db.list();
+  var out = [];
+  for (var i = 0; i < (names || []).length; i++) {
+    var name = String(names[i] || '');
+    if (!name || name.charAt(0) === '_') continue;
+    var type = 'other';
+    if (name.indexOf('userdb-stcb-') === 0) type = 'user';
+    else if (name === 'stcb-public-shares') type = 'shares';
+    else if (name === 'stcb-admin') type = 'admin';
+    else if (name === '_users') type = 'system';
+    var docCount = 0;
+    var diskSize = 0;
+    try {
+      var info = await n.db.get(name);
+      docCount = Number(info.doc_count) || 0;
+      diskSize = Number(info.sizes && info.sizes.file) || Number(info.disk_size) || 0;
+    } catch (e) { /* ignore */ }
+    out.push({ name: name, docCount: docCount, diskSize: diskSize, type: type });
+  }
+  out.sort(function(a, b) {
+    if (a.type !== b.type) return String(a.type).localeCompare(String(b.type));
+    return String(a.name).localeCompare(String(b.name));
+  });
+  return out;
+}
+
+/** 用户库名推导 — 与 ensureUserDatabase 一致 */
+export function expectedUserDbName(userId) {
+  return userDbName(userId);
+}
+
+/**
+ * 对比注册表与实际用户库，标出孤儿库 / 缺库
+ */
+export async function analyzeUserDatabases() {
+  var n = getAdmin();
+  var names = await n.db.list();
+  var userDbs = (names || []).filter(function(name) {
+    return String(name).indexOf('userdb-stcb-') === 0;
+  });
+  var registry = await listUserRegistry(2000);
+  var expected = {};
+  registry.forEach(function(u) {
+    expected[expectedUserDbName(u.userId)] = u.userId;
+  });
+  var orphans = userDbs.filter(function(name) { return !expected[name]; });
+  var missing = Object.keys(expected).filter(function(name) {
+    return userDbs.indexOf(name) < 0;
+  }).map(function(name) {
+    return { db: name, userId: expected[name] };
+  });
+  return {
+    userDbCount: userDbs.length,
+    registryCount: registry.length,
+    orphans: orphans,
+    missing: missing,
+  };
+}
+
 /** 轮换用户 Couch 密码以踢掉现有复制会话 */
 export async function revokeUserSyncAccess(userId) {
   return ensureUserDatabase(userId);

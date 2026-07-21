@@ -20,7 +20,10 @@ DISCORD_GUILD_ID=...
 DISCORD_REQUIRED_ROLE_IDS=role1,role2
 SESSION_SECRET=<长随机串>
 COOKIE_SECURE=true          # HTTPS 下必须 true
-ADMIN_DISCORD_IDS=            # 纯数字雪花 ID，逗号分隔；只写服务器 .env，勿进 Git
+ADMIN_DISCORD_IDS=            # 运维管理员雪花 ID
+ADMIN_READONLY_DISCORD_IDS=   # 只读管理员（可选）
+ADMIN_BACKUP_ENABLED=false    # 管理端触发逻辑备份
+# ADMIN_BACKUP_DIR=           # 可选备份目录
 
 PUBLIC_APP_URL=https://your.domain
 PUBLIC_API_URL=https://card-api.your.domain   # 分享链接 / 插件对接；须 HTTPS
@@ -107,5 +110,6 @@ npm run server:dev
 
 1. `DEV_LOGIN` 关：调试登录 403  
 2. Discord 非门禁成员：无法完成注册  
-3. 白名单管理员可开 `/admin`；普通用户 403  
+3. 白名单运维管理员可开 `/admin`；只读管理员可看不可写；普通用户 403  
 4. AI 密钥上传后 Couch 中为密文（`enc: v1`），无明文 key  
+5. API 502 时管理端显示诊断条（检查 systemd / 反代 / Couch）

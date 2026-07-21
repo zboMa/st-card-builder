@@ -41,7 +41,13 @@ export var config = {
   },
   authEnforceDiscordMembership: envBool('AUTH_ENFORCE_DISCORD_MEMBERSHIP', false),
   devLoginEnabled: envBool('DEV_LOGIN_ENABLED', true),
+  /** 运维管理员（读写）：Discord 雪花 ID */
   adminDiscordIds: splitCsv(env('ADMIN_DISCORD_IDS', '')),
+  /** 只读管理员：可看仪表盘/列表，不可禁用用户/停分享/吊销/备份 */
+  adminReadonlyDiscordIds: splitCsv(env('ADMIN_READONLY_DISCORD_IDS', '')),
+  /** 管理端触发逻辑备份（跑 scripts/backup-couch.sh） */
+  backupEnabled: envBool('ADMIN_BACKUP_ENABLED', false),
+  backupDir: env('ADMIN_BACKUP_DIR', ''),
   /** 额外 CORS 源（逗号分隔）；SillyTavern 等跨域插件用 */
   corsOrigins: splitCsv(env('CORS_ORIGINS', '')),
 };
@@ -55,19 +61,42 @@ export function canAcceptDiscordRegistration() {
   return discordMembershipConfigReady();
 }
 
+function normalizeDiscordId(discordId) {
+  return String(discordId || '').replace(/^discord_/, '');
+}
+
 export function isAdminDiscordId(discordId) {
-  var id = String(discordId || '').replace(/^discord_/, '');
+  var id = normalizeDiscordId(discordId);
+  if (!id) return false;
+  return config.adminDiscordIds.indexOf(id) >= 0
+    || config.adminReadonlyDiscordIds.indexOf(id) >= 0;
+}
+
+export function isOpsAdminDiscordId(discordId) {
+  var id = normalizeDiscordId(discordId);
   if (!id) return false;
   return config.adminDiscordIds.indexOf(id) >= 0;
 }
 
+/**
+ * @returns {'ops'|'readonly'|null}
+ */
+export function getAdminRole(user) {
+  if (!user) return null;
+  var id = user.provider === 'discord'
+    ? user.discordId
+    : (user.provider === 'dev' ? user.id : '');
+  if (isOpsAdminDiscordId(id)) return 'ops';
+  if (isAdminDiscordId(id)) return 'readonly';
+  return null;
+}
+
 export function isAdminUser(user) {
-  if (!user) return false;
-  if (user.provider === 'discord' && user.discordId) {
-    return isAdminDiscordId(user.discordId);
-  }
-  if (user.provider === 'dev' && isAdminDiscordId(user.id)) return true;
-  return false;
+  return getAdminRole(user) != null;
+}
+
+export function isOpsAdmin(user) {
+  return getAdminRole(user) === 'ops';
 }
 
 export function corsAllowlist() {
