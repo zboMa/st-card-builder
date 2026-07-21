@@ -27,16 +27,42 @@ COUCHDB_USER=...
 COUCHDB_PASSWORD=...
 ```
 
-## Docker Compose（参考）
+## GitHub Actions 部署
 
-根目录 `docker-compose.yml` 含 CouchDB；API 可用：
+workflow：`.github/workflows/deploy.yml`（push `master`）。
+
+| 产物 | 服务器路径 |
+|---|---|
+| 静态站 `dist/` | `/var/www/card`（经 `/var/temp-card` 中转） |
+| API `server/` | **`$HOME/st-card-builder/server`**（不覆盖已有 `.env`） |
+| systemd 单元模板 | `$HOME/st-card-builder/deploy/st-card-builder-api.service` → `/etc/systemd/system/st-card-builder-api.service` |
+
+### 服务器一次性准备
 
 ```bash
-cp server/.env.example server/.env   # 按上表改生产值
+mkdir -p ~/st-card-builder/server
+cp /path/to/server/.env.example ~/st-card-builder/server/.env
+# 编辑 .env：DEV_LOGIN_ENABLED=false、Discord、Couch、ADMIN_DISCORD_IDS、PUBLIC_APP_URL、COOKIE_SECURE=true …
+```
+
+确保：
+
+1. Node.js ≥ 18 在 PATH（单元默认 `/usr/bin/node`）
+2. CouchDB 已运行，`.env` 中 `COUCHDB_*` 正确
+3. Nginx/Caddy：`/api/*` → `http://127.0.0.1:8787`
+4. 部署用户对 `systemctl` 有权限（root 或 sudo）
+
+首次合并进 master 后看 Actions 日志；探活失败时：`journalctl -u st-card-builder-api -n 80`。
+
+## Docker Compose（参考）
+
+根目录 `docker-compose.yml` 含 CouchDB；API 由 systemd 托管（见上），不必再 docker 跑 Node。
+
+```bash
+cp server/.env.example server/.env   # 仅本地开发
 npm run couch
 npm install --prefix server
-npm run server                       # 或用进程管理器托管
-npm run build && npx serve dist      # 或 Caddy 指 dist/
+npm run server:dev
 ```
 
 ## 备份
