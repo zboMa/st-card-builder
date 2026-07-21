@@ -3,7 +3,7 @@
 ---
 <div class="panel area-greetings">
   <h2>开场白</h2>
-  <p class="greetings-tip">对应 SillyTavern 的 <code>first_mes</code> 与 <code>alternate_greetings</code>，导出语义与原先一致。</p>
+  <p class="greetings-tip ui-panel-lead">对应 SillyTavern 的 <code>first_mes</code> 与 <code>alternate_greetings</code>，导出语义与原先一致。</p>
   <p id="greetingsFlavorTip" class="greetings-flavor-tip" hidden></p>
 
   <!-- 主开场白 → data.first_mes / 顶层 first_mes -->
@@ -14,11 +14,11 @@
 
   <!-- 备选开场 → data.alternate_greetings；内存态 window.__altGreetings__ -->
   <div class="alt-greetings-section">
-    <div class="alt-greetings-header">
+    <div class="alt-greetings-header ui-label-row">
       <label class="alt-greetings-label">备选开场白 (Alternate Greetings)</label>
+      <span class="ui-hint ui-hint--inline alt-greetings-tip">酒馆中用户可在多个开场白之间切换选择</span>
       <button id="btnAddGreeting" class="btn-alt-add" title="添加备选开场白">＋</button>
     </div>
-    <p class="alt-greetings-tip">酒馆中用户可在多个开场白之间切换选择</p>
     <div id="altGreetingsList"></div>
   </div>
 </div>
@@ -50,14 +50,16 @@
   }
   .alt-greetings-header {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 4px;
+    align-items: baseline;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+  }
+  .alt-greetings-header .btn-alt-add {
+    margin-left: auto;
   }
   .alt-greetings-tip {
-    font-size: 0.68rem;
-    color: var(--color-text-muted);
-    margin: 0 0 10px 0;
+    margin: 0;
   }
 
   .alt-greetings-label {

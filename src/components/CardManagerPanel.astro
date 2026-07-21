@@ -5,7 +5,7 @@
   <div class="card-manager-header">
     <div class="card-manager-heading">
       <h2>角色卡管理</h2>
-      <p class="card-manager-tip">本地多卡草稿箱。点击卡片可切换为当前卡并进入「角色设定」。导出在各卡底部；「发布」固化分享可见版（按角色卡 character_version），「分享」生成需登录的信息链接（可选密码 / PNG 直链）。小说工坊仅本地按卡分桶，不写入导出。</p>
+      <p class="ui-panel-lead card-manager-tip">本地多卡草稿箱。点封面进入「角色设定」；点名称重命名。底栏导出 / 发布 / 分享；小说工坊按卡分桶，不写入导出。</p>
     </div>
     <!-- 右上角：仅新建 + 导入；导出在每张预览卡底部 -->
     <div class="card-manager-toolbar">
@@ -19,7 +19,11 @@
 
   <div class="card-manager-filters" id="cardManagerFilters">
     <div class="card-manager-filter-search">
-      <input type="search" id="cardManagerSearch" placeholder="搜索角色名…" autocomplete="off" aria-label="搜索角色卡" />
+      <div class="ui-search-bar wb-search-bar">
+        <span class="ui-search-icon wb-search-icon" aria-hidden="true">🔍</span>
+        <input type="search" id="cardManagerSearch" class="ui-search-input wb-search-input" placeholder="搜索角色名…" autocomplete="off" aria-label="搜索角色卡" />
+        <button type="button" id="cardManagerSearchClear" class="ui-search-clear wb-search-clear" hidden title="清空" aria-label="清空搜索">✕</button>
+      </div>
     </div>
     <div class="card-manager-tag-bar" id="cardManagerTagBar">
       <button type="button" id="btnCardTagPicker" class="card-manager-tag-picker-btn" title="多选标签筛选" aria-label="打开标签筛选" aria-haspopup="listbox" aria-expanded="false">
@@ -31,17 +35,9 @@
     <div id="cardManagerTagPopup" class="card-manager-tag-popup" hidden role="listbox" aria-multiselectable="true" aria-label="全部标签"></div>
   </div>
 
-  <div id="exportChecklistBox" class="export-checklist-bar" hidden>
-    <div class="export-checklist-bar__main">
-      <span class="export-checklist-bar__label">导出前检查</span>
-      <span id="exportChecklistSummary" class="export-checklist-bar__summary"></span>
-    </div>
-    <div class="export-checklist-bar__actions">
-      <button type="button" id="btnOpenExportChecklist" class="btn-icon export-checklist-bar__icon" title="查看检查详情" aria-label="查看检查详情">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-      </button>
-      <button type="button" id="btnRefreshExportChecklist" class="btn btn-fetch btn-sm">刷新</button>
-    </div>
+  <!-- 检查结果缓存节点（视觉已迁到卡片角标，此处保持隐藏供逻辑/测试） -->
+  <div id="exportChecklistBox" class="export-checklist-bar" hidden aria-hidden="true">
+    <span id="exportChecklistSummary" class="export-checklist-bar__summary"></span>
   </div>
 
   <div id="exportChecklistModal" class="export-checklist-modal" hidden aria-hidden="true">
@@ -49,8 +45,12 @@
     <div class="ui-modal-dialog export-checklist-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="exportChecklistModalTitle">
       <div class="export-checklist-modal__head">
         <h3 id="exportChecklistModalTitle">导出前检查</h3>
-        <button type="button" class="btn-icon" data-export-checklist-close aria-label="关闭">×</button>
+        <div class="export-checklist-modal__head-actions">
+          <button type="button" id="btnRefreshExportChecklist" class="btn btn-ghost btn-inline">刷新</button>
+          <button type="button" class="btn-icon btn-icon--sm" data-export-checklist-close aria-label="关闭">×</button>
+        </div>
       </div>
+      <p id="exportChecklistModalSummary" class="ui-hint export-checklist-modal__lead"></p>
       <ul id="exportChecklistItems" class="export-checklist-items"></ul>
     </div>
   </div>
@@ -72,10 +72,7 @@
   }
 
   .card-manager-tip {
-    font-size: 0.78rem;
-    color: var(--color-text-muted);
-    margin: 6px 0 0 0;
-    line-height: 1.45;
+    /* 视觉由 .ui-panel-lead 接管；保留类名兼容测试 */
   }
 
   .card-manager-toolbar {
@@ -101,61 +98,8 @@
     margin-bottom: 12px;
   }
 
-  .export-checklist-bar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    margin-bottom: 12px;
-    padding: 8px 10px;
-    border: 1px solid var(--color-border-subtle);
-    border-radius: 10px;
-    background: var(--color-surface-elevated);
-    min-width: 0;
-  }
-  .export-checklist-bar__main {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    min-width: 0;
-    flex: 1;
-  }
-  .export-checklist-bar__label {
-    font-size: 0.78rem;
-    font-weight: 700;
-    flex-shrink: 0;
-  }
-  .export-checklist-bar__summary {
-    font-size: 0.72rem;
-    color: var(--color-text-muted);
-    line-height: 1.35;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    min-width: 0;
-  }
-  .export-checklist-bar__summary.is-critical {
-    color: #fecaca;
-  }
-  .export-checklist-bar__summary.is-warning {
-    color: #fde68a;
-  }
-  .export-checklist-bar__actions {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    flex-shrink: 0;
-  }
-  .export-checklist-bar__actions .btn {
-    width: auto;
-    min-width: 0;
-    margin: 0;
-    padding: 5px 10px;
-    font-size: 0.72rem;
-  }
-  .export-checklist-bar__icon {
-    width: 32px;
-    height: 32px;
+  .export-checklist-bar[hidden] {
+    display: none !important;
   }
 
   .export-checklist-modal[hidden] {
@@ -187,11 +131,19 @@
     align-items: center;
     justify-content: space-between;
     gap: 8px;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
   }
   .export-checklist-modal__head h3 {
     margin: 0;
     font-size: 0.9rem;
+  }
+  .export-checklist-modal__head-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .export-checklist-modal__lead {
+    margin: 0 0 10px;
   }
   .export-checklist-items {
     list-style: none;
@@ -260,13 +212,18 @@
 
   .card-manager-empty {
     grid-column: 1 / -1;
-    font-size: 0.85rem;
+    margin: 8px auto;
+    max-width: 28rem;
+    width: calc(100% - 24px);
+    font-size: 0.78rem;
+    font-weight: 500;
     color: var(--color-text-muted);
-    padding: 20px;
+    padding: 28px 18px;
     text-align: center;
     border: 1px dashed var(--color-accent-border);
     border-radius: 10px;
     background: var(--color-accent-soft);
+    line-height: 1.55;
   }
 
   .card-manager-item {
@@ -299,6 +256,7 @@
     align-items: center;
     justify-content: center;
     overflow: hidden;
+    cursor: pointer;
   }
 
   .card-manager-cover img {
@@ -313,14 +271,24 @@
     color: var(--color-text-muted);
   }
 
-  .card-manager-badge {
+  .card-manager-badge,
+  .card-manager-version-badge,
+  .card-manager-check-badge {
     padding: 2px 7px;
     font-size: 0.65rem;
     font-weight: 600;
-    color: var(--color-success);
-    background: var(--color-paper-deep);
-    border: 1px solid oklch(72% 0.14 155 / 0.4);
+    line-height: 1.25;
     border-radius: var(--radius-sm);
+    background: var(--color-paper-deep);
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    max-width: 100%;
+  }
+
+  .card-manager-badge {
+    color: var(--color-success);
+    border: 1px solid oklch(72% 0.14 155 / 0.4);
   }
 
   .card-manager-cover-badges {
@@ -330,48 +298,93 @@
     display: flex;
     align-items: center;
     gap: 4px;
-    z-index: 1;
+    z-index: 2;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    max-width: calc(100% - 16px);
   }
 
   .card-manager-version-badge {
-    padding: 2px 7px;
-    font-size: 0.65rem;
-    font-weight: 650;
     color: var(--color-text-secondary);
-    background: var(--color-paper-deep);
     border: 1px solid var(--color-border-subtle);
-    border-radius: var(--radius-sm);
     font-variant-numeric: tabular-nums;
   }
 
-  .card-manager-item-main {
-    padding: var(--space-2) var(--space-3) var(--space-1);
-    min-width: 0;
+  .card-manager-check-badge {
+    cursor: pointer;
+    border: 1px solid rgba(248, 113, 113, 0.45);
+    color: #fecaca;
+    background: rgba(127, 29, 29, 0.72);
+    font-variant-numeric: tabular-nums;
+  }
+  .card-manager-check-badge.is-warning {
+    border-color: rgba(245, 158, 11, 0.45);
+    color: #fde68a;
+    background: rgba(120, 53, 15, 0.72);
+  }
+  .card-manager-check-badge:hover {
+    filter: brightness(1.08);
+  }
+  .card-manager-check-badge svg {
+    width: 11px;
+    height: 11px;
+    flex-shrink: 0;
+  }
+
+  .card-manager-cover-overlay {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1;
+    padding: 28px 10px 10px;
+    background: linear-gradient(180deg, transparent 0%, rgba(2, 6, 23, 0.55) 28%, rgba(2, 6, 23, 0.92) 100%);
+    pointer-events: none;
+  }
+  .card-manager-cover-overlay > * {
+    pointer-events: auto;
   }
 
   .card-manager-item-name {
+    display: block;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: transparent;
+    text-align: left;
+    font: inherit;
     font-size: 0.88rem;
-    font-weight: 600;
-    color: var(--color-text-secondary);
+    font-weight: 650;
+    color: #f8fafc;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    cursor: pointer;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+  }
+  .card-manager-item-name:hover {
+    color: var(--color-accent-hover);
   }
 
   .card-manager-item-meta {
-    margin-top: 4px;
-    font-size: 0.7rem;
-    color: var(--color-text-muted);
+    margin-top: 3px;
+    font-size: 0.68rem;
+    color: rgba(226, 232, 240, 0.82);
+    line-height: 1.35;
   }
 
   .card-manager-item-actions {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     align-items: center;
     gap: 4px;
-    padding: var(--space-1) var(--space-2) var(--space-2);
+    padding: var(--space-1) var(--space-2);
     border-top: 1px solid var(--color-border-subtle);
     background: var(--color-surface-inset);
+    min-height: 40px;
+    overflow-x: auto;
+    scrollbar-width: thin;
   }
 
   .card-manager-item-actions__group {
@@ -383,15 +396,11 @@
 
   .card-manager-item-share {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     align-items: center;
     gap: 4px;
     margin-left: auto;
-  }
-
-  .card-mgr-share-btn {
-    font-size: 0.68rem;
-    padding: 2px 6px;
+    flex-shrink: 0;
   }
 
   .card-manager-filters {
@@ -400,12 +409,10 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
+    z-index: 3;
   }
-  .card-manager-filter-search input {
+  .card-manager-filter-search .ui-search-bar {
     width: 100%;
-    margin: 0;
-    padding: 7px 10px;
-    font-size: 0.8rem;
   }
   .card-manager-tag-bar {
     display: flex;

@@ -209,6 +209,9 @@ describe('storyStudio UI mount', function() {
     assert.match(app, /导出 TXT/);
     assert.match(app, /btn-icon btn-icon--sm ss-novel-icon/);
     assert.match(app, /ss-novel-item__main/);
+    assert.match(app, /btn-inline/);
+    assert.match(app, /data-ss-act="rename"/);
+    assert.doesNotMatch(app, /iconBtn\('rename'/);
     const write = readFileSync(join(root, 'src/components/storyStudio/StoryWritePanel.astro'), 'utf8');
     assert.match(write, /id="ssWriteSyncMvu"/);
     assert.match(write, /写完同步变量与状态栏/);

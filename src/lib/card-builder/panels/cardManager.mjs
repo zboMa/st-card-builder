@@ -34,6 +34,8 @@ export function registerCardManager(ctx) {
   /** @type {Set<string>} */
   var selectedFilterTags = new Set();
   var cardManagerSearchQuery = '';
+  /** 当前卡导出检查缓存（角标用） */
+  var lastExportCheck = { items: [], critical: 0, warning: 0, ok: true, summary: '', canExportPng: false };
   var tagPopupOpen = false;
 
   // ---- IDB helpers ----
@@ -245,7 +247,6 @@ export function registerCardManager(ctx) {
       var cls = 'btn-icon btn-icon--sm card-mgr-icon' + (extraClass ? ' ' + extraClass : '');
       var icons = {
         dup: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>',
-        rename: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M15.5 5.5l3 3L8 19l-4 1 1-4 10.5-10.5z"/></svg>',
         'export-json': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 8l-4 4 4 4M16 8l4 4-4 4M13 6l-2 12"/></svg>',
         'export-png': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2"/><circle cx="9" cy="10" r="1.5"/><path d="M4 16l4.5-4.5 3 3L14 12l6 6"/></svg>',
         delete: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><path d="M10 11v6M14 11v6"/><path d="M7 7l1 12a1 1 0 0 0 1 .9h6a1 1 0 0 0 1-.9l1-12"/></svg>',
@@ -253,13 +254,12 @@ export function registerCardManager(ctx) {
       return '<button type="button" class="' + cls + '" data-card-action="' + action + '" title="' + label + '" aria-label="' + label + '">' + (icons[action] || '') + '</button>';
     }
     function textBtn(action, label) {
-      return '<button type="button" class="btn btn-sm btn-ghost card-mgr-share-btn" data-card-action="'
+      return '<button type="button" class="btn btn-ghost btn-inline" data-card-action="'
         + action + '">' + label + '</button>';
     }
     return ''
       + '<div class="card-manager-item-actions__group">'
       + iconBtn('dup', '复制')
-      + iconBtn('rename', '重命名')
       + '</div>'
       + '<div class="card-manager-item-actions__group">'
       + iconBtn('export-json', '导出 JSON', 'card-mgr-icon--export')
@@ -274,6 +274,19 @@ export function registerCardManager(ctx) {
       + (meta.token ? textBtn('unshare', '停分享') : '')
       + '</div>';
   };
+
+  function buildCheckBadgeHtml(check) {
+    if (!check || (!check.critical && !check.warning)) return '';
+    var n = check.critical > 0 ? check.critical : check.warning;
+    var cls = 'card-manager-check-badge' + (check.critical > 0 ? '' : ' is-warning');
+    var title = check.critical > 0
+      ? ('导出检查：严重 ' + check.critical + (check.warning ? ' · 警告 ' + check.warning : ''))
+      : ('导出检查：警告 ' + check.warning);
+    var icon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>';
+    return '<button type="button" class="' + cls + '" data-card-action="export-check" title="'
+      + ctx.escapeHtml(title) + '" aria-label="' + ctx.escapeHtml(title) + '">'
+      + icon + '<span>' + n + '</span></button>';
+  }
 
   // ---- Core render ----
   panel.render = function (storedDrafts) {
@@ -295,11 +308,11 @@ export function registerCardManager(ctx) {
     });
 
     if (!Object.keys(dr).length) {
-      listEl.innerHTML = '<p class="card-manager-empty">暂无角色卡，点击右上角「新建」</p>';
+      listEl.innerHTML = '<p class="card-manager-empty ui-empty-tip">暂无角色卡，点击右上角「新建」</p>';
       return;
     }
     if (!ks.length) {
-      listEl.innerHTML = '<p class="card-manager-empty">没有符合筛选条件的角色卡</p>';
+      listEl.innerHTML = '<p class="card-manager-empty ui-empty-tip">没有符合筛选条件的角色卡</p>';
       return;
     }
     listEl.innerHTML = '';
@@ -335,6 +348,7 @@ export function registerCardManager(ctx) {
       var badges = document.createElement('div');
       badges.className = 'card-manager-cover-badges';
       if (active) {
+        badges.insertAdjacentHTML('beforeend', buildCheckBadgeHtml(lastExportCheck));
         var badge = document.createElement('span');
         badge.className = 'card-manager-badge';
         badge.textContent = '当前';
@@ -347,20 +361,20 @@ export function registerCardManager(ctx) {
       cover.appendChild(badges);
 
       var shareMeta = getCardShareMeta(id) || {};
-      var main = document.createElement('div');
-      main.className = 'card-manager-item-main';
-      main.setAttribute('data-card-action', 'open');
-      main.innerHTML =
-        '<div class="card-manager-item-name">' + ctx.escapeHtml(draftDisplayName(d)) + '</div>' +
-        '<div class="card-manager-item-meta">更新 ' + ctx.escapeHtml(d.updatedAt || '—')
+      var overlay = document.createElement('div');
+      overlay.className = 'card-manager-cover-overlay';
+      overlay.innerHTML =
+        '<button type="button" class="card-manager-item-name" data-card-action="rename" title="点击重命名">'
+        + ctx.escapeHtml(draftDisplayName(d)) + '</button>'
+        + '<div class="card-manager-item-meta">更新 ' + ctx.escapeHtml(d.updatedAt || '—')
         + '<br>' + ctx.escapeHtml(buildShareMetaLine(d, shareMeta)) + '</div>';
+      cover.appendChild(overlay);
 
       var actions = document.createElement('div');
       actions.className = 'card-manager-item-actions';
       actions.innerHTML = panel.buildCardManagerActionsHtml(shareMeta);
 
       item.appendChild(cover);
-      item.appendChild(main);
       item.appendChild(actions);
       listEl.appendChild(item);
     });
@@ -369,8 +383,8 @@ export function registerCardManager(ctx) {
   panel.refreshExportChecklist = function () {
     var box = ctx.$('exportChecklistBox');
     var summaryEl = ctx.$('exportChecklistSummary');
+    var modalLead = ctx.$('exportChecklistModalSummary');
     var listEl = ctx.$('exportChecklistItems');
-    if (!box || !summaryEl || !listEl) return;
     var check = (window.__getExportChecklist__ || window.__assistantCardApi__ && window.__assistantCardApi__.exportCheck)
       ? (window.__getExportChecklist__ || window.__assistantCardApi__.exportCheck)()
       : buildExportChecklist({
@@ -384,10 +398,18 @@ export function registerCardManager(ctx) {
         }).length,
         altGreetingCount: Array.isArray(window.__altGreetings__) ? window.__altGreetings__.length : 0,
       });
-    box.hidden = false;
     var items = check.items || [];
     var critical = items.filter(function(it) { return it.level === 'critical'; }).length;
     var warning = items.filter(function(it) { return it.level === 'warning'; }).length;
+    lastExportCheck = {
+      items: items,
+      critical: critical,
+      warning: warning,
+      ok: !!check.ok,
+      summary: check.summary || '',
+      canExportPng: !!check.canExportPng,
+    };
+    if (box) box.hidden = true;
     var countText;
     if (!items.length) {
       countText = check.ok
@@ -397,9 +419,13 @@ export function registerCardManager(ctx) {
       countText = '严重 ' + critical + ' · 警告 ' + warning;
       if (check.summary) countText += ' · ' + check.summary;
     }
-    summaryEl.textContent = countText;
-    summaryEl.classList.toggle('is-critical', critical > 0);
-    summaryEl.classList.toggle('is-warning', critical === 0 && warning > 0);
+    if (summaryEl) {
+      summaryEl.textContent = countText;
+      summaryEl.classList.toggle('is-critical', critical > 0);
+      summaryEl.classList.toggle('is-warning', critical === 0 && warning > 0);
+    }
+    if (modalLead) modalLead.textContent = countText;
+    if (!listEl) return;
 
     if (!items.length) {
       listEl.innerHTML = '<li>当前卡可导出 JSON' + (check.canExportPng ? ' / PNG' : '（PNG 需头像）') + '</li>';
@@ -424,6 +450,7 @@ export function registerCardManager(ctx) {
   function openExportChecklistModal() {
     var modal = ctx.$('exportChecklistModal');
     if (!modal) return;
+    panel.refreshExportChecklist();
     modal.hidden = false;
     modal.setAttribute('aria-hidden', 'false');
     document.body.classList.add('export-checklist-modal-open');
@@ -438,12 +465,13 @@ export function registerCardManager(ctx) {
   }
 
   panel.bindExportChecklistUi = function () {
-    var openBtn = ctx.$('btnOpenExportChecklist');
+    var refreshBtn = ctx.$('btnRefreshExportChecklist');
     var modal = ctx.$('exportChecklistModal');
-    if (openBtn && !openBtn._exportChecklistBound) {
-      openBtn._exportChecklistBound = true;
-      openBtn.addEventListener('click', function() {
-        openExportChecklistModal();
+    if (refreshBtn && !refreshBtn._exportChecklistBound) {
+      refreshBtn._exportChecklistBound = true;
+      refreshBtn.addEventListener('click', function() {
+        panel.refreshExportChecklist();
+        panel.updateCardManagerUI();
       });
     }
     if (modal && !modal._exportChecklistBound) {
@@ -464,8 +492,8 @@ export function registerCardManager(ctx) {
       cardManagerUiTimer = null;
       var pending = cardManagerUiPendingDrafts;
       cardManagerUiPendingDrafts = undefined;
-      panel.render(pending);
       if (getCurrentAppView() === 'card-manager') panel.refreshExportChecklist();
+      panel.render(pending);
     }, CARD_MANAGER_UI_DEBOUNCE_MS);
   };
 
@@ -1132,11 +1160,28 @@ export function registerCardManager(ctx) {
     panel.bindExportChecklistUi();
 
     var searchEl = ctx.$('cardManagerSearch');
+    var searchClear = ctx.$('cardManagerSearchClear');
+    function syncSearchClear() {
+      if (!searchClear) return;
+      searchClear.hidden = !(searchEl && String(searchEl.value || '').length);
+    }
     if (searchEl && !searchEl._cardMgrBound) {
       searchEl._cardMgrBound = true;
       searchEl.addEventListener('input', function() {
         cardManagerSearchQuery = searchEl.value || '';
+        syncSearchClear();
         panel.updateCardManagerUI();
+      });
+      syncSearchClear();
+    }
+    if (searchClear && !searchClear._cardMgrBound) {
+      searchClear._cardMgrBound = true;
+      searchClear.addEventListener('click', function() {
+        if (searchEl) searchEl.value = '';
+        cardManagerSearchQuery = '';
+        syncSearchClear();
+        panel.updateCardManagerUI();
+        if (searchEl) searchEl.focus();
       });
     }
 
@@ -1224,6 +1269,12 @@ export function registerCardManager(ctx) {
           e.preventDefault();
           e.stopPropagation();
           panel.renameDraft(id);
+          return;
+        }
+        if (action === 'export-check') {
+          e.preventDefault();
+          e.stopPropagation();
+          openExportChecklistModal();
           return;
         }
         if (action === 'export-json') {
