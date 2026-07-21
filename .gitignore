@@ -1,5 +1,7 @@
 # build output
 dist/
+dist-card/
+dist-card-admin/
 # generated types
 .astro/
 .agents/

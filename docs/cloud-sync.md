@@ -31,7 +31,8 @@ npm run dev            # Astro :4321，/api 代理到 8787
 
 ## Discord
 
-- OAuth：`/api/auth/discord`
+- OAuth：前端打开 `{PUBLIC_API_URL}/api/auth/discord?return_to=…` → API 再 302 到 Discord authorize → callback 写 Session → 回 `return_to`
+- 管理端独立静态站 `/var/www/card-admin`；主站 `/var/www/card`；Session 可用 `SESSION_COOKIE_DOMAIN` 共用
 - `AUTH_ENFORCE_DISCORD_MEMBERSHIP=false`（默认）：不校验服务器/身份组。
 - `=true` 且 `DISCORD_GUILD_ID` / `DISCORD_REQUIRED_ROLE_IDS` **留空**：**拒绝所有正式 Discord 注册**（调试登录仍可用）。
 

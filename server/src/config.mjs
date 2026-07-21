@@ -23,10 +23,14 @@ function splitCsv(v) {
 export var config = {
   port: parseInt(env('PORT', '8787'), 10) || 8787,
   publicAppUrl: env('PUBLIC_APP_URL', 'http://localhost:4321').replace(/\/$/, ''),
-  /** 对外 API Origin（分享链接、插件默认）；生产如 https://card-api.taojiu.love */
+  /** 管理端 Origin（无尾斜杠）；生产如 https://card-admin.taojiu.love */
+  publicAdminUrl: env('PUBLIC_ADMIN_URL', '').replace(/\/$/, ''),
+  /** 对外 API Origin（分享链接、插件、前端 OAuth 入口）；生产如 https://card-api.taojiu.love */
   publicApiUrl: env('PUBLIC_API_URL', '').replace(/\/$/, ''),
   sessionSecret: env('SESSION_SECRET', 'dev-insecure-session-secret'),
   cookieSecure: envBool('COOKIE_SECURE', false),
+  /** Session Cookie Domain，如 .taojiu.love，使主站与管理端共用登录 */
+  sessionCookieDomain: env('SESSION_COOKIE_DOMAIN', ''),
   couch: {
     url: env('COUCHDB_URL', 'http://127.0.0.1:5984').replace(/\/$/, ''),
     user: env('COUCHDB_USER', 'admin'),
@@ -102,8 +106,11 @@ export function isOpsAdmin(user) {
 export function corsAllowlist() {
   var base = [
     config.publicAppUrl,
+    config.publicAdminUrl,
     'http://localhost:4321',
     'http://127.0.0.1:4321',
+    'http://localhost:4322',
+    'http://127.0.0.1:4322',
     'http://localhost:8000',
     'http://127.0.0.1:8000',
   ];

@@ -3,6 +3,7 @@
  */
 import { SYNC_INTERVAL_MS, DOC, buildCardIndexFromDrafts, cardDocId } from './docIds.mjs';
 import { getLocalDb, getDoc, putDoc, getCardDraft, putCardDraft, replicateWithRemote, getCardIndex } from './pouch.mjs';
+import { apiFetch } from '../publicConfig.mjs';
 
 var timer = null;
 var lastCred = null;
@@ -35,12 +36,12 @@ export function getSyncStatus() {
 }
 
 export async function fetchAuthStatus() {
-  var res = await fetch('/api/auth/status', { credentials: 'include' });
+  var res = await apiFetch('/api/auth/status');
   return res.json();
 }
 
 export async function fetchSyncCredentials() {
-  var res = await fetch('/api/sync/credentials', { credentials: 'include' });
+  var res = await apiFetch('/api/sync/credentials');
   if (res.status === 401) {
     lastCred = null;
     throw new Error('unauthorized');

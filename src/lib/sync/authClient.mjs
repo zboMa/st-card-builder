@@ -1,10 +1,11 @@
 /**
  * 账户 / 同步 UI 桥
  */
+import { apiFetch, apiUrl, discordLoginUrl } from '../publicConfig.mjs';
+
 export async function apiDevLogin(username) {
-  var res = await fetch('/api/auth/dev-login', {
+  var res = await apiFetch('/api/auth/dev-login', {
     method: 'POST',
-    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username: username }),
   });
@@ -14,9 +15,11 @@ export async function apiDevLogin(username) {
 }
 
 export async function apiLogout() {
-  await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+  await apiFetch('/api/auth/logout', { method: 'POST' });
 }
 
-export function discordLoginUrl() {
-  return '/api/auth/discord';
+export { discordLoginUrl, apiUrl, apiFetch };
+
+export function discordLoginUrlForCurrentPage() {
+  return discordLoginUrl(typeof location !== 'undefined' ? location.href : '');
 }

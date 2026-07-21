@@ -1,6 +1,13 @@
 /**
  * 管理端客户端：仪表盘 / 用户 / 分享 / Token / Couch / 审计 / 系统
  */
+import {
+  apiFetch,
+  apiUrl,
+  discordLoginUrl,
+  getPublicAppUrl,
+} from '../publicConfig.mjs';
+
 function $(id) {
   return document.getElementById(id);
 }
@@ -42,7 +49,7 @@ var state = {
 };
 
 async function api(path, opts) {
-  var res = await fetch(path, Object.assign({ credentials: 'include' }, opts || {}));
+  var res = await apiFetch(path, opts || {});
   var ct = res.headers.get('content-type') || '';
   var data = ct.indexOf('json') >= 0
     ? await res.json().catch(function() { return {}; })
@@ -439,7 +446,7 @@ function bindEvents() {
     loadAudit();
   });
   $('btnAdminExportAudit') && $('btnAdminExportAudit').addEventListener('click', function() {
-    window.open('/api/admin/audit/export', '_blank');
+    window.open(apiUrl('/api/admin/audit/export'), '_blank');
   });
   $('btnAdminPurgeTokens') && $('btnAdminPurgeTokens').addEventListener('click', async function() {
     if (!isOps()) return;
@@ -555,8 +562,19 @@ async function boot() {
   var line = $('adminUserLine');
   var shell = $('adminShell');
   var gate = $('adminGate');
+  var discordBtn = $('btnAdminDiscordLogin');
+  var backBtn = $('btnAdminBackApp');
+  if (discordBtn) discordBtn.href = discordLoginUrl(location.href);
+  if (backBtn) {
+    var appUrl = getPublicAppUrl() || '/';
+    backBtn.href = appUrl.charAt(appUrl.length - 1) === '/' ? appUrl : (appUrl + '/');
+  }
   try {
     var st = await api('/api/auth/status');
+    if (st.publicAppUrl && backBtn) {
+      backBtn.href = String(st.publicAppUrl).replace(/\/$/, '') + '/';
+    }
+    if (discordBtn) discordBtn.href = discordLoginUrl(location.href);
     if (!st.user) {
       if (line) line.textContent = '未登录';
       if (tip) tip.textContent = '请先 Discord 登录（须在管理员白名单）。';
