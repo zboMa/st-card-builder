@@ -300,8 +300,11 @@ describe('sidebar navigation contract', function() {
     assert.match(htmlPart, /chatConfigDrawer[\s\S]*btnChatReset/);
     assert.match(htmlPart, /chatConfigDrawer[\s\S]*btnChatRegenerate/);
     assert.match(htmlPart, /chatConfigDrawer[\s\S]*chatTemperature/);
-    // 小号 ghost 按钮
+    // 小号 ghost 按钮（抽屉内重置/重生成）；标题行「配置」为弱文字链
     assert.match(htmlPart, /btn-sm btn-ghost btn-chat-ctrl/);
+    assert.match(htmlPart, /class="chat-config-link"/);
+    assert.match(htmlPart, /btn-icon btn-icon--primary chat-btn-send/);
+    assert.doesNotMatch(headerChunk[0], /btn btn-sm btn-ghost btn-chat-ctrl/);
     assert.match(chat, /chat-config-drawer/);
     assert.match(chat, /chat-controls/);
     assert.match(chat, /id="chatMessages"/);
