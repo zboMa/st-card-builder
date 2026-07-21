@@ -73,11 +73,14 @@ npm run dev            # Astro :4321，/api 代理到 8787
 
 ## 管理端
 
-- 页面：`/admin`（独立于制卡壳）
-- 权限：`ADMIN_DISCORD_IDS`（Discord 雪花 ID 白名单）
-- API：`/api/admin/overview|users|shares|audit`
-- 能力：总览、禁用/启用用户（并轮换 Couch 同步密码）、强制停用分享、审计日志
-- 管理库：`stcb-admin`（用户注册表 + 审计）
+- 页面：`/admin`（Nocturne 深色，与主站一致）
+- 权限：
+  - `ADMIN_DISCORD_IDS` → **运维**（读写）
+  - `ADMIN_READONLY_DISCORD_IDS` → **只读**
+- 模块：仪表盘、用户、分享（卡/小说 + 软停用/硬删）、插件 Token、Couch 库一览与孤儿提示、审计（筛选/导出）、系统健康与可选逻辑备份
+- API：`/api/admin/overview|users|shares|tokens|databases|audit|backup|me`
+- 写操作均记入 `stcb-admin` 审计；备份需 `ADMIN_BACKUP_ENABLED=true`
+- 管理库：`stcb-admin`（用户注册表 + 审计 + Bearer）
 
 ## 生产清单
 

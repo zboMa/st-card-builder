@@ -188,7 +188,7 @@ npm install --prefix server
 npm run server:dev     # API :8787（Astro 已代理 /api）
 ```
 
-侧栏 **配置 → 账户与同步**：Discord 门禁登录（生产关 `DEV_LOGIN`）；AI 配置内用**同步口令加密**后上传密钥。小说分享见云同步文档。管理端：`/admin`（`ADMIN_DISCORD_IDS` 白名单）。
+侧栏 **配置 → 账户与同步**：Discord 门禁登录（生产关 `DEV_LOGIN`）；AI 配置内用**同步口令加密**后上传密钥。小说分享见云同步文档。管理端：`/admin`（运维 `ADMIN_DISCORD_IDS` / 只读 `ADMIN_READONLY_DISCORD_IDS`）。
 
 - 说明：[`docs/cloud-sync.md`](docs/cloud-sync.md)
 - 生产清单 / 备份：[`docs/production.md`](docs/production.md)、`scripts/backup-couch.sh`
