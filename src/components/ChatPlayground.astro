@@ -5,7 +5,7 @@
   <div class="chat-panel-header panel-header">
     <h2>角色试聊</h2>
     <div class="chat-header-actions">
-      <button type="button" id="btnChatConfig" class="btn btn-sm btn-ghost btn-chat-ctrl" aria-expanded="false" aria-controls="chatConfigDrawer">配置</button>
+      <button type="button" id="btnChatConfig" class="chat-config-link" aria-expanded="false" aria-controls="chatConfigDrawer">配置</button>
     </div>
   </div>
 
@@ -97,15 +97,15 @@
   <div class="chat-input-area">
     <button id="btnChatStart" class="btn btn-primary btn-chat-start">开始试聊</button>
     <div id="chatInputRow" style="display: none;">
-      <div style="display: flex; gap: 8px;">
-        <textarea id="chatInput" placeholder="说点什么..." rows="2" style="flex: 1; resize: none;"></textarea>
-        <button id="btnChatSend" class="btn btn-chat-send" title="发送">
-          <span id="chatSendIcon">➤</span>
+      <div class="chat-compose-row">
+        <textarea id="chatInput" class="chat-compose-input" placeholder="说点什么..." rows="2"></textarea>
+        <button type="button" id="btnChatSend" class="btn-icon btn-icon--primary chat-btn-send" title="发送" aria-label="发送">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l14-7-7 14-2-5-5-2z"/></svg>
         </button>
       </div>
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
-        <span style="font-size: 0.65rem; color: var(--color-text-muted);">Enter 发送 · Shift+Enter 换行</span>
-        <span id="chatTypingIndicator" style="display: none; font-size: 0.7rem; color: var(--color-accent-hover);">
+      <div class="chat-compose-meta">
+        <span class="chat-compose-hint">Enter 发送 · Shift+Enter 换行</span>
+        <span id="chatTypingIndicator" class="chat-typing-indicator" style="display: none;">
           <span class="typing-dots">
             <span>.</span><span>.</span><span>.</span>
           </span>
@@ -154,6 +154,24 @@
     width: auto;
     min-width: 0;
     margin: 0;
+  }
+  .chat-config-link {
+    font-size: 0.68rem;
+    padding: 2px 0;
+    border: none;
+    background: transparent;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    font-family: inherit;
+    line-height: 1.2;
+  }
+  .chat-config-link:hover {
+    color: var(--color-accent);
+  }
+  .chat-config-link[aria-expanded="true"] {
+    color: var(--color-accent-hover);
   }
 
   .chat-config-drawer[hidden] {
@@ -721,23 +739,36 @@
     transform: translateY(-2px);
     box-shadow: 0 6px 20px var(--color-accent-border);
   }
-  .btn-chat-send {
-    width: 48px;
-    height: 48px;
-    border-radius: 12px;
-    background: var(--color-accent-strong);
-    border: none;
-    color: white;
-    font-size: 1.2rem;
-    cursor: pointer;
-    transition: all 0.2s ease;
+  .chat-compose-row {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
+    align-items: flex-end;
+    gap: 8px;
   }
-  .btn-chat-send:hover { transform: scale(1.05); box-shadow: 0 4px 12px var(--color-accent-border); }
-  .btn-chat-send:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+  .chat-compose-input {
+    flex: 1;
+    min-width: 0;
+    resize: none;
+    min-height: 48px;
+    max-height: 120px;
+  }
+  .chat-btn-send {
+    align-self: flex-end;
+  }
+  .chat-compose-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 6px;
+    gap: 8px;
+  }
+  .chat-compose-hint {
+    font-size: 0.65rem;
+    color: var(--color-text-muted);
+  }
+  .chat-typing-indicator {
+    font-size: 0.7rem;
+    color: var(--color-accent-hover);
+  }
 
   .typing-dots span {
     animation: typingBounce 1.4s infinite;
