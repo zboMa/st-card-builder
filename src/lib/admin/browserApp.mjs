@@ -411,6 +411,67 @@ async function loadSystem() {
   }
 }
 
+async function doLogoutAndReload() {
+  try {
+    await api('/api/auth/logout', { method: 'POST' });
+  } catch (e) { /* ignore */ }
+  location.reload();
+}
+
+function setAppBackLinks(url) {
+  var href = String(url || getPublicAppUrl() || '/').replace(/\/$/, '') + '/';
+  var a = $('btnAdminBackApp');
+  var b = $('btnAdminBackAppTop');
+  if (a) a.href = href;
+  if (b) b.href = href;
+}
+
+function showLoginGate(opts) {
+  opts = opts || {};
+  var gate = $('adminLoginGate');
+  var workspace = $('adminWorkspace');
+  var tip = $('adminGateTip');
+  var discordBtn = $('btnAdminDiscordLogin');
+  var extra = $('adminLoginExtra');
+  document.body.classList.add('admin-locked');
+  if (workspace) workspace.hidden = true;
+  if (gate) {
+    gate.hidden = false;
+    requestAnimationFrame(function() {
+      gate.classList.add('is-ready');
+    });
+  }
+  if (tip) {
+    tip.textContent = opts.tip || '';
+    tip.classList.toggle('is-err', !!opts.err);
+  }
+  if (discordBtn) {
+    discordBtn.href = discordLoginUrl(location.href);
+    var ok = opts.discordOk !== false;
+    discordBtn.classList.toggle('is-disabled', !ok);
+    discordBtn.setAttribute('aria-disabled', ok ? 'false' : 'true');
+    discordBtn.style.display = opts.hideDiscord ? 'none' : '';
+  }
+  if (extra) extra.hidden = !opts.showLogout;
+}
+
+function showAdminWorkspace(st) {
+  var gate = $('adminLoginGate');
+  var workspace = $('adminWorkspace');
+  var line = $('adminUserLine');
+  document.body.classList.remove('admin-locked');
+  if (gate) gate.hidden = true;
+  if (workspace) workspace.hidden = false;
+  state.user = st.user;
+  state.role = st.adminRole || 'ops';
+  if (line) {
+    line.textContent = (st.user.displayName || st.user.username)
+      + ' · ' + (state.role === 'readonly' ? '只读管理员' : '运维管理员');
+  }
+  document.body.classList.toggle('admin-readonly', state.role === 'readonly');
+  showView('dashboard');
+}
+
 function bindEvents() {
   document.querySelectorAll('[data-admin-nav]').forEach(function(btn) {
     btn.addEventListener('click', function() {
@@ -420,12 +481,11 @@ function bindEvents() {
 
   var btnLogout = $('btnAdminLogout');
   if (btnLogout) {
-    btnLogout.addEventListener('click', async function() {
-      try {
-        await api('/api/auth/logout', { method: 'POST' });
-      } catch (e) { /* ignore */ }
-      location.href = '/';
-    });
+    btnLogout.addEventListener('click', function() { doLogoutAndReload(); });
+  }
+  var btnGateLogout = $('btnAdminGateLogout');
+  if (btnGateLogout) {
+    btnGateLogout.addEventListener('click', function() { doLogoutAndReload(); });
   }
 
   $('btnAdminLoadUsers') && $('btnAdminLoadUsers').addEventListener('click', function() {
@@ -558,53 +618,34 @@ function bindEvents() {
 
 async function boot() {
   bindEvents();
-  var tip = $('adminGateTip');
-  var line = $('adminUserLine');
-  var shell = $('adminShell');
-  var gate = $('adminGate');
-  var discordBtn = $('btnAdminDiscordLogin');
-  var backBtn = $('btnAdminBackApp');
-  if (discordBtn) discordBtn.href = discordLoginUrl(location.href);
-  if (backBtn) {
-    var appUrl = getPublicAppUrl() || '/';
-    backBtn.href = appUrl.charAt(appUrl.length - 1) === '/' ? appUrl : (appUrl + '/');
-  }
+  setAppBackLinks(getPublicAppUrl() || '/');
+  showLoginGate({ tip: '正在校验登录状态…', discordOk: true });
   try {
     var st = await api('/api/auth/status');
-    if (st.publicAppUrl && backBtn) {
-      backBtn.href = String(st.publicAppUrl).replace(/\/$/, '') + '/';
-    }
-    if (discordBtn) discordBtn.href = discordLoginUrl(location.href);
+    if (st.publicAppUrl) setAppBackLinks(st.publicAppUrl);
+    var discordOk = !!(st.discordConfigured && st.canAcceptDiscordRegistration !== false);
     if (!st.user) {
-      if (line) line.textContent = '未登录';
-      if (tip) tip.textContent = '请先 Discord 登录（须在管理员白名单）。';
-      if (shell) shell.hidden = true;
-      if (gate) gate.hidden = false;
+      showLoginGate({
+        tip: discordOk
+          ? '请使用 Discord 登录。仅白名单管理员可进入。'
+          : 'Discord 登录暂不可用（服务端未配置或正式注册关闭）。',
+        discordOk: discordOk,
+      });
       return;
     }
     if (!st.isAdmin) {
-      if (line) line.textContent = st.user.displayName || st.user.username;
-      if (tip) tip.textContent = '当前账号不是管理员。';
-      if (shell) shell.hidden = true;
-      if (gate) gate.hidden = false;
+      showLoginGate({
+        tip: '已登录为「' + (st.user.displayName || st.user.username) + '」，但不是管理员。请更换白名单账号或联系运维。',
+        err: true,
+        hideDiscord: false,
+        discordOk: discordOk,
+        showLogout: true,
+      });
       return;
     }
-    state.user = st.user;
-    state.role = st.adminRole || 'ops';
-    if (line) {
-      line.textContent = (st.user.displayName || st.user.username)
-        + ' · ' + (state.role === 'readonly' ? '只读管理员' : '运维管理员');
-    }
-    if (tip) tip.textContent = '';
-    if (gate) gate.hidden = true;
-    if (shell) shell.hidden = false;
-    document.body.classList.toggle('admin-readonly', state.role === 'readonly');
-    showView('dashboard');
+    showAdminWorkspace(st);
   } catch (e) {
-    if (tip) tip.textContent = bannerForError(e);
-    if (shell) shell.hidden = true;
-    if (gate) gate.hidden = false;
-    setBanner(bannerForError(e), 'err');
+    showLoginGate({ tip: bannerForError(e), err: true, discordOk: true });
   }
 }
 

@@ -1,43 +1,63 @@
 ---
 /**
- * 账户与云同步：Discord / 调试登录 / 手动同步
+ * 账户与云同步：未登录门禁 + Discord / 调试登录 / 手动同步
  */
 ---
 <div class="panel" id="accountSyncPanel">
-  <h2>账户与同步</h2>
-  <p class="ui-muted" style="font-size:0.85rem;margin-bottom:12px;">
-    多端备份为主：登录后数据经 Pouch ↔ Couch 同步。正式登录仅 Discord 门禁。API 密钥如需上云，请在「AI 配置」用口令加密上传。
-  </p>
-
-  <section class="ui-section" style="margin-bottom:16px;">
-    <h3 class="ui-section-title">登录状态</h3>
-    <div id="authUserLine" class="ui-muted" style="margin-bottom:8px;">未登录</div>
-    <div class="ui-row" style="gap:8px;flex-wrap:wrap;">
-      <a id="btnDiscordLogin" class="btn btn-primary" href="/api/auth/discord">Discord 登录</a>
-      <button type="button" id="btnAuthLogout" class="btn btn-ghost">退出</button>
-      <a id="btnOpenAdmin" class="btn btn-ghost" href="#" style="display:none;">打开管理端</a>
-    </div>
-    <div id="devLoginBox" class="ui-section" style="margin-top:12px;display:none;">
-      <label for="devLoginName" class="ui-muted" style="font-size:0.8rem;">调试登录（临时用户名，仅开发开关开启时可用）</label>
-      <div class="ui-row" style="gap:8px;margin-top:6px;">
-        <input id="devLoginName" type="text" placeholder="输入用户名后进入" style="flex:1;min-width:140px;" />
-        <button type="button" id="btnDevLogin" class="btn btn-fetch">进入</button>
+  <!-- 未登录：独立登录构图 -->
+  <div id="accountLoginGate" class="auth-login-screen auth-login-screen--embed" aria-live="polite">
+    <div class="auth-login-ambient" aria-hidden="true"></div>
+    <div class="auth-login-panel">
+      <p class="auth-login-brand">ST Card Builder</p>
+      <p class="auth-login-kicker">Account</p>
+      <h1 class="auth-login-title">登录以启用云同步</h1>
+      <p class="auth-login-lead">
+        正式登录仅 Discord。登录后草稿经 Pouch ↔ Couch 多端备份；API 密钥如需上云，请在「AI 配置」用口令加密上传。
+      </p>
+      <a id="btnDiscordLogin" class="btn btn-primary auth-login-cta" href="#">使用 Discord 登录</a>
+      <p id="authStatusTip" class="auth-login-tip" role="status"></p>
+      <div id="devLoginBox" class="auth-login-dev" style="display:none;">
+        <label for="devLoginName">调试登录（临时用户名，仅开发开关开启时可用）</label>
+        <div class="ui-row" style="gap:8px;">
+          <input id="devLoginName" type="text" placeholder="输入用户名后进入" style="flex:1;min-width:140px;" />
+          <button type="button" id="btnDevLogin" class="btn btn-fetch">进入</button>
+        </div>
       </div>
     </div>
-    <div id="authStatusTip" class="ui-status-tip" role="status"></div>
-  </section>
+  </div>
 
-  <section class="ui-section">
-    <h3 class="ui-section-title">云同步</h3>
-    <p class="ui-muted" style="font-size:0.8rem;">默认每 5 分钟自动同步（不含 API 密钥明文）。重开后先读云端卡列表，点开某卡再懒同步正文。</p>
-    <div class="ui-row" style="gap:8px;flex-wrap:wrap;margin-top:8px;">
-      <button type="button" id="btnManualSync" class="btn btn-primary">立即同步</button>
-      <button type="button" id="btnRetrySync" class="btn btn-ghost">重试</button>
-      <span id="syncStatusLine" class="ui-muted" style="font-size:0.8rem;">尚未同步</span>
-    </div>
-    <div id="syncTip" class="ui-status-tip" role="status"></div>
-  </section>
+  <!-- 已登录：状态 + 同步 -->
+  <div id="accountSessionBody" hidden>
+    <h2>账户与同步</h2>
+    <p class="ui-muted" style="font-size:0.85rem;margin-bottom:12px;">
+      多端备份为主：登录后数据经 Pouch ↔ Couch 同步。API 密钥如需上云，请在「AI 配置」用口令加密上传。
+    </p>
+
+    <section class="ui-section" style="margin-bottom:16px;">
+      <h3 class="ui-section-title">登录状态</h3>
+      <div id="authUserLine" class="ui-muted" style="margin-bottom:8px;">—</div>
+      <div class="ui-row" style="gap:8px;flex-wrap:wrap;">
+        <button type="button" id="btnAuthLogout" class="btn btn-ghost">退出</button>
+        <a id="btnOpenAdmin" class="btn btn-ghost" href="#" style="display:none;">打开管理端</a>
+      </div>
+    </section>
+
+    <section class="ui-section">
+      <h3 class="ui-section-title">云同步</h3>
+      <p class="ui-muted" style="font-size:0.8rem;">默认每 5 分钟自动同步（不含 API 密钥明文）。重开后先读云端卡列表，点开某卡再懒同步正文。</p>
+      <div class="ui-row" style="gap:8px;flex-wrap:wrap;margin-top:8px;">
+        <button type="button" id="btnManualSync" class="btn btn-primary">立即同步</button>
+        <button type="button" id="btnRetrySync" class="btn btn-ghost">重试</button>
+        <span id="syncStatusLine" class="ui-muted" style="font-size:0.8rem;">尚未同步</span>
+      </div>
+      <div id="syncTip" class="ui-status-tip" role="status"></div>
+    </section>
+  </div>
 </div>
+
+<style is:global>
+  @import '../styles/auth-login.css';
+</style>
 
 <script>
   import {
@@ -53,45 +73,75 @@
   import { getPublicAdminUrl } from '../lib/publicConfig.mjs';
   import { idbGetJson } from '../lib/idbStore.mjs';
 
+  function setDiscordCta(st) {
+    var discordBtn = document.getElementById('btnDiscordLogin');
+    if (!discordBtn) return;
+    discordBtn.href = discordLoginUrlForCurrentPage();
+    var ok = !!(st && st.discordConfigured && st.canAcceptDiscordRegistration);
+    discordBtn.classList.toggle('is-disabled', !ok);
+    discordBtn.setAttribute('aria-disabled', ok ? 'false' : 'true');
+    if (!ok) {
+      discordBtn.setAttribute('title', '正式注册暂不可用（校验开启且服务器/身份组未配置）');
+    } else {
+      discordBtn.removeAttribute('title');
+    }
+  }
+
+  function showLoggedOut(st, tipText, tipErr) {
+    var gate = document.getElementById('accountLoginGate');
+    var body = document.getElementById('accountSessionBody');
+    var tip = document.getElementById('authStatusTip');
+    var devBox = document.getElementById('devLoginBox');
+    if (body) body.hidden = true;
+    if (gate) {
+      gate.hidden = false;
+      requestAnimationFrame(function() {
+        gate.classList.add('is-ready');
+      });
+    }
+    if (devBox) devBox.style.display = st && st.devLoginEnabled ? 'block' : 'none';
+    setDiscordCta(st || {});
+    if (tip) {
+      tip.textContent = tipText || '';
+      tip.classList.toggle('is-err', !!tipErr);
+    }
+    stopAutoSync();
+  }
+
+  function showLoggedIn(st) {
+    var gate = document.getElementById('accountLoginGate');
+    var body = document.getElementById('accountSessionBody');
+    var line = document.getElementById('authUserLine');
+    var adminBtn = document.getElementById('btnOpenAdmin');
+    if (gate) gate.hidden = true;
+    if (body) body.hidden = false;
+    if (line) {
+      if (st.disabled) line.textContent = '账号已被禁用同步';
+      else line.textContent = '已登录：' + (st.user.displayName || st.user.username) + '（' + st.user.provider + '）';
+    }
+    if (adminBtn) {
+      adminBtn.style.display = st.isAdmin ? '' : 'none';
+      var adminUrl = (st.publicAdminUrl || getPublicAdminUrl() || '').replace(/\/$/, '');
+      if (adminUrl) adminBtn.href = adminUrl + '/';
+    }
+    if (!st.disabled) startAutoSync();
+    else stopAutoSync();
+  }
+
   async function refreshAuthUi() {
     var tip = document.getElementById('authStatusTip');
-    var line = document.getElementById('authUserLine');
-    var devBox = document.getElementById('devLoginBox');
-    var discordBtn = document.getElementById('btnDiscordLogin');
-    var adminBtn = document.getElementById('btnOpenAdmin');
     try {
       var st = await fetchAuthStatus();
-      if (devBox) devBox.style.display = st.devLoginEnabled ? 'block' : 'none';
-      if (adminBtn) {
-        adminBtn.style.display = st.isAdmin ? '' : 'none';
-        var adminUrl = (st.publicAdminUrl || getPublicAdminUrl() || '').replace(/\/$/, '');
-        if (adminUrl) adminBtn.href = adminUrl + '/';
-      }
-      if (discordBtn) {
-        discordBtn.href = discordLoginUrlForCurrentPage();
-        if (!st.canAcceptDiscordRegistration) {
-          discordBtn.setAttribute('title', '正式注册暂不可用（校验开启且服务器/身份组未配置）');
-          discordBtn.classList.add('is-disabled');
-        } else {
-          discordBtn.removeAttribute('title');
-          discordBtn.classList.remove('is-disabled');
-        }
-        discordBtn.style.pointerEvents = st.canAcceptDiscordRegistration && st.discordConfigured ? '' : 'none';
-        discordBtn.style.opacity = st.canAcceptDiscordRegistration && st.discordConfigured ? '1' : '0.45';
-      }
-      if (st.disabled) {
-        if (line) line.textContent = '账号已被禁用同步';
-        stopAutoSync();
-      } else if (st.user) {
-        if (line) line.textContent = '已登录：' + (st.user.displayName || st.user.username) + '（' + st.user.provider + '）';
-        startAutoSync();
+      if (st.user) {
+        showLoggedIn(st);
+        if (tip) tip.textContent = '';
       } else {
-        if (line) line.textContent = '未登录';
-        stopAutoSync();
+        showLoggedOut(st, st.discordConfigured
+          ? '未登录。点击上方按钮使用 Discord 授权。'
+          : 'Discord 未配置，无法正式登录。');
       }
-      if (tip) tip.textContent = '';
     } catch (e) {
-      if (line) line.textContent = '无法连接同步服务（请启动 server + CouchDB）';
+      showLoggedOut({}, '无法连接同步服务（请启动 server + CouchDB）', true);
       if (tip) tip.textContent = String(e && e.message || e);
     }
   }
@@ -131,7 +181,10 @@
       await runSync({ refreshCred: true }).catch(function() {});
       setSyncLine();
     } catch (e) {
-      if (tip) tip.textContent = String(e && e.message || e);
+      if (tip) {
+        tip.textContent = String(e && e.message || e);
+        tip.classList.add('is-err');
+      }
     }
   });
 
