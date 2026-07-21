@@ -125,6 +125,9 @@ export function registerCharacter(ctx) {
         var el = ctx.$(id);
         if (el) el.addEventListener('input', ctx.save);
       });
+      // 版本只读，仅 bump 按钮改值后通过 change 保存
+      var verEl = ctx.$('characterVersion');
+      if (verEl) verEl.addEventListener('change', ctx.save);
 
       // 角色标签芯片操作
       if (btnAddCharTag) btnAddCharTag.addEventListener('click', ctx.panels.character.addCharTagFromInput);

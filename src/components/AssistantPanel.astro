@@ -59,7 +59,7 @@ const catalogOverviewText = buildCatalogOverviewText({
   </div>
 
   <div class="assistant-panel__composer">
-    <textarea id="assistantInput" class="assistant-panel__input" rows="3" placeholder="问助手：检查世界书、润色人设、跳转模块…"></textarea>
+    <textarea id="assistantInput" class="assistant-panel__input" rows="3" placeholder="描述想做的卡或关系，我来帮你配世界观/口味并改设定…"></textarea>
     <div class="composer-bar assistant-panel__composer-bar">
       <div class="composer-bar__left assistant-panel__quick-wrap">
         <button type="button" class="assistant-btn-quick" id="assistantQuickBtn" aria-haspopup="listbox" aria-expanded="false">快捷</button>
@@ -68,7 +68,7 @@ const catalogOverviewText = buildCatalogOverviewText({
         </button>
         <div class="assistant-quick-menu" id="assistantQuickMenu" role="listbox" hidden></div>
       </div>
-      <span id="assistantTokenCount" class="assistant-token-count composer-bar__meta" aria-live="polite"></span>
+      <span id="assistantTokenCount" class="assistant-token-count composer-bar__meta" role="button" tabindex="0" aria-label="查看上下文内容" aria-live="polite"></span>
       <div class="composer-bar__actions assistant-panel__composer-actions">
         <button type="button" class="btn-icon assistant-btn-undo" id="assistantUndoBtn" title="撤销上一补丁" aria-label="撤销上一补丁">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 7H5v4"/><path d="M5 11a7 7 0 1 1 2 5.2L5 11z"/></svg>
@@ -98,6 +98,20 @@ const catalogOverviewText = buildCatalogOverviewText({
     <div class="assistant-rag-modal__body">
       <pre class="assistant-rag-modal__preview" id="assistantRagModalPreview"></pre>
     </div>
+  </div>
+</div>
+
+<div id="assistantContextModal" class="assistant-rag-modal" hidden aria-hidden="true">
+  <div class="assistant-rag-modal__backdrop ui-modal-backdrop" data-assistant-context-close aria-hidden="true"></div>
+  <div class="ui-modal-dialog assistant-rag-modal__dialog assistant-context-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="assistantContextModalTitle">
+    <div class="assistant-rag-modal__head">
+      <div>
+        <h2 id="assistantContextModalTitle">上下文内容</h2>
+        <p class="assistant-rag-modal__meta" id="assistantContextModalMeta"></p>
+      </div>
+      <button type="button" class="btn-icon btn-icon--sm" id="assistantContextModalClose" aria-label="关闭上下文预览">×</button>
+    </div>
+    <div class="assistant-rag-modal__body assistant-context-modal__body" id="assistantContextModalBody"></div>
   </div>
 </div>
 
@@ -517,6 +531,70 @@ const catalogOverviewText = buildCatalogOverviewText({
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    cursor: pointer;
+    text-decoration: none;
+    transition: color 0.15s ease, text-decoration-color 0.15s ease;
+  }
+  .assistant-token-count:hover,
+  .assistant-token-count:focus-visible {
+    color: var(--color-accent-hover);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    outline: none;
+  }
+  .assistant-context-modal__dialog {
+    width: min(560px, 100%);
+    max-height: min(78vh, 640px);
+  }
+  .assistant-context-modal__body {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow-y: auto;
+    min-height: 0;
+    max-height: min(60vh, 520px);
+  }
+  .assistant-context-section {
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 10px;
+    background: var(--color-surface-inset);
+    overflow: hidden;
+  }
+  .assistant-context-section__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 10px;
+    font-size: 0.78rem;
+    font-weight: 650;
+    color: var(--color-text-secondary);
+    border-bottom: 1px solid var(--color-border-subtle);
+  }
+  .assistant-context-section__tokens {
+    font-size: 0.68rem;
+    font-weight: 500;
+    color: var(--color-text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .assistant-context-section__pre {
+    margin: 0;
+    padding: 10px 12px;
+    max-height: 180px;
+    overflow: auto;
+    font-size: 0.72rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: var(--color-text);
+    font-family: var(--font-mono, ui-monospace, monospace);
+  }
+  .assistant-context-empty {
+    margin: 0;
+    padding: 16px;
+    text-align: center;
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
   }
   .assistant-btn-quick {
     font-size: 0.7rem;
@@ -788,6 +866,7 @@ const catalogOverviewText = buildCatalogOverviewText({
     estimateAssistantContext,
     formatAssistantContextLabel,
     formatAssistantContextTitle,
+    buildAssistantContextSections,
   } from '../lib/assistant/tokenEstimate.mjs';
   import {
     buildRagPreviewPayload,
@@ -827,6 +906,10 @@ const catalogOverviewText = buildCatalogOverviewText({
     var ragModalMeta = document.getElementById('assistantRagModalMeta');
     var ragModalPreview = document.getElementById('assistantRagModalPreview');
     var ragModalClose = document.getElementById('assistantRagModalClose');
+    var contextModal = document.getElementById('assistantContextModal');
+    var contextModalMeta = document.getElementById('assistantContextModalMeta');
+    var contextModalBody = document.getElementById('assistantContextModalBody');
+    var contextModalClose = document.getElementById('assistantContextModalClose');
     var pendingBox = document.getElementById('assistantPendingBox');
     var pendingSummary = document.getElementById('assistantPendingSummary');
     var pendingPreview = document.getElementById('assistantPendingPreview');
@@ -975,6 +1058,73 @@ const catalogOverviewText = buildCatalogOverviewText({
       ragModal.setAttribute('aria-hidden', open ? 'false' : 'true');
       document.body.classList.toggle('assistant-rag-modal-open', open);
       if (open && ragModalClose) ragModalClose.focus();
+    }
+
+    function setContextModalOpen(open) {
+      if (!contextModal) return;
+      contextModal.hidden = !open;
+      contextModal.setAttribute('aria-hidden', open ? 'false' : 'true');
+      document.body.classList.toggle('assistant-rag-modal-open', open);
+      if (open && contextModalClose) contextModalClose.focus();
+    }
+
+    function escapeHtmlLite(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function latestRagBody() {
+      for (var i = uiMessages.length - 1; i >= 0; i--) {
+        var m = uiMessages[i];
+        if (m && m.role === 'user' && m.ragPreview && m.ragPreview.ragBody) {
+          return String(m.ragPreview.ragBody);
+        }
+      }
+      return '';
+    }
+
+    function openContextModal() {
+      var systemPrompt = buildSystemPrompt('');
+      var history = historyForModel();
+      var pending = (inputEl && inputEl.value || '').trim();
+      var breakdown = estimateAssistantContext({
+        systemPrompt: systemPrompt,
+        historyMessages: history,
+        pendingInput: pending,
+      });
+      var sections = buildAssistantContextSections({
+        systemPrompt: systemPrompt,
+        toolList: toolListText,
+        catalogOverview: catalogOverviewText,
+        characterFieldHint: CHARACTER_FIELD_HINT,
+        historyMessages: history,
+        pendingInput: pending,
+        ragBody: latestRagBody(),
+      });
+      if (contextModalMeta) {
+        contextModalMeta.textContent = formatAssistantContextLabel(breakdown.total)
+          + ' · 系统 ' + breakdown.system
+          + ' · 历史 ' + breakdown.history
+          + ' · 待发送 ' + breakdown.pending
+          + '（近似）';
+      }
+      if (contextModalBody) {
+        if (!sections.length) {
+          contextModalBody.innerHTML = '<p class="assistant-context-empty">当前无可展示上下文</p>';
+        } else {
+          contextModalBody.innerHTML = sections.map(function(sec) {
+            return '<section class="assistant-context-section" data-section="' + escapeHtmlLite(sec.id) + '">'
+              + '<div class="assistant-context-section__head"><span>' + escapeHtmlLite(sec.title) + '</span>'
+              + '<span class="assistant-context-section__tokens">≈ ' + sec.tokens + ' tok</span></div>'
+              + '<pre class="assistant-context-section__pre">' + escapeHtmlLite(sec.body) + '</pre>'
+              + '</section>';
+          }).join('');
+        }
+      }
+      setContextModalOpen(true);
     }
 
     function showRagPreviewPayload(payload) {
@@ -2069,10 +2219,32 @@ const catalogOverviewText = buildCatalogOverviewText({
       if (ragModalClose) {
         ragModalClose.addEventListener('click', function() { setRagModalOpen(false); });
       }
-      document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape' && ragModal && !ragModal.hidden) setRagModalOpen(false);
+    }
+    if (contextModal) {
+      contextModal.querySelectorAll('[data-assistant-context-close]').forEach(function(el) {
+        el.addEventListener('click', function() { setContextModalOpen(false); });
+      });
+      if (contextModalClose) {
+        contextModalClose.addEventListener('click', function() { setContextModalOpen(false); });
+      }
+    }
+    if (tokenCountEl) {
+      tokenCountEl.addEventListener('click', function() { openContextModal(); });
+      tokenCountEl.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          openContextModal();
+        }
       });
     }
+    document.addEventListener('keydown', function(e) {
+      if (e.key !== 'Escape') return;
+      if (contextModal && !contextModal.hidden) {
+        setContextModalOpen(false);
+        return;
+      }
+      if (ragModal && !ragModal.hidden) setRagModalOpen(false);
+    });
 
     if (actionBtn) {
       actionBtn.addEventListener('click', function() {

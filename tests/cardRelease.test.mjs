@@ -2,6 +2,9 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   normalizeCharacterVersion,
+  parseCharacterVersion,
+  bumpCharacterVersionMajor,
+  bumpCharacterVersionMinor,
   buildCardReleasePayload,
 } from '../src/lib/card-builder/cardRelease.mjs';
 import {
@@ -16,6 +19,14 @@ describe('cardRelease', function() {
   it('normalizeCharacterVersion 默认 1.0', function() {
     assert.equal(normalizeCharacterVersion(''), '1.0');
     assert.equal(normalizeCharacterVersion(' 2.1 '), '2.1');
+  });
+
+  it('bump major / minor', function() {
+    assert.equal(bumpCharacterVersionMajor('1.0'), '2.0');
+    assert.equal(bumpCharacterVersionMajor('2.5'), '3.0');
+    assert.equal(bumpCharacterVersionMinor('1.0'), '1.1');
+    assert.equal(bumpCharacterVersionMinor('1.9'), '1.10');
+    assert.equal(parseCharacterVersion('x').display, '1.0');
   });
 
   it('buildCardReleasePayload 使用 character_version', function() {

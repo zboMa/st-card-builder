@@ -31,6 +31,10 @@ export function registerCardManager(ctx) {
   var cardManagerUiPendingDrafts = undefined;
   var CARD_MANAGER_UI_DEBOUNCE_MS = 80;
   var autoSaveTimer;
+  /** @type {Set<string>} */
+  var selectedFilterTags = new Set();
+  var cardManagerSearchQuery = '';
+  var tagPopupOpen = false;
 
   // ---- IDB helpers ----
   function ensureIdbReady() {
@@ -147,11 +151,91 @@ export function registerCardManager(ctx) {
       : '未发布';
     var stale = meta && meta.publishedCharacterVersion
       && meta.publishedCharacterVersion !== work
-      ? ' · 草稿版已超前'
+      ? ' · 草稿超前'
       : '';
     var share = meta && meta.token ? ' · 分享中' : '';
     var png = meta && meta.token && meta.pngPublic ? ' · PNG直链' : '';
-    return '工作 ' + work + ' · ' + pub + stale + share + png;
+    return pub + stale + share + png;
+  }
+
+  function draftTags(d) {
+    return normalizeTags((d && (d.charTags || d.tags)) || []);
+  }
+
+  function collectAllTags(dr) {
+    var map = Object.create(null);
+    Object.keys(dr || {}).forEach(function(id) {
+      draftTags(dr[id]).forEach(function(t) {
+        map[t] = (map[t] || 0) + 1;
+      });
+    });
+    return Object.keys(map).sort(function(a, b) {
+      return map[b] - map[a] || a.localeCompare(b, 'zh');
+    });
+  }
+
+  function draftMatchesFilters(d) {
+    if (selectedFilterTags.size) {
+      var tags = draftTags(d);
+      var hit = false;
+      selectedFilterTags.forEach(function(t) {
+        if (tags.indexOf(t) >= 0) hit = true;
+      });
+      if (!hit) return false;
+    }
+    var q = String(cardManagerSearchQuery || '').trim().toLowerCase();
+    if (q) {
+      var name = String(draftDisplayName(d) || '').toLowerCase();
+      if (name.indexOf(q) < 0) return false;
+    }
+    return true;
+  }
+
+  function renderTagFilters(allTags) {
+    var scroll = ctx.$('cardManagerTagScroll');
+    var clearBtn = ctx.$('btnCardTagClear');
+    var popup = ctx.$('cardManagerTagPopup');
+    if (scroll) {
+      if (!allTags.length) {
+        scroll.innerHTML = '<span class="card-manager-tag-popup-empty">暂无标签</span>';
+      } else {
+        scroll.innerHTML = allTags.map(function(t) {
+          var active = selectedFilterTags.has(t);
+          return '<button type="button" class="card-manager-tag-chip' + (active ? ' is-active' : '')
+            + '" data-card-tag="' + ctx.escapeHtml(t) + '" aria-pressed="' + (active ? 'true' : 'false') + '">'
+            + ctx.escapeHtml(t) + '</button>';
+        }).join('');
+      }
+    }
+    if (clearBtn) clearBtn.hidden = selectedFilterTags.size === 0;
+    if (popup && !popup.hidden) {
+      if (!allTags.length) {
+        popup.innerHTML = '<div class="card-manager-tag-popup-empty">暂无标签可筛选</div>';
+      } else {
+        popup.innerHTML = allTags.map(function(t) {
+          var active = selectedFilterTags.has(t);
+          return '<button type="button" class="card-manager-tag-chip' + (active ? ' is-active' : '')
+            + '" data-card-tag="' + ctx.escapeHtml(t) + '" role="option" aria-selected="'
+            + (active ? 'true' : 'false') + '">' + ctx.escapeHtml(t) + '</button>';
+        }).join('');
+      }
+    }
+  }
+
+  function setTagPopupOpen(open) {
+    var popup = ctx.$('cardManagerTagPopup');
+    var btn = ctx.$('btnCardTagPicker');
+    tagPopupOpen = !!open;
+    if (popup) popup.hidden = !tagPopupOpen;
+    if (btn) btn.setAttribute('aria-expanded', tagPopupOpen ? 'true' : 'false');
+  }
+
+  function toggleFilterTag(tag) {
+    var t = String(tag || '').trim();
+    if (!t) return;
+    if (selectedFilterTags.has(t)) selectedFilterTags.delete(t);
+    else selectedFilterTags.add(t);
+    panel.updateCardManagerUI();
   }
 
   // ---- Actions HTML ----
@@ -197,9 +281,25 @@ export function registerCardManager(ctx) {
     if (!listEl) return;
     revokeManagerThumbs();
     var dr = getDraftsForDisplay(storedDrafts);
-    var ks = Object.keys(dr);
-    if (!ks.length) {
+    var allTags = collectAllTags(dr);
+    renderTagFilters(allTags);
+
+    var ks = Object.keys(dr).filter(function(id) {
+      return draftMatchesFilters(dr[id] || {});
+    });
+    // 更新时间倒序
+    ks.sort(function(a, b) {
+      var ta = String((dr[a] && dr[a].updatedAt) || '');
+      var tb = String((dr[b] && dr[b].updatedAt) || '');
+      return tb.localeCompare(ta);
+    });
+
+    if (!Object.keys(dr).length) {
       listEl.innerHTML = '<p class="card-manager-empty">暂无角色卡，点击右上角「新建」</p>';
+      return;
+    }
+    if (!ks.length) {
+      listEl.innerHTML = '<p class="card-manager-empty">没有符合筛选条件的角色卡</p>';
       return;
     }
     listEl.innerHTML = '';
@@ -231,12 +331,20 @@ export function registerCardManager(ctx) {
         ph.textContent = '无封面';
         cover.appendChild(ph);
       }
+
+      var badges = document.createElement('div');
+      badges.className = 'card-manager-cover-badges';
       if (active) {
         var badge = document.createElement('span');
         badge.className = 'card-manager-badge';
         badge.textContent = '当前';
-        cover.appendChild(badge);
+        badges.appendChild(badge);
       }
+      var verBadge = document.createElement('span');
+      verBadge.className = 'card-manager-version-badge';
+      verBadge.textContent = 'v' + draftWorkVersion(d);
+      badges.appendChild(verBadge);
+      cover.appendChild(badges);
 
       var shareMeta = getCardShareMeta(id) || {};
       var main = document.createElement('div');
@@ -1022,6 +1130,68 @@ export function registerCardManager(ctx) {
   // ---- Event bindings ----
   panel.bind = function () {
     panel.bindExportChecklistUi();
+
+    var searchEl = ctx.$('cardManagerSearch');
+    if (searchEl && !searchEl._cardMgrBound) {
+      searchEl._cardMgrBound = true;
+      searchEl.addEventListener('input', function() {
+        cardManagerSearchQuery = searchEl.value || '';
+        panel.updateCardManagerUI();
+      });
+    }
+
+    var tagBar = ctx.$('cardManagerTagBar');
+    if (tagBar && !tagBar._cardMgrBound) {
+      tagBar._cardMgrBound = true;
+      tagBar.addEventListener('click', function(e) {
+        var chip = e.target.closest('[data-card-tag]');
+        if (chip) {
+          e.preventDefault();
+          toggleFilterTag(chip.getAttribute('data-card-tag'));
+          return;
+        }
+        if (e.target.closest('#btnCardTagClear')) {
+          e.preventDefault();
+          selectedFilterTags.clear();
+          panel.updateCardManagerUI();
+        }
+      });
+    }
+
+    var pickerBtn = ctx.$('btnCardTagPicker');
+    if (pickerBtn && !pickerBtn._cardMgrBound) {
+      pickerBtn._cardMgrBound = true;
+      pickerBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        setTagPopupOpen(!tagPopupOpen);
+        if (tagPopupOpen) {
+          renderTagFilters(collectAllTags(getDraftsForDisplay()));
+        }
+      });
+    }
+
+    var tagPopup = ctx.$('cardManagerTagPopup');
+    if (tagPopup && !tagPopup._cardMgrBound) {
+      tagPopup._cardMgrBound = true;
+      tagPopup.addEventListener('click', function(e) {
+        var chip = e.target.closest('[data-card-tag]');
+        if (!chip) return;
+        e.preventDefault();
+        e.stopPropagation();
+        toggleFilterTag(chip.getAttribute('data-card-tag'));
+      });
+    }
+
+    document.addEventListener('click', function(e) {
+      if (!tagPopupOpen) return;
+      var filters = ctx.$('cardManagerFilters');
+      if (filters && filters.contains(e.target)) return;
+      setTagPopupOpen(false);
+    });
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape' && tagPopupOpen) setTagPopupOpen(false);
+    });
 
     var btnNewDraft = ctx.$('btnNewDraft');
     if (btnNewDraft) {
