@@ -46,6 +46,10 @@ const REQUIRED_UI_CLASSES = [
   '.btn-panel-tool',
   '.btn-ai-engine',
   '.btn-meta',
+  '.btn-inline',
+  '.ui-search-bar',
+  '.ui-panel-lead',
+  '.ui-empty-tip',
 ];
 
 describe('design tokens (Nocturne Atelier)', function() {

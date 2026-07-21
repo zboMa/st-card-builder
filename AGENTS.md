@@ -14,6 +14,7 @@ npm test             # Node.js native test runner (tests/**/*.test.mjs)
 
 ## Conventions
 
+- **UI 须遵循 `docs/design-system.md`**：文本分层、搜索条、空态、行内 tip/按钮、封面卡叠字与角标等标准模式；新增控件优先复用 `src/styles/ui-patterns.css`。
 - **All JS modules use `.mjs` extension and ESM imports.** There are no `.js` source files.
 - Astro components use `.astro` extension with `---` frontmatter fences. Client-side code goes in `<script>` tags, not the frontmatter.
 - **No SSR** — Astro output is static (`dist/`). Frontmatter code runs at build time only.

@@ -73,8 +73,17 @@
   }
   .ss-empty, .ss-muted {
     color: var(--color-text-muted);
-    font-size: 0.82rem;
+    font-size: 0.78rem;
     padding: 12px 4px;
+  }
+  .ss-empty:not(.ss-empty--panel) {
+    text-align: center;
+    margin: 12px auto;
+    max-width: 28rem;
+    padding: 20px 14px;
+    border: 1px dashed var(--color-accent-border);
+    border-radius: 8px;
+    background: var(--color-accent-soft);
   }
   .ss-empty--panel {
     margin: 0;
@@ -120,22 +129,55 @@
   .ss-novel-item__main {
     display: block;
     padding: 12px 14px;
-    cursor: pointer;
     min-width: 0;
   }
-  .ss-novel-item__main:hover .ss-novel-title {
+  .ss-novel-title {
+    display: block;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: transparent;
+    text-align: left;
+    font: inherit;
+    font-size: 0.92rem;
+    font-weight: 650;
+    color: var(--color-text);
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .ss-novel-title:hover {
     color: var(--color-accent-hover);
   }
-  .ss-novel-title { display: block; font-size: 0.92rem; }
-  .ss-novel-meta { display: block; font-size: 0.72rem; color: var(--color-text-muted); margin-top: 2px; }
+  .ss-novel-meta {
+    display: block;
+    width: 100%;
+    margin: 2px 0 0;
+    padding: 0;
+    border: none;
+    background: transparent;
+    text-align: left;
+    font: inherit;
+    font-size: 0.72rem;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    line-height: 1.4;
+  }
+  .ss-novel-meta:hover {
+    color: var(--color-text-secondary);
+  }
   .ss-novel-item__actions {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     align-items: center;
     gap: 4px;
     padding: var(--space-1, 4px) var(--space-2, 8px) var(--space-2, 8px);
     border-top: 1px solid var(--color-border-subtle);
     background: var(--color-surface-inset);
+    overflow-x: auto;
+    scrollbar-width: thin;
   }
   .ss-novel-item__actions-group {
     display: flex;
@@ -145,16 +187,11 @@
   }
   .ss-novel-item__share {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     align-items: center;
     gap: 4px;
     margin-left: auto;
-  }
-  .ss-novel-share-btn {
-    font-size: 0.68rem !important;
-    padding: 2px 6px !important;
-    width: auto !important;
-    margin: 0 !important;
+    flex-shrink: 0;
   }
   .ss-novel-icon.ss-novel-icon--export:hover {
     color: var(--color-accent-hover);

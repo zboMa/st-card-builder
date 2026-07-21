@@ -88,11 +88,15 @@ describe('exportChecklist', function() {
     var panel = readFileSync(join(root, 'src/components/CardManagerPanel.astro'), 'utf8');
     assert.match(panel, /exportChecklistBox/);
     assert.match(panel, /btnRefreshExportChecklist/);
-    assert.match(panel, /btnOpenExportChecklist/);
     assert.match(panel, /exportChecklistModal/);
-    assert.match(panel, /export-checklist-bar/);
+    assert.match(panel, /ui-search-bar|wb-search-bar/);
+    assert.match(panel, /card-manager-cover-overlay|cover-overlay/);
     var mgr = readFileSync(join(root, 'src/lib/card-builder/panels/cardManager.mjs'), 'utf8');
     assert.match(mgr, /bindExportChecklistUi/);
     assert.match(mgr, /openExportChecklistModal/);
+    assert.match(mgr, /card-manager-check-badge/);
+    assert.match(mgr, /export-check/);
+    assert.match(mgr, /btn-inline/);
+    assert.doesNotMatch(mgr, /iconBtn\('rename'/);
   });
 });
