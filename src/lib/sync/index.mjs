@@ -8,3 +8,10 @@ export * from './authClient.mjs';
 export { migrateLegacyToPouch, isMigrationDone } from './migrate.mjs';
 export { getLocalDb, putDoc, getDoc, putCardDraft, getCardDraft } from './pouch.mjs';
 export { cascadeDeleteCardDocs } from './cascade.mjs';
+export {
+  mirrorCatalogToPouch,
+  mirrorNovelToPouch,
+  mirrorActiveToPouch,
+  mirrorReleaseToPouch,
+  removeStoryNovelFromPouch,
+} from './storyMirror.mjs';

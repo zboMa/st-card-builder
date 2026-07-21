@@ -526,7 +526,7 @@
           post_history_instructions: '',
           tags: json.tags || [],
           creator: '',
-          character_version: '1.0',
+          character_version: (json.character_version || (json.data && json.data.character_version) || '1.0'),
           alternate_greetings: json.alternate_greetings || [],
           extensions: { world: '', regex_scripts: [] },
           character_book: json.character_book || { name: '', entries: [] },

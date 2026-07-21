@@ -37,7 +37,16 @@ npm run dev            # Astro :4321，/api 代理到 8787
 
 ## 文档 ID 前缀
 
-`meta/card-index` · `card/{id}` · `novel/{id}` · `rag/{id}` · `story/{id}/…` · `secrets/ai-config` · `prefs/*`
+`meta/card-index` · `card/{id}` · `novel/{id}` · `rag/{id}` · `story/{id}/…` · `story/{cardId}/{novelId}/release` · `secrets/ai-config` · `prefs/*`
+
+## 小说分享（只读链接）
+
+- **工作稿** `story/{cardId}/{novelId}` 随同步更新，供作者多端编辑。
+- **发布快照** `story/{cardId}/{novelId}/release`：仅用户在「小说管理」点 **增版** 时写入；分享链接**只读 release**，不会暴露开发态草稿。
+- **版号**：完整展示版 = 酒馆 `character_version` + `-` + 小说 `novelVersion`（如 `1.2-3`）。卡版本不另开字段；小说版号仅主动增版时变化，**不用同步时间当版本**。
+- **映射**：公开库 `stcb-public-shares` 文档 `share/{token}` → `{ ownerUserId, cardId, novelId }`。
+- **API**：`POST /api/share/novels`（登录）、`GET /api/share/novels/:token`（公开）、`DELETE /api/share/novels/:token`（登录停用）。
+- **读者入口**：`/#share/{token}` 只渲染阅读壳。
 
 ## 迁移
 

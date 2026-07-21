@@ -40,6 +40,12 @@ export function createEmptyNovel(partial) {
     createdAt: typeof p.createdAt === 'number' ? p.createdAt : now,
     updatedAt: typeof p.updatedAt === 'number' ? p.updatedAt : now,
     cardId: String(p.cardId || ''),
+    /** 小说自身版本后缀；完整版号 = character_version + '-' + novelVersion */
+    novelVersion: String(p.novelVersion != null ? p.novelVersion : '1'),
+    /** 当前已发布（release）的完整版号；无则空 */
+    publishedDisplayVersion: String(p.publishedDisplayVersion != null ? p.publishedDisplayVersion : ''),
+    publishedAt: typeof p.publishedAt === 'number' ? p.publishedAt : 0,
+    shareToken: String(p.shareToken != null ? p.shareToken : ''),
     graph: createEmptyGraph(),
     outline: [],
     chapters: [],
@@ -128,12 +134,20 @@ export function normalizeNovel(raw) {
   chapters.sort(function(a, b) { return a.order - b.order; });
   chapters.forEach(function(c, i) { c.order = i; });
 
+  var novelVersion = String(raw.novelVersion != null ? raw.novelVersion : base.novelVersion).trim() || '1';
+
   return {
     id: String(raw.id || base.id),
     title: String(raw.title != null ? raw.title : base.title) || '未命名小说',
     createdAt: typeof raw.createdAt === 'number' ? raw.createdAt : base.createdAt,
     updatedAt: typeof raw.updatedAt === 'number' ? raw.updatedAt : base.updatedAt,
     cardId: String(raw.cardId || ''),
+    novelVersion: novelVersion,
+    publishedDisplayVersion: String(
+      raw.publishedDisplayVersion != null ? raw.publishedDisplayVersion : base.publishedDisplayVersion
+    ),
+    publishedAt: typeof raw.publishedAt === 'number' ? raw.publishedAt : base.publishedAt,
+    shareToken: String(raw.shareToken != null ? raw.shareToken : ''),
     graph: {
       nodes: Array.isArray(graphRaw.nodes) ? graphRaw.nodes.map(normalizeNode) : [],
       edges: Array.isArray(graphRaw.edges) ? graphRaw.edges.map(normalizeEdge) : [],
@@ -163,6 +177,9 @@ export function toCatalogEntry(novel) {
     updatedAt: n.updatedAt,
     chapterCount: n.chapters.length,
     outlineCount: n.outline.length,
+    novelVersion: n.novelVersion,
+    publishedDisplayVersion: n.publishedDisplayVersion,
+    shareToken: n.shareToken || '',
   };
 }
 

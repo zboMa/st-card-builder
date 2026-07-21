@@ -1,5 +1,5 @@
 /**
- * 删卡时级联清理 Pouch 文档（补齐 RAG / storyStudio）
+ * 删卡时级联清理 Pouch 文档（补齐 RAG / storyStudio / release）
  */
 import {
   cardDocId,
@@ -9,20 +9,18 @@ import {
   storyCatalogDocId,
   storyNovelDocId,
   storyActiveDocId,
+  storyReleaseDocId,
   buildCardIndexFromDrafts,
 } from './docIds.mjs';
 import { removeDoc, putDoc, getDoc } from './pouch.mjs';
+import { catalogNovelsList } from './storyMirror.mjs';
 
 export async function cascadeDeleteCardDocs(cardId, remainingDraftsMap) {
   var id = String(cardId || '').trim();
   if (!id) return;
 
   var catalog = await getDoc(storyCatalogDocId(id));
-  var novels = [];
-  if (catalog) {
-    var raw = catalog.data || catalog;
-    novels = (raw && raw.novels) || [];
-  }
+  var novels = catalogNovelsList(catalog);
 
   var ids = [
     cardDocId(id),
@@ -36,7 +34,10 @@ export async function cascadeDeleteCardDocs(cardId, remainingDraftsMap) {
   if (Array.isArray(novels)) {
     novels.forEach(function(n) {
       var nid = n && (n.id || n.novelId);
-      if (nid) ids.push(storyNovelDocId(id, nid));
+      if (nid) {
+        ids.push(storyNovelDocId(id, nid));
+        ids.push(storyReleaseDocId(id, nid));
+      }
     });
   }
 

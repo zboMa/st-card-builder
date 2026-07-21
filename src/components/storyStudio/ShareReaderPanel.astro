@@ -1,0 +1,237 @@
+---
+/** 分享链接只读阅读壳：#share/{token} */
+---
+<div id="shareReaderRoot" class="share-reader" hidden aria-hidden="true">
+  <header class="share-reader__head">
+    <div>
+      <strong id="shareReaderTitle">—</strong>
+      <span id="shareReaderVersion" class="share-reader__ver"></span>
+    </div>
+    <button type="button" id="btnShareReaderRefresh" class="btn btn-sm btn-ghost">刷新</button>
+  </header>
+  <div class="share-reader__layout">
+    <aside class="share-reader__toc-wrap">
+      <div class="ss-card-head" style="padding:8px 0;border:none;"><strong>目录</strong></div>
+      <div id="shareReaderToc" class="ss-toc"></div>
+    </aside>
+    <div class="share-reader__stage">
+      <div id="shareReaderBody" class="ss-read-body"></div>
+      <div class="ss-read-nav">
+        <button type="button" id="btnShareReaderPrev" class="btn btn-ghost btn-sm">上一章</button>
+        <span id="shareReaderPageInfo" class="ss-muted"></span>
+        <button type="button" id="btnShareReaderNext" class="btn btn-ghost btn-sm">下一章</button>
+      </div>
+    </div>
+  </div>
+  <div id="shareReaderStatus" class="ss-status"></div>
+</div>
+
+<style is:global>
+  html[data-share-mode='1'] .app-shell,
+  html[data-share-mode='1'] .app-mobile-topbar,
+  html[data-share-mode='1'] #appShellBackdrop {
+    display: none !important;
+  }
+  html[data-share-mode='1'] body {
+    overflow: auto;
+  }
+  .share-reader {
+    min-height: 100vh;
+    padding: 16px 20px 40px;
+    background:
+      radial-gradient(1200px 600px at 10% -10%, rgba(190, 120, 160, 0.12), transparent 55%),
+      radial-gradient(900px 500px at 100% 0%, rgba(70, 90, 140, 0.18), transparent 50%),
+      var(--color-bg, #0e1018);
+    color: var(--color-text, #e8e6f0);
+  }
+  .share-reader__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 16px;
+    max-width: 1100px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .share-reader__ver {
+    margin-left: 10px;
+    font-size: 0.85rem;
+    color: var(--color-text-muted, #9aa0b4);
+  }
+  .share-reader__layout {
+    display: grid;
+    grid-template-columns: minmax(160px, 220px) 1fr;
+    gap: 16px;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  @media (max-width: 720px) {
+    .share-reader__layout {
+      grid-template-columns: 1fr;
+    }
+  }
+  .share-reader__stage {
+    min-height: 60vh;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+    padding: 16px;
+    background: rgba(0, 0, 0, 0.2);
+  }
+</style>
+
+<script>
+  import { apiFetchSharedNovel, parseShareTokenFromHash } from '../../lib/storyStudio/shareClient.mjs';
+
+  var shareState = {
+    token: '',
+    novel: null,
+    chapterIndex: 0,
+  };
+
+  function $(id) {
+    return document.getElementById(id);
+  }
+
+  function escapeHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function setShareMode(on) {
+    document.documentElement.setAttribute('data-share-mode', on ? '1' : '0');
+    var root = $('shareReaderRoot');
+    if (!root) return;
+    root.hidden = !on;
+    root.setAttribute('aria-hidden', on ? 'false' : 'true');
+  }
+
+  function setStatus(msg) {
+    var el = $('shareReaderStatus');
+    if (el) el.textContent = String(msg || '');
+  }
+
+  function sortedChapters(novel) {
+    var ch = (novel && Array.isArray(novel.chapters)) ? novel.chapters.slice() : [];
+    ch.sort(function(a, b) { return (a.order || 0) - (b.order || 0); });
+    return ch;
+  }
+
+  function renderShare() {
+    var novel = shareState.novel;
+    var titleEl = $('shareReaderTitle');
+    var verEl = $('shareReaderVersion');
+    var toc = $('shareReaderToc');
+    var body = $('shareReaderBody');
+    var info = $('shareReaderPageInfo');
+    if (!novel) {
+      if (titleEl) titleEl.textContent = '—';
+      if (verEl) verEl.textContent = '';
+      if (toc) toc.innerHTML = '';
+      if (body) body.innerHTML = '';
+      return;
+    }
+    if (titleEl) titleEl.textContent = novel.title || '未命名小说';
+    if (verEl) {
+      verEl.textContent = novel.displayVersion ? ('v' + novel.displayVersion) : '';
+    }
+    var chapters = sortedChapters(novel);
+    if (!chapters.length) {
+      if (toc) toc.innerHTML = '<div class="ss-empty">暂无章节</div>';
+      if (body) body.innerHTML = '<div class="ss-empty">此发布版尚无正文</div>';
+      if (info) info.textContent = '';
+      return;
+    }
+    if (shareState.chapterIndex < 0) shareState.chapterIndex = 0;
+    if (shareState.chapterIndex >= chapters.length) shareState.chapterIndex = chapters.length - 1;
+    if (toc) {
+      toc.innerHTML = chapters.map(function(c, i) {
+        var active = i === shareState.chapterIndex ? ' is-active' : '';
+        return '<button type="button" class="ss-toc-item' + active + '" data-share-ch="' + i + '">'
+          + escapeHtml(c.title || ('第' + (i + 1) + '章'))
+          + '</button>';
+      }).join('');
+    }
+    var cur = chapters[shareState.chapterIndex];
+    var text = String(cur.content || '').trim() || String(cur.summary || '').trim() || '（无正文）';
+    if (body) {
+      body.innerHTML = '<h3>' + escapeHtml(cur.title || '') + '</h3><div class="ss-read-text">'
+        + escapeHtml(text).replace(/\n/g, '<br/>')
+        + '</div>';
+    }
+    if (info) info.textContent = (shareState.chapterIndex + 1) + ' / ' + chapters.length;
+  }
+
+  async function loadShare(token) {
+    shareState.token = token;
+    setShareMode(true);
+    setStatus('加载中…');
+    try {
+      var data = await apiFetchSharedNovel(token);
+      shareState.novel = data.novel || null;
+      shareState.chapterIndex = 0;
+      setStatus(shareState.novel ? '' : '无内容');
+      renderShare();
+    } catch (e) {
+      shareState.novel = null;
+      renderShare();
+      setStatus('无法打开分享：' + (e.message || e));
+    }
+  }
+
+  function exitShareIfNeeded() {
+    var token = parseShareTokenFromHash(location.hash);
+    if (!token) {
+      setShareMode(false);
+      shareState.token = '';
+      shareState.novel = null;
+    }
+  }
+
+  function bootShareFromHash() {
+    var token = parseShareTokenFromHash(location.hash);
+    if (token) loadShare(token);
+    else exitShareIfNeeded();
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    bootShareFromHash();
+    window.addEventListener('hashchange', function() {
+      bootShareFromHash();
+    });
+
+    var toc = $('shareReaderToc');
+    if (toc) {
+      toc.addEventListener('click', function(ev) {
+        var btn = ev.target.closest('[data-share-ch]');
+        if (!btn) return;
+        shareState.chapterIndex = Number(btn.getAttribute('data-share-ch')) || 0;
+        renderShare();
+      });
+    }
+    var prev = $('btnShareReaderPrev');
+    if (prev) {
+      prev.addEventListener('click', function() {
+        shareState.chapterIndex = Math.max(0, shareState.chapterIndex - 1);
+        renderShare();
+      });
+    }
+    var next = $('btnShareReaderNext');
+    if (next) {
+      next.addEventListener('click', function() {
+        var n = sortedChapters(shareState.novel).length;
+        shareState.chapterIndex = Math.min(n - 1, shareState.chapterIndex + 1);
+        renderShare();
+      });
+    }
+    var refresh = $('btnShareReaderRefresh');
+    if (refresh) {
+      refresh.addEventListener('click', function() {
+        if (shareState.token) loadShare(shareState.token);
+      });
+    }
+  });
+</script>

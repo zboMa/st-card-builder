@@ -75,6 +75,8 @@ export function registerCardManager(ctx) {
     ctx.state.charDesc = fn('charDesc');
     ctx.state.firstMes = fn('firstMes');
     ctx.state.creatorNotes = fn('creatorNotes');
+    var verEl = ctx.$('characterVersion');
+    if (verEl) ctx.state.characterVersion = String(verEl.value || '').trim() || '1.0';
   }
 
   // ---- State bridge helpers ----
@@ -403,6 +405,7 @@ export function registerCardManager(ctx) {
     setVal('charDesc', ctx.state.charDesc);
     setVal('firstMes', ctx.state.firstMes);
     setVal('creatorNotes', ctx.state.creatorNotes);
+    setVal('characterVersion', ctx.state.characterVersion || '1.0');
 
     // Tags
     var tagsVal = d.charTags || d.tags || [];
@@ -482,6 +485,7 @@ export function registerCardManager(ctx) {
     setVal('charDesc', '');
     setVal('firstMes', '');
     setVal('creatorNotes', '');
+    setVal('characterVersion', '1.0');
 
     ctx.state.charTags = [];
     if (ctx.panels.character && ctx.panels.character.renderCharTags) {

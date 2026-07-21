@@ -209,7 +209,8 @@ const CONFIG_ITEMS = [
         btn.classList.toggle('is-active', btn.getAttribute('data-view') === id);
       });
       try {
-        if (location.hash !== '#' + id) {
+        var curHash = (location.hash || '').replace(/^#/, '');
+        if (curHash.indexOf('share/') !== 0 && location.hash !== '#' + id) {
           history.replaceState(null, '', '#' + id);
         }
       } catch (e) {}
@@ -219,6 +220,7 @@ const CONFIG_ITEMS = [
 
     function readHashView() {
       var hash = (location.hash || '').replace(/^#/, '');
+      if (hash.indexOf('share/') === 0) return DEFAULT_VIEW;
       if (hash === 'novel') hash = 'novel-source';
       if (hash === 'novel-outputs') hash = 'novel-characters';
       if (!hash) return DEFAULT_VIEW;

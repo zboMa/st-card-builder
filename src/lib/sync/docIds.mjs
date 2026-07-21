@@ -40,6 +40,11 @@ export function storyActiveDocId(cardId) {
   return 'story/' + String(cardId || '').trim() + '/active';
 }
 
+/** 主动增版后的只读快照（分享只读此文档，不读工作稿） */
+export function storyReleaseDocId(cardId, novelId) {
+  return 'story/' + String(cardId || '').trim() + '/' + String(novelId || '').trim() + '/release';
+}
+
 /** 默认同步过滤器：排除 secrets（除非用户显式开启密钥同步） */
 export function buildSyncSelector(includeSecrets) {
   return {

@@ -27,6 +27,8 @@ export function registerExport(ctx) {
     ctx.state.charDesc = fn('charDesc');
     ctx.state.firstMes = fn('firstMes');
     ctx.state.creatorNotes = fn('creatorNotes');
+    var ver = fn('characterVersion');
+    ctx.state.characterVersion = ver || '1.0';
   }
 
   function getCurrentDraftId() {
@@ -146,12 +148,17 @@ export function registerExport(ctx) {
     var charDesc = ctx.$('charDesc');
     var firstMes = ctx.$('firstMes');
     var creatorNotes = ctx.$('creatorNotes');
+    var characterVersion = ctx.$('characterVersion');
 
     if (charName) charName.value = json.data.name || json.name || '';
     if (wbName) wbName.value = (json.data.extensions && json.data.extensions.world) || '';
     if (charDesc) charDesc.value = json.data.description || '';
     if (firstMes) firstMes.value = json.data.first_mes || '';
     if (creatorNotes) creatorNotes.value = json.data.creator_notes || '';
+    if (characterVersion) {
+      characterVersion.value = String(json.data.character_version || '1.0').trim() || '1.0';
+    }
+    ctx.state.characterVersion = String(json.data.character_version || '1.0').trim() || '1.0';
 
     syncDomFieldsToState();
 

@@ -114,3 +114,79 @@ export async function couchHealth() {
     return { ok: false, error: String(e && e.message || e) };
   }
 }
+
+export var SHARES_DB = 'stcb-public-shares';
+
+/** 公开分享映射库（仅服务端 admin 读写） */
+export async function ensureSharesDatabase() {
+  var n = getAdmin();
+  try {
+    await n.db.create(SHARES_DB);
+  } catch (e) {
+    if (!e || e.statusCode !== 412) throw e;
+  }
+  var db = n.use(SHARES_DB);
+  try {
+    await db.insert({
+      admins: { names: [], roles: ['_admin'] },
+      members: { names: [], roles: ['_admin'] },
+    }, '_security');
+  } catch (e) {
+    /* ignore */
+  }
+  return db;
+}
+
+export function getUserDbAdmin(userId) {
+  return getAdmin().use(userDbName(userId));
+}
+
+export function storyReleaseDocId(cardId, novelId) {
+  return 'story/' + String(cardId || '').trim() + '/' + String(novelId || '').trim() + '/release';
+}
+
+export async function getShareMapping(token) {
+  var db = await ensureSharesDatabase();
+  try {
+    return await db.get('share/' + String(token || '').trim());
+  } catch (e) {
+    if (e && e.statusCode === 404) return null;
+    throw e;
+  }
+}
+
+export async function putShareMapping(doc) {
+  var db = await ensureSharesDatabase();
+  var id = doc._id || ('share/' + doc.token);
+  var next = Object.assign({}, doc, { _id: id });
+  try {
+    var existing = await db.get(id);
+    next._rev = existing._rev;
+  } catch (e) {
+    if (!e || e.statusCode !== 404) throw e;
+  }
+  return db.insert(next);
+}
+
+export async function deleteShareMapping(token) {
+  var db = await ensureSharesDatabase();
+  var id = 'share/' + String(token || '').trim();
+  try {
+    var existing = await db.get(id);
+    return db.destroy(id, existing._rev);
+  } catch (e) {
+    if (e && e.statusCode === 404) return null;
+    throw e;
+  }
+}
+
+export async function readOwnerRelease(ownerUserId, cardId, novelId) {
+  var db = getUserDbAdmin(ownerUserId);
+  try {
+    return await db.get(storyReleaseDocId(cardId, novelId));
+  } catch (e) {
+    if (e && e.statusCode === 404) return null;
+    throw e;
+  }
+}
+
