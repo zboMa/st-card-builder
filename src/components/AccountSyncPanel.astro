@@ -82,6 +82,27 @@
         <span id="syncCountdownLine" class="account-session-sync-eta" hidden></span>
       </div>
       <div id="syncTip" class="account-session-tip" role="status"></div>
+
+      <div class="account-session-secrets" id="aiSecretsSyncBox">
+        <h4 class="account-session-secrets-title">云端密钥同步</h4>
+        <p class="account-session-meta">
+          默认不同步 API 密钥。用自设口令在本地加密后上传；服务端只存密文，新设备需同一口令解密。口令不会上传。
+        </p>
+        <label class="account-session-secrets-label" for="aiSecretsPassphrase">同步口令（至少 6 位）</label>
+        <input
+          type="password"
+          id="aiSecretsPassphrase"
+          class="account-session-secrets-input"
+          placeholder="用于加密/解密云端密钥"
+          autocomplete="new-password"
+        />
+        <div class="account-session-secrets-actions">
+          <button type="button" id="btnUploadAiSecrets" class="btn btn-ghost btn-inline">加密同步到云端</button>
+          <button type="button" id="btnDownloadAiSecrets" class="btn btn-ghost btn-inline">拉取并解密到本地</button>
+          <button type="button" id="btnClearCloudAiSecrets" class="btn btn-ghost btn-inline">清除云端密钥</button>
+        </div>
+        <div id="aiSecretsSyncTip" class="account-session-tip" role="status"></div>
+      </div>
     </section>
   </div>
 </div>
@@ -90,7 +111,8 @@
   @import '../styles/auth-login.css';
 
   .account-session {
-    max-width: 520px;
+    width: 100%;
+    max-width: none;
   }
 
   .account-session-head {
@@ -202,11 +224,49 @@
     color: var(--color-danger, oklch(72% 0.16 25));
   }
 
+  .account-session-secrets {
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid var(--color-border-subtle);
+  }
+
+  .account-session-secrets-title {
+    margin: 0 0 4px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--color-text);
+  }
+
+  .account-session-secrets-label {
+    display: block;
+    margin: 12px 0 6px;
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+  }
+
+  .account-session-secrets-input {
+    width: 100%;
+    max-width: 420px;
+    box-sizing: border-box;
+    padding: 8px 10px;
+    border-radius: 10px;
+    border: 1px solid var(--color-border-subtle);
+    background: var(--color-surface-inset, transparent);
+    color: var(--color-text);
+    font-size: 0.85rem;
+  }
+
+  .account-session-secrets-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+  }
+
   .account-session-head .btn-inline,
-  .account-session-card-top .btn-inline {
+  .account-session-card-top .btn-inline,
+  .account-session-secrets-actions .btn-inline {
     flex-shrink: 0;
-    min-height: 32px;
-    padding: 6px 12px;
   }
 </style>
 
@@ -230,6 +290,11 @@
     apiEmailRegister,
     discordLoginUrlForCurrentPage,
   } from '../lib/sync/authClient.mjs';
+  import {
+    uploadAiSecretsToCloud,
+    downloadAiSecretsFromCloud,
+    clearCloudAiSecrets,
+  } from '../lib/sync/secrets.mjs';
   import { idbGetJson } from '../lib/idbStore.mjs';
 
   var panelCountdownTimer = null;
@@ -508,6 +573,60 @@
   });
 
   document.getElementById('btnManualSync')?.addEventListener('click', function() { doSync('同步中…'); });
+
+  function secretsTip(msg, isErr) {
+    var el = document.getElementById('aiSecretsSyncTip');
+    if (!el) return;
+    el.textContent = msg || '';
+    el.classList.toggle('is-err', !!isErr);
+  }
+
+  function readSecretsPassphrase() {
+    var el = document.getElementById('aiSecretsPassphrase');
+    return el ? String(el.value || '') : '';
+  }
+
+  document.getElementById('btnUploadAiSecrets')?.addEventListener('click', async function() {
+    var pass = readSecretsPassphrase();
+    if (pass.length < 6) {
+      secretsTip('请先填写至少 6 位同步口令', true);
+      return;
+    }
+    secretsTip('加密上传中…');
+    try {
+      await uploadAiSecretsToCloud(pass);
+      secretsTip('已加密同步到云端（服务端无法解密）');
+    } catch (e) {
+      secretsTip('失败：' + String(e && e.message || e), true);
+    }
+  });
+
+  document.getElementById('btnDownloadAiSecrets')?.addEventListener('click', async function() {
+    var pass = readSecretsPassphrase();
+    if (pass.length < 6) {
+      secretsTip('请先填写同步口令以解密', true);
+      return;
+    }
+    secretsTip('拉取并解密中…');
+    try {
+      await downloadAiSecretsFromCloud(pass);
+      secretsTip('已解密写入本地；正在刷新…');
+      location.reload();
+    } catch (e) {
+      secretsTip('失败：' + String(e && e.message || e), true);
+    }
+  });
+
+  document.getElementById('btnClearCloudAiSecrets')?.addEventListener('click', async function() {
+    if (!confirm('确认清除云端密钥文档？本地密钥不会删除。')) return;
+    secretsTip('清除中…');
+    try {
+      await clearCloudAiSecrets();
+      secretsTip('云端密钥已清除');
+    } catch (e) {
+      secretsTip('失败：' + String(e && e.message || e), true);
+    }
+  });
 
   onSyncEvent(function() {
     setSyncLine();
