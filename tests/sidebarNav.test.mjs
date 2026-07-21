@@ -367,7 +367,7 @@ describe('sidebar navigation contract', function() {
   it('侧栏顶部包含品牌区文案且无版本/访客 tag', function() {
     const src = readFileSync(join(root, 'src/components/AppSidebar.astro'), 'utf8');
     assert.match(src, /app-sidebar-brand/);
-    assert.match(src, /卡片构建器/);
+    assert.match(src, /啊哈哈哈制卡器/);
     assert.match(src, /一个简单的制卡器/);
     // AI 任务进度入口在标题右侧
     assert.match(src, /app-title-row/);
