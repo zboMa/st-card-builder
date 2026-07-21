@@ -36,6 +36,18 @@ export var config = {
     user: env('COUCHDB_USER', 'admin'),
     password: env('COUCHDB_PASSWORD', 'adminpass'),
   },
+  /**
+   * 浏览器可达的 Couch Origin/前缀（无尾斜杠）。
+   * 生产例：https://card-api.taojiu.love/couch（Nginx 反代到本机 5984）
+   * 留空时：若有 PUBLIC_API_URL → `{PUBLIC_API_URL}/couch`；否则回退 COUCHDB_URL（仅本机调试）。
+   */
+  publicCouchUrl: (function() {
+    var explicit = env('PUBLIC_COUCH_URL', '').replace(/\/$/, '');
+    if (explicit) return explicit;
+    var api = env('PUBLIC_API_URL', '').replace(/\/$/, '');
+    if (api) return api + '/couch';
+    return env('COUCHDB_URL', 'http://127.0.0.1:5984').replace(/\/$/, '');
+  })(),
   discord: {
     clientId: env('DISCORD_CLIENT_ID', ''),
     clientSecret: env('DISCORD_CLIENT_SECRET', ''),
