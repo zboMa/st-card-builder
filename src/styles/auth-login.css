@@ -200,3 +200,72 @@
   font-size: 0.78rem;
   color: var(--color-text-muted);
 }
+
+.auth-login-email {
+  margin: 0 auto 8px;
+  width: min(100%, 320px);
+  text-align: left;
+}
+
+.auth-login-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 14px;
+  padding: 3px;
+  border-radius: 10px;
+  background: var(--color-surface-inset, oklch(18% 0.02 285 / 0.55));
+  border: 1px solid var(--color-border-subtle);
+}
+
+.auth-login-tab {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.auth-login-tab.is-active {
+  background: var(--color-surface, oklch(24% 0.02 285));
+  color: var(--color-text);
+  box-shadow: 0 1px 0 var(--color-border-subtle);
+}
+
+.auth-login-form label {
+  display: block;
+  margin: 10px 0 5px;
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+}
+
+.auth-login-form input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border-subtle);
+  background: var(--color-surface-inset, transparent);
+  color: var(--color-text);
+  font-size: 0.9rem;
+}
+
+.auth-login-form .auth-login-cta {
+  margin-top: 16px;
+  width: 100%;
+  min-width: 0;
+}
+
+.auth-login-hint {
+  margin: 12px 0 0;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.auth-login-hint code {
+  font-size: 0.7rem;
+}

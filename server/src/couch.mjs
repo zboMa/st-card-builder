@@ -334,6 +334,7 @@ export async function upsertUserRegistry(user, extra) {
     displayName: user.displayName || '',
     provider: user.provider || '',
     discordId: user.discordId || '',
+    email: user.email || (existing && existing.email) || '',
     updatedAt: new Date().toISOString(),
   }, extra || {});
   if (!existing) doc.createdAt = new Date().toISOString();
@@ -341,6 +342,55 @@ export async function upsertUserRegistry(user, extra) {
   if (existing && existing._rev) doc._rev = existing._rev;
   if (!Object.prototype.hasOwnProperty.call(doc, 'disabled')) doc.disabled = false;
   return db.insert(doc);
+}
+
+/**
+ * 邮箱认证文档：email-auth/{normalizedEmail}
+ * 存 passwordHash，不放进列表默认展示字段之外的敏感路径由 get 单取。
+ */
+export async function getEmailAuthDoc(normalizedEmail) {
+  var db = await ensureAdminDatabase();
+  var id = 'email-auth/' + String(normalizedEmail || '').trim().toLowerCase();
+  try {
+    return await db.get(id);
+  } catch (e) {
+    if (e && e.statusCode === 404) return null;
+    throw e;
+  }
+}
+
+/**
+ * 注册邮箱用户：写 email-auth + user-registry（邮箱唯一）
+ * @returns {{ user: object, created: boolean }}
+ */
+export async function registerEmailUser(user, passwordHash) {
+  if (!user || !user.id || !user.email || !passwordHash) {
+    throw new Error('register_email_invalid');
+  }
+  var db = await ensureAdminDatabase();
+  var email = String(user.email).trim().toLowerCase();
+  var authId = 'email-auth/' + email;
+  var existingAuth = null;
+  try { existingAuth = await db.get(authId); } catch (e) {
+    if (!e || e.statusCode !== 404) throw e;
+  }
+  if (existingAuth) {
+    var err = new Error('email_taken');
+    err.code = 'email_taken';
+    throw err;
+  }
+  var now = new Date().toISOString();
+  await db.insert({
+    _id: authId,
+    type: 'email-auth',
+    email: email,
+    userId: user.id,
+    passwordHash: passwordHash,
+    createdAt: now,
+    updatedAt: now,
+  });
+  await upsertUserRegistry(user, { email: email });
+  return { user: user, created: true };
 }
 
 export async function getUserRegistry(userId) {

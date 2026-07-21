@@ -8,6 +8,20 @@ import {
   getPublicAppUrl,
 } from '../publicConfig.mjs';
 
+async function apiEmailLogin(payload) {
+  var res = await apiFetch('/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      email: payload && payload.email,
+      password: payload && payload.password,
+    }),
+  });
+  var body = await res.json().catch(function() { return {}; });
+  if (!res.ok) throw new Error(body.message || body.error || 'login_failed');
+  return body;
+}
+
 function $(id) {
   return document.getElementById(id);
 }
@@ -192,7 +206,7 @@ async function loadUsers() {
       return;
     }
     box.innerHTML = '<table class="admin-table"><thead><tr>'
-      + '<th>用户</th><th>Discord</th><th>Token</th><th>状态</th><th>更新</th><th></th>'
+      + '<th>用户</th><th>身份</th><th>Token</th><th>状态</th><th>更新</th><th></th>'
       + '</tr></thead><tbody>'
       + users.map(function(u) {
         var badges = '';
@@ -204,11 +218,15 @@ async function loadUsers() {
             + escapeHtml(u.userId) + '" data-disabled="' + (disabled ? '0' : '1') + '">'
             + (disabled ? '启用' : '禁用') + '</button>')
           : '<span class="admin-muted">只读</span>';
+        var identity = u.email
+          ? escapeHtml(u.email)
+          : (u.discordId ? ('Discord ' + escapeHtml(u.discordId)) : '—');
+        var provider = escapeHtml(u.provider || '—');
         return '<tr class="' + (disabled ? 'is-disabled' : '') + '">'
           + '<td><strong>' + escapeHtml(u.displayName || u.username || u.userId) + '</strong>'
           + badges
           + '<div class="admin-muted">' + escapeHtml(u.userId) + '</div></td>'
-          + '<td>' + escapeHtml(u.discordId || '—') + '</td>'
+          + '<td><div>' + identity + '</div><div class="admin-muted">' + provider + '</div></td>'
           + '<td>' + escapeHtml(u.bearerCount || 0) + '</td>'
           + '<td>' + (disabled ? '<span class="admin-pill admin-pill--warn">已禁用</span>' : '<span class="admin-pill admin-pill--ok">正常</span>') + '</td>'
           + '<td>' + escapeHtml(fmtTime(u.updatedAt || u.createdAt)) + '</td>'
@@ -432,6 +450,7 @@ function showLoginGate(opts) {
   var workspace = $('adminWorkspace');
   var tip = $('adminGateTip');
   var discordBtn = $('btnAdminDiscordLogin');
+  var emailBox = $('adminEmailAuthBox');
   var extra = $('adminLoginExtra');
   document.body.classList.add('admin-locked');
   if (workspace) workspace.hidden = true;
@@ -445,13 +464,18 @@ function showLoginGate(opts) {
     tip.textContent = opts.tip || '';
     tip.classList.toggle('is-err', !!opts.err);
   }
+  if (emailBox) {
+    emailBox.hidden = !opts.emailAuthEnabled || !!opts.hideAuthForms;
+  }
   if (discordBtn) {
-    discordBtn.href = discordLoginUrl(location.href);
-    var ok = opts.discordOk !== false;
-    discordBtn.classList.toggle('is-disabled', !ok);
-    discordBtn.setAttribute('aria-disabled', ok ? 'false' : 'true');
-    // 仅「已登录但非管理员」时隐藏登录 CTA，其余情况保留登录入口
-    discordBtn.hidden = !!opts.hideDiscord;
+    var showDiscord = !!opts.discordLoginEnabled && !opts.hideAuthForms;
+    discordBtn.hidden = !showDiscord;
+    if (showDiscord) {
+      discordBtn.href = discordLoginUrl(location.href);
+      var ok = opts.discordOk !== false;
+      discordBtn.classList.toggle('is-disabled', !ok);
+      discordBtn.setAttribute('aria-disabled', ok ? 'false' : 'true');
+    }
   }
   if (extra) {
     // 显式 hidden：避免父级 display:flex 盖过 [hidden]
@@ -492,6 +516,29 @@ function bindEvents() {
   var btnGateLogout = $('btnAdminGateLogout');
   if (btnGateLogout) {
     btnGateLogout.addEventListener('click', function() { doLogoutAndReload(); });
+  }
+
+  var formEmail = $('formAdminEmailLogin');
+  if (formEmail) {
+    formEmail.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      var tip = $('adminGateTip');
+      var email = ($('adminEmailLoginEmail') || {}).value || '';
+      var password = ($('adminEmailLoginPassword') || {}).value || '';
+      try {
+        if (tip) {
+          tip.textContent = '登录中…';
+          tip.classList.remove('is-err');
+        }
+        await apiEmailLogin({ email: email, password: password });
+        location.reload();
+      } catch (err) {
+        if (tip) {
+          tip.textContent = String(err && err.message || err);
+          tip.classList.add('is-err');
+        }
+      }
+    });
   }
 
   $('btnAdminLoadUsers') && $('btnAdminLoadUsers').addEventListener('click', function() {
@@ -630,11 +677,24 @@ async function boot() {
     var st = await api('/api/auth/status');
     if (st.publicAppUrl) setAppBackLinks(st.publicAppUrl);
     var discordOk = !!(st.discordConfigured && st.canAcceptDiscordRegistration !== false);
+    var emailAuthEnabled = !!st.emailAuthEnabled;
+    var discordLoginEnabled = !!st.discordLoginEnabled;
     if (!st.user) {
+      var tip = '';
+      var err = false;
+      if (!emailAuthEnabled && !discordLoginEnabled) {
+        tip = '登录暂不可用，请稍后重试。';
+        err = true;
+      } else if (discordLoginEnabled && !discordOk && !emailAuthEnabled) {
+        tip = '登录暂不可用，请稍后重试。';
+        err = true;
+      }
       showLoginGate({
-        tip: discordOk ? '' : '登录暂不可用，请稍后重试。',
-        err: !discordOk,
+        tip: tip,
+        err: err,
         discordOk: discordOk,
+        emailAuthEnabled: emailAuthEnabled,
+        discordLoginEnabled: discordLoginEnabled,
         showLogout: false,
       });
       return;
@@ -643,15 +703,24 @@ async function boot() {
       showLoginGate({
         tip: '当前账号没有管理权限，请更换账号后重试。',
         err: true,
-        hideDiscord: true,
+        hideAuthForms: true,
         discordOk: discordOk,
+        emailAuthEnabled: emailAuthEnabled,
+        discordLoginEnabled: discordLoginEnabled,
         showLogout: true,
       });
       return;
     }
     showAdminWorkspace(st);
   } catch (e) {
-    showLoginGate({ tip: '暂时无法连接服务，请稍后重试。', err: true, discordOk: true, showLogout: false });
+    showLoginGate({
+      tip: '暂时无法连接服务，请稍后重试。',
+      err: true,
+      discordOk: true,
+      emailAuthEnabled: false,
+      discordLoginEnabled: false,
+      showLogout: false,
+    });
   }
 }
 

@@ -127,7 +127,7 @@ adminRouter.get('/users', async function(req, res) {
     var users = await listUserRegistry(2000);
     if (q) {
       users = users.filter(function(u) {
-        var blob = [u.userId, u.username, u.displayName, u.discordId].join(' ').toLowerCase();
+        var blob = [u.userId, u.username, u.displayName, u.discordId, u.email, u.provider].join(' ').toLowerCase();
         return blob.indexOf(q) >= 0;
       });
     }
@@ -139,10 +139,16 @@ adminRouter.get('/users', async function(req, res) {
     var page = paginate(users, req);
     var counts = await countBearersByUserIds(page.items.map(function(u) { return u.userId; }));
     page.items = page.items.map(function(u) {
+      var email = String(u.email || '').toLowerCase();
+      var discordId = String(u.discordId || '');
+      var isOps = !!(discordId && config.adminDiscordIds.indexOf(discordId) >= 0)
+        || !!(email && config.adminEmails.indexOf(email) >= 0);
+      var isRo = !!(discordId && config.adminReadonlyDiscordIds.indexOf(discordId) >= 0)
+        || !!(email && config.adminReadonlyEmails.indexOf(email) >= 0);
       return Object.assign({}, u, {
         bearerCount: counts[u.userId] || 0,
-        isOpsAdmin: !!(u.discordId && config.adminDiscordIds.indexOf(String(u.discordId)) >= 0),
-        isReadonlyAdmin: !!(u.discordId && config.adminReadonlyDiscordIds.indexOf(String(u.discordId)) >= 0),
+        isOpsAdmin: isOps,
+        isReadonlyAdmin: isRo && !isOps,
       });
     });
     res.json({ ok: true, users: page.items, total: page.total, limit: page.limit, offset: page.offset });

@@ -44,11 +44,29 @@ export var config = {
     requiredRoleIds: splitCsv(env('DISCORD_REQUIRED_ROLE_IDS', '')),
   },
   authEnforceDiscordMembership: envBool('AUTH_ENFORCE_DISCORD_MEMBERSHIP', false),
+  /** 是否在 UI 展示 Discord 登录（路由仍可用，便于运维恢复） */
+  discordLoginEnabled: envBool('AUTH_DISCORD_LOGIN_ENABLED', true),
+  /** 邮箱注册/登录 */
+  emailAuthEnabled: envBool('AUTH_EMAIL_ENABLED', false),
+  /**
+   * 注册邀请码（逗号分隔）。也兼容单值 INVITE_CODE。
+   * 未配置任何邀请码时拒绝注册（登录仍可用）。
+   */
+  inviteCodes: (function() {
+    var multi = splitCsv(env('INVITE_CODES', ''));
+    if (multi.length) return multi;
+    var one = String(env('INVITE_CODE', '') || '').trim();
+    return one ? [one] : [];
+  })(),
   devLoginEnabled: envBool('DEV_LOGIN_ENABLED', true),
   /** 运维管理员（读写）：Discord 雪花 ID */
   adminDiscordIds: splitCsv(env('ADMIN_DISCORD_IDS', '')),
   /** 只读管理员：可看仪表盘/列表，不可禁用用户/停分享/吊销/备份 */
   adminReadonlyDiscordIds: splitCsv(env('ADMIN_READONLY_DISCORD_IDS', '')),
+  /** 运维管理员：邮箱（小写比较） */
+  adminEmails: splitCsv(env('ADMIN_EMAILS', '')).map(function(e) { return e.toLowerCase(); }),
+  /** 只读管理员：邮箱 */
+  adminReadonlyEmails: splitCsv(env('ADMIN_READONLY_EMAILS', '')).map(function(e) { return e.toLowerCase(); }),
   /** 管理端触发逻辑备份（跑 scripts/backup-couch.sh） */
   backupEnabled: envBool('ADMIN_BACKUP_ENABLED', false),
   backupDir: env('ADMIN_BACKUP_DIR', ''),
@@ -87,11 +105,34 @@ export function isOpsAdminDiscordId(discordId) {
   return config.adminDiscordIds.indexOf(id) >= 0;
 }
 
+function normalizeAdminEmail(email) {
+  return String(email || '').trim().toLowerCase();
+}
+
+export function isOpsAdminEmail(email) {
+  var e = normalizeAdminEmail(email);
+  if (!e) return false;
+  return config.adminEmails.indexOf(e) >= 0;
+}
+
+export function isAdminEmail(email) {
+  var e = normalizeAdminEmail(email);
+  if (!e) return false;
+  return config.adminEmails.indexOf(e) >= 0
+    || config.adminReadonlyEmails.indexOf(e) >= 0;
+}
+
 /**
  * @returns {'ops'|'readonly'|null}
  */
 export function getAdminRole(user) {
   if (!user) return null;
+  if (user.provider === 'email') {
+    var email = normalizeAdminEmail(user.email);
+    if (isOpsAdminEmail(email)) return 'ops';
+    if (isAdminEmail(email)) return 'readonly';
+    return null;
+  }
   var id = user.provider === 'discord'
     ? user.discordId
     : (user.provider === 'dev' ? user.id : '');
