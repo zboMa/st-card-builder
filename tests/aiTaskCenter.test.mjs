@@ -109,7 +109,7 @@ describe('aiTaskCenter UI wiring', function() {
     const src = readFileSync(join(root, 'src/components/AppSidebar.astro'), 'utf8');
     assert.match(src, /app-title-row/);
     assert.match(src, /id="aiTaskBadge"/);
-    assert.match(src, /卡片构建器/);
+    assert.match(src, /啊哈哈哈制卡器/);
   });
 
   it('任务中心 UI 组件含弹窗与停止/清除', function() {

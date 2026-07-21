@@ -29,6 +29,8 @@ PUBLIC_APP_URL=https://card.taojiu.love
 PUBLIC_ADMIN_URL=https://card-admin.taojiu.love
 PUBLIC_API_URL=https://card-api.taojiu.love
 # Discord Redirect 只登记 API：https://card-api.taojiu.love/api/auth/discord/callback
+# CORS：主站/管理端 Origin 已由 PUBLIC_* 自动加入。CORS_ORIGINS=* 表示放行任意源并反射 Origin（勿指望字面 ACAO:*）。
+# CORS_ORIGINS=*
 
 COUCHDB_URL=http://127.0.0.1:5984
 COUCHDB_USER=admin

@@ -450,9 +450,15 @@ function showLoginGate(opts) {
     var ok = opts.discordOk !== false;
     discordBtn.classList.toggle('is-disabled', !ok);
     discordBtn.setAttribute('aria-disabled', ok ? 'false' : 'true');
-    discordBtn.style.display = opts.hideDiscord ? 'none' : '';
+    // 仅「已登录但非管理员」时隐藏登录 CTA，其余情况保留登录入口
+    discordBtn.hidden = !!opts.hideDiscord;
   }
-  if (extra) extra.hidden = !opts.showLogout;
+  if (extra) {
+    // 显式 hidden：避免父级 display:flex 盖过 [hidden]
+    var showOut = !!opts.showLogout;
+    extra.hidden = !showOut;
+    extra.style.display = showOut ? 'flex' : 'none';
+  }
 }
 
 function showAdminWorkspace(st) {
@@ -626,18 +632,18 @@ async function boot() {
     var discordOk = !!(st.discordConfigured && st.canAcceptDiscordRegistration !== false);
     if (!st.user) {
       showLoginGate({
-        tip: discordOk
-          ? '请使用 Discord 登录。仅白名单管理员可进入。'
-          : 'Discord 登录暂不可用（服务端未配置或正式注册关闭）。',
+        tip: discordOk ? '' : '登录暂不可用，请稍后重试。',
+        err: !discordOk,
         discordOk: discordOk,
+        showLogout: false,
       });
       return;
     }
     if (!st.isAdmin) {
       showLoginGate({
-        tip: '已登录为「' + (st.user.displayName || st.user.username) + '」，但不是管理员。请更换白名单账号或联系运维。',
+        tip: '当前账号没有管理权限，请更换账号后重试。',
         err: true,
-        hideDiscord: false,
+        hideDiscord: true,
         discordOk: discordOk,
         showLogout: true,
       });
@@ -645,7 +651,7 @@ async function boot() {
     }
     showAdminWorkspace(st);
   } catch (e) {
-    showLoginGate({ tip: bannerForError(e), err: true, discordOk: true });
+    showLoginGate({ tip: '暂时无法连接服务，请稍后重试。', err: true, discordOk: true, showLogout: false });
   }
 }
 

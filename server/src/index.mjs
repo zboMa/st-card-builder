@@ -4,7 +4,7 @@
 import express from 'express';
 import cors from 'cors';
 import cookieSession from 'cookie-session';
-import { config, corsAllowlist } from './config.mjs';
+import { config, corsAllowAll, isCorsOriginAllowed } from './config.mjs';
 import { couchHealth } from './couch.mjs';
 import { authRouter } from './auth/routes.mjs';
 import { syncRouter } from './sync/routes.mjs';
@@ -13,17 +13,13 @@ import { cardShareRouter } from './share/cardRoutes.mjs';
 import { adminRouter } from './admin/routes.mjs';
 
 var app = express();
-var allow = corsAllowlist();
 
 app.set('trust proxy', 1);
 app.use(cors({
   origin: function(origin, cb) {
-    if (!origin) return cb(null, true);
-    if (allow.indexOf(origin) >= 0) return cb(null, true);
-    // SillyTavern 常见本地端口放宽；生产可再用 CORS_ORIGINS 加源
-    if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin)) {
-      return cb(null, true);
-    }
+    // credentials:true 时不能回 ACAO:*，须反射具体 Origin；CORS_ORIGINS=* 表示放行任意源并反射
+    if (isCorsOriginAllowed(origin)) return cb(null, true);
+    console.warn('[cors] denied origin=', origin || '(none)');
     cb(null, false);
   },
   credentials: true,
@@ -70,5 +66,7 @@ app.listen(config.port, function() {
   console.log('[server] DEV_LOGIN_ENABLED=' + config.devLoginEnabled
     + ' AUTH_ENFORCE=' + config.authEnforceDiscordMembership
     + ' COOKIE_SECURE=' + config.cookieSecure
-    + ' ADMIN_IDS=' + config.adminDiscordIds.length);
+    + ' ADMIN_IDS=' + config.adminDiscordIds.length
+    + ' CORS_ALLOW_ALL=' + corsAllowAll()
+    + ' PUBLIC_ADMIN_URL=' + (config.publicAdminUrl || '(empty)'));
 });

@@ -54,7 +54,7 @@ npm run dev            # Astro :4321，/api 代理到 8787
   - `GET /:token`、`GET /:token/versions/:ver/json`（登录 + 密码）
   - `GET /:token/png`（可选匿名）
 - **插件**：仓库 `extensions/sillytavern-card-share/`；API 固定 `PUBLIC_API_URL`（生产 `https://card-api.taojiu.love`）；登录走 `/api/auth/discord?client=st_plugin` → Bearer。
-- **环境变量**：`PUBLIC_API_URL`（分享链接 Origin）、`CORS_ORIGINS`（额外跨域源；本地 SillyTavern 已默认放宽）。
+- **环境变量**：`PUBLIC_API_URL`（分享链接 Origin）；`PUBLIC_APP_URL` / `PUBLIC_ADMIN_URL` 自动进 CORS 白名单。`CORS_ORIGINS` 可追加额外源，或设 `*` 放行任意 Origin（带 Cookie 时反射请求 Origin，不是字面 `ACAO:*`）。
 
 ## 小说分享（只读链接）
 

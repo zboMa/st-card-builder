@@ -52,9 +52,14 @@ export var config = {
   /** 管理端触发逻辑备份（跑 scripts/backup-couch.sh） */
   backupEnabled: envBool('ADMIN_BACKUP_ENABLED', false),
   backupDir: env('ADMIN_BACKUP_DIR', ''),
-  /** 额外 CORS 源（逗号分隔）；SillyTavern 等跨域插件用 */
+  /** 额外 CORS 源（逗号分隔）；SillyTavern 等跨域插件用。含 `*` 表示放行任意 Origin（credentials 下反射请求 Origin，不是字面 ACAO:*） */
   corsOrigins: splitCsv(env('CORS_ORIGINS', '')),
 };
+
+/** CORS_ORIGINS 含 `*` 时放行任意浏览器 Origin */
+export function corsAllowAll() {
+  return config.corsOrigins.indexOf('*') >= 0;
+}
 
 export function discordMembershipConfigReady() {
   return !!(config.discord.guildId && config.discord.requiredRoleIds.length);
@@ -114,5 +119,24 @@ export function corsAllowlist() {
     'http://localhost:8000',
     'http://127.0.0.1:8000',
   ];
-  return base.concat(config.corsOrigins).filter(Boolean);
+  return base
+    .concat(config.corsOrigins)
+    .filter(function(o) { return o && o !== '*'; });
+}
+
+/**
+ * 是否允许该浏览器 Origin 跨域（含 credentials）。
+ * @param {string} [origin]
+ * @param {{ allowAll?: boolean, allowlist?: string[] }} [opts] 测试可注入
+ * @returns {boolean}
+ */
+export function isCorsOriginAllowed(origin, opts) {
+  opts = opts || {};
+  if (!origin) return true;
+  var allowAll = opts.allowAll != null ? !!opts.allowAll : corsAllowAll();
+  if (allowAll) return true;
+  var list = opts.allowlist || corsAllowlist();
+  if (list.indexOf(origin) >= 0) return true;
+  if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin)) return true;
+  return false;
 }
