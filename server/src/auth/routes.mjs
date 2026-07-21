@@ -15,8 +15,35 @@ import { evaluateDiscordMembership, canAcceptDiscordRegistration } from './membe
 import { upsertUserRegistry, getUserRegistry } from '../couch.mjs';
 import { issueBearerToken, revokeBearerToken } from './bearer.mjs';
 import { resolveRequestUser } from './requireUser.mjs';
+import { buildReturnToAllowlist, sanitizeReturnTo } from './returnTo.mjs';
 
 export var authRouter = Router();
+
+function returnAllow() {
+  return buildReturnToAllowlist(config);
+}
+
+function safeReturnTo(raw) {
+  return sanitizeReturnTo(raw, returnAllow());
+}
+
+function defaultSuccessUrl(user) {
+  if (isAdminUser(user) && config.publicAdminUrl) {
+    return config.publicAdminUrl + '/';
+  }
+  return config.publicAppUrl + '/#auth?ok=1';
+}
+
+function defaultErrorUrl(code, returnTo) {
+  var base = returnTo || config.publicAppUrl + '/';
+  try {
+    var u = new URL(base);
+    u.searchParams.set('auth_error', code || 'error');
+    return u.toString();
+  } catch (e) {
+    return config.publicAppUrl + '/#auth?error=' + encodeURIComponent(code || 'error');
+  }
+}
 
 function publicAuthFlags(req) {
   var user = req.session && req.session.user || null;
@@ -27,6 +54,9 @@ function publicAuthFlags(req) {
     devLoginEnabled: config.devLoginEnabled,
     isAdmin: isAdminUser(user),
     adminRole: getAdminRole(user),
+    publicAppUrl: config.publicAppUrl,
+    publicAdminUrl: config.publicAdminUrl || null,
+    publicApiUrl: config.publicApiUrl || null,
   };
 }
 
@@ -49,6 +79,15 @@ authRouter.get('/me', function(req, res) {
     return res.status(401).json(Object.assign({ error: 'unauthorized' }, publicAuthFlags(req)));
   }
   res.json(Object.assign({ user: req.session.user }, publicAuthFlags(req)));
+});
+
+authRouter.get('/public-config', function(req, res) {
+  res.json({
+    ok: true,
+    publicAppUrl: config.publicAppUrl,
+    publicAdminUrl: config.publicAdminUrl || null,
+    publicApiUrl: config.publicApiUrl || null,
+  });
 });
 
 authRouter.post('/logout', function(req, res) {
@@ -74,6 +113,11 @@ authRouter.post('/dev-login', async function(req, res) {
   res.json({ ok: true, user: req.session.user });
 });
 
+/**
+ * Discord OAuth 入口：
+ * 1) 记 return_to / state
+ * 2) 302 → https://discord.com/api/oauth2/authorize?...
+ */
 authRouter.get('/discord', function(req, res) {
   if (!discordConfigured()) {
     return res.status(503).json({ error: 'discord_not_configured' });
@@ -88,35 +132,36 @@ authRouter.get('/discord', function(req, res) {
   req.session.oauthState = state;
   var client = String(req.query.client || '');
   req.session.oauthClient = client === 'st_plugin' ? 'st_plugin' : '';
+  req.session.oauthReturnTo = safeReturnTo(req.query.return_to) || '';
   res.redirect(discordAuthUrl(state));
 });
 
 authRouter.get('/discord/callback', async function(req, res) {
   var oauthClient = (req.session && req.session.oauthClient) || '';
+  var returnTo = safeReturnTo(req.session && req.session.oauthReturnTo);
   try {
     if (!discordConfigured()) {
-      return res.redirect(config.publicAppUrl + '/#auth?error=discord_not_configured');
+      return res.redirect(defaultErrorUrl('discord_not_configured', returnTo));
     }
     if (!canAcceptDiscordRegistration()) {
-      return res.redirect(config.publicAppUrl + '/#auth?error=discord_registration_closed');
+      return res.redirect(defaultErrorUrl('discord_registration_closed', returnTo));
     }
     var state = String(req.query.state || '');
     if (!req.session || !req.session.oauthState || state !== req.session.oauthState) {
-      return res.redirect(config.publicAppUrl + '/#auth?error=bad_state');
+      return res.redirect(defaultErrorUrl('bad_state', returnTo));
     }
     req.session.oauthState = null;
     req.session.oauthClient = null;
+    req.session.oauthReturnTo = null;
     var code = String(req.query.code || '');
-    if (!code) return res.redirect(config.publicAppUrl + '/#auth?error=no_code');
+    if (!code) return res.redirect(defaultErrorUrl('no_code', returnTo));
 
     var token = await exchangeDiscordCode(code);
     var me = await fetchDiscordMe(token.access_token);
     var member = await fetchGuildMember(token.access_token, config.discord.guildId);
     var gate = evaluateDiscordMembership(member);
     if (!gate.ok) {
-      return res.redirect(
-        config.publicAppUrl + '/#auth?error=' + encodeURIComponent(gate.reason || 'membership')
-      );
+      return res.redirect(defaultErrorUrl(gate.reason || 'membership', returnTo));
     }
 
     req.session.user = {
@@ -135,13 +180,13 @@ authRouter.get('/discord/callback', async function(req, res) {
         + '&expiresAt=' + encodeURIComponent(issued.expiresAt));
     }
 
-    var dest = isAdminUser(req.session.user)
-      ? (config.publicAppUrl + '/admin')
-      : (config.publicAppUrl + '/#auth?ok=1');
-    res.redirect(dest);
+    if (returnTo) {
+      return res.redirect(returnTo);
+    }
+    res.redirect(defaultSuccessUrl(req.session.user));
   } catch (e) {
     console.error('[auth/discord/callback]', e);
-    res.redirect(config.publicAppUrl + '/#auth?error=callback_failed');
+    res.redirect(defaultErrorUrl('callback_failed', returnTo));
   }
 });
 

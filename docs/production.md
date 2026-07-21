@@ -6,10 +6,10 @@
 
 | 服务 | 说明 |
 |---|---|
-| 静态站 | `npm run build` → `dist/`（Caddy/Nginx） |
+| 主站静态 | `dist-card/` → **`/var/www/card`** |
+| 管理端静态 | `dist-card-admin/` → **`/var/www/card-admin`**（独立站点，如 card-admin.taojiu.love） |
 | API | `server/` Express，systemd **`st-card-builder-api`** |
-| CouchDB | 同机 Docker Compose；systemd **`st-card-builder-couch`**（部署探活，不可达则自动拉起） |
-| 管理端 | `/admin`（仅 `ADMIN_DISCORD_IDS` 白名单） |
+| CouchDB | 同机 Docker Compose；systemd **`st-card-builder-couch`** |
 
 ## 生产环境变量（必查）
 
@@ -19,34 +19,42 @@ AUTH_ENFORCE_DISCORD_MEMBERSHIP=true
 DISCORD_GUILD_ID=...
 DISCORD_REQUIRED_ROLE_IDS=role1,role2
 SESSION_SECRET=<长随机串>
-COOKIE_SECURE=true          # HTTPS 下必须 true
-ADMIN_DISCORD_IDS=            # 运维管理员雪花 ID
-ADMIN_READONLY_DISCORD_IDS=   # 只读管理员（可选）
-ADMIN_BACKUP_ENABLED=false    # 管理端触发逻辑备份
-# ADMIN_BACKUP_DIR=           # 可选备份目录
+COOKIE_SECURE=true
+SESSION_COOKIE_DOMAIN=.taojiu.love   # 主站+管理端共用 Session
+ADMIN_DISCORD_IDS=...
+ADMIN_READONLY_DISCORD_IDS=
+ADMIN_BACKUP_ENABLED=false
 
-PUBLIC_APP_URL=https://your.domain
-PUBLIC_API_URL=https://card-api.your.domain   # 分享链接 / 插件对接；须 HTTPS
-# CORS_ORIGINS=                                 # 可选；SillyTavern 非本机源时追加
+PUBLIC_APP_URL=https://card.taojiu.love
+PUBLIC_ADMIN_URL=https://card-admin.taojiu.love
+PUBLIC_API_URL=https://card-api.taojiu.love
+# Discord Redirect 只登记 API：https://card-api.taojiu.love/api/auth/discord/callback
 
-# 同机 Couch：必须是 127.0.0.1/localhost（API 在宿主机，不能写 docker 服务名 couchdb）
 COUCHDB_URL=http://127.0.0.1:5984
 COUCHDB_USER=admin
 COUCHDB_PASSWORD=...
-COUCH_AUTO_PROVISION=true     # false=只校验不拉起；无 Docker 时自动拉起会失败并中止部署
+COUCH_AUTO_PROVISION=true
 ```
+
+## Discord 登录链路
+
+1. 前端按钮 → `{PUBLIC_API_URL}/api/auth/discord?return_to=当前页`
+2. API 302 → `https://discord.com/api/oauth2/authorize?...`
+3. Discord → API `/api/auth/discord/callback`（code 换 token，写 HttpOnly Session）
+4. 302 回校验过的 `return_to`（须为 PUBLIC_APP_URL / PUBLIC_ADMIN_URL Origin）
 
 ## GitHub Actions 部署
 
-workflow：`.github/workflows/deploy.yml`（push `master`）。
+workflow：`.github/workflows/deploy.yml`（push `master`）。构建注入 `PUBLIC_*`（可用 repo Variables 覆盖）。
 
 | 产物 | 服务器路径 |
 |---|---|
-| 静态站 `dist/` | `/var/www/card`（经 `/var/temp-card` 中转） |
-| API `server/` | **`$HOME/st-card-builder/server`**（不覆盖已有 `.env`） |
-| 部署资产 | `$HOME/st-card-builder/deploy/`（compose、ensure-couch、unit 模板） |
-| Couch 数据卷 | `$HOME/st-card-builder/couch-data/` |
+| `dist-card/` | `/var/www/card` |
+| `dist-card-admin/` | `/var/www/card-admin` |
+| API `server/` | `$HOME/st-card-builder/server` |
 | systemd | `st-card-builder-couch` + `st-card-builder-api` |
+
+Nginx：两个站点各自 root；**不必**在静态站反代 `/api`（前端已直连 `PUBLIC_API_URL`）。API 站点单独反代到 `:8787`。
 
 ### 部署时 Couch 逻辑
 

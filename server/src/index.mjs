@@ -36,6 +36,7 @@ app.use(cookieSession({
   sameSite: 'lax',
   httpOnly: true,
   secure: !!config.cookieSecure,
+  domain: config.sessionCookieDomain || undefined,
 }));
 
 app.get('/api/health', async function(req, res) {

@@ -20,11 +20,25 @@ jobs:
           node-version: 22
           cache: "npm"
 
-      - name: Install & Build (frontend)
+      - name: Install & Build (app + admin packs)
+        env:
+          PUBLIC_API_URL: ${{ vars.PUBLIC_API_URL }}
+          PUBLIC_APP_URL: ${{ vars.PUBLIC_APP_URL }}
+          PUBLIC_ADMIN_URL: ${{ vars.PUBLIC_ADMIN_URL }}
         run: |
+          export PUBLIC_API_URL="${PUBLIC_API_URL:-https://card-api.taojiu.love}"
+          export PUBLIC_APP_URL="${PUBLIC_APP_URL:-https://card.taojiu.love}"
+          export PUBLIC_ADMIN_URL="${PUBLIC_ADMIN_URL:-https://card-admin.taojiu.love}"
+          echo "PUBLIC_API_URL=$PUBLIC_API_URL"
+          echo "PUBLIC_APP_URL=$PUBLIC_APP_URL"
+          echo "PUBLIC_ADMIN_URL=$PUBLIC_ADMIN_URL"
           npm ci
           npm run build
-          test -d dist || exit 1
+          test -d dist-card
+          test -f dist-card/index.html
+          test ! -d dist-card/admin
+          test -d dist-card-admin
+          test -f dist-card-admin/index.html
 
       - name: Prepare server package (no node_modules / no .env)
         run: |
@@ -48,9 +62,11 @@ jobs:
         run: |
           ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
 
-      - name: Upload dist (static site)
+      - name: Upload static packs
         run: |
-          scp -r ./dist/* ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:/var/temp-card/
+          ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} 'mkdir -p /var/temp-card /var/temp-card-admin'
+          rsync -az --delete ./dist-card/ ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:/var/temp-card/
+          rsync -az --delete ./dist-card-admin/ ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:/var/temp-card-admin/
 
       - name: Upload server app + deploy assets to $HOME
         run: |
@@ -67,7 +83,7 @@ jobs:
             ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:~/st-card-builder/deploy/
           ssh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} 'chmod +x $HOME/st-card-builder/deploy/ensure-couch.sh'
 
-      - name: Deploy static site + CouchDB + API on server
+      - name: Deploy static sites + CouchDB + API on server
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.SERVER_IP }}
@@ -77,12 +93,17 @@ jobs:
           script: |
             set -euo pipefail
 
-            # —— 静态站（保持原路径）——
-            WEB_PATH="/var/www/card"
-            mkdir -p /var/temp-card "$WEB_PATH"
-            cp -r "$WEB_PATH" "/var/www/card-bak-$(date +%Y%m%d-%H%M)" || true
-            rm -rf "$WEB_PATH"/*
-            cp -r /var/temp-card/* "$WEB_PATH/"
+            deploy_static() {
+              local src="$1"
+              local dest="$2"
+              mkdir -p "$src" "$dest"
+              cp -r "$dest" "${dest}-bak-$(date +%Y%m%d-%H%M)" || true
+              rm -rf "${dest:?}"/*
+              cp -r "$src"/* "$dest"/
+            }
+
+            deploy_static /var/temp-card /var/www/card
+            deploy_static /var/temp-card-admin /var/www/card-admin
 
             APP_HOME="$HOME/st-card-builder"
             SERVER_DIR="$APP_HOME/server"
@@ -119,7 +140,6 @@ jobs:
               fi
             }
 
-            # —— CouchDB：探活；不可达则 Docker 拉起；无 Docker 失败 ——
             bash "$DEPLOY_DIR/ensure-couch.sh" "$APP_HOME"
 
             install_unit "$DEPLOY_DIR/st-card-builder-couch.service" "st-card-builder-couch.service"
@@ -127,9 +147,7 @@ jobs:
             sys systemctl daemon-reload
             sys systemctl enable st-card-builder-couch.service st-card-builder-api.service
             sys systemctl restart st-card-builder-couch.service
-            # couch oneshot RemainAfterExit：restart 会再跑 ensure（已健康则秒过）
 
-            # —— API ——
             cd "$SERVER_DIR"
             npm ci --omit=dev
             sys systemctl restart st-card-builder-api.service
@@ -138,4 +156,4 @@ jobs:
             echo "[deploy] API health:"
             curl -sf --max-time 10 "http://127.0.0.1:8787/api/health" | head -c 600
             echo
-            echo "[deploy] static + couch + api ok"
+            echo "[deploy] card + card-admin + couch + api ok"

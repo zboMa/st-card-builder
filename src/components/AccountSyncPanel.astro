@@ -15,7 +15,7 @@
     <div class="ui-row" style="gap:8px;flex-wrap:wrap;">
       <a id="btnDiscordLogin" class="btn btn-primary" href="/api/auth/discord">Discord 登录</a>
       <button type="button" id="btnAuthLogout" class="btn btn-ghost">退出</button>
-      <a id="btnOpenAdmin" class="btn btn-ghost" href="/admin" style="display:none;">打开管理端</a>
+      <a id="btnOpenAdmin" class="btn btn-ghost" href="#" style="display:none;">打开管理端</a>
     </div>
     <div id="devLoginBox" class="ui-section" style="margin-top:12px;display:none;">
       <label for="devLoginName" class="ui-muted" style="font-size:0.8rem;">调试登录（临时用户名，仅开发开关开启时可用）</label>
@@ -49,7 +49,8 @@
     getSyncStatus,
     migrateLegacyToPouch,
   } from '../lib/sync/index.mjs';
-  import { apiDevLogin, apiLogout } from '../lib/sync/authClient.mjs';
+  import { apiDevLogin, apiLogout, discordLoginUrlForCurrentPage } from '../lib/sync/authClient.mjs';
+  import { getPublicAdminUrl } from '../lib/publicConfig.mjs';
   import { idbGetJson } from '../lib/idbStore.mjs';
 
   async function refreshAuthUi() {
@@ -61,8 +62,13 @@
     try {
       var st = await fetchAuthStatus();
       if (devBox) devBox.style.display = st.devLoginEnabled ? 'block' : 'none';
-      if (adminBtn) adminBtn.style.display = st.isAdmin ? '' : 'none';
+      if (adminBtn) {
+        adminBtn.style.display = st.isAdmin ? '' : 'none';
+        var adminUrl = (st.publicAdminUrl || getPublicAdminUrl() || '').replace(/\/$/, '');
+        if (adminUrl) adminBtn.href = adminUrl + '/';
+      }
       if (discordBtn) {
+        discordBtn.href = discordLoginUrlForCurrentPage();
         if (!st.canAcceptDiscordRegistration) {
           discordBtn.setAttribute('title', '正式注册暂不可用（校验开启且服务器/身份组未配置）');
           discordBtn.classList.add('is-disabled');
