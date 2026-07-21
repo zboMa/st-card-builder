@@ -23,6 +23,8 @@ COOKIE_SECURE=true          # HTTPS 下必须 true
 ADMIN_DISCORD_IDS=            # 纯数字雪花 ID，逗号分隔；只写服务器 .env，勿进 Git
 
 PUBLIC_APP_URL=https://your.domain
+PUBLIC_API_URL=https://card-api.your.domain   # 分享链接 / 插件对接；须 HTTPS
+# CORS_ORIGINS=                                 # 可选；SillyTavern 非本机源时追加
 COUCHDB_URL=http://couchdb:5984
 COUCHDB_USER=...
 COUCHDB_PASSWORD=...
@@ -43,7 +45,8 @@ workflow：`.github/workflows/deploy.yml`（push `master`）。
 ```bash
 mkdir -p ~/st-card-builder/server
 cp /path/to/server/.env.example ~/st-card-builder/server/.env
-# 编辑 .env：DEV_LOGIN_ENABLED=false、Discord、Couch、ADMIN_DISCORD_IDS、PUBLIC_APP_URL、COOKIE_SECURE=true …
+# 编辑 .env：DEV_LOGIN_ENABLED=false、Discord、Couch、ADMIN_DISCORD_IDS、
+# PUBLIC_APP_URL、PUBLIC_API_URL、COOKIE_SECURE=true …
 ```
 
 确保：
