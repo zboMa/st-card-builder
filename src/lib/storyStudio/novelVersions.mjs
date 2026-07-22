@@ -107,52 +107,78 @@ function upsertNovelVersion(novel, snap, published) {
     }
   }
   var prev = idx >= 0 ? novel.versions[idx] : null;
+  // 已发布条目不可变
+  if (prev && prev.published) {
+    return { entry: prev, wrote: false };
+  }
   var entry = {
     ver: ver,
     displayVersion: ver,
     title: snap.title,
-    published: published != null ? !!published : !!(prev && prev.published),
+    published: published === true ? true : (published === false ? false : !!(prev && prev.published)),
     publishedAt: null,
     updatedAt: now,
     snapshot: snap,
   };
   if (entry.published) {
-    entry.publishedAt = published ? Date.now() : ((prev && prev.publishedAt) || Date.now());
+    entry.publishedAt = Date.now();
   }
   if (idx >= 0) novel.versions[idx] = entry;
   else novel.versions.push(entry);
   novel.versions.sort(function(a, b) {
     return compareDisplayVersion(a.ver, b.ver);
   });
-  return entry;
+  return { entry: entry, wrote: true };
 }
 
-export function commitNovelDraftToVersions(novel, characterVersion, opts) {
-  opts = opts || {};
+function nextFreeNovelDisplay(novel, characterVersion, fromNovelVer) {
   ensureNovelVersions(novel);
-  var snap = buildNovelVersionSnapshot(novel, characterVersion);
-  return upsertNovelVersion(novel, snap, opts.published === true ? true : (opts.published === false ? false : null));
-}
-
-export function bumpNovelDraftVersion(novel, characterVersion) {
-  ensureNovelVersions(novel);
-  commitNovelDraftToVersions(novel, characterVersion, {});
   var maxPub = getMaxPublishedDisplayVersion(novel.versions);
-  var nextNovelVer = bumpNovelVersion(novel.novelVersion);
+  var nextNovelVer = bumpNovelVersion(fromNovelVer);
   var nextDisplay = buildDisplayVersion(characterVersion, nextNovelVer);
   if (maxPub != null && compareDisplayVersion(nextDisplay, maxPub) <= 0) {
     var parsed = parseDisplayVersion(maxPub);
     nextNovelVer = bumpNovelVersion(parsed.novelVersion);
     nextDisplay = buildDisplayVersion(characterVersion, nextNovelVer);
-    var guard = 0;
-    while (compareDisplayVersion(nextDisplay, maxPub) <= 0 && guard++ < 50) {
+  }
+  var guard = 0;
+  while (guard++ < 80) {
+    var slot = (novel.versions || []).find(function(v) {
+      return String(v.ver) === nextDisplay || String(v.displayVersion) === nextDisplay;
+    });
+    if (!slot) break;
+    if (slot.published || true) {
       nextNovelVer = bumpNovelVersion(nextNovelVer);
       nextDisplay = buildDisplayVersion(characterVersion, nextNovelVer);
     }
   }
-  novel.novelVersion = nextNovelVer;
+  return { novelVersion: nextNovelVer, display: nextDisplay };
+}
+
+export function commitNovelDraftToVersions(novel, characterVersion, opts) {
+  opts = opts || {};
+  ensureNovelVersions(novel);
+  var curDisplay = buildDisplayVersion(characterVersion, novel.novelVersion);
+  var existing = (novel.versions || []).find(function(v) {
+    return String(v.ver) === curDisplay || String(v.displayVersion) === curDisplay;
+  });
+  // 草稿坐在已发号上时，先 fork 再写入
+  if (existing && existing.published && opts.published !== true) {
+    var forked = nextFreeNovelDisplay(novel, characterVersion, novel.novelVersion);
+    novel.novelVersion = forked.novelVersion;
+  }
+  var snap = buildNovelVersionSnapshot(novel, characterVersion);
+  var up = upsertNovelVersion(novel, snap, opts.published === true ? true : (opts.published === false ? false : null));
+  return up.entry;
+}
+
+export function bumpNovelDraftVersion(novel, characterVersion) {
+  ensureNovelVersions(novel);
+  commitNovelDraftToVersions(novel, characterVersion, {});
+  var next = nextFreeNovelDisplay(novel, characterVersion, novel.novelVersion);
+  novel.novelVersion = next.novelVersion;
   novel.updatedAt = new Date().toISOString();
-  return { ok: true, ver: nextDisplay, novelVersion: nextNovelVer };
+  return { ok: true, ver: next.display, novelVersion: next.novelVersion };
 }
 
 export function applyNovelVersionSnapshot(novel, snap) {
@@ -216,16 +242,33 @@ export function publishNovelDraft(novel, characterVersion) {
     }
   }
   novel.novelVersion = publishNovelVer;
-  var entry = commitNovelDraftToVersions(novel, characterVersion, { published: true });
+  var entry = null;
+  var gWrite = 0;
+  while (gWrite++ < 50) {
+    publishDisplay = buildDisplayVersion(characterVersion, publishNovelVer);
+    novel.novelVersion = publishNovelVer;
+    var snap = buildNovelVersionSnapshot(novel, characterVersion);
+    var up = upsertNovelVersion(novel, snap, true);
+    if (up.wrote) {
+      entry = up.entry;
+      publishDisplay = entry.ver;
+      break;
+    }
+    publishNovelVer = bumpNovelVersion(publishNovelVer);
+  }
+  if (!entry) {
+    return { ok: false, error: 'publish_failed' };
+  }
   novel.publishedDisplayVersion = publishDisplay;
   novel.publishedAt = entry.publishedAt;
-  // 自动增版
-  novel.novelVersion = bumpNovelVersion(publishNovelVer);
+  // 自动增版（避让已占用号）
+  var next = nextFreeNovelDisplay(novel, characterVersion, publishNovelVer);
+  novel.novelVersion = next.novelVersion;
   novel.updatedAt = new Date().toISOString();
   return {
     ok: true,
     publishedVer: publishDisplay,
-    draftVer: buildDisplayVersion(characterVersion, novel.novelVersion),
+    draftVer: next.display,
     entry: entry,
     release: entry.snapshot.release,
     title: entry.title,

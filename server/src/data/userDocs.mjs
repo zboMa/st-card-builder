@@ -323,17 +323,33 @@ export async function cascadeDeleteCard(userId, cardId, opts) {
     ragDocId(id),
     cardReleaseDocId(id),
   ];
+  // 历史钉版本 release/{ver}
+  try {
+    var cardReleaseRows = await listUserDocsByPrefix(userId, 'card/' + id + '/release/');
+    (cardReleaseRows || []).forEach(function(r) {
+      var rid = r && (r.id || r._id);
+      if (rid && ids.indexOf(rid) < 0) ids.push(rid);
+    });
+  } catch (eListCard) { /* ignore */ }
+
   if (deleteStories) {
     var catalog = await getUserDoc(userId, storyCatalogDocId(id));
     var novels = catalogNovelsList(catalog);
     ids.push(storyCatalogDocId(id), storyActiveDocId(id));
-    novels.forEach(function(n) {
+    for (var ni = 0; ni < novels.length; ni++) {
+      var n = novels[ni];
       var nid = n && (n.id || n.novelId);
-      if (nid) {
-        ids.push(storyNovelDocId(id, nid));
-        ids.push(storyReleaseDocId(id, nid));
-      }
-    });
+      if (!nid) continue;
+      ids.push(storyNovelDocId(id, nid));
+      ids.push(storyReleaseDocId(id, nid));
+      try {
+        var storyRelRows = await listUserDocsByPrefix(userId, storyReleaseDocId(id, nid) + '/');
+        (storyRelRows || []).forEach(function(r) {
+          var rid = r && (r.id || r._id);
+          if (rid && ids.indexOf(rid) < 0) ids.push(rid);
+        });
+      } catch (eListStory) { /* ignore */ }
+    }
   }
   for (var i = 0; i < ids.length; i++) {
     try { await deleteUserDoc(userId, ids[i], { force: true }); } catch (e) { /* ignore */ }

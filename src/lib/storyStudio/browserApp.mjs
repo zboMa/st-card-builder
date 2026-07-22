@@ -902,14 +902,28 @@ async function openNovel(novelId) {
 async function createNovel(opts) {
   opts = opts || {};
   var cardId = getCardId();
-  var title = window.prompt('新小说标题', '未命名小说');
+  var title = await showSsPrompt({
+    icon: '📖',
+    title: '新小说标题',
+    message: '给这部小说起个名字',
+    defaultValue: '未命名小说',
+    okText: '创建',
+  });
   if (title === null) return;
   var novel = createEmptyNovel({ title: String(title || '').trim() || '未命名小说', cardId: cardId });
   if (opts.wizard) {
-    var direction = window.prompt('创作方向（向导第一步）', '') || '';
+    var direction = await showSsPrompt({
+      icon: '🧭',
+      title: '创作方向',
+      message: '向导第一步：写下大致方向（可留空）',
+      defaultValue: '',
+      select: false,
+      okText: '继续',
+    });
+    if (direction === null) return;
     novel.wizard = {
       step: 'direction',
-      direction: String(direction).trim(),
+      direction: String(direction || '').trim(),
       approvedOutline: false,
     };
   }
@@ -927,7 +941,13 @@ async function createNovel(opts) {
 async function renameNovel(novelId) {
   var cardId = getCardId();
   var entry = state.catalog.find(function(x) { return x.id === novelId; });
-  var next = window.prompt('重命名', (entry && entry.title) || '');
+  var next = await showSsPrompt({
+    icon: '✏️',
+    title: '重命名',
+    message: '修改小说标题',
+    defaultValue: (entry && entry.title) || '',
+    okText: '保存',
+  });
   if (next === null) return;
   next = String(next).trim();
   if (!next) return;
@@ -945,7 +965,15 @@ async function renameNovel(novelId) {
 }
 
 async function removeNovel(novelId) {
-  if (!window.confirm('确定删除这部小说？不可恢复。')) return;
+  var okDel = await showSsConfirm({
+    icon: '🗑️',
+    title: '删除小说？',
+    message: '确定删除这部小说？不可恢复。',
+    okText: '删除',
+    cancelText: '取消',
+    danger: true,
+  });
+  if (!okDel) return;
   var cardId = getCardId();
   var raw = await loadNovel(cardId, novelId);
   var token = raw && raw.shareToken;
@@ -1000,51 +1028,68 @@ async function publishNovel(novelId) {
   ensureNovelVersions(novel);
   var check = validatePublishReady(novel);
   if (!check.ok) {
-    if (!window.confirm(
-      '发布校验有问题：\\n- ' + check.issues.join('\\n- ')
-      + '\\n\\n仍要继续发布吗？'
-    )) return;
+    var okIssues = await showSsConfirm({
+      icon: '⚠️',
+      title: '发布校验有问题',
+      message: '仍要继续发布吗？',
+      detail: '- ' + check.issues.join('\n- '),
+      okText: '仍要发布',
+      cancelText: '取消',
+      danger: true,
+    });
+    if (!okIssues) return;
   }
   var charVer = getCharacterVersion();
-  if (!window.confirm(
-    '发布当前草稿：将写入版本列表并标记已发布，随后草稿自动升版。\\n'
-    + '分享 latest 始终指向最新已发版；亦可使用带版本号链接。继续？'
-  )) return;
+  var okPub = await showSsConfirm({
+    icon: '📣',
+    title: '发布当前草稿？',
+    message: '将写入版本列表并标记已发布，随后草稿自动升版。分享 latest 始终指向最新已发版；亦可使用带版本号链接。',
+    okText: '发布',
+    cancelText: '取消',
+  });
+  if (!okPub) return;
 
-  var pub = publishNovelDraft(novel, charVer);
+  var working = JSON.parse(JSON.stringify(novel));
+  var pub = publishNovelDraft(working, charVer);
+  if (!pub || !pub.ok) {
+    setStatus('发布失败：无法写入版本列表');
+    return;
+  }
   // 用已发布快照的 release（filterReady）再写一份对外
   var release = pub.release;
   if (release && validatePublishReady) {
     try {
-      release = buildReleasePayload(Object.assign({}, novel, {
+      release = buildReleasePayload(Object.assign({}, working, {
         novelVersion: pub.entry.snapshot.novelVersion,
-        outline: (pub.entry.snapshot.working && pub.entry.snapshot.working.outline) || novel.outline,
-        chapters: (pub.entry.snapshot.working && pub.entry.snapshot.working.chapters) || novel.chapters,
-        branches: (pub.entry.snapshot.working && pub.entry.snapshot.working.branches) || novel.branches,
+        outline: (pub.entry.snapshot.working && pub.entry.snapshot.working.outline) || working.outline,
+        chapters: (pub.entry.snapshot.working && pub.entry.snapshot.working.chapters) || working.chapters,
+        branches: (pub.entry.snapshot.working && pub.entry.snapshot.working.branches) || working.branches,
       }), charVer, {
         novelVersion: pub.entry.snapshot.novelVersion || release.novelVersion,
         publishedAt: pub.entry.publishedAt,
         filterReady: true,
       });
-      // 更新 entry snapshot release 为裁剪版
       if (pub.entry && pub.entry.snapshot) pub.entry.snapshot.release = release;
     } catch (e) { /* keep unfiltered */ }
   }
-  await saveNovel(cardId, novelId, novel);
-  await saveRelease(cardId, novelId, release);
-  state.catalog = upsertCatalogEntry(state.catalog, novel);
-  await saveCatalog(cardId, state.catalog);
-  if (state.novel && state.novel.id === novelId) state.novel = novel;
-  await mirrorStoryDocs(cardId, novel, state.catalog);
+
   try {
     var mod = await import('../sync/storyMirror.mjs');
     await mod.mirrorReleaseToPouch(cardId, novelId, release);
-  } catch (e) {
-    console.warn('[storyStudio] release mirror', e);
+  } catch (eMirror) {
+    setStatus('发布失败（云端）：' + (eMirror.message || eMirror));
+    return;
   }
+
+  await saveNovel(cardId, novelId, working);
+  await saveRelease(cardId, novelId, release);
+  state.catalog = upsertCatalogEntry(state.catalog, working);
+  await saveCatalog(cardId, state.catalog);
+  if (state.novel && state.novel.id === novelId) state.novel = working;
+  await mirrorStoryDocs(cardId, working, state.catalog);
   try {
     var sync = await import('../sync/syncEngine.mjs');
-    await sync.runSync({ refreshCred: true });
+    await sync.runSync({});
     setStatus('已发布 ' + pub.publishedVer + '；草稿现为 ' + pub.draftVer + '（已同步）');
   } catch (e2) {
     setStatus('已发布 ' + pub.publishedVer + '；草稿现为 ' + pub.draftVer + '（同步失败：' + (e2.message || e2) + '）');
@@ -1138,14 +1183,26 @@ async function shareNovel(novelId, opts) {
   var charVer = getCharacterVersion();
   var workVer = buildDisplayVersion(charVer, novel.novelVersion);
   if (novel.publishedDisplayVersion !== workVer) {
-    if (!window.confirm(
-      '当前草稿版号 ' + workVer + ' 已超前于已发布 ' + novel.publishedDisplayVersion
-      + '。分享仍只展示已发布版。继续？'
-    )) return;
+    var okAhead = await showSsConfirm({
+      icon: '🔗',
+      title: '草稿已超前于已发布版',
+      message: '当前草稿版号 ' + workVer + ' 已超前于已发布 ' + novel.publishedDisplayVersion
+        + '。分享仍只展示已发布版。继续？',
+      okText: '继续分享',
+      cancelText: '取消',
+    });
+    if (!okAhead) return;
   }
   var expiresInDays = undefined;
   if (!opts.skipExpirePrompt) {
-    var expRaw = window.prompt('可选：链接有效天数（留空=不修改过期设置；填 0=永不过期）', '');
+    var expRaw = await showSsPrompt({
+      icon: '⏳',
+      title: '链接有效期',
+      message: '可选：链接有效天数（留空=不修改过期设置；填 0=永不过期）',
+      defaultValue: '',
+      select: false,
+      okText: '继续',
+    });
     if (expRaw === null) return;
     expRaw = String(expRaw).trim();
     if (expRaw === '0') expiresInDays = 0;
@@ -1161,7 +1218,7 @@ async function shareNovel(novelId, opts) {
   try {
     try {
       var sync = await import('../sync/syncEngine.mjs');
-      await sync.runSync({ refreshCred: true });
+      await sync.runSync({});
     } catch (e) { /* may be offline login */ }
 
     var payload = {
@@ -1183,24 +1240,55 @@ async function shareNovel(novelId, opts) {
     if (state.novel && state.novel.id === novelId) state.novel = novel;
     await mirrorStoryDocs(cardId, novel, state.catalog);
 
-    var url = data.url || buildLocalShareUrl(data.token);
+    var url = data.url || data.latestUrl || buildLocalShareUrl(data.token);
+    var versionUrl = data.versionUrl
+      || (data.displayVersion ? buildLocalShareUrl(data.token, data.displayVersion) : '');
+    var copyText = versionUrl && versionUrl !== url
+      ? ('最新：' + url + '\n本版：' + versionUrl)
+      : url;
+    var expireHint = data.expiresAt ? '（到期 ' + data.expiresAt + '）' : '';
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(url);
-        setStatus('分享链接已复制：' + url
-          + (data.expiresAt ? '（到期 ' + data.expiresAt + '）' : ''));
+        await navigator.clipboard.writeText(copyText);
+        setStatus(
+          versionUrl && versionUrl !== url
+            ? ('分享链接已复制 — 最新：' + url + '；本版：' + versionUrl + expireHint)
+            : ('分享链接已复制：' + url + expireHint)
+        );
       } else {
-        window.prompt('复制分享链接', url);
+        await showSsPrompt({
+          icon: '🔗',
+          title: '复制分享链接',
+          message: versionUrl && versionUrl !== url
+            ? '请复制下方链接（含最新与本版）'
+            : '请复制下方链接',
+          defaultValue: copyText,
+          multiline: !!(versionUrl && versionUrl !== url),
+          rows: 3,
+          okText: '关闭',
+          cancelText: '关闭',
+        });
         setStatus('请复制分享链接');
       }
     } catch (e2) {
-      window.prompt('复制分享链接', url);
+      await showSsPrompt({
+        icon: '🔗',
+        title: '复制分享链接',
+        message: versionUrl && versionUrl !== url
+          ? '请复制下方链接（含最新与本版）'
+          : '请复制下方链接',
+        defaultValue: copyText,
+        multiline: !!(versionUrl && versionUrl !== url),
+        rows: 3,
+        okText: '关闭',
+        cancelText: '关闭',
+      });
       setStatus('请复制分享链接');
     }
     renderAll();
   } catch (err) {
     if (err && err.code === 'no_release') {
-      setStatus('云端尚无发布版：请先增版并确保已登录同步');
+      setStatus('云端尚无发布版：请先发布并确保已登录同步');
     } else if (err && err.status === 401) {
       setStatus('请先在「账户与同步」登录后再分享');
     } else {
@@ -1218,7 +1306,15 @@ async function unshareNovel(novelId) {
     setStatus('未在分享');
     return;
   }
-  if (!window.confirm('停止分享后链接将失效，确定？')) return;
+  var okUnshare = await showSsConfirm({
+    icon: '🔗',
+    title: '停止分享？',
+    message: '停止分享后链接将失效，确定？',
+    okText: '停止分享',
+    cancelText: '取消',
+    danger: true,
+  });
+  if (!okUnshare) return;
   try {
     await apiDeleteNovelShare(novel.shareToken);
   } catch (e) {
@@ -1645,18 +1741,45 @@ async function forkCurrentChapterBranch() {
     setStatus('请先选择分叉章节');
     return;
   }
-  var name = window.prompt('新分支名称', '平行线');
+  var name = await showSsPrompt({
+    icon: '🌿',
+    title: '新分支名称',
+    message: '从当前章分叉出一条平行线',
+    defaultValue: '平行线',
+    okText: '下一步',
+  });
   if (name === null) return;
-  var choiceLabel = window.prompt('读者选项文案（选线时显示）', String(name).trim() || '平行线');
+  var choiceLabel = await showSsPrompt({
+    icon: '💬',
+    title: '读者选项文案',
+    message: '选线时显示',
+    defaultValue: String(name).trim() || '平行线',
+    okText: '下一步',
+  });
   if (choiceLabel === null) return;
-  var direction = window.prompt('分支方向 / 偏好（写入后续生成）', '') || '';
-  var asEnding = window.confirm('将此分支标为「结局支」？（可稍后在分支树改）');
+  var direction = await showSsPrompt({
+    icon: '🧭',
+    title: '分支方向 / 偏好',
+    message: '写入后续生成（可留空）',
+    defaultValue: '',
+    select: false,
+    okText: '下一步',
+  });
+  if (direction === null) return;
+  direction = String(direction || '').trim();
+  var asEnding = await showSsConfirm({
+    icon: '🏁',
+    title: '标为结局支？',
+    message: '将此分支标为「结局支」？（可稍后在分支树改）',
+    okText: '结局支',
+    cancelText: '普通支',
+  });
   try {
     var out = forkBranchFromChapter(state.novel, {
       fromChapterId: sel.value,
       name: String(name).trim() || '平行线',
       choiceLabel: String(choiceLabel).trim() || String(name).trim(),
-      direction: String(direction).trim(),
+      direction: direction,
       kind: asEnding ? BRANCH_KIND_ENDING : 'path',
       endingTitle: asEnding ? (String(choiceLabel).trim() || String(name).trim()) : '',
       publishReady: true,
@@ -1666,7 +1789,14 @@ async function forkCurrentChapterBranch() {
     setStatus('已开分支「' + out.branch.name + '」，自「' + (out.forkChapter.title || '') + '」分叉');
     renderAll();
     if (direction) {
-      if (window.confirm('是否立即按分支方向续写大纲？')) {
+      var okOutline = await showSsConfirm({
+        icon: '📝',
+        title: '续写大纲？',
+        message: '是否立即按分支方向续写大纲？',
+        okText: '续写',
+        cancelText: '稍后',
+      });
+      if (okOutline) {
         await generateOutline('branch');
       }
     }
@@ -2130,7 +2260,14 @@ function bindEvents() {
       if (!sel || !sel.value) return;
       var ch = state.novel.chapters.find(function(c) { return c.id === sel.value; });
       if (!ch) return;
-      if (!window.confirm('恢复到该快照？当前正文会先自动存一份。')) return;
+      var okCp = await showSsConfirm({
+        icon: '⏪',
+        title: '恢复快照？',
+        message: '恢复到该快照？当前正文会先自动存一份。',
+        okText: '恢复',
+        cancelText: '取消',
+      });
+      if (!okCp) return;
       if (restoreChapterCheckpoint(ch, btn.getAttribute('data-ss-cp'))) {
         await persistNovel();
         setStatus('已恢复快照');

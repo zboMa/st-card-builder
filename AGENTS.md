@@ -61,5 +61,6 @@ Astro 5 静态 SPA；三栏布局；状态靠 `window.__get*__` / CustomEvent；
 
 - GSAP 经 CDN 全局注入；G6 仅客户端图谱。
 - AI 密钥在 localStorage；上云须口令加密（账户页「云同步」区块）。
-- `beforeunload`/`pagehide` 存盘有 debounce——改保存逻辑要小心。
+- `pagehide` / `visibilitychange` 会 flush 卡与小说工坊 debounce 存盘——改保存逻辑要小心。
+- 卡云状态以 `localSyncedAt` vs 草稿 `updatedAt` 为准（勿在列表渲染时伪造 `updatedAt`）。
 - **有** CI（`.github/workflows/deploy.yml`）与 Docker Compose（Couch）；细节见 ops 文档。

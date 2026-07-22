@@ -39,6 +39,23 @@ describe('cardCloudMeta', function() {
     assert.equal(resolveCardCloudStatus({ updatedAt: 't2' }, getCardCloudMeta('c1')), CLOUD_STATUS.CLOUD_DIRTY);
   });
 
+  it('pendingUpload 在 markSynced 后清除；云 ISO 与本地时分秒不误判 dirty', function() {
+    globalThis.localStorage.setItem(CARD_CLOUD_META_KEY, JSON.stringify({
+      c2: {
+        cardId: 'c2',
+        onCloud: true,
+        pendingUpload: true,
+        localSyncedAt: '23:24:53',
+        cloudUpdatedAt: '2026-07-22T15:24:53.000Z',
+      },
+    }));
+    assert.equal(resolveCardCloudStatus({ updatedAt: '23:24:53' }, getCardCloudMeta('c2')), CLOUD_STATUS.CLOUD_DIRTY);
+    markCardSynced('c2', '2026-07-22T15:24:53.000Z', '23:24:53');
+    var meta = getCardCloudMeta('c2');
+    assert.equal(meta.pendingUpload, false);
+    assert.equal(resolveCardCloudStatus({ updatedAt: '23:24:53' }, meta), CLOUD_STATUS.CLOUD_SYNCED);
+  });
+
   it('labels', function() {
     assert.match(cloudStatusLabel(CLOUD_STATUS.LOCAL_ONLY), /未上云/);
     assert.match(cloudStatusLabel(CLOUD_STATUS.CLOUD_DIRTY), /未同步/);

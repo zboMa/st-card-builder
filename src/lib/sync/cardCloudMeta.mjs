@@ -80,6 +80,9 @@ export function markCardSynced(cardId, cloudUpdatedAt, localUpdatedAt) {
     cloudUpdatedAt: cloudUpdatedAt || localUpdatedAt || null,
     localSyncedAt: localUpdatedAt || cloudUpdatedAt || null,
     lastSyncedAt: new Date().toISOString(),
+    // 成功同步后清掉挂起标记，否则会永远显示「未同步」
+    pendingUpload: false,
+    pendingDownload: false,
   });
 }
 
@@ -87,19 +90,19 @@ export function markCardSynced(cardId, cloudUpdatedAt, localUpdatedAt) {
  * @param {object} draft 本地草稿
  * @param {object|null} meta
  * @returns {'local_only'|'cloud_dirty'|'cloud_synced'}
+ *
+ * 判定以「本地是否相对上次成功同步基线有变化」为准。
+ * 不把 cloudUpdatedAt 与 draft.updatedAt 直接比字符串：云索引可能是 ISO，
+ * 本地草稿常用 locale 时分秒，硬比会永远 dirty。
  */
 export function resolveCardCloudStatus(draft, meta) {
   if (draft && draft._cloudStub) return CLOUD_STATUS.CLOUD_DIRTY;
   if (!meta || !meta.onCloud) return CLOUD_STATUS.LOCAL_ONLY;
-  var localAt = String((draft && draft.updatedAt) || '');
-  var cloudAt = String(meta.cloudUpdatedAt || '');
-  var syncedLocal = String(meta.localSyncedAt || '');
-  // 有 pending 标记
   if (meta.pendingUpload || meta.pendingDownload) return CLOUD_STATUS.CLOUD_DIRTY;
-  // 本地时间相对上次同步基线有变化
-  if (syncedLocal && localAt && localAt !== syncedLocal) return CLOUD_STATUS.CLOUD_DIRTY;
-  // 已知云端时间与本地不一致
-  if (cloudAt && localAt && cloudAt !== localAt) return CLOUD_STATUS.CLOUD_DIRTY;
+  var localAt = String((draft && draft.updatedAt) || '');
+  var syncedLocal = String(meta.localSyncedAt || '');
+  if (!syncedLocal) return CLOUD_STATUS.CLOUD_DIRTY;
+  if (localAt && localAt !== syncedLocal) return CLOUD_STATUS.CLOUD_DIRTY;
   return CLOUD_STATUS.CLOUD_SYNCED;
 }
 

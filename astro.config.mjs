@@ -19,7 +19,7 @@ export default defineConfig({
       },
     },
     optimizeDeps: {
-      include: ['pouchdb-browser', 'events'],
+      include: ['events'],
     },
   },
 });

@@ -240,7 +240,7 @@ import PreviewPanel from './PreviewPanel.astro';
     if (!window.confirm('升级小版本：' + from + ' → ' + to + '？')) return;
     applyVersion(to);
   });
-  document.getElementById('btnRevertVersion')?.addEventListener('click', function() {
+  document.getElementById('btnRevertVersion')?.addEventListener('click', async function() {
     var el = versionEl();
     var cur = normalizeCharacterVersion(el && el.value);
     var back = normalizeCharacterVersion(versionBaseline);
@@ -248,7 +248,21 @@ import PreviewPanel from './PreviewPanel.astro';
       syncRevertVisibility();
       return;
     }
-    if (!window.confirm('回退版本：' + cur + ' → ' + back + '？')) return;
+    var api = window.__assistantCardApi__ || window.__cardManagerPanel__;
+    if (api && typeof api.switchVersion === 'function') {
+      var ok = window.confirm
+        ? window.confirm('回退到版本列表中的 v' + back + '？当前草稿会先写入版本列表。')
+        : true;
+      if (!ok) return;
+      try {
+        await api.switchVersion(back);
+        captureBaseline();
+      } catch (e) {
+        alert('回退失败：' + (e && e.message || e));
+      }
+      return;
+    }
+    if (!window.confirm('回退版本号：' + cur + ' → ' + back + '？\n（未接入版本列表时仅改版号，不恢复内容）')) return;
     applyVersion(back);
   });
   document.getElementById('btnGotoWorldLimitsFromCharacter')?.addEventListener('click', function() {
