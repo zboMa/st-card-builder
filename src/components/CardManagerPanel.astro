@@ -58,7 +58,9 @@
   <div id="cardManagerList" class="card-manager-list" aria-live="polite"></div>
 </div>
 
-<link rel="stylesheet" href="../styles/card-manager-panel.css" />
+<style is:global>
+  @import '../styles/card-manager-panel.css';
+</style>
 
 <script>
   import { initCardManagerPanelImport } from '../lib/card-builder/cardManagerPanelBoot.mjs';

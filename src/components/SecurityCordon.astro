@@ -68,7 +68,9 @@ const { unlockClicks = 10, label = '🔒 模块封锁中 · 开发未完成' } =
   </div>
 </div>
 
-<link rel="stylesheet" href="../styles/security-cordon.css" />
+<style is:global>
+  @import '../styles/security-cordon.css';
+</style>
 
 <script>
   import { initSecurityCordon } from '../lib/securityCordonBoot.mjs';

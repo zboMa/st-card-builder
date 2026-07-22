@@ -131,7 +131,9 @@ const catalogOverviewText = buildCatalogOverviewText({
   </div>
 </div>
 
-<link rel="stylesheet" href="../styles/assistant-panel.css" />
+<style is:global>
+  @import '../styles/assistant-panel.css';
+</style>
 
 <script define:vars={{ chipsJson, toolListText, catalogOverviewText }}>
   window.__assistantBoot__ = { chipsJson: chipsJson, toolListText: toolListText, catalogOverviewText: catalogOverviewText };
