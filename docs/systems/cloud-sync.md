@@ -9,7 +9,8 @@
 
 | 层 | 说明 |
 |---|---|
-| 前端 | `src/lib/sync/cloudApi.mjs` + `cloudStore.mjs` + `outbox.mjs`；本地权威仍为 LS/IDB |
+| 前端 | `cloudApi.mjs` + `cloudStore.mjs`（barrel）+ `outbox.mjs`；本地权威仍为 LS/IDB |
+| 前端·拆分 | `cloudStoreShared.mjs`（状态/outbox 桥）· `cloudStoreCard.mjs`（卡包/头像/工坊）· `cloudStoreStory.mjs`（Story 独立）· `cloudStorePrefs.mjs`（偏好）；对外仍从 `cloudStore.mjs` import |
 | API | `server/src/data/routes.mjs`：`/api/data/*`（Session / Bearer） |
 | 数据库 | CouchDB **一用户一库** `userdb-stcb-{userId}`，**仅服务端 Nano 读写** |
 

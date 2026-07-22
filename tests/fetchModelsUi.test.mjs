@@ -4,6 +4,8 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
+import { readAiEnginePanelSources } from './helpers/uiSources.mjs';
+
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 describe('拉取模型 UI 反馈', function() {
@@ -12,7 +14,7 @@ describe('拉取模型 UI 反馈', function() {
     assert.match(aiPanel, /id="fetchModelsStatus"/);
     assert.match(aiPanel, /type="button"[^>]*id="btnFetchModels"|id="btnFetchModels"[^>]*type="button"/);
 
-    var engine = readFileSync(join(root, 'src/lib/card-builder/panels/aiEngine.mjs'), 'utf8');
+    var engine = readAiEnginePanelSources(root);
     assert.match(engine, /fetchModelsStatus/);
     assert.match(engine, /CORS|跨域/);
     assert.match(engine, /chat\/completions/);

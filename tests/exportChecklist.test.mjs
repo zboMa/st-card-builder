@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { buildExportChecklist } from '../src/lib/card-builder/exportChecklist.mjs';
+import { readCardBuilderBrowserAppSources } from './helpers/uiSources.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -93,7 +94,7 @@ describe('exportChecklist', function() {
   });
 
   it('boot and UI wiring exist', function() {
-    var boot = readFileSync(join(root, 'src/lib/card-builder/browserApp.mjs'), 'utf8');
+    var boot = readCardBuilderBrowserAppSources(root);
     assert.match(boot, /export function initCardBuilder/);
     assert.match(boot, /export function bootCardBuilder/);
     assert.match(boot, /__getExportChecklist__/);

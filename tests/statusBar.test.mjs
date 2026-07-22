@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { readLayoutSources, readAssistantPanelSources, readVariableCardPanelSources } from './helpers/uiSources.mjs';
 import {
   STATUS_BAR_STYLES,
   STATUS_BAR_LAYOUTS,
@@ -636,7 +637,7 @@ describe('statusBar wiring', function() {
   });
 
   it('MVU 面板已去掉整套生成入口', function() {
-    const mvu = readFileSync(join(root, 'src/components/VariableCardPanel.astro'), 'utf8');
+    const mvu = readVariableCardPanelSources(root);
     assert.doesNotMatch(mvu, /id="btnVcGenerate"/);
     assert.doesNotMatch(mvu, /btnGen\.addEventListener/);
     assert.match(mvu, /已迁至状态栏|请使用「状态栏」|整套变量请在「状态栏」/);

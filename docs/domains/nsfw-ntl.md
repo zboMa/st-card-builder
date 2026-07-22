@@ -44,7 +44,10 @@
 | `src/lib/adult/vessels/` | 世界观载体 |
 | `src/lib/adult/canon.mjs` | Canon 拼装 |
 | `src/lib/corruptionProgress.mjs` | 恶堕进度 |
-| `src/lib/novel/nsfwSupport.mjs` | 小说侧提示拼装 / 质量门 |
+| `src/lib/novel/nsfwSupport.mjs` | barrel：小说侧提示拼装 / 质量门 |
+| `src/lib/novel/nsfwSupportAttrs.mjs` | 实体 attrs 与模式开关 |
+| `src/lib/novel/nsfwSupportDigest.mjs` | 摘要互喂 |
+| `src/lib/novel/nsfwSupportHints.mjs` | 推断与口味/禁忌提示 |
 
 ## 相关
 

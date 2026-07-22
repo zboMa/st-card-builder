@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { readLayoutSources, readAssistantPanelSources, readVariableCardPanelSources , readCardBuilderBrowserAppSources, readStatusBarSources} from './helpers/uiSources.mjs';
 import {
   createEmptyTavernScript,
   normalizeTavernScript,
@@ -74,7 +75,7 @@ describe('tavernScripts wiring', function() {
     assert.match(index, /TavernScriptsPanel/);
     assert.match(index, /data-view="tavern-scripts"/);
     assert.match(index, /initCardBuilder/);
-    const boot = readFileSync(join(root, 'src/lib/card-builder/browserApp.mjs'), 'utf8');
+    const boot = readCardBuilderBrowserAppSources(root);
     assert.match(boot, /__getTavernHelperScripts__/);
     assert.match(boot, /__setTavernHelperScripts__/);
     assert.match(boot, /opts\.silent/);
@@ -113,11 +114,11 @@ describe('tavernScripts wiring', function() {
   });
 
   it('MVU/状态栏仍走 __setTavernHelperScript__ 注入', function() {
-    const mvu = readFileSync(join(root, 'src/components/VariableCardPanel.astro'), 'utf8');
+    const mvu = readVariableCardPanelSources(root);
     assert.match(mvu, /__setTavernHelperScript__/);
     const sb = readFileSync(join(root, 'src/components/StatusBarPanel.astro'), 'utf8');
     assert.match(sb, /__setTavernHelperScript__/);
-    const lib = readFileSync(join(root, 'src/lib/statusBar.mjs'), 'utf8');
+    const lib = readStatusBarSources(root);
     assert.match(lib, /STATUS_BAR_SCRIPT_NAME/);
   });
 });
