@@ -6,8 +6,8 @@ import { buildExportChecklist } from '../exportChecklist.mjs';
 import { escapeHtml } from '../../utils.mjs';
 import { getCardShareMeta } from '../cardShareClient.mjs';
 import { getCardCloudMeta, resolveCardCloudStatus, resolveCardCloudQuickAction } from '../../sync/cardCloudMeta.mjs';
-import { buildDraftSnapshot } from '../state.mjs';
-import { listCardVersions, ensureCardVersions } from '../cardVersions.mjs';
+import { buildDraftSnapshot, draftDisplayName, DRAFTS_KEY } from '../state.mjs';
+import { listCardVersions, ensureCardVersions, bumpCardDraftVersion, switchCardDraftVersion } from '../cardVersions.mjs';
 import { normalizeCharacterVersion } from '../cardRelease.mjs';
 
 /** @param {object} ctx @param {object} s @param {object} panel */
@@ -578,5 +578,12 @@ export function attachCardManagerRender(ctx, s, panel) {
       panel.render(pending);
     }, s.CARD_MANAGER_UI_DEBOUNCE_MS);
   };
+
+  panel.closeCardMoreMenu = closeCardMoreMenu;
+  panel.openCardMoreMenu = openCardMoreMenu;
+  panel.closeCardVersionMenu = closeCardVersionMenu;
+  panel.openCardVersionMenu = openCardVersionMenu;
+  panel.openExportChecklistModal = openExportChecklistModal;
+  panel.closeExportChecklistModal = closeExportChecklistModal;
   return panel;
 }
