@@ -16,6 +16,15 @@
 
 `StoryStudioApp` → `src/lib/storyStudio/browserApp.mjs`。分享读者壳：`ShareReaderPanel`（`#share/{token}`）。
 
+## 版本模型（卡 / 小说一致）
+
+- **唯一草稿** + **`versions[]` 正式列表**（每版完整快照 + `published` 标记）
+- **保存**：只写草稿，不写 `versions`
+- **切版 / 增版 / 发布**：才把当前草稿写入 `versions`
+- **发布**：标记已发布，草稿自动再升一版；升版号须 **> 全局最大已发号**
+- **分享**：`latest` 固定链对接最新已发；另有带版本号链接
+- 实现：`cardVersions.mjs` / `novelVersions.mjs`（开发期无旧数据兼容负担）
+
 ## 视图约定（UI）
 
 - 各面板 **操作按钮在右上角**（`.ss-panel-actions`）
@@ -35,14 +44,15 @@
 | `sharePlay.mjs` | 读者选线进度、分享稿复制为可编辑草稿 |
 | `version.mjs` | 版号 / **schema v2 树状 release** |
 | `tokenBudget.mjs` / `feedForward.mjs` / `plotLedger.mjs` / `quality.mjs` / `checkpoint.mjs` / `writePipeline.mjs` | 写章闭环 |
-| `shareClient.mjs` | 分享 API |
+| `novelVersions.mjs` | 草稿 / `versions[]`：切版、增版、发布 |
+| `shareClient.mjs` | 分享 API（latest + 钉版本） |
 | `exportTxt.mjs` | 导出（当前活动分支） |
 
 ## 分支与发布
 
 - 工作稿：`branches[]`（`choiceLabel` / `kind: path|ending` / `publishReady`）+ 章 `branchId`
-- **增版**：只打包 `publishReady` 支及其祖先 → `story-release`（`schemaVersion: 2`）
-- 同一分享 token 读最新 release；读者在分叉章后**选线**；结局支展示结局页
+- **发布**：只打包 `publishReady` 支及其祖先 → `story-release`（`schemaVersion: 2`），并写入 `versions` 已发项；草稿自动升版
+- 分享 token：`latest` 读最新已发；`#share/{token}/v/{ver}` 钉版本；读者在分叉章后**选线**；结局支展示结局页
 - **复制到本地创作**：读者可将分享树复制为本机可编辑小说（清 share/发布字段）
 
 ## 写章闭环

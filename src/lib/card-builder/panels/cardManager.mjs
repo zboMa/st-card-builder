@@ -23,6 +23,13 @@ import {
   clearCardShareToken,
 } from '../cardShareClient.mjs';
 import {
+  publishCardDraft,
+  bumpCardDraftVersion,
+  switchCardDraftVersion,
+  listCardVersions,
+  ensureCardVersions,
+} from '../cardVersions.mjs';
+import {
   getCardCloudMeta,
   resolveCardCloudStatus,
   resolveCardCloudQuickAction,
@@ -326,6 +333,141 @@ export function registerCardManager(ctx) {
     return '<span class="' + cls + '" title="' + label + '" aria-label="' + label + '">' + svg + '</span>';
   }
 
+
+  function closeCardVersionMenu() {
+    document.querySelectorAll('.card-version-popover').forEach(function(el) { el.remove(); });
+    if (cardVersionMenuDocHandler) {
+      document.removeEventListener('mousedown', cardVersionMenuDocHandler, true);
+      cardVersionMenuDocHandler = null;
+    }
+  }
+  var cardVersionMenuDocHandler = null;
+
+  function openCardVersionMenu(anchorBtn, cardId) {
+    closeCardVersionMenu();
+    closeCardMoreMenu();
+    if (!anchorBtn || !cardId) return;
+    var all = getAllDrafts();
+    var currentId = getCurrentDraftId();
+    var d = cardId === currentId
+      ? Object.assign({}, buildDraftSnapshot(ctx.state), { draftId: cardId, versions: ctx.state.versions || (all[cardId] && all[cardId].versions) || [] })
+      : (all[cardId] || {});
+    ensureCardVersions(d);
+    // 合并当前草稿虚线：若当前 ver 不在列表，展示为「草稿中」
+    var list = listCardVersions(d);
+    var draftVer = normalizeCharacterVersion(d.characterVersion);
+    var hasDraftVer = list.some(function(v) { return normalizeCharacterVersion(v.ver) === draftVer; });
+    var pop = document.createElement('div');
+    pop.className = 'card-version-popover';
+    pop.setAttribute('data-card-id', cardId);
+    var rows = list.map(function(v) {
+      var active = normalizeCharacterVersion(v.ver) === draftVer;
+      return '<button type="button" class="card-version-item' + (active ? ' is-active' : '') + '" data-ss-ver="'
+        + ctx.escapeHtml(v.ver) + '">'
+        + '<span class="card-version-item__ver">v' + ctx.escapeHtml(v.ver) + '</span>'
+        + '<span class="card-version-item__meta">'
+        + (v.published ? '已发布' : '未发布')
+        + (active ? ' · 当前草稿' : '')
+        + '</span></button>';
+    }).join('');
+    if (!hasDraftVer) {
+      rows = '<div class="card-version-item is-active is-draftonly">'
+        + '<span class="card-version-item__ver">v' + ctx.escapeHtml(draftVer) + '</span>'
+        + '<span class="card-version-item__meta">当前草稿（尚未写入列表）</span></div>'
+        + rows;
+    }
+    if (!rows) {
+      rows = '<div class="card-more-hint">暂无版本记录。增版或发布后出现在此。</div>';
+    }
+    pop.innerHTML = '<div class="card-more-section__title">版本列表</div>'
+      + '<p class="card-more-hint">点击版本号切换；切换会把当前草稿写入列表。发布会写入并自动升草稿版号。</p>'
+      + rows
+      + '<div class="card-more-divider"></div>'
+      + '<button type="button" class="card-more-item" data-ss-ver-bump="minor">小版本增版</button>'
+      + '<button type="button" class="card-more-item" data-ss-ver-bump="major">大版本增版</button>';
+    document.body.appendChild(pop);
+    positionFixedPopover(pop, anchorBtn, { width: 280, gap: 4 });
+    setTimeout(function() {
+      cardVersionMenuDocHandler = function(ev) {
+        if (!pop.contains(ev.target) && ev.target !== anchorBtn && !anchorBtn.contains(ev.target)) {
+          closeCardVersionMenu();
+        }
+      };
+      document.addEventListener('mousedown', cardVersionMenuDocHandler, true);
+    }, 0);
+    pop.addEventListener('click', async function(ev) {
+      var bump = ev.target.closest('[data-ss-ver-bump]');
+      var item = ev.target.closest('[data-ss-ver]');
+      if (bump) {
+        ev.preventDefault();
+        await panel.bumpDraftVersion(cardId, bump.getAttribute('data-ss-ver-bump'));
+        closeCardVersionMenu();
+        return;
+      }
+      if (item) {
+        ev.preventDefault();
+        var ver = item.getAttribute('data-ss-ver');
+        await panel.switchDraftVersion(cardId, ver);
+        closeCardVersionMenu();
+      }
+    });
+  }
+
+  panel.bumpDraftVersion = async function(id, which) {
+    if (!id) return;
+    var currentId = getCurrentDraftId();
+    if (id === currentId) panel.saveCurrentDraft();
+    var all = getAllDrafts();
+    var d = id === currentId
+      ? Object.assign({}, buildDraftSnapshot(ctx.state), { draftId: id })
+      : all[id];
+    if (!d) return;
+    ensureCardVersions(d);
+    bumpCardDraftVersion(d, which === 'major' ? 'major' : 'minor');
+    all[id] = d;
+    localStorage.setItem(DRAFTS_KEY, JSON.stringify(all));
+    if (id === currentId) {
+      ctx.state.characterVersion = d.characterVersion;
+      ctx.state.versions = d.versions;
+      Object.keys(d).forEach(function(k) {
+        if (k === 'versions' || k === 'draftId') return;
+        if (k in ctx.state) ctx.state[k] = d[k];
+      });
+      var verEl = ctx.$('characterVersion');
+      if (verEl) verEl.value = d.characterVersion;
+      if (ctx.panels.character && ctx.panels.character.renderCharTags) {
+        /* keep */
+      }
+    }
+    setCardManagerStatus('已增版至 v' + d.characterVersion + '（上一版已写入列表）');
+    panel.updateCardManagerUI();
+    if (id === currentId) panel.loadDraft(id);
+  };
+
+  panel.switchDraftVersion = async function(id, targetVer) {
+    if (!id || !targetVer) return;
+    var currentId = getCurrentDraftId();
+    if (id === currentId) panel.saveCurrentDraft();
+    var all = getAllDrafts();
+    var d = id === currentId
+      ? Object.assign({}, buildDraftSnapshot(ctx.state), { draftId: id })
+      : all[id];
+    if (!d) return;
+    ensureCardVersions(d);
+    var sw = switchCardDraftVersion(d, targetVer);
+    if (!sw.ok) {
+      setCardManagerStatus('无法切换：' + (sw.error || '未知错误'), true);
+      return;
+    }
+    all[id] = d;
+    localStorage.setItem(DRAFTS_KEY, JSON.stringify(all));
+    if (id === currentId) {
+      panel.loadDraft(id);
+    }
+    setCardManagerStatus('已切换到 v' + targetVer);
+    panel.updateCardManagerUI();
+  };
+
   panel.buildCardManagerActionsHtml = function (meta, cloudStatus) {
     meta = meta || {};
     function iconBtn(action, label, extraClass, svgOverride) {
@@ -582,8 +724,11 @@ export function registerCardManager(ctx) {
         badge.textContent = '当前';
         badges.appendChild(badge);
       }
-      var verBadge = document.createElement('span');
+      var verBadge = document.createElement('button');
+      verBadge.type = 'button';
       verBadge.className = 'card-manager-version-badge';
+      verBadge.setAttribute('data-card-action', 'versions');
+      verBadge.title = '版本列表 / 切换版本';
       verBadge.textContent = 'v' + draftWorkVersion(d);
       badges.appendChild(verBadge);
       cover.appendChild(badges);
@@ -1139,7 +1284,8 @@ export function registerCardManager(ctx) {
     if (!id) return;
     var currentId = getCurrentDraftId();
     if (id === currentId) panel.saveCurrentDraft();
-    var stored = getAllDrafts()[id];
+    var all = getAllDrafts();
+    var stored = all[id];
     if (id !== currentId && !stored) {
       setCardManagerStatus('找不到该角色卡', true);
       return;
@@ -1147,12 +1293,13 @@ export function registerCardManager(ctx) {
     var d = id === currentId
       ? Object.assign({}, buildDraftSnapshot(ctx.state), { draftId: id })
       : Object.assign({}, stored, { draftId: id });
-    var release = buildCardReleasePayload(d, {});
+    ensureCardVersions(d);
+
     var okPublish = await ctx.showConfirmDialog({
       icon: '📣',
       title: '发布角色卡？',
-      message: '发布为分享可见版「' + release.characterVersion + '」。',
-      detail: '分享链接只展示已发布快照；之后编辑需再次发布才会更新。',
+      message: '将把当前草稿写入版本列表并标记为已发布，然后草稿自动升小版本。',
+      detail: '分享 latest 指向最新已发版；亦可使用带版本号的链接。保存草稿不会写入版本列表。',
       okText: '发布',
       cancelText: '取消',
     });
@@ -1169,20 +1316,42 @@ export function registerCardManager(ctx) {
       }));
     }
 
-    setCardManagerStatus('正在发布…');
+    var pub = publishCardDraft(d);
+    all[id] = d;
+    localStorage.setItem(DRAFTS_KEY, JSON.stringify(all));
+    if (id === currentId) {
+      ctx.state.characterVersion = d.characterVersion;
+      ctx.state.versions = d.versions;
+      var verEl = ctx.$('characterVersion');
+      if (verEl) verEl.value = d.characterVersion;
+    }
+
+    setCardManagerStatus('正在发布 v' + pub.publishedVer + '…');
     try {
       var pngBase64 = null;
       if (withPng) {
+        // 临时用已发布版号导出 PNG：切回 published 字段
+        var prevVer = d.characterVersion;
+        d.characterVersion = pub.publishedVer;
+        if (id === currentId) {
+          ctx.state.characterVersion = pub.publishedVer;
+          panel.saveCurrentDraft();
+        }
         pngBase64 = await panel.buildPngBase64ForDraft(id);
+        d.characterVersion = prevVer;
+        if (id === currentId) {
+          ctx.state.characterVersion = prevVer;
+          panel.saveCurrentDraft();
+        }
         if (!pngBase64) {
           setCardManagerStatus('无头像，已跳过 PNG；仍发布 JSON', true);
         }
       }
       var data = await apiPublishCard({
         cardId: id,
-        cardJson: release.cardJson,
-        characterVersion: release.characterVersion,
-        title: release.title,
+        cardJson: pub.cardJson,
+        characterVersion: pub.publishedVer,
+        title: pub.title,
         pngEnabled: !!(withPng && pngBase64),
         pngBase64: pngBase64,
       });
@@ -1190,18 +1359,19 @@ export function registerCardManager(ctx) {
         var mirror = await import('../../sync/cardMirror.mjs');
         await mirror.mirrorCardReleaseToPouch(id, {
           characterVersion: data.characterVersion,
-          title: release.title,
+          title: pub.title,
           publishedAt: data.publishedAt,
           pngEnabled: !!(withPng && pngBase64),
-          cardJson: release.cardJson,
+          cardJson: pub.cardJson,
         });
       } catch (e) { console.warn('[cardShare] mirror', e); }
       setCardShareMeta(id, {
         publishedCharacterVersion: data.characterVersion,
         publishedAt: data.publishedAt,
-        title: release.title,
+        title: pub.title,
       });
       setCardManagerStatus('已发布 v' + data.characterVersion
+        + '；草稿现为 v' + pub.draftVer
         + (data.pngStored ? '（含 PNG）' : ''));
       panel.updateCardManagerUI();
     } catch (err) {
@@ -1635,6 +1805,7 @@ export function registerCardManager(ctx) {
       if (e.key === 'Escape') {
         if (tagPopupOpen) setTagPopupOpen(false);
         closeCardMoreMenu();
+        closeCardVersionMenu();
       }
     });
 
@@ -1692,6 +1863,12 @@ export function registerCardManager(ctx) {
           e.preventDefault();
           e.stopPropagation();
           handleCardMoreAction(action, id);
+          return;
+        }
+        if (action === 'versions') {
+          e.preventDefault();
+          e.stopPropagation();
+          openCardVersionMenu(e.target.closest('[data-card-action="versions"]'), id);
           return;
         }
         if (action === 'rename') {
@@ -1778,6 +1955,11 @@ export function registerCardManager(ctx) {
       },
       rename: function (id, name) {
         return panel.renameDraft(id || getCurrentDraftId(), name);
+      },
+      bumpVersion: function (which) {
+        var id = getCurrentDraftId();
+        if (!id) throw new Error('无当前卡');
+        return panel.bumpDraftVersion(id, which === 'major' ? 'major' : 'minor');
       },
       delete: async function (id) {
         return panel.deleteDraft(id || getCurrentDraftId(), { force: true });

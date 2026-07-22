@@ -70,9 +70,10 @@ describe('storyStudio version', function() {
 
 describe('share client / server helpers', function() {
   it('parseShareTokenFromHash', function() {
-    assert.equal(parseShareTokenFromHash('#share/abc'), 'abc');
-    assert.equal(parseShareTokenFromHash('#share/a%2Fb'), 'a/b');
-    assert.equal(parseShareTokenFromHash('#story-read'), '');
+    assert.deepEqual(parseShareTokenFromHash('#share/abc'), { token: 'abc', version: '' });
+    assert.deepEqual(parseShareTokenFromHash('#share/a%2Fb'), { token: 'a/b', version: '' });
+    assert.deepEqual(parseShareTokenFromHash('#share/tok/v/1.0-2'), { token: 'tok', version: '1.0-2' });
+    assert.deepEqual(parseShareTokenFromHash('#story-read'), { token: '', version: '' });
   });
 
   it('buildLocalShareUrl', function() {

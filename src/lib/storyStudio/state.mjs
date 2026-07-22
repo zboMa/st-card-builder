@@ -99,6 +99,8 @@ export function createEmptyNovel(partial) {
       direction: '',
       approvedOutline: false,
     },
+    /** 正式版本列表（切版/增版/发布写入；普通保存不写） */
+    versions: [],
   };
 }
 
@@ -218,6 +220,7 @@ export function normalizeNovel(raw) {
       direction: String((raw.wizard && raw.wizard.direction) || ''),
       approvedOutline: !!(raw.wizard && raw.wizard.approvedOutline),
     },
+    versions: Array.isArray(raw.versions) ? raw.versions.slice() : [],
   };
 
   ensureBranches(n);

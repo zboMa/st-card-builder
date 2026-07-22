@@ -45,6 +45,12 @@ export function storyReleaseDocId(cardId, novelId) {
   return 'story/' + String(cardId || '').trim() + '/' + String(novelId || '').trim() + '/release';
 }
 
+export function storyReleaseVersionDocId(cardId, novelId, displayVersion) {
+  var ver = encodeURIComponent(String(displayVersion || '1.0-1').trim() || '1.0-1');
+  return storyReleaseDocId(cardId, novelId) + '/' + ver;
+}
+
+
 /** 角色卡当前发布快照 */
 export function cardReleaseDocId(cardId) {
   return 'card/' + String(cardId || '').trim() + '/release';

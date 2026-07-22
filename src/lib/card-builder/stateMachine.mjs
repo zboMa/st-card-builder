@@ -154,6 +154,7 @@ export function createCardStateMachine(state) {
     state.corruptionDefaultFemaleOnly = d.corruptionDefaultFemaleOnly !== false;
     state.corruptionSyncStatusBar = d.corruptionSyncStatusBar !== false;
     state.characterVersion = String(d.characterVersion != null ? d.characterVersion : '1.0').trim() || '1.0';
+    state.versions = Array.isArray(d.versions) ? d.versions : [];
     return true;
   }
 
@@ -192,6 +193,7 @@ export function createCardStateMachine(state) {
     state.corruptionDefaultFemaleOnly = true;
     state.corruptionSyncStatusBar = true;
     state.characterVersion = '1.0';
+    state.versions = [];
   }
 
   function deleteDraft(id) {

@@ -25,8 +25,10 @@ export async function apiUpdateNovelShare(payload) {
   return apiCreateNovelShare(payload);
 }
 
-export async function apiFetchSharedNovel(token) {
-  var res = await fetch('/api/share/novels/' + encodeURIComponent(token), {
+export async function apiFetchSharedNovel(token, version) {
+  var path = '/api/share/novels/' + encodeURIComponent(token);
+  if (version) path += '/versions/' + encodeURIComponent(version);
+  var res = await fetch(path, {
     method: 'GET',
     credentials: 'omit',
   });
@@ -55,18 +57,25 @@ export async function apiDeleteNovelShare(token) {
   return data;
 }
 
-export function buildLocalShareUrl(token) {
+export function buildLocalShareUrl(token, version) {
   var origin = '';
   try {
     if (typeof location !== 'undefined' && location && location.origin) {
       origin = location.origin;
     }
   } catch (e) { /* ignore */ }
-  return origin + '/#share/' + encodeURIComponent(token);
+  var base = origin + '/#share/' + encodeURIComponent(token);
+  if (version) return base + '/v/' + encodeURIComponent(version);
+  return base;
 }
 
+/** @returns {{ token: string, version: string }} */
 export function parseShareTokenFromHash(hash) {
   var h = String(hash || '').replace(/^#/, '');
-  var m = /^share\/([^/?#]+)/.exec(h);
-  return m ? decodeURIComponent(m[1]) : '';
+  var m = /^share\/([^/?#]+)(?:\/v\/([^/?#]+))?/.exec(h);
+  if (!m) return { token: '', version: '' };
+  return {
+    token: decodeURIComponent(m[1]),
+    version: m[2] ? decodeURIComponent(m[2]) : '',
+  };
 }

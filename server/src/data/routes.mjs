@@ -14,6 +14,7 @@ import {
   storyNovelDocId,
   storyActiveDocId,
   storyReleaseDocId,
+  storyReleaseVersionDocId,
   avatarDocId,
   catalogNovelsList,
 } from './docIds.mjs';
@@ -464,19 +465,25 @@ dataRouter.put('/stories/:cardId/:novelId/release', async function(req, res) {
     var novelId = String(req.params.novelId || '').trim();
     var body = req.body || {};
     var data = body.data != null ? body.data : body;
-    var saved = await putUserDoc(userIdOf(req), {
-      _id: storyReleaseDocId(cardId, novelId),
+    var displayVersion = String(data.displayVersion || '1.0-1');
+    var docBody = {
       type: 'story-release',
       cardId: cardId,
       novelId: novelId,
       characterVersion: data.characterVersion,
       novelVersion: data.novelVersion,
-      displayVersion: data.displayVersion,
+      displayVersion: displayVersion,
       publishedAt: data.publishedAt,
       data: data,
       updatedAt: new Date().toISOString(),
-    }, { force: true });
-    res.json({ ok: true, rev: saved.rev });
+    };
+    var saved = await putUserDoc(userIdOf(req), Object.assign({
+      _id: storyReleaseDocId(cardId, novelId),
+    }, docBody), { force: true });
+    await putUserDoc(userIdOf(req), Object.assign({
+      _id: storyReleaseVersionDocId(cardId, novelId, displayVersion),
+    }, docBody), { force: true });
+    res.json({ ok: true, rev: saved.rev, displayVersion: displayVersion });
   } catch (e) {
     sendErr(res, e);
   }

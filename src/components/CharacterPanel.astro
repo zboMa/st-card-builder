@@ -217,6 +217,11 @@ import PreviewPanel from './PreviewPanel.astro';
   }
 
   document.getElementById('btnBumpVersionMajor')?.addEventListener('click', function() {
+    var api = window.__assistantCardApi__ || window.__cardManagerPanel__;
+    if (api && typeof api.bumpVersion === 'function') {
+      api.bumpVersion('major');
+      return;
+    }
     var el = versionEl();
     var from = normalizeCharacterVersion(el && el.value);
     var to = bumpCharacterVersionMajor(from);
@@ -224,6 +229,11 @@ import PreviewPanel from './PreviewPanel.astro';
     applyVersion(to);
   });
   document.getElementById('btnBumpVersionMinor')?.addEventListener('click', function() {
+    var api = window.__assistantCardApi__ || window.__cardManagerPanel__;
+    if (api && typeof api.bumpVersion === 'function') {
+      api.bumpVersion('minor');
+      return;
+    }
     var el = versionEl();
     var from = normalizeCharacterVersion(el && el.value);
     var to = bumpCharacterVersionMinor(from);
