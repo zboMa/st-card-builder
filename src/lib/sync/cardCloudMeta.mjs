@@ -109,6 +109,19 @@ export function cloudStatusLabel(status) {
   return '未上云';
 }
 
+/**
+ * 卡底栏「更多」左侧的云快捷操作（⋯ 菜单内云项不变）。
+ * 已同步：不显示；未上云 / 未同步：上传覆盖云端。
+ * @returns {{ action: string, label: string }|null}
+ */
+export function resolveCardCloudQuickAction(status) {
+  if (status === CLOUD_STATUS.CLOUD_SYNCED) return null;
+  if (status === CLOUD_STATUS.CLOUD_DIRTY) {
+    return { action: 'cloud-upload', label: '同步到云' };
+  }
+  return { action: 'cloud-upload', label: '上传到云' };
+}
+
 /** 合并云端索引摘要到 meta（对齐后调用） */
 export function mergeCloudIndexIntoMeta(cards) {
   var list = Array.isArray(cards) ? cards : [];
