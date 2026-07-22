@@ -241,39 +241,117 @@ export function registerCardManager(ctx) {
   }
 
   // ---- Actions HTML ----
+  function cloudStatusIconHtml(status) {
+    var label = '未上云';
+    var cls = 'card-cloud-status is-local';
+    var svg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M7 18h10a4 4 0 0 0 .5-8 5.5 5.5 0 0 0-10.7-1.5A3.5 3.5 0 0 0 7 18z"/><path d="M9 12h6M12 9v6"/></svg>';
+    if (status === 'cloud_synced') {
+      label = '上云已同步';
+      cls = 'card-cloud-status is-synced';
+      svg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M7 18h10a4 4 0 0 0 .5-8 5.5 5.5 0 0 0-10.7-1.5A3.5 3.5 0 0 0 7 18z"/><path d="M9.5 13.2l1.8 1.8 3.4-3.6"/></svg>';
+    } else if (status === 'cloud_dirty') {
+      label = '上云未同步';
+      cls = 'card-cloud-status is-dirty';
+      svg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M7 18h10a4 4 0 0 0 .5-8 5.5 5.5 0 0 0-10.7-1.5A3.5 3.5 0 0 0 7 18z"/><path d="M12 10v3"/><path d="M12 15.5h.01"/></svg>';
+    }
+    return '<span class="' + cls + '" title="' + label + '" aria-label="' + label + '">' + svg + '</span>';
+  }
+
   panel.buildCardManagerActionsHtml = function (meta) {
     meta = meta || {};
     function iconBtn(action, label, extraClass) {
       var cls = 'btn-icon btn-icon--sm card-mgr-icon' + (extraClass ? ' ' + extraClass : '');
       var icons = {
         dup: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>',
-        'export-json': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 8l-4 4 4 4M16 8l4 4-4 4M13 6l-2 12"/></svg>',
-        'export-png': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2"/><circle cx="9" cy="10" r="1.5"/><path d="M4 16l4.5-4.5 3 3L14 12l6 6"/></svg>',
+        more: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="5" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="12" cy="19" r="1.2"/></svg>',
         delete: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><path d="M10 11v6M14 11v6"/><path d="M7 7l1 12a1 1 0 0 0 1 .9h6a1 1 0 0 0 1-.9l1-12"/></svg>',
       };
       return '<button type="button" class="' + cls + '" data-card-action="' + action + '" title="' + label + '" aria-label="' + label + '">' + (icons[action] || '') + '</button>';
     }
-    function textBtn(action, label) {
-      return '<button type="button" class="btn btn-ghost btn-inline" data-card-action="'
-        + action + '">' + label + '</button>';
-    }
     return ''
       + '<div class="card-manager-item-actions__group">'
       + iconBtn('dup', '复制')
-      + '</div>'
-      + '<div class="card-manager-item-actions__group">'
-      + iconBtn('export-json', '导出 JSON', 'card-mgr-icon--export')
-      + iconBtn('export-png', '导出 PNG', 'card-mgr-icon--export')
+      + iconBtn('more', '更多操作')
       + iconBtn('delete', '删除', 'card-mgr-icon--danger btn-icon--danger')
-      + '</div>'
-      + '<div class="card-manager-item-share">'
-      + textBtn('publish', '发布')
-      + textBtn('share', '分享')
-      + (meta.token ? textBtn('copy-share', '复制链接') : '')
-      + (meta.token ? textBtn('reset-share', '重置链接') : '')
-      + (meta.token ? textBtn('unshare', '停分享') : '')
       + '</div>';
   };
+
+  panel.buildCardMoreMenuHtml = function (meta, cloudLoggedIn) {
+    meta = meta || {};
+    function item(action, label, disabled) {
+      return '<button type="button" class="card-more-item" data-card-action="' + action + '"'
+        + (disabled ? ' disabled' : '') + '>' + label + '</button>';
+    }
+    var shareBits = ''
+      + item('publish', '发布', !cloudLoggedIn)
+      + item('share', '分享', !cloudLoggedIn)
+      + (meta.token ? item('copy-share', '复制链接') : '')
+      + (meta.token ? item('reset-share', '重置链接', !cloudLoggedIn) : '')
+      + (meta.token ? item('unshare', '停分享', !cloudLoggedIn) : '');
+    return ''
+      + '<div class="card-more-menu" role="menu">'
+      + '<div class="card-more-section">'
+      + '<div class="card-more-section__title">导出</div>'
+      + item('export-json', '导出 JSON')
+      + item('export-png', '导出 PNG')
+      + item('export-check', '导出前检查')
+      + '</div>'
+      + '<div class="card-more-divider" role="separator"></div>'
+      + '<div class="card-more-section">'
+      + '<div class="card-more-section__title">发布与分享</div>'
+      + shareBits
+      + '</div>'
+      + '<div class="card-more-divider" role="separator"></div>'
+      + '<div class="card-more-section">'
+      + '<div class="card-more-section__title">云端</div>'
+      + item('cloud-upload', '上传覆盖云端', !cloudLoggedIn)
+      + item('cloud-download', '拉取覆盖本地', !cloudLoggedIn)
+      + item('cloud-delete', '删除云端', !cloudLoggedIn)
+      + (!cloudLoggedIn ? '<p class="card-more-hint">请先在「账户与云端」登录</p>' : '')
+      + '</div>'
+      + '</div>';
+  };
+
+  function closeCardMoreMenu() {
+    document.querySelectorAll('.card-more-popover').forEach(function(el) { el.remove(); });
+    document.querySelectorAll('[data-card-action="more"][aria-expanded="true"]').forEach(function(btn) {
+      btn.setAttribute('aria-expanded', 'false');
+    });
+  }
+
+  function openCardMoreMenu(anchorBtn, cardId, shareMeta) {
+    closeCardMoreMenu();
+    var item = anchorBtn.closest('.card-manager-item');
+    if (!item) return;
+    anchorBtn.setAttribute('aria-expanded', 'true');
+    var pop = document.createElement('div');
+    pop.className = 'card-more-popover';
+    pop.setAttribute('data-card-id', cardId);
+    var loggedIn = false;
+    try {
+      // 同步探测：账户页登录后会 setCloudEnabled；无则仍可点开看禁用项
+      loggedIn = !!(window.__syncCloudEnabled__ || (window.__getCloudEnabled__ && window.__getCloudEnabled__()));
+    } catch (e) { loggedIn = false; }
+    // 动态 import 状态
+    import('../../sync/index.mjs').then(function(sync) {
+      if (sync.isCloudEnabled) loggedIn = !!sync.isCloudEnabled();
+      pop.innerHTML = panel.buildCardMoreMenuHtml(shareMeta, loggedIn);
+    }).catch(function() {
+      pop.innerHTML = panel.buildCardMoreMenuHtml(shareMeta, false);
+    });
+    pop.innerHTML = panel.buildCardMoreMenuHtml(shareMeta, loggedIn);
+    item.appendChild(pop);
+    // 点击外部关闭
+    setTimeout(function() {
+      function onDoc(ev) {
+        if (!pop.contains(ev.target) && ev.target !== anchorBtn && !anchorBtn.contains(ev.target)) {
+          closeCardMoreMenu();
+          document.removeEventListener('mousedown', onDoc, true);
+        }
+      }
+      document.addEventListener('mousedown', onDoc, true);
+    }, 0);
+  }
 
   function buildCheckBadgeHtml(check) {
     if (!check || (!check.critical && !check.warning)) return '';
@@ -361,12 +439,36 @@ export function registerCardManager(ctx) {
       cover.appendChild(badges);
 
       var shareMeta = getCardShareMeta(id) || {};
+      var cloudMeta = null;
+      var cloudStatus = 'local_only';
+      try {
+        // 同步读 localStorage meta（无 await）
+        var rawMeta = localStorage.getItem('st_v3_card_cloud_meta_v1');
+        var allMeta = rawMeta ? JSON.parse(rawMeta) : {};
+        cloudMeta = allMeta && allMeta[id] ? allMeta[id] : null;
+        if (d._cloudStub) cloudStatus = 'cloud_dirty';
+        else if (!cloudMeta || !cloudMeta.onCloud) cloudStatus = 'local_only';
+        else {
+          var localAt = String(d.updatedAt || '');
+          var syncedLocal = String(cloudMeta.localSyncedAt || '');
+          var cloudAt = String(cloudMeta.cloudUpdatedAt || '');
+          if (cloudMeta.pendingUpload || (syncedLocal && localAt && localAt !== syncedLocal)
+            || (cloudAt && localAt && cloudAt !== localAt)) {
+            cloudStatus = 'cloud_dirty';
+          } else {
+            cloudStatus = 'cloud_synced';
+          }
+        }
+      } catch (eMeta) {
+        cloudStatus = d._cloudStub ? 'cloud_dirty' : 'local_only';
+      }
       var overlay = document.createElement('div');
       overlay.className = 'card-manager-cover-overlay';
       overlay.innerHTML =
         '<button type="button" class="card-manager-item-name" data-card-action="rename" title="点击重命名">'
         + ctx.escapeHtml(draftDisplayName(d)) + '</button>'
         + '<div class="card-manager-item-meta">更新 ' + ctx.escapeHtml(d.updatedAt || '—')
+        + ' ' + cloudStatusIconHtml(cloudStatus)
         + '<br>' + ctx.escapeHtml(buildShareMetaLine(d, shareMeta)) + '</div>';
       cover.appendChild(overlay);
 
@@ -1090,6 +1192,75 @@ export function registerCardManager(ctx) {
     panel.updateCardManagerUI();
   };
 
+  panel.cloudUploadOverwrite = async function (id) {
+    if (!id) return;
+    var ok = await ctx.showConfirmDialog({
+      icon: '☁️',
+      title: '上传覆盖云端？',
+      message: '将用本机这张卡（含工坊/头像等绑卡数据）覆盖云端版本。',
+      detail: '写出的小说（Story）不随此操作上传。',
+      okText: '上传覆盖',
+      cancelText: '取消',
+    });
+    if (!ok) return;
+    setCardManagerStatus('正在上传覆盖云端…');
+    try {
+      var sync = await import('../../sync/index.mjs');
+      if (sync.fetchSyncCredentials) await sync.fetchSyncCredentials();
+      await sync.cloudUploadOverwrite(id);
+      setCardManagerStatus('已上传覆盖云端');
+      panel.updateCardManagerUI();
+    } catch (e) {
+      setCardManagerStatus('上传失败：' + (e && e.message || e), true);
+    }
+  };
+
+  panel.cloudDownloadOverwrite = async function (id) {
+    if (!id) return;
+    var ok = await ctx.showConfirmDialog({
+      icon: '⬇️',
+      title: '拉取覆盖本地？',
+      message: '将用云端版本覆盖本机这张卡（含工坊/头像等）。本地未上云的修改会丢失。',
+      okText: '拉取覆盖',
+      cancelText: '取消',
+    });
+    if (!ok) return;
+    setCardManagerStatus('正在拉取覆盖本地…');
+    try {
+      var sync = await import('../../sync/index.mjs');
+      if (sync.fetchSyncCredentials) await sync.fetchSyncCredentials();
+      await sync.cloudDownloadOverwrite(id);
+      setCardManagerStatus('已拉取覆盖本地');
+      panel.updateCardManagerUI();
+      if (id === getCurrentDraftId()) panel.loadDraft(id);
+    } catch (e) {
+      setCardManagerStatus('拉取失败：' + (e && e.message || e), true);
+    }
+  };
+
+  panel.cloudDeleteRemote = async function (id) {
+    if (!id) return;
+    var ok = await ctx.showConfirmDialog({
+      icon: '🗑️',
+      title: '删除云端副本？',
+      message: '只删除云端上的这张卡，本机草稿保留。',
+      detail: '默认不删除云端写出的小说（Story）。',
+      okText: '删除云端',
+      cancelText: '取消',
+    });
+    if (!ok) return;
+    setCardManagerStatus('正在删除云端…');
+    try {
+      var sync = await import('../../sync/index.mjs');
+      if (sync.fetchSyncCredentials) await sync.fetchSyncCredentials();
+      await sync.cloudDeleteRemoteOnly(id, { deleteStories: false });
+      setCardManagerStatus('云端已删除，本地仍保留');
+      panel.updateCardManagerUI();
+    } catch (e) {
+      setCardManagerStatus('删除云端失败：' + (e && e.message || e), true);
+    }
+  };
+
   // ---- Export ----
   panel.exportDraftAsJson = function (id) {
     if (!id) return;
@@ -1287,6 +1458,13 @@ export function registerCardManager(ctx) {
           panel.duplicateDraft(id);
           return;
         }
+        if (action === 'more') {
+          e.preventDefault();
+          e.stopPropagation();
+          var shareMetaMore = getCardShareMeta(id) || {};
+          openCardMoreMenu(e.target.closest('[data-card-action="more"]'), id, shareMetaMore);
+          return;
+        }
         if (action === 'rename') {
           e.preventDefault();
           e.stopPropagation();
@@ -1296,52 +1474,82 @@ export function registerCardManager(ctx) {
         if (action === 'export-check') {
           e.preventDefault();
           e.stopPropagation();
+          closeCardMoreMenu();
           openExportChecklistModal();
           return;
         }
         if (action === 'export-json') {
           e.preventDefault();
           e.stopPropagation();
+          closeCardMoreMenu();
           panel.exportDraftAsJson(id);
           return;
         }
         if (action === 'export-png') {
           e.preventDefault();
           e.stopPropagation();
+          closeCardMoreMenu();
           panel.exportDraftAsPng(id);
           return;
         }
         if (action === 'publish') {
           e.preventDefault();
           e.stopPropagation();
+          closeCardMoreMenu();
           panel.publishDraft(id);
           return;
         }
         if (action === 'share') {
           e.preventDefault();
           e.stopPropagation();
+          closeCardMoreMenu();
           panel.shareDraft(id);
           return;
         }
         if (action === 'reset-share') {
           e.preventDefault();
           e.stopPropagation();
+          closeCardMoreMenu();
           panel.shareDraft(id, { resetToken: true });
           return;
         }
         if (action === 'copy-share') {
           e.preventDefault();
           e.stopPropagation();
+          closeCardMoreMenu();
           panel.copyShareLink(id);
           return;
         }
         if (action === 'unshare') {
           e.preventDefault();
           e.stopPropagation();
+          closeCardMoreMenu();
           panel.unshareDraft(id);
           return;
         }
+        if (action === 'cloud-upload') {
+          e.preventDefault();
+          e.stopPropagation();
+          closeCardMoreMenu();
+          panel.cloudUploadOverwrite(id);
+          return;
+        }
+        if (action === 'cloud-download') {
+          e.preventDefault();
+          e.stopPropagation();
+          closeCardMoreMenu();
+          panel.cloudDownloadOverwrite(id);
+          return;
+        }
+        if (action === 'cloud-delete') {
+          e.preventDefault();
+          e.stopPropagation();
+          closeCardMoreMenu();
+          panel.cloudDeleteRemote(id);
+          return;
+        }
         // Click cover/name area: switch to that draft and go to character view
+        closeCardMoreMenu();
         panel.loadDraft(id);
         goToView('character');
       });

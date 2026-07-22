@@ -194,7 +194,7 @@ async function withCloudOrOutbox(op, runner, outboxItem) {
 export async function cloudSaveCard(cardId, draft) {
   var id = String(cardId || '').trim();
   if (!id || !draft) return;
-  return withCloudOrOutbox('putCard', function() {
+  var out = await withCloudOrOutbox('putCard', function() {
     return api.putCardDraft(id, draft);
   }, {
     op: 'putCard',
@@ -202,6 +202,18 @@ export async function cloudSaveCard(cardId, draft) {
     body: { data: draft },
     dedupeKey: 'putCard:' + id,
   });
+  if (out && !out.queued) {
+    try {
+      var { markCardSynced } = await import('./cardCloudMeta.mjs');
+      markCardSynced(id, draft.updatedAt, draft.updatedAt);
+    } catch (e) { /* ignore */ }
+  } else if (out && out.queued) {
+    try {
+      var metaMod = await import('./cardCloudMeta.mjs');
+      metaMod.setCardCloudMeta(id, { pendingUpload: true, onCloud: !!(metaMod.getCardCloudMeta(id) || {}).onCloud });
+    } catch (e2) { /* ignore */ }
+  }
+  return out;
 }
 
 export async function cloudSaveCardBundle(cardId) {
@@ -231,6 +243,55 @@ export async function cloudDeleteCard(cardId, opts) {
     body: { deleteStories: deleteStories },
     dedupeKey: 'deleteCard:' + id,
   });
+}
+
+/** 仅删云端（默认不删 Story）；保留本地草稿 */
+export async function cloudDeleteRemoteOnly(cardId, opts) {
+  opts = opts || {};
+  var id = String(cardId || '').trim();
+  if (!id) return;
+  if (!cloudEnabled) throw new Error('unauthorized');
+  await api.deleteCloudCard(id, {
+    deleteStories: opts.deleteStories === true,
+  });
+  var { markCardLocalOnly } = await import('./cardCloudMeta.mjs');
+  markCardLocalOnly(id);
+  emit('cloud-deleted', { cardId: id });
+  return { ok: true, cardId: id };
+}
+
+/** 上传本地卡包覆盖云端 */
+export async function cloudUploadOverwrite(cardId) {
+  var id = String(cardId || '').trim();
+  if (!id) return;
+  if (!cloudEnabled) throw new Error('unauthorized');
+  var bundle = await buildLocalCardBundle(id);
+  if (!bundle.card) throw new Error('no_local_card');
+  await api.putCardBundle(id, bundle);
+  var { markCardSynced } = await import('./cardCloudMeta.mjs');
+  var localAt = bundle.card && bundle.card.updatedAt;
+  markCardSynced(id, localAt, localAt);
+  emit('cloud-uploaded', { cardId: id });
+  return { ok: true, cardId: id };
+}
+
+/** 拉取云端卡包覆盖本地 */
+export async function cloudDownloadOverwrite(cardId) {
+  var id = String(cardId || '').trim();
+  if (!id) return;
+  if (!cloudEnabled) throw new Error('unauthorized');
+  var res = await api.fetchCardBundle(id);
+  if (!res || !res.bundle || !res.bundle.card) throw new Error('not_found');
+  await hydrateCardBundleToLocal(res.bundle);
+  var { markCardSynced } = await import('./cardCloudMeta.mjs');
+  var cloudAt = res.bundle.card.updatedAt
+    || (res.bundle.card.data && res.bundle.card.data.updatedAt)
+    || null;
+  var drafts = readDrafts();
+  var localAt = drafts[id] && drafts[id].updatedAt;
+  markCardSynced(id, cloudAt, localAt);
+  emit('cloud-downloaded', { cardId: id });
+  return { ok: true, cardId: id, draft: drafts[id] };
 }
 
 export async function cloudSaveNovel(cardId, bucket) {
@@ -426,6 +487,10 @@ export async function pullCloudCardIndexAndMerge() {
     }
   }
   if (changed) writeDrafts(drafts);
+  try {
+    var { mergeCloudIndexIntoMeta } = await import('./cardCloudMeta.mjs');
+    mergeCloudIndexIntoMeta(cards);
+  } catch (e) { /* ignore */ }
   emit('index-merged', { count: cards.length });
   return cards;
 }
@@ -443,6 +508,13 @@ export async function ensureCardBundleLocal(cardId, opts) {
   var res = await api.fetchCardBundle(id);
   if (!res || !res.bundle) return local || null;
   await hydrateCardBundleToLocal(res.bundle);
+  try {
+    var { markCardSynced } = await import('./cardCloudMeta.mjs');
+    var cloudAt = res.bundle.card && (res.bundle.card.updatedAt
+      || (res.bundle.card.data && res.bundle.card.data.updatedAt));
+    var after = readDrafts()[id];
+    markCardSynced(id, cloudAt, after && after.updatedAt);
+  } catch (e) { /* ignore */ }
   return readDrafts()[id] || null;
 }
 

@@ -38,9 +38,10 @@ npm run dev            # Astro :4321，/api 代理到 8787
 |---|---|
 | **保存** | 始终先写本地；已登录则 `PUT` 云端，失败入 outbox |
 | **列表** | `GET /api/data/cards`；仅摘要，正文懒加载 |
-| **打开卡** | `GET .../bundle`：卡草稿 + 头像 + **小说工坊** + **RAG**（与卡一套） |
+| **打开卡** | `GET .../bundle`：卡+头像+**小说工坊+RAG**（与卡一套）；卡管理时间旁云标：未上云 / 未同步 / 已同步 |
 | **写出的小说** | Story Studio 独立：`GET /stories/:cardId/catalog`、打开时拉单部；**不进**开卡 bundle |
-| **删除** | 本地确认弹窗；默认删绑卡套件；**可勾选**是否级联删 Story 小说 |
+| **删除** | 本地确认弹窗；默认删绑卡套件；**可勾选**是否级联删 Story |
+| **卡管理云操作** | 「⋯」菜单：上传覆盖云端 · 拉取覆盖本地 · 删除云端（保留本地；不删 Story） |
 | **偏好** | `PUT /api/data/prefs/ui|prompts`（防抖） |
 | **AI 密钥** | `PUT/GET/DELETE /api/data/secrets/ai-config`（客户端口令加密，服务端只存密文） |
 

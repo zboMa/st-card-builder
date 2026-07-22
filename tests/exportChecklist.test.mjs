@@ -96,7 +96,8 @@ describe('exportChecklist', function() {
     assert.match(mgr, /openExportChecklistModal/);
     assert.match(mgr, /card-manager-check-badge/);
     assert.match(mgr, /export-check/);
-    assert.match(mgr, /btn-inline/);
+    assert.match(mgr, /card-more-item|btn-inline/);
+    assert.match(mgr, /cloud-upload|cloudUploadOverwrite/);
     assert.doesNotMatch(mgr, /iconBtn\('rename'/);
   });
 });

@@ -154,6 +154,7 @@ dataRouter.delete('/cards/:cardId', async function(req, res) {
   try {
     var q = req.query || {};
     var body = req.body || {};
+    // deleteStories=1|true 才级联删 Story；缺省不删（与删卡勾选默认一致）
     var deleteStories = String(q.deleteStories || '') === '1'
       || String(q.deleteStories || '').toLowerCase() === 'true'
       || !!body.deleteStories;
