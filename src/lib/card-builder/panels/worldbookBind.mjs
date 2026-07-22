@@ -34,7 +34,7 @@ export function attachWorldbookBind(ctx, s, panel) {
       });
     });
 
-    if (s.btnCreateEntry) s.btnCreateEntry.addEventListener('click', toggleCreateEntryForm);
+    if (s.btnCreateEntry) s.btnCreateEntry.addEventListener('click', s.toggleCreateEntryForm);
 
     var btnOpenWbAiSingle = ctx.$('btnOpenWbAiSingle');
     var btnOpenWbAiOrganize = ctx.$('btnOpenWbAiOrganize');
@@ -58,7 +58,7 @@ export function attachWorldbookBind(ctx, s, panel) {
 
     document.addEventListener('keydown', function(e) {
       if (e.key !== 'Escape') return;
-      s.WB_MODAL_IDS.forEach(closeWbModal);
+      s.WB_MODAL_IDS.forEach(function(id) { s.closeWbModal(id); });
     });
 
     // ---- 单条生成按钮 ----
@@ -75,7 +75,7 @@ export function attachWorldbookBind(ctx, s, panel) {
             title: '\u4E16\u754C\u4E66\u5355\u6761\u751F\u6210',
             target: (wbSinglePrompt ? wbSinglePrompt.value.trim() : '').slice(0, 40),
           }, async function(task) {
-            await generateContextAwareWBEntry(wbSinglePrompt ? wbSinglePrompt.value.trim() : '', '\u5355\u6761\u8865\u5145\u3002', task.signal);
+            await s.generateContextAwareWBEntry(wbSinglePrompt ? wbSinglePrompt.value.trim() : '', '\u5355\u6761\u8865\u5145\u3002', task.signal);
           });
           s.renderEntriesList();
           ctx.save();
@@ -138,7 +138,7 @@ export function attachWorldbookBind(ctx, s, panel) {
             try { suggestions = ctx.extractJsonArray(rawContent, '\u4E16\u754C\u4E66\u6574\u7406\u53C2\u6570\u4F18\u5316'); }
             catch (pe) { suggestions = [ctx.extractJsonObj(rawContent, '\u4E16\u754C\u4E66\u6574\u7406\u53C2\u6570\u4F18\u5316/fallback')]; }
             if (!Array.isArray(suggestions) || suggestions.length === 0) throw new Error('AI \u8FD4\u56DE\u683C\u5F0F\u5F02\u5E38');
-            suggestions = suggestions.map(normalizeOrganizeSuggestion).filter(Boolean);
+            suggestions = suggestions.map(s.normalizeOrganizeSuggestion).filter(Boolean);
             if (suggestions.length === 0) throw new Error('AI \u8FD4\u56DE\u4E2D\u6CA1\u6709\u6709\u6548\u6761\u76EE');
             s.pendingOrganizeData = suggestions;
             s.renderOrganizePreview(suggestions);
@@ -146,7 +146,7 @@ export function attachWorldbookBind(ctx, s, panel) {
           });
         } catch (err) {
           if (ctx.isTrackedAbort(err)) s.setStatusBar(organizeStatus, '\u23F9 \u5DF2\u53D6\u6D88', 'var(--color-text-muted)');
-          else s.setStatusBar(organizeStatus, '\u274C \u6574\u7406\u5931\u8D25: ' + escapeHtml(err.message), 'var(--color-danger)');
+          else s.setStatusBar(organizeStatus, '\u274C \u6574\u7406\u5931\u8D25: ' + ctx.escapeHtml(err.message), 'var(--color-danger)');
           if (organizePreview) organizePreview.style.display = 'none';
         } finally {
           btnAiOrganize.disabled = false;
@@ -196,7 +196,7 @@ export function attachWorldbookBind(ctx, s, panel) {
               if (window.__aiTaskCenter__) {
                 window.__aiTaskCenter__.setProgress(task.id, processed / targets.length, '\u6279\u6B21 ' + (batchIndex + 1) + '/' + batches.length);
               }
-              var batchResult = await completeTriggerKeysBatch(batch, batchIndex, batches.length, processed, targets.length, task.signal);
+              var batchResult = await s.completeTriggerKeysBatch(batch, batchIndex, batches.length, processed, targets.length, task.signal);
               updated += batchResult.updated;
               if (batchResult.missing && batchResult.missing.length > 0) {
                 unresolved = unresolved.concat(batchResult.missing.map(function(item) {
@@ -210,7 +210,7 @@ export function attachWorldbookBind(ctx, s, panel) {
             if (unresolved.length > 0) {
               s.setStatusBar(
                 keygenStatus,
-                '\u26A0\uFE0F \u5DF2\u4E3A <strong>' + updated + '</strong> \u6761\u4E16\u754C\u4E66\u66F4\u65B0\u89E6\u53D1\u8BCD\uFF0C\u4F46\u4ECD\u6709 <strong>' + unresolved.length + '</strong> \u6761\u672A\u8FD4\u56DE\u7ED3\u679C\uFF1A' + unresolved.slice(0, 3).map(escapeHtml).join('\u3001') + (unresolved.length > 3 ? '\u2026' : ''),
+                '\u26A0\uFE0F \u5DF2\u4E3A <strong>' + updated + '</strong> \u6761\u4E16\u754C\u4E66\u66F4\u65B0\u89E6\u53D1\u8BCD\uFF0C\u4F46\u4ECD\u6709 <strong>' + unresolved.length + '</strong> \u6761\u672A\u8FD4\u56DE\u7ED3\u679C\uFF1A' + unresolved.slice(0, 3).map(ctx.escapeHtml).join('\u3001') + (unresolved.length > 3 ? '\u2026' : ''),
                 'var(--color-warning)'
               );
             } else {
@@ -219,7 +219,7 @@ export function attachWorldbookBind(ctx, s, panel) {
           });
         } catch (err) {
           if (ctx.isTrackedAbort(err)) s.setStatusBar(ctx.$('keygenStatus'), '\u23F9 \u5DF2\u53D6\u6D88', 'var(--color-text-muted)');
-          else s.setStatusBar(ctx.$('keygenStatus'), '\u274C \u89E6\u53D1\u8BCD\u751F\u6210\u5931\u8D25: ' + escapeHtml(err.message), 'var(--color-danger)');
+          else s.setStatusBar(ctx.$('keygenStatus'), '\u274C \u89E6\u53D1\u8BCD\u751F\u6210\u5931\u8D25: ' + ctx.escapeHtml(err.message), 'var(--color-danger)');
         } finally {
           btnAiGenerateKeys.disabled = false;
           btnAiGenerateKeys.textContent = '\u4E00\u952E\u8865\u89E6\u53D1\u8BCD';
@@ -239,7 +239,7 @@ export function attachWorldbookBind(ctx, s, panel) {
           title: '\u52A9\u624B\u00B7\u4E16\u754C\u4E66\u5355\u6761\u751F\u6210',
           target: String(opts.direction || opts.instruction || '').slice(0, 40),
         }, async function(task) {
-          await generateContextAwareWBEntry(opts.direction || opts.instruction || '', '\u52A9\u624B\u5355\u6761\u8865\u5145\u3002', task.signal);
+          await s.generateContextAwareWBEntry(opts.direction || opts.instruction || '', '\u52A9\u624B\u5355\u6761\u8865\u5145\u3002', task.signal);
         });
         s.renderEntriesList();
         ctx.save();
@@ -261,7 +261,7 @@ export function attachWorldbookBind(ctx, s, panel) {
         if (mode === 'rewrite' && !instruction) instruction = '\u6309\u539F\u610F\u91CD\u5199\uFF0C\u63D0\u5347\u6E05\u6670\u5EA6\u4E0E\u53EF\u7528\u6027';
         if (mode === 'patch' && instruction) instruction = '\u5B9A\u5411\u4FEE\u6539\uFF1A' + instruction + '\uFF08\u4FDD\u7559\u672A\u8981\u6C42\u6539\u52A8\u7684\u90E8\u5206\uFF09';
         var fakeBtn = { textContent: '', disabled: false };
-        await aiRewriteEntry(idx, instruction, fakeBtn);
+        await s.aiRewriteEntry(idx, instruction, fakeBtn);
         var e = ctx.state.worldbookEntries[idx];
         return { index: idx, comment: e.comment, contentLen: String(e.content || '').length, mode: mode };
       },
@@ -299,7 +299,7 @@ export function attachWorldbookBind(ctx, s, panel) {
         var suggestions;
         try { suggestions = ctx.extractJsonArray(aiResp.content, '\u4E16\u754C\u4E66\u6574\u7406/\u52A9\u624B'); }
         catch (pe) { suggestions = [ctx.extractJsonObj(aiResp.content, '\u4E16\u754C\u4E66\u6574\u7406/\u52A9\u624B/fallback')]; }
-        suggestions = (suggestions || []).map(normalizeOrganizeSuggestion).filter(Boolean);
+        suggestions = (suggestions || []).map(s.normalizeOrganizeSuggestion).filter(Boolean);
         if (!suggestions.length) throw new Error('AI \u8FD4\u56DE\u4E2D\u6CA1\u6709\u6709\u6548\u6761\u76EE');
         var preview = suggestions.map(function(s) {
           var e = ctx.state.worldbookEntries[s.index] || {};
@@ -349,7 +349,7 @@ export function attachWorldbookBind(ctx, s, panel) {
         var processed = 0;
         for (var bi = 0; bi < batches.length; bi++) {
           processed += batches[bi].length;
-          var br = await completeTriggerKeysBatch(batches[bi], bi, batches.length, processed, targets.length);
+          var br = await s.completeTriggerKeysBatch(batches[bi], bi, batches.length, processed, targets.length);
           updated += br.updated;
         }
         s.renderEntriesList();

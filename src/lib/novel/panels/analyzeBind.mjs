@@ -15,7 +15,7 @@ export function attachNovelAnalyzeBind(ctx, panel, graphRef) {
     var mode = $('novelAnalyzeShardMode');
     if (mode) mode.addEventListener('change', function() {
       state.analyzeShardMode = mode.value === 'chapters' ? 'chapters' : 'chars';
-      syncShardModeUi('novelAnalyze', state.analyzeShardMode);
+      if (ctx.syncShardModeUi) ctx.syncShardModeUi('novelAnalyze', state.analyzeShardMode);
       ctx.save();
       if (ctx.updateExtractCallEstimates) ctx.updateExtractCallEstimates();
     });

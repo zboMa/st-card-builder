@@ -1,6 +1,31 @@
 /**
  * AI 引擎：面板 API（拆自 aiEngine）
  */
+import { generateCardJSON, AI_KEY } from '../state.mjs';
+import {
+  normalizeCharTags,
+  mergeCharTags,
+  buildTagGenContext,
+  parseTagsFromAiText,
+} from '../../charTags.mjs';
+import {
+  getWorldviewPreset,
+  primaryWorldviewPresetId,
+} from '../../presets/worldviews/index.mjs';
+import {
+  normalizeEngineGenMode,
+  clampSlotCount,
+  buildScaledQuota,
+  formatQuotaForPrompt,
+  normalizeOutlineSlots,
+  slotToWorldbookEntry,
+  formatOutlineRef,
+  formatEnrichedEntriesRef,
+  isSkeletonEntry,
+  ENGINE_GEN_MODE_FULL,
+  ENGINE_GEN_MODE_SKELETON,
+  OUTLINE_TYPE_LABELS,
+} from '../enginePipeline.mjs';
 
 /** @param {object} ctx @param {object} s @param {object} panel */
 export function attachAiEnginePanel(ctx, s, panel) {
@@ -35,7 +60,7 @@ export function attachAiEnginePanel(ctx, s, panel) {
         container.innerHTML = html;
         container.querySelectorAll('input[type="checkbox"]').forEach(function(chk) {
           chk.addEventListener('change', function(e) {
-            parsedPresetList[parseInt(e.target.getAttribute('data-index'))].enabled = e.target.checked;
+            s.parsedPresetList[parseInt(e.target.getAttribute('data-index'))].enabled = e.target.checked;
             s.persistAiConfig();
           });
         });
@@ -917,7 +942,7 @@ export function attachAiEnginePanel(ctx, s, panel) {
       s.refreshWorldviewSummary();
     },
 
-    refreshWorldviewSummary: refreshWorldviewSummary,
+    refreshWorldviewSummary: s.refreshWorldviewSummary,
 
     // ===== 绑定事件 =====
 
