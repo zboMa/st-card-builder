@@ -202,6 +202,7 @@ describe('storyStudio UI mount', function() {
   it('面板与入口 DOM id 存在', function() {
     const manage = readFileSync(join(root, 'src/components/storyStudio/StoryManagePanel.astro'), 'utf8');
     assert.match(manage, /id="btnSsNewNovel"/);
+    assert.match(manage, /id="btnSsNewNovelWizard"/);
     assert.match(manage, /id="ssNovelList"/);
     assert.match(manage, /ss-manage-header/);
     assert.match(manage, /id="ssManageStatus"/);
@@ -226,6 +227,8 @@ describe('storyStudio UI mount', function() {
     assert.match(write, /id="ssWriteSyncMvu"/);
     assert.match(write, /写完同步变量与状态栏/);
     assert.match(write, /id="btnSsWriteAutoNext"/);
+    assert.match(write, /id="btnSsForkBranch"/);
+    assert.match(write, /id="ssWriteLedger"/);
     const read = readFileSync(join(root, 'src/components/storyStudio/StoryReadPanel.astro'), 'utf8');
     assert.match(read, /id="btnSsReadFullscreen"/);
     assert.match(read, /id="ssReadMode"/);

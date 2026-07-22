@@ -448,4 +448,119 @@
     cursor: pointer;
     font-family: inherit;
   }
+
+  .ss-write-branchbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: end;
+    margin-bottom: 10px;
+  }
+  .ss-write-branch-actions { margin: 0; }
+  .ss-write-progress {
+    margin-bottom: 10px;
+    padding: 8px 10px;
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 8px;
+    background: var(--color-surface-inset);
+  }
+  .ss-write-progress__steps {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 0.72rem;
+    color: var(--color-text-muted);
+  }
+  .ss-write-progress__steps span.is-active {
+    color: var(--color-accent);
+    font-weight: 600;
+  }
+  .ss-write-progress__steps span.is-done {
+    color: var(--color-text-secondary);
+  }
+  .ss-write-options {
+    display: grid;
+    grid-template-columns: 120px repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    align-items: center;
+    margin-top: 10px;
+  }
+  @media (max-width: 720px) {
+    .ss-write-branchbar,
+    .ss-write-options { grid-template-columns: 1fr; }
+  }
+  .ss-qa-box,
+  .ss-ledger,
+  .ss-checkpoint-list,
+  .ss-tension {
+    margin-top: 12px;
+    padding: 10px;
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 8px;
+    background: var(--color-surface);
+  }
+  .ss-qa-issues {
+    margin: 6px 0 0;
+    padding-left: 1.1rem;
+    font-size: 0.78rem;
+    color: var(--color-text-secondary);
+  }
+  .ss-qa-hint {
+    margin: 6px 0 0;
+    font-size: 0.78rem;
+    color: var(--color-text-secondary);
+  }
+  .ss-subhead {
+    margin: 0;
+    font-size: 0.85rem;
+  }
+  .ss-ledger-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 8px 0;
+  }
+  .ss-ledger-item {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) 110px minmax(0, 1.4fr) auto;
+    gap: 6px;
+    align-items: center;
+  }
+  @media (max-width: 720px) {
+    .ss-ledger-item { grid-template-columns: 1fr; }
+  }
+  .ss-tension-bars {
+    display: flex;
+    align-items: flex-end;
+    gap: 4px;
+    min-height: 88px;
+    margin-top: 6px;
+  }
+  .ss-tension-bar {
+    flex: 1 1 0;
+    min-width: 6px;
+    max-width: 28px;
+    border-radius: 4px 4px 0 0;
+    background: color-mix(in oklab, var(--color-accent) 70%, transparent);
+  }
+  .ss-wizard {
+    margin-bottom: 12px;
+    padding: 10px;
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 8px;
+    background: var(--color-surface-inset);
+  }
+  .ss-wizard-steps {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 8px 0;
+    padding: 0;
+    list-style: none;
+    font-size: 0.78rem;
+    color: var(--color-text-muted);
+  }
+  .ss-wizard-steps .is-active { color: var(--color-accent); font-weight: 600; }
+  .ss-wizard-steps .is-done { color: var(--color-text-secondary); }
+  .ss-muted { color: var(--color-text-muted); font-size: 0.78rem; }
 </style>

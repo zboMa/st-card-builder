@@ -5,13 +5,13 @@
 import {
   normalizeNovel,
   createEmptyNovel,
-  createEmptyChapter,
   genStoryId,
-  toCatalogEntry,
   upsertCatalogEntry,
   removeCatalogEntry,
   discardOutlineFrom,
   syncChaptersFromOutline,
+  getActiveChapters,
+  getActiveOutline,
 } from './state.mjs';
 import {
   loadCatalog,
@@ -29,9 +29,7 @@ import { seedGraphFromCard, mergeGraphSeed } from './graphSeed.mjs';
 import { detectMvuStatusBarDesign, trySyncAfterChapter } from './mvuHook.mjs';
 import {
   buildOutlineUserPrompt,
-  buildChapterUserPrompt,
   graphBriefFromNovel,
-  outlineBriefFromNovel,
   parseOutlineAiText,
   CHILD_SAFETY_RULE,
 } from './prompts.mjs';
@@ -47,6 +45,12 @@ import {
   buildLocalShareUrl,
 } from './shareClient.mjs';
 import { DRAFTS_KEY, CURRENT_KEY } from '../card-builder/state.mjs';
+import { forkBranchFromChapter, setActiveBranch, resolveBranchLedger, branchBrief, getBranch } from './branch.mjs';
+import { createLedgerItem } from './plotLedger.mjs';
+import { listChapterCheckpoints, restoreChapterCheckpoint } from './checkpoint.mjs';
+import { tensionCurveFromChapters } from './quality.mjs';
+import { runChapterWritePipeline, WRITE_STEPS } from './writePipeline.mjs';
+import { collectFeedForwardsBefore } from './feedForward.mjs';
 
 var state = {
   cardId: '',
@@ -293,7 +297,9 @@ function renderManage() {
       + escapeHtml(item.title || '未命名') + '</button>'
       + '<button type="button" class="ss-novel-meta" data-ss-act="open" title="打开">'
       + (item.chapterCount || 0) + ' 章 · '
-      + (item.outlineCount || 0) + ' 大纲 · 工作 ' + escapeHtml(workVer)
+      + (item.outlineCount || 0) + ' 大纲'
+      + (item.branchCount > 1 ? (' · ' + item.branchCount + ' 分支') : '')
+      + ' · 工作 ' + escapeHtml(workVer)
       + ' · ' + escapeHtml(pub) + escapeHtml(stale) + escapeHtml(share) + '</button>'
       + '</div>'
       + '<div class="ss-novel-item__actions">'
@@ -353,15 +359,20 @@ function renderGraph() {
 
 function renderOutline() {
   var box = $('ssOutlineList');
+  var tensionEl = $('ssOutlineTension');
+  var wizBox = $('ssWizardBox');
   if (!box) return;
   if (!state.novel) {
     box.innerHTML = '<div class="ss-empty ui-empty-tip">请先打开一部小说</div>';
+    if (tensionEl) tensionEl.hidden = true;
+    if (wizBox) wizBox.hidden = true;
     return;
   }
-  var items = state.novel.outline || [];
+  renderWizardChrome();
+  var items = getActiveOutline(state.novel);
   box.innerHTML = items.map(function(o, i) {
     return (
-      '<div class="ss-outline-item" data-ol-idx="' + i + '">'
+      '<div class="ss-outline-item" data-ol-idx="' + i + '" data-ol-id="' + escapeHtml(o.id) + '">'
       + '<div class="ss-outline-item__head">'
       + '<span class="ss-ol-idx">#' + (i + 1) + '</span>'
       + '<input class="ss-ol-title" value="' + escapeHtml(o.title) + '" />'
@@ -372,6 +383,60 @@ function renderOutline() {
       + '</div>'
     );
   }).join('') || '<div class="ss-empty ui-empty-tip">暂无大纲。可分段生成或手动添加。</div>';
+
+  var chapters = getActiveChapters(state.novel);
+  var curve = tensionCurveFromChapters(chapters);
+  if (tensionEl) {
+    var hasT = curve.some(function(x) { return x.tension != null; });
+    tensionEl.hidden = !hasT;
+    if (hasT) {
+      tensionEl.innerHTML = '<div class="ui-label-row"><span>张力曲线</span><span class="ui-hint ui-hint--inline">1～10</span></div>'
+        + '<div class="ss-tension-bars">'
+        + curve.map(function(x) {
+          var t = x.tension != null ? x.tension : 0;
+          var h = Math.max(4, t * 8);
+          return '<div class="ss-tension-bar" title="' + escapeHtml((x.order + 1) + '. ' + x.title + ' · ' + (x.tension != null ? x.tension : '—'))
+            + '" style="height:' + h + 'px"></div>';
+        }).join('')
+        + '</div>';
+    }
+  }
+}
+
+function renderWizardChrome() {
+  var wizBox = $('ssWizardBox');
+  if (!wizBox || !state.novel) return;
+  var step = (state.novel.wizard && state.novel.wizard.step) || '';
+  wizBox.hidden = !step;
+  if (!step) return;
+  wizBox.querySelectorAll('[data-wiz]').forEach(function(el) {
+    var s = el.getAttribute('data-wiz');
+    el.classList.toggle('is-active', s === step);
+    el.classList.toggle('is-done',
+      (step === 'outline' && s === 'direction')
+      || (step === 'ready' && (s === 'direction' || s === 'outline'))
+    );
+  });
+  var dirEl = $('ssOutlineDirection');
+  if (dirEl && state.novel.wizard && state.novel.wizard.direction && !dirEl.value) {
+    dirEl.value = state.novel.wizard.direction;
+  }
+}
+
+function setWriteProgress(activeStep) {
+  var box = $('ssWriteProgress');
+  if (!box) return;
+  if (!activeStep) {
+    box.hidden = true;
+    return;
+  }
+  box.hidden = false;
+  WRITE_STEPS.forEach(function(s) {
+    var el = box.querySelector('[data-ss-step="' + s + '"]');
+    if (!el) return;
+    el.classList.toggle('is-active', s === activeStep);
+    el.classList.toggle('is-done', WRITE_STEPS.indexOf(s) < WRITE_STEPS.indexOf(activeStep));
+  });
 }
 
 function renderWrite() {
@@ -382,11 +447,39 @@ function renderWrite() {
   var advEl = $('ssWriteAdvancePrompt');
   var syncEl = $('ssWriteSyncMvu');
   var warnEl = $('ssWriteMvuWarn');
+  var branchSel = $('ssWriteBranchSelect');
+  var batchEl = $('ssWriteBatchCount');
+  var feedEl = $('ssWriteRunFeed');
+  var qaEl = $('ssWriteRunQa');
+  var stopEl = $('ssWriteStopOnQa');
+  var qaBox = $('ssWriteQaBox');
+  var tensionEl = $('ssWriteTension');
+  var cpBox = $('ssWriteCheckpointList');
+  var ledgerBox = $('ssWriteLedger');
+
   if (!state.novel) {
     if (sel) sel.innerHTML = '<option value="">请先打开小说</option>';
+    if (branchSel) branchSel.innerHTML = '';
     return;
   }
-  var chapters = state.novel.chapters || [];
+
+  var ws = state.novel.writeSettings || {};
+  if (batchEl) batchEl.value = String(ws.batchCount || 3);
+  if (feedEl) feedEl.checked = ws.runFeedForward !== false;
+  if (qaEl) qaEl.checked = ws.runQuality !== false;
+  if (stopEl) stopEl.checked = !!ws.stopOnQualityFail;
+
+  if (branchSel) {
+    var branches = state.novel.branches || [];
+    branchSel.innerHTML = branches.map(function(b) {
+      var label = b.name + (b.parentBranchId ? '（分叉）' : '');
+      return '<option value="' + escapeHtml(b.id) + '"'
+        + (b.id === state.novel.activeBranchId ? ' selected' : '') + '>'
+        + escapeHtml(label) + '</option>';
+    }).join('');
+  }
+
+  var chapters = getActiveChapters(state.novel);
   var curId = sel && sel.value ? sel.value : (chapters[0] && chapters[0].id) || '';
   if (sel) {
     sel.innerHTML = chapters.map(function(c, i) {
@@ -400,7 +493,11 @@ function renderWrite() {
   }
   var ch = chapters.find(function(c) { return c.id === curId; });
   if (titleEl) titleEl.value = ch ? ch.title : '';
-  if (summaryEl) summaryEl.value = ch ? ch.summary : '';
+  if (summaryEl) {
+    var sum = ch ? ch.summary : '';
+    if (ch && ch.feedForward && ch.feedForward.summary && !sum) sum = ch.feedForward.summary;
+    summaryEl.value = sum;
+  }
   if (contentEl) contentEl.value = ch ? ch.content : '';
   if (advEl) advEl.value = ch ? ch.advancePrompt : '';
   if (syncEl) syncEl.checked = !!(state.novel.writeSettings && state.novel.writeSettings.syncMvuStatusBar);
@@ -414,6 +511,70 @@ function renderWrite() {
       warnEl.hidden = true;
       warnEl.textContent = '';
     }
+  }
+
+  if (qaBox) {
+    if (ch && ch.quality) {
+      qaBox.hidden = false;
+      var q = ch.quality;
+      qaBox.innerHTML = '<div class="ui-label-row"><strong>质检</strong>'
+        + '<span class="ui-hint ui-hint--inline">' + (q.ok ? '通过' : '需改') + ' · ' + (q.score != null ? q.score : '—') + '/10</span></div>'
+        + (q.issues && q.issues.length
+          ? ('<ul class="ss-qa-issues">' + q.issues.map(function(x) {
+            return '<li>' + escapeHtml(x) + '</li>';
+          }).join('') + '</ul>')
+          : '<p class="ss-muted">无明显问题</p>')
+        + (q.rewriteHint ? ('<p class="ss-qa-hint">' + escapeHtml(q.rewriteHint) + '</p>') : '');
+    } else {
+      qaBox.hidden = true;
+      qaBox.innerHTML = '';
+    }
+  }
+
+  if (tensionEl) {
+    var curve = tensionCurveFromChapters(chapters);
+    var hasT = curve.some(function(x) { return x.tension != null && x.hasContent; });
+    tensionEl.hidden = !hasT;
+    if (hasT) {
+      tensionEl.innerHTML = '<div class="ui-label-row"><span>张力曲线</span><span class="ui-hint ui-hint--inline">分支内</span></div>'
+        + '<div class="ss-tension-bars">'
+        + curve.map(function(x) {
+          var t = x.tension != null ? x.tension : 0;
+          return '<div class="ss-tension-bar" style="height:' + Math.max(4, t * 8) + 'px" title="'
+            + escapeHtml((x.order + 1) + '. ' + (x.tension != null ? x.tension : '—')) + '"></div>';
+        }).join('')
+        + '</div>';
+    }
+  }
+
+  if (cpBox) {
+    var cps = ch ? listChapterCheckpoints(ch) : [];
+    cpBox.innerHTML = cps.length
+      ? ('<div class="ui-label-row"><span>章节快照</span><span class="ui-hint ui-hint--inline">最多 5</span></div>'
+        + cps.map(function(cp) {
+          return '<button type="button" class="btn btn-ghost btn-inline" data-ss-cp="'
+            + escapeHtml(cp.id) + '">' + escapeHtml(cp.label || '快照')
+            + ' · ' + new Date(cp.createdAt || 0).toLocaleString() + '</button>';
+        }).join(' '))
+      : '';
+  }
+
+  if (ledgerBox) {
+    var items = resolveBranchLedger(state.novel, state.novel.activeBranchId);
+    ledgerBox.innerHTML = items.map(function(it) {
+      return (
+        '<div class="ss-ledger-item" data-ledger-id="' + escapeHtml(it.id) + '">'
+        + '<input class="ss-ledger-title" value="' + escapeHtml(it.title) + '" />'
+        + '<select class="ss-ledger-status">'
+        + ['open', 'planted', 'paid', 'dropped'].map(function(s) {
+          return '<option value="' + s + '"' + (it.status === s ? ' selected' : '') + '>' + s + '</option>';
+        }).join('')
+        + '</select>'
+        + '<input class="ss-ledger-note" value="' + escapeHtml(it.note) + '" placeholder="说明" />'
+        + '<button type="button" class="btn btn-ghost btn-inline" data-ss-ledger-del>删</button>'
+        + '</div>'
+      );
+    }).join('') || '<div class="ss-empty ui-empty-tip">暂无伏笔。写章后可自动收录，或手动添加。</div>';
   }
 }
 
@@ -429,8 +590,9 @@ function renderRead() {
     if (toc) toc.innerHTML = '';
     return;
   }
-  if (title) title.textContent = state.novel.title;
-  var chapters = state.novel.chapters || [];
+  var br = getBranch(state.novel, state.novel.activeBranchId);
+  if (title) title.textContent = state.novel.title + (br && br.name ? ' · ' + br.name : '');
+  var chapters = getActiveChapters(state.novel);
   var rs = state.novel.readState || {};
   var idx = chapters.findIndex(function(c) { return c.id === rs.chapterId; });
   if (idx < 0) idx = 0;
@@ -492,7 +654,8 @@ function renderRead() {
   if (bmBox) {
     var bms = state.novel.bookmarks || [];
     bmBox.innerHTML = bms.map(function(b) {
-      var c = chapters.find(function(x) { return x.id === b.chapterId; });
+      var c = chapters.find(function(x) { return x.id === b.chapterId; })
+        || (state.novel.chapters || []).find(function(x) { return x.id === b.chapterId; });
       return '<button type="button" class="ss-bm-item" data-bm-ch="' + escapeHtml(b.chapterId) + '">'
         + escapeHtml((c && c.title) || '书签') + (b.note ? ' · ' + escapeHtml(b.note) : '')
         + '</button>';
@@ -521,15 +684,29 @@ async function openNovel(novelId) {
   renderAll();
 }
 
-async function createNovel() {
+async function createNovel(opts) {
+  opts = opts || {};
   var cardId = getCardId();
   var title = window.prompt('新小说标题', '未命名小说');
   if (title === null) return;
   var novel = createEmptyNovel({ title: String(title || '').trim() || '未命名小说', cardId: cardId });
+  if (opts.wizard) {
+    var direction = window.prompt('创作方向（向导第一步）', '') || '';
+    novel.wizard = {
+      step: 'direction',
+      direction: String(direction).trim(),
+      approvedOutline: false,
+    };
+  }
   state.novel = novel;
   await persistNovel();
-  setStatus('已创建：' + novel.title);
+  setStatus(opts.wizard ? ('已创建并向导启动：' + novel.title) : ('已创建：' + novel.title));
   renderAll();
+  if (opts.wizard) {
+    try {
+      if (window.__setAppView__) window.__setAppView__('story-outline');
+    } catch (e) { /* ignore */ }
+  }
 }
 
 async function renameNovel(novelId) {
@@ -788,19 +965,36 @@ function collectGraphFromDom() {
 
 function collectOutlineFromDom() {
   if (!state.novel) return;
-  var items = [];
+  var branchId = state.novel.activeBranchId;
+  var byId = {};
+  (state.novel.outline || []).forEach(function(o) {
+    if (o && o.id) byId[o.id] = o;
+  });
   document.querySelectorAll('#ssOutlineList .ss-outline-item').forEach(function(row, i) {
     var titleEl = row.querySelector('.ss-ol-title');
     var sumEl = row.querySelector('.ss-ol-summary');
-    var prev = state.novel.outline[Number(row.getAttribute('data-ol-idx'))] || {};
-    items.push({
-      id: prev.id || genStoryId('ol'),
+    var id = row.getAttribute('data-ol-id') || '';
+    var prev = (id && byId[id]) || {};
+    var next = {
+      id: prev.id || id || genStoryId('ol'),
       title: titleEl ? titleEl.value : '',
       summary: sumEl ? sumEl.value : '',
-      order: i,
-    });
+      order: typeof prev.order === 'number' ? prev.order : i,
+      branchId: prev.branchId || branchId,
+    };
+    // 可见列表下标作为阅读序；写回 order（主线用下标；分支保留原 order 若已有）
+    if (!prev.branchId || prev.branchId === branchId) {
+      var br = getBranch(state.novel, branchId);
+      if (!br.parentBranchId) next.order = i;
+      else if (typeof prev.order !== 'number') next.order = i;
+    }
+    if (id && byId[id]) {
+      Object.assign(byId[id], next);
+    } else {
+      state.novel.outline.push(next);
+      byId[next.id] = next;
+    }
   });
-  state.novel.outline = items;
 }
 
 function collectWriteFromDom() {
@@ -814,12 +1008,42 @@ function collectWriteFromDom() {
   var contentEl = $('ssWriteChapterContent');
   var advEl = $('ssWriteAdvancePrompt');
   var syncEl = $('ssWriteSyncMvu');
+  var batchEl = $('ssWriteBatchCount');
+  var feedEl = $('ssWriteRunFeed');
+  var qaEl = $('ssWriteRunQa');
+  var stopEl = $('ssWriteStopOnQa');
   if (titleEl) ch.title = titleEl.value;
   if (summaryEl) ch.summary = summaryEl.value;
   if (contentEl) ch.content = contentEl.value;
   if (advEl) ch.advancePrompt = advEl.value;
   if (!state.novel.writeSettings) state.novel.writeSettings = {};
   if (syncEl) state.novel.writeSettings.syncMvuStatusBar = !!syncEl.checked;
+  if (batchEl) {
+    state.novel.writeSettings.batchCount = Math.max(1, Math.min(20, parseInt(batchEl.value, 10) || 3));
+  }
+  if (feedEl) state.novel.writeSettings.runFeedForward = !!feedEl.checked;
+  if (qaEl) state.novel.writeSettings.runQuality = !!qaEl.checked;
+  if (stopEl) state.novel.writeSettings.stopOnQualityFail = !!stopEl.checked;
+}
+
+function collectLedgerFromDom() {
+  if (!state.novel) return;
+  var byId = {};
+  (state.novel.plotLedger || []).forEach(function(it) {
+    if (it && it.id) byId[it.id] = it;
+  });
+  document.querySelectorAll('#ssWriteLedger .ss-ledger-item').forEach(function(row) {
+    var id = row.getAttribute('data-ledger-id');
+    var it = byId[id];
+    if (!it) return;
+    var titleEl = row.querySelector('.ss-ledger-title');
+    var statusEl = row.querySelector('.ss-ledger-status');
+    var noteEl = row.querySelector('.ss-ledger-note');
+    if (titleEl) it.title = titleEl.value;
+    if (statusEl) it.status = statusEl.value;
+    if (noteEl) it.note = noteEl.value;
+    it.updatedAt = Date.now();
+  });
 }
 
 async function seedGraph() {
@@ -842,12 +1066,25 @@ async function generateOutline(mode) {
   collectOutlineFromDom();
   var directionEl = $('ssOutlineDirection');
   var direction = directionEl ? directionEl.value : '';
-  var existing = (state.novel.outline || []).map(function(o, i) {
+  if (state.novel.wizard && state.novel.wizard.direction && !direction) {
+    direction = state.novel.wizard.direction;
+  }
+  var branchId = state.novel.activeBranchId;
+  var visible = getActiveOutline(state.novel);
+  var existing = visible.map(function(o, i) {
     return (i + 1) + '. ' + o.title + ' — ' + o.summary;
+  }).join('\n');
+  var chapters = getActiveChapters(state.novel);
+  var feeds = collectFeedForwardsBefore(chapters, chapters.length);
+  var feedBrief = feeds.slice(0, 6).map(function(f) {
+    return (f.order + 1) + '. ' + f.title + ' — ' + String(f.summary || '').slice(0, 100);
   }).join('\n');
   var segmentHint = mode === 'continue'
     ? '在已有大纲之后续写 3～5 章。'
     : '生成完整分段大纲，约 8～12 章。';
+  if (mode === 'branch') {
+    segmentHint = '这是分支世界的续写大纲，请按分支方向续写 3～6 章，承接分叉前剧情但走向不同。';
+  }
 
   var system = promptText(
     'storyOutlineGen',
@@ -856,8 +1093,10 @@ async function generateOutline(mode) {
   var user = buildOutlineUserPrompt({
     title: state.novel.title,
     direction: direction,
+    branchHint: branchBrief(state.novel, branchId),
     graphBrief: graphBriefFromNovel(state.novel),
     existingOutline: existing,
+    feedForwardBrief: feedBrief,
     segmentHint: segmentHint,
   });
 
@@ -872,33 +1111,39 @@ async function generateOutline(mode) {
       var text = await callAI(user, system, task.signal);
       var parsed = parseOutlineAiText(text);
       if (!parsed.length) throw new Error('未能解析大纲 JSON');
-      if (mode === 'continue') {
-        var base = state.novel.outline.length;
+      var br = getBranch(state.novel, branchId);
+      var baseOrder = visible.length
+        ? (typeof visible[visible.length - 1].order === 'number'
+          ? visible[visible.length - 1].order + 1
+          : visible.length)
+        : (br.forkOrder >= 0 ? br.forkOrder + 1 : 0);
+
+      if (mode !== 'continue' && mode !== 'branch' && !visible.length) {
+        // 主线空大纲：替换写入本分支
         parsed.forEach(function(p, i) {
           state.novel.outline.push({
             id: genStoryId('ol'),
             title: p.title,
             summary: p.summary,
-            order: base + i,
+            order: i,
+            branchId: branchId,
           });
         });
-      } else if (!state.novel.outline.length) {
-        state.novel.outline = parsed.map(function(p, i) {
-          return { id: genStoryId('ol'), title: p.title, summary: p.summary, order: i };
-        });
       } else {
-        // 分段追加
-        var base2 = state.novel.outline.length;
         parsed.forEach(function(p, i) {
           state.novel.outline.push({
             id: genStoryId('ol'),
             title: p.title,
             summary: p.summary,
-            order: base2 + i,
+            order: baseOrder + i,
+            branchId: branchId,
           });
         });
       }
       state.novel = syncChaptersFromOutline(state.novel);
+      if (state.novel.wizard && state.novel.wizard.step === 'direction') {
+        state.novel.wizard.step = 'outline';
+      }
       await persistNovel();
     });
     setStatus('大纲已更新');
@@ -909,47 +1154,51 @@ async function generateOutline(mode) {
   }
 }
 
-async function writeChapter(autoNext) {
+async function writeChapter(autoNext, opts) {
+  opts = opts || {};
   if (!state.novel) {
     setStatus('请先打开小说');
-    return;
+    return null;
+  }
+  if (state.novel.wizard && state.novel.wizard.step && state.novel.wizard.step !== 'ready'
+    && !state.novel.wizard.approvedOutline) {
+    setStatus('请先在大纲页完成向导审批（或跳过向导）');
+    return null;
   }
   collectWriteFromDom();
+  collectLedgerFromDom();
   var sel = $('ssWriteChapterSelect');
   if (!sel || !sel.value) {
     setStatus('没有可写章节，请先生成大纲');
-    return;
+    return null;
   }
-  var idx = state.novel.chapters.findIndex(function(c) { return c.id === sel.value; });
-  if (idx < 0) return;
-  var ch = state.novel.chapters[idx];
-  var prev = idx > 0 ? state.novel.chapters[idx - 1] : null;
-
-  var system = promptText(
-    'storyChapterWrite',
-    '你是长篇小说写手。根据大纲与推进提示撰写章节正文。' + CHILD_SAFETY_RULE
-  );
-  var user = buildChapterUserPrompt({
-    title: state.novel.title,
-    chapterTitle: ch.title,
-    chapterSummary: ch.summary,
-    advancePrompt: ch.advancePrompt,
-    prevContent: prev ? prev.content : '',
-    outlineBrief: outlineBriefFromNovel(state.novel, idx),
-    graphBrief: graphBriefFromNovel(state.novel),
-  });
+  var chapters = getActiveChapters(state.novel);
+  var idx = chapters.findIndex(function(c) { return c.id === sel.value; });
+  if (idx < 0) return null;
+  var ch = chapters[idx];
 
   setStatus('正在撰写：' + ch.title);
+  setWriteProgress('plan');
   try {
+    var result = null;
     await runTracked({
       type: 'story_chapter',
       typeLabel: '小说创作·章文',
-      title: '撰写章节',
+      title: opts.rewriteOnly ? '改写章节' : '撰写章节',
       target: ch.title,
     }, async function(task) {
-      var text = await callAI(user, system, task.signal);
-      ch.content = text;
-      // 若勾选同步
+      result = await runChapterWritePipeline({
+        callAI: callAI,
+        promptText: promptText,
+        signal: task.signal,
+        onStep: setWriteProgress,
+      }, state.novel, idx, {
+        skipDraft: !!opts.skipDraft,
+        skipFeed: !!opts.skipFeed,
+        skipQa: !!opts.skipQa,
+        rewriteOnly: !!opts.rewriteOnly,
+      });
+
       var wantSync = !!(state.novel.writeSettings && state.novel.writeSettings.syncMvuStatusBar);
       var syncResult = trySyncAfterChapter({
         enabled: wantSync,
@@ -965,18 +1214,109 @@ async function writeChapter(autoNext) {
       await persistNovel();
     });
 
-    if (autoNext && idx + 1 < state.novel.chapters.length) {
-      sel.value = state.novel.chapters[idx + 1].id;
-      renderWrite();
-      setStatus('本章完成，已切到下一章');
+    setWriteProgress(null);
+    var qa = result && result.quality;
+    var qaMsg = qa ? ('质检 ' + (qa.ok ? '通过' : '需改') + ' ' + qa.score + '/10') : '';
+
+    if (autoNext) {
+      var nextChapters = getActiveChapters(state.novel);
+      if (idx + 1 < nextChapters.length) {
+        sel.value = nextChapters[idx + 1].id;
+        renderWrite();
+        setStatus('本章完成' + (qaMsg ? '（' + qaMsg + '）' : '') + '，已切到下一章');
+      } else {
+        setStatus('章节撰写完成' + (qaMsg ? ' · ' + qaMsg : '') + '（已无下一章）');
+        renderWrite();
+        renderRead();
+      }
     } else {
-      setStatus('章节撰写完成');
+      setStatus('章节撰写完成' + (qaMsg ? ' · ' + qaMsg : ''));
       renderWrite();
       renderRead();
     }
+    return result;
   } catch (err) {
+    setWriteProgress(null);
     if (isAbort(err)) setStatus('已取消');
     else setStatus('撰写失败：' + (err.message || err));
+    return null;
+  }
+}
+
+async function writeBatchChapters() {
+  if (!state.novel) {
+    setStatus('请先打开小说');
+    return;
+  }
+  collectWriteFromDom();
+  var n = Math.max(1, Math.min(20, (state.novel.writeSettings && state.novel.writeSettings.batchCount) || 3));
+  var sel = $('ssWriteChapterSelect');
+  if (!sel || !sel.value) {
+    setStatus('没有可写章节');
+    return;
+  }
+  var stopOnFail = !!(state.novel.writeSettings && state.novel.writeSettings.stopOnQualityFail);
+  setStatus('连写 ' + n + ' 章…');
+  for (var i = 0; i < n; i++) {
+    var chapters = getActiveChapters(state.novel);
+    var idx = chapters.findIndex(function(c) { return c.id === sel.value; });
+    if (idx < 0) break;
+    // 跳到下一空章或当前章
+    var targetIdx = idx;
+    while (targetIdx < chapters.length && String(chapters[targetIdx].content || '').trim() && i === 0 && targetIdx === idx) {
+      // 若当前已有正文，从下一空章开始
+      var nextEmpty = -1;
+      for (var j = idx; j < chapters.length; j++) {
+        if (!String(chapters[j].content || '').trim()) { nextEmpty = j; break; }
+      }
+      if (nextEmpty >= 0) {
+        sel.value = chapters[nextEmpty].id;
+        targetIdx = nextEmpty;
+      }
+      break;
+    }
+    var result = await writeChapter(true);
+    if (!result) break;
+    if (stopOnFail && result.quality && !result.quality.ok) {
+      setStatus('质检未通过，已熔断连写（第 ' + (i + 1) + '/' + n + ' 章）');
+      break;
+    }
+  }
+  renderAll();
+}
+
+async function forkCurrentChapterBranch() {
+  if (!state.novel) {
+    setStatus('请先打开小说');
+    return;
+  }
+  collectWriteFromDom();
+  var sel = $('ssWriteChapterSelect');
+  if (!sel || !sel.value) {
+    setStatus('请先选择分叉章节');
+    return;
+  }
+  var name = window.prompt('新分支名称', '平行线');
+  if (name === null) return;
+  var direction = window.prompt('分支方向 / 偏好（写入后续生成）', '') || '';
+  try {
+    var out = forkBranchFromChapter(state.novel, {
+      fromChapterId: sel.value,
+      name: String(name).trim() || '平行线',
+      direction: String(direction).trim(),
+    });
+    state.novel = normalizeNovel(out.novel);
+    await persistNovel();
+    setStatus('已开分支「' + out.branch.name + '」，自「' + (out.forkChapter.title || '') + '」分叉');
+    renderAll();
+    if (direction) {
+      // 可选：立刻为分支续大纲
+      if (window.confirm('是否立即按分支方向续写大纲？')) {
+        await generateOutline('branch');
+      }
+    }
+  } catch (err) {
+    setStatus('开分支失败：' + (err.message || err));
   }
 }
 
@@ -985,6 +1325,8 @@ function bindEvents() {
 
   var btnNew = $('btnSsNewNovel');
   if (btnNew) btnNew.addEventListener('click', function() { createNovel(); });
+  var btnNewWiz = $('btnSsNewNovelWizard');
+  if (btnNewWiz) btnNewWiz.addEventListener('click', function() { createNovel({ wizard: true }); });
 
   var list = $('ssNovelList');
   if (list) {
@@ -1100,11 +1442,19 @@ function bindEvents() {
     btnOlAdd.addEventListener('click', async function() {
       if (!state.novel) return;
       collectOutlineFromDom();
+      var branchId = state.novel.activeBranchId;
+      var visible = getActiveOutline(state.novel);
+      var nextOrder = visible.length
+        ? (typeof visible[visible.length - 1].order === 'number'
+          ? visible[visible.length - 1].order + 1
+          : visible.length)
+        : 0;
       state.novel.outline.push({
         id: genStoryId('ol'),
-        title: '第' + (state.novel.outline.length + 1) + '章',
+        title: '第' + (visible.length + 1) + '章',
         summary: '',
-        order: state.novel.outline.length,
+        order: nextOrder,
+        branchId: branchId,
       });
       state.novel = syncChaptersFromOutline(state.novel);
       await persistNovel();
@@ -1144,8 +1494,19 @@ function bindEvents() {
       }
       if (del) {
         collectOutlineFromDom();
-        state.novel.outline.splice(i, 1);
-        state.novel.outline.forEach(function(o, idx) { o.order = idx; });
+        var visible = getActiveOutline(state.novel);
+        var target = visible[i];
+        if (!target) return;
+        var br = getBranch(state.novel, state.novel.activeBranchId);
+        // 不可删继承自父线的章
+        if (br.parentBranchId && target.branchId !== br.id) {
+          setStatus('继承章不可删；请开分支后编辑分支私有部分');
+          return;
+        }
+        state.novel.outline = state.novel.outline.filter(function(o) { return o.id !== target.id; });
+        state.novel.chapters = state.novel.chapters.filter(function(c) {
+          return !(c.branchId === target.branchId && c.order === target.order);
+        });
         state.novel = syncChaptersFromOutline(state.novel);
         await persistNovel();
         renderAll();
@@ -1160,14 +1521,48 @@ function bindEvents() {
       renderWrite();
     });
   }
+  var branchSel = $('ssWriteBranchSelect');
+  if (branchSel) {
+    branchSel.addEventListener('change', async function() {
+      if (!state.novel) return;
+      collectWriteFromDom();
+      collectLedgerFromDom();
+      try {
+        state.novel = setActiveBranch(state.novel, branchSel.value);
+        await persistNovel();
+        setStatus('已切换分支');
+        renderAll();
+      } catch (e) {
+        setStatus(e.message || String(e));
+      }
+    });
+  }
+  var btnFork = $('btnSsForkBranch');
+  if (btnFork) btnFork.addEventListener('click', function() { forkCurrentChapterBranch(); });
+
   var btnWrite = $('btnSsWriteChapter');
   if (btnWrite) btnWrite.addEventListener('click', function() { writeChapter(false); });
   var btnWriteNext = $('btnSsWriteAutoNext');
   if (btnWriteNext) btnWriteNext.addEventListener('click', function() { writeChapter(true); });
+  var btnWriteBatch = $('btnSsWriteBatch');
+  if (btnWriteBatch) btnWriteBatch.addEventListener('click', function() { writeBatchChapters(); });
+  var btnWriteQa = $('btnSsWriteQa');
+  if (btnWriteQa) {
+    btnWriteQa.addEventListener('click', function() {
+      writeChapter(false, { skipDraft: true, skipFeed: true });
+    });
+  }
+  var btnWriteRewrite = $('btnSsWriteRewrite');
+  if (btnWriteRewrite) {
+    btnWriteRewrite.addEventListener('click', function() {
+      writeChapter(false, { rewriteOnly: true });
+    });
+  }
   var btnWriteSave = $('btnSsWriteSave');
   if (btnWriteSave) {
     btnWriteSave.addEventListener('click', async function() {
       collectWriteFromDom();
+      collectLedgerFromDom();
       await persistNovel();
       setStatus('章节已保存');
       renderRead();
@@ -1179,6 +1574,107 @@ function bindEvents() {
       collectWriteFromDom();
       renderWrite();
       persistNovel();
+    });
+  }
+
+  var btnLedgerAdd = $('btnSsLedgerAdd');
+  if (btnLedgerAdd) {
+    btnLedgerAdd.addEventListener('click', async function() {
+      if (!state.novel) return;
+      collectLedgerFromDom();
+      if (!Array.isArray(state.novel.plotLedger)) state.novel.plotLedger = [];
+      state.novel.plotLedger.push(createLedgerItem({
+        title: '新伏笔',
+        status: 'open',
+        branchId: state.novel.activeBranchId,
+      }));
+      await persistNovel();
+      renderWrite();
+    });
+  }
+  var ledgerBox = $('ssWriteLedger');
+  if (ledgerBox) {
+    ledgerBox.addEventListener('click', async function(ev) {
+      var del = ev.target.closest('[data-ss-ledger-del]');
+      if (!del || !state.novel) return;
+      collectLedgerFromDom();
+      var row = del.closest('[data-ledger-id]');
+      if (!row) return;
+      var id = row.getAttribute('data-ledger-id');
+      state.novel.plotLedger = (state.novel.plotLedger || []).filter(function(x) { return x.id !== id; });
+      await persistNovel();
+      renderWrite();
+    });
+  }
+  var cpBox = $('ssWriteCheckpointList');
+  if (cpBox) {
+    cpBox.addEventListener('click', async function(ev) {
+      var btn = ev.target.closest('[data-ss-cp]');
+      if (!btn || !state.novel) return;
+      var sel = $('ssWriteChapterSelect');
+      if (!sel || !sel.value) return;
+      var ch = state.novel.chapters.find(function(c) { return c.id === sel.value; });
+      if (!ch) return;
+      if (!window.confirm('恢复到该快照？当前正文会先自动存一份。')) return;
+      if (restoreChapterCheckpoint(ch, btn.getAttribute('data-ss-cp'))) {
+        await persistNovel();
+        setStatus('已恢复快照');
+        renderWrite();
+      }
+    });
+  }
+
+  // Wizard
+  var btnWizStart = $('btnSsWizardStart');
+  if (btnWizStart) {
+    btnWizStart.addEventListener('click', async function() {
+      if (!state.novel) return;
+      var dirEl = $('ssOutlineDirection');
+      state.novel.wizard = {
+        step: 'direction',
+        direction: dirEl ? dirEl.value : '',
+        approvedOutline: false,
+      };
+      await persistNovel();
+      renderOutline();
+      setStatus('向导已启动：请确认方向');
+    });
+  }
+  var btnWizDir = $('btnSsWizardApproveDir');
+  if (btnWizDir) {
+    btnWizDir.addEventListener('click', async function() {
+      if (!state.novel) return;
+      var dirEl = $('ssOutlineDirection');
+      if (!state.novel.wizard) state.novel.wizard = {};
+      state.novel.wizard.direction = dirEl ? dirEl.value : '';
+      state.novel.wizard.step = 'direction';
+      await persistNovel();
+      await generateOutline(getActiveOutline(state.novel).length ? 'continue' : 'segment');
+    });
+  }
+  var btnWizOl = $('btnSsWizardApproveOl');
+  if (btnWizOl) {
+    btnWizOl.addEventListener('click', async function() {
+      if (!state.novel) return;
+      if (!state.novel.wizard) state.novel.wizard = {};
+      state.novel.wizard.approvedOutline = true;
+      state.novel.wizard.step = 'ready';
+      await persistNovel();
+      setStatus('大纲已批准，可以开始写作');
+      renderOutline();
+      try {
+        if (window.__setAppView__) window.__setAppView__('story-write');
+      } catch (e) { /* ignore */ }
+    });
+  }
+  var btnWizSkip = $('btnSsWizardSkip');
+  if (btnWizSkip) {
+    btnWizSkip.addEventListener('click', async function() {
+      if (!state.novel) return;
+      state.novel.wizard = { step: '', direction: '', approvedOutline: true };
+      await persistNovel();
+      renderOutline();
+      setStatus('已跳过向导');
     });
   }
 
@@ -1208,7 +1704,7 @@ function bindEvents() {
   if (btnPrev) {
     btnPrev.addEventListener('click', async function() {
       if (!state.novel) return;
-      var chapters = state.novel.chapters;
+      var chapters = getActiveChapters(state.novel);
       var idx = chapters.findIndex(function(c) { return c.id === state.novel.readState.chapterId; });
       if (idx < 0) idx = 0;
       var mode = state.novel.readState.mode || 'swipe';
@@ -1226,7 +1722,7 @@ function bindEvents() {
   if (btnNext) {
     btnNext.addEventListener('click', async function() {
       if (!state.novel) return;
-      var chapters = state.novel.chapters;
+      var chapters = getActiveChapters(state.novel);
       var idx = chapters.findIndex(function(c) { return c.id === state.novel.readState.chapterId; });
       if (idx < 0) idx = 0;
       var mode = state.novel.readState.mode || 'swipe';
@@ -1253,7 +1749,8 @@ function bindEvents() {
   if (btnBm) {
     btnBm.addEventListener('click', async function() {
       if (!state.novel) return;
-      var chId = state.novel.readState.chapterId || (state.novel.chapters[0] && state.novel.chapters[0].id);
+      var chapters = getActiveChapters(state.novel);
+      var chId = state.novel.readState.chapterId || (chapters[0] && chapters[0].id);
       if (!chId) return;
       state.novel.bookmarks = state.novel.bookmarks || [];
       var exists = state.novel.bookmarks.some(function(b) { return b.chapterId === chId; });
