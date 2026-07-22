@@ -192,22 +192,45 @@ async function persistNovel() {
 async function reloadCatalog() {
   var cardId = getCardId();
   state.cardId = cardId;
+  // Story 与卡开包独立：进入创作时再拉云端目录
+  try {
+    var sync = await import('../sync/index.mjs');
+    if (sync.isCloudEnabled && sync.isCloudEnabled()) {
+      await sync.pullStoryCatalogToLocal(cardId);
+    }
+  } catch (e) {
+    console.warn('[storyStudio] pull catalog', e);
+  }
   state.catalog = await loadCatalog(cardId);
   var activeId = await loadActiveNovelId(cardId);
   if (activeId) {
-    var raw = await loadNovel(cardId, activeId);
+    var raw = await loadNovelOrPull(cardId, activeId);
     state.novel = raw ? normalizeNovel(raw) : null;
   } else {
     state.novel = null;
   }
   if (!state.novel && state.catalog.length) {
     var first = state.catalog[0];
-    var raw2 = await loadNovel(cardId, first.id);
+    var raw2 = await loadNovelOrPull(cardId, first.id);
     if (raw2) {
       state.novel = normalizeNovel(raw2);
       await saveActiveNovelId(cardId, state.novel.id);
     }
   }
+}
+
+async function loadNovelOrPull(cardId, novelId) {
+  var raw = await loadNovel(cardId, novelId);
+  if (raw) return raw;
+  try {
+    var sync = await import('../sync/index.mjs');
+    if (sync.isCloudEnabled && sync.isCloudEnabled()) {
+      return await sync.pullStoryNovelToLocal(cardId, novelId);
+    }
+  } catch (e) {
+    console.warn('[storyStudio] pull novel', e);
+  }
+  return null;
 }
 
 function escapeHtml(s) {
@@ -487,7 +510,7 @@ function renderAll() {
 
 async function openNovel(novelId) {
   var cardId = getCardId();
-  var raw = await loadNovel(cardId, novelId);
+  var raw = await loadNovelOrPull(cardId, novelId);
   if (!raw) {
     setStatus('打开失败：找不到小说');
     return;

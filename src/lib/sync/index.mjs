@@ -58,5 +58,7 @@ export {
   buildLocalCardBundle,
   hydrateCardBundleToLocal,
   runCloudReconcile,
+  pullStoryCatalogToLocal,
+  pullStoryNovelToLocal,
 } from './cloudStore.mjs';
 export { getOutboxSize, peekOutbox, clearOutbox } from './outbox.mjs';

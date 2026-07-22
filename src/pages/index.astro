@@ -309,6 +309,33 @@ import AccountSyncPanel from '../components/AccountSyncPanel.astro';
       line-height: 1.55;
     }
 
+    .app-confirm-checks {
+      margin: 0 18px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .app-confirm-check {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(51, 65, 85, 0.72);
+      background: rgba(2, 6, 23, 0.44);
+      color: var(--color-text-secondary);
+      font-size: 0.74rem;
+      line-height: 1.5;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .app-confirm-check input {
+      margin-top: 2px;
+      flex: 0 0 auto;
+    }
+
     .app-confirm-actions {
       display: flex;
       gap: 10px;

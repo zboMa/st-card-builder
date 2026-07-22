@@ -727,31 +727,47 @@ export function registerCardManager(ctx) {
     if (!dr[id]) return { ok: false, error: '卡不存在' };
     var currentId = getCurrentDraftId();
     var draftNameVal = draftDisplayName(dr[id], id === currentId ? ctx.state.charName : '');
+    var deleteStories = !!(opts && opts.deleteStories);
     if (!(opts && opts.force)) {
-      var ok = await ctx.showConfirmDialog({
+      var dlg = await ctx.showConfirmDialog({
         icon: '🗑️',
         title: '删除角色卡？',
-        message: '这会从本地多卡草稿箱中移除该卡。',
-        detail: '即将删除：' + draftNameVal + '。此操作不会影响已下载到本地的卡片文件。',
+        message: '将删除该卡及其小说工坊、RAG、头像等绑卡数据。',
+        detail: '即将删除：' + draftNameVal + '。写出的小说默认保留，可在下方勾选一并删除。',
         okText: '删除',
         cancelText: '再想想',
+        checks: [
+          {
+            id: 'deleteStories',
+            label: '同时删除写出的小说（Story Studio）',
+            checked: false,
+          },
+        ],
       });
-      if (!ok) return { ok: false, cancelled: true };
+      if (!dlg) return { ok: false, cancelled: true };
+      deleteStories = !!(dlg.checks && dlg.checks.deleteStories);
     }
     var result = ctx.sm.deleteDraft(id);
     if (!result.ok) return result;
 
-    // Clean up IndexedDB
+    // Clean up IndexedDB：工坊始终删；Story 按勾选
     ensureIdbReady().then(function () {
       if (window.__avatarIdb__) return window.__avatarIdb__.deleteAvatarDraft(id);
     }).catch(function () { console.warn('Deleting avatar draft from IDB failed'); });
     if (window.__novelIdb__) {
       window.__novelIdb__.removeNovelBucketIdb(id, localStorage).catch(function () { console.warn('Removing novel bucket from IDB failed'); });
     }
-    // Pouch 级联（RAG / storyStudio / card）
+    import('../../idbStore.mjs').then(function(idb) {
+      return idb.idbDeleteJson('novelRagV1:card:' + id);
+    }).catch(function() {});
+    if (deleteStories) {
+      import('../../storyStudio/idb.mjs').then(function(storyIdb) {
+        return storyIdb.deleteAllStoriesForCard(id);
+      }).catch(function(e) { console.warn('[story] local cascade delete', e); });
+    }
     import('../../sync/cascade.mjs').then(function(mod) {
-      return mod.cascadeDeleteCardDocs(id, getAllDrafts());
-    }).catch(function(e) { console.warn('[sync] cascade delete', e); });
+      return mod.cascadeDeleteCardDocs(id, getAllDrafts(), { deleteStories: deleteStories });
+    }).catch(function(e) { console.warn('[cloud] cascade delete', e); });
 
     // Navigate: if deleted was current, load next or create blank
     if (id === currentId) {
@@ -765,7 +781,7 @@ export function registerCardManager(ctx) {
     } else {
       panel.updateCardManagerUI();
     }
-    return { ok: true, deleted: id, name: draftNameVal };
+    return { ok: true, deleted: id, name: draftNameVal, deleteStories: deleteStories };
   };
 
   // ---- Duplicate ----
