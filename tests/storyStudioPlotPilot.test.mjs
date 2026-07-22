@@ -213,7 +213,10 @@ describe('storyStudio UI ids for plotpilot', function() {
     assert.match(manage, /id="btnSsNewNovelWizard"/);
     const outline = readFileSync(join(root, 'src/components/storyStudio/StoryOutlinePanel.astro'), 'utf8');
     assert.match(outline, /id="ssWizardBox"/);
-    const app = readFileSync(join(root, 'src/lib/storyStudio/browserApp.mjs'), 'utf8');
+    const app = [
+      readFileSync(join(root, 'src/lib/storyStudio/browserApp.mjs'), 'utf8'),
+      readFileSync(join(root, 'src/lib/storyStudio/writeActions.mjs'), 'utf8'),
+    ].join('');
     assert.match(app, /runChapterWritePipeline/);
     assert.match(app, /forkBranchFromChapter/);
   });
