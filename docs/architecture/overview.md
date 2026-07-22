@@ -16,7 +16,7 @@
 | 主站卡侧 | `src/lib/card-builder/browserApp.mjs` → `initCardBuilder()` | `index.astro` 调用；卡侧唯一 boot |
 | 小说工坊 | `NovelWorkshopApp` → `initNovelWorkshop()` | `src/lib/novel/browserApp.mjs` |
 | 小说创作 | `StoryStudioApp` → storyStudio boot | `src/lib/storyStudio/` |
-| 管理端 | `src/lib/admin/browserApp.mjs` | 独立页 `/admin` |
+| 管理端 | `src/lib/admin/browserApp.mjs` → `adminBoot.mjs` | 独立页 `/admin` |
 | API | `server/src/index.mjs` | Express + Couch；systemd 部署 |
 
 ## 状态与持久化
@@ -33,10 +33,11 @@ src/lib/
 ├── card-builder/     制卡：state / stateMachine / panels / initCardBuilder
 ├── novel/            小说工坊：分析管道、实体、RAG、面板
 ├── storyStudio/      小说创作：图谱/大纲/写作/分享
-├── assistant/        右栏助手：tools / risk / react / executor / session
+├── assistant/        右栏助手：tools / risk / react / executor* / session
 ├── sync/             云端 REST 客户端、outbox、密钥加密
 ├── adult/            NSFW/NTL/载体/恶堕目录与拼装（数量以代码为准）
-├── admin/            管理端客户端
+├── admin/            管理端：adminShared / adminViews / adminBoot
+├── statusBar.mjs     barrel：statusBarCatalog + statusBarBuild
 ├── chatRuntime/      试聊与 ST 运行时对齐
 ├── mvu/              MVU 相关（`variableCardPanel.mjs` 变量节点 UI boot）
 ├── aiTaskCenter.mjs  全局 AI 任务队列

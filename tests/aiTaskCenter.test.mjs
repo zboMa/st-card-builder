@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { readLayoutSources, readAssistantPanelSources, readVariableCardPanelSources, readWorldbookPanelSources, readAiEnginePanelSources } from './helpers/uiSources.mjs';
+import { readLayoutSources, readAssistantPanelSources, readVariableCardPanelSources, readWorldbookPanelSources, readAiEnginePanelSources , readNovelBrowserAppSources, readNovelWorldbookPanelSources, readCardBuilderBrowserAppSources, readNovelCharactersPanelSources} from './helpers/uiSources.mjs';
 import {
   createAiTaskCenter,
   AI_TASK_TYPES,
@@ -126,7 +126,7 @@ describe('aiTaskCenter UI wiring', function() {
     const src = readFileSync(join(root, 'src/pages/index.astro'), 'utf8');
     assert.match(src, /AiTaskCenterUI/);
     assert.match(src, /initCardBuilder/);
-    const boot = readFileSync(join(root, 'src/lib/card-builder/browserApp.mjs'), 'utf8');
+    const boot = readCardBuilderBrowserAppSources(root);
     assert.match(boot, /__runAiTask__/);
     assert.match(boot, /tagContextChars/);
     const ctxSrc = readFileSync(join(root, 'src/lib/card-builder/shared/context.mjs'), 'utf8');
@@ -140,12 +140,12 @@ describe('aiTaskCenter UI wiring', function() {
   });
 
   it('小说与助手接入任务中心', function() {
-    const novel = readFileSync(join(root, 'src/lib/novel/browserApp.mjs'), 'utf8');
+    const novel = readNovelBrowserAppSources(root);
     assert.match(novel, /runTracked/);
-    const novelChars = readFileSync(join(root, 'src/lib/novel/panels/characters.mjs'), 'utf8');
+    const novelChars = readNovelCharactersPanelSources(root);
     assert.match(novelChars, /novel_char_expand/);
     assert.match(novelChars, /novel_char_scan/);
-    const novelWb = readFileSync(join(root, 'src/lib/novel/panels/worldbook.mjs'), 'utf8');
+    const novelWb = readNovelWorldbookPanelSources(root);
     assert.match(novelWb, /novel_wb_extract/);
     assert.match(novelWb, /novel_wb_expand/);
     const novelStyle = readFileSync(join(root, 'src/lib/novel/panels/style.mjs'), 'utf8');

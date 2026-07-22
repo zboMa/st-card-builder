@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { readAiEnginePanelSources } from './helpers/uiSources.mjs';
+import { readAiEnginePanelSources , readCardBuilderBrowserAppSources} from './helpers/uiSources.mjs';
 import {
   setAdultWorldframe,
   suggestAdultWorldframe,
@@ -93,7 +93,7 @@ describe('structuralFixes', function() {
     assert.ok(AI_CONFIG_UNION_KEYS.indexOf('adultWorldframe') >= 0);
     assert.ok(AI_CONFIG_UNION_KEYS.indexOf('adultWorldframeForced') >= 0);
     assert.ok(AI_CONFIG_UNION_KEYS.indexOf('corruptionEnabled') >= 0);
-    var src = fs.readFileSync(path.join(__dirname, '../src/lib/card-builder/browserApp.mjs'), 'utf8');
+    var src = readCardBuilderBrowserAppSources(path.join(__dirname, '..'));
     AI_CONFIG_UNION_KEYS.forEach(function(k) {
       assert.ok(src.indexOf(k) >= 0, 'browserApp missing key ' + k);
     });

@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { readLayoutSources, readAssistantPanelSources, readVariableCardPanelSources } from './helpers/uiSources.mjs';
+import { readLayoutSources, readAssistantPanelSources, readVariableCardPanelSources , readCardBuilderBrowserAppSources, readStatusBarSources} from './helpers/uiSources.mjs';
 import {
   createEmptyRegexScript,
   normalizeRegexScript,
@@ -117,7 +117,7 @@ describe('regex wiring', function() {
     assert.match(index, /RegexPanel/);
     assert.match(index, /data-view="regex"/);
     assert.match(index, /initCardBuilder/);
-    const boot = readFileSync(join(root, 'src/lib/card-builder/browserApp.mjs'), 'utf8');
+    const boot = readCardBuilderBrowserAppSources(root);
     assert.match(boot, /__getRegexScripts__/);
     assert.match(boot, /__setRegexScripts__/);
     assert.match(boot, /opts\.silent/);
@@ -166,7 +166,7 @@ describe('regex wiring', function() {
   });
 
   it('MVU/状态栏注入路径仍按 scriptName upsert', function() {
-    const boot = readFileSync(join(root, 'src/lib/card-builder/browserApp.mjs'), 'utf8');
+    const boot = readCardBuilderBrowserAppSources(root);
     assert.match(boot, /__injectMvuEntries__/);
     assert.match(boot, /scriptName === rx\.scriptName/);
     const mvu = readVariableCardPanelSources(root);
@@ -174,7 +174,7 @@ describe('regex wiring', function() {
     assert.match(mvu, /scheduleRefreshSync\(false\)/);
     assert.match(mvu, /extChanged/);
     assert.match(mvu, /silent: true/);
-    const sb = readFileSync(join(root, 'src/lib/statusBar.mjs'), 'utf8');
+    const sb = readStatusBarSources(root);
     assert.match(sb, /STATUS_BAR_REGEX_NAME/);
   });
 });

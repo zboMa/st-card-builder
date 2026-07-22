@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { readAdultConfigPanelSources } from './helpers/uiSources.mjs';
+import { readAdultConfigPanelSources, readNovelBridgeSources, readAssistantExecutorSources } from './helpers/uiSources.mjs';
 import {
   CORRUPTION_PRESETS,
   CORRUPTION_ARC_BRIEFS,
@@ -197,7 +197,7 @@ describe('corruptionProgress', function() {
     var tools = readFileSync(join(root, 'src/lib/assistant/tools.mjs'), 'utf8');
     assert.match(tools, /generate_corruption_lore/);
     assert.match(tools, /adult-config/);
-    var exec = readFileSync(join(root, 'src/lib/assistant/executor.mjs'), 'utf8');
+    var exec = readAssistantExecutorSources(root);
     assert.match(exec, /generate_corruption_lore/);
   });
 
@@ -227,7 +227,7 @@ describe('corruptionProgress', function() {
     var wb = readFileSync(join(root, 'src/components/WorldbookPanel.astro'), 'utf8');
     assert.match(wb, /wbIncludeCharData/);
     assert.doesNotMatch(wb, /id="wbIncludeCharData" checked/);
-    var bridge = readFileSync(join(root, 'src/lib/novel/shared/bridge.mjs'), 'utf8');
+    var bridge = readNovelBridgeSources(root);
     assert.match(bridge, /redirectedFrom:\s*'character'|character_worldbook/);
     assert.match(bridge, /asProtagonist/);
   });

@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { readLayoutSources, readAssistantPanelSources, readVariableCardPanelSources, readWorldbookPanelSources } from './helpers/uiSources.mjs';
+import { readLayoutSources, readAssistantPanelSources, readVariableCardPanelSources, readWorldbookPanelSources , readNovelBrowserAppSources, readNovelWorldbookPanelSources} from './helpers/uiSources.mjs';
 
 import {
   ASSISTANT_TOOLS,
@@ -728,7 +728,7 @@ describe('assistant prompts & UI wiring', function() {
   });
 
   it('小说桥接真 await，禁止 started-only', function() {
-    const novel = readFileSync(join(root, 'src/lib/novel/browserApp.mjs'), 'utf8');
+    const novel = readNovelBrowserAppSources(root);
     assert.match(novel, /runScanCharacters/);
     assert.match(novel, /runExtractWorldbook/);
     assert.match(novel, /runDistillStyle/);

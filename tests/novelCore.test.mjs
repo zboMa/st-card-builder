@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { readLayoutSources, readAssistantPanelSources, readVariableCardPanelSources } from './helpers/uiSources.mjs';
+import { readLayoutSources, readAssistantPanelSources, readVariableCardPanelSources , readNovelBrowserAppSources, readNovelWorldbookPanelSources, readNovelCharactersPanelSources, readNovelAnalyzePanelSources, readNovelBridgeSources} from './helpers/uiSources.mjs';
 import {
   CHARACTER_PROFILE_FIELDS,
   emptyCharacterProfile,
@@ -513,7 +513,7 @@ describe('novel cardId buckets', function() {
     const stateSrc = readFileSync(join(novelRoot, 'src/lib/novel/state.mjs'), 'utf8');
     assert.match(stateSrc, /loadNovelStateForCardIdb/);
     assert.match(stateSrc, /writeNovelBucketIdb/);
-    const browserSrc = readFileSync(join(novelRoot, 'src/lib/novel/browserApp.mjs'), 'utf8');
+    const browserSrc = readNovelBrowserAppSources(novelRoot);
     assert.match(browserSrc, /card-draft-changed/);
     assert.match(browserSrc, /bindCard/);
     const cardMgrSrc = readCardManagerSources(novelRoot);
@@ -638,7 +638,7 @@ describe('novel panel visual contract', function() {
     assert.match(layout, /\[data-view="novel-character-setup"\]\.is-active/);
     assert.match(layout, /\[data-view="novel-greetings"\]\.is-active/);
     assert.match(layout, /\.panel\.novel-setup-panel/);
-    const app = readFileSync(join(novelRoot, 'src/lib/novel/browserApp.mjs'), 'utf8');
+    const app = readNovelBrowserAppSources(novelRoot);
     assert.match(app, /buildSetupCorpus|resolveSetupCorpus/);
     assert.match(app, /resolveSetupCorpus/);
     assert.match(app, /novel_char_setup/);
@@ -719,11 +719,11 @@ describe('novel panel visual contract', function() {
     }, /ENOENT/);
 
     const app = [
-      readFileSync(join(novelRoot, 'src/lib/novel/browserApp.mjs'), 'utf8'),
-      readFileSync(join(novelRoot, 'src/lib/novel/panels/characters.mjs'), 'utf8'),
-      readFileSync(join(novelRoot, 'src/lib/novel/panels/worldbook.mjs'), 'utf8'),
+      readNovelBrowserAppSources(novelRoot),
+      readNovelCharactersPanelSources(novelRoot),
+      readNovelWorldbookPanelSources(novelRoot),
       readFileSync(join(novelRoot, 'src/lib/novel/shared/context.mjs'), 'utf8'),
-      readFileSync(join(novelRoot, 'src/lib/novel/shared/bridge.mjs'), 'utf8'),
+      readNovelBridgeSources(novelRoot),
       readFileSync(join(novelRoot, 'src/lib/novel/graphViz.mjs'), 'utf8'),
       readFileSync(join(novelRoot, 'src/lib/novel/sync.mjs'), 'utf8'),
     ].join('');
@@ -822,7 +822,7 @@ describe('novel panel visual contract', function() {
     assert.ok(pkg.dependencies && pkg.dependencies['@antv/g6'], '依赖 @antv/g6');
     assert.ok(!pkg.dependencies.cytoscape, '已移除 cytoscape');
     assert.match(viz, /relayoutGraph|mountOrUpdateGraph|@antv\/g6/);
-    const analyzePanel = readFileSync(join(novelRoot, 'src/lib/novel/panels/analyze.mjs'), 'utf8');
+    const analyzePanel = readNovelAnalyzePanelSources(novelRoot);
     assert.doesNotMatch(analyzePanel, /runUnifiedGraphExtract|novelUnifiedShard/);
     assert.match(analyzePanel, /mode === 'analyze'|runAnalyzeAll/);
   });
@@ -876,9 +876,9 @@ describe('novel panel visual contract', function() {
     assert.match(layout, /novel-extract-panel/);
 
     const app = [
-      readFileSync(join(novelRoot, 'src/lib/novel/browserApp.mjs'), 'utf8'),
-      readFileSync(join(novelRoot, 'src/lib/novel/panels/characters.mjs'), 'utf8'),
-      readFileSync(join(novelRoot, 'src/lib/novel/panels/worldbook.mjs'), 'utf8'),
+      readNovelBrowserAppSources(novelRoot),
+      readNovelCharactersPanelSources(novelRoot),
+      readNovelWorldbookPanelSources(novelRoot),
     ].join('');
     assert.doesNotMatch(app, /novelWbName/);
     assert.match(app, /约 ' \+ charN \+ ' 次 · 扫描全书/);
@@ -928,10 +928,10 @@ describe('novel panel visual contract', function() {
 
   it('扫描/抽取/分析/蒸馏：任务中心 + busy + 取消提示接线', function() {
     const app = [
-      readFileSync(join(novelRoot, 'src/lib/novel/browserApp.mjs'), 'utf8'),
-      readFileSync(join(novelRoot, 'src/lib/novel/panels/characters.mjs'), 'utf8'),
-      readFileSync(join(novelRoot, 'src/lib/novel/panels/worldbook.mjs'), 'utf8'),
-      readFileSync(join(novelRoot, 'src/lib/novel/panels/analyze.mjs'), 'utf8'),
+      readNovelBrowserAppSources(novelRoot),
+      readNovelCharactersPanelSources(novelRoot),
+      readNovelWorldbookPanelSources(novelRoot),
+      readNovelAnalyzePanelSources(novelRoot),
       readFileSync(join(novelRoot, 'src/lib/novel/panels/style.mjs'), 'utf8'),
     ].join('');
     assert.match(app, /type:\s*'novel_char_scan'/);
@@ -961,7 +961,7 @@ describe('novel panel visual contract', function() {
     assert.match(ref, /废都/);
     assert.deepEqual(normalizeNameList('秦月', ['月儿', '秦月', ' 月儿 ']), ['月儿']);
 
-    const app = readFileSync(join(novelRoot, 'src/lib/novel/panels/worldbook.mjs'), 'utf8');
+    const app = readNovelWorldbookPanelSources(novelRoot);
     const fnBlock = app.slice(app.indexOf('panel.runExtractWorldbook ='), app.indexOf('shardsScanned'));
     assert.match(fnBlock, /formatPriorWbExtractRef\(all\)/);
     assert.match(fnBlock, /for \(var idx = 0; idx < shards\.length; idx\+\+\)/);
@@ -978,7 +978,7 @@ describe('novel panel visual contract', function() {
     assert.match(ref, /秦月/);
     assert.match(ref, /月儿/);
 
-    const app = readFileSync(join(novelRoot, 'src/lib/novel/panels/characters.mjs'), 'utf8');
+    const app = readNovelCharactersPanelSources(novelRoot);
     const fnBlock = app.slice(app.indexOf('panel.runScan ='), app.indexOf('shardsScanned'));
     assert.match(fnBlock, /formatPriorCharScanRef/);
     assert.match(fnBlock, /for \(var idx = 0; idx < shards\.length; idx\+\+\)/);

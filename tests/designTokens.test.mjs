@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { readLayoutSources, readAssistantPanelSources, readVariableCardPanelSources, readWorldbookPanelSources } from './helpers/uiSources.mjs';
+import { readLayoutSources, readAssistantPanelSources, readVariableCardPanelSources, readWorldbookPanelSources , readNovelBrowserAppSources, readNovelWorldbookPanelSources, readNovelCharactersPanelSources} from './helpers/uiSources.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const tokensPath = join(root, 'src/styles/tokens.css');
@@ -127,12 +127,12 @@ describe('design tokens (Nocturne Atelier)', function() {
     assert.match(wbSrc, /isSk \? ' btn-ai-expand'/);
     const novelCtx = readFileSync(join(root, 'src/lib/novel/shared/context.mjs'), 'utf8');
     assert.match(novelCtx, /isUnexpandedWbContent/);
-    const novelWb = readFileSync(join(root, 'src/lib/novel/panels/worldbook.mjs'), 'utf8');
+    const novelWb = readNovelWorldbookPanelSources(root);
     assert.match(novelWb, /needExpand \? 'btn-ai-expand'/);
   });
 
   it('人物行操作：同步世界书在左、AI 扩展紧贴编辑', function() {
-    const app = readFileSync(join(root, 'src/lib/novel/panels/characters.mjs'), 'utf8');
+    const app = readNovelCharactersPanelSources(root);
     // 在 novel-list-actions 片段内断言顺序（人物只同步世界书，不再同步主角设定）
     const start = app.indexOf("'+ '<div class=\"novel-list-actions\">'");
     const alt = app.indexOf("novel-list-actions");

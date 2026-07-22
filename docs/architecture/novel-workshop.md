@@ -4,7 +4,7 @@
 
 ## Boot
 
-`NovelWorkshopApp` → `initNovelWorkshop()`（`src/lib/novel/browserApp.mjs`）。
+`NovelWorkshopApp` → `initNovelWorkshop()`（`src/lib/novel/browserApp.mjs` + `bootSetupGreetings.mjs` / `bootEvents.mjs`）。
 
 ## 流水线（产品）
 
@@ -23,9 +23,14 @@
 | 路径 | 职责 |
 |---|---|
 | `state.mjs` / `stateMachine.mjs` | 状态与持久化 |
+| `browserApp.mjs` | boot 入口 |
+| `bootSetupGreetings.mjs` / `bootEvents.mjs` | 角色设定/开场白生成与事件 |
 | `analyzePipeline.mjs` / `entityStore.mjs` / `rag/` | 分析与检索 |
-| `panels/*` | 各视图 |
-| `shared/bridge.mjs` | 助手桥 + 同步到主卡 |
+| `panels/characters.mjs` + `charactersRender/Expand/ScanBind.mjs` | 人物面板 |
+| `panels/analyze.mjs` + `analyzeShared/Render/Bind/Run.mjs` | 分析面板 |
+| `panels/worldbook.mjs` + `worldbookExtractUtil/Render/Ai.mjs` | 世界书面板 |
+| `shared/bridge.mjs` | barrel：字段写入 + `createBridge` |
+| `shared/bridgeFields.mjs` / `bridgeCreate.mjs` / `bridgeSyncOutputs.mjs` | 桥接拆分 |
 | `nsfwSupport.mjs` | barrel：实体模板 / 摘要 / 提示（配置来自卡侧事件） |
 | `nsfwSupportAttrs.mjs` | 实体 attrs 模板、质量门、模式开关 |
 | `nsfwSupportDigest.mjs` | 互喂摘要格式化 |

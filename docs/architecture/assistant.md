@@ -20,7 +20,9 @@
 | `tools.mjs` | 工具注册表 |
 | `risk.mjs` | none / auto / confirm |
 | `reactParse.mjs` | 解析 Thought/Action |
-| `executor.mjs` | 调桥接 API；`postHistoryInstructions`→`creatorNotes` |
+| `executor.mjs` | barrel：`createToolExecutor` |
+| `executorResolve.mjs` | `normalizeTarget` / `resolveWorldbookIndex` |
+| `executorHelpers.mjs` / `executorExecute.mjs` | 搜索/lint helpers + 工具执行 |
 | `characterFields.mjs` | 字段归一 |
 | `session.mjs` | 会话与快照栈 |
 | `ragInject.mjs` | 小说 RAG 注入 |

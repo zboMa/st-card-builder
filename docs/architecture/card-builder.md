@@ -4,12 +4,15 @@
 
 ## Boot
 
-`initCardBuilder()`（`browserApp.mjs`）由 `index.astro` 调用，是卡侧**唯一**启动入口。
+`initCardBuilder()`（`browserApp.mjs` + `fieldValidation.mjs` / `bootAiConfig.mjs`）由 `index.astro` 调用，是卡侧**唯一**启动入口。
 
 ## 结构
 
 | 路径 | 职责 |
 |---|---|
+| `browserApp.mjs` | boot 入口 |
+| `fieldValidation.mjs` | 字段字典与 JSON 校验 |
+| `bootAiConfig.mjs` | AI 配置持久化与 `window.__*` 桥 |
 | `state.mjs` | 状态工厂、`buildCardJSONFromDraft`、标签/WB 工具 |
 | `stateMachine.mjs` | localStorage 草稿 CRUD + debounce |
 | `shared/context.mjs` | `$`、save、callAI、runTracked、确认框 |

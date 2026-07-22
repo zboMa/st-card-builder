@@ -60,3 +60,101 @@ export function readAdultConfigPanelSources(base) {
     return readFileSync(join(base, 'src/lib/card-builder/panels', f), 'utf8');
   }).join('');
 }
+
+/** 小说工坊 worldbook 面板（register + 拆分模块） */
+export function readNovelWorldbookPanelSources(base) {
+  return [
+    'worldbook.mjs',
+    'worldbookExtractUtil.mjs',
+    'worldbookRender.mjs',
+    'worldbookAi.mjs',
+  ].map(function (f) {
+    return readFileSync(join(base, 'src/lib/novel/panels', f), 'utf8');
+  }).join('');
+}
+
+/** 小说工坊 browserApp（boot + 拆分模块） */
+export function readNovelBrowserAppSources(base) {
+  return [
+    readFileSync(join(base, 'src/lib/novel/browserApp.mjs'), 'utf8'),
+    readFileSync(join(base, 'src/lib/novel/bootSetupGreetings.mjs'), 'utf8'),
+    readFileSync(join(base, 'src/lib/novel/bootEvents.mjs'), 'utf8'),
+  ].join('');
+}
+
+/** 制卡 browserApp（boot + 拆分模块） */
+export function readCardBuilderBrowserAppSources(base) {
+  return [
+    readFileSync(join(base, 'src/lib/card-builder/browserApp.mjs'), 'utf8'),
+    readFileSync(join(base, 'src/lib/card-builder/fieldValidation.mjs'), 'utf8'),
+    readFileSync(join(base, 'src/lib/card-builder/bootAiConfig.mjs'), 'utf8'),
+  ].join('');
+}
+
+/** 小说工坊 bridge（含 syncOutputs / createBridge 拆分） */
+export function readNovelBridgeSources(base) {
+  return [
+    'bridge.mjs',
+    'bridgeFields.mjs',
+    'bridgeCreate.mjs',
+    'bridgeSyncOutputs.mjs',
+  ].map(function (f) {
+    return readFileSync(join(base, 'src/lib/novel/shared', f), 'utf8');
+  }).join('');
+}
+
+/** 小说工坊 characters 面板（register + 拆分模块） */
+export function readNovelCharactersPanelSources(base) {
+  return [
+    'characters.mjs',
+    'charactersRender.mjs',
+    'charactersExpand.mjs',
+    'charactersScanBind.mjs',
+  ].map(function (f) {
+    return readFileSync(join(base, 'src/lib/novel/panels', f), 'utf8');
+  }).join('');
+}
+
+/** 小说工坊 analyze 面板（register + 拆分模块） */
+export function readNovelAnalyzePanelSources(base) {
+  return [
+    'analyze.mjs',
+    'analyzeShared.mjs',
+    'analyzeRender.mjs',
+    'analyzeBind.mjs',
+    'analyzeRun.mjs',
+  ].map(function (f) {
+    return readFileSync(join(base, 'src/lib/novel/panels', f), 'utf8');
+  }).join('');
+}
+
+/** 状态栏（catalog + build + barrel） */
+export function readStatusBarSources(base) {
+  return [
+    readFileSync(join(base, 'src/lib/statusBar.mjs'), 'utf8'),
+    readFileSync(join(base, 'src/lib/statusBarCatalog.mjs'), 'utf8'),
+    readFileSync(join(base, 'src/lib/statusBarBuild.mjs'), 'utf8'),
+  ].join('');
+}
+
+/** 助手 executor（resolve + helpers + execute + barrel） */
+export function readAssistantExecutorSources(base) {
+  return [
+    'executor.mjs',
+    'executorResolve.mjs',
+    'executorHelpers.mjs',
+    'executorExecute.mjs',
+  ].map(function (f) {
+    return readFileSync(join(base, 'src/lib/assistant', f), 'utf8');
+  }).join('');
+}
+
+/** 管理端 browserApp（boot + 拆分模块） */
+export function readAdminBrowserAppSources(base) {
+  return [
+    readFileSync(join(base, 'src/lib/admin/browserApp.mjs'), 'utf8'),
+    readFileSync(join(base, 'src/lib/admin/adminShared.mjs'), 'utf8'),
+    readFileSync(join(base, 'src/lib/admin/adminViews.mjs'), 'utf8'),
+    readFileSync(join(base, 'src/lib/admin/adminBoot.mjs'), 'utf8'),
+  ].join('');
+}
