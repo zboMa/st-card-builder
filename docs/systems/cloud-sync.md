@@ -1,6 +1,6 @@
 # 云同步与账户（Node + CouchDB + PouchDB）
 
-> SoT（同步模型 / docIds / 分享 / 密钥上云）：本文 + `src/lib/sync/*`。  
+> SoT（同步模型 / docIds / 三分法通道 / 分享 / API 配置上云）：本文 + `src/lib/sync/*`。  
 > 认证细节 → [`auth.md`](./auth.md)；管理端 → [`admin.md`](./admin.md)；部署 → [`../ops/production.md`](../ops/production.md)。
 
 将能力从「仅浏览器本地」扩展为可选上云同步。正式登录优先邮箱（邀请码注册）；Discord OAuth 仍保留，可用开关暂时隐藏。调试可用临时用户名。
@@ -30,12 +30,17 @@ npm run dev            # Astro :4321，/api 代理到 8787
 - `AUTH_DISCORD_LOGIN_ENABLED=false` 时隐藏 Discord 按钮（路由仍可用）。
 - `DEV_LOGIN_ENABLED=true` 时可输入用户名点「进入」调试。
 
-## 同步行为
+## 同步行为（三分法）
 
-- **自动同步默认关闭**。在「账户与同步 → 云同步」用开关开启后，约每 **5 分钟**尝试同步；若本地自上次成功同步后无变更则跳过。
-- 也可随时点「立即同步」（强制推拉，不受「本地无变更」限制）。
-- 重开后拉云端 **卡列表**（`meta/card-index`）；点开某卡再懒同步正文。
-- **API 密钥默认不上云**。在「账户与同步 → 云同步」中用口令加密后上传 / 拉取 / 清除。
+同步分三部分，通道独立：
+
+| 通道 | 内容 | 行为 |
+|---|---|---|
+| **用户数据** | 角色卡、**头像**、小说工坊、RAG、创作进度、卡索引/发布快照 | 「立即同步」强制推拉；可选自动同步（默认关，约 5 分钟）；本地无变更跳过 |
+| **用户配置** | 提示词覆盖 `prefs/prompts`、界面偏好 `prefs/ui`（当前卡等） | 登录后本地一改即**防抖上传**；登录时先 pull 对齐 |
+| **AI API 配置** | 完整 AI 面板配置 + Embedding 旁路键 + 联网搜索（口令加密 → `secrets/ai-config`） | **仅主动**加密上传 / 拉取解密 / 清除；不进全量同步 |
+
+- 重开后拉云端 **卡列表**（`meta/card-index`）；点开某卡再懒同步正文；头像随用户数据 replicate，同步后灌回 IndexedDB。
 - 浏览器经 `/api/sync/credentials` 拿到 `dbUrl` 后，由 PouchDB **直连** Couch（Basic Auth）。
   - 生产 `dbUrl` 必须是 `PUBLIC_COUCH_URL`（如 `https://card-api.taojiu.love/couch/userdb-…`）
   - **不要**把服务端本机 `COUCHDB_URL=http://127.0.0.1:5984` 发给浏览器
@@ -59,7 +64,7 @@ npm run dev            # Astro :4321，/api 代理到 8787
 
 ## 文档 ID 前缀
 
-`meta/card-index` · `card/{id}` · `card/{id}/release` · `card/{id}/release/{character_version}` · `novel/{id}` · `rag/{id}` · `story/{id}/…` · `story/{cardId}/{novelId}/release` · `secrets/ai-config` · `prefs/*`
+`meta/card-index` · `card/{id}` · `card/{id}/release` · `card/{id}/release/{character_version}` · `avatar/{id}/full|thumb` · `novel/{id}` · `rag/{id}` · `story/{id}/…` · `story/{cardId}/{novelId}/release` · `secrets/ai-config` · `prefs/*`
 
 ## 角色卡分享（登录 + 可选密码）
 
@@ -87,10 +92,11 @@ npm run dev            # Astro :4321，/api 代理到 8787
 - **读者入口**：`/#share/{token}` 只渲染阅读壳。
 - **管理 UI**：落后提示（草稿超前于已发布）、重置链接、可选过期天数。
 
-## 密钥加密上云
+## AI API 配置加密上云
 
-- 「账户与同步 → 云同步」填写**同步口令**（≥6）后「加密同步到云端」。
+- 「账户与同步 → AI API 配置」填写**同步口令**（≥6）后「加密同步到云端」。
 - 文档形态：`secrets/ai-config` 含 `enc`（PBKDF2 + AES-GCM），**无明文**。
+- 包版本 `v:2`：`{ aiConfig, searchConfig }`（完整面板配置 + 联网搜索）；兼容旧版整份 `ai_config` 密文。
 - 新设备：同步后「拉取并解密」；口令错误则失败，服务端无法代解密。
 
 ## 管理端
