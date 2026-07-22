@@ -80,7 +80,13 @@ export function registerCharacter(ctx) {
     setCharTags: function(next, opts) {
       ctx.state.charTags = normalizeTags(next);
       ctx.panels.character.renderCharTags();
-      if (!opts || opts.save !== false) ctx.save();
+      if (!opts || opts.save !== false) {
+        if (ctx.panels.cardManager && ctx.panels.cardManager.saveCurrentDraft) {
+          ctx.panels.cardManager.saveCurrentDraft();
+        } else {
+          ctx.save();
+        }
+      }
     },
 
     addCharTagFromInput: function() {
@@ -119,15 +125,23 @@ export function registerCharacter(ctx) {
       };
 
 
-      // 字段输入 → 保存
+      function onEditableFieldInput() {
+        if (ctx.panels.cardManager && ctx.panels.cardManager.debouncedUpdateAndSave) {
+          ctx.panels.cardManager.debouncedUpdateAndSave();
+        } else {
+          ctx.save();
+        }
+      }
+
+      // 字段输入 → 同步 DOM、debounce 存盘并刷新卡管理列表
       var editableFields = ['charName', 'wbName', 'charDesc', 'firstMes', 'creatorNotes'];
       editableFields.forEach(function(id) {
         var el = ctx.$(id);
-        if (el) el.addEventListener('input', ctx.save);
+        if (el) el.addEventListener('input', onEditableFieldInput);
       });
       // 版本只读，仅 bump 按钮改值后通过 change 保存
       var verEl = ctx.$('characterVersion');
-      if (verEl) verEl.addEventListener('change', ctx.save);
+      if (verEl) verEl.addEventListener('change', onEditableFieldInput);
 
       // 角色标签芯片操作
       if (btnAddCharTag) btnAddCharTag.addEventListener('click', ctx.panels.character.addCharTagFromInput);

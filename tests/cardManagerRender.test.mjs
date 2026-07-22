@@ -110,6 +110,7 @@ describe('cardManager render after split', function() {
     var ctx = createCardBuilderContext(sm);
     ctx.$ = function(id) { return dom.ensure(id); };
     ctx.escapeHtml = function(v) { return String(v || ''); };
+    dom.ensure('charName').value = '测试角色';
 
     registerCardManager(ctx);
     assert.equal(typeof ctx.panels.cardManager.render, 'function');
@@ -126,5 +127,48 @@ describe('cardManager render after split', function() {
       el.children.forEach(walk);
     })(listEl.children[0]);
     assert.match(html, /测试角色/);
+  });
+
+  it('getDraftsForDisplay 渲染前同步 DOM 字段到当前卡快照', function() {
+    var dom = createDomStub();
+    global.document = dom.document;
+    global.window = { addEventListener() {}, removeEventListener() {}, dispatchEvent() {} };
+    global.location = { hash: '#card-manager' };
+    global.localStorage = {
+      store: Object.create(null),
+      getItem(key) { return this.store[key] || null; },
+      setItem(key, val) { this.store[key] = String(val); },
+    };
+
+    var state = createDefaultCardState();
+    state.draftId = 'draft-live-1';
+    state.charName = '旧名字';
+    var sm = createCardStateMachine(state);
+    sm.saveDraft();
+
+    var ctx = createCardBuilderContext(sm);
+    ctx.$ = function(id) {
+      if (id === 'charName') return dom.ensure('charName');
+      return dom.ensure(id);
+    };
+    ctx.escapeHtml = function(v) { return String(v || ''); };
+    dom.ensure('charName').value = '新名字';
+
+    registerCardManager(ctx);
+    ctx.panels.cardManager.render();
+
+    var html = '';
+    (function walk(el) {
+      html += el.innerHTML || '';
+      el.children.forEach(walk);
+    })(dom.ensure('cardManagerList').children[0]);
+    assert.match(html, /新名字/);
+    assert.doesNotMatch(html, /旧名字/);
+  });
+
+  it('角色设定 input 走 debouncedUpdateAndSave 而非裸 ctx.save', function() {
+    var src = readFileSync(join(process.cwd(), 'src/lib/card-builder/panels/character.mjs'), 'utf8');
+    assert.match(src, /debouncedUpdateAndSave/);
+    assert.doesNotMatch(src, /addEventListener\('input', ctx\.save\)/);
   });
 });
