@@ -26,7 +26,10 @@
 | `analyzePipeline.mjs` / `entityStore.mjs` / `rag/` | 分析与检索 |
 | `panels/*` | 各视图 |
 | `shared/bridge.mjs` | 助手桥 + 同步到主卡 |
-| `nsfwSupport.mjs` | 提示拼装（配置来自卡侧事件） |
+| `nsfwSupport.mjs` | barrel：实体模板 / 摘要 / 提示（配置来自卡侧事件） |
+| `nsfwSupportAttrs.mjs` | 实体 attrs 模板、质量门、模式开关 |
+| `nsfwSupportDigest.mjs` | 互喂摘要格式化 |
+| `nsfwSupportHints.mjs` | 分步推断、口味/禁忌/载体提示块 |
 
 ## NSFW
 
