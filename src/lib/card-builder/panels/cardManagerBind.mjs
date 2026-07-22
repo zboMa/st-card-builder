@@ -10,8 +10,8 @@ import { getCardShareMeta } from '../cardShareClient.mjs';
 export function attachCardManagerBind(ctx, s, panel) {
   function handleCardMoreAction(action, id) {
     if (!action || !id) return;
-    closeCardMoreMenu();
-    if (action === 'export-check') openExportChecklistModal();
+    panel.closeCardMoreMenu();
+    if (action === 'export-check') panel.openExportChecklistModal();
     else if (action === 'export-json') panel.exportDraftAsJson(id);
     else if (action === 'export-png') panel.exportDraftAsPng(id);
     else if (action === 'publish') panel.publishDraft(id);
@@ -110,8 +110,8 @@ export function attachCardManagerBind(ctx, s, panel) {
     document.addEventListener('keydown', function(e) {
       if (e.key === 'Escape') {
         if (s.tagPopupOpen) s.setTagPopupOpen(false);
-        closeCardMoreMenu();
-        closeCardVersionMenu();
+        panel.closeCardMoreMenu();
+        panel.closeCardVersionMenu();
       }
     });
 
@@ -162,7 +162,7 @@ export function attachCardManagerBind(ctx, s, panel) {
           e.preventDefault();
           e.stopPropagation();
           var shareMetaMore = getCardShareMeta(id) || {};
-          openCardMoreMenu(e.target.closest('[data-card-action="more"]'), id, shareMetaMore);
+          panel.openCardMoreMenu(e.target.closest('[data-card-action="more"]'), id, shareMetaMore);
           return;
         }
         if (action === 'cloud-upload' || action === 'cloud-download' || action === 'cloud-delete') {
@@ -174,7 +174,7 @@ export function attachCardManagerBind(ctx, s, panel) {
         if (action === 'versions') {
           e.preventDefault();
           e.stopPropagation();
-          openCardVersionMenu(e.target.closest('[data-card-action="versions"]'), id);
+          panel.openCardVersionMenu(e.target.closest('[data-card-action="versions"]'), id);
           return;
         }
         if (action === 'rename') {
@@ -186,12 +186,12 @@ export function attachCardManagerBind(ctx, s, panel) {
         if (action === 'export-check') {
           e.preventDefault();
           e.stopPropagation();
-          closeCardMoreMenu();
-          openExportChecklistModal();
+          panel.closeCardMoreMenu();
+          panel.openExportChecklistModal();
           return;
         }
         // Click cover/name area: switch to that draft and go to character view
-        closeCardMoreMenu();
+        panel.closeCardMoreMenu();
         panel.loadDraft(id);
         s.goToView('character');
       });
