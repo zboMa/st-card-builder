@@ -8,6 +8,7 @@ import { config, corsAllowAll, isCorsOriginAllowed } from './config.mjs';
 import { couchHealth } from './couch.mjs';
 import { authRouter } from './auth/routes.mjs';
 import { syncRouter } from './sync/routes.mjs';
+import { dataRouter } from './data/routes.mjs';
 import { shareRouter } from './share/routes.mjs';
 import { cardShareRouter } from './share/cardRoutes.mjs';
 import { adminRouter } from './admin/routes.mjs';
@@ -51,6 +52,7 @@ app.get('/api/health', async function(req, res) {
 });
 
 app.use('/api/auth', authRouter);
+app.use('/api/data', dataRouter);
 app.use('/api/sync', syncRouter);
 app.use('/api/share/cards', cardShareRouter);
 app.use('/api/share', shareRouter);

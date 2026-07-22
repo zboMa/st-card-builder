@@ -34,13 +34,13 @@ npm run couch            # 本地 CouchDB
 1. **UI**：行内操作用 `.btn-inline`；复用 `ui-patterns.css`；禁止另起一套 tip/搜索/大按钮。
 2. **作者注释字段** = `creatorNotes`（勿用 `postHistoryInstructions` 当独立字段）。
 3. **NSFW/NTL UI 入口** = 侧栏「成人配置」`AdultConfigPanel`（不是 CharacterPanel；小说原始资料无此 UI）。
-4. **浏览器 Couch 地址** = `PUBLIC_COUCH_URL`（或 `{PUBLIC_API_URL}/couch`），禁止把 `COUCHDB_URL=127.0.0.1` 发给前端。
+4. **浏览器云端** = `PUBLIC_API_URL` + `/api/data/*`；Couch 仅服务端 `COUCHDB_URL`，禁止把 `127.0.0.1` 发给前端。
 5. **JS**：源码一律 `.mjs` + ESM；Astro 无 SSR；测试直跑 Node，无 DOM。
 6. **`SecurityCordon`** 是故意软锁，勿随意删除。
 
 ## 架构一句话
 
-Astro 5 静态 SPA；三栏布局；状态靠 `window.__get*__` / CustomEvent；卡侧 `initCardBuilder()`、小说 `initNovelWorkshop()`、管理端独立 `/admin`；可选云同步 = Express + Couch + Pouch。模块地图见 [`docs/architecture/overview.md`](docs/architecture/overview.md)。
+Astro 5 静态 SPA；三栏布局；状态靠 `window.__get*__` / CustomEvent；卡侧 `initCardBuilder()`、小说 `initNovelWorkshop()`、管理端独立 `/admin`；可选云端 = Express + Couch（REST `/api/data`，浏览器不直连 Couch）。模块地图见 [`docs/architecture/overview.md`](docs/architecture/overview.md)。
 
 ## 关键目录（速查）
 

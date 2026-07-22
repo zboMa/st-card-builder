@@ -1,10 +1,9 @@
 /**
- * 用户配置镜像：提示词 / UI 偏好
- * 登录后本地一改 → 防抖写 Pouch → 仅 push prefs/*（不进用户数据 dirty）
+ * 用户配置：本地 LS + 登录后 REST 上传
  */
 import { DOC } from './docIds.mjs';
-import { getDoc, putDoc, replicateDocIdsWithRemote } from './pouch.mjs';
-import { fetchSyncCredentials } from './syncEngine.mjs';
+import { cloudSavePrefs, isCloudEnabled } from './cloudStore.mjs';
+import * as api from './cloudApi.mjs';
 import { PROMPT_STORAGE_KEY } from '../promptStore.mjs';
 
 export var FX_KEY = 'st_v3_fx_enabled';
@@ -73,77 +72,58 @@ export function applyLocalPromptOverrides(data) {
 }
 
 export async function mirrorPromptsToLocalPouch() {
-  var overrides = readLocalPromptOverrides();
-  await putDoc({
-    _id: DOC.prompts,
-    type: 'user-prefs-prompts',
-    data: overrides,
-    updatedAt: new Date().toISOString(),
-  }, { skipDirty: true });
+  // 本地已在 LS；无需 Pouch
+  return true;
 }
 
 export async function mirrorUiPrefsToLocalPouch() {
-  var ui = readLocalUiPrefs();
-  await putDoc({
-    _id: DOC.ui,
-    type: 'user-prefs-ui',
-    data: ui,
-    updatedAt: new Date().toISOString(),
-  }, { skipDirty: true });
+  return true;
 }
 
 async function pushPrefsToRemote() {
   try {
-    await mirrorPromptsToLocalPouch();
-    await mirrorUiPrefsToLocalPouch();
-    var cred = await fetchSyncCredentials();
-    await replicateDocIdsWithRemote(cred, [DOC.prompts, DOC.ui]);
+    await cloudSavePrefs('prompts', readLocalPromptOverrides());
+    await cloudSavePrefs('ui', readLocalUiPrefs());
   } catch (e) {
-    console.warn('[sync] user prefs push', e);
+    console.warn('[cloud] user prefs push', e);
   }
 }
 
-/** 调度防抖上传（未启用时只写本地 Pouch，不推远端） */
 export function scheduleUserPrefsCloudPush() {
   if (typeof window === 'undefined') return;
   if (pushTimer) clearTimeout(pushTimer);
   pushTimer = setTimeout(function() {
     pushTimer = null;
-    if (!enabled) {
-      // 未登录：仍镜像到本地 Pouch，便于日后登录首推
-      Promise.all([
-        mirrorPromptsToLocalPouch().catch(function() {}),
-        mirrorUiPrefsToLocalPouch().catch(function() {}),
-      ]);
-      return;
-    }
+    if (!enabled) return;
     pushPrefsToRemote();
   }, DEBOUNCE_MS);
 }
 
-/**
- * 登录后拉取 prefs 并合并到 localStorage（云端有则覆盖本地对应文档）
- */
 export async function pullUserPrefsFromCloud() {
-  var cred = await fetchSyncCredentials();
-  await replicateDocIdsWithRemote(cred, [DOC.prompts, DOC.ui]);
-  var promptsDoc = await getDoc(DOC.prompts);
-  if (promptsDoc && promptsDoc.data && typeof promptsDoc.data === 'object') {
-    applyLocalPromptOverrides(promptsDoc.data);
+  if (!isCloudEnabled()) {
+    try {
+      var st = await api.cloudGet('/api/auth/status');
+      // cloudGet expects data API; use fetchAuth via apiFetch path — skip if not enabled
+    } catch (e) { /* ignore */ }
   }
-  var uiDoc = await getDoc(DOC.ui);
-  if (uiDoc && uiDoc.data && typeof uiDoc.data === 'object') {
-    applyLocalUiPrefs(uiDoc.data);
+  var prompts = await api.getPrefs('prompts').catch(function() { return null; });
+  var ui = await api.getPrefs('ui').catch(function() { return null; });
+  if (prompts && prompts.data && typeof prompts.data === 'object') {
+    applyLocalPromptOverrides(prompts.data);
+  }
+  if (ui && ui.data && typeof ui.data === 'object') {
+    applyLocalUiPrefs(ui.data);
   }
   return {
-    prompts: !!(promptsDoc && promptsDoc.data),
-    ui: !!(uiDoc && uiDoc.data),
+    prompts: !!(prompts && prompts.data),
+    ui: !!(ui && ui.data),
   };
 }
 
-/** 立即推一次（登录后可选） */
 export async function pushUserPrefsToCloudNow() {
   if (!enabled) return { skipped: true };
   await pushPrefsToRemote();
   return { ok: true };
 }
+
+export { DOC };

@@ -1,0 +1,441 @@
+/**
+ * 用户库文档 CRUD（仅服务端 Nano；浏览器不直连 Couch）
+ */
+import {
+  getAdmin,
+  userDbName,
+  publicUserDbUrl,
+  ensureUserDatabase,
+} from '../couch.mjs';
+import {
+  DOC,
+  cardDocId,
+  avatarDocId,
+  novelDocId,
+  ragDocId,
+  storyCatalogDocId,
+  storyNovelDocId,
+  storyActiveDocId,
+  storyReleaseDocId,
+  catalogNovelsList,
+  buildCardIndexFromDrafts,
+  cardReleaseDocId,
+} from './docIds.mjs';
+
+/** 确保用户库存在（不再轮换浏览器同步密码） */
+export async function ensureUserDbExists(userId) {
+  var n = getAdmin();
+  var dbName = userDbName(userId);
+  try {
+    await n.db.create(dbName);
+  } catch (e) {
+    if (!e || e.statusCode !== 412) throw e;
+  }
+  return {
+    dbName: dbName,
+    dbUrl: publicUserDbUrl(dbName),
+  };
+}
+
+export function getUserDb(userId) {
+  return getAdmin().use(userDbName(userId));
+}
+
+export async function getUserDoc(userId, docId) {
+  await ensureUserDbExists(userId);
+  var db = getUserDb(userId);
+  try {
+    return await db.get(String(docId || ''));
+  } catch (e) {
+    if (e && e.statusCode === 404) return null;
+    throw e;
+  }
+}
+
+/**
+ * @param {string} userId
+ * @param {object} doc 必须含 _id
+ * @param {{ baseRev?: string, force?: boolean }} [opts]
+ */
+export async function putUserDoc(userId, doc, opts) {
+  opts = opts || {};
+  if (!doc || !doc._id) {
+    var err = new Error('missing_id');
+    err.code = 'missing_id';
+    throw err;
+  }
+  await ensureUserDbExists(userId);
+  var db = getUserDb(userId);
+  var id = String(doc._id);
+  var existing = null;
+  try {
+    existing = await db.get(id);
+  } catch (e) {
+    if (!e || e.statusCode !== 404) throw e;
+  }
+
+  if (existing && opts.baseRev && existing._rev !== opts.baseRev && !opts.force) {
+    var conflict = new Error('conflict');
+    conflict.code = 'conflict';
+    conflict.statusCode = 409;
+    conflict.serverDoc = existing;
+    throw conflict;
+  }
+
+  var next = Object.assign({}, doc);
+  delete next._rev;
+  if (existing && existing._rev) next._rev = existing._rev;
+  if (!next.updatedAt) next.updatedAt = new Date().toISOString();
+
+  var saved = await db.insert(next);
+  return {
+    ok: true,
+    id: id,
+    rev: saved.rev,
+    updatedAt: next.updatedAt,
+  };
+}
+
+export async function deleteUserDoc(userId, docId, opts) {
+  opts = opts || {};
+  await ensureUserDbExists(userId);
+  var db = getUserDb(userId);
+  var id = String(docId || '');
+  try {
+    var existing = await db.get(id);
+    if (opts.baseRev && existing._rev !== opts.baseRev && !opts.force) {
+      var conflict = new Error('conflict');
+      conflict.code = 'conflict';
+      conflict.statusCode = 409;
+      conflict.serverDoc = existing;
+      throw conflict;
+    }
+    await db.destroy(id, existing._rev);
+    return { ok: true, id: id };
+  } catch (e) {
+    if (e && e.statusCode === 404) return { ok: true, id: id, missing: true };
+    throw e;
+  }
+}
+
+export async function listUserDocsByPrefix(userId, prefix, opts) {
+  opts = opts || {};
+  await ensureUserDbExists(userId);
+  var db = getUserDb(userId);
+  var p = String(prefix || '');
+  var res = await db.list({
+    include_docs: !!opts.includeDocs,
+    startkey: p,
+    endkey: p + '\ufff0',
+  });
+  return (res.rows || []).map(function(r) {
+    return opts.includeDocs ? r.doc : { id: r.id, key: r.key };
+  }).filter(Boolean);
+}
+
+export async function getCardIndexDoc(userId) {
+  var doc = await getUserDoc(userId, DOC.cardIndex);
+  return doc && Array.isArray(doc.cards) ? doc : { _id: DOC.cardIndex, type: 'card-index', cards: [], updatedAt: null };
+}
+
+export async function putCardIndexFromMap(userId, draftsMap) {
+  return putUserDoc(userId, buildCardIndexFromDrafts(draftsMap || {}), { force: true });
+}
+
+export async function upsertCardDraft(userId, cardId, draft, opts) {
+  opts = opts || {};
+  var id = String(cardId || '').trim();
+  if (!id) {
+    var err = new Error('missing_card_id');
+    err.code = 'missing_card_id';
+    throw err;
+  }
+  var doc = {
+    _id: cardDocId(id),
+    type: 'card',
+    cardId: id,
+    data: draft,
+    updatedAt: (draft && draft.updatedAt) || new Date().toISOString(),
+  };
+  var saved = await putUserDoc(userId, doc, opts);
+
+  // 维护索引摘要
+  var idx = await getCardIndexDoc(userId);
+  var cards = Array.isArray(idx.cards) ? idx.cards.slice() : [];
+  var found = false;
+  for (var i = 0; i < cards.length; i++) {
+    if (cards[i] && cards[i].id === id) {
+      cards[i] = {
+        id: id,
+        charName: String((draft && (draft.charName || draft.name)) || cards[i].charName || '').trim(),
+        updatedAt: doc.updatedAt,
+        avatarInIdb: !!(draft && draft.avatarInIdb),
+      };
+      found = true;
+      break;
+    }
+  }
+  if (!found) {
+    cards.unshift({
+      id: id,
+      charName: String((draft && (draft.charName || draft.name)) || '').trim(),
+      updatedAt: doc.updatedAt,
+      avatarInIdb: !!(draft && draft.avatarInIdb),
+    });
+  }
+  cards.sort(function(a, b) {
+    return String(b.updatedAt || '').localeCompare(String(a.updatedAt || ''));
+  });
+  await putUserDoc(userId, {
+    _id: DOC.cardIndex,
+    type: 'card-index',
+    cards: cards,
+    updatedAt: new Date().toISOString(),
+  }, { force: true });
+
+  return saved;
+}
+
+/**
+ * 完整卡包：开卡所需的全部关联文档（避免拆碎）
+ */
+export async function getCardBundle(userId, cardId) {
+  var id = String(cardId || '').trim();
+  if (!id) return null;
+
+  var card = await getUserDoc(userId, cardDocId(id));
+  var avatarFull = await getUserDoc(userId, avatarDocId(id, 'full'));
+  var avatarThumb = await getUserDoc(userId, avatarDocId(id, 'thumb'));
+  var novel = await getUserDoc(userId, novelDocId(id));
+  var rag = await getUserDoc(userId, ragDocId(id));
+  var catalog = await getUserDoc(userId, storyCatalogDocId(id));
+  var active = await getUserDoc(userId, storyActiveDocId(id));
+  var releaseCurrent = await getUserDoc(userId, cardReleaseDocId(id));
+
+  var novelMetas = catalogNovelsList(catalog);
+  var novels = [];
+  var releases = [];
+  for (var i = 0; i < novelMetas.length; i++) {
+    var meta = novelMetas[i];
+    var nid = meta && (meta.id || meta.novelId);
+    if (!nid) continue;
+    var sn = await getUserDoc(userId, storyNovelDocId(id, nid));
+    if (sn) novels.push(sn);
+    var rel = await getUserDoc(userId, storyReleaseDocId(id, nid));
+    if (rel) releases.push(rel);
+  }
+
+  // 若 catalog 为空但 active 有 novelId，仍拉工作稿
+  if (!novels.length && active && active.data && active.data.novelId) {
+    var activeNid = String(active.data.novelId);
+    var sn2 = await getUserDoc(userId, storyNovelDocId(id, activeNid));
+    if (sn2) novels.push(sn2);
+    var rel2 = await getUserDoc(userId, storyReleaseDocId(id, activeNid));
+    if (rel2) releases.push(rel2);
+  }
+
+  return {
+    cardId: id,
+    card: card,
+    avatar: {
+      full: avatarFull,
+      thumb: avatarThumb,
+    },
+    novel: novel,
+    rag: rag,
+    story: {
+      catalog: catalog,
+      active: active,
+      novels: novels,
+      releases: releases,
+    },
+    cardRelease: releaseCurrent,
+  };
+}
+
+/**
+ * 写入完整卡包（用于登录后本地→云端导入 / 整卡保存）
+ */
+export async function putCardBundle(userId, cardId, bundle, opts) {
+  opts = opts || {};
+  var id = String(cardId || '').trim();
+  if (!id) {
+    var err = new Error('missing_card_id');
+    err.code = 'missing_card_id';
+    throw err;
+  }
+  bundle = bundle || {};
+  var results = {};
+
+  if (bundle.card != null) {
+    var draft = bundle.card.data != null ? bundle.card.data : bundle.card;
+    results.card = await upsertCardDraft(userId, id, draft, { force: !!opts.force });
+  }
+
+  async function putMaybe(docOrData, build) {
+    if (docOrData == null) return null;
+    var doc = build(docOrData);
+    return putUserDoc(userId, doc, { force: true });
+  }
+
+  if (bundle.avatar && bundle.avatar.full) {
+    results.avatarFull = await putMaybe(bundle.avatar.full, function(d) {
+      return {
+        _id: avatarDocId(id, 'full'),
+        type: 'avatar',
+        cardId: id,
+        kind: 'full',
+        contentType: d.contentType || 'image/jpeg',
+        encoding: 'base64',
+        data: d.data != null ? d.data : d,
+        updatedAt: d.updatedAt || new Date().toISOString(),
+      };
+    });
+  }
+  if (bundle.avatar && bundle.avatar.thumb) {
+    results.avatarThumb = await putMaybe(bundle.avatar.thumb, function(d) {
+      return {
+        _id: avatarDocId(id, 'thumb'),
+        type: 'avatar',
+        cardId: id,
+        kind: 'thumb',
+        contentType: d.contentType || 'image/jpeg',
+        encoding: 'base64',
+        data: d.data != null ? d.data : d,
+        updatedAt: d.updatedAt || new Date().toISOString(),
+      };
+    });
+  }
+
+  if (bundle.novel != null) {
+    results.novel = await putMaybe(bundle.novel, function(d) {
+      return {
+        _id: novelDocId(id),
+        type: 'novel',
+        cardId: id,
+        data: d.data != null ? d.data : d,
+        updatedAt: d.updatedAt || new Date().toISOString(),
+      };
+    });
+  }
+  if (bundle.rag != null) {
+    results.rag = await putMaybe(bundle.rag, function(d) {
+      return {
+        _id: ragDocId(id),
+        type: 'rag',
+        cardId: id,
+        data: d.data != null ? d.data : d,
+        updatedAt: d.updatedAt || new Date().toISOString(),
+      };
+    });
+  }
+
+  if (bundle.story) {
+    if (bundle.story.catalog != null) {
+      var cat = bundle.story.catalog;
+      var list = catalogNovelsList(cat);
+      results.catalog = await putUserDoc(userId, {
+        _id: storyCatalogDocId(id),
+        type: 'story-catalog',
+        cardId: id,
+        data: list,
+        updatedAt: new Date().toISOString(),
+      }, { force: true });
+    }
+    if (bundle.story.active != null) {
+      var act = bundle.story.active;
+      results.active = await putUserDoc(userId, {
+        _id: storyActiveDocId(id),
+        type: 'story-active',
+        cardId: id,
+        data: act.data != null ? act.data : act,
+        updatedAt: new Date().toISOString(),
+      }, { force: true });
+    }
+    var novels = Array.isArray(bundle.story.novels) ? bundle.story.novels : [];
+    results.novels = [];
+    for (var i = 0; i < novels.length; i++) {
+      var n = novels[i];
+      var ndata = n && (n.data != null ? n.data : n);
+      var nid = (n && n.novelId) || (ndata && ndata.id) || '';
+      if (!nid) continue;
+      results.novels.push(await putUserDoc(userId, {
+        _id: storyNovelDocId(id, nid),
+        type: 'story-novel',
+        cardId: id,
+        novelId: String(nid),
+        data: ndata,
+        updatedAt: new Date().toISOString(),
+      }, { force: true }));
+    }
+    var releases = Array.isArray(bundle.story.releases) ? bundle.story.releases : [];
+    results.releases = [];
+    for (var j = 0; j < releases.length; j++) {
+      var r = releases[j];
+      var rdata = r && (r.data != null ? r.data : r);
+      var rnid = (r && r.novelId) || (rdata && rdata.novelId) || '';
+      if (!rnid) continue;
+      results.releases.push(await putUserDoc(userId, {
+        _id: storyReleaseDocId(id, rnid),
+        type: 'story-release',
+        cardId: id,
+        novelId: String(rnid),
+        characterVersion: r.characterVersion || rdata.characterVersion,
+        novelVersion: r.novelVersion || rdata.novelVersion,
+        displayVersion: r.displayVersion || rdata.displayVersion,
+        publishedAt: r.publishedAt || rdata.publishedAt,
+        data: rdata,
+        updatedAt: new Date().toISOString(),
+      }, { force: true }));
+    }
+  }
+
+  return { ok: true, cardId: id, results: results };
+}
+
+export async function cascadeDeleteCard(userId, cardId) {
+  var id = String(cardId || '').trim();
+  if (!id) return { ok: false };
+  var catalog = await getUserDoc(userId, storyCatalogDocId(id));
+  var novels = catalogNovelsList(catalog);
+  var ids = [
+    cardDocId(id),
+    avatarDocId(id, 'full'),
+    avatarDocId(id, 'thumb'),
+    novelDocId(id),
+    ragDocId(id),
+    storyCatalogDocId(id),
+    storyActiveDocId(id),
+    cardReleaseDocId(id),
+  ];
+  novels.forEach(function(n) {
+    var nid = n && (n.id || n.novelId);
+    if (nid) {
+      ids.push(storyNovelDocId(id, nid));
+      ids.push(storyReleaseDocId(id, nid));
+    }
+  });
+  for (var i = 0; i < ids.length; i++) {
+    try { await deleteUserDoc(userId, ids[i], { force: true }); } catch (e) { /* ignore */ }
+  }
+
+  var idx = await getCardIndexDoc(userId);
+  var cards = (idx.cards || []).filter(function(c) { return c && c.id !== id; });
+  await putUserDoc(userId, {
+    _id: DOC.cardIndex,
+    type: 'card-index',
+    cards: cards,
+    updatedAt: new Date().toISOString(),
+  }, { force: true });
+
+  return { ok: true, deleted: ids.length };
+}
+
+/** 禁用用户时仍可轮换旧同步账号密码（兼容） */
+export async function revokeLegacySyncAccess(userId) {
+  try {
+    return await ensureUserDatabase(userId);
+  } catch (e) {
+    return null;
+  }
+}

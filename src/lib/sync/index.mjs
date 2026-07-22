@@ -1,5 +1,5 @@
 /**
- * 同步层入口
+ * 云端数据层入口（原 sync）
  */
 export * from './docIds.mjs';
 export * from './syncEngine.mjs';
@@ -27,6 +27,7 @@ export {
   mirrorCardIndexFromDraftsMap,
   mirrorNovelWorkshopToPouch,
   mirrorRagToPouch,
+  mirrorCardReleaseToPouch,
 } from './cardMirror.mjs';
 export {
   mirrorAvatarToPouch,
@@ -50,3 +51,12 @@ export {
   decryptJsonWithPassphrase,
   isEncryptedSecretsDoc,
 } from './secretCrypto.mjs';
+export {
+  setCloudEnabled,
+  isCloudEnabled,
+  ensureCardBundleLocal,
+  buildLocalCardBundle,
+  hydrateCardBundleToLocal,
+  runCloudReconcile,
+} from './cloudStore.mjs';
+export { getOutboxSize, peekOutbox, clearOutbox } from './outbox.mjs';

@@ -1,10 +1,10 @@
 /**
- * 用户 API 配置包：口令加密上云（主动同步，不进全量 runSync）
- * 包内含完整 AI 面板配置 + 联网搜索，下载后回写旁路 Embedding 键。
+ * 用户 API 配置包：口令加密上云（主动；走 /api/data/secrets）
  */
 import { DOC } from './docIds.mjs';
-import { getDoc, putDoc, removeDoc, replicateDocIdsWithRemote } from './pouch.mjs';
-import { fetchSyncCredentials } from './syncEngine.mjs';
+import * as api from './cloudApi.mjs';
+import { enqueueOutbox } from './outbox.mjs';
+import { isCloudEnabled } from './cloudStore.mjs';
 import {
   encryptJsonWithPassphrase,
   decryptJsonWithPassphrase,
@@ -28,15 +28,10 @@ function parseJson(raw, fallback) {
   }
 }
 
-/**
- * 汇总本机完整 API 配置包（含旁路键与搜索）
- * @returns {{ v: number, aiConfig: object, searchConfig: object|null }}
- */
 export function collectLocalApiConfigPackage() {
   var ai = parseJson(localStorage.getItem(AI_CONFIG_KEY), null);
   if (!ai || typeof ai !== 'object') ai = {};
 
-  // 旁路键补齐（面板可能只写了独立 LS）
   var embedUrl = localStorage.getItem(EMBED_URL_LS_KEY);
   var embedKey = localStorage.getItem(EMBED_KEY_LS_KEY);
   var embedModel = localStorage.getItem(EMBED_MODEL_LS_KEY);
@@ -56,10 +51,6 @@ export function collectLocalApiConfigPackage() {
   };
 }
 
-/**
- * 将配置包写回 localStorage（兼容旧版「整份 ai_config」明文）
- * @param {object} pkg
- */
 export function applyLocalApiConfigPackage(pkg) {
   if (!pkg || typeof pkg !== 'object') throw new Error('invalid_api_config_package');
 
@@ -69,7 +60,6 @@ export function applyLocalApiConfigPackage(pkg) {
     ai = pkg.aiConfig;
     if (pkg.searchConfig && typeof pkg.searchConfig === 'object') search = pkg.searchConfig;
   } else {
-    // 旧格式：加密对象本身就是 ai_config
     ai = pkg;
   }
 
@@ -93,73 +83,91 @@ export function applyLocalApiConfigPackage(pkg) {
 }
 
 export async function getSyncSecretsPref() {
-  var prefs = await getDoc(DOC.syncPrefs);
-  return !!(prefs && prefs.syncSecrets);
+  try {
+    var raw = localStorage.getItem('st_v3_sync_prefs_v1');
+    var prefs = raw ? JSON.parse(raw) : {};
+    return !!prefs.syncSecrets;
+  } catch (e) {
+    return false;
+  }
 }
 
 export async function setSyncSecretsPref(on) {
-  var prefs = await getDoc(DOC.syncPrefs);
-  var next = Object.assign({}, prefs || {}, {
-    _id: DOC.syncPrefs,
-    type: 'sync-prefs',
-    syncSecrets: !!on,
-    updatedAt: new Date().toISOString(),
-  });
-  await putDoc(next, { skipDirty: true });
+  var prefs = {};
+  try {
+    prefs = JSON.parse(localStorage.getItem('st_v3_sync_prefs_v1') || '{}') || {};
+  } catch (e) { prefs = {}; }
+  prefs.syncSecrets = !!on;
+  prefs.updatedAt = new Date().toISOString();
+  localStorage.setItem('st_v3_sync_prefs_v1', JSON.stringify(prefs));
 }
 
-async function replicateAiSecretsOnly() {
-  var cred = await fetchSyncCredentials();
-  return replicateDocIdsWithRemote(cred, [DOC.aiSecrets]);
-}
-
-export async function saveEncryptedAiSecretsToLocalPouch(passphrase) {
+export async function saveEncryptedAiSecretsLocal(passphrase) {
   var data = collectLocalApiConfigPackage();
-  if (!data.aiConfig || (typeof data.aiConfig === 'object' && !Object.keys(data.aiConfig).length && !data.searchConfig)) {
-    // 允许仅有空对象时仍报错，避免无意义上传
-    var hasAny = data.aiConfig && (
-      data.aiConfig.url || data.aiConfig.key || data.aiConfig.model
-      || data.aiConfig.embeddingApiKey || data.aiConfig.embeddingApiUrl
-    );
-    if (!hasAny && !data.searchConfig) throw new Error('no_ai_config');
-  }
+  var hasAny = data.aiConfig && (
+    data.aiConfig.url || data.aiConfig.key || data.aiConfig.model
+    || data.aiConfig.embeddingApiKey || data.aiConfig.embeddingApiUrl
+  );
+  if (!hasAny && !data.searchConfig) throw new Error('no_ai_config');
   var enc = await encryptJsonWithPassphrase(data, passphrase);
-  await putDoc({
-    _id: DOC.aiSecrets,
-    type: 'ai-secrets',
-    enc: enc,
-    data: null,
-    encrypted: true,
-    packageVersion: 2,
-    updatedAt: new Date().toISOString(),
-  });
-  return true;
+  try {
+    localStorage.setItem('st_v3_ai_secrets_enc_cache', JSON.stringify({
+      enc: enc,
+      packageVersion: 2,
+      updatedAt: new Date().toISOString(),
+    }));
+  } catch (e) { /* ignore */ }
+  return enc;
+}
+
+/** @deprecated 兼容旧名 */
+export async function saveEncryptedAiSecretsToLocalPouch(passphrase) {
+  return saveEncryptedAiSecretsLocal(passphrase);
 }
 
 export async function loadAiSecretsEnvelopeFromLocalPouch() {
-  return getDoc(DOC.aiSecrets);
+  try {
+    var raw = localStorage.getItem('st_v3_ai_secrets_enc_cache');
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
 }
 
 export async function clearCloudAiSecrets() {
-  await removeDoc(DOC.aiSecrets);
-  await replicateAiSecretsOnly();
+  try {
+    localStorage.removeItem('st_v3_ai_secrets_enc_cache');
+  } catch (e) { /* ignore */ }
+  if (!isCloudEnabled()) {
+    enqueueOutbox({ op: 'deleteSecrets', dedupeKey: 'deleteSecrets' });
+    return;
+  }
+  try {
+    await api.deleteAiSecretsEnc();
+  } catch (e) {
+    enqueueOutbox({ op: 'deleteSecrets', dedupeKey: 'deleteSecrets' });
+    throw e;
+  }
 }
 
-/** 口令加密上传完整 AI API 配置到云端 */
 export async function uploadAiSecretsToCloud(passphrase) {
   if (!passphrase) throw new Error('passphrase_required');
-  await saveEncryptedAiSecretsToLocalPouch(passphrase);
-  await replicateAiSecretsOnly();
+  var enc = await saveEncryptedAiSecretsLocal(passphrase);
+  if (!isCloudEnabled()) {
+    enqueueOutbox({
+      op: 'putSecrets',
+      body: { enc: enc, packageVersion: 2 },
+      dedupeKey: 'putSecrets',
+    });
+    return;
+  }
+  await api.putAiSecretsEnc(enc, 2);
 }
 
-/**
- * 从云端拉取并解密写入本地
- * @returns {{ aiConfig: object, searchConfig: object|null }}
- */
 export async function downloadAiSecretsFromCloud(passphrase) {
   if (!passphrase) throw new Error('passphrase_required');
-  await replicateAiSecretsOnly();
-  var doc = await loadAiSecretsEnvelopeFromLocalPouch();
+  var res = await api.getAiSecretsEnc();
+  var doc = res && res.doc;
   if (!doc) throw new Error('no_cloud_secrets');
 
   var plain;
@@ -167,13 +175,19 @@ export async function downloadAiSecretsFromCloud(passphrase) {
     plain = await decryptJsonWithPassphrase(doc.enc, passphrase);
   } else if (doc.data && typeof doc.data === 'object') {
     plain = doc.data;
-    // 旧明文：用新包装重加密
-    await saveEncryptedAiSecretsToLocalPouch(passphrase);
-    await replicateAiSecretsOnly();
+  } else if (doc.enc) {
+    plain = await decryptJsonWithPassphrase(doc.enc, passphrase);
   } else {
     throw new Error('no_cloud_secrets');
   }
+  try {
+    localStorage.setItem('st_v3_ai_secrets_enc_cache', JSON.stringify({
+      enc: doc.enc || null,
+      packageVersion: doc.packageVersion || 2,
+      updatedAt: doc.updatedAt || new Date().toISOString(),
+    }));
+  } catch (e) { /* ignore */ }
   return applyLocalApiConfigPackage(plain);
 }
 
-export { isEncryptedSecretsDoc };
+export { isEncryptedSecretsDoc, DOC };
