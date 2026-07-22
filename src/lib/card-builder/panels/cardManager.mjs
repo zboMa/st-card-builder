@@ -228,9 +228,47 @@ export function registerCardManager(ctx) {
     var popup = ctx.$('cardManagerTagPopup');
     var btn = ctx.$('btnCardTagPicker');
     tagPopupOpen = !!open;
-    if (popup) popup.hidden = !tagPopupOpen;
+    if (!popup) {
+      if (btn) btn.setAttribute('aria-expanded', 'false');
+      return;
+    }
     if (btn) btn.setAttribute('aria-expanded', tagPopupOpen ? 'true' : 'false');
+    if (!tagPopupOpen) {
+      popup.hidden = true;
+      popup.classList.remove('is-fixed-portal');
+      popup.style.left = '';
+      popup.style.top = '';
+      popup.style.width = '';
+      popup.style.visibility = '';
+      if (popup._tagPopupHome && popup.parentNode !== popup._tagPopupHome) {
+        popup._tagPopupHome.appendChild(popup);
+      }
+      if (tagPopupRepositionHandler) {
+        window.removeEventListener('scroll', tagPopupRepositionHandler, true);
+        window.removeEventListener('resize', tagPopupRepositionHandler);
+        tagPopupRepositionHandler = null;
+      }
+      return;
+    }
+    if (!popup._tagPopupHome) popup._tagPopupHome = popup.parentNode;
+    document.body.appendChild(popup);
+    popup.hidden = false;
+    popup.classList.add('is-fixed-portal');
+    positionFixedPopover(popup, btn || popup._tagPopupHome, { width: 320, gap: 4 });
+    tagPopupRepositionHandler = function() {
+      if (!tagPopupOpen || !popup.isConnected) return;
+      var anchor = ctx.$('btnCardTagPicker') || popup._tagPopupHome;
+      if (!anchor || !anchor.isConnected) {
+        setTagPopupOpen(false);
+        return;
+      }
+      positionFixedPopover(popup, anchor, { width: 320, gap: 4 });
+    };
+    window.addEventListener('scroll', tagPopupRepositionHandler, true);
+    window.addEventListener('resize', tagPopupRepositionHandler);
   }
+
+  var tagPopupRepositionHandler = null;
 
   function toggleFilterTag(tag) {
     var t = String(tag || '').trim();
@@ -271,8 +309,10 @@ export function registerCardManager(ctx) {
     return ''
       + '<div class="card-manager-item-actions__group">'
       + iconBtn('dup', '复制')
-      + iconBtn('more', '更多操作')
       + iconBtn('delete', '删除', 'card-mgr-icon--danger btn-icon--danger')
+      + '</div>'
+      + '<div class="card-manager-item-actions__group card-manager-item-actions__group--end">'
+      + iconBtn('more', '更多操作')
       + '</div>';
   };
 
@@ -317,39 +357,99 @@ export function registerCardManager(ctx) {
     document.querySelectorAll('[data-card-action="more"][aria-expanded="true"]').forEach(function(btn) {
       btn.setAttribute('aria-expanded', 'false');
     });
+    if (cardMoreMenuDocHandler) {
+      document.removeEventListener('mousedown', cardMoreMenuDocHandler, true);
+      cardMoreMenuDocHandler = null;
+    }
+    if (cardMoreMenuRepositionHandler) {
+      window.removeEventListener('scroll', cardMoreMenuRepositionHandler, true);
+      window.removeEventListener('resize', cardMoreMenuRepositionHandler);
+      cardMoreMenuRepositionHandler = null;
+    }
+  }
+
+  var cardMoreMenuDocHandler = null;
+  var cardMoreMenuRepositionHandler = null;
+
+  function positionFixedPopover(pop, anchorBtn, opts) {
+    opts = opts || {};
+    var width = opts.width || 220;
+    var gap = opts.gap != null ? opts.gap : 6;
+    var rect = anchorBtn.getBoundingClientRect();
+    var vh = window.innerHeight || document.documentElement.clientHeight || 0;
+    var vw = window.innerWidth || document.documentElement.clientWidth || 0;
+    // 先放到视口外测高
+    pop.style.visibility = 'hidden';
+    pop.style.left = '0px';
+    pop.style.top = '0px';
+    pop.style.width = width + 'px';
+    var popH = Math.max(pop.offsetHeight || 280, 120);
+    var popW = Math.min(width, vw - 16);
+    pop.style.width = popW + 'px';
+
+    var preferAbove = rect.top > vh - rect.bottom;
+    var top;
+    if (preferAbove) {
+      top = rect.top - popH - gap;
+      if (top < 8) top = 8;
+    } else {
+      top = rect.bottom + gap;
+      if (top + popH > vh - 8) top = Math.max(8, vh - popH - 8);
+    }
+    var left = rect.right - popW;
+    if (left < 8) left = 8;
+    if (left + popW > vw - 8) left = Math.max(8, vw - popW - 8);
+
+    pop.style.left = Math.round(left) + 'px';
+    pop.style.top = Math.round(top) + 'px';
+    pop.style.visibility = '';
   }
 
   function openCardMoreMenu(anchorBtn, cardId, shareMeta) {
     closeCardMoreMenu();
-    var item = anchorBtn.closest('.card-manager-item');
-    if (!item) return;
+    if (!anchorBtn) return;
     anchorBtn.setAttribute('aria-expanded', 'true');
     var pop = document.createElement('div');
     pop.className = 'card-more-popover';
     pop.setAttribute('data-card-id', cardId);
+    pop.setAttribute('role', 'menu');
     var loggedIn = false;
     try {
-      // 同步探测：账户页登录后会 setCloudEnabled；无则仍可点开看禁用项
       loggedIn = !!(window.__syncCloudEnabled__ || (window.__getCloudEnabled__ && window.__getCloudEnabled__()));
     } catch (e) { loggedIn = false; }
-    // 动态 import 状态
+    function fill(logged) {
+      if (!pop.isConnected) return;
+      pop.innerHTML = panel.buildCardMoreMenuHtml(shareMeta, logged);
+      positionFixedPopover(pop, anchorBtn, { width: 220 });
+    }
+    pop.innerHTML = panel.buildCardMoreMenuHtml(shareMeta, loggedIn);
+    // 挂到 body，避免卡片 overflow:hidden 裁切
+    document.body.appendChild(pop);
+    positionFixedPopover(pop, anchorBtn, { width: 220 });
     import('../../sync/index.mjs').then(function(sync) {
       if (sync.isCloudEnabled) loggedIn = !!sync.isCloudEnabled();
-      pop.innerHTML = panel.buildCardMoreMenuHtml(shareMeta, loggedIn);
+      fill(loggedIn);
     }).catch(function() {
-      pop.innerHTML = panel.buildCardMoreMenuHtml(shareMeta, false);
+      fill(false);
     });
-    pop.innerHTML = panel.buildCardMoreMenuHtml(shareMeta, loggedIn);
-    item.appendChild(pop);
-    // 点击外部关闭
+
+    cardMoreMenuRepositionHandler = function() {
+      if (!pop.isConnected || !anchorBtn.isConnected) {
+        closeCardMoreMenu();
+        return;
+      }
+      positionFixedPopover(pop, anchorBtn, { width: 220 });
+    };
+    window.addEventListener('scroll', cardMoreMenuRepositionHandler, true);
+    window.addEventListener('resize', cardMoreMenuRepositionHandler);
+
     setTimeout(function() {
-      function onDoc(ev) {
+      cardMoreMenuDocHandler = function(ev) {
         if (!pop.contains(ev.target) && ev.target !== anchorBtn && !anchorBtn.contains(ev.target)) {
           closeCardMoreMenu();
-          document.removeEventListener('mousedown', onDoc, true);
         }
-      }
-      document.addEventListener('mousedown', onDoc, true);
+      };
+      document.addEventListener('mousedown', cardMoreMenuDocHandler, true);
     }, 0);
   }
 
@@ -368,12 +468,24 @@ export function registerCardManager(ctx) {
 
   // ---- Core render ----
   panel.render = function (storedDrafts) {
+    closeCardMoreMenu();
     var listEl = ctx.$('cardManagerList');
     if (!listEl) return;
     revokeManagerThumbs();
     var dr = getDraftsForDisplay(storedDrafts);
     var allTags = collectAllTags(dr);
     renderTagFilters(allTags);
+    if (tagPopupOpen) {
+      var popup = ctx.$('cardManagerTagPopup');
+      var btn = ctx.$('btnCardTagPicker');
+      if (popup && btn) {
+        if (!popup._tagPopupHome) popup._tagPopupHome = ctx.$('cardManagerFilters') || popup.parentNode;
+        if (popup.parentNode !== document.body) document.body.appendChild(popup);
+        popup.hidden = false;
+        popup.classList.add('is-fixed-portal');
+        positionFixedPopover(popup, btn, { width: 320, gap: 4 });
+      }
+    }
 
     var ks = Object.keys(dr).filter(function(id) {
       return draftMatchesFilters(dr[id] || {});
@@ -1348,6 +1460,22 @@ export function registerCardManager(ctx) {
     return buildCardJSONFromDraft(d);
   };
 
+  function handleCardMoreAction(action, id) {
+    if (!action || !id) return;
+    closeCardMoreMenu();
+    if (action === 'export-check') openExportChecklistModal();
+    else if (action === 'export-json') panel.exportDraftAsJson(id);
+    else if (action === 'export-png') panel.exportDraftAsPng(id);
+    else if (action === 'publish') panel.publishDraft(id);
+    else if (action === 'share') panel.shareDraft(id);
+    else if (action === 'reset-share') panel.shareDraft(id, { resetToken: true });
+    else if (action === 'copy-share') panel.copyShareLink(id);
+    else if (action === 'unshare') panel.unshareDraft(id);
+    else if (action === 'cloud-upload') panel.cloudUploadOverwrite(id);
+    else if (action === 'cloud-download') panel.cloudDownloadOverwrite(id);
+    else if (action === 'cloud-delete') panel.cloudDeleteRemote(id);
+  }
+
   // ---- Event bindings ----
   panel.bind = function () {
     panel.bindExportChecklistUi();
@@ -1424,12 +1552,35 @@ export function registerCardManager(ctx) {
     document.addEventListener('click', function(e) {
       if (!tagPopupOpen) return;
       var filters = ctx.$('cardManagerFilters');
+      var popup = ctx.$('cardManagerTagPopup');
+      var picker = ctx.$('btnCardTagPicker');
       if (filters && filters.contains(e.target)) return;
+      if (popup && popup.contains(e.target)) return;
+      if (picker && (e.target === picker || picker.contains(e.target))) return;
       setTagPopupOpen(false);
     });
     document.addEventListener('keydown', function(e) {
-      if (e.key === 'Escape' && tagPopupOpen) setTagPopupOpen(false);
+      if (e.key === 'Escape') {
+        if (tagPopupOpen) setTagPopupOpen(false);
+        closeCardMoreMenu();
+      }
     });
+
+    if (!document._cardMoreMenuBound) {
+      document._cardMoreMenuBound = true;
+      document.addEventListener('click', function(e) {
+        var pop = e.target.closest('.card-more-popover');
+        if (!pop) return;
+        var actionEl = e.target.closest('[data-card-action]');
+        if (!actionEl) return;
+        var action = actionEl.getAttribute('data-card-action');
+        var id = pop.getAttribute('data-card-id');
+        if (!id || !action) return;
+        e.preventDefault();
+        e.stopPropagation();
+        handleCardMoreAction(action, id);
+      });
+    }
 
     var btnNewDraft = ctx.$('btnNewDraft');
     if (btnNewDraft) {
@@ -1476,76 +1627,6 @@ export function registerCardManager(ctx) {
           e.stopPropagation();
           closeCardMoreMenu();
           openExportChecklistModal();
-          return;
-        }
-        if (action === 'export-json') {
-          e.preventDefault();
-          e.stopPropagation();
-          closeCardMoreMenu();
-          panel.exportDraftAsJson(id);
-          return;
-        }
-        if (action === 'export-png') {
-          e.preventDefault();
-          e.stopPropagation();
-          closeCardMoreMenu();
-          panel.exportDraftAsPng(id);
-          return;
-        }
-        if (action === 'publish') {
-          e.preventDefault();
-          e.stopPropagation();
-          closeCardMoreMenu();
-          panel.publishDraft(id);
-          return;
-        }
-        if (action === 'share') {
-          e.preventDefault();
-          e.stopPropagation();
-          closeCardMoreMenu();
-          panel.shareDraft(id);
-          return;
-        }
-        if (action === 'reset-share') {
-          e.preventDefault();
-          e.stopPropagation();
-          closeCardMoreMenu();
-          panel.shareDraft(id, { resetToken: true });
-          return;
-        }
-        if (action === 'copy-share') {
-          e.preventDefault();
-          e.stopPropagation();
-          closeCardMoreMenu();
-          panel.copyShareLink(id);
-          return;
-        }
-        if (action === 'unshare') {
-          e.preventDefault();
-          e.stopPropagation();
-          closeCardMoreMenu();
-          panel.unshareDraft(id);
-          return;
-        }
-        if (action === 'cloud-upload') {
-          e.preventDefault();
-          e.stopPropagation();
-          closeCardMoreMenu();
-          panel.cloudUploadOverwrite(id);
-          return;
-        }
-        if (action === 'cloud-download') {
-          e.preventDefault();
-          e.stopPropagation();
-          closeCardMoreMenu();
-          panel.cloudDownloadOverwrite(id);
-          return;
-        }
-        if (action === 'cloud-delete') {
-          e.preventDefault();
-          e.stopPropagation();
-          closeCardMoreMenu();
-          panel.cloudDeleteRemote(id);
           return;
         }
         // Click cover/name area: switch to that draft and go to character view

@@ -404,6 +404,7 @@
     display: flex;
     flex-wrap: nowrap;
     align-items: center;
+    justify-content: space-between;
     gap: 4px;
     padding: var(--space-1) var(--space-2);
     border-top: 1px solid var(--color-border-subtle);
@@ -421,16 +422,16 @@
     flex-shrink: 0;
   }
 
-  .card-manager-item {
-    position: relative;
+  .card-manager-item-actions__group--end {
+    margin-left: auto;
   }
 
   .card-more-popover {
-    position: absolute;
-    right: 8px;
-    bottom: 44px;
-    z-index: 8;
-    width: min(220px, calc(100% - 12px));
+    position: fixed;
+    z-index: 9600;
+    width: 220px;
+    max-height: min(70vh, 480px);
+    overflow-y: auto;
     border: 1px solid var(--color-border-subtle);
     border-radius: 12px;
     background: rgba(8, 12, 24, 0.96);
@@ -498,7 +499,7 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
-    z-index: 3;
+    z-index: 40;
   }
   .card-manager-filter-search .ui-search-bar {
     width: 100%;
@@ -566,7 +567,7 @@
     position: absolute;
     left: 0;
     top: calc(100% + 4px);
-    z-index: 30;
+    z-index: 50;
     width: min(320px, 100%);
     max-height: 240px;
     overflow: auto;
@@ -578,6 +579,13 @@
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
+  }
+  .card-manager-tag-popup.is-fixed-portal {
+    position: fixed;
+    z-index: 9550;
+    top: 0;
+    left: 0;
+    width: min(320px, calc(100vw - 16px));
   }
   .card-manager-tag-popup[hidden] {
     display: none !important;
