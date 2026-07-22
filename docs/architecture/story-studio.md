@@ -16,6 +16,15 @@
 
 `StoryStudioApp` → `src/lib/storyStudio/browserApp.mjs`。分享读者壳：`ShareReaderPanel`（`#share/{token}`）。
 
+## 版本模型（卡 / 小说一致）
+
+- **唯一草稿** + **`versions[]` 正式列表**（每版完整快照 + `published` 标记）
+- **保存**：只写草稿，不写 `versions`
+- **切版 / 增版 / 发布**：才把当前草稿写入 `versions`
+- **发布**：标记已发布，草稿自动再升一版；升版号须 **> 全局最大已发号**
+- **分享**：`latest` 固定链对接最新已发；另有带版本号链接
+- 实现：`cardVersions.mjs` / `novelVersions.mjs`（开发期无旧数据兼容负担）
+
 ## 模块
 
 | 文件 | 职责 |

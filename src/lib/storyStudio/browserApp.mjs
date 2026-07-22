@@ -40,6 +40,14 @@ import {
   normalizeCharacterVersion,
 } from './version.mjs';
 import {
+  bumpNovelDraftVersion,
+  publishNovelDraft,
+  switchNovelDraftVersion,
+  listNovelVersions,
+  ensureNovelVersions,
+  getNovelDisplayVersion,
+} from './novelVersions.mjs';
+import {
   apiCreateNovelShare,
   apiDeleteNovelShare,
   buildLocalShareUrl,
@@ -273,7 +281,9 @@ function buildNovelActionsHtml(item) {
     + iconBtn('delete', '删除', 'ss-novel-icon--danger btn-icon--danger', deleteSvg)
     + '</div>'
     + '<div class="ss-novel-item__share">'
-    + textBtn('bump', '增版', '把当前草稿固化为分享可见版')
+    + textBtn('versions', '版本', '版本列表与切换')
+    + textBtn('bump', '增版', '写入版本列表并升草稿版号（不发布）')
+    + textBtn('publish', '发布', '写入已发布版本，草稿自动再升一版')
     + textBtn('share', '分享')
     + (item.shareToken ? textBtn('reset-share', '重置链接', '作废旧链接并生成新 token') : '')
     + (item.shareToken ? textBtn('unshare', '停分享') : '')
@@ -805,39 +815,59 @@ async function bumpNovel(novelId) {
     return;
   }
   var novel = normalizeNovel(raw);
+  ensureNovelVersions(novel);
+  var charVer = getCharacterVersion();
+  var r = bumpNovelDraftVersion(novel, charVer);
+  await saveNovel(cardId, novelId, novel);
+  state.catalog = upsertCatalogEntry(state.catalog, novel);
+  await saveCatalog(cardId, state.catalog);
+  if (state.novel && state.novel.id === novelId) state.novel = novel;
+  await mirrorStoryDocs(cardId, novel, state.catalog);
+  setStatus('已增版，草稿现为 ' + r.ver + '（上一版已写入列表，未发布）');
+  renderAll();
+}
+
+async function publishNovel(novelId) {
+  var cardId = getCardId();
+  var raw = await loadNovel(cardId, novelId);
+  if (!raw) {
+    setStatus('发布失败：找不到小说');
+    return;
+  }
+  var novel = normalizeNovel(raw);
+  ensureNovelVersions(novel);
   var check = validatePublishReady(novel);
   if (!check.ok) {
-    setStatus('增版校验未通过：' + check.issues.slice(0, 3).join('；'));
     if (!window.confirm(
-      '发布校验有问题：\n- ' + check.issues.join('\n- ')
-      + '\n\n仍要继续增版吗？（未勾选「纳入发布」的支线不会出现在读者选线中）'
+      '发布校验有问题：\\n- ' + check.issues.join('\\n- ')
+      + '\\n\\n仍要继续发布吗？'
     )) return;
   }
   var charVer = getCharacterVersion();
-  var isFirstPublish = !novel.publishedDisplayVersion;
-  var nextVer = isFirstPublish
-    ? (novel.novelVersion || '1')
-    : bumpNovelVersion(novel.novelVersion);
-  var display = buildDisplayVersion(charVer, nextVer);
-  var readyCount = (novel.branches || []).filter(function(b) { return b.publishReady; }).length;
   if (!window.confirm(
-    (isFirstPublish
-      ? '首次发布为分享可见版「' + display + '」。\n'
-      : '增版并固化为分享可见版「' + display + '」。\n')
-    + '将纳入 ' + readyCount + ' 条分支供读者选线。\n'
-    + '未再增版前，分享链接不会看到之后的编辑。继续？'
+    '发布当前草稿：将写入版本列表并标记已发布，随后草稿自动升版。\\n'
+    + '分享 latest 始终指向最新已发版；亦可使用带版本号链接。继续？'
   )) return;
 
-  novel.novelVersion = nextVer;
-  var publishedAt = Date.now();
-  var release = buildReleasePayload(novel, charVer, {
-    novelVersion: nextVer,
-    publishedAt: publishedAt,
-    filterReady: true,
-  });
-  novel.publishedDisplayVersion = release.displayVersion;
-  novel.publishedAt = publishedAt;
-  novel.updatedAt = publishedAt;
+  var pub = publishNovelDraft(novel, charVer);
+  // 用已发布快照的 release（filterReady）再写一份对外
+  var release = pub.release;
+  if (release && validatePublishReady) {
+    try {
+      release = buildReleasePayload(Object.assign({}, novel, {
+        novelVersion: pub.entry.snapshot.novelVersion,
+        outline: (pub.entry.snapshot.working && pub.entry.snapshot.working.outline) || novel.outline,
+        chapters: (pub.entry.snapshot.working && pub.entry.snapshot.working.chapters) || novel.chapters,
+        branches: (pub.entry.snapshot.working && pub.entry.snapshot.working.branches) || novel.branches,
+      }), charVer, {
+        novelVersion: pub.entry.snapshot.novelVersion || release.novelVersion,
+        publishedAt: pub.entry.publishedAt,
+        filterReady: true,
+      });
+      // 更新 entry snapshot release 为裁剪版
+      if (pub.entry && pub.entry.snapshot) pub.entry.snapshot.release = release;
+    } catch (e) { /* keep unfiltered */ }
+  }
   await saveNovel(cardId, novelId, novel);
   await saveRelease(cardId, novelId, release);
   state.catalog = upsertCatalogEntry(state.catalog, novel);
@@ -853,11 +883,81 @@ async function bumpNovel(novelId) {
   try {
     var sync = await import('../sync/syncEngine.mjs');
     await sync.runSync({ refreshCred: true });
-    setStatus('已增版 ' + display + '（' + (release.branches || []).length + ' 支）并已同步');
+    setStatus('已发布 ' + pub.publishedVer + '；草稿现为 ' + pub.draftVer + '（已同步）');
   } catch (e2) {
-    setStatus('已增版 ' + display + '（本地已保存；同步失败：' + (e2.message || e2) + '）');
+    setStatus('已发布 ' + pub.publishedVer + '；草稿现为 ' + pub.draftVer + '（同步失败：' + (e2.message || e2) + '）');
   }
   renderAll();
+}
+
+async function switchNovelVersion(novelId, targetVer) {
+  var cardId = getCardId();
+  var raw = await loadNovel(cardId, novelId);
+  if (!raw) return;
+  var novel = normalizeNovel(raw);
+  var charVer = getCharacterVersion();
+  var sw = switchNovelDraftVersion(novel, charVer, targetVer);
+  if (!sw.ok) {
+    setStatus('切换失败：' + (sw.error || ''));
+    return;
+  }
+  await saveNovel(cardId, novelId, novel);
+  state.catalog = upsertCatalogEntry(state.catalog, novel);
+  await saveCatalog(cardId, state.catalog);
+  if (state.novel && state.novel.id === novelId) state.novel = novel;
+  else if (!state.novel || state.novel.id !== novelId) {
+    await openNovel(novelId);
+    return;
+  }
+  await mirrorStoryDocs(cardId, novel, state.catalog);
+  setStatus('已切换到 ' + targetVer);
+  renderAll();
+}
+
+function openNovelVersionMenu(anchorBtn, novelId) {
+  document.querySelectorAll('.ss-version-popover').forEach(function(el) { el.remove(); });
+  if (!anchorBtn || !novelId) return;
+  loadNovel(getCardId(), novelId).then(function(raw) {
+    if (!raw) return;
+    var novel = normalizeNovel(raw);
+    ensureNovelVersions(novel);
+    var list = listNovelVersions(novel);
+    var charVer = getCharacterVersion();
+    var draftVer = getNovelDisplayVersion(novel, charVer);
+    var pop = document.createElement('div');
+    pop.className = 'ss-version-popover card-version-popover';
+    var rows = list.map(function(v) {
+      var active = String(v.ver) === String(draftVer);
+      return '<button type="button" class="card-version-item' + (active ? ' is-active' : '') + '" data-ss-novel-ver="'
+        + escapeHtml(v.ver) + '">'
+        + '<span class="card-version-item__ver">v' + escapeHtml(v.ver) + '</span>'
+        + '<span class="card-version-item__meta">'
+        + (v.published ? '已发布' : '未发布')
+        + (active ? ' · 当前草稿' : '')
+        + '</span></button>';
+    }).join('') || '<div class="card-more-hint">暂无版本。增版或发布后出现。</div>';
+    pop.innerHTML = '<div class="card-more-section__title">小说版本</div>' + rows;
+    document.body.appendChild(pop);
+    var rect = anchorBtn.getBoundingClientRect();
+    pop.style.left = Math.max(8, Math.round(rect.right - 280)) + 'px';
+    pop.style.top = Math.round(rect.bottom + 6) + 'px';
+    pop.addEventListener('click', function(ev) {
+      var btn = ev.target.closest('[data-ss-novel-ver]');
+      if (!btn) return;
+      var ver = btn.getAttribute('data-ss-novel-ver');
+      pop.remove();
+      switchNovelVersion(novelId, ver);
+    });
+    setTimeout(function() {
+      function close(ev) {
+        if (!pop.contains(ev.target) && ev.target !== anchorBtn) {
+          pop.remove();
+          document.removeEventListener('mousedown', close, true);
+        }
+      }
+      document.addEventListener('mousedown', close, true);
+    }, 0);
+  });
 }
 
 async function shareNovel(novelId, opts) {
@@ -870,7 +970,7 @@ async function shareNovel(novelId, opts) {
   }
   var novel = normalizeNovel(raw);
   if (!novel.publishedDisplayVersion) {
-    setStatus('请先「增版」发布后再分享');
+    setStatus('请先「发布」后再分享');
     return;
   }
   var charVer = getCharacterVersion();
@@ -1400,6 +1500,8 @@ function bindEvents() {
       if (act === 'open') openNovel(id);
       else if (act === 'rename') renameNovel(id);
       else if (act === 'bump') bumpNovel(id);
+      else if (act === 'publish') publishNovel(id);
+      else if (act === 'versions') openNovelVersionMenu(btn, id);
       else if (act === 'share') shareNovel(id);
       else if (act === 'reset-share') shareNovel(id, { resetToken: true });
       else if (act === 'unshare') unshareNovel(id);

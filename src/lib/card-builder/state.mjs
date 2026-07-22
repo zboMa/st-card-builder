@@ -44,6 +44,8 @@ export function createDefaultCardState() {
     corruptionSyncStatusBar: true,
     /** ST data.character_version */
     characterVersion: '1.0',
+    /** 正式版本列表（切版/增版/发布时写入；保存草稿不写） */
+    versions: [],
   };
 }
 
@@ -112,6 +114,7 @@ export function buildDraftSnapshot(state) {
     corruptionDefaultFemaleOnly: s.corruptionDefaultFemaleOnly !== false,
     corruptionSyncStatusBar: s.corruptionSyncStatusBar !== false,
     characterVersion: String(s.characterVersion != null ? s.characterVersion : '1.0').trim() || '1.0',
+    versions: Array.isArray(s.versions) ? s.versions : [],
     updatedAt: new Date().toLocaleTimeString('zh-CN', { hour12: false }),
   };
 }

@@ -165,6 +165,7 @@
 
   var shareState = {
     token: '',
+    pinnedVersion: '',
     novel: null,
     play: null,
     chapterIndex: 0,
@@ -409,7 +410,7 @@
     setShareMode(true);
     setStatus('加载中…');
     try {
-      var data = await apiFetchSharedNovel(token);
+      var data = await apiFetchSharedNovel(token, shareState.pinnedVersion || "");
       shareState.novel = data.novel || null;
       if (shareState.novel && isTreeRelease(shareState.novel)) {
         ensureBranches(shareState.novel);
@@ -436,7 +437,8 @@
   }
 
   function exitShareIfNeeded() {
-    var token = parseShareTokenFromHash(location.hash);
+    var parsed = parseShareTokenFromHash(location.hash);
+    var token = typeof parsed === 'string' ? parsed : (parsed && parsed.token);
     if (!token) {
       setShareMode(false);
       shareState.token = '';
@@ -446,7 +448,9 @@
   }
 
   function bootShareFromHash() {
-    var token = parseShareTokenFromHash(location.hash);
+    var __shareParsed = parseShareTokenFromHash(location.hash);
+    var token = typeof __shareParsed === "string" ? __shareParsed : (__shareParsed && __shareParsed.token) || "";
+    shareState.pinnedVersion = (typeof __shareParsed === "object" && __shareParsed && __shareParsed.version) || "";
     if (token) loadShare(token);
     else exitShareIfNeeded();
   }

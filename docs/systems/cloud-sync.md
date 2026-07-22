@@ -75,16 +75,17 @@ npm run dev            # Astro :4321，/api 代理到 8787
 
 ### 角色卡分享
 
-- **发布快照** `card/{id}/release`：仅在「角色卡管理」点 **发布** 时写入
+- **版本列表** `versions[]`：切版 / 增版 / 发布时写入；**普通保存只写草稿**
+- **发布**：写入该版快照并 `published=true`，草稿自动升小版本；云端仍写 `card/{id}/release` + `card/{id}/release/{ver}`（供分享）
 - **映射**：`stcb-public-shares` → `share/{token}`
-- **API**：`/api/share/cards/*`
+- **API**：`/api/share/cards/*`；info 含 latest + 各已发版 `versions/:ver/json|png`
 
 ### 小说分享
 
-- **发布快照** `story/{cardId}/{novelId}/release`（`schemaVersion: 2` 可含 `branches[]` + 章 `branchId`）
-- **增版**：仅纳入 `publishReady` 的分支及其祖先；读者在分叉章后选线
-- **读者入口**：`/#share/{token}`（选线进度存本机；可「复制到本地创作」）
-- **API**：`GET /api/share/novels/:token` 返回树状 sanitize 稿（旧线性稿仍兼容）
+- 与卡同语义：`versions[]` + 唯一草稿；**增版**写列表不发；**发布**写已发并草稿再 +1
+- **发布快照**：`story/{cardId}/{novelId}/release`（latest）+ `…/release/{displayVersion}`
+- **读者**：`/#share/{token}`（latest）与 `/#share/{token}/v/{displayVersion}`（钉版本）
+- **API**：`GET /api/share/novels/:token`、`GET /api/share/novels/:token/versions/:ver`
 
 ## AI API 配置加密上云
 

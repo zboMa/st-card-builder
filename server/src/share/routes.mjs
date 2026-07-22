@@ -8,6 +8,7 @@ import {
   putShareMapping,
   deleteShareMapping,
   readOwnerRelease,
+  readOwnerReleaseVersion,
   ensureSharesDatabase,
   getUserRegistry,
 } from '../couch.mjs';
@@ -117,11 +118,14 @@ shareRouter.post('/novels', requireUser, async function(req, res) {
 
     await putShareMapping(mapping);
     var publicPayload = sanitizeReleaseDoc(release);
+    var dver = publicPayload.displayVersion;
     res.json({
       ok: true,
       token: token,
       url: shareUrl(token),
-      displayVersion: publicPayload.displayVersion,
+      latestUrl: shareUrl(token),
+      versionUrl: dver ? (shareUrl(token) + '/v/' + encodeURIComponent(dver)) : null,
+      displayVersion: dver,
       title: publicPayload.title,
       expiresAt: mapping.expiresAt || null,
     });
@@ -156,6 +160,42 @@ shareRouter.get('/novels/:token', async function(req, res) {
   } catch (e) {
     console.error('[share/get]', e);
     res.status(500).json({ error: 'share_get_failed', message: String(e && e.message || e) });
+  }
+});
+
+
+function versionShareUrl(token, ver) {
+  return shareUrl(token) + '/v/' + encodeURIComponent(ver);
+}
+
+/** 公开只读：指定已发布版本 */
+shareRouter.get('/novels/:token/versions/:ver', async function(req, res) {
+  try {
+    var token = String(req.params.token || '').trim();
+    var ver = String(req.params.ver || '').trim();
+    if (!token || !ver) return res.status(400).json({ error: 'missing_token' });
+    var mapping = await getShareMapping(token);
+    if (!mapping || mapping.enabled === false) {
+      return res.status(404).json({ error: 'not_found' });
+    }
+    if (isExpired(mapping)) {
+      return res.status(410).json({ error: 'expired', message: '分享链接已过期' });
+    }
+    var release = await readOwnerReleaseVersion(mapping.ownerUserId, mapping.cardId, mapping.novelId, ver);
+    if (!release) {
+      return res.status(404).json({ error: 'release_missing', message: '该版本不存在或未发布' });
+    }
+    var publicPayload = sanitizeReleaseDoc(release);
+    res.json({
+      ok: true,
+      token: token,
+      pinnedVersion: ver,
+      expiresAt: mapping.expiresAt || null,
+      novel: publicPayload,
+    });
+  } catch (e) {
+    console.error('[share/novel-version]', e);
+    res.status(500).json({ error: 'share_read_failed', message: String(e && e.message || e) });
   }
 });
 

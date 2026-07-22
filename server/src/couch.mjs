@@ -150,6 +150,12 @@ export function storyReleaseDocId(cardId, novelId) {
   return 'story/' + String(cardId || '').trim() + '/' + String(novelId || '').trim() + '/release';
 }
 
+export function storyReleaseVersionDocId(cardId, novelId, displayVersion) {
+  var ver = encodeURIComponent(String(displayVersion || '1.0-1').trim() || '1.0-1');
+  return storyReleaseDocId(cardId, novelId) + '/' + ver;
+}
+
+
 export async function getShareMapping(token) {
   var db = await ensureSharesDatabase();
   try {
@@ -194,6 +200,51 @@ export async function readOwnerRelease(ownerUserId, cardId, novelId) {
     throw e;
   }
 }
+
+export async function readOwnerReleaseVersion(ownerUserId, cardId, novelId, displayVersion) {
+  var db = getUserDbAdmin(ownerUserId);
+  try {
+    return await db.get(storyReleaseVersionDocId(cardId, novelId, displayVersion));
+  } catch (e) {
+    if (e && e.statusCode === 404) {
+      var cur = await readOwnerRelease(ownerUserId, cardId, novelId);
+      if (cur && String(cur.displayVersion || '') === String(displayVersion || '')) return cur;
+      return null;
+    }
+    throw e;
+  }
+}
+
+export async function putOwnerStoryRelease(ownerUserId, cardId, novelId, releasePayload) {
+  var db = getUserDbAdmin(ownerUserId);
+  var id = storyReleaseDocId(cardId, novelId);
+  var ver = String((releasePayload && (releasePayload.displayVersion || releasePayload.ver)) || '1.0-1');
+  var vid = storyReleaseVersionDocId(cardId, novelId, ver);
+  async function upsert(docId, body) {
+    var next = Object.assign({}, body, { _id: docId });
+    try {
+      var existing = await db.get(docId);
+      next._rev = existing._rev;
+    } catch (e) {
+      if (!e || e.statusCode !== 404) throw e;
+    }
+    return db.insert(next);
+  }
+  var doc = {
+    type: 'story-release',
+    cardId: cardId,
+    novelId: novelId,
+    displayVersion: ver,
+    title: releasePayload && releasePayload.title,
+    publishedAt: releasePayload && releasePayload.publishedAt,
+    data: releasePayload,
+    updatedAt: new Date().toISOString(),
+  };
+  await upsert(id, doc);
+  await upsert(vid, doc);
+  return { ok: true, displayVersion: ver };
+}
+
 
 export function cardReleaseDocId(cardId) {
   return 'card/' + String(cardId || '').trim() + '/release';
