@@ -174,6 +174,140 @@ export function createCardBuilderContext(sm) {
       });
     },
 
+    /** 单行输入弹窗；取消返回 null，确认返回字符串（可为空） */
+    showPromptDialog: function(options) {
+      var opts = options || {};
+      var previousActiveElement = document.activeElement;
+      return new Promise(function(resolve) {
+        var overlay = document.createElement('div');
+        overlay.className = 'app-confirm-overlay';
+        overlay.setAttribute('role', 'presentation');
+        overlay.setAttribute('tabindex', '-1');
+        overlay.innerHTML =
+          '<div class="app-confirm-dialog app-prompt-dialog" role="dialog" aria-modal="true" aria-labelledby="appPromptTitle" tabindex="-1">' +
+            '<div class="app-confirm-head">' +
+              '<div class="app-confirm-icon">' + escapeHtml(opts.icon || '✏️') + '</div>' +
+              '<div>' +
+                '<h3 id="appPromptTitle" class="app-confirm-title">' + escapeHtml(opts.title || '输入') + '</h3>' +
+                '<p class="app-confirm-message">' + escapeHtml(opts.message || '') + '</p>' +
+              '</div>' +
+            '</div>' +
+            '<div class="app-prompt-field-wrap">' +
+              '<input type="' + escapeHtml(opts.inputType || 'text') + '" class="app-prompt-input" id="appPromptInput" ' +
+                'value="' + escapeHtml(opts.defaultValue != null ? String(opts.defaultValue) : '') + '" ' +
+                'placeholder="' + escapeHtml(opts.placeholder || '') + '" autocomplete="off" />' +
+            '</div>' +
+            '<div class="app-confirm-actions">' +
+              '<button type="button" class="app-confirm-btn" data-confirm="cancel">' + escapeHtml(opts.cancelText || '取消') + '</button>' +
+              '<button type="button" class="app-confirm-btn' + (opts.danger ? ' danger' : ' primary') + '" data-confirm="ok">' +
+                escapeHtml(opts.okText || '确定') + '</button>' +
+            '</div>' +
+          '</div>';
+
+        function restoreFocus() {
+          if (previousActiveElement && typeof previousActiveElement.focus === 'function') {
+            try { previousActiveElement.focus(); } catch (_) {}
+          }
+        }
+
+        function close(value) {
+          document.removeEventListener('keydown', onKeydown);
+          overlay.remove();
+          restoreFocus();
+          resolve(value);
+        }
+
+        function confirmOk() {
+          var input = overlay.querySelector('#appPromptInput');
+          close(input ? String(input.value) : '');
+        }
+
+        function onKeydown(event) {
+          if (event.key === 'Escape') { close(null); return; }
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            confirmOk();
+          }
+        }
+
+        overlay.addEventListener('click', function(event) {
+          if (event.target === overlay) close(null);
+        });
+        overlay.querySelector('[data-confirm="cancel"]').addEventListener('click', function() { close(null); });
+        overlay.querySelector('[data-confirm="ok"]').addEventListener('click', function() { confirmOk(); });
+        document.addEventListener('keydown', onKeydown);
+        document.body.appendChild(overlay);
+        var input = overlay.querySelector('#appPromptInput');
+        if (input) {
+          input.focus();
+          if (opts.select !== false) {
+            try { input.select(); } catch (_) {}
+          }
+        }
+      });
+    },
+
+    /** 轻量提示（message toast），自动消失 */
+    showAppMessage: function(message, options) {
+      var opts = options || {};
+      var text = String(message || '').trim();
+      if (!text || typeof document === 'undefined') return;
+      var host = document.getElementById('appToastHost');
+      if (!host) {
+        host = document.createElement('div');
+        host.id = 'appToastHost';
+        host.className = 'app-toast-host';
+        host.setAttribute('aria-live', 'polite');
+        document.body.appendChild(host);
+      }
+      var toast = document.createElement('div');
+      toast.className = 'app-toast' + (opts.level === 'error' ? ' is-error' : (opts.level === 'warn' ? ' is-warn' : ''));
+      toast.textContent = text;
+      host.appendChild(toast);
+      var ms = opts.duration != null ? opts.duration : 2600;
+      setTimeout(function() {
+        toast.classList.add('is-leaving');
+        setTimeout(function() { toast.remove(); }, 220);
+      }, ms);
+    },
+
+    /** 重要提示（notification），需手动关闭或较久后消失 */
+    showAppNotification: function(options) {
+      var opts = options || {};
+      var title = String(opts.title || '注意');
+      var message = String(opts.message || '').trim();
+      if (!message || typeof document === 'undefined') return;
+      var host = document.getElementById('appNotifyHost');
+      if (!host) {
+        host = document.createElement('div');
+        host.id = 'appNotifyHost';
+        host.className = 'app-notify-host';
+        host.setAttribute('aria-live', 'assertive');
+        document.body.appendChild(host);
+      }
+      var level = opts.level === 'error' ? 'error' : (opts.level === 'warn' ? 'warn' : 'info');
+      var card = document.createElement('div');
+      card.className = 'app-notify app-notify--' + level;
+      card.setAttribute('role', 'alert');
+      card.innerHTML =
+        '<div class="app-notify__body">' +
+          '<div class="app-notify__title">' + escapeHtml(title) + '</div>' +
+          '<div class="app-notify__message">' + escapeHtml(message) + '</div>' +
+        '</div>' +
+        '<button type="button" class="app-notify__close" aria-label="关闭">×</button>';
+      host.appendChild(card);
+      var closed = false;
+      function close() {
+        if (closed) return;
+        closed = true;
+        card.classList.add('is-leaving');
+        setTimeout(function() { card.remove(); }, 220);
+      }
+      card.querySelector('.app-notify__close').addEventListener('click', close);
+      var ms = opts.duration != null ? opts.duration : 8000;
+      if (ms > 0) setTimeout(close, ms);
+    },
+
     callAI: async function(userContent, systemExtra, signal) {
       var apiUrlEl = $('apiUrl');
       var apiKeyEl = $('apiKey');

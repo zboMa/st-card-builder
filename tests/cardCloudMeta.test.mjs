@@ -4,6 +4,7 @@ import {
   CLOUD_STATUS,
   resolveCardCloudStatus,
   cloudStatusLabel,
+  resolveCardCloudQuickAction,
   markCardSynced,
   markCardLocalOnly,
   getCardCloudMeta,
@@ -42,6 +43,18 @@ describe('cardCloudMeta', function() {
     assert.match(cloudStatusLabel(CLOUD_STATUS.LOCAL_ONLY), /未上云/);
     assert.match(cloudStatusLabel(CLOUD_STATUS.CLOUD_DIRTY), /未同步/);
     assert.match(cloudStatusLabel(CLOUD_STATUS.CLOUD_SYNCED), /已同步/);
+  });
+
+  it('云快捷按钮：未同步显示上云，已同步隐藏', function() {
+    assert.deepEqual(resolveCardCloudQuickAction(CLOUD_STATUS.LOCAL_ONLY), {
+      action: 'cloud-upload',
+      label: '上传到云',
+    });
+    assert.deepEqual(resolveCardCloudQuickAction(CLOUD_STATUS.CLOUD_DIRTY), {
+      action: 'cloud-upload',
+      label: '同步到云',
+    });
+    assert.equal(resolveCardCloudQuickAction(CLOUD_STATUS.CLOUD_SYNCED), null);
   });
 
   it('mark local only + merge index', function() {
