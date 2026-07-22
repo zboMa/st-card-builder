@@ -60,5 +60,16 @@ export {
   runCloudReconcile,
   pullStoryCatalogToLocal,
   pullStoryNovelToLocal,
+  cloudUploadOverwrite,
+  cloudDownloadOverwrite,
+  cloudDeleteRemoteOnly,
 } from './cloudStore.mjs';
+export {
+  CLOUD_STATUS,
+  resolveCardCloudStatus,
+  cloudStatusLabel,
+  getCardCloudMeta,
+  markCardSynced,
+  markCardLocalOnly,
+} from './cardCloudMeta.mjs';
 export { getOutboxSize, peekOutbox, clearOutbox } from './outbox.mjs';

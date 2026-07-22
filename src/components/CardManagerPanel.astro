@@ -5,7 +5,7 @@
   <div class="card-manager-header">
     <div class="card-manager-heading">
       <h2>角色卡管理</h2>
-      <p class="ui-panel-lead card-manager-tip">本地多卡草稿箱。点封面进入「角色设定」；点名称重命名。底栏导出 / 发布 / 分享；小说工坊按卡分桶，不写入导出。</p>
+      <p class="ui-panel-lead card-manager-tip">本地多卡草稿箱；时间旁云标表示未上云 / 未同步 / 已同步。点「⋯」管理导出、分享与云端。</p>
     </div>
     <!-- 右上角：仅新建 + 导入；导出在每张预览卡底部 -->
     <div class="card-manager-toolbar">
@@ -374,6 +374,32 @@
     line-height: 1.35;
   }
 
+  .card-cloud-status {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.05rem;
+    height: 1.05rem;
+    margin-left: 4px;
+    vertical-align: -0.15em;
+    border-radius: 999px;
+  }
+  .card-cloud-status svg {
+    width: 0.92rem;
+    height: 0.92rem;
+  }
+  .card-cloud-status.is-local {
+    color: rgba(148, 163, 184, 0.95);
+  }
+  .card-cloud-status.is-dirty {
+    color: #fbbf24;
+    background: rgba(245, 158, 11, 0.14);
+  }
+  .card-cloud-status.is-synced {
+    color: #34d399;
+    background: rgba(16, 185, 129, 0.14);
+  }
+
   .card-manager-item-actions {
     display: flex;
     flex-wrap: nowrap;
@@ -385,6 +411,7 @@
     min-height: 40px;
     overflow-x: auto;
     scrollbar-width: thin;
+    position: relative;
   }
 
   .card-manager-item-actions__group {
@@ -394,13 +421,75 @@
     flex-shrink: 0;
   }
 
+  .card-manager-item {
+    position: relative;
+  }
+
+  .card-more-popover {
+    position: absolute;
+    right: 8px;
+    bottom: 44px;
+    z-index: 8;
+    width: min(220px, calc(100% - 12px));
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 12px;
+    background: rgba(8, 12, 24, 0.96);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+    padding: 6px 0;
+    backdrop-filter: blur(10px);
+  }
+
+  .card-more-section {
+    padding: 4px 0;
+  }
+
+  .card-more-section__title {
+    padding: 4px 12px 6px;
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+  }
+
+  .card-more-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    border: 0;
+    background: transparent;
+    color: var(--color-text-secondary);
+    font: inherit;
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 8px 12px;
+    cursor: pointer;
+  }
+  .card-more-item:hover:not(:disabled) {
+    background: rgba(99, 102, 241, 0.12);
+    color: #f8fafc;
+  }
+  .card-more-item:disabled {
+    opacity: 0.42;
+    cursor: not-allowed;
+  }
+
+  .card-more-divider {
+    height: 1px;
+    margin: 4px 0;
+    background: rgba(51, 65, 85, 0.7);
+  }
+
+  .card-more-hint {
+    margin: 0;
+    padding: 4px 12px 8px;
+    font-size: 0.66rem;
+    color: var(--color-text-muted);
+    line-height: 1.4;
+  }
+
   .card-manager-item-share {
-    display: flex;
-    flex-wrap: nowrap;
-    align-items: center;
-    gap: 4px;
-    margin-left: auto;
-    flex-shrink: 0;
+    display: none;
   }
 
   .card-manager-filters {
