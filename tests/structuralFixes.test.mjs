@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { readAiEnginePanelSources } from './helpers/uiSources.mjs';
 import {
   setAdultWorldframe,
   suggestAdultWorldframe,
@@ -97,7 +98,7 @@ describe('structuralFixes', function() {
       assert.ok(src.indexOf(k) >= 0, 'browserApp missing key ' + k);
     });
     assert.ok(src.indexOf('__persistAiConfig__') >= 0);
-    var eng = fs.readFileSync(path.join(__dirname, '../src/lib/card-builder/panels/aiEngine.mjs'), 'utf8');
+    var eng = readAiEnginePanelSources(path.join(__dirname, '..'));
     assert.ok(eng.indexOf('function persistAiConfig') >= 0);
     assert.ok(eng.indexOf('世界书按钮由 worldbook.bind 独占') >= 0);
     var srcPanel = fs.readFileSync(path.join(__dirname, '../src/lib/novel/panels/source.mjs'), 'utf8');

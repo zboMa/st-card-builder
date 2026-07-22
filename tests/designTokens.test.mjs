@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { readLayoutSources, readAssistantPanelSources, readVariableCardPanelSources } from './helpers/uiSources.mjs';
+import { readLayoutSources, readAssistantPanelSources, readVariableCardPanelSources, readWorldbookPanelSources } from './helpers/uiSources.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const tokensPath = join(root, 'src/styles/tokens.css');
@@ -122,7 +122,7 @@ describe('design tokens (Nocturne Atelier)', function() {
     assert.match(tokens, /--color-ai-gold/);
     const css = readFileSync(join(root, 'src/styles/ui-patterns.css'), 'utf8');
     assert.match(css, /\.btn-ai-expand/);
-    const wbSrc = readFileSync(join(root, 'src/lib/card-builder/panels/worldbook.mjs'), 'utf8');
+    const wbSrc = readWorldbookPanelSources(root);
     assert.match(wbSrc, /btn-ai-expand/);
     assert.match(wbSrc, /isSk \? ' btn-ai-expand'/);
     const novelCtx = readFileSync(join(root, 'src/lib/novel/shared/context.mjs'), 'utf8');

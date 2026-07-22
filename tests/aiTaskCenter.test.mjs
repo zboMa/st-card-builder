@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { readLayoutSources, readAssistantPanelSources, readVariableCardPanelSources } from './helpers/uiSources.mjs';
+import { readLayoutSources, readAssistantPanelSources, readVariableCardPanelSources, readWorldbookPanelSources, readAiEnginePanelSources } from './helpers/uiSources.mjs';
 import {
   createAiTaskCenter,
   AI_TASK_TYPES,
@@ -131,11 +131,11 @@ describe('aiTaskCenter UI wiring', function() {
     assert.match(boot, /tagContextChars/);
     const ctxSrc = readFileSync(join(root, 'src/lib/card-builder/shared/context.mjs'), 'utf8');
     assert.match(ctxSrc, /signal:\s*opts\.signal/);
-    const aiSrc = readFileSync(join(root, 'src/lib/card-builder/panels/aiEngine.mjs'), 'utf8');
+    const aiSrc = readAiEnginePanelSources(root);
     assert.match(aiSrc, /engine_generate/);
     assert.match(aiSrc, /char_tags_generate/);
     assert.match(aiSrc, /btnAiGenCharTags/);
-    const wbSrc = readFileSync(join(root, 'src/lib/card-builder/panels/worldbook.mjs'), 'utf8');
+    const wbSrc = readWorldbookPanelSources(root);
     assert.match(wbSrc, /wb_single|wb_organize|wb_keygen/);
   });
 

@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { readLayoutSources, readAssistantPanelSources, readVariableCardPanelSources } from './helpers/uiSources.mjs';
+import { readLayoutSources, readAssistantPanelSources, readVariableCardPanelSources, readWorldbookPanelSources } from './helpers/uiSources.mjs';
 
 import {
   ASSISTANT_TOOLS,
@@ -707,7 +707,7 @@ describe('assistant prompts & UI wiring', function() {
     assert.match(index, /AssistantPanel/);
     const cmSrc = readCardManagerSources(root);
     assert.match(cmSrc, /__assistantCardApi__/);
-    const wbSrc = readFileSync(join(root, 'src/lib/card-builder/panels/worldbook.mjs'), 'utf8');
+    const wbSrc = readWorldbookPanelSources(root);
     assert.match(wbSrc, /__assistantWbAi__/);
     const layout = readLayoutSources(root);
     assert.match(layout, /minmax\(300px,\s*380px\)/);

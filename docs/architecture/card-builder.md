@@ -22,10 +22,18 @@
 | `panels/cardManagerExport.mjs` | JSON/PNG 导出 |
 | `panels/cardManagerBind.mjs` | 事件绑定、`__assistantCardApi__` |
 | `panels/character.mjs` | 角色设定（**不含** NSFW 配置 UI） |
-| `panels/worldbook.mjs` | 世界书条目 |
-| `panels/aiEngine.mjs` | 一键生成三阶段 |
+| `panels/worldbook.mjs` | 世界书 boot（`registerWorldbook`） |
+| `panels/worldbookShared.mjs` | 列表/搜索/编辑/AI 生成逻辑 |
+| `panels/worldbookBind.mjs` | DOM 绑定 + `__assistantWbAi__` |
+| `panels/aiEngine.mjs` | AI 引擎 boot（`registerAiEngine`） |
+| `panels/aiEngineShared.mjs` | 预设/世界观/持久化 helpers |
+| `panels/aiEnginePanel.mjs` | 三阶段生成、Tag、模型拉取 |
+| `panels/aiEngineBind.mjs` | 事件绑定 |
 | `panels/export.mjs` | JSON/PNG 导入导出 |
-| `panels/adultConfig.mjs` | 成人配置（NSFW/NTL SoT UI） |
+| `panels/adultConfig.mjs` | 成人配置 boot（`registerAdultConfig`） |
+| `panels/adultConfigShared.mjs` | 口味/表达/世界观 helpers |
+| `panels/adultConfigPanel.mjs` | NSFW/NTL/恶堕 UI 与生成 |
+| `panels/adultConfigBind.mjs` | `__getNsfwConfig__` 桥 + DOM 绑定 |
 
 ## UI
 

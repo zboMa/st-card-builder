@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { readAdultConfigPanelSources } from './helpers/uiSources.mjs';
 import {
   CORRUPTION_PRESETS,
   CORRUPTION_ARC_BRIEFS,
@@ -186,7 +187,7 @@ describe('corruptionProgress', function() {
     var panel = readFileSync(join(root, 'src/components/AdultConfigPanel.astro'), 'utf8');
     assert.match(panel, /adultCorruptionEnabled/);
     assert.match(panel, /btnGenCorruptionLore/);
-    var adult = readFileSync(join(root, 'src/lib/card-builder/panels/adultConfig.mjs'), 'utf8');
+    var adult = readAdultConfigPanelSources(root);
     assert.match(adult, /runGenerateCorruptionLore/);
     assert.match(adult, /findWorldbookPersonContext/);
     assert.match(adult, /evaluateArchiveRichness/);

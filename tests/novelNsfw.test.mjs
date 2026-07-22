@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { readLayoutSources, readAssistantPanelSources, readVariableCardPanelSources } from './helpers/uiSources.mjs';
+import { readLayoutSources, readAssistantPanelSources, readVariableCardPanelSources, readAdultConfigPanelSources } from './helpers/uiSources.mjs';
 import { UNMENTIONED } from '../src/lib/novel/schema.mjs';
 import { createDefaultNovelState, hydrateNovelState, summarizeNovelState } from '../src/lib/novel/state.mjs';
 import { isEntityEnriched, upsertEntity } from '../src/lib/novel/entityStore.mjs';
@@ -428,7 +428,7 @@ describe('novel nsfwSupport', function() {
     assert.match(adultPanel, /情欲|NSFW/);
     assert.match(adultPanel, /重新推断/);
     assert.match(adultPanel, /清掉手动覆盖|按主预设/);
-    const adultLogic = readFileSync(join(root, 'src/lib/card-builder/panels/adultConfig.mjs'), 'utf8');
+    const adultLogic = readAdultConfigPanelSources(root);
     assert.match(adultLogic, /data-flavor-up/);
     assert.match(adultLogic, /moveFlavorItem/);
     const charPanel = readFileSync(join(root, 'src/components/CharacterPanel.astro'), 'utf8');

@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { readLayoutSources, readAssistantPanelSources, readVariableCardPanelSources } from './helpers/uiSources.mjs';
+import { readLayoutSources, readAssistantPanelSources, readVariableCardPanelSources, readWorldbookPanelSources } from './helpers/uiSources.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -247,7 +247,7 @@ describe('sidebar navigation contract', function() {
     // 已去掉「AI 工具」折叠块与旧全宽工具条 / 内嵌 details
     assert.doesNotMatch(wb, /wb-ai-tools|wb-organize-wrap|wb-keygen-wrap|wb-entry-toolbar/);
     assert.doesNotMatch(wb, /<details[\s\S]*AI/);
-    const wbAppSrc = readFileSync(join(root, 'src/lib/card-builder/panels/worldbook.mjs'), 'utf8');
+    const wbAppSrc = readWorldbookPanelSources(root);
     assert.match(wbAppSrc, /wb-entries-empty/);
     assert.match(wbAppSrc, /textContent = isCreatingEntry \? '\\u53D6\\u6D88\\u65B0\\u5EFA' : '\\u65B0\\u5EFA'/);
     // 搜索：单列命中行 + 整行跳转编辑
