@@ -2,11 +2,12 @@
  * 小说 TXT 导出
  */
 
-import { normalizeNovel } from './state.mjs';
+import { normalizeNovel, getActiveChapters, getActiveOutline } from './state.mjs';
+import { getBranch } from './branch.mjs';
 
 /**
  * @param {object} novel
- * @param {{ includeSummaryFallback?: boolean }} [opts]
+ * @param {{ includeSummaryFallback?: boolean, branchId?: string }} [opts]
  * @returns {string}
  */
 export function novelToTxt(novel, opts) {
@@ -14,13 +15,22 @@ export function novelToTxt(novel, opts) {
   var n = normalizeNovel(novel);
   var lines = [];
   lines.push(n.title || '未命名小说');
+  var br = getBranch(n, options.branchId || n.activeBranchId);
+  if (br && br.name) {
+    lines.push('（分支：' + br.name + (br.direction ? ' · ' + br.direction : '') + '）');
+  }
   lines.push('');
   lines.push('——');
   lines.push('');
 
-  var chapters = n.chapters.slice().sort(function(a, b) { return a.order - b.order; });
-  if (!chapters.length && n.outline.length) {
-    chapters = n.outline.map(function(o, i) {
+  var chapters = options.branchId
+    ? getActiveChapters(Object.assign({}, n, { activeBranchId: options.branchId }))
+    : getActiveChapters(n);
+  if (!chapters.length) {
+    var outline = options.branchId
+      ? getActiveOutline(Object.assign({}, n, { activeBranchId: options.branchId }))
+      : getActiveOutline(n);
+    chapters = outline.map(function(o, i) {
       return { title: o.title, summary: o.summary, content: '', order: i };
     });
   }

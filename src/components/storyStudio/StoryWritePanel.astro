@@ -1,9 +1,32 @@
 ---
-/** 逐章写作：推进提示、连写下一章、同步 MVU/状态栏 */
+/** 逐章写作：推进提示、连写、Feed-forward、质检、分支、伏笔账本 */
 ---
 <div class="panel story-studio-panel" data-story-panel="write">
   <h2>逐章写作</h2>
-  <p class="ss-tip ui-panel-lead">每章可填推进提示；「自动连写下一章」写完后切到下一章继续。同步变量/状态栏需当前卡已有 MVU 与状态栏 design。</p>
+  <p class="ss-tip ui-panel-lead">章后自动摘要与开放线注入下一章；可连写 N 章、软质检改写；从本章开分支进入平行世界。</p>
+
+  <div class="ss-write-branchbar">
+    <div class="form-group">
+      <div class="ui-label-row">
+        <label for="ssWriteBranchSelect">当前分支</label>
+        <span class="ui-hint ui-hint--inline">平行世界</span>
+      </div>
+      <select id="ssWriteBranchSelect"></select>
+    </div>
+    <div class="ss-toolbar ss-write-branch-actions">
+      <button type="button" id="btnSsForkBranch" class="btn btn-ghost btn-inline">从本章开分支</button>
+    </div>
+  </div>
+
+  <div id="ssWriteProgress" class="ss-write-progress" hidden>
+    <div class="ss-write-progress__steps">
+      <span data-ss-step="plan">策划</span>
+      <span data-ss-step="draft">起草</span>
+      <span data-ss-step="feed">记忆</span>
+      <span data-ss-step="qa">质检</span>
+    </div>
+  </div>
+
   <div class="ss-write-grid">
     <div class="form-group">
       <label for="ssWriteChapterSelect">章节</label>
@@ -31,10 +54,52 @@
     </label>
     <div id="ssWriteMvuWarn" class="ss-warn" hidden></div>
   </div>
+
+  <div class="ss-write-options">
+    <div class="form-group">
+      <div class="ui-label-row">
+        <label for="ssWriteBatchCount">连写章数</label>
+        <span class="ui-hint ui-hint--inline">1～20</span>
+      </div>
+      <input id="ssWriteBatchCount" type="number" min="1" max="20" value="3" />
+    </div>
+    <label class="novel-switch" style="display:flex;gap:8px;align-items:center;">
+      <input id="ssWriteRunFeed" type="checkbox" checked />
+      <span>章后 Feed-forward</span>
+    </label>
+    <label class="novel-switch" style="display:flex;gap:8px;align-items:center;">
+      <input id="ssWriteRunQa" type="checkbox" checked />
+      <span>软质检</span>
+    </label>
+    <label class="novel-switch" style="display:flex;gap:8px;align-items:center;">
+      <input id="ssWriteStopOnQa" type="checkbox" />
+      <span>质检失败熔断</span>
+    </label>
+  </div>
+
   <div class="ss-toolbar" style="margin-top:12px;">
     <button type="button" id="btnSsWriteChapter" class="btn btn-ghost btn-inline">AI 撰写本章</button>
     <button type="button" id="btnSsWriteAutoNext" class="btn btn-ghost btn-inline">自动连写下一章</button>
+    <button type="button" id="btnSsWriteBatch" class="btn btn-ghost btn-inline">连写 N 章</button>
+    <button type="button" id="btnSsWriteQa" class="btn btn-ghost btn-inline">质检本章</button>
+    <button type="button" id="btnSsWriteRewrite" class="btn btn-ghost btn-inline">按质检改写</button>
     <button type="button" id="btnSsWriteSave" class="btn btn-ghost btn-inline">保存</button>
   </div>
+
+  <div id="ssWriteQaBox" class="ss-qa-box" hidden></div>
+  <div id="ssWriteTension" class="ss-tension" hidden></div>
+  <div id="ssWriteCheckpointList" class="ss-checkpoint-list"></div>
+
+  <div class="ss-ledger">
+    <div class="ui-label-row">
+      <h3 class="ss-subhead">伏笔账本</h3>
+      <span class="ui-hint ui-hint--inline">未收束优先注入</span>
+    </div>
+    <div id="ssWriteLedger" class="ss-ledger-list"></div>
+    <div class="ss-toolbar">
+      <button type="button" id="btnSsLedgerAdd" class="btn btn-ghost btn-inline">添加伏笔</button>
+    </div>
+  </div>
+
   <div id="ssWriteStatus" class="ss-status"></div>
 </div>

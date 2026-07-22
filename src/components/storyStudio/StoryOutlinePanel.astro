@@ -1,9 +1,27 @@
 ---
-/** 大纲：章节名 + 摘要；分段生成 / 续写；废弃后续 */
+/** 大纲：章节名 + 摘要；分段生成 / 续写；废弃后续；新书向导 */
 ---
 <div class="panel story-studio-panel" data-story-panel="outline">
   <h2>大纲</h2>
   <p class="ss-tip ui-panel-lead">维护章节标题与摘要。可分段生成或续写；「废弃后续」从该章起清空后段并重开。</p>
+
+  <div id="ssWizardBox" class="ss-wizard" hidden>
+    <div class="ui-label-row">
+      <strong>新书向导</strong>
+      <span class="ui-hint ui-hint--inline">分步审批</span>
+    </div>
+    <ol class="ss-wizard-steps">
+      <li data-wiz="direction">① 确认方向</li>
+      <li data-wiz="outline">② 审批大纲</li>
+      <li data-wiz="ready">③ 开始写作</li>
+    </ol>
+    <div class="ss-toolbar">
+      <button type="button" id="btnSsWizardApproveDir" class="btn btn-ghost btn-inline">确认方向 → 生成大纲</button>
+      <button type="button" id="btnSsWizardApproveOl" class="btn btn-ghost btn-inline">批准大纲 → 可写</button>
+      <button type="button" id="btnSsWizardSkip" class="btn btn-ghost btn-inline">跳过向导</button>
+    </div>
+  </div>
+
   <div class="form-group ss-outline-dir">
     <div class="ui-label-row">
       <label for="ssOutlineDirection">创作方向</label>
@@ -16,7 +34,9 @@
     <button type="button" id="btnSsOutlineContinue" class="btn btn-ghost btn-inline">续写大纲</button>
     <button type="button" id="btnSsOutlineAdd" class="btn btn-ghost btn-inline">手动加章</button>
     <button type="button" id="btnSsOutlineSave" class="btn btn-ghost btn-inline">保存</button>
+    <button type="button" id="btnSsWizardStart" class="btn btn-ghost btn-inline">新书向导</button>
   </div>
+  <div id="ssOutlineTension" class="ss-tension" hidden></div>
   <div id="ssOutlineList" class="ss-outline-list"></div>
   <div id="ssOutlineStatus" class="ss-status"></div>
 </div>
