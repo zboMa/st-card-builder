@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { readLayoutSources, readAssistantPanelSources, readVariableCardPanelSources , readCardBuilderBrowserAppSources, readStatusBarSources} from './helpers/uiSources.mjs';
+import { readLayoutSources, readAssistantPanelSources, readVariableCardPanelSources, readCardBuilderBrowserAppSources, readStatusBarSources, readStatusBarPanelSources, readTavernScriptsPanelSources } from './helpers/uiSources.mjs';
 import {
   createEmptyTavernScript,
   normalizeTavernScript,
@@ -88,7 +88,7 @@ describe('tavernScripts wiring', function() {
     const tools = readFileSync(join(root, 'src/lib/assistant/tools.mjs'), 'utf8');
     assert.match(tools, /'tavern-scripts'/);
 
-    const panel = readFileSync(join(root, 'src/components/TavernScriptsPanel.astro'), 'utf8');
+    const panel = readTavernScriptsPanelSources(root);
     assert.match(panel, /id="tavernScriptsPanel"/);
     assert.match(panel, /id="thList"/);
     assert.match(panel, /id="thBtnAdd"/);
@@ -116,7 +116,7 @@ describe('tavernScripts wiring', function() {
   it('MVU/状态栏仍走 __setTavernHelperScript__ 注入', function() {
     const mvu = readVariableCardPanelSources(root);
     assert.match(mvu, /__setTavernHelperScript__/);
-    const sb = readFileSync(join(root, 'src/components/StatusBarPanel.astro'), 'utf8');
+    const sb = readStatusBarPanelSources(root);
     assert.match(sb, /__setTavernHelperScript__/);
     const lib = readStatusBarSources(root);
     assert.match(lib, /STATUS_BAR_SCRIPT_NAME/);

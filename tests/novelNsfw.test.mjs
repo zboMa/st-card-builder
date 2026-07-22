@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { readLayoutSources, readAssistantPanelSources, readVariableCardPanelSources, readAdultConfigPanelSources , readNovelBrowserAppSources, readNovelWorldbookPanelSources, readAssistantExecutorSources} from './helpers/uiSources.mjs';
+import { readLayoutSources, readAssistantPanelSources, readVariableCardPanelSources, readAdultConfigPanelSources, readNovelBrowserAppSources, readNovelWorldbookPanelSources, readAssistantExecutorSources, readCharacterPanelSources } from './helpers/uiSources.mjs';
 import { UNMENTIONED } from '../src/lib/novel/schema.mjs';
 import { createDefaultNovelState, hydrateNovelState, summarizeNovelState } from '../src/lib/novel/state.mjs';
 import { isEntityEnriched, upsertEntity } from '../src/lib/novel/entityStore.mjs';
@@ -431,7 +431,7 @@ describe('novel nsfwSupport', function() {
     const adultLogic = readAdultConfigPanelSources(root);
     assert.match(adultLogic, /data-flavor-up/);
     assert.match(adultLogic, /moveFlavorItem/);
-    const charPanel = readFileSync(join(root, 'src/components/CharacterPanel.astro'), 'utf8');
+    const charPanel = readCharacterPanelSources(root);
     assert.doesNotMatch(charPanel, /adultNsfwEnabled|charNsfwEnabled/);
     assert.match(charPanel, /世界与限定/);
     const source = readFileSync(join(root, 'src/components/novel/NovelSourcePanel.astro'), 'utf8');

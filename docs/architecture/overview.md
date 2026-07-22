@@ -14,6 +14,10 @@
 | 入口 | 启动 | 说明 |
 |---|---|---|
 | 主站卡侧 | `src/lib/card-builder/browserApp.mjs` → `initCardBuilder()` | `index.astro` 调用；卡侧唯一 boot |
+| AI 配置 | `AIPanel.astro` → `aiConfig/panelBoot.mjs` | 侧栏「配置」 |
+| 状态栏 | `StatusBarPanel.astro` → `statusBar/panelBoot.mjs` | 设计/预览/注入 |
+| 试聊 | `ChatPlayground.astro` → `chatRuntime/playgroundBoot.mjs` | 助手内嵌 |
+| 动效 | `GsapAnimations.astro` → `layout/gsapAnimationsBoot.mjs` | 面板入场 / 视图切换 |
 | 小说工坊 | `NovelWorkshopApp` → `initNovelWorkshop()` | `src/lib/novel/browserApp.mjs` |
 | 小说创作 | `StoryStudioApp` → storyStudio boot | `src/lib/storyStudio/` |
 | 管理端 | `src/lib/admin/browserApp.mjs` → `adminBoot.mjs` | 独立页 `/admin` |
@@ -38,7 +42,10 @@ src/lib/
 ├── adult/            NSFW/NTL/载体/恶堕目录与拼装（数量以代码为准）
 ├── admin/            管理端：adminShared / adminViews / adminBoot
 ├── statusBar.mjs     barrel：statusBarCatalog + statusBarBuild
-├── chatRuntime/      试聊与 ST 运行时对齐
+├── statusBar/        状态栏面板 boot（`panelBoot.mjs`）
+├── layout/           壳层 chrome + GSAP boot
+├── aiConfig/         AI 配置面板 boot + AiEngineModal boot
+├── chatRuntime/      试聊与 ST 运行时对齐（含 `playgroundBoot.mjs`）
 ├── mvu/              MVU 相关（`variableCardPanel.mjs` 变量节点 UI boot）
 ├── aiTaskCenter.mjs  全局 AI 任务队列
 └── promptCanon.mjs / promptStore.mjs

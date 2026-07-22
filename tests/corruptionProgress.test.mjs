@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { readAdultConfigPanelSources, readNovelBridgeSources, readAssistantExecutorSources } from './helpers/uiSources.mjs';
+import { readAdultConfigPanelSources, readNovelBridgeSources, readAssistantExecutorSources, readCharacterPanelSources } from './helpers/uiSources.mjs';
 import {
   CORRUPTION_PRESETS,
   CORRUPTION_ARC_BRIEFS,
@@ -191,7 +191,7 @@ describe('corruptionProgress', function() {
     assert.match(adult, /runGenerateCorruptionLore/);
     assert.match(adult, /findWorldbookPersonContext/);
     assert.match(adult, /evaluateArchiveRichness/);
-    var charPanel = readFileSync(join(root, 'src/components/CharacterPanel.astro'), 'utf8');
+    var charPanel = readCharacterPanelSources(root);
     assert.doesNotMatch(charPanel, /adultNsfwEnabled|charNsfwEnabled/);
     assert.match(charPanel, /世界与限定/);
     var tools = readFileSync(join(root, 'src/lib/assistant/tools.mjs'), 'utf8');

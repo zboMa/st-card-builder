@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { buildExportChecklist } from '../src/lib/card-builder/exportChecklist.mjs';
-import { readCardBuilderBrowserAppSources } from './helpers/uiSources.mjs';
+import { readCardBuilderBrowserAppSources, readCardManagerPanelSources } from './helpers/uiSources.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -101,7 +101,7 @@ describe('exportChecklist', function() {
     var index = readFileSync(join(root, 'src/pages/index.astro'), 'utf8');
     assert.match(index, /initCardBuilder/);
     assert.doesNotMatch(index, /registerCardManager/);
-    var panel = readFileSync(join(root, 'src/components/CardManagerPanel.astro'), 'utf8');
+    var panel = readCardManagerPanelSources(root);
     assert.match(panel, /exportChecklistBox/);
     assert.match(panel, /btnRefreshExportChecklist/);
     assert.match(panel, /exportChecklistModal/);

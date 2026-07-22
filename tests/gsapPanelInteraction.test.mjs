@@ -7,8 +7,10 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
+import { readGsapAnimationsSources } from './helpers/uiSources.mjs';
+
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const gsapSrc = readFileSync(join(root, 'src/components/GsapAnimations.astro'), 'utf8');
+const gsapSrc = readGsapAnimationsSources(root);
 
 describe('GSAP panel view interaction contract', function() {
   it('提供 getActiveViewId 并与侧栏 hash 归一化一致', function() {

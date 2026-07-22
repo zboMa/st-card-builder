@@ -1,0 +1,437 @@
+/**
+ * 世界书审计面板 boot（从 WorldbookAuditor.astro 外提）
+ */
+
+export function initWorldbookAuditor() {
+  
+  
+  
+  var btnRunAudit = document.getElementById('btnRunAudit');
+  var quickCheckResult = document.getElementById('quickCheckResult');
+  var auditStatus = document.getElementById('auditStatus');
+  var auditReport = document.getElementById('auditReport');
+  var auditScoreCard = document.getElementById('auditScoreCard');
+  var scoreCircle = document.getElementById('scoreCircle');
+  var scoreNumber = document.getElementById('scoreNumber');
+  var scoreGrade = document.getElementById('scoreGrade');
+  var scoreSummary = document.getElementById('scoreSummary');
+  var auditDimensions = document.getElementById('auditDimensions');
+  var auditIssues = document.getElementById('auditIssues');
+  var auditSuggestions = document.getElementById('auditSuggestions');
+
+  
+  
+  
+  function getCharData() {
+    return {
+      name: (document.getElementById('charName') || {}).value || '',
+      description: (document.getElementById('charDesc') || {}).value || '',
+      firstMes: (document.getElementById('firstMes') || {}).value || '',
+    };
+  }
+
+  function getEntries() {
+    if (window.__getWorldbookEntries__) return window.__getWorldbookEntries__();
+    return [];
+  }
+
+  
+  
+  
+  // ── 快速自检逻辑（内部使用）──
+  function runQuickCheck() {
+    var entries = getEntries();
+    var char = getCharData();
+    var issues = [];
+
+    var totalEntries = entries.length;
+    var constantCount = entries.filter(function(e) { return e.strategy === 'constant'; }).length;
+    var selectiveCount = entries.filter(function(e) { return e.strategy === 'selective'; }).length;
+    var skeletonCount = entries.filter(function(e) { return (e.content || '').length < 60; }).length;
+    var noKeysCount = entries.filter(function(e) { return e.strategy === 'selective' && (!e.keys || e.keys.length === 0); }).length;
+    var emptyContentCount = entries.filter(function(e) { return !e.content || e.content.trim().length < 5; }).length;
+    var totalContentLen = entries.reduce(function(s, e) { return s + (e.content || '').length; }, 0);
+
+    if (totalEntries === 0) {
+      issues.push({ level: 'critical', icon: '🚫', title: '世界书为空', desc: '还没有任何条目，请先生成或手动添加。' });
+    }
+    if (skeletonCount > 0) {
+      issues.push({ level: 'warning', icon: '🦴', title: skeletonCount + ' 条骨架未展开', desc: '内容过短（<60字），建议用「✨ AI重写」展开为完整设定。' });
+    }
+    if (noKeysCount > 0) {
+      issues.push({ level: 'critical', icon: '🔑', title: noKeysCount + ' 条缺少触发词', desc: '策略为 selective 但没有触发词，这些条目永远不会被激活！' });
+    }
+    if (emptyContentCount > 0) {
+      issues.push({ level: 'critical', icon: '📭', title: emptyContentCount + ' 条内容为空', desc: '这些条目几乎没有内容，注入也没有意义。' });
+    }
+    if (constantCount > 5) {
+      issues.push({ level: 'warning', icon: '📌', title: '常驻条目过多 (' + constantCount + ')', desc: '太多常驻条目占用大量 token，建议控制在 3-5 条。' });
+    }
+
+    
+    var allKeys = {};
+    entries.forEach(function(e, idx) {
+      (e.keys || []).forEach(function(k) {
+        var lk = k.toLowerCase().trim();
+        if (!lk) return;
+        if (!allKeys[lk]) allKeys[lk] = [];
+        allKeys[lk].push(e.comment || '条目' + idx);
+      });
+    });
+    var dupKeys = Object.keys(allKeys).filter(function(k) { return allKeys[k].length > 1; });
+    if (dupKeys.length > 0) {
+      issues.push({ level: 'warning', icon: '🔄', title: dupKeys.length + ' 个触发词重复', desc: dupKeys.slice(0, 3).map(function(k) { return '「' + k + '」→ ' + allKeys[k].join(', '); }).join('；') });
+    }
+
+    
+    if (char.name && totalEntries > 0) {
+      var nameInKeys = entries.some(function(e) {
+        return (e.keys || []).some(function(k) { return k.toLowerCase().indexOf(char.name.toLowerCase()) >= 0; });
+      });
+      if (!nameInKeys) {
+        issues.push({ level: 'info', icon: '💡', title: '角色名未作为触发词', desc: '「' + char.name + '」不在任何触发词中，考虑添加核心设定条目。' });
+      }
+    }
+
+    if (totalEntries > 0 && totalContentLen < 200) {
+      issues.push({ level: 'warning', icon: '📏', title: '总内容量偏少', desc: '所有条目仅 ' + totalContentLen + ' 字，可能不足以支撑世界观。' });
+    }
+
+    if (issues.length === 0) {
+      issues.push({ level: 'tip', icon: '✅', title: '快速自检通过', desc: '没有明显问题！可进行 AI 深度审计获取更详细建议。' });
+    }
+
+    var dimensions = detectDimensionCoverage(entries);
+
+    
+    quickCheckResult.style.display = 'block';
+
+    var statsHtml = '<div class="qc-section-title">📊 基础统计</div>'
+      + '<div class="qc-stats">'
+      + statCard(totalEntries, '总条目', 'var(--color-accent-hover)')
+      + statCard(constantCount, '常驻', 'var(--color-success)')
+      + statCard(selectiveCount, '触发式', 'var(--color-accent-hover)')
+      + statCard(skeletonCount, '骨架', '#f59e0b')
+      + statCard(Math.round(totalContentLen / 1000 * 10) / 10 + 'k', '总字数', 'var(--color-text-muted)')
+      + statCard(issues.length, '问题', issues[0].level === 'tip' ? 'var(--color-success)' : '#ef4444')
+      + '</div>';
+
+    var dimHtml = '<div class="qc-section-title">🧭 维度覆盖</div>'
+      + '<div class="qc-dim-tags">' + renderDimTags(dimensions) + '</div>';
+
+    // 自动生成快速建议
+    var quickSuggestions = [];
+    if (totalEntries < 5) quickSuggestions.push('📝 条目数量较少，建议至少创建 5-10 条条目来丰富世界观');
+    if (constantCount === 0 && totalEntries > 0) quickSuggestions.push('📌 没有常驻条目，建议将重要设定设为常驻以确保始终生效');
+    if (selectiveCount === 0 && totalEntries > 0) quickSuggestions.push('🎯 没有触发式条目，建议添加具有触发词的条目以增加交互性');
+    if (skeletonCount > totalEntries * 0.3) quickSuggestions.push('✨ 超过30%的条目内容较短，建议用「AI重写」展开为300+字的完整设定');
+    if (totalContentLen < 100 && totalEntries > 0) quickSuggestions.push('📖 总内容非常精简，建议补充更详细的世界背景和设定细节');
+    if (dupKeys.length > 0) quickSuggestions.push('🔑 发现重复触发词，这会导致多个条目同时激活，考虑调整词汇避免冲突');
+    if (char.name && !nameInKeys && totalEntries > 0) quickSuggestions.push('💬 角色名未出现在任何触发词中，建议创建包含「' + char.name + '」的核心设定条目');
+    if (totalEntries > 0) {
+      var avgLen = Math.round(totalContentLen / totalEntries);
+      if (avgLen < 100) quickSuggestions.push('📏 条目平均长度 ' + avgLen + ' 字，建议每条至少 150+ 字以提供足够信息');
+    }
+
+    var suggestionsHtml = '';
+    if (quickSuggestions.length > 0) {
+      suggestionsHtml = '<div class="qc-section-title">💡 快速建议</div>'
+        + '<div class="qc-suggestions-box">'
+        + quickSuggestions.map(function(sugg, i) {
+          return '<div class="qc-suggestion-item" style="animation-delay:' + (i * 0.05) + 's;">' + sugg + '</div>';
+        }).join('')
+        + '</div>';
+    }
+
+    var issuesHtml = '<div class="qc-section-title">🔎 检查结果</div>'
+      + '<div class="qc-issue-list">'
+      + issues.map(function(iss, i) {
+        return '<div class="issue-item ' + iss.level + '" style="animation-delay:' + (i * 0.06) + 's;">'
+          + '<span class="issue-icon">' + iss.icon + '</span>'
+          + '<div class="issue-body"><div class="issue-title">' + iss.title + '</div><div class="issue-desc">' + iss.desc + '</div></div></div>';
+      }).join('')
+      + '</div>';
+
+    quickCheckResult.innerHTML = statsHtml + dimHtml + suggestionsHtml + issuesHtml;
+
+    // 供 AI 助手 audit_worldbook 复用同一套快速监测结果
+    return {
+      total: totalEntries,
+      constant: constantCount,
+      selective: selectiveCount,
+      skeleton: skeletonCount,
+      noKeys: noKeysCount,
+      emptyContent: emptyContentCount,
+      totalContentLen: totalContentLen,
+      issues: issues,
+      suggestions: quickSuggestions,
+      dimensions: dimensions,
+    };
+  }
+
+  window.__runWorldbookQuickCheck__ = function() {
+    return runQuickCheck() || { issues: [], total: 0 };
+  };
+
+  function statCard(num, label, color) {
+    return '<div class="qc-stat"><div class="qc-stat-num" style="color:' + color + ';">' + num + '</div><div class="qc-stat-label">' + label + '</div></div>';
+  }
+
+  
+  
+  
+  var DIMENSION_KEYWORDS = {
+    '🗺️ 地点': ['地点', '城市', '村庄', '建筑', '区域', '领地', '世界', '国家', '城堡', '森林', '山脉', '海洋', '街道', '酒馆', '学院', '废墟', 'location', 'city', 'place'],
+    '👥 人物': ['人物', 'NPC', '角色', '同伴', '敌人', '领袖', '商人', '老师', '朋友', '家人', '师傅', '国王', '女王', 'character', 'person'],
+    '⚔️ 势力': ['组织', '势力', '帮派', '公会', '军团', '教会', '政府', '企业', '家族', '联盟', '阵营', 'faction', 'guild', 'organization'],
+    '🔮 物品': ['物品', '武器', '装备', '道具', '药水', '宝物', '魔法', '科技', '材料', '货币', 'item', 'weapon', 'equipment'],
+    '📜 规则': ['规则', '系统', '法则', '魔法体系', '等级', '技能', '属性', '机制', '禁忌', '法律', 'rule', 'system', 'magic'],
+    '📖 历史': ['历史', '事件', '战争', '传说', '起源', '灾难', '革命', '预言', '纪元', '过去', 'history', 'event', 'lore'],
+    '🌍 文化': ['文化', '风俗', '语言', '宗教', '信仰', '节日', '习俗', '种族', '民族', '传统', 'culture', 'religion', 'tradition'],
+    '🎭 关系': ['关系', '社交', '恋爱', '友谊', '仇恨', '忠诚', '背叛', '秘密', '情感', 'relationship', 'social'],
+  };
+
+  function detectDimensionCoverage(entries) {
+    var allText = entries.map(function(e) {
+      return (e.comment || '') + ' ' + (e.content || '') + ' ' + (e.keys || []).join(' ');
+    }).join(' ').toLowerCase();
+
+    var results = {};
+    Object.keys(DIMENSION_KEYWORDS).forEach(function(dim) {
+      var keywords = DIMENSION_KEYWORDS[dim];
+      var matchCount = 0;
+      keywords.forEach(function(kw) {
+        if (allText.indexOf(kw.toLowerCase()) >= 0) matchCount++;
+      });
+      results[dim] = Math.min(100, Math.round((matchCount / Math.min(keywords.length, 5)) * 100));
+    });
+    return results;
+  }
+
+  function renderDimTags(dimensions) {
+    return Object.keys(dimensions).map(function(dim) {
+      var cov = dimensions[dim];
+      var color, bg;
+      if (cov >= 60)      { color = 'var(--color-success)'; bg = 'rgba(16,185,129,0.1)'; }
+      else if (cov >= 30) { color = 'var(--color-warning)'; bg = 'rgba(245,158,11,0.1)'; }
+      else if (cov > 0)   { color = 'var(--color-danger)'; bg = 'rgba(239,68,68,0.1)'; }
+      else                { color = 'var(--color-text-muted)'; bg = 'rgba(51,65,85,0.2)'; }
+      return '<span class="qc-dim-tag" style="color:' + color + ';background:' + bg + ';border:1px solid ' + color + '22;">' + dim + ' ' + cov + '%</span>';
+    }).join('');
+  }
+
+  
+  
+  
+  btnRunAudit.addEventListener('click', async function() {
+    var entries = getEntries();
+    var char = getCharData();
+
+    if (entries.length === 0) {
+      auditStatus.textContent = '❌ 世界书为空，无法审计';
+      auditStatus.style.color = '#ef4444';
+      return;
+    }
+
+    var apiUrlEl = document.getElementById('apiUrl');
+    var apiKeyEl = document.getElementById('apiKey');
+    var modelEl = document.getElementById('modelSelect');
+    var url = (apiUrlEl.value || '').replace(/\/$/, '') + '/chat/completions';
+    var key = (apiKeyEl.value || '').trim();
+    var model = (modelEl.value || '');
+    if (!model) return alert('请先在 AI 引擎中选择模型！');
+
+    btnRunAudit.disabled = true;
+    btnRunAudit.textContent = '🧠 审计中...';
+    auditStatus.textContent = '⏳ AI 正在分析你的世界书...';
+    auditStatus.style.color = 'var(--color-accent-hover)';
+    auditReport.style.display = 'none';
+
+    var wbSummary = entries.map(function(e, i) {
+      return '[' + i + '] 标题: ' + (e.comment || '未命名')
+        + ' | 策略: ' + (e.strategy || '?')
+        + ' | 触发词: ' + ((e.keys || []).join(', ') || '无')
+        + ' | 内容(' + (e.content || '').length + '字): ' + (e.content || '').substring(0, 150) + (((e.content || '').length > 150) ? '...' : '');
+    }).join('\n');
+
+    var charInfo = '角色名: ' + (char.name || '未设置') + '\n角色描述: ' + (char.description || '未设置').substring(0, 300);
+
+    var auditHead = (window.__promptStore__ && window.__promptStore__.get('wbAudit'))
+      || '你是一个专业的酒馆(SillyTavern)角色卡世界书审计专家。请对以下世界书进行全面审计分析。\n\n';
+    var sysPrompt = auditHead
+      + '【角色信息】\n' + charInfo + '\n\n'
+      + '【世界书条目 (共' + entries.length + '条)】\n' + wbSummary + '\n\n'
+      + '【输出要求】必须输出一个JSON对象，格式如下：\n'
+      + '{\n'
+      + '  "score": 75,\n'
+      + '  "grade": "B+",\n'
+      + '  "summary": "一句话总评",\n'
+      + '  "dimensions": [\n'
+      + '    { "name": "维度名", "score": 80, "status": "good|warn|bad|none", "detail": "说明" }\n'
+      + '  ],\n'
+      + '  "issues": [\n'
+      + '    { "level": "critical|warning|info|tip", "title": "问题标题", "desc": "详细说明", "entries": [0,1] }\n'
+      + '  ],\n'
+      + '  "suggestions": ["建议1", "建议2", "建议3"]\n'
+      + '}\n\n'
+      + '审计维度必须包括：\n'
+      + '1. 覆盖完整度 2. 内容质量 3. 触发词设计 4. 策略配置\n'
+      + '5. 内部一致性 6. 与角色契合度 7. Token 效率 8. 可玩性\n';
+
+    try {
+      var headers = { 'Content-Type': 'application/json' };
+      if (key) headers['Authorization'] = 'Bearer ' + key;
+
+      var center = window.__aiTaskCenter__;
+      await (center && center.run ? center.run({
+        type: 'auditor',
+        title: '世界书内容监测',
+        target: entries.length + ' 条',
+      }, async function(task) {
+        var res = await fetch(url, {
+          method: 'POST',
+          headers: headers,
+          body: JSON.stringify({
+            model: model,
+            messages: [
+              { role: 'system', content: sysPrompt },
+              { role: 'user', content: '请对这个世界书进行全面审计，给出评分和改进建议。' }
+            ],
+            temperature: 0.6
+          }),
+          signal: task.signal
+        });
+
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        var raw = (await res.json()).choices[0].message.content;
+
+        var match = raw.match(/```json\s*([\s\S]*?)\s*```/);
+        var report = JSON.parse(match ? match[1] : raw);
+
+        renderAuditReport(report);
+        auditStatus.textContent = '✅ 审计完成！';
+        auditStatus.style.color = '#10b981';
+      }) : (async function() {
+        var res = await fetch(url, {
+          method: 'POST',
+          headers: headers,
+          body: JSON.stringify({
+            model: model,
+            messages: [
+              { role: 'system', content: sysPrompt },
+              { role: 'user', content: '请对这个世界书进行全面审计，给出评分和改进建议。' }
+            ],
+            temperature: 0.6
+          })
+        });
+
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        var raw = (await res.json()).choices[0].message.content;
+
+        var match = raw.match(/```json\s*([\s\S]*?)\s*```/);
+        var report = JSON.parse(match ? match[1] : raw);
+
+        renderAuditReport(report);
+        auditStatus.textContent = '✅ 审计完成！';
+        auditStatus.style.color = '#10b981';
+      })());
+
+    } catch(err) {
+      if (window.__isAiAbortError__ && window.__isAiAbortError__(err)) {
+        auditStatus.textContent = '⏹ 已取消';
+        auditStatus.style.color = 'var(--color-text-muted)';
+      } else {
+        auditStatus.textContent = '❌ 审计失败: ' + err.message;
+        auditStatus.style.color = '#ef4444';
+      }
+    } finally {
+      btnRunAudit.disabled = false;
+      btnRunAudit.textContent = '🧠 AI 深度审计';
+    }
+  });
+
+  
+  
+  
+  function renderAuditReport(report) {
+    auditReport.style.display = 'block';
+
+    var score = Math.max(0, Math.min(100, report.score || 0));
+    var offset = 264 - (264 * score / 100);
+    var scoreColor = score >= 80 ? 'var(--color-success)' : (score >= 60 ? 'var(--color-warning)' : (score >= 40 ? '#fb923c' : '#ef4444'));
+
+    setTimeout(function() {
+      scoreCircle.style.strokeDashoffset = offset;
+      scoreCircle.style.stroke = scoreColor;
+    }, 100);
+
+    var currentNum = 0;
+    var numInterval = setInterval(function() {
+      currentNum += Math.ceil(score / 30);
+      if (currentNum >= score) { currentNum = score; clearInterval(numInterval); }
+      scoreNumber.textContent = currentNum;
+      scoreNumber.style.color = scoreColor;
+    }, 40);
+
+    var gradeColors = { 'S': '#c084fc', 'A+': 'var(--color-success)', 'A': 'var(--color-success)', 'B+': 'var(--color-accent-hover)', 'B': 'var(--color-accent-hover)', 'C+': 'var(--color-warning)', 'C': 'var(--color-warning)', 'D': '#fb923c', 'F': '#ef4444' };
+    scoreGrade.textContent = '🏆 ' + (report.grade || '?');
+    scoreGrade.style.color = gradeColors[report.grade] || 'var(--color-text-muted)';
+    scoreSummary.textContent = report.summary || '';
+
+    
+    if (report.dimensions && report.dimensions.length > 0) {
+      auditDimensions.innerHTML = report.dimensions.map(function(dim) {
+        var barColor = dim.status === 'good' ? 'var(--color-success)' : (dim.status === 'warn' ? 'var(--color-warning)' : (dim.status === 'bad' ? '#ef4444' : 'var(--color-text-muted)'));
+        var dimScore = dim.score || 0;
+        return '<div class="dim-card">'
+          + '<div class="dim-header"><span class="dim-name">' + escapeHTML(dim.name) + '</span><span class="dim-status ' + (dim.status || 'none') + '">' + dimScore + '%</span></div>'
+          + '<div class="dim-bar"><div class="dim-bar-fill" style="width:' + dimScore + '%;background:' + barColor + ';"></div></div>'
+          + '<div class="dim-detail">' + escapeHTML(dim.detail || '') + '</div>'
+          + '</div>';
+      }).join('');
+    }
+
+    
+    if (report.issues && report.issues.length > 0) {
+      var iconMap = { critical: '🚨', warning: '⚠️', info: '💡', tip: '✅' };
+      auditIssues.innerHTML = '<div class="audit-issues-title">📋 发现 ' + report.issues.length + ' 个问题</div>'
+        + report.issues.map(function(iss, i) {
+          return '<div class="issue-item ' + (iss.level || 'info') + '" style="animation-delay:' + (i * 0.08) + 's;">'
+            + '<span class="issue-icon">' + (iconMap[iss.level] || '📌') + '</span>'
+            + '<div class="issue-body"><div class="issue-title">' + escapeHTML(iss.title || '') + '</div>'
+            + '<div class="issue-desc">' + escapeHTML(iss.desc || '')
+            + (iss.entries && iss.entries.length > 0 ? ' <span style="color:var(--color-accent);">[条目: ' + iss.entries.join(', ') + ']</span>' : '')
+            + '</div></div></div>';
+        }).join('');
+    } else {
+      auditIssues.innerHTML = '<div class="issue-item tip"><span class="issue-icon">✅</span><div class="issue-body"><div class="issue-title">未发现严重问题</div><div class="issue-desc">世界书结构良好！</div></div></div>';
+    }
+
+    
+    if (report.suggestions && report.suggestions.length > 0) {
+      auditSuggestions.innerHTML = '<div class="suggestions-title">💡 改进建议</div>'
+        + report.suggestions.map(function(s, i) {
+          return '<div class="suggestion-item"><span class="suggestion-num">' + (i + 1) + '</span><span>' + escapeHTML(s) + '</span></div>';
+        }).join('');
+    }
+  }
+
+  function escapeHTML(str) {
+    return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  // ── 页面加载后自动运行快速自检 ──
+  setTimeout(function() {
+    runQuickCheck();
+  }, 600);
+
+  // ── 实时监听世界书变化，自动刷新基础统计 ──
+  var _auditRefreshTimer = null;
+  window.addEventListener('worldbook-changed', function() {
+    // 防抖：避免短时间内大量更新
+    if (_auditRefreshTimer) clearTimeout(_auditRefreshTimer);
+    _auditRefreshTimer = setTimeout(function() {
+      runQuickCheck();
+    }, 300);
+  });
+}

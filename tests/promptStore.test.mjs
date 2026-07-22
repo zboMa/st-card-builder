@@ -13,6 +13,7 @@ import {
   createPromptStore,
   listPromptGroups,
 } from '../src/lib/promptStore.mjs';
+import { readPromptConfigPanelSources } from './helpers/uiSources.mjs';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -74,7 +75,7 @@ describe('promptStore', function() {
   });
 
   it('PromptConfigPanel 使用 ui-tabs 分栏', function() {
-    const src = readFileSync(join(root, 'src/components/PromptConfigPanel.astro'), 'utf8');
+    const src = readPromptConfigPanelSources(root);
     assert.match(src, /ui-tabs/);
     assert.match(src, /promptConfigTabs|data-prompt-tab/);
     assert.match(src, /btnPromptResetTab|恢复本页默认/);

@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { readLayoutSources, readAssistantPanelSources, readVariableCardPanelSources } from './helpers/uiSources.mjs';
+import { readLayoutSources, readAssistantPanelSources, readVariableCardPanelSources, readStatusBarPanelSources } from './helpers/uiSources.mjs';
 import {
   STATUS_BAR_STYLES,
   STATUS_BAR_LAYOUTS,
@@ -542,7 +542,7 @@ describe('statusBar wiring', function() {
     const tools = readFileSync(join(root, 'src/lib/assistant/tools.mjs'), 'utf8');
     assert.match(tools, /'statusbar'/);
 
-    const panel = readFileSync(join(root, 'src/components/StatusBarPanel.astro'), 'utf8');
+    const panel = readStatusBarPanelSources(root);
     assert.match(panel, /人数/);
     assert.match(panel, /预设/);
     assert.match(panel, /排版/);
@@ -573,7 +573,7 @@ describe('statusBar wiring', function() {
     assert.match(panel, /一律按开启模块重绘|previewPaths\(\)/);
     assert.match(panel, /state\.paths = \[\]/);
     assert.match(panel, /defaultDesignId\(state\.castMode\)/);
-    assert.doesNotMatch(panel, /配角摘要/);
+    assert.doesNotMatch(readFileSync(join(root, 'src/components/StatusBarPanel.astro'), 'utf8'), /配角摘要/);
     assert.match(panel, /sbFemaleOnly/);
     assert.match(panel, /只识别女角色/);
     assert.match(panel, /describeFemaleOnlyRule/);

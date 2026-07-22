@@ -27,6 +27,7 @@ import { DEFAULT_PROMPTS } from '../src/lib/promptCanon.mjs';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { readStoryStudioStylesSources } from './helpers/uiSources.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -218,7 +219,7 @@ describe('storyStudio UI mount', function() {
     assert.match(app, /data-ss-act="rename"/);
     assert.doesNotMatch(app, /iconBtn\('rename'/);
     assert.match(app, /ui-empty-tip/);
-    const styles = readFileSync(join(root, 'src/components/storyStudio/StoryStudioStyles.astro'), 'utf8');
+    const styles = readStoryStudioStylesSources(root);
     assert.match(styles, /max-width:\s*none/);
     assert.doesNotMatch(styles, /max-width:\s*960px/);
     const graph = readFileSync(join(root, 'src/components/storyStudio/StoryGraphPanel.astro'), 'utf8');
