@@ -63,6 +63,12 @@ export async function saveAvatarFromImage(draftId, img) {
   var thumbBlob = await canvasToJpegBlob(thumbCanvas, AVATAR_THUMB_JPEG_QUALITY);
   await idbSetBlob(idbAvatarFullKey(draftId), fullBlob, 'image/jpeg');
   await idbSetBlob(idbAvatarThumbKey(draftId), thumbBlob, 'image/jpeg');
+  try {
+    var sync = await import('./sync/avatarMirror.mjs');
+    await sync.mirrorAvatarToPouch(draftId);
+  } catch (e) {
+    console.warn('[avatar] pouch mirror', e);
+  }
   return true;
 }
 
@@ -85,6 +91,14 @@ export async function copyAvatarDraft(fromDraftId, toDraftId) {
   if (!fromDraftId || !toDraftId || fromDraftId === toDraftId) return false;
   var okFull = await idbCopyBlob(idbAvatarFullKey(fromDraftId), idbAvatarFullKey(toDraftId));
   var okThumb = await idbCopyBlob(idbAvatarThumbKey(fromDraftId), idbAvatarThumbKey(toDraftId));
+  if (okFull || okThumb) {
+    try {
+      var sync = await import('./sync/avatarMirror.mjs');
+      await sync.mirrorAvatarToPouch(toDraftId);
+    } catch (e) {
+      console.warn('[avatar] pouch mirror copy', e);
+    }
+  }
   return okFull || okThumb;
 }
 

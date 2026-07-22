@@ -29,6 +29,23 @@ export {
   mirrorRagToPouch,
 } from './cardMirror.mjs';
 export {
+  mirrorAvatarToPouch,
+  hydrateAvatarFromPouch,
+  hydrateAvatarsFromCardIndex,
+} from './avatarMirror.mjs';
+export {
+  setUserPrefsSyncEnabled,
+  scheduleUserPrefsCloudPush,
+  pullUserPrefsFromCloud,
+  pushUserPrefsToCloudNow,
+  mirrorPromptsToLocalPouch,
+  mirrorUiPrefsToLocalPouch,
+} from './userPrefsMirror.mjs';
+export {
+  collectLocalApiConfigPackage,
+  applyLocalApiConfigPackage,
+} from './secrets.mjs';
+export {
   encryptJsonWithPassphrase,
   decryptJsonWithPassphrase,
   isEncryptedSecretsDoc,

@@ -39,6 +39,11 @@ export function createCardStateMachine(state) {
       localStorage.setItem(DRAFTS_KEY, JSON.stringify(dr));
       localStorage.setItem(CURRENT_KEY, state.draftId);
       saved = true;
+      try {
+        if (typeof window !== 'undefined' && window.__scheduleUserPrefsCloudPush__) {
+          window.__scheduleUserPrefsCloudPush__();
+        }
+      } catch (ePrefs) { /* ignore */ }
     } catch (e) {
       var tip = opts.reason === 'avatar'
         ? '草稿元数据保存失败；头像已尝试写入 IndexedDB，请刷新后重试。'
@@ -77,6 +82,11 @@ export function createCardStateMachine(state) {
     if (!d) return false;
     state.draftId = id;
     localStorage.setItem(CURRENT_KEY, id);
+    try {
+      if (typeof window !== 'undefined' && window.__scheduleUserPrefsCloudPush__) {
+        window.__scheduleUserPrefsCloudPush__();
+      }
+    } catch (ePrefs) { /* ignore */ }
     state.charName = d.charName || '';
     state.wbName = d.wbName || '';
     state.charDesc = d.charDesc || '';

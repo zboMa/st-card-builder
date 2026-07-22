@@ -72,14 +72,14 @@
     <section class="account-session-card" aria-labelledby="accountSyncTitle">
       <div class="account-session-card-top">
         <div>
-          <h3 id="accountSyncTitle" class="account-session-card-title">云同步</h3>
-          <p class="account-session-meta">默认仅手动同步；开启自动同步后约每 5 分钟推送，本地无变更时跳过。</p>
+          <h3 id="accountSyncTitle" class="account-session-card-title">用户数据</h3>
+          <p class="account-session-meta">角色卡、头像、小说工坊与创作进度。默认仅手动同步；开启自动后约每 5 分钟推送，本地无变更时跳过。</p>
         </div>
         <button type="button" id="btnManualSync" class="btn btn-primary btn-inline">立即同步</button>
       </div>
       <label class="account-sync-switch" for="autoSyncToggle">
         <span class="account-sync-switch__text">
-          <span class="account-sync-switch__label">自动同步</span>
+          <span class="account-sync-switch__label">自动同步用户数据</span>
           <span class="account-sync-switch__hint">开启后定时同步；本地未改动时不请求</span>
         </span>
         <input type="checkbox" id="autoSyncToggle" class="account-sync-switch__input" role="switch" />
@@ -90,24 +90,34 @@
         <span id="syncCountdownLine" class="account-session-sync-eta" hidden></span>
       </div>
       <div id="syncTip" class="account-session-tip" role="status"></div>
+    </section>
 
-      <div class="account-session-secrets" id="aiSecretsSyncBox">
-        <h4 class="account-session-secrets-title">云端密钥同步</h4>
+    <section class="account-session-card" aria-labelledby="accountPrefsTitle">
+      <h3 id="accountPrefsTitle" class="account-session-card-title">用户配置</h3>
+      <p class="account-session-meta">
+        提示词覆盖、当前打开卡等界面偏好。登录后本地一改即防抖上传到云端，无需点「立即同步」。
+      </p>
+      <div id="userPrefsSyncTip" class="account-session-tip" role="status"></div>
+    </section>
+
+    <section class="account-session-card" aria-labelledby="accountApiConfigTitle">
+      <div class="account-session-secrets" id="aiSecretsSyncBox" style="margin-top:0;padding-top:0;border-top:none;">
+        <h3 id="accountApiConfigTitle" class="account-session-card-title">AI API 配置</h3>
         <p class="account-session-meta">
-          默认不同步 API 密钥。用自设口令在本地加密后上传；服务端只存密文，新设备需同一口令解密。口令不会上传。
+          主动同步完整 API 配置（接口地址、密钥、模型、Embedding、联网搜索、NSFW/引擎选项等）。用自设口令本地加密后上传；服务端只存密文，新设备需同一口令解密。口令不会上传。不随「立即同步」自动推送。
         </p>
         <label class="account-session-secrets-label" for="aiSecretsPassphrase">同步口令（至少 6 位）</label>
         <input
           type="password"
           id="aiSecretsPassphrase"
           class="account-session-secrets-input"
-          placeholder="用于加密/解密云端密钥"
+          placeholder="用于加密/解密云端 API 配置"
           autocomplete="new-password"
         />
         <div class="account-session-secrets-actions">
           <button type="button" id="btnUploadAiSecrets" class="btn btn-ghost btn-inline">加密同步到云端</button>
           <button type="button" id="btnDownloadAiSecrets" class="btn btn-ghost btn-inline">拉取并解密到本地</button>
-          <button type="button" id="btnClearCloudAiSecrets" class="btn btn-ghost btn-inline">清除云端密钥</button>
+          <button type="button" id="btnClearCloudAiSecrets" class="btn btn-ghost btn-inline">清除云端 API 配置</button>
         </div>
         <div id="aiSecretsSyncTip" class="account-session-tip" role="status"></div>
       </div>
@@ -373,7 +383,15 @@
     downloadAiSecretsFromCloud,
     clearCloudAiSecrets,
   } from '../lib/sync/secrets.mjs';
+  import {
+    setUserPrefsSyncEnabled,
+    scheduleUserPrefsCloudPush,
+    pullUserPrefsFromCloud,
+    pushUserPrefsToCloudNow,
+  } from '../lib/sync/userPrefsMirror.mjs';
   import { idbGetJson } from '../lib/idbStore.mjs';
+
+  window.__scheduleUserPrefsCloudPush__ = scheduleUserPrefsCloudPush;
 
   var panelCountdownTimer = null;
 
@@ -449,6 +467,7 @@
     stopAutoSync();
     stopPanelCountdown();
     syncAutoSyncToggle(false);
+    setUserPrefsSyncEnabled(false);
     setSidebarAuth(false);
   }
 
@@ -476,6 +495,21 @@
       }
     }
     if (!st.disabled) {
+      setUserPrefsSyncEnabled(true);
+      pullUserPrefsFromCloud().then(function() {
+        var tip = document.getElementById('userPrefsSyncTip');
+        if (tip) {
+          tip.textContent = '用户配置已与云端对齐；本地修改将自动上传';
+          tip.classList.remove('is-err');
+        }
+        pushUserPrefsToCloudNow().catch(function() {});
+      }).catch(function(e) {
+        var tip = document.getElementById('userPrefsSyncTip');
+        if (tip) {
+          tip.textContent = '用户配置拉取失败：' + String(e && e.message || e);
+          tip.classList.add('is-err');
+        }
+      });
       applyAutoSyncPref().then(function(on) {
         syncAutoSyncToggle(on);
         if (on) startPanelCountdown();
@@ -488,6 +522,7 @@
       });
       setSidebarAuth(true);
     } else {
+      setUserPrefsSyncEnabled(false);
       syncAutoSyncToggle(false);
       stopAutoSync();
       stopPanelCountdown();
@@ -667,6 +702,7 @@
     await apiLogout();
     stopAutoSync();
     syncAutoSyncToggle(false);
+    setUserPrefsSyncEnabled(false);
     await refreshAuthUi();
   });
 
@@ -719,7 +755,7 @@
     secretsTip('加密上传中…');
     try {
       await uploadAiSecretsToCloud(pass);
-      secretsTip('已加密同步到云端（服务端无法解密）');
+      secretsTip('已加密同步完整 API 配置到云端（服务端无法解密）');
     } catch (e) {
       secretsTip('失败：' + String(e && e.message || e), true);
     }
@@ -742,11 +778,11 @@
   });
 
   document.getElementById('btnClearCloudAiSecrets')?.addEventListener('click', async function() {
-    if (!confirm('确认清除云端密钥文档？本地密钥不会删除。')) return;
+    if (!confirm('确认清除云端 AI API 配置文档？本地配置不会删除。')) return;
     secretsTip('清除中…');
     try {
       await clearCloudAiSecrets();
-      secretsTip('云端密钥已清除');
+      secretsTip('云端 AI API 配置已清除');
     } catch (e) {
       secretsTip('失败：' + String(e && e.message || e), true);
     }

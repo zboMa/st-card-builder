@@ -167,6 +167,12 @@ export async function runSync(opts) {
     }
     var result = await replicateWithRemote(lastCred, { includeSecrets: includeSecrets });
     await mergePulledCardsIntoLocalStorage();
+    try {
+      var { hydrateAvatarsFromCardIndex } = await import('./avatarMirror.mjs');
+      await hydrateAvatarsFromCardIndex();
+    } catch (avatarErr) {
+      console.warn('[sync] hydrate avatars', avatarErr);
+    }
     lastSyncAt = new Date().toISOString();
     lastSyncError = null;
     clearLocalDirty();
@@ -283,6 +289,14 @@ export async function listCardsFromIndex() {
 export async function upsertLocalCardAndIndex(cardId, draft, allDraftsMap) {
   await putCardDraft(cardId, draft);
   if (allDraftsMap) await refreshCardIndexFromLocalDrafts(allDraftsMap);
+  if (draft && (draft.avatarInIdb || draft.avatarBase64)) {
+    try {
+      var { mirrorAvatarToPouch } = await import('./avatarMirror.mjs');
+      await mirrorAvatarToPouch(cardId);
+    } catch (e) {
+      console.warn('[sync] mirror avatar', e);
+    }
+  }
 }
 
 export { getCardDraft, putCardDraft, getLocalDb, DOC, cardDocId };

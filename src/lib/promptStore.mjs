@@ -112,6 +112,11 @@ export function createPromptStore(storage, defaults) {
     try {
       storage.setItem(PROMPT_STORAGE_KEY, JSON.stringify(overrides || {}));
     } catch (e) { /* quota / private mode */ }
+    try {
+      if (typeof window !== 'undefined' && window.__scheduleUserPrefsCloudPush__) {
+        window.__scheduleUserPrefsCloudPush__();
+      }
+    } catch (e2) { /* ignore */ }
   }
 
   function get(id) {

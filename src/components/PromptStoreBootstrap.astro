@@ -55,6 +55,9 @@ const storageKey = PROMPT_STORAGE_KEY;
     try {
       localStorage.setItem(KEY, JSON.stringify(overrides || {}));
     } catch (e) {}
+    try {
+      if (window.__scheduleUserPrefsCloudPush__) window.__scheduleUserPrefsCloudPush__();
+    } catch (e2) {}
   }
 
   function get(id) {
