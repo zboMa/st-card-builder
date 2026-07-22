@@ -4,6 +4,11 @@
 import { uid, escapeHtml, parseJsonLoose, normalizeNameList } from '../utils.mjs';
 import { applyTemplate } from '../promptStore.mjs';
 import { SETUP_ENTITY_SUMMARY } from './contextBudgets.mjs';
+import { buildSetupCorpus } from './chapters.mjs';
+import { DEFAULT_EXPAND_BUDGET } from './recall.mjs';
+import { findEntityMatch } from './entityStore.mjs';
+import { hybridSearch } from './rag/hybridSearch.mjs';
+import { buildRagInjectBlock, pickRelatedEntities } from './rag/inject.mjs';
 
 export function attachNovelBootSetup(ctx, deps) {
   var state = deps.state;

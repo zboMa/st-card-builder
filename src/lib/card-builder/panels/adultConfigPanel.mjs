@@ -5,10 +5,10 @@
 /** @param {object} ctx @param {object} s @param {object} panel */
 export function attachAdultConfigPanel(ctx, s, panel) {
   Object.assign(panel, {
-    buildNsfwFlavorHint: buildNsfwFlavorHint,
-    buildPostureHintForPrompt: buildPostureHintForPrompt,
-    buildSpeechHintForPrompt: buildSpeechHintForPrompt,
-    buildNtlHintForPrompt: buildNtlHintForPrompt,
+    buildNsfwFlavorHint: s.buildNsfwFlavorHint,
+    buildPostureHintForPrompt: s.buildPostureHintForPrompt,
+    buildSpeechHintForPrompt: s.buildSpeechHintForPrompt,
+    buildNtlHintForPrompt: s.buildNtlHintForPrompt,
 
     renderWorldframeRow: function() {
       var row = document.getElementById('adultWorldframeRow');
