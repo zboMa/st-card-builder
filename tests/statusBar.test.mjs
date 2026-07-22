@@ -737,7 +737,7 @@ describe('statusBar wiring', function() {
   });
 
   it('文档同步状态栏一对一主题与女角识别', function() {
-    const doc = readFileSync(join(root, 'docs/card-writing-guide.md'), 'utf8');
+    const doc = readFileSync(join(root, 'docs/guides/card-writing-guide.md'), 'utf8');
     assert.match(doc, /只识别女角色/);
     assert.match(doc, /独立 checkbox|不在 AI 按钮内|独立勾选/);
     assert.match(doc, /紧凑网格短卡片|minmax\(160px/);

@@ -141,3 +141,48 @@ export async function replicateWithRemote(cred, opts) {
   try { await remote.close(); } catch (e) { /* ignore */ }
   return out;
 }
+
+/**
+ * 仅同步指定文档 ID（双向）。用于密钥等独立操作，避免全量 replicate。
+ * @param {{ dbUrl: string, username: string, password: string }} cred
+ * @param {string[]} docIds
+ */
+export async function replicateDocIdsWithRemote(cred, docIds) {
+  var ids = Array.isArray(docIds)
+    ? docIds.map(function(id) { return String(id || '').trim(); }).filter(Boolean)
+    : [];
+  if (!ids.length) throw new Error('missing_doc_ids');
+
+  var db = await getLocalDb();
+  var PouchDB = await loadPouchDB();
+  var remoteUrl = String(cred.dbUrl || '');
+  var u = new URL(remoteUrl);
+  u.username = cred.username || '';
+  u.password = cred.password || '';
+  var remote = new PouchDB(u.toString(), { skip_setup: true });
+
+  var push = db.replicate.to(remote, {
+    live: false,
+    retry: false,
+    doc_ids: ids,
+  });
+  var pull = db.replicate.from(remote, {
+    live: false,
+    retry: false,
+    doc_ids: ids,
+  });
+
+  function wait(rep) {
+    return new Promise(function(resolve, reject) {
+      rep.on('complete', resolve);
+      rep.on('error', reject);
+    });
+  }
+
+  var out = {
+    push: await wait(push),
+    pull: await wait(pull),
+  };
+  try { await remote.close(); } catch (e) { /* ignore */ }
+  return out;
+}

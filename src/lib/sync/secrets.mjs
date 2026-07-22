@@ -1,9 +1,10 @@
 /**
  * AI 密钥独立云同步：口令加密后上云，本机解密使用
+ * 上下载/清除只 replicate secrets/ai-config，不走全量 runSync。
  */
 import { DOC } from './docIds.mjs';
-import { getDoc, putDoc, removeDoc } from './pouch.mjs';
-import { runSync, fetchSyncCredentials } from './syncEngine.mjs';
+import { getDoc, putDoc, removeDoc, replicateDocIdsWithRemote } from './pouch.mjs';
+import { fetchSyncCredentials } from './syncEngine.mjs';
 import {
   encryptJsonWithPassphrase,
   decryptJsonWithPassphrase,
@@ -33,6 +34,12 @@ function readLocalAiConfig() {
   try { return raw ? JSON.parse(raw) : null; } catch (e) { return null; }
 }
 
+/** 仅推拉 secrets/ai-config，不影响全量同步状态与 syncSecrets 偏好 */
+async function replicateAiSecretsOnly() {
+  var cred = await fetchSyncCredentials();
+  return replicateDocIdsWithRemote(cred, [DOC.aiSecrets]);
+}
+
 /** 加密写入本地 Pouch secrets 文档（仍须显式 sync 才上云） */
 export async function saveEncryptedAiSecretsToLocalPouch(passphrase) {
   var data = readLocalAiConfig();
@@ -56,18 +63,14 @@ export async function loadAiSecretsEnvelopeFromLocalPouch() {
 
 export async function clearCloudAiSecrets() {
   await removeDoc(DOC.aiSecrets);
-  await setSyncSecretsPref(true);
-  await fetchSyncCredentials();
-  await runSync({ includeSecrets: true, refreshCred: false });
-  await setSyncSecretsPref(false);
+  await replicateAiSecretsOnly();
 }
 
-/** 口令加密上传密钥到云端 */
+/** 口令加密上传密钥到云端（仅 secrets 文档） */
 export async function uploadAiSecretsToCloud(passphrase) {
   if (!passphrase) throw new Error('passphrase_required');
   await saveEncryptedAiSecretsToLocalPouch(passphrase);
-  await setSyncSecretsPref(true);
-  await runSync({ includeSecrets: true, refreshCred: true });
+  await replicateAiSecretsOnly();
 }
 
 /**
@@ -76,8 +79,7 @@ export async function uploadAiSecretsToCloud(passphrase) {
  */
 export async function downloadAiSecretsFromCloud(passphrase) {
   if (!passphrase) throw new Error('passphrase_required');
-  await setSyncSecretsPref(true);
-  await runSync({ includeSecrets: true, refreshCred: true });
+  await replicateAiSecretsOnly();
   var doc = await loadAiSecretsEnvelopeFromLocalPouch();
   if (!doc) throw new Error('no_cloud_secrets');
 
@@ -88,7 +90,7 @@ export async function downloadAiSecretsFromCloud(passphrase) {
     // 兼容旧明文文档：拉取后立即用口令重加密覆盖
     plain = doc.data;
     await saveEncryptedAiSecretsToLocalPouch(passphrase);
-    await runSync({ includeSecrets: true, refreshCred: false });
+    await replicateAiSecretsOnly();
   } else {
     throw new Error('no_cloud_secrets');
   }
