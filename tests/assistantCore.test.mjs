@@ -36,6 +36,21 @@ import {
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
+function readCardManagerSources(base) {
+  return [
+    'cardManager.mjs',
+    'cardManagerShared.mjs',
+    'cardManagerRender.mjs',
+    'cardManagerCrud.mjs',
+    'cardManagerPublishShare.mjs',
+    'cardManagerCloud.mjs',
+    'cardManagerExport.mjs',
+    'cardManagerBind.mjs',
+  ].map(function (f) {
+    return readFileSync(join(base, 'src/lib/card-builder/panels', f), 'utf8');
+  }).join('');
+}
+
 function memoryStorage() {
   var map = new Map();
   return {
@@ -689,7 +704,7 @@ describe('assistant prompts & UI wiring', function() {
   it('右栏助手已挂载', function() {
     const index = readFileSync(join(root, 'src/pages/index.astro'), 'utf8');
     assert.match(index, /AssistantPanel/);
-    const cmSrc = readFileSync(join(root, 'src/lib/card-builder/panels/cardManager.mjs'), 'utf8');
+    const cmSrc = readCardManagerSources(root);
     assert.match(cmSrc, /__assistantCardApi__/);
     const wbSrc = readFileSync(join(root, 'src/lib/card-builder/panels/worldbook.mjs'), 'utf8');
     assert.match(wbSrc, /__assistantWbAi__/);

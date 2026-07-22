@@ -7,6 +7,21 @@ import { buildExportChecklist } from '../src/lib/card-builder/exportChecklist.mj
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
+function readCardManagerSources(base) {
+  return [
+    'cardManager.mjs',
+    'cardManagerShared.mjs',
+    'cardManagerRender.mjs',
+    'cardManagerCrud.mjs',
+    'cardManagerPublishShare.mjs',
+    'cardManagerCloud.mjs',
+    'cardManagerExport.mjs',
+    'cardManagerBind.mjs',
+  ].map(function (f) {
+    return readFileSync(join(base, 'src/lib/card-builder/panels', f), 'utf8');
+  }).join('');
+}
+
 describe('exportChecklist', function() {
   it('missing name/desc critical; missing greeting/avatar warning', function() {
     var r = buildExportChecklist({});
@@ -91,7 +106,7 @@ describe('exportChecklist', function() {
     assert.match(panel, /exportChecklistModal/);
     assert.match(panel, /ui-search-bar|wb-search-bar/);
     assert.match(panel, /card-manager-cover-overlay|cover-overlay/);
-    var mgr = readFileSync(join(root, 'src/lib/card-builder/panels/cardManager.mjs'), 'utf8');
+    var mgr = readCardManagerSources(root);
     assert.match(mgr, /bindExportChecklistUi/);
     assert.match(mgr, /openExportChecklistModal/);
     assert.match(mgr, /card-manager-check-badge/);

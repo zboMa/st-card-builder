@@ -9,6 +9,21 @@ import { dirname, join } from 'node:path';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
+function readCardManagerSources(base) {
+  return [
+    'cardManager.mjs',
+    'cardManagerShared.mjs',
+    'cardManagerRender.mjs',
+    'cardManagerCrud.mjs',
+    'cardManagerPublishShare.mjs',
+    'cardManagerCloud.mjs',
+    'cardManagerExport.mjs',
+    'cardManagerBind.mjs',
+  ].map(function (f) {
+    return readFileSync(join(base, 'src/lib/card-builder/panels', f), 'utf8');
+  }).join('');
+}
+
 /** 数据驱动侧栏在前端 matter 中的 view 契约 */
 function sidebarViewPattern(viewId) {
   return new RegExp("view:\\s*'" + viewId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + "'");
@@ -123,7 +138,7 @@ describe('sidebar navigation contract', function() {
     assert.match(mgr, /card-manager-item-actions__group/);
     assert.match(mgr, /card-mgr-icon/);
     assert.match(mgr, /id="btnImportCard"/);
-    const cmSrc = readFileSync(join(root, 'src/lib/card-builder/panels/cardManager.mjs'), 'utf8');
+    const cmSrc = readCardManagerSources(root);
     const chSrc = readFileSync(join(root, 'src/lib/card-builder/panels/character.mjs'), 'utf8');
     const smSrc = readFileSync(join(root, 'src/lib/card-builder/stateMachine.mjs'), 'utf8');
     const stSrc = readFileSync(join(root, 'src/lib/card-builder/state.mjs'), 'utf8');
