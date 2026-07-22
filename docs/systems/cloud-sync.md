@@ -81,8 +81,10 @@ npm run dev            # Astro :4321，/api 代理到 8787
 
 ### 小说分享
 
-- **发布快照** `story/{cardId}/{novelId}/release`
-- **读者入口**：`/#share/{token}`
+- **发布快照** `story/{cardId}/{novelId}/release`（`schemaVersion: 2` 可含 `branches[]` + 章 `branchId`）
+- **增版**：仅纳入 `publishReady` 的分支及其祖先；读者在分叉章后选线
+- **读者入口**：`/#share/{token}`（选线进度存本机；可「复制到本地创作」）
+- **API**：`GET /api/share/novels/:token` 返回树状 sanitize 稿（旧线性稿仍兼容）
 
 ## AI API 配置加密上云
 

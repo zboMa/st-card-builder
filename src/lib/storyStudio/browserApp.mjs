@@ -45,7 +45,17 @@ import {
   buildLocalShareUrl,
 } from './shareClient.mjs';
 import { DRAFTS_KEY, CURRENT_KEY } from '../card-builder/state.mjs';
-import { forkBranchFromChapter, setActiveBranch, resolveBranchLedger, branchBrief, getBranch } from './branch.mjs';
+import {
+  forkBranchFromChapter,
+  setActiveBranch,
+  resolveBranchLedger,
+  branchBrief,
+  getBranch,
+  buildBranchTree,
+  patchBranch,
+  validatePublishReady,
+  BRANCH_KIND_ENDING,
+} from './branch.mjs';
 import { createLedgerItem } from './plotLedger.mjs';
 import { listChapterCheckpoints, restoreChapterCheckpoint } from './checkpoint.mjs';
 import { tensionCurveFromChapters } from './quality.mjs';
@@ -439,6 +449,37 @@ function setWriteProgress(activeStep) {
   });
 }
 
+function renderBranchTree() {
+  var box = $('ssBranchTree');
+  if (!box) return;
+  if (!state.novel) {
+    box.innerHTML = '<div class="ss-empty ui-empty-tip">请先打开小说</div>';
+    return;
+  }
+  var rows = buildBranchTree(state.novel);
+  box.innerHTML = rows.map(function(row) {
+    var b = row.branch;
+    var pad = Math.max(0, row.depth) * 14;
+    var active = b.id === state.novel.activeBranchId ? ' is-active' : '';
+    var kindTag = b.kind === BRANCH_KIND_ENDING ? '结局' : '支线';
+    return (
+      '<div class="ss-branch-row' + active + '" data-branch-id="' + escapeHtml(b.id) + '" style="padding-left:' + pad + 'px">'
+      + '<button type="button" class="btn btn-ghost btn-inline" data-ss-br-switch title="切换到此分支">'
+      + escapeHtml(b.name) + '</button>'
+      + '<span class="ss-branch-meta">' + kindTag
+      + (b.parentBranchId ? (' · 自第' + (b.forkOrder + 1) + '章') : ' · 根')
+      + '</span>'
+      + '<label class="ss-branch-ready" title="纳入下次增版/读者选线">'
+      + '<input type="checkbox" data-ss-br-ready ' + (b.publishReady ? 'checked' : '') + ' />发布'
+      + '</label>'
+      + '<button type="button" class="btn btn-ghost btn-inline" data-ss-br-edit>选项文案</button>'
+      + '<button type="button" class="btn btn-ghost btn-inline" data-ss-br-ending">'
+      + (b.kind === BRANCH_KIND_ENDING ? '取消结局' : '标为结局') + '</button>'
+      + '</div>'
+    );
+  }).join('') || '<div class="ss-empty ui-empty-tip">暂无分支</div>';
+}
+
 function renderWrite() {
   var sel = $('ssWriteChapterSelect');
   var titleEl = $('ssWriteChapterTitle');
@@ -460,6 +501,7 @@ function renderWrite() {
   if (!state.novel) {
     if (sel) sel.innerHTML = '<option value="">请先打开小说</option>';
     if (branchSel) branchSel.innerHTML = '';
+    renderBranchTree();
     return;
   }
 
@@ -576,6 +618,7 @@ function renderWrite() {
       );
     }).join('') || '<div class="ss-empty ui-empty-tip">暂无伏笔。写章后可自动收录，或手动添加。</div>';
   }
+  renderBranchTree();
 }
 
 function renderRead() {
@@ -762,16 +805,26 @@ async function bumpNovel(novelId) {
     return;
   }
   var novel = normalizeNovel(raw);
+  var check = validatePublishReady(novel);
+  if (!check.ok) {
+    setStatus('增版校验未通过：' + check.issues.slice(0, 3).join('；'));
+    if (!window.confirm(
+      '发布校验有问题：\n- ' + check.issues.join('\n- ')
+      + '\n\n仍要继续增版吗？（未勾选「纳入发布」的支线不会出现在读者选线中）'
+    )) return;
+  }
   var charVer = getCharacterVersion();
   var isFirstPublish = !novel.publishedDisplayVersion;
   var nextVer = isFirstPublish
     ? (novel.novelVersion || '1')
     : bumpNovelVersion(novel.novelVersion);
   var display = buildDisplayVersion(charVer, nextVer);
+  var readyCount = (novel.branches || []).filter(function(b) { return b.publishReady; }).length;
   if (!window.confirm(
     (isFirstPublish
       ? '首次发布为分享可见版「' + display + '」。\n'
       : '增版并固化为分享可见版「' + display + '」。\n')
+    + '将纳入 ' + readyCount + ' 条分支供读者选线。\n'
     + '未再增版前，分享链接不会看到之后的编辑。继续？'
   )) return;
 
@@ -780,6 +833,7 @@ async function bumpNovel(novelId) {
   var release = buildReleasePayload(novel, charVer, {
     novelVersion: nextVer,
     publishedAt: publishedAt,
+    filterReady: true,
   });
   novel.publishedDisplayVersion = release.displayVersion;
   novel.publishedAt = publishedAt;
@@ -799,7 +853,7 @@ async function bumpNovel(novelId) {
   try {
     var sync = await import('../sync/syncEngine.mjs');
     await sync.runSync({ refreshCred: true });
-    setStatus('已增版 ' + display + ' 并已同步');
+    setStatus('已增版 ' + display + '（' + (release.branches || []).length + ' 支）并已同步');
   } catch (e2) {
     setStatus('已增版 ' + display + '（本地已保存；同步失败：' + (e2.message || e2) + '）');
   }
@@ -1298,19 +1352,25 @@ async function forkCurrentChapterBranch() {
   }
   var name = window.prompt('新分支名称', '平行线');
   if (name === null) return;
+  var choiceLabel = window.prompt('读者选项文案（选线时显示）', String(name).trim() || '平行线');
+  if (choiceLabel === null) return;
   var direction = window.prompt('分支方向 / 偏好（写入后续生成）', '') || '';
+  var asEnding = window.confirm('将此分支标为「结局支」？（可稍后在分支树改）');
   try {
     var out = forkBranchFromChapter(state.novel, {
       fromChapterId: sel.value,
       name: String(name).trim() || '平行线',
+      choiceLabel: String(choiceLabel).trim() || String(name).trim(),
       direction: String(direction).trim(),
+      kind: asEnding ? BRANCH_KIND_ENDING : 'path',
+      endingTitle: asEnding ? (String(choiceLabel).trim() || String(name).trim()) : '',
+      publishReady: true,
     });
     state.novel = normalizeNovel(out.novel);
     await persistNovel();
     setStatus('已开分支「' + out.branch.name + '」，自「' + (out.forkChapter.title || '') + '」分叉');
     renderAll();
     if (direction) {
-      // 可选：立刻为分支续大纲
       if (window.confirm('是否立即按分支方向续写大纲？')) {
         await generateOutline('branch');
       }
@@ -1539,6 +1599,74 @@ function bindEvents() {
   }
   var btnFork = $('btnSsForkBranch');
   if (btnFork) btnFork.addEventListener('click', function() { forkCurrentChapterBranch(); });
+
+  var branchTree = $('ssBranchTree');
+  if (branchTree) {
+    branchTree.addEventListener('click', async function(ev) {
+      if (!state.novel) return;
+      var row = ev.target.closest('[data-branch-id]');
+      if (!row) return;
+      var id = row.getAttribute('data-branch-id');
+      if (ev.target.closest('[data-ss-br-switch]')) {
+        try {
+          state.novel = setActiveBranch(state.novel, id);
+          await persistNovel();
+          setStatus('已切换分支');
+          renderAll();
+        } catch (e) {
+          setStatus(e.message || String(e));
+        }
+        return;
+      }
+      if (ev.target.closest('[data-ss-br-edit]')) {
+        var br = getBranch(state.novel, id);
+        var label = window.prompt('读者选项文案', br.choiceLabel || br.name || '');
+        if (label === null) return;
+        var teaser = window.prompt('选项短提示（可选）', br.choiceTeaser || br.direction || '');
+        if (teaser === null) return;
+        var endingTitle = br.kind === BRANCH_KIND_ENDING
+          ? window.prompt('结局标题', br.endingTitle || br.name || '')
+          : br.endingTitle;
+        if (endingTitle === null) return;
+        state.novel = patchBranch(state.novel, id, {
+          choiceLabel: label,
+          choiceTeaser: teaser,
+          endingTitle: endingTitle,
+        });
+        await persistNovel();
+        renderBranchTree();
+        setStatus('已更新分支文案');
+        return;
+      }
+      if (ev.target.closest('[data-ss-br-ending]')) {
+        var cur = getBranch(state.novel, id);
+        var nextKind = cur.kind === BRANCH_KIND_ENDING ? 'path' : BRANCH_KIND_ENDING;
+        var et = cur.endingTitle;
+        if (nextKind === BRANCH_KIND_ENDING && !et) {
+          et = window.prompt('结局标题', cur.choiceLabel || cur.name || '结局') || cur.name;
+        }
+        state.novel = patchBranch(state.novel, id, {
+          kind: nextKind,
+          endingTitle: nextKind === BRANCH_KIND_ENDING ? et : '',
+        });
+        await persistNovel();
+        renderBranchTree();
+        setStatus(nextKind === BRANCH_KIND_ENDING ? '已标为结局支' : '已取消结局标记');
+      }
+    });
+    branchTree.addEventListener('change', async function(ev) {
+      if (!state.novel) return;
+      var ready = ev.target.closest('[data-ss-br-ready]');
+      if (!ready) return;
+      var row = ready.closest('[data-branch-id]');
+      if (!row) return;
+      state.novel = patchBranch(state.novel, row.getAttribute('data-branch-id'), {
+        publishReady: !!ready.checked,
+      });
+      await persistNovel();
+      setStatus(ready.checked ? '已纳入发布' : '已移出发布');
+    });
+  }
 
   var btnWrite = $('btnSsWriteChapter');
   if (btnWrite) btnWrite.addEventListener('click', function() { writeChapter(false); });

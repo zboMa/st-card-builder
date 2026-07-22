@@ -457,6 +457,44 @@
     margin-bottom: 10px;
   }
   .ss-write-branch-actions { margin: 0; }
+  .ss-branch-tree-wrap {
+    margin-bottom: 12px;
+    padding: 10px;
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 8px;
+    background: var(--color-surface);
+  }
+  .ss-branch-tree {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 8px;
+    max-height: 220px;
+    overflow-y: auto;
+  }
+  .ss-branch-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 0;
+  }
+  .ss-branch-row.is-active {
+    background: var(--color-accent-soft);
+    border-radius: 6px;
+  }
+  .ss-branch-meta {
+    font-size: 0.66rem;
+    color: var(--color-text-muted);
+  }
+  .ss-branch-ready {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.72rem;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+  }
   .ss-write-progress {
     margin-bottom: 10px;
     padding: 8px 10px;
