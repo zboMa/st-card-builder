@@ -69,6 +69,8 @@ import { listChapterCheckpoints, restoreChapterCheckpoint } from './checkpoint.m
 import { tensionCurveFromChapters } from './quality.mjs';
 import { runChapterWritePipeline, WRITE_STEPS } from './writePipeline.mjs';
 import { collectFeedForwardsBefore } from './feedForward.mjs';
+import { showSsConfirm, showSsPrompt, showSsModal, showSsMessage } from './dialogs.mjs';
+import { mountStoryGraph, relayoutStoryGraph, destroyStoryGraph } from './graphView.mjs';
 
 var state = {
   cardId: '',
@@ -77,6 +79,11 @@ var state = {
   status: '',
   busy: false,
 };
+
+var ssBranchTreeOpen = false;
+var ssBranchExpandedId = '';
+var ssReadTocOpen = false;
+var ssBranchPopoverDocHandler = null;
 
 function $(id) {
   return document.getElementById(id);
@@ -333,48 +340,77 @@ function renderGraph() {
   var box = $('ssGraphNodes');
   var edgeBox = $('ssGraphEdges');
   var title = $('ssCurrentNovelTitle');
+  var stats = $('ssGraphStats');
+  var detail = $('ssGraphDetail');
   if (title) title.textContent = state.novel ? state.novel.title : '（未打开小说）';
-  if (!box || !edgeBox) return;
   if (!state.novel) {
-    box.innerHTML = '<div class="ss-empty ui-empty-tip">请先在「管理」打开一部小说</div>';
-    edgeBox.innerHTML = '';
+    if (box) box.innerHTML = '<div class="ss-empty ui-empty-tip">请先在「管理」打开一部小说</div>';
+    if (edgeBox) edgeBox.innerHTML = '';
+    if (stats) stats.textContent = '节点 0 · 边 0';
+    if (detail) detail.textContent = '打开小说后可查看图谱';
+    destroyStoryGraph();
     return;
   }
   var g = state.novel.graph || { nodes: [], edges: [] };
-  box.innerHTML = (g.nodes || []).map(function(n, i) {
-    return (
-      '<div class="ss-graph-row" data-node-idx="' + i + '">'
-      + '<select class="ss-node-type" data-f="type">'
-      + '<option value="character"' + (n.type === 'character' ? ' selected' : '') + '>人物</option>'
-      + '<option value="location"' + (n.type === 'location' ? ' selected' : '') + '>地点</option>'
-      + '<option value="other"' + (n.type === 'other' ? ' selected' : '') + '>其他</option>'
-      + '</select>'
-      + '<input class="ss-node-name" data-f="name" value="' + escapeHtml(n.name) + '" placeholder="名称" />'
-      + '<input class="ss-node-note" data-f="note" value="' + escapeHtml(n.note) + '" placeholder="备注" />'
-      + '<button type="button" class="btn btn-ghost btn-inline" data-ss-node-del>删</button>'
-      + '</div>'
-    );
-  }).join('') || '<div class="ss-empty ui-empty-tip">暂无节点。可从卡面种子生成。</div>';
+  if (stats) stats.textContent = '节点 ' + (g.nodes || []).length + ' · 边 ' + (g.edges || []).length;
+
+  if (box) {
+    box.innerHTML = (g.nodes || []).map(function(n, i) {
+      return (
+        '<div class="ss-graph-row" data-node-idx="' + i + '">'
+        + '<select class="ss-node-type" data-f="type">'
+        + '<option value="character"' + (n.type === 'character' ? ' selected' : '') + '>人物</option>'
+        + '<option value="location"' + (n.type === 'location' ? ' selected' : '') + '>地点</option>'
+        + '<option value="other"' + (n.type === 'other' ? ' selected' : '') + '>其他</option>'
+        + '</select>'
+        + '<input class="ss-node-name" data-f="name" value="' + escapeHtml(n.name) + '" placeholder="名称" />'
+        + '<input class="ss-node-note" data-f="note" value="' + escapeHtml(n.note) + '" placeholder="备注" />'
+        + '<button type="button" class="btn btn-ghost btn-inline" data-ss-node-del>删</button>'
+        + '</div>'
+      );
+    }).join('') || '<div class="ss-empty ui-empty-tip">暂无节点。可从卡面种子生成。</div>';
+  }
 
   var nodeOpts = (g.nodes || []).map(function(n) {
     return '<option value="' + escapeHtml(n.id) + '">' + escapeHtml(n.name) + '</option>';
   }).join('');
-  edgeBox.innerHTML = (g.edges || []).map(function(e, i) {
-    return (
-      '<div class="ss-graph-row" data-edge-idx="' + i + '">'
-      + '<select data-f="from">' + nodeOpts.replace(
-        'value="' + escapeHtml(e.from) + '"',
-        'value="' + escapeHtml(e.from) + '" selected'
-      ) + '</select>'
-      + '<input data-f="label" value="' + escapeHtml(e.label) + '" placeholder="关系" />'
-      + '<select data-f="to">' + nodeOpts.replace(
-        'value="' + escapeHtml(e.to) + '"',
-        'value="' + escapeHtml(e.to) + '" selected'
-      ) + '</select>'
-      + '<button type="button" class="btn btn-ghost btn-inline" data-ss-edge-del>删</button>'
-      + '</div>'
-    );
-  }).join('') || '<div class="ss-empty ui-empty-tip">暂无关系边</div>';
+  if (edgeBox) {
+    edgeBox.innerHTML = (g.edges || []).map(function(e, i) {
+      return (
+        '<div class="ss-graph-row" data-edge-idx="' + i + '">'
+        + '<select data-f="from">' + nodeOpts.replace(
+          'value="' + escapeHtml(e.from) + '"',
+          'value="' + escapeHtml(e.from) + '" selected'
+        ) + '</select>'
+        + '<input data-f="label" value="' + escapeHtml(e.label) + '" placeholder="关系" />'
+        + '<select data-f="to">' + nodeOpts.replace(
+          'value="' + escapeHtml(e.to) + '"',
+          'value="' + escapeHtml(e.to) + '" selected'
+        ) + '</select>'
+        + '<button type="button" class="btn btn-ghost btn-inline" data-ss-edge-del>删</button>'
+        + '</div>'
+      );
+    }).join('') || '<div class="ss-empty ui-empty-tip">暂无关系边</div>';
+  }
+
+  var cy = $('ssGraphCy');
+  if (cy) {
+    mountStoryGraph(cy, g, function(payload) {
+      var d = $('ssGraphDetail');
+      if (!d) return;
+      if (!payload) {
+        d.textContent = '点击节点或边查看详情';
+        return;
+      }
+      if (payload.kind === 'node') {
+        var note = (payload.attrs && payload.attrs.note) || '';
+        d.textContent = '节点 · ' + payload.label + '（' + payload.type + '）'
+          + (note ? ' — ' + note : '');
+      } else {
+        d.textContent = '关系 · ' + (payload.label || '') + '：' + payload.source + ' → ' + payload.target;
+      }
+    });
+  }
 }
 
 function renderOutline() {
@@ -395,7 +431,8 @@ function renderOutline() {
       '<div class="ss-outline-item" data-ol-idx="' + i + '" data-ol-id="' + escapeHtml(o.id) + '">'
       + '<div class="ss-outline-item__head">'
       + '<span class="ss-ol-idx">#' + (i + 1) + '</span>'
-      + '<input class="ss-ol-title" value="' + escapeHtml(o.title) + '" />'
+      + '<button type="button" class="ss-ol-title-btn" data-ss-ol-edit-title title="点击编辑标题">'
+      + escapeHtml(o.title || '未命名') + '</button>'
       + '<button type="button" class="btn btn-ghost btn-inline" data-ss-ol-discard title="从此章起废弃后续">废弃后续</button>'
       + '<button type="button" class="btn btn-ghost btn-inline" data-ss-ol-del>删</button>'
       + '</div>'
@@ -459,6 +496,63 @@ function setWriteProgress(activeStep) {
   });
 }
 
+function closeBranchTreePopover() {
+  ssBranchTreeOpen = false;
+  var pop = $('ssBranchTreePopover');
+  var btn = $('btnSsBranchTreeOpen');
+  if (pop) {
+    pop.hidden = true;
+    pop.style.left = '';
+    pop.style.top = '';
+  }
+  if (btn) btn.setAttribute('aria-expanded', 'false');
+  if (ssBranchPopoverDocHandler) {
+    document.removeEventListener('mousedown', ssBranchPopoverDocHandler, true);
+    ssBranchPopoverDocHandler = null;
+  }
+}
+
+function positionBranchTreePopover() {
+  var pop = $('ssBranchTreePopover');
+  var btn = $('btnSsBranchTreeOpen');
+  if (!pop || !btn || pop.hidden) return;
+  if (!pop._home) pop._home = pop.parentNode;
+  if (pop.parentNode !== document.body) document.body.appendChild(pop);
+  var rect = btn.getBoundingClientRect();
+  var vw = window.innerWidth || 0;
+  var vh = window.innerHeight || 0;
+  var w = Math.min(360, vw - 16);
+  pop.style.width = w + 'px';
+  var left = rect.right - w;
+  if (left < 8) left = 8;
+  var top = rect.bottom + 6;
+  var h = pop.offsetHeight || 320;
+  if (top + h > vh - 8) top = Math.max(8, rect.top - h - 6);
+  pop.style.left = Math.round(left) + 'px';
+  pop.style.top = Math.round(top) + 'px';
+}
+
+function openBranchTreePopover() {
+  var pop = $('ssBranchTreePopover');
+  var btn = $('btnSsBranchTreeOpen');
+  if (!pop) return;
+  ssBranchTreeOpen = true;
+  pop.hidden = false;
+  if (btn) btn.setAttribute('aria-expanded', 'true');
+  renderBranchTree();
+  positionBranchTreePopover();
+  setTimeout(function() {
+    ssBranchPopoverDocHandler = function(ev) {
+      var p = $('ssBranchTreePopover');
+      var b = $('btnSsBranchTreeOpen');
+      if (p && p.contains(ev.target)) return;
+      if (b && (ev.target === b || b.contains(ev.target))) return;
+      closeBranchTreePopover();
+    };
+    document.addEventListener('mousedown', ssBranchPopoverDocHandler, true);
+  }, 0);
+}
+
 function renderBranchTree() {
   var box = $('ssBranchTree');
   if (!box) return;
@@ -467,27 +561,84 @@ function renderBranchTree() {
     return;
   }
   var rows = buildBranchTree(state.novel);
+  var chapters = state.novel.chapters || [];
   box.innerHTML = rows.map(function(row) {
     var b = row.branch;
     var pad = Math.max(0, row.depth) * 14;
     var active = b.id === state.novel.activeBranchId ? ' is-active' : '';
     var kindTag = b.kind === BRANCH_KIND_ENDING ? '结局' : '支线';
+    var expanded = ssBranchExpandedId === b.id;
+    var brChapters = chapters.filter(function(c) {
+      return c && c.branchId === b.id;
+    }).sort(function(a, c) { return (a.order || 0) - (c.order || 0); });
+    var summaryBits = brChapters.slice(0, 3).map(function(c) {
+      return (c.title || '未命名') + '：' + String(c.summary || c.content || '').slice(0, 60);
+    }).join(' / ') || (b.direction || b.choiceTeaser || '暂无章节摘要');
+    var card = '';
+    if (expanded) {
+      card = '<div class="ss-branch-card">'
+        + '<div><strong>' + escapeHtml(b.name) + '</strong> · ' + kindTag
+        + (b.parentBranchId ? (' · 自第' + (b.forkOrder + 1) + '章') : ' · 根')
+        + '</div>'
+        + '<div style="margin-top:6px;">' + escapeHtml(summaryBits) + '</div>'
+        + '<div class="ss-branch-card__actions">'
+        + '<button type="button" class="btn btn-ghost btn-inline" data-ss-br-switch>切换到此分支</button>'
+        + '<button type="button" class="btn btn-ghost btn-inline" data-ss-br-open-ch>查看章节全文</button>'
+        + '<label class="ss-branch-ready"><input type="checkbox" data-ss-br-ready '
+        + (b.publishReady ? 'checked' : '') + ' />发布</label>'
+        + '<button type="button" class="btn btn-ghost btn-inline" data-ss-br-edit>选项文案</button>'
+        + '<button type="button" class="btn btn-ghost btn-inline" data-ss-br-ending">'
+        + (b.kind === BRANCH_KIND_ENDING ? '取消结局' : '标为结局') + '</button>'
+        + '</div></div>';
+    }
     return (
-      '<div class="ss-branch-row' + active + '" data-branch-id="' + escapeHtml(b.id) + '" style="padding-left:' + pad + 'px">'
-      + '<button type="button" class="btn btn-ghost btn-inline" data-ss-br-switch title="切换到此分支">'
+      '<div class="ss-branch-node' + active + '" data-branch-id="' + escapeHtml(b.id) + '" style="margin-left:' + pad + 'px">'
+      + '<div class="ss-branch-node__row">'
+      + '<button type="button" class="btn btn-ghost btn-inline" data-ss-br-expand title="展开摘要卡片">'
       + escapeHtml(b.name) + '</button>'
       + '<span class="ss-branch-meta">' + kindTag
       + (b.parentBranchId ? (' · 自第' + (b.forkOrder + 1) + '章') : ' · 根')
       + '</span>'
-      + '<label class="ss-branch-ready" title="纳入下次增版/读者选线">'
-      + '<input type="checkbox" data-ss-br-ready ' + (b.publishReady ? 'checked' : '') + ' />发布'
-      + '</label>'
-      + '<button type="button" class="btn btn-ghost btn-inline" data-ss-br-edit>选项文案</button>'
-      + '<button type="button" class="btn btn-ghost btn-inline" data-ss-br-ending">'
-      + (b.kind === BRANCH_KIND_ENDING ? '取消结局' : '标为结局') + '</button>'
+      + '</div>'
+      + card
       + '</div>'
     );
   }).join('') || '<div class="ss-empty ui-empty-tip">暂无分支</div>';
+  if (ssBranchTreeOpen) positionBranchTreePopover();
+}
+
+async function openBranchChapterModal(branchId) {
+  if (!state.novel) return;
+  var chapters = (state.novel.chapters || []).filter(function(c) {
+    return c && c.branchId === branchId;
+  }).sort(function(a, b) { return (a.order || 0) - (b.order || 0); });
+  if (!chapters.length) {
+    setStatus('该分支暂无章节');
+    return;
+  }
+  var options = chapters.map(function(c, i) {
+    return (i + 1) + '. ' + (c.title || '未命名');
+  }).join('\n');
+  var pick = await showSsPrompt({
+    icon: '📖',
+    title: '查看章节全文',
+    message: '输入章节序号（1～' + chapters.length + '）：\n' + options.slice(0, 400),
+    defaultValue: '1',
+    okText: '打开',
+  });
+  if (pick === null) return;
+  var n = parseInt(String(pick).trim(), 10);
+  if (!Number.isFinite(n) || n < 1 || n > chapters.length) {
+    setStatus('章节序号无效');
+    return;
+  }
+  var ch = chapters[n - 1];
+  var body = String(ch.content || '').trim()
+    || ('（无正文）\n\n摘要：\n' + String(ch.summary || '—'));
+  await showSsModal({
+    title: (ch.title || '未命名') + ' · 全文',
+    bodyHtml: '<div class="ss-read-text">' + escapeHtml(body).replace(/\n/g, '<br/>') + '</div>',
+  });
 }
 
 function renderWrite() {
@@ -545,6 +696,13 @@ function renderWrite() {
   }
   var ch = chapters.find(function(c) { return c.id === curId; });
   if (titleEl) titleEl.value = ch ? ch.title : '';
+  var titleBtn = $('ssWriteChapterTitleBtn');
+  if (titleBtn) titleBtn.textContent = (ch && ch.title) ? ch.title : '未命名';
+  var branchLabel = $('ssWriteBranchLabel');
+  if (branchLabel) {
+    var brCur = getBranch(state.novel, state.novel.activeBranchId);
+    branchLabel.textContent = (brCur && brCur.name) || '—';
+  }
   if (summaryEl) {
     var sum = ch ? ch.summary : '';
     if (ch && ch.feedForward && ch.feedForward.summary && !sum) sum = ch.feedForward.summary;
@@ -645,6 +803,10 @@ function renderRead() {
   }
   var br = getBranch(state.novel, state.novel.activeBranchId);
   if (title) title.textContent = state.novel.title + (br && br.name ? ' · ' + br.name : '');
+  var aside = $('ssReadAside');
+  if (aside) aside.hidden = !ssReadTocOpen;
+  var tocBtn = $('btnSsReadToc');
+  if (tocBtn) tocBtn.setAttribute('aria-expanded', ssReadTocOpen ? 'true' : 'false');
   var chapters = getActiveChapters(state.novel);
   var rs = state.novel.readState || {};
   var idx = chapters.findIndex(function(c) { return c.id === rs.chapterId; });
@@ -1125,13 +1287,17 @@ function collectOutlineFromDom() {
     if (o && o.id) byId[o.id] = o;
   });
   document.querySelectorAll('#ssOutlineList .ss-outline-item').forEach(function(row, i) {
+    var titleBtn = row.querySelector('.ss-ol-title-btn');
     var titleEl = row.querySelector('.ss-ol-title');
     var sumEl = row.querySelector('.ss-ol-summary');
     var id = row.getAttribute('data-ol-id') || '';
     var prev = (id && byId[id]) || {};
+    var titleVal = titleBtn
+      ? String(titleBtn.textContent || '').trim()
+      : (titleEl ? titleEl.value : '');
     var next = {
       id: prev.id || id || genStoryId('ol'),
-      title: titleEl ? titleEl.value : '',
+      title: titleVal,
       summary: sumEl ? sumEl.value : '',
       order: typeof prev.order === 'number' ? prev.order : i,
       branchId: prev.branchId || branchId,
@@ -1212,7 +1378,34 @@ async function seedGraph() {
   renderGraph();
 }
 
-async function generateOutline(mode) {
+
+async function promptAndGenerateOutline(mode) {
+  var isCont = mode === 'continue';
+  var hint = await showSsPrompt({
+    icon: '✨',
+    title: isCont ? '续写大纲' : '分段生成大纲',
+    message: '可填写额外提示词（可选），将注入本次生成。',
+    defaultValue: '',
+    placeholder: '例如：加强感情线，第 3 章高潮…',
+    multiline: true,
+    rows: 4,
+    okText: '开始生成',
+    cancelText: '取消',
+    select: false,
+  });
+  if (hint === null) return;
+  await generateOutline(mode, hint);
+}
+
+function setReadTocOpen(open) {
+  ssReadTocOpen = !!open;
+  var aside = $('ssReadAside');
+  var btn = $('btnSsReadToc');
+  if (aside) aside.hidden = !ssReadTocOpen;
+  if (btn) btn.setAttribute('aria-expanded', ssReadTocOpen ? 'true' : 'false');
+}
+
+async function generateOutline(mode, extraHint) {
   if (!state.novel) {
     setStatus('请先打开小说');
     return;
@@ -1239,6 +1432,8 @@ async function generateOutline(mode) {
   if (mode === 'branch') {
     segmentHint = '这是分支世界的续写大纲，请按分支方向续写 3～6 章，承接分叉前剧情但走向不同。';
   }
+  var extra = String(extraHint || '').trim();
+  if (extra) segmentHint += '\n额外要求：' + extra;
 
   var system = promptText(
     'storyOutlineGen',
@@ -1563,6 +1758,14 @@ function bindEvents() {
       collectGraphFromDom();
       await persistNovel();
       setStatus('图谱已保存');
+      renderGraph();
+    });
+  }
+  var btnRelayout = $('btnSsGraphRelayout');
+  if (btnRelayout) {
+    btnRelayout.addEventListener('click', function() {
+      relayoutStoryGraph();
+      setStatus('已重新布局');
     });
   }
 
@@ -1596,9 +1799,9 @@ function bindEvents() {
   }
 
   var btnOlGen = $('btnSsOutlineGen');
-  if (btnOlGen) btnOlGen.addEventListener('click', function() { generateOutline('segment'); });
+  if (btnOlGen) btnOlGen.addEventListener('click', function() { promptAndGenerateOutline('segment'); });
   var btnOlCont = $('btnSsOutlineContinue');
-  if (btnOlCont) btnOlCont.addEventListener('click', function() { generateOutline('continue'); });
+  if (btnOlCont) btnOlCont.addEventListener('click', function() { promptAndGenerateOutline('continue'); });
   var btnOlAdd = $('btnSsOutlineAdd');
   if (btnOlAdd) {
     btnOlAdd.addEventListener('click', async function() {
@@ -1640,13 +1843,47 @@ function bindEvents() {
   if (olList) {
     olList.addEventListener('click', async function(ev) {
       if (!state.novel) return;
+      var editTitle = ev.target.closest('[data-ss-ol-edit-title]');
       var discard = ev.target.closest('[data-ss-ol-discard]');
       var del = ev.target.closest('[data-ss-ol-del]');
       var row = ev.target.closest('[data-ol-idx]');
       if (!row) return;
       var i = Number(row.getAttribute('data-ol-idx'));
+      if (editTitle) {
+        collectOutlineFromDom();
+        var visible = getActiveOutline(state.novel);
+        var target = visible[i];
+        if (!target) return;
+        var nextTitle = await showSsPrompt({
+          icon: '✏️',
+          title: '编辑章节标题',
+          message: '第 ' + (i + 1) + ' 章',
+          defaultValue: target.title || '',
+          okText: '保存',
+        });
+        if (nextTitle === null) return;
+        nextTitle = String(nextTitle).trim();
+        if (!nextTitle) {
+          setStatus('标题不能为空');
+          return;
+        }
+        target.title = nextTitle;
+        state.novel = syncChaptersFromOutline(state.novel);
+        await persistNovel();
+        renderOutline();
+        renderWrite();
+        return;
+      }
       if (discard) {
-        if (!window.confirm('从此章起废弃后续大纲与对应章节？')) return;
+        var okDiscard = await showSsConfirm({
+          icon: '🗑️',
+          title: '废弃后续？',
+          message: '从此章起清空后续大纲与对应章节，不可恢复。',
+          okText: '废弃后续',
+          cancelText: '取消',
+          danger: true,
+        });
+        if (!okDiscard) return;
         collectOutlineFromDom();
         state.novel = discardOutlineFrom(state.novel, i);
         await persistNovel();
@@ -1702,6 +1939,45 @@ function bindEvents() {
   var btnFork = $('btnSsForkBranch');
   if (btnFork) btnFork.addEventListener('click', function() { forkCurrentChapterBranch(); });
 
+  var btnBrOpen = $('btnSsBranchTreeOpen');
+  if (btnBrOpen) {
+    btnBrOpen.addEventListener('click', function(ev) {
+      ev.preventDefault();
+      if (ssBranchTreeOpen) closeBranchTreePopover();
+      else openBranchTreePopover();
+    });
+  }
+  var btnBrClose = $('btnSsBranchTreeClose');
+  if (btnBrClose) btnBrClose.addEventListener('click', function() { closeBranchTreePopover(); });
+
+  var titleChip = $('ssWriteChapterTitleBtn');
+  if (titleChip) {
+    titleChip.addEventListener('click', async function() {
+      if (!state.novel) return;
+      collectWriteFromDom();
+      var sel = $('ssWriteChapterSelect');
+      var ch = state.novel.chapters.find(function(c) { return c.id === (sel && sel.value); });
+      if (!ch) return;
+      var next = await showSsPrompt({
+        icon: '✏️',
+        title: '编辑章节标题',
+        message: '点击保存后写回本章。',
+        defaultValue: ch.title || '',
+        okText: '保存',
+      });
+      if (next === null) return;
+      next = String(next).trim();
+      if (!next) return;
+      ch.title = next;
+      var hidden = $('ssWriteChapterTitle');
+      if (hidden) hidden.value = next;
+      titleChip.textContent = next;
+      await persistNovel();
+      renderWrite();
+      renderOutline();
+    });
+  }
+
   var branchTree = $('ssBranchTree');
   if (branchTree) {
     branchTree.addEventListener('click', async function(ev) {
@@ -1709,6 +1985,15 @@ function bindEvents() {
       var row = ev.target.closest('[data-branch-id]');
       if (!row) return;
       var id = row.getAttribute('data-branch-id');
+      if (ev.target.closest('[data-ss-br-expand]')) {
+        ssBranchExpandedId = ssBranchExpandedId === id ? '' : id;
+        renderBranchTree();
+        return;
+      }
+      if (ev.target.closest('[data-ss-br-open-ch]')) {
+        await openBranchChapterModal(id);
+        return;
+      }
       if (ev.target.closest('[data-ss-br-switch]')) {
         try {
           state.novel = setActiveBranch(state.novel, id);
@@ -1722,12 +2007,12 @@ function bindEvents() {
       }
       if (ev.target.closest('[data-ss-br-edit]')) {
         var br = getBranch(state.novel, id);
-        var label = window.prompt('读者选项文案', br.choiceLabel || br.name || '');
+        var label = await showSsPrompt({ title: '读者选项文案', message: '选线时显示', defaultValue: br.choiceLabel || br.name || '' });
         if (label === null) return;
-        var teaser = window.prompt('选项短提示（可选）', br.choiceTeaser || br.direction || '');
+        var teaser = await showSsPrompt({ title: '选项短提示', message: '可选', defaultValue: br.choiceTeaser || br.direction || '', select: false });
         if (teaser === null) return;
         var endingTitle = br.kind === BRANCH_KIND_ENDING
-          ? window.prompt('结局标题', br.endingTitle || br.name || '')
+          ? await showSsPrompt({ title: '结局标题', defaultValue: br.endingTitle || br.name || '' })
           : br.endingTitle;
         if (endingTitle === null) return;
         state.novel = patchBranch(state.novel, id, {
@@ -1745,7 +2030,7 @@ function bindEvents() {
         var nextKind = cur.kind === BRANCH_KIND_ENDING ? 'path' : BRANCH_KIND_ENDING;
         var et = cur.endingTitle;
         if (nextKind === BRANCH_KIND_ENDING && !et) {
-          et = window.prompt('结局标题', cur.choiceLabel || cur.name || '结局') || cur.name;
+          et = (await showSsPrompt({ title: '结局标题', defaultValue: cur.choiceLabel || cur.name || '结局' })) || cur.name;
         }
         state.novel = patchBranch(state.novel, id, {
           kind: nextKind,
@@ -1909,6 +2194,16 @@ function bindEvents() {
   }
 
   // Read
+  var btnToc = $('btnSsReadToc');
+  if (btnToc) {
+    btnToc.addEventListener('click', function() {
+      setReadTocOpen(!ssReadTocOpen);
+    });
+  }
+  var btnTocClose = $('btnSsReadTocClose');
+  if (btnTocClose) {
+    btnTocClose.addEventListener('click', function() { setReadTocOpen(false); });
+  }
   var toc = $('ssReadToc');
   if (toc) {
     toc.addEventListener('click', async function(ev) {

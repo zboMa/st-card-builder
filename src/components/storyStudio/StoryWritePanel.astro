@@ -1,29 +1,38 @@
 ---
-/** 逐章写作：推进提示、连写、Feed-forward、质检、分支、伏笔账本 */
+/** 写作控制台：主区正文；选项/账本折叠；分支树点击弹出竖排树 */
 ---
 <div class="panel story-studio-panel" data-story-panel="write">
-  <h2>逐章写作</h2>
-  <p class="ss-tip ui-panel-lead">章后自动摘要与开放线注入下一章；可连写 N 章、软质检改写；从本章开分支进入平行世界。</p>
-
-  <div class="ss-write-branchbar">
-    <div class="form-group">
-      <div class="ui-label-row">
-        <label for="ssWriteBranchSelect">当前分支</label>
-        <span class="ui-hint ui-hint--inline">平行世界</span>
-      </div>
-      <select id="ssWriteBranchSelect"></select>
+  <div class="ss-panel-header">
+    <div class="ss-panel-heading">
+      <h2>逐章写作</h2>
+      <p class="ss-tip ui-panel-lead">章后摘要与开放线注入下一章；分支树、写作选项收纳在侧旁，避免堆叠。</p>
     </div>
-    <div class="ss-toolbar ss-write-branch-actions">
+    <div class="ss-panel-actions" aria-label="写作操作">
+      <button type="button" id="btnSsBranchTreeOpen" class="btn btn-ghost btn-inline" aria-haspopup="dialog">分支树</button>
       <button type="button" id="btnSsForkBranch" class="btn btn-ghost btn-inline">从本章开分支</button>
+      <button type="button" id="btnSsWriteChapter" class="btn btn-ghost btn-inline">AI 撰写本章</button>
+      <button type="button" id="btnSsWriteAutoNext" class="btn btn-ghost btn-inline">连写下一章</button>
+      <button type="button" id="btnSsWriteBatch" class="btn btn-ghost btn-inline">连写 N 章</button>
+      <button type="button" id="btnSsWriteQa" class="btn btn-ghost btn-inline">质检</button>
+      <button type="button" id="btnSsWriteRewrite" class="btn btn-ghost btn-inline">按质检改写</button>
+      <button type="button" id="btnSsWriteSave" class="btn btn-ghost btn-inline">保存</button>
     </div>
   </div>
 
-  <div class="ss-branch-tree-wrap">
-    <div class="ui-label-row">
-      <h3 class="ss-subhead">分支树</h3>
-      <span class="ui-hint ui-hint--inline">勾选「发布」纳入读者选线</span>
+  <div class="ss-write-chrome">
+    <div class="ss-write-chrome__left">
+      <span class="ss-muted">当前分支</span>
+      <strong id="ssWriteBranchLabel">—</strong>
+      <select id="ssWriteBranchSelect" class="ss-write-branch-select" aria-label="切换分支"></select>
     </div>
-    <div id="ssBranchTree" class="ss-branch-tree"></div>
+    <div class="ss-write-chrome__right">
+      <label class="ss-chrome-field">
+        <span class="ss-muted">章节</span>
+        <select id="ssWriteChapterSelect"></select>
+      </label>
+      <button type="button" id="ssWriteChapterTitleBtn" class="ss-title-chip" title="点击编辑标题">未命名</button>
+      <input id="ssWriteChapterTitle" type="hidden" />
+    </div>
   </div>
 
   <div id="ssWriteProgress" class="ss-write-progress" hidden>
@@ -35,78 +44,79 @@
     </div>
   </div>
 
-  <div class="ss-write-grid">
-    <div class="form-group">
-      <label for="ssWriteChapterSelect">章节</label>
-      <select id="ssWriteChapterSelect"></select>
-    </div>
-    <div class="form-group">
-      <label for="ssWriteChapterTitle">标题</label>
-      <input id="ssWriteChapterTitle" type="text" />
-    </div>
-    <div class="form-group">
-      <label for="ssWriteAdvancePrompt">本章推进提示</label>
+  <div class="ss-write-main">
+    <div class="form-group ss-write-advance">
+      <div class="ui-label-row">
+        <label for="ssWriteAdvancePrompt">本章推进提示</label>
+        <span class="ui-hint ui-hint--inline">可选</span>
+      </div>
       <textarea id="ssWriteAdvancePrompt" rows="2" placeholder="例如：冲突升级，埋下反转伏笔"></textarea>
     </div>
-    <div class="form-group">
-      <label for="ssWriteChapterSummary">摘要</label>
-      <textarea id="ssWriteChapterSummary" rows="2"></textarea>
-    </div>
-    <div class="form-group">
+    <div class="form-group ss-write-content-wrap">
       <label for="ssWriteChapterContent">正文</label>
-      <textarea id="ssWriteChapterContent" rows="14" placeholder="章节正文"></textarea>
+      <textarea id="ssWriteChapterContent" rows="16" placeholder="章节正文"></textarea>
     </div>
-    <label class="novel-switch" style="display:flex;gap:8px;align-items:center;">
-      <input id="ssWriteSyncMvu" type="checkbox" />
-      <span>写完同步变量与状态栏</span>
-    </label>
-    <div id="ssWriteMvuWarn" class="ss-warn" hidden></div>
   </div>
 
-  <div class="ss-write-options">
-    <div class="form-group">
-      <div class="ui-label-row">
-        <label for="ssWriteBatchCount">连写章数</label>
-        <span class="ui-hint ui-hint--inline">1～20</span>
+  <details class="ss-fold" id="ssWriteMetaFold">
+    <summary>摘要 · 同步 · 写作选项</summary>
+    <div class="ss-write-options-grid">
+      <div class="form-group">
+        <label for="ssWriteChapterSummary">摘要</label>
+        <textarea id="ssWriteChapterSummary" rows="2"></textarea>
       </div>
-      <input id="ssWriteBatchCount" type="number" min="1" max="20" value="3" />
+      <label class="novel-switch ss-switch-row">
+        <input id="ssWriteSyncMvu" type="checkbox" />
+        <span>写完同步变量与状态栏</span>
+      </label>
+      <div id="ssWriteMvuWarn" class="ss-warn" hidden></div>
+      <div class="form-group">
+        <div class="ui-label-row">
+          <label for="ssWriteBatchCount">连写章数</label>
+          <span class="ui-hint ui-hint--inline">1～20</span>
+        </div>
+        <input id="ssWriteBatchCount" type="number" min="1" max="20" value="3" />
+      </div>
+      <label class="novel-switch ss-switch-row">
+        <input id="ssWriteRunFeed" type="checkbox" checked />
+        <span>章后 Feed-forward</span>
+      </label>
+      <label class="novel-switch ss-switch-row">
+        <input id="ssWriteRunQa" type="checkbox" checked />
+        <span>软质检</span>
+      </label>
+      <label class="novel-switch ss-switch-row">
+        <input id="ssWriteStopOnQa" type="checkbox" />
+        <span>质检失败熔断</span>
+      </label>
     </div>
-    <label class="novel-switch" style="display:flex;gap:8px;align-items:center;">
-      <input id="ssWriteRunFeed" type="checkbox" checked />
-      <span>章后 Feed-forward</span>
-    </label>
-    <label class="novel-switch" style="display:flex;gap:8px;align-items:center;">
-      <input id="ssWriteRunQa" type="checkbox" checked />
-      <span>软质检</span>
-    </label>
-    <label class="novel-switch" style="display:flex;gap:8px;align-items:center;">
-      <input id="ssWriteStopOnQa" type="checkbox" />
-      <span>质检失败熔断</span>
-    </label>
-  </div>
-
-  <div class="ss-toolbar" style="margin-top:12px;">
-    <button type="button" id="btnSsWriteChapter" class="btn btn-ghost btn-inline">AI 撰写本章</button>
-    <button type="button" id="btnSsWriteAutoNext" class="btn btn-ghost btn-inline">自动连写下一章</button>
-    <button type="button" id="btnSsWriteBatch" class="btn btn-ghost btn-inline">连写 N 章</button>
-    <button type="button" id="btnSsWriteQa" class="btn btn-ghost btn-inline">质检本章</button>
-    <button type="button" id="btnSsWriteRewrite" class="btn btn-ghost btn-inline">按质检改写</button>
-    <button type="button" id="btnSsWriteSave" class="btn btn-ghost btn-inline">保存</button>
-  </div>
+  </details>
 
   <div id="ssWriteQaBox" class="ss-qa-box" hidden></div>
   <div id="ssWriteTension" class="ss-tension" hidden></div>
-  <div id="ssWriteCheckpointList" class="ss-checkpoint-list"></div>
 
-  <div class="ss-ledger">
-    <div class="ui-label-row">
-      <h3 class="ss-subhead">伏笔账本</h3>
-      <span class="ui-hint ui-hint--inline">未收束优先注入</span>
-    </div>
+  <details class="ss-fold" id="ssWriteCpFold">
+    <summary>本章快照</summary>
+    <div id="ssWriteCheckpointList" class="ss-checkpoint-list"></div>
+  </details>
+
+  <details class="ss-fold" id="ssWriteLedgerFold">
+    <summary>伏笔账本</summary>
+    <p class="ui-hint" style="margin:0 0 8px;">未收束优先注入下一章</p>
     <div id="ssWriteLedger" class="ss-ledger-list"></div>
     <div class="ss-toolbar">
       <button type="button" id="btnSsLedgerAdd" class="btn btn-ghost btn-inline">添加伏笔</button>
     </div>
+  </details>
+
+  <!-- 分支树浮层：挂 body 由脚本控制 -->
+  <div id="ssBranchTreePopover" class="ss-branch-popover" hidden role="dialog" aria-label="分支树">
+    <div class="ss-branch-popover__head">
+      <strong>分支树</strong>
+      <span class="ui-hint ui-hint--inline">竖排 · 点节点看摘要</span>
+      <button type="button" class="btn-icon btn-icon--sm" id="btnSsBranchTreeClose" aria-label="关闭">×</button>
+    </div>
+    <div id="ssBranchTree" class="ss-branch-tree"></div>
   </div>
 
   <div id="ssWriteStatus" class="ss-status"></div>

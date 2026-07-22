@@ -1,24 +1,41 @@
 ---
-/** 人物·关系·地点图谱（可编辑，可从卡面种子） */
+/** 创作图谱：G6 可视化（同小说分析）+ 可折叠列表编辑 */
 ---
 <div class="panel story-studio-panel" data-story-panel="graph">
-  <h2>创作图谱</h2>
-  <p class="ss-tip ui-panel-lead">当前小说：<span id="ssCurrentNovelTitle">（未打开）</span>。可从世界书/角色种子生成，再手工编辑。</p>
-  <div class="ss-toolbar">
-    <button type="button" id="btnSsSeedGraph" class="btn btn-ghost btn-inline">从卡面种子生成</button>
-    <button type="button" id="btnSsAddNode" class="btn btn-ghost btn-inline">加节点</button>
-    <button type="button" id="btnSsAddEdge" class="btn btn-ghost btn-inline">加关系</button>
-    <button type="button" id="btnSsSaveGraph" class="btn btn-ghost btn-inline">保存</button>
+  <div class="ss-panel-header">
+    <div class="ss-panel-heading">
+      <h2>创作图谱</h2>
+      <p class="ss-tip ui-panel-lead">当前小说：<span id="ssCurrentNovelTitle">（未打开）</span>。拖拽缩放查看关系；下方可折叠编辑节点。</p>
+    </div>
+    <div class="ss-panel-actions" aria-label="图谱操作">
+      <button type="button" id="btnSsSeedGraph" class="btn btn-ghost btn-inline">从卡面种子生成</button>
+      <button type="button" id="btnSsAddNode" class="btn btn-ghost btn-inline">加节点</button>
+      <button type="button" id="btnSsAddEdge" class="btn btn-ghost btn-inline">加关系</button>
+      <button type="button" id="btnSsGraphRelayout" class="btn btn-ghost btn-inline">重新布局</button>
+      <button type="button" id="btnSsSaveGraph" class="btn btn-ghost btn-inline">保存</button>
+    </div>
   </div>
-  <div class="ss-graph-stack">
-    <section class="ss-card">
-      <div class="ss-card-head"><strong>节点</strong><span>人物 / 地点 / 其他</span></div>
-      <div class="ss-card-body" id="ssGraphNodes"></div>
-    </section>
-    <section class="ss-card">
-      <div class="ss-card-head"><strong>关系</strong><span>from → label → to</span></div>
-      <div class="ss-card-body" id="ssGraphEdges"></div>
-    </section>
+
+  <div id="ssGraphCy" class="ss-graph-cy" role="img" aria-label="创作图谱可视化"></div>
+  <div class="ss-graph-footer">
+    <div class="ss-graph-footer-meta">
+      <span id="ssGraphStats" class="ss-muted">节点 0 · 边 0</span>
+    </div>
+    <div id="ssGraphDetail" class="ss-graph-detail">点击节点或边查看详情</div>
   </div>
+
+  <details class="ss-fold" id="ssGraphEditFold">
+    <summary>列表编辑节点 / 关系</summary>
+    <div class="ss-graph-stack">
+      <section class="ss-card">
+        <div class="ss-card-head"><strong>节点</strong><span>人物 / 地点 / 其他</span></div>
+        <div class="ss-card-body" id="ssGraphNodes"></div>
+      </section>
+      <section class="ss-card">
+        <div class="ss-card-head"><strong>关系</strong><span>from → label → to</span></div>
+        <div class="ss-card-body" id="ssGraphEdges"></div>
+      </section>
+    </div>
+  </details>
   <div id="ssGraphStatus" class="ss-status"></div>
 </div>

@@ -25,23 +25,34 @@
 - **分享**：`latest` 固定链对接最新已发；另有带版本号链接
 - 实现：`cardVersions.mjs` / `novelVersions.mjs`（开发期无旧数据兼容负担）
 
+## 视图约定（UI）
+
+- 各面板 **操作按钮在右上角**（`.ss-panel-actions`）
+- **图谱**：与小说分析相同的 G6 力导向可视化（`graphView.mjs` → `novel/graphViz.mjs`）；列表编辑收纳在折叠区
+- **大纲**：分段/续写先弹窗输入额外提示词；章节标题点击再编辑（非常驻输入框）
+- **写作**：主区正文；选项/账本/快照折叠；分支树点击弹出竖排浮层（节点展开小卡片看摘要，可再看全文）
+- **阅读**：目录默认隐藏，点「目录」浮动出现
+
 ## 模块
 
 | 文件 | 职责 |
 |---|---|
 | `state.mjs` / `idb.mjs` | 本地状态（含分支 / 伏笔账本 / 写设置） |
 | `branch.mjs` | 分支世界：开分支、解析可见章、发布裁剪、选项/结局 |
+| `graphView.mjs` / `graphSeed.mjs` | G6 可视化 + 卡面种子 |
+| `dialogs.mjs` | 自定义确认/输入/内容弹窗 |
 | `sharePlay.mjs` | 读者选线进度、分享稿复制为可编辑草稿 |
 | `version.mjs` | 版号 / **schema v2 树状 release** |
 | `tokenBudget.mjs` / `feedForward.mjs` / `plotLedger.mjs` / `quality.mjs` / `checkpoint.mjs` / `writePipeline.mjs` | 写章闭环 |
-| `shareClient.mjs` | 分享 API |
+| `novelVersions.mjs` | 草稿 / `versions[]`：切版、增版、发布 |
+| `shareClient.mjs` | 分享 API（latest + 钉版本） |
 | `exportTxt.mjs` | 导出（当前活动分支） |
 
 ## 分支与发布
 
 - 工作稿：`branches[]`（`choiceLabel` / `kind: path|ending` / `publishReady`）+ 章 `branchId`
-- **增版**：只打包 `publishReady` 支及其祖先 → `story-release`（`schemaVersion: 2`）
-- 同一分享 token 读最新 release；读者在分叉章后**选线**；结局支展示结局页
+- **发布**：只打包 `publishReady` 支及其祖先 → `story-release`（`schemaVersion: 2`），并写入 `versions` 已发项；草稿自动升版
+- 分享 token：`latest` 读最新已发；`#share/{token}/v/{ver}` 钉版本；读者在分叉章后**选线**；结局支展示结局页
 - **复制到本地创作**：读者可将分享树复制为本机可编辑小说（清 share/发布字段）
 
 ## 写章闭环
