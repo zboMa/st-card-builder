@@ -13,7 +13,14 @@
 | `state.mjs` | 状态工厂、`buildCardJSONFromDraft`、标签/WB 工具 |
 | `stateMachine.mjs` | localStorage 草稿 CRUD + debounce |
 | `shared/context.mjs` | `$`、save、callAI、runTracked、确认框 |
-| `panels/cardManager.mjs` | 卡列表/封面/发布分享入口 |
+| `panels/cardManager.mjs` | 卡列表 boot（`registerCardManager`） |
+| `panels/cardManagerShared.mjs` | 共享 state/工具、筛选、封面缩略图 |
+| `panels/cardManagerRender.mjs` | 列表渲染、导出检查角标、版本/更多菜单 |
+| `panels/cardManagerCrud.mjs` | 草稿 CRUD、加载/保存 |
+| `panels/cardManagerPublishShare.mjs` | 增版/切版、发布、分享 |
+| `panels/cardManagerCloud.mjs` | 云端上传/拉取/删除 |
+| `panels/cardManagerExport.mjs` | JSON/PNG 导出 |
+| `panels/cardManagerBind.mjs` | 事件绑定、`__assistantCardApi__` |
 | `panels/character.mjs` | 角色设定（**不含** NSFW 配置 UI） |
 | `panels/worldbook.mjs` | 世界书条目 |
 | `panels/aiEngine.mjs` | 一键生成三阶段 |

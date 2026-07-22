@@ -67,6 +67,21 @@ import {
 } from '../src/lib/novel/state.mjs';
 
 const novelRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
+
+function readCardManagerSources(base) {
+  return [
+    'cardManager.mjs',
+    'cardManagerShared.mjs',
+    'cardManagerRender.mjs',
+    'cardManagerCrud.mjs',
+    'cardManagerPublishShare.mjs',
+    'cardManagerCloud.mjs',
+    'cardManagerExport.mjs',
+    'cardManagerBind.mjs',
+  ].map(function (f) {
+    return readFileSync(join(base, 'src/lib/card-builder/panels', f), 'utf8');
+  }).join('');
+}
 const NOVEL_PANEL_FILES = [
   'NovelSourcePanel.astro',
   'NovelChaptersPanel.astro',
@@ -500,7 +515,7 @@ describe('novel cardId buckets', function() {
     const browserSrc = readFileSync(join(novelRoot, 'src/lib/novel/browserApp.mjs'), 'utf8');
     assert.match(browserSrc, /card-draft-changed/);
     assert.match(browserSrc, /bindCard/);
-    const cardMgrSrc = readFileSync(join(novelRoot, 'src/lib/card-builder/panels/cardManager.mjs'), 'utf8');
+    const cardMgrSrc = readCardManagerSources(novelRoot);
     assert.match(cardMgrSrc, /emitCardDraftChanged/);
     assert.match(cardMgrSrc, /buildCardJSONFromDraft/);
     const mgrPanelAstro = readFileSync(join(novelRoot, 'src/components/CardManagerPanel.astro'), 'utf8');
