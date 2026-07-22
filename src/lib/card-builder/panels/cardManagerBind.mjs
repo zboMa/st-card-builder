@@ -326,6 +326,14 @@ export function attachCardManagerBind(ctx, s, panel) {
       });
     }
     if (s.getCurrentAppView() === 'card-manager') panel.refreshExportChecklist();
+
+    ctx.sm.on(function(result) {
+      panel.updateCardManagerUI(result && result.drafts);
+    });
+
+    window.addEventListener('card-builder-data-changed', function() {
+      if (s.getCurrentAppView() === 'card-manager') panel.updateCardManagerUI();
+    });
   };
   return panel;
 }

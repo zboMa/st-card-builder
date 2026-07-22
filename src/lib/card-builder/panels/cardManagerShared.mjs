@@ -93,6 +93,7 @@ export function createCardManagerShared(ctx) {
 
   // ---- Draft display helpers ----
   function getDraftsForDisplay(stored) {
+    syncDomFieldsToState();
     var dr = stored ? Object.assign({}, stored) : getAllDrafts();
     var currentId = getCurrentDraftId();
     if (currentId) {
