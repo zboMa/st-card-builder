@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { readLayoutSources, readAssistantPanelSources, readVariableCardPanelSources } from './helpers/uiSources.mjs';
 
 import {
   ASSISTANT_TOOLS,
@@ -708,9 +709,9 @@ describe('assistant prompts & UI wiring', function() {
     assert.match(cmSrc, /__assistantCardApi__/);
     const wbSrc = readFileSync(join(root, 'src/lib/card-builder/panels/worldbook.mjs'), 'utf8');
     assert.match(wbSrc, /__assistantWbAi__/);
-    const layout = readFileSync(join(root, 'src/layouts/Layout.astro'), 'utf8');
+    const layout = readLayoutSources(root);
     assert.match(layout, /minmax\(300px,\s*380px\)/);
-    const panel = readFileSync(join(root, 'src/components/AssistantPanel.astro'), 'utf8');
+    const panel = readAssistantPanelSources(root);
     assert.match(panel, /assistantPanel/);
     assert.match(panel, /assistant-mode-switch/);
     assert.match(panel, /__setAssistantPanelMode__/);
@@ -737,7 +738,7 @@ describe('assistant prompts & UI wiring', function() {
   });
 
   it('助手 UI：无折叠、快捷填入、就绪绿点、未配置仅 tip', function() {
-    const panel = readFileSync(join(root, 'src/components/AssistantPanel.astro'), 'utf8');
+    const panel = readAssistantPanelSources(root);
     assert.doesNotMatch(panel, /assistantCollapseBtn/);
     assert.doesNotMatch(panel, /is-collapsed/);
     assert.doesNotMatch(panel, /assistantChips/);
@@ -783,7 +784,7 @@ describe('assistant prompts & UI wiring', function() {
   });
 
   it('快捷浮层：默认 hidden，展开受控，选中后关闭', function() {
-    const panel = readFileSync(join(root, 'src/components/AssistantPanel.astro'), 'utf8');
+    const panel = readAssistantPanelSources(root);
     assert.match(panel, /id="assistantQuickMenu"[^>]*\bhidden\b/);
     assert.match(panel, /aria-expanded="false"/);
     assert.match(panel, /\.assistant-quick-menu:not\(\[hidden\]\)\s*\{[^}]*display:\s*flex/s);

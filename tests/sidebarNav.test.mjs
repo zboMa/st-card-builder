@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { readLayoutSources, readAssistantPanelSources, readVariableCardPanelSources } from './helpers/uiSources.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -192,13 +193,13 @@ describe('sidebar navigation contract', function() {
     const stSrc = readFileSync(join(root, 'src/lib/card-builder/state.mjs'), 'utf8');
     assert.match(stSrc, /tags:\s*tags/);
     assert.match(stSrc, /tags:\s*tags\.slice\(\)/);
-    const asst = readFileSync(join(root, 'src/components/AssistantPanel.astro'), 'utf8');
+    const asst = readAssistantPanelSources(root);
     assert.match(asst, /__getCharTags__/);
     assert.match(asst, /__setCharTags__/);
   });
 
   it('世界书条目面板 flex 占满且列表内部滚动', function() {
-    const layout = readFileSync(join(root, 'src/layouts/Layout.astro'), 'utf8');
+    const layout = readLayoutSources(root);
     // 选择器形如 .app-view[data-view="worldbook"].is-active
     assert.match(layout, /\[data-view="worldbook"\]\.is-active/);
     assert.match(layout, /\.area-worldbook\s*\{[^}]*display:\s*flex/s);
@@ -292,7 +293,7 @@ describe('sidebar navigation contract', function() {
     assert.match(src, /__setAssistantPanelMode__/);
     assert.match(src, /__openJsonPreviewModal__/);
     assert.match(src, /__openWbAuditorModal__/);
-    const asst = readFileSync(join(root, 'src/components/AssistantPanel.astro'), 'utf8');
+    const asst = readAssistantPanelSources(root);
     assert.match(asst, /assistant-mode-switch/);
     assert.match(asst, /data-assistant-mode="chat"/);
     assert.match(asst, /ChatPlayground/);
@@ -338,12 +339,12 @@ describe('sidebar navigation contract', function() {
     assert.match(chat, /\.chat-conversation\s*\{[^}]*flex:\s*1/s);
     assert.doesNotMatch(chat, /max-height:\s*600px/);
     assert.doesNotMatch(chat, /max-height:\s*380px/);
-    const layout = readFileSync(join(root, 'src/layouts/Layout.astro'), 'utf8');
+    const layout = readLayoutSources(root);
     assert.match(layout, /\.panel\.chat-playground/);
     // 移动端不再对 .chat-conversation 限高（会把助手内输入栏顶出空白）
     assert.doesNotMatch(layout, /\.chat-playground\s+\.chat-conversation\s*\{[^}]*max-height:\s*min\(50vh/s);
     // 试聊已嵌入右栏，主栏不再挂 chat view；助手宿主保证对话区拉伸、输入贴底
-    const asst = readFileSync(join(root, 'src/components/AssistantPanel.astro'), 'utf8');
+    const asst = readAssistantPanelSources(root);
     assert.match(asst, /assistant-chat-host/);
     assert.match(asst, /ChatPlayground/);
     assert.match(asst, /\.assistant-chat-host\s+\.chat-playground\s+\.chat-conversation/);
@@ -420,7 +421,7 @@ describe('sidebar navigation contract', function() {
     assert.match(src, /id="aiTaskBadge"/);
     assert.doesNotMatch(src, /V4 BUILD/);
     assert.doesNotMatch(src, /visitorNum|visitorCount|app-sidebar-brand-meta/);
-    const layout = readFileSync(join(root, 'src/layouts/Layout.astro'), 'utf8');
+    const layout = readLayoutSources(root);
     assert.match(layout, /\.app-sidebar-brand/);
     assert.doesNotMatch(layout, /\.app-header\s*\{/);
     assert.doesNotMatch(layout, /\.app-version-badge|\.app-visitor-badge|\.app-sidebar-brand-meta/);
@@ -429,7 +430,7 @@ describe('sidebar navigation contract', function() {
   });
 
   it('视口锁死：html/body 与主壳禁止整页滚动，栏内可滚', function() {
-    const layout = readFileSync(join(root, 'src/layouts/Layout.astro'), 'utf8');
+    const layout = readLayoutSources(root);
     assert.match(layout, /html\s*\{[^}]*overflow:\s*hidden/s);
     assert.match(layout, /body\s*\{[^}]*overflow:\s*hidden/s);
     assert.match(layout, /100dvh/);
@@ -440,7 +441,7 @@ describe('sidebar navigation contract', function() {
     assert.match(layout, /\.app-sidebar-nav\s*\{[^}]*flex:\s*1/s);
     assert.match(layout, /\.app-sidebar-nav\s*\{[^}]*overflow-y:\s*auto/s);
     assert.match(layout, /\.app-sidebar-group-config\s*\{[^}]*flex-shrink:\s*0/s);
-    const panel = readFileSync(join(root, 'src/components/AssistantPanel.astro'), 'utf8');
+    const panel = readAssistantPanelSources(root);
     assert.match(panel, /\.assistant-panel__messages\s*\{[^}]*overflow-y:\s*auto/s);
     assert.match(panel, /\.assistant-panel\s*\{[^}]*height:\s*100%/s);
     assert.doesNotMatch(panel, /calc\(100vh\s*-\s*32px\)/);
@@ -498,7 +499,7 @@ describe('sidebar navigation contract', function() {
   });
 
   it('全局下拉为可搜索选择，并跳过 hidden select', function() {
-    const layout = readFileSync(join(root, 'src/layouts/Layout.astro'), 'utf8');
+    const layout = readLayoutSources(root);
     assert.match(layout, /className = 'cs-search'|className = \"cs-search\"/);
     assert.match(layout, /搜索选项/);
     assert.match(layout, /hasAttribute\('hidden'\)|getAttribute\('aria-hidden'\)/);

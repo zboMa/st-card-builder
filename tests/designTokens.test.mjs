@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { readLayoutSources, readAssistantPanelSources, readVariableCardPanelSources } from './helpers/uiSources.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const tokensPath = join(root, 'src/styles/tokens.css');
@@ -73,9 +74,10 @@ describe('design tokens (Nocturne Atelier)', function() {
   });
 
   it('Layout.astro 引入 tokens 与 ui-patterns', function() {
-    const layout = readFileSync(layoutPath, 'utf8');
+    const layout = readLayoutSources(root);
     assert.match(layout, /tokens\.css/);
     assert.match(layout, /ui-patterns\.css/);
+    assert.match(layout, /layout-chrome\.css/);
   });
 
   it('CharacterPanel 使用 form-section 与分级按钮', function() {
@@ -88,7 +90,7 @@ describe('design tokens (Nocturne Atelier)', function() {
   });
 
   it('AssistantPanel composer 使用 btn-icon 与发送/停止切换', function() {
-    const panel = readFileSync(join(root, 'src/components/AssistantPanel.astro'), 'utf8');
+    const panel = readAssistantPanelSources(root);
     assert.match(panel, /btn-icon--primary assistant-btn-action/);
     assert.match(panel, /id="assistantActionBtn"/);
     assert.match(panel, /btn-icon assistant-btn-clear/);
@@ -146,7 +148,7 @@ describe('design tokens (Nocturne Atelier)', function() {
   });
 
   it('站点 favicon 为侧栏同形 SVG；酒馆预设列表 540px', function() {
-    const layout = readFileSync(join(root, 'src/layouts/Layout.astro'), 'utf8');
+    const layout = readLayoutSources(root);
     assert.match(layout, /rel="icon"[^>]*favicon\.svg/);
     const fav = readFileSync(join(root, 'public/favicon.svg'), 'utf8');
     assert.match(fav, /<rect[^>]*rx="3"/);

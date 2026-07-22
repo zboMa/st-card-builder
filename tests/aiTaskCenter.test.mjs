@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { readLayoutSources, readAssistantPanelSources, readVariableCardPanelSources } from './helpers/uiSources.mjs';
 import {
   createAiTaskCenter,
   AI_TASK_TYPES,
@@ -161,7 +162,7 @@ describe('aiTaskCenter UI wiring', function() {
     assert.match(novelChars, /已取消扫描/);
     assert.match(novelWb, /已取消抽取/);
     assert.match(novelStyle, /已取消蒸馏/);
-    const asst = readFileSync(join(root, 'src/components/AssistantPanel.astro'), 'utf8');
+    const asst = readAssistantPanelSources(root);
     assert.match(asst, /assistant_react/);
     assert.match(asst, /callChat\(messages,\s*0\.35,\s*reactSignal\)/);
   });

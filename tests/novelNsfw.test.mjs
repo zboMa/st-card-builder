@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { readLayoutSources, readAssistantPanelSources, readVariableCardPanelSources } from './helpers/uiSources.mjs';
 import { UNMENTIONED } from '../src/lib/novel/schema.mjs';
 import { createDefaultNovelState, hydrateNovelState, summarizeNovelState } from '../src/lib/novel/state.mjs';
 import { isEntityEnriched, upsertEntity } from '../src/lib/novel/entityStore.mjs';
@@ -454,7 +455,7 @@ describe('novel nsfwSupport', function() {
     assert.match(tools, /set_novel_adult_mode|set_novel_ntl_mode|draft_nsfw_statusbar/);
     const ex = readFileSync(join(root, 'src/lib/assistant/executor.mjs'), 'utf8');
     assert.match(ex, /set_novel_adult_mode|set_novel_ntl_mode|draft_nsfw_statusbar/);
-    const bridge = readFileSync(join(root, 'src/components/AssistantPanel.astro'), 'utf8');
+    const bridge = readAssistantPanelSources(root);
     assert.match(bridge, /setNovelAdultMode|setNovelNtlMode/);
   });
 });

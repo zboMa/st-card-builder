@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { readLayoutSources, readAssistantPanelSources, readVariableCardPanelSources } from './helpers/uiSources.mjs';
 import {
   CHARACTER_PROFILE_FIELDS,
   emptyCharacterProfile,
@@ -607,7 +608,7 @@ describe('novel panel visual contract', function() {
     assert.match(css, /\.novel-style-panel/);
     assert.match(css, /\.novel-style-body/);
     assert.match(css, /\.novel-style-content\s+#novelStyleText[\s\S]*flex:\s*1/s);
-    const layout = readFileSync(join(novelRoot, 'src/layouts/Layout.astro'), 'utf8');
+    const layout = readLayoutSources(novelRoot);
     assert.match(layout, /\[data-view="novel-style"\]\.is-active/);
     assert.match(layout, /\.panel\.novel-style-panel/);
   });
@@ -633,7 +634,7 @@ describe('novel panel visual contract', function() {
     const css = readFileSync(join(novelRoot, 'src/components/novel/NovelWorkshopStyles.astro'), 'utf8');
     assert.match(css, /\.novel-setup-panel/);
     assert.match(css, /\.novel-setup-preview/);
-    const layout = readFileSync(join(novelRoot, 'src/layouts/Layout.astro'), 'utf8');
+    const layout = readLayoutSources(novelRoot);
     assert.match(layout, /\[data-view="novel-character-setup"\]\.is-active/);
     assert.match(layout, /\[data-view="novel-greetings"\]\.is-active/);
     assert.match(layout, /\.panel\.novel-setup-panel/);
@@ -806,7 +807,7 @@ describe('novel panel visual contract', function() {
     assert.match(viz, /manyBody|collide|nodeSpacing/);
     assert.match(viz, /seedNodePositions|deoverlapGraphNodes/);
     assert.match(viz, /ResizeObserver|attachResizeRelayout/);
-    const layout = readFileSync(join(novelRoot, 'src/layouts/Layout.astro'), 'utf8');
+    const layout = readLayoutSources(novelRoot);
     assert.doesNotMatch(layout, /data-view="novel-graph"/);
     const sidebar = readFileSync(join(novelRoot, 'src/components/AppSidebar.astro'), 'utf8');
     assert.doesNotMatch(sidebar, /novel-graph/);
@@ -868,7 +869,7 @@ describe('novel panel visual contract', function() {
     assert.match(css, /\.novel-extract-controls/);
     assert.match(css, /\.novel-entity-list[\s\S]*overflow-y:\s*auto/);
 
-    const layout = readFileSync(join(novelRoot, 'src/layouts/Layout.astro'), 'utf8');
+    const layout = readLayoutSources(novelRoot);
     assert.match(layout, /data-view="novel-characters"\]\.is-active/);
     assert.match(layout, /data-view="novel-worldbook"\]\.is-active/);
     assert.doesNotMatch(layout, /data-view="novel-knowledge"/);

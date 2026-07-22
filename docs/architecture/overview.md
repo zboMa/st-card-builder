@@ -7,7 +7,7 @@
 - **Astro 5** 静态站：`src/pages/index.astro`（主站）、`src/pages/admin.astro`（管理端）
 - 无 SSR；`dist/` → 打包为 `dist-card/` / `dist-card-admin/`
 - 主站所有业务视图常驻 DOM，靠 `location.hash` ↔ `data-view` 切换
-- 三栏：`AppSidebar` | 主区 | `AssistantPanel`；`html/body` `overflow: hidden`，仅内层滚动
+- 三栏：`AppSidebar` | 主区 | `AssistantPanel`；壳层样式见 `src/styles/layout-chrome.css` + `src/lib/layout/chromeBoot.mjs`；`html/body` `overflow: hidden`，仅内层滚动
 
 ## 启动路径
 
@@ -38,7 +38,7 @@ src/lib/
 ├── adult/            NSFW/NTL/载体/恶堕目录与拼装（数量以代码为准）
 ├── admin/            管理端客户端
 ├── chatRuntime/      试聊与 ST 运行时对齐
-├── mvu/              MVU 相关
+├── mvu/              MVU 相关（`variableCardPanel.mjs` 变量节点 UI boot）
 ├── aiTaskCenter.mjs  全局 AI 任务队列
 └── promptCanon.mjs / promptStore.mjs
 

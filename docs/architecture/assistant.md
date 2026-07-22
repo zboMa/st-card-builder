@@ -4,7 +4,7 @@
 
 ## 位置
 
-右栏 `AssistantPanel.astro`；与卡/世界书/MVU/小说/导出共用状态。
+右栏 `AssistantPanel.astro`（DOM/样式壳）+ `src/lib/assistant/panelBoot.mjs`（ReAct 循环、工具执行、会话）；与卡/世界书/MVU/小说/导出共用状态。
 
 ## 流水线
 

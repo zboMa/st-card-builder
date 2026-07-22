@@ -126,8 +126,9 @@ SillyTavern 卡片构建器壳层设计 token。状态栏 **30 套预览主题**
 |------|------|
 | `src/styles/tokens.css` | 语义色、间距、圆角、阴影 |
 | `src/styles/ui-patterns.css` | 共享 UI 类（chip、工具条、按钮层级、搜索、空态、文本分层） |
+| `src/styles/layout-chrome.css` | 壳层布局、三栏、移动端抽屉、`.panel` / `.btn` 基线（从 Layout 外提） |
 
-由 `Layout.astro` 全局 `@import`。
+由 `Layout.astro` 全局 `@import`（含 `layout-chrome.css`）。
 
 | Token | 用途 |
 |-------|------|
@@ -183,11 +184,12 @@ SillyTavern 卡片构建器壳层设计 token。状态栏 **30 套预览主题**
 
 ## 相关文件
 
-- `src/layouts/Layout.astro` — 全局样式与 `.panel` / `.btn`
+- `src/layouts/Layout.astro` — 壳层 HTML + `@import` tokens/ui-patterns/layout-chrome
+- `src/lib/layout/chromeBoot.mjs` — 可搜索下拉 portal（从 Layout 外提）
 - `src/components/AppSidebar.astro` — 导航
 - `src/components/CardManagerPanel.astro` — 角色卡网格
 - `src/components/CharacterPanel.astro` — 标签区 form-section + chip
 - `src/components/WorldbookPanel.astro` — 搜索控件源模式
-- `src/components/AssistantPanel.astro` — 底栏按钮层级
+- `src/components/AssistantPanel.astro` — 底栏按钮层级（壳 + 样式；逻辑见 `panelBoot.mjs`）
 - `src/components/novel/NovelWorkshopStyles.astro` — 小说工坊
 - `tests/designTokens.test.mjs` — token / 共享类契约

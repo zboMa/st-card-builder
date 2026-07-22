@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { readLayoutSources, readAssistantPanelSources, readVariableCardPanelSources } from './helpers/uiSources.mjs';
 import {
   createEmptyTavernScript,
   normalizeTavernScript,
@@ -113,7 +114,7 @@ describe('tavernScripts wiring', function() {
   });
 
   it('MVU/状态栏仍走 __setTavernHelperScript__ 注入', function() {
-    const mvu = readFileSync(join(root, 'src/components/VariableCardPanel.astro'), 'utf8');
+    const mvu = readVariableCardPanelSources(root);
     assert.match(mvu, /__setTavernHelperScript__/);
     const sb = readFileSync(join(root, 'src/components/StatusBarPanel.astro'), 'utf8');
     assert.match(sb, /__setTavernHelperScript__/);

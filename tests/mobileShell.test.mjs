@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { readLayoutSources, readAssistantPanelSources, readVariableCardPanelSources } from './helpers/uiSources.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -16,7 +17,7 @@ describe('mobile shell: drawer + assistant FAB', function() {
   });
 
   it('Layout enables drawer styles at max-width 900px', function() {
-    const layout = readFileSync(join(root, 'src/layouts/Layout.astro'), 'utf8');
+    const layout = readLayoutSources(root);
     assert.match(layout, /@media \(max-width:\s*900px\)/);
     assert.match(layout, /\.app-sidebar\.is-drawer-open/);
     assert.match(layout, /\.app-mobile-topbar/);
@@ -35,7 +36,7 @@ describe('mobile shell: drawer + assistant FAB', function() {
   });
 
   it('AssistantPanel has FAB sheet open/close without using is-collapsed', function() {
-    const panel = readFileSync(join(root, 'src/components/AssistantPanel.astro'), 'utf8');
+    const panel = readAssistantPanelSources(root);
     assert.match(panel, /id="btnAssistantFab"/);
     assert.match(panel, /id="btnAssistantClose"/);
     assert.match(panel, /is-assistant-open/);

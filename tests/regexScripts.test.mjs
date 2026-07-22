@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { readLayoutSources, readAssistantPanelSources, readVariableCardPanelSources } from './helpers/uiSources.mjs';
 import {
   createEmptyRegexScript,
   normalizeRegexScript,
@@ -168,7 +169,7 @@ describe('regex wiring', function() {
     const boot = readFileSync(join(root, 'src/lib/card-builder/browserApp.mjs'), 'utf8');
     assert.match(boot, /__injectMvuEntries__/);
     assert.match(boot, /scriptName === rx\.scriptName/);
-    const mvu = readFileSync(join(root, 'src/components/VariableCardPanel.astro'), 'utf8');
+    const mvu = readVariableCardPanelSources(root);
     assert.match(mvu, /REGEX_SCRIPTS/);
     assert.match(mvu, /scheduleRefreshSync\(false\)/);
     assert.match(mvu, /extChanged/);
