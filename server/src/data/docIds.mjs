@@ -1,11 +1,9 @@
 /**
- * 同步文档 ID 约定（前后端共用语义）
+ * 用户库文档 ID（与前端 src/lib/sync/docIds.mjs 对齐）
  */
-export var SYNC_INTERVAL_MS = 5 * 60 * 1000;
 
 export var DOC = {
   cardIndex: 'meta/card-index',
-  migration: 'meta/migration-v1',
   aiSecrets: 'secrets/ai-config',
   syncPrefs: 'prefs/sync',
   prompts: 'prefs/prompts',
@@ -40,49 +38,19 @@ export function storyActiveDocId(cardId) {
   return 'story/' + String(cardId || '').trim() + '/active';
 }
 
-/** 主动增版后的只读快照（分享只读此文档，不读工作稿） */
 export function storyReleaseDocId(cardId, novelId) {
   return 'story/' + String(cardId || '').trim() + '/' + String(novelId || '').trim() + '/release';
 }
 
-/** 角色卡当前发布快照 */
 export function cardReleaseDocId(cardId) {
   return 'card/' + String(cardId || '').trim() + '/release';
 }
 
-/** 角色卡按 character_version 存档 */
 export function cardReleaseVersionDocId(cardId, characterVersion) {
   var ver = encodeURIComponent(String(characterVersion || '1.0').trim() || '1.0');
   return 'card/' + String(cardId || '').trim() + '/release/' + ver;
 }
 
-/** 默认同步过滤器：排除 secrets（除非用户显式开启密钥同步） */
-export function buildSyncSelector(includeSecrets) {
-  return {
-    includeSecrets: !!includeSecrets,
-  };
-}
-
-export function shouldReplicateDocId(id, includeSecrets) {
-  var s = String(id || '');
-  if (s.indexOf('secrets/') === 0) return !!includeSecrets;
-  return true;
-}
-
-export function catalogNovelsList(catalog) {
-  if (Array.isArray(catalog)) return catalog;
-  if (catalog && Array.isArray(catalog.novels)) return catalog.novels;
-  if (catalog && catalog.data) {
-    if (Array.isArray(catalog.data)) return catalog.data;
-    if (Array.isArray(catalog.data.novels)) return catalog.data.novels;
-  }
-  return [];
-}
-
-/**
- * 从卡草稿 map 构建云端列表摘要
- * @param {Record<string, object>} drafts
- */
 export function buildCardIndexFromDrafts(drafts) {
   var map = drafts && typeof drafts === 'object' ? drafts : {};
   var cards = Object.keys(map).map(function(id) {
@@ -102,4 +70,14 @@ export function buildCardIndexFromDrafts(drafts) {
     cards: cards,
     updatedAt: new Date().toISOString(),
   };
+}
+
+export function catalogNovelsList(catalog) {
+  if (Array.isArray(catalog)) return catalog;
+  if (catalog && Array.isArray(catalog.novels)) return catalog.novels;
+  if (catalog && catalog.data) {
+    if (Array.isArray(catalog.data)) return catalog.data;
+    if (Array.isArray(catalog.data.novels)) return catalog.data.novels;
+  }
+  return [];
 }

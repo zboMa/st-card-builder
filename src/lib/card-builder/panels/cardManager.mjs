@@ -576,17 +576,17 @@ export function registerCardManager(ctx) {
     var dr = getAllDrafts();
     if (!dr[id]) return;
 
-    // 云端占位卡：懒同步正文
+    // 云端占位卡或缺正文：拉取完整卡包（卡+头像+小说+创作）再打开
     if (dr[id]._cloudStub || !dr[id].charDesc) {
       try {
         var sync = await import('../../sync/index.mjs');
-        var full = await sync.ensureCardLocal(id);
+        var full = await sync.ensureCardBundleLocal(id, { force: true });
+        if (!full) full = await sync.ensureCardLocal(id);
         if (full) {
-          dr[id] = full;
-          try { localStorage.setItem('st_v3_builder_drafts', JSON.stringify(dr)); } catch (e) { /* ignore */ }
+          dr = getAllDrafts();
         }
       } catch (e) {
-        console.warn('[sync] ensureCardLocal', e);
+        console.warn('[cloud] ensureCardBundleLocal', e);
       }
     }
 

@@ -21,10 +21,9 @@ describe('syncEngine helpers', function() {
     assert.equal(formatSyncCountdown(null), '');
   });
 
-  it('friendlySyncError maps pouch/events failure', function() {
-    var msg = friendlySyncError(new Error('Class extends value #<Object> is not a constructor or null'));
-    assert.match(msg, /本地同步组件/);
+  it('friendlySyncError maps auth / network', function() {
     assert.match(friendlySyncError(new Error('unauthorized')), /登录已失效/);
+    assert.match(friendlySyncError(new Error('Failed to fetch')), /网络异常/);
   });
 
   it('computeShouldSkipSyncWhenClean：本地干净且已同步过才跳过', function() {

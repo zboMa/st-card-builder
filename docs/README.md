@@ -9,7 +9,7 @@
 | Agent / 贡献者硬约束 | [`../AGENTS.md`](../AGENTS.md) |
 | UI 按钮、tip、搜索条、空态 | [`ui/design-system.md`](./ui/design-system.md) |
 | 邮箱/Discord 登录、Session | [`systems/auth.md`](./systems/auth.md) |
-| Pouch/Couch 同步、分享、密钥上云 | [`systems/cloud-sync.md`](./systems/cloud-sync.md) |
+| 云端数据 REST、分享、密钥上云 | [`systems/cloud-sync.md`](./systems/cloud-sync.md) |
 | 管理端权限与 API | [`systems/admin.md`](./systems/admin.md) |
 | NSFW/NTL/恶堕层与入口 | [`domains/nsfw-ntl.md`](./domains/nsfw-ntl.md) |
 | ST 卡字段名（creatorNotes 等） | [`domains/st-card-fields.md`](./domains/st-card-fields.md) |

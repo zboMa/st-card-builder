@@ -24,7 +24,7 @@
 - **无** Redux/Pinia：`window.__get*__` / `__set*__` + `CustomEvent`
 - 常用事件：`card-builder-data-changed`、`card-draft-changed`、`nsfw-config-changed`、`app-view-changed`
 - localStorage：草稿、AI 配置、提示词覆写、助手会话
-- IndexedDB：`st-card-builder`（小说桶、头像 blob）；Pouch：`stcb-pouch-v1`（云同步文档）
+- IndexedDB：`st-card-builder`（小说桶、头像 blob）；云端经 `/api/data` REST（可选登录）
 
 ## 模块地图（摘要）
 
@@ -34,7 +34,7 @@ src/lib/
 ├── novel/            小说工坊：分析管道、实体、RAG、面板
 ├── storyStudio/      小说创作：图谱/大纲/写作/分享
 ├── assistant/        右栏助手：tools / risk / react / executor / session
-├── sync/             云同步：Pouch、凭证、密钥加密、镜像
+├── sync/             云端 REST 客户端、outbox、密钥加密
 ├── adult/            NSFW/NTL/载体/恶堕目录与拼装（数量以代码为准）
 ├── admin/            管理端客户端
 ├── chatRuntime/      试聊与 ST 运行时对齐
@@ -44,7 +44,8 @@ src/lib/
 
 server/src/
 ├── auth/             Discord + 邮箱 + Session
-├── sync/             /api/sync/credentials
+├── sync/             旧 /api/sync（410）
+├── data/             /api/data/* 产品化存取
 ├── share/            卡/小说分享
 ├── admin/            /api/admin/*
 └── couch.mjs         用户库、注册表、email-auth
@@ -63,7 +64,7 @@ server/src/
 1. 作者注释字段是 **`creatorNotes`**（不是 ST `postHistoryInstructions`）→ [`../domains/st-card-fields.md`](../domains/st-card-fields.md)
 2. NSFW/NTL UI 入口是 **AdultConfigPanel（侧栏成人配置）**，不是 CharacterPanel → [`../domains/nsfw-ntl.md`](../domains/nsfw-ntl.md)
 3. 行内操作按钮用 **`btn-inline`** → [`../ui/design-system.md`](../ui/design-system.md)
-4. 浏览器同步地址用 **`PUBLIC_COUCH_URL`**，禁止下发 `127.0.0.1` → [`../systems/cloud-sync.md`](../systems/cloud-sync.md)
+4. 浏览器云端地址走 **`PUBLIC_API_URL` + `/api/data`**；Couch 仅服务端 `COUCHDB_URL`，勿把 `127.0.0.1` 发给前端 → [`../systems/cloud-sync.md`](../systems/cloud-sync.md)
 
 ## 验证
 

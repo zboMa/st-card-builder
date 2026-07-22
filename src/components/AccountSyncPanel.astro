@@ -57,8 +57,8 @@
     <header class="account-session-head">
       <div>
         <p class="account-session-kicker">账户</p>
-        <h2 class="account-session-title">账户与同步</h2>
-        <p class="account-session-lead">云端自动备份草稿与进度，多端继续编辑。</p>
+        <h2 class="account-session-title">账户与云端</h2>
+        <p class="account-session-lead">登录后草稿自动保存到云端；未登录仍可完整离线使用。</p>
       </div>
       <button type="button" id="btnAuthLogout" class="btn btn-ghost btn-inline">退出登录</button>
     </header>
@@ -72,21 +72,21 @@
     <section class="account-session-card" aria-labelledby="accountSyncTitle">
       <div class="account-session-card-top">
         <div>
-          <h3 id="accountSyncTitle" class="account-session-card-title">用户数据</h3>
-          <p class="account-session-meta">角色卡、头像、小说工坊与创作进度。默认仅手动同步；开启自动后约每 5 分钟推送，本地无变更时跳过。</p>
+          <h3 id="accountSyncTitle" class="account-session-card-title">云端数据</h3>
+          <p class="account-session-meta">角色卡（含头像、小说工坊、创作进度）以完整卡包保存。点「立即对齐」上传本地并拉取云端列表；打开某张卡时自动下载完整数据。</p>
         </div>
-        <button type="button" id="btnManualSync" class="btn btn-primary btn-inline">立即同步</button>
+        <button type="button" id="btnManualSync" class="btn btn-primary btn-inline">立即对齐</button>
       </div>
       <label class="account-sync-switch" for="autoSyncToggle">
         <span class="account-sync-switch__text">
-          <span class="account-sync-switch__label">自动同步用户数据</span>
-          <span class="account-sync-switch__hint">开启后定时同步；本地未改动时不请求</span>
+          <span class="account-sync-switch__label">自动对齐云端</span>
+          <span class="account-sync-switch__hint">开启后定时上传本地变更；无待传时跳过</span>
         </span>
         <input type="checkbox" id="autoSyncToggle" class="account-sync-switch__input" role="switch" />
         <span class="account-sync-switch__track" aria-hidden="true"><span class="account-sync-switch__thumb"></span></span>
       </label>
       <div class="account-session-sync-row">
-        <span id="syncStatusLine" class="account-session-sync-status">尚未同步</span>
+        <span id="syncStatusLine" class="account-session-sync-status">尚未对齐</span>
         <span id="syncCountdownLine" class="account-session-sync-eta" hidden></span>
       </div>
       <div id="syncTip" class="account-session-tip" role="status"></div>
@@ -95,7 +95,7 @@
     <section class="account-session-card" aria-labelledby="accountPrefsTitle">
       <h3 id="accountPrefsTitle" class="account-session-card-title">用户配置</h3>
       <p class="account-session-meta">
-        提示词覆盖、当前打开卡等界面偏好。登录后本地一改即防抖上传到云端，无需点「立即同步」。
+        提示词覆盖、当前打开卡等界面偏好。登录后本地一改即防抖保存到云端，无需点「立即对齐」。
       </p>
       <div id="userPrefsSyncTip" class="account-session-tip" role="status"></div>
     </section>
@@ -369,7 +369,7 @@
     getMsUntilNextSync,
     formatSyncCountdown,
     friendlySyncError,
-    migrateLegacyToPouch,
+    setCloudEnabled,
   } from '../lib/sync/index.mjs';
   import {
     apiDevLogin,
@@ -389,7 +389,6 @@
     pullUserPrefsFromCloud,
     pushUserPrefsToCloudNow,
   } from '../lib/sync/userPrefsMirror.mjs';
-  import { idbGetJson } from '../lib/idbStore.mjs';
 
   window.__scheduleUserPrefsCloudPush__ = scheduleUserPrefsCloudPush;
 
@@ -468,6 +467,7 @@
     stopPanelCountdown();
     syncAutoSyncToggle(false);
     setUserPrefsSyncEnabled(false);
+    setCloudEnabled(false);
     setSidebarAuth(false);
   }
 
@@ -495,6 +495,7 @@
       }
     }
     if (!st.disabled) {
+      setCloudEnabled(true);
       setUserPrefsSyncEnabled(true);
       pullUserPrefsFromCloud().then(function() {
         var tip = document.getElementById('userPrefsSyncTip');
@@ -570,22 +571,23 @@
     var st = getSyncStatus();
     if (!el) return;
     el.classList.remove('is-err');
-    if (st.syncing) el.textContent = '同步中…';
+    if (st.syncing) el.textContent = '对齐中…';
     else if (st.lastSyncError) {
-      el.textContent = '同步失败';
+      el.textContent = '对齐失败';
       el.classList.add('is-err');
       if (tip) {
         tip.textContent = friendlySyncError(st.lastSyncError);
         tip.classList.add('is-err');
       }
     } else if (st.lastSyncAt) {
-      el.textContent = '上次同步 ' + fmtLastSync(st.lastSyncAt);
+      var extra = st.outboxSize ? (' · 待传 ' + st.outboxSize) : '';
+      el.textContent = '上次对齐 ' + fmtLastSync(st.lastSyncAt) + extra;
       if (tip) {
         tip.textContent = '';
         tip.classList.remove('is-err');
       }
     } else {
-      el.textContent = '尚未同步';
+      el.textContent = '尚未对齐';
       if (tip && !tip.classList.contains('is-err')) tip.textContent = '';
     }
 
@@ -627,8 +629,8 @@
         tip.textContent = '';
         tip.classList.remove('is-err');
       }
-      await runSync({ refreshCred: true, force: true });
-      if (tip) tip.textContent = '同步完成';
+      await runSync({ refreshCred: true, force: true, hydrateAll: true });
+      if (tip) tip.textContent = '云端对齐完成';
     } catch (e) {
       if (tip) {
         tip.textContent = friendlySyncError(e);
@@ -661,7 +663,7 @@
       await apiEmailLogin({ email: email, password: password });
       setTip('登录成功');
       await refreshAuthUi();
-      await runSync({ refreshCred: true, force: true }).catch(function() {});
+      await runSync({ refreshCred: true, force: true, hydrateAll: true }).catch(function() {});
       setSyncLine();
     } catch (err) {
       setTip(String(err && err.message || err), true);
@@ -678,7 +680,7 @@
       await apiEmailRegister({ email: email, password: password, inviteCode: inviteCode });
       setTip('注册成功');
       await refreshAuthUi();
-      await runSync({ refreshCred: true, force: true }).catch(function() {});
+      await runSync({ refreshCred: true, force: true, hydrateAll: true }).catch(function() {});
       setSyncLine();
     } catch (err) {
       setTip(String(err && err.message || err), true);
@@ -691,7 +693,7 @@
       await apiDevLogin(name);
       setTip('调试登录成功');
       await refreshAuthUi();
-      await runSync({ refreshCred: true, force: true }).catch(function() {});
+      await runSync({ refreshCred: true, force: true, hydrateAll: true }).catch(function() {});
       setSyncLine();
     } catch (e) {
       setTip(String(e && e.message || e), true);
@@ -700,6 +702,7 @@
 
   document.getElementById('btnAuthLogout')?.addEventListener('click', async function() {
     await apiLogout();
+    setCloudEnabled(false);
     stopAutoSync();
     syncAutoSyncToggle(false);
     setUserPrefsSyncEnabled(false);
@@ -796,11 +799,6 @@
   });
 
   (async function boot() {
-    try {
-      await migrateLegacyToPouch({ idbGetJson: idbGetJson });
-    } catch (e) {
-      console.warn('[sync] migrate', e);
-    }
     var hash = String(location.hash || '');
     if (hash.indexOf('auth') >= 0) {
       history.replaceState(null, '', '#account-sync');
