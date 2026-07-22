@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { readLayoutSources, readAssistantPanelSources, readVariableCardPanelSources , readCardBuilderBrowserAppSources, readStatusBarSources} from './helpers/uiSources.mjs';
+import { readLayoutSources, readAssistantPanelSources, readVariableCardPanelSources, readCardBuilderBrowserAppSources, readStatusBarSources, readRegexPanelSources } from './helpers/uiSources.mjs';
 import {
   createEmptyRegexScript,
   normalizeRegexScript,
@@ -127,7 +127,7 @@ describe('regex wiring', function() {
     const tools = readFileSync(join(root, 'src/lib/assistant/tools.mjs'), 'utf8');
     assert.match(tools, /'regex'/);
 
-    const panel = readFileSync(join(root, 'src/components/RegexPanel.astro'), 'utf8');
+    const panel = readRegexPanelSources(root);
     assert.match(panel, /id="regexPanel"/);
     assert.match(panel, /id="rxList"/);
     assert.match(panel, /id="rxBtnAdd"/);

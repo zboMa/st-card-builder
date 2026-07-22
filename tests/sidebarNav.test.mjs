@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { readLayoutSources, readAssistantPanelSources, readVariableCardPanelSources, readWorldbookPanelSources } from './helpers/uiSources.mjs';
+import { readLayoutSources, readAssistantPanelSources, readVariableCardPanelSources, readWorldbookPanelSources, readAiConfigPanelSources, readChatPlaygroundSources, readCardManagerPanelSources, readCharacterPanelSources, readPreviewPanelSources } from './helpers/uiSources.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -87,12 +87,12 @@ describe('sidebar navigation contract', function() {
   });
 
   it('角色卡管理与角色设定职责分离', function() {
-    const mgr = readFileSync(join(root, 'src/components/CardManagerPanel.astro'), 'utf8');
+    const mgr = readCardManagerPanelSources(root);
     assert.match(mgr, /id="cardManagerList"/);
     assert.match(mgr, /id="btnNewDraft"/);
     assert.match(mgr, /card-manager-list/);
     assert.doesNotMatch(mgr, /id="draftSelect"/);
-    const charSrc = readFileSync(join(root, 'src/components/CharacterPanel.astro'), 'utf8');
+    const charSrc = readCharacterPanelSources(root);
     assert.doesNotMatch(charSrc, /id="draftSelect"/);
     assert.doesNotMatch(charSrc, /多卡片草稿箱/);
     // 角色设定仅编辑表单，无当前卡摘要 / 回管理顶栏
@@ -105,7 +105,7 @@ describe('sidebar navigation contract', function() {
 
   // 导入在管理页顶栏；导出在每张卡底部；JSON 追踪入口在角色设定弹窗
   it('导入在角色卡管理顶栏，导出在卡片底部，JSON 追踪无导入导出按钮', function() {
-    const mgr = readFileSync(join(root, 'src/components/CardManagerPanel.astro'), 'utf8');
+    const mgr = readCardManagerPanelSources(root);
     assert.match(mgr, /id="btnNewDraft"/);
     assert.match(mgr, /id="btnImportCard"/);
     assert.match(mgr, /id="importCardInput"/);
@@ -113,14 +113,14 @@ describe('sidebar navigation contract', function() {
     assert.doesNotMatch(mgr, /id="btnDownloadJson"/);
     assert.doesNotMatch(mgr, /id="btnExportPNG"/);
     assert.match(mgr, /card-manager-toolbar/);
-    const preview = readFileSync(join(root, 'src/components/PreviewPanel.astro'), 'utf8');
+    const preview = readPreviewPanelSources(root);
     assert.doesNotMatch(preview, /id="btnImportCard"/);
     assert.doesNotMatch(preview, /id="btnDownloadJson"/);
     assert.doesNotMatch(preview, /id="btnExportPNG"/);
     assert.doesNotMatch(preview, /id="importCardInput"/);
     assert.match(preview, /id="annotatedPreview"/);
     assert.match(preview, /id="toggleAnnotations"/);
-    const charSrc = readFileSync(join(root, 'src/components/CharacterPanel.astro'), 'utf8');
+    const charSrc = readCharacterPanelSources(root);
     assert.match(charSrc, /id="btnOpenJsonPreview"/);
     assert.match(charSrc, /id="jsonPreviewModal"/);
     assert.match(charSrc, /JSON 实时追踪/);
@@ -132,7 +132,7 @@ describe('sidebar navigation contract', function() {
 
   // 管理页网格渲染与点击切换契约（存储逻辑仍在 index）
   it('角色卡管理为预览卡片网格且点击切换进设定', function() {
-    const mgr = readFileSync(join(root, 'src/components/CardManagerPanel.astro'), 'utf8');
+    const mgr = readCardManagerPanelSources(root);
     // 默认一行 4 列，窄屏自适应减列
     assert.match(mgr, /repeat\(4,\s*minmax\(0,\s*1fr\)\)/);
     assert.match(mgr, /repeat\(3,\s*minmax\(0,\s*1fr\)\)/);
@@ -172,7 +172,7 @@ describe('sidebar navigation contract', function() {
   });
 
   it('角色设定含标签管理且导出写入 tags/data.tags', function() {
-    const charSrc = readFileSync(join(root, 'src/components/CharacterPanel.astro'), 'utf8');
+    const charSrc = readCharacterPanelSources(root);
     assert.match(charSrc, /id="charTagsList"/);
     assert.match(charSrc, /id="charTagInput"/);
     assert.match(charSrc, /id="btnAddCharTag"/);
@@ -304,7 +304,7 @@ describe('sidebar navigation contract', function() {
   });
 
   it('角色试聊：右上角配置按钮 + 顶部滑出浮层 + flex 占满 + 对话区内滚', function() {
-    const chat = readFileSync(join(root, 'src/components/ChatPlayground.astro'), 'utf8');
+    const chat = readChatPlaygroundSources(root);
     assert.match(chat, /chat-panel-header/);
     assert.match(chat, /chat-header-actions/);
     // 操作控件在标题行内（HTML 段，脚本前）
@@ -469,13 +469,13 @@ describe('sidebar navigation contract', function() {
     assert.match(src, /__altGreetings__/);
     assert.match(src, /__renderAltGreetings__/);
     // 角色设定中不再承载开场白编辑
-    const charSrc = readFileSync(join(root, 'src/components/CharacterPanel.astro'), 'utf8');
+    const charSrc = readCharacterPanelSources(root);
     assert.doesNotMatch(charSrc, /id="firstMes"/);
     assert.doesNotMatch(charSrc, /id="altGreetingsList"/);
   });
 
   it('AIPanel 提供配置区；生成区在 AiEngineModal 弹窗', function() {
-    const cfg = readFileSync(join(root, 'src/components/AIPanel.astro'), 'utf8');
+    const cfg = readAiConfigPanelSources(root);
     assert.match(cfg, /area-ai-config/);
     assert.match(cfg, /AiEngineModal/);
     assert.match(cfg, /id="apiUrl"/);
@@ -508,13 +508,13 @@ describe('sidebar navigation contract', function() {
   });
 
   it('角色设定右上角含 AI 引擎入口', function() {
-    const charSrc = readFileSync(join(root, 'src/components/CharacterPanel.astro'), 'utf8');
+    const charSrc = readCharacterPanelSources(root);
     assert.match(charSrc, /id="btnOpenAiEngine"/);
     assert.match(charSrc, />AI 引擎</);
   });
 
   it('角色设定含标签 AI 生成按钮', function() {
-    const src = readFileSync(join(root, 'src/components/CharacterPanel.astro'), 'utf8');
+    const src = readCharacterPanelSources(root);
     assert.match(src, /id="btnAiGenCharTags"/);
     assert.match(src, /id="btnAddCharTag"/);
     assert.match(src, /id="charTagsAiTip"/);

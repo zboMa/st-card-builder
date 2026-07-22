@@ -14,6 +14,9 @@
 | 入口 | 启动 | 说明 |
 |---|---|---|
 | 主站卡侧 | `src/lib/card-builder/browserApp.mjs` → `initCardBuilder()` | `index.astro` 调用；卡侧唯一 boot |
+| AI 配置 | `AIPanel.astro` → `aiConfig/panelBoot.mjs` | 侧栏「配置」 |
+| 状态栏 | `StatusBarPanel.astro` → `statusBar/panelBoot.mjs` | 设计/预览/注入 |
+| 试聊 | `ChatPlayground.astro` → `chatRuntime/playgroundBoot.mjs` | 助手内嵌 |
 | 小说工坊 | `NovelWorkshopApp` → `initNovelWorkshop()` | `src/lib/novel/browserApp.mjs` |
 | 小说创作 | `StoryStudioApp` → storyStudio boot | `src/lib/storyStudio/` |
 | 管理端 | `src/lib/admin/browserApp.mjs` → `adminBoot.mjs` | 独立页 `/admin` |

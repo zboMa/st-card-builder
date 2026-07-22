@@ -1,0 +1,780 @@
+  /* 面板本身沿用 Layout .panel，不再套 sb-panel 琥珀强调 */
+  .novel-workshop-panel {
+    /* 仅作命名钩子，供布局/测试识别 */
+  }
+
+  /* 与开场白 .greetings-tip 同级说明文案 */
+  .novel-panel-tip {
+    font-size: 0.78rem;
+    color: var(--color-text-muted);
+    margin: -4px 0 16px 0;
+    line-height: 1.45;
+  }
+  .novel-panel-tip .novel-config-link {
+    color: var(--color-accent-hover);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .novel-panel-tip .novel-config-link:hover {
+    color: var(--color-accent);
+  }
+
+  .novel-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0 0 14px;
+  }
+  .novel-stat-chip {
+    padding: 4px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--color-accent-border);
+    background: var(--color-accent-soft);
+    color: var(--color-text-muted);
+    font-size: 0.72rem;
+  }
+
+  /* 区块卡片：对齐 draft-manager / entry-item 的靛色边框 */
+  .novel-card {
+    margin-bottom: 14px;
+    border-radius: 10px;
+    border: 1px solid var(--color-focus-ring);
+    background: var(--color-surface-inset);
+  }
+  .novel-card-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: center;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--color-accent-soft);
+  }
+  .novel-card-head strong { color: var(--color-text); font-size: 0.88rem; }
+  .novel-card-head span { color: var(--color-text-muted); font-size: 0.78rem; }
+  .novel-card-body { padding: 14px; }
+
+  /* 拖拽区：对齐 .preset-upload */
+  .novel-dropzone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 120px;
+    margin-bottom: 12px;
+    padding: 18px;
+    border-radius: 10px;
+    border: 1px dashed var(--color-accent-border);
+    background: var(--color-accent-soft);
+    cursor: pointer;
+    text-align: center;
+  }
+  .novel-dropzone:hover,
+  .novel-dropzone.is-dragover {
+    border-color: var(--color-accent);
+    background: var(--color-accent-soft);
+  }
+  .novel-dropzone-title { color: var(--color-text); font-weight: 600; }
+  .novel-dropzone-subtitle { color: var(--color-text-muted); font-size: 0.78rem; }
+
+  .novel-upload-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  /* 主操作 / 次操作：复用 .btn 体系；工具栏内改为自适应宽度 */
+  .novel-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  .novel-toolbar .btn,
+  .novel-btn-sm,
+  .novel-gold-btn,
+  .novel-ghost-btn,
+  .novel-upload-btn {
+    width: auto;
+    margin: 0;
+    padding: 6px 12px;
+    font-size: 0.78rem;
+  }
+  /* 兼容旧类名：主按钮 → indigo，次按钮 → slate */
+  .novel-gold-btn,
+  .novel-upload-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-accent-strong);
+    color: var(--color-paper-deep);
+    border: 1px solid var(--color-accent-border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-weight: 600;
+    font-family: inherit;
+    transition: background var(--dur-fast) var(--ease-out),
+      box-shadow var(--dur-fast) var(--ease-out);
+  }
+  .novel-gold-btn:hover,
+  .novel-upload-btn:hover {
+    background: var(--color-accent);
+    box-shadow: 0 8px 24px var(--color-accent-glow);
+  }
+  .novel-gold-btn:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
+  .novel-ghost-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    color: var(--color-text-secondary);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-weight: 600;
+    font-family: inherit;
+    transition: background var(--dur-fast) var(--ease-out),
+      border-color var(--dur-fast) var(--ease-out);
+  }
+  .novel-ghost-btn:hover {
+    background: var(--color-accent-soft);
+    border-color: var(--color-accent-border);
+    color: var(--color-text);
+  }
+
+  .novel-source-layout {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    gap: 12px;
+  }
+  @media (max-width: 900px) {
+    .novel-source-layout { grid-template-columns: 1fr; }
+    .novel-source-global-grid { grid-template-columns: 1fr; }
+  }
+  @media (min-width: 901px) and (max-width: 1100px) {
+    .novel-source-global-grid { grid-template-columns: 1fr 1fr; }
+  }
+
+  .novel-gate-hint {
+    margin: 0 0 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    background: rgba(239, 68, 68, 0.08);
+    color: var(--color-danger);
+    font-size: 0.82rem;
+  }
+
+  /* 拆章 / 角色设定·开场白 / 人物 / 世界书 / 文风：面板占满主区；配置固定，内容区占满内滚 */
+  .novel-chapters-panel,
+  .novel-setup-panel,
+  .novel-extract-panel,
+  .novel-style-panel {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    height: 100%;
+    max-height: none;
+    overflow: hidden;
+  }
+  .novel-chapters-panel > *:not(.novel-chapters-body),
+  .novel-setup-panel > *:not(.novel-setup-body),
+  .novel-extract-panel > *:not(.novel-extract-body),
+  .novel-style-panel > *:not(.novel-style-body) {
+    flex-shrink: 0;
+  }
+  .novel-chapters-body,
+  .novel-setup-body,
+  .novel-extract-body,
+  .novel-style-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    gap: 12px;
+  }
+  .novel-chapters-controls,
+  .novel-setup-controls,
+  .novel-extract-controls,
+  .novel-style-controls { flex-shrink: 0; }
+  .novel-setup-ai-tip {
+    margin: 0 0 6px;
+    font-size: 0.75rem;
+    color: var(--color-warning);
+    min-height: 1.1em;
+  }
+  .novel-setup-preview-wrap {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid var(--color-accent-soft);
+    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.22);
+  }
+  .novel-setup-preview-meta {
+    flex-shrink: 0;
+    padding: 8px 12px;
+    font-size: 0.78rem;
+    color: var(--color-text-muted);
+    border-bottom: 1px solid var(--color-accent-soft);
+  }
+  .novel-setup-preview {
+    flex: 1 1 auto;
+    min-height: 120px;
+    margin: 0;
+    padding: 12px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 0.72rem;
+    line-height: 1.5;
+    color: var(--color-text-secondary);
+  }
+  /* 文风：结果文本区占满剩余高度并可编辑滚动 */
+  .novel-style-content {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .novel-style-content #novelStyleText {
+    flex: 1 1 auto;
+    min-height: 160px;
+    height: auto;
+    resize: none;
+    overflow-y: auto;
+  }
+  .novel-style-content .novel-toolbar,
+  .novel-style-content .novel-status-text {
+    flex-shrink: 0;
+  }
+  /* 轻量标题行：对齐世界书工具栏区，无卡片边框/底 */
+  .novel-chapters-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+  .novel-chapters-meta strong { color: var(--color-text); font-size: 0.88rem; }
+  .novel-chapters-meta span { color: var(--color-text-muted); font-size: 0.78rem; }
+
+  /* 统一列表：左信息、右图标操作；列表区占满并内滚 */
+  .novel-chapter-list,
+  .novel-entity-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    scrollbar-gutter: stable;
+    padding-right: 2px;
+  }
+  .novel-list-row,
+  .novel-chapter-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--color-focus-ring);
+    background: var(--color-surface);
+  }
+  /* 禁用章：浅红底/边标识 */
+  .novel-chapter-row.is-disabled {
+    border-color: rgba(248, 113, 113, 0.45);
+    background: rgba(127, 29, 29, 0.22);
+  }
+  .novel-list-main,
+  .novel-chapter-main {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .novel-list-title,
+  .novel-chapter-title {
+    display: block;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: var(--color-text);
+    font: inherit;
+    font-weight: 700;
+    text-align: left;
+    cursor: pointer;
+    word-break: break-word;
+  }
+  .novel-list-title:hover,
+  .novel-chapter-title:hover {
+    color: var(--color-accent-hover);
+    text-decoration: underline;
+  }
+  .novel-list-meta,
+  .novel-chapter-meta {
+    color: var(--color-text-muted);
+    font-size: 0.72rem;
+    line-height: 1.4;
+  }
+  .novel-chapter-row.is-disabled .novel-chapter-meta { color: var(--color-danger); }
+  /* 右侧图标横排，不落到标题下方 */
+  .novel-list-actions,
+  .novel-chapter-actions {
+    display: inline-flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 4px;
+    flex-shrink: 0;
+    align-items: center;
+    max-width: 46%;
+  }
+  .novel-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    margin: 0;
+    padding: 0;
+    border-radius: 6px;
+    border: 1px solid var(--color-accent-border);
+    background: rgba(51, 65, 85, 0.55);
+    color: var(--color-text-secondary);
+    font-size: 0.85rem;
+    line-height: 1;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .novel-icon-btn:hover {
+    border-color: var(--color-accent-border);
+    background: var(--color-accent-soft);
+    color: var(--color-text);
+  }
+  .novel-icon-btn.is-danger {
+    border-color: rgba(248, 113, 113, 0.35);
+    color: var(--color-danger);
+  }
+  .novel-icon-btn.is-danger:hover {
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--color-danger);
+  }
+
+  /* 兼容旧类名钩子（测试 / 遗留引用） */
+  .novel-char-grid,
+  .novel-entity-preview {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .novel-char-card,
+  .novel-entity-card {
+    /* 已统一为 novel-list-row */
+  }
+
+  .novel-sync-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 0.68rem;
+  }
+  .novel-sync-badge.unsynced { background: rgba(100, 116, 139, 0.35); color: var(--color-text-secondary); }
+  .novel-sync-badge.synced { background: rgba(16, 185, 129, 0.18); color: var(--color-success); }
+  .novel-sync-badge.dirty { background: rgba(245, 158, 11, 0.18); color: var(--color-warning); }
+
+  /* 世界书抽取：搜索栏单独紧贴列表上方 */
+  .novel-wb-toolbar {
+    margin: 0 0 0;
+  }
+  .novel-wb-toolbar.novel-wb-search-only .wb-search-wrap {
+    width: 100%;
+    min-width: 0;
+    padding: 6px 8px;
+    border-radius: 8px;
+    background: var(--color-surface-inset);
+    border: 1px solid var(--color-accent-border);
+  }
+  .novel-wb-toolbar .wb-search-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(8, 12, 28, 0.55);
+    border: 1px solid rgba(71, 85, 105, 0.4);
+    border-radius: 8px;
+    padding: 0 8px;
+  }
+  .novel-wb-toolbar .wb-search-input {
+    flex: 1;
+    background: transparent !important;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    color: var(--color-text-secondary);
+    font-size: 0.8rem;
+    padding: 7px 0 !important;
+    min-width: 0;
+  }
+  .novel-wb-toolbar .wb-search-clear {
+    background: rgba(71, 85, 105, 0.4);
+    border: none;
+    color: var(--color-text-muted);
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 0.68rem;
+  }
+  /* 折叠条目内嵌编辑（复用 Layout .entry-item） */
+  .novel-wb-inline {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed rgba(71, 85, 105, 0.45);
+  }
+  .novel-wb-inline .novel-wb-inline-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .novel-entity-list.wb-entries-list .entry-item {
+    margin: 0;
+  }
+  .novel-entity-list.wb-entries-list .entry-actions {
+    max-width: none;
+  }
+  .novel-entity-list .wb-entries-empty,
+  .novel-entity-list .novel-wb-empty-tip {
+    margin: auto;
+    padding: 28px 18px;
+    max-width: 28rem;
+    width: calc(100% - 24px);
+    text-align: center;
+    font-size: 0.78rem;
+    font-weight: 500;
+    line-height: 1.55;
+    color: var(--color-text-muted);
+    border: 1px dashed var(--color-accent-border);
+    border-radius: 8px;
+    background: var(--color-accent-soft);
+    box-sizing: border-box;
+  }
+
+  .novel-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--color-text-muted);
+    font-size: 0.8rem;
+  }
+
+  .novel-status-text {
+    margin-top: 8px;
+    color: var(--color-text-muted);
+    font-size: 0.8rem;
+    min-height: 20px;
+  }
+
+  .novel-focus-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+  .novel-focus-tag {
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--color-accent-border);
+    background: transparent;
+    color: var(--color-accent-hover);
+    cursor: pointer;
+    font-size: 0.76rem;
+    font-family: inherit;
+  }
+  .novel-focus-tag.active {
+    border-color: var(--color-accent-border);
+    background: var(--color-focus-ring);
+    color: var(--color-text);
+  }
+
+  /* NTL 禁忌类型 chip 按钮 */
+  .novel-chip-btn {
+    padding: 4px 10px;
+    border-radius: 14px;
+    border: 1px solid var(--color-border);
+    background: transparent;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    font-size: 0.7rem;
+    font-family: inherit;
+    transition: all 0.18s ease;
+    white-space: nowrap;
+  }
+  .novel-chip-btn:hover {
+    border-color: var(--color-accent);
+    color: var(--color-accent-hover);
+    background: rgba(239, 68, 68, 0.06);
+  }
+  .novel-chip-btn.active {
+    border-color: var(--color-accent);
+    background: rgba(239, 68, 68, 0.14);
+    color: var(--color-accent);
+    font-weight: 700;
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.12);
+  }
+
+  .novel-output-section { margin-bottom: 18px; }
+  .novel-output-section h3 {
+    margin: 0 0 10px;
+    color: var(--color-text-secondary);
+    font-size: 0.95rem;
+  }
+
+  /* 预览框：与系统 textarea 同色（文风蒸馏等仍可能使用） */
+  .novel-preview-box,
+  .novel-style-preview {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--color-accent-border);
+    background: var(--color-surface-input);
+    color: var(--color-text-secondary);
+    font-size: 0.8rem;
+    white-space: pre-wrap;
+    margin: 10px 0 0;
+  }
+
+  /* 真弹窗：fixed 全屏遮罩；打开时挂到 body，避免 panel overflow 裁切 */
+  .novel-modal[hidden] { display: none !important; }
+  .novel-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 9300;
+    display: grid;
+    place-items: center;
+    padding: 18px;
+  }
+  :global(body.novel-modal-open) {
+    overflow: hidden;
+  }
+  .novel-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(2, 6, 23, 0.66);
+    backdrop-filter: blur(6px);
+  }
+  .novel-modal-dialog {
+    position: relative;
+    z-index: 1;
+    width: min(520px, 100%);
+    max-height: min(86vh, 900px);
+    display: flex;
+    flex-direction: column;
+    border-radius: 12px;
+    border: 1px solid var(--color-accent-border);
+    background: linear-gradient(145deg, rgba(15, 23, 42, 0.98), rgba(7, 12, 24, 0.98));
+    box-shadow: 0 20px 56px rgba(0, 0, 0, 0.45);
+    overflow: hidden;
+  }
+  .novel-modal-dialog-lg { width: min(720px, 100%); }
+  .novel-modal-head {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 14px 16px 10px;
+    border-bottom: 1px solid var(--color-accent-soft);
+    flex-shrink: 0;
+  }
+  .novel-modal-head strong {
+    font-size: 0.9rem;
+    color: var(--color-text);
+  }
+  .novel-modal-tip {
+    font-size: 0.68rem;
+    color: var(--color-text-muted);
+  }
+  .novel-modal-body {
+    padding: 12px 16px 8px;
+    overflow: auto;
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+  .novel-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 12px 16px 14px;
+    border-top: 1px solid rgba(51, 65, 85, 0.45);
+    flex-shrink: 0;
+  }
+  .novel-modal-cancel {
+    width: auto !important;
+    margin: 0 !important;
+    padding: 8px 12px !important;
+    font-size: 0.78rem !important;
+    background: linear-gradient(135deg, var(--color-surface-elevated), var(--color-surface));
+  }
+  .novel-modal-pre,
+  .novel-modal-textarea {
+    width: 100%;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--color-accent-border);
+    background: var(--color-surface-input);
+    color: var(--color-text-secondary);
+    font-size: 0.8rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    white-space: pre-wrap;
+    line-height: 1.45;
+  }
+  .novel-modal-pre {
+    max-height: min(56vh, 560px);
+    overflow: auto;
+  }
+  .novel-modal-textarea {
+    min-height: 280px;
+    resize: vertical;
+  }
+
+  /* 小说分析：配置紧凑，图谱占满剩余高度 */
+  .novel-analyze-panel > .novel-panel-tip {
+    margin: -2px 0 8px 0;
+  }
+  .novel-analyze-body {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    flex: 1;
+    gap: 6px;
+  }
+  .novel-analyze-controls {
+    flex-shrink: 0;
+  }
+  .novel-analyze-grid .form-group {
+    margin-bottom: 6px;
+  }
+  .novel-analyze-toolbar {
+    margin-top: 2px;
+    margin-bottom: 2px;
+  }
+  .novel-analyze-status-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 8px 14px;
+    min-height: 0;
+  }
+  .novel-analyze-status-row .novel-status-text {
+    margin: 0;
+    font-size: 0.72rem;
+  }
+  .novel-graph-cy {
+    flex: 1 1 auto;
+    min-height: min(58vh, 560px);
+    margin: 0;
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    background:
+      radial-gradient(ellipse at 18% 10%, rgba(52, 211, 153, 0.07), transparent 48%),
+      radial-gradient(ellipse at 88% 90%, rgba(56, 189, 248, 0.08), transparent 42%),
+      var(--color-surface-inset);
+  }
+  .novel-graph-footer {
+    flex-shrink: 0;
+    margin: 0;
+    padding: 6px 10px;
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-inset);
+  }
+  .novel-graph-footer-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px 14px;
+    margin-bottom: 2px;
+  }
+  .novel-analyze-summary {
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: transparent;
+    font-size: 0.72rem;
+    line-height: 1.35;
+    color: var(--color-text-secondary);
+  }
+  .novel-graph-stats {
+    margin: 0;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--color-accent-hover);
+  }
+  .novel-graph-detail {
+    font-size: 0.74rem;
+    line-height: 1.4;
+    color: var(--color-text-secondary);
+    min-height: 1.2em;
+  }
+  .novel-graph-detail strong {
+    color: var(--color-text);
+  }
+  .novel-graph-detail em {
+    color: var(--color-accent-hover);
+    font-style: normal;
+  }
+  .novel-graph-type {
+    font-size: 0.62rem;
+    color: var(--color-text-muted);
+    margin-left: 4px;
+  }
+  .novel-graph-attr-list {
+    margin: 4px 0 0;
+    padding-left: 1.1em;
+    font-size: 0.7rem;
+  }
+  .novel-graph-attr-list span {
+    color: var(--color-text-muted);
+    margin-right: 4px;
+  }
+  .novel-graph-evidence {
+    margin-top: 2px;
+    font-size: 0.68rem;
+    color: var(--color-text-muted);
+  }
+  .novel-knowledge-list .novel-entity-type {
+    display: inline-block;
+    min-width: 2.4em;
+    font-size: 0.62rem;
+    font-weight: 700;
+    color: var(--color-accent-hover);
+    margin-right: 4px;
+  }
+  .novel-inline-select {
+    min-width: 7.5rem;
+    max-width: 10rem;
+    font-size: 0.78rem;
+    padding: 4px 8px;
+    border-radius: 8px;
+    border: 1px solid var(--color-border-subtle);
+    background: var(--color-surface);
+  }
+  .novel-inline-search {
+    flex: 1;
+    min-width: 120px;
+    max-width: 220px;
+    font-size: 0.78rem;
+    padding: 4px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--color-border-subtle);
+    background: var(--color-surface);
+  }

@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { readLayoutSources, readAssistantPanelSources, readVariableCardPanelSources , readNovelBrowserAppSources, readNovelWorldbookPanelSources, readNovelCharactersPanelSources, readNovelAnalyzePanelSources, readNovelBridgeSources} from './helpers/uiSources.mjs';
+import { readLayoutSources, readAssistantPanelSources, readVariableCardPanelSources, readNovelBrowserAppSources, readNovelWorldbookPanelSources, readNovelCharactersPanelSources, readNovelAnalyzePanelSources, readNovelBridgeSources, readCardManagerPanelSources, readNovelWorkshopStylesSources } from './helpers/uiSources.mjs';
 import {
   CHARACTER_PROFILE_FIELDS,
   emptyCharacterProfile,
@@ -519,7 +519,7 @@ describe('novel cardId buckets', function() {
     const cardMgrSrc = readCardManagerSources(novelRoot);
     assert.match(cardMgrSrc, /emitCardDraftChanged/);
     assert.match(cardMgrSrc, /buildCardJSONFromDraft/);
-    const mgrPanelAstro = readFileSync(join(novelRoot, 'src/components/CardManagerPanel.astro'), 'utf8');
+    const mgrPanelAstro = readCardManagerPanelSources(novelRoot);
     assert.match(mgrPanelAstro, /不含小说/);
     // 导出函数体不应拼接小说桶字段
     const exportFn = cardMgrSrc.match(/panel\.exportDraftAsJson\s*=\s*function[\s\S]*?panel\.exportDraftAsPng/);
@@ -530,7 +530,7 @@ describe('novel cardId buckets', function() {
 
 describe('novel panel visual contract', function() {
   it('共用样式去掉金色主题色', function() {
-    const css = readFileSync(join(novelRoot, 'src/components/novel/NovelWorkshopStyles.astro'), 'utf8');
+    const css = readNovelWorkshopStylesSources(novelRoot);
     assert.match(css, /与主工作区/);
     assert.doesNotMatch(css, /#c9a227|#e8c872|#a8841a|rgba\(212,\s*175,\s*55/);
     assert.doesNotMatch(css, /深色 \+ 金色/);
@@ -604,7 +604,7 @@ describe('novel panel visual contract', function() {
     assert.match(style, /novel-style-panel/);
     assert.match(style, /novel-style-controls[\s\S]*novelStyleChunkSize/);
     assert.match(style, /novel-style-content[\s\S]*novelStyleText/);
-    const css = readFileSync(join(novelRoot, 'src/components/novel/NovelWorkshopStyles.astro'), 'utf8');
+    const css = readNovelWorkshopStylesSources(novelRoot);
     assert.match(css, /\.novel-style-panel/);
     assert.match(css, /\.novel-style-body/);
     assert.match(css, /\.novel-style-content\s+#novelStyleText[\s\S]*flex:\s*1/s);
@@ -631,7 +631,7 @@ describe('novel panel visual contract', function() {
     assert.match(greet, /id="btnNovelGenGreetings"/);
     assert.match(greet, /id="novelGreetPreview"/);
     assert.match(greet, /生成开场白/);
-    const css = readFileSync(join(novelRoot, 'src/components/novel/NovelWorkshopStyles.astro'), 'utf8');
+    const css = readNovelWorkshopStylesSources(novelRoot);
     assert.match(css, /\.novel-setup-panel/);
     assert.match(css, /\.novel-setup-preview/);
     const layout = readLayoutSources(novelRoot);
@@ -670,7 +670,7 @@ describe('novel panel visual contract', function() {
     assert.doesNotMatch(panel, /class="[^"]*novel-card/);
     assert.doesNotMatch(panel, /novel-chapters-card|novel-card-head|novel-card-body/);
 
-    const css = readFileSync(join(novelRoot, 'src/components/novel/NovelWorkshopStyles.astro'), 'utf8');
+    const css = readNovelWorkshopStylesSources(novelRoot);
     assert.match(css, /\.novel-chapter-row\.is-disabled/);
     assert.match(css, /\.novel-chapter-list[\s\S]*overflow-y:\s*auto/);
     assert.match(css, /\.novel-chapters-controls/);
@@ -796,7 +796,7 @@ describe('novel panel visual contract', function() {
     assert.match(analyze, /btnGraphRelayout/);
     assert.match(analyze, /btnNovelRetryFailed|novelFailedShardsInfo/);
     assert.doesNotMatch(analyze, /btnGraphUnifiedExtract/);
-    const css = readFileSync(join(novelRoot, 'src/components/novel/NovelWorkshopStyles.astro'), 'utf8');
+    const css = readNovelWorkshopStylesSources(novelRoot);
     assert.match(css, /\.novel-graph-cy/);
     assert.match(css, /\.novel-graph-footer/);
     assert.match(css, /\.novel-analyze-body/);
@@ -864,7 +864,7 @@ describe('novel panel visual contract', function() {
     assert.match(chars, /novelModalExpandConfirm/);
     assert.doesNotMatch(chars, /class="[^"]*novel-card/);
 
-    const css = readFileSync(join(novelRoot, 'src/components/novel/NovelWorkshopStyles.astro'), 'utf8');
+    const css = readNovelWorkshopStylesSources(novelRoot);
     assert.match(css, /\.novel-extract-panel/);
     assert.match(css, /\.novel-extract-controls/);
     assert.match(css, /\.novel-entity-list[\s\S]*overflow-y:\s*auto/);

@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { readLayoutSources, readAssistantPanelSources, readVariableCardPanelSources, readWorldbookPanelSources , readNovelBrowserAppSources, readNovelWorldbookPanelSources, readNovelCharactersPanelSources} from './helpers/uiSources.mjs';
+import { readLayoutSources, readAssistantPanelSources, readVariableCardPanelSources, readWorldbookPanelSources, readNovelBrowserAppSources, readNovelWorldbookPanelSources, readNovelCharactersPanelSources, readAiConfigPanelSources, readChatPlaygroundSources, readCharacterPanelSources } from './helpers/uiSources.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const tokensPath = join(root, 'src/styles/tokens.css');
@@ -81,7 +81,7 @@ describe('design tokens (Nocturne Atelier)', function() {
   });
 
   it('CharacterPanel 使用 form-section 与分级按钮', function() {
-    const panel = readFileSync(join(root, 'src/components/CharacterPanel.astro'), 'utf8');
+    const panel = readCharacterPanelSources(root);
     assert.match(panel, /form-section/);
     assert.match(panel, /btn-ai-engine/);
     assert.match(panel, /btn-panel-tool/);
@@ -103,7 +103,7 @@ describe('design tokens (Nocturne Atelier)', function() {
   });
 
   it('AIPanel 使用 ui-tabs；AiEngineModal 使用 ui-pill-btn', function() {
-    const panel = readFileSync(join(root, 'src/components/AIPanel.astro'), 'utf8');
+    const panel = readAiConfigPanelSources(root);
     assert.match(panel, /ui-tabs ai-config-tabs/);
     assert.doesNotMatch(panel, /⚙️ AI 配置/);
     const modal = readFileSync(join(root, 'src/components/AiEngineModal.astro'), 'utf8');
@@ -153,12 +153,12 @@ describe('design tokens (Nocturne Atelier)', function() {
     const fav = readFileSync(join(root, 'public/favicon.svg'), 'utf8');
     assert.match(fav, /<rect[^>]*rx="3"/);
     assert.match(fav, /M8 9h8M8 13h5/);
-    const ai = readFileSync(join(root, 'src/components/AIPanel.astro'), 'utf8');
+    const ai = readAiConfigPanelSources(root);
     assert.match(ai, /id="presetListContainer"[^>]*max-height:\s*540px/);
   });
 
   it('ChatPlayground 使用 ui-slider 与 msg token', function() {
-    const chat = readFileSync(join(root, 'src/components/ChatPlayground.astro'), 'utf8');
+    const chat = readChatPlaygroundSources(root);
     assert.match(chat, /ui-slider setting-slider/);
     assert.match(chat, /--color-msg-user-bg/);
   });
