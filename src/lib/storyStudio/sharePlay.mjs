@@ -16,29 +16,40 @@ export function isTreeRelease(novel) {
   return !!(novel && Array.isArray(novel.branches) && novel.branches.length);
 }
 
-export function playStorageKey(token) {
-  return 'st_v3_share_play_v1:' + String(token || '');
+/** @param {string} token @param {string} [version] 钉版本时与 latest 进度隔离 */
+export function playStorageKey(token, version) {
+  var t = String(token || '');
+  var v = String(version || '').trim();
+  if (v) return 'st_v3_share_play_v1:' + t + ':v:' + encodeURIComponent(v);
+  return 'st_v3_share_play_v1:' + t;
 }
 
-export function loadPlayState(token) {
+function parsePlayRaw(raw) {
+  if (!raw) return null;
+  var obj = JSON.parse(raw);
+  if (!obj || typeof obj !== 'object') return null;
+  return {
+    currentBranchId: String(obj.currentBranchId || ''),
+    chapterId: String(obj.chapterId || ''),
+    choices: Array.isArray(obj.choices) ? obj.choices : [],
+  };
+}
+
+/** 有钉版本时先读 versioned key，再回退到旧 token-only key */
+export function loadPlayState(token, version) {
   try {
-    var raw = localStorage.getItem(playStorageKey(token));
-    if (!raw) return null;
-    var obj = JSON.parse(raw);
-    if (!obj || typeof obj !== 'object') return null;
-    return {
-      currentBranchId: String(obj.currentBranchId || ''),
-      chapterId: String(obj.chapterId || ''),
-      choices: Array.isArray(obj.choices) ? obj.choices : [],
-    };
+    var v = String(version || '').trim();
+    var raw = localStorage.getItem(playStorageKey(token, v));
+    if (!raw && v) raw = localStorage.getItem(playStorageKey(token));
+    return parsePlayRaw(raw);
   } catch (e) {
     return null;
   }
 }
 
-export function savePlayState(token, state) {
+export function savePlayState(token, state, version) {
   try {
-    localStorage.setItem(playStorageKey(token), JSON.stringify({
+    localStorage.setItem(playStorageKey(token, version), JSON.stringify({
       currentBranchId: state.currentBranchId || '',
       chapterId: state.chapterId || '',
       choices: Array.isArray(state.choices) ? state.choices : [],
@@ -47,8 +58,8 @@ export function savePlayState(token, state) {
   } catch (e) { /* ignore */ }
 }
 
-export function clearPlayState(token) {
-  try { localStorage.removeItem(playStorageKey(token)); } catch (e) { /* ignore */ }
+export function clearPlayState(token, version) {
+  try { localStorage.removeItem(playStorageKey(token, version)); } catch (e) { /* ignore */ }
 }
 
 /**

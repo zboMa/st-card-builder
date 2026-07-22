@@ -125,6 +125,8 @@ export function registerCardManager(ctx) {
       var merged = Object.assign({}, existing, snap);
       if (existing.avatarInIdb != null) merged.avatarInIdb = existing.avatarInIdb;
       if (existing.avatarBase64 != null && existing.avatarBase64.length > 100) merged.avatarBase64 = existing.avatarBase64;
+      // 列表展示不得用「此刻时钟」覆盖已落盘时间，否则云状态基线永远对不上
+      merged.updatedAt = existing.updatedAt || ctx.state.updatedAt || snap.updatedAt || '';
       dr[currentId] = merged;
     }
     return dr;
@@ -1234,13 +1236,19 @@ export function registerCardManager(ctx) {
   };
 
   // ---- PNG bytes for publish ----
-  panel.buildPngBase64ForDraft = async function (id) {
-    var json;
+  /** @param {string} id
+   *  @param {{ cardJson?: object }} [opts] 若给 cardJson 则嵌入该 JSON（用于已发版，避免草稿版号污染）
+   */
+  panel.buildPngBase64ForDraft = async function (id, opts) {
+    opts = opts || {};
+    var json = opts.cardJson || null;
     var avatar;
     var currentId = getCurrentDraftId();
     if (id === currentId) {
-      panel.saveCurrentDraft();
-      json = buildCardJSONFromDraft(ctx.state);
+      if (!json) {
+        panel.saveCurrentDraft();
+        json = buildCardJSONFromDraft(ctx.state);
+      }
       if (ctx.state.avatarInIdb) {
         await ensureIdbReady();
         avatar = window.__avatarIdb__
@@ -1252,7 +1260,7 @@ export function registerCardManager(ctx) {
     } else {
       var d = getAllDrafts()[id];
       if (!d) return null;
-      json = buildCardJSONFromDraft(d);
+      if (!json) json = buildCardJSONFromDraft(d);
       if (d.avatarInIdb) {
         await ensureIdbReady();
         avatar = window.__avatarIdb__
@@ -1262,7 +1270,7 @@ export function registerCardManager(ctx) {
         avatar = d.avatarBase64 || '';
       }
     }
-    if (!avatar) return null;
+    if (!avatar || !json) return null;
     var ch = createTextChunk('chara', JSON.stringify(json));
     var raw = atob(avatar.split(',')[1]);
     var bytes = new Uint8Array(raw.length);
@@ -1316,33 +1324,20 @@ export function registerCardManager(ctx) {
       }));
     }
 
-    var pub = publishCardDraft(d);
-    all[id] = d;
-    localStorage.setItem(DRAFTS_KEY, JSON.stringify(all));
-    if (id === currentId) {
-      ctx.state.characterVersion = d.characterVersion;
-      ctx.state.versions = d.versions;
-      var verEl = ctx.$('characterVersion');
-      if (verEl) verEl.value = d.characterVersion;
+    // 发布事务：先算结果，云成功后再落盘；失败回滚本地
+    var before = deepCopy(stored || (id === currentId ? buildDraftSnapshot(ctx.state) : null) || d);
+    var working = deepCopy(d);
+    var pub = publishCardDraft(working);
+    if (!pub || !pub.ok) {
+      setCardManagerStatus('发布失败：无法写入版本列表', true);
+      return;
     }
 
     setCardManagerStatus('正在发布 v' + pub.publishedVer + '…');
     try {
       var pngBase64 = null;
       if (withPng) {
-        // 临时用已发布版号导出 PNG：切回 published 字段
-        var prevVer = d.characterVersion;
-        d.characterVersion = pub.publishedVer;
-        if (id === currentId) {
-          ctx.state.characterVersion = pub.publishedVer;
-          panel.saveCurrentDraft();
-        }
-        pngBase64 = await panel.buildPngBase64ForDraft(id);
-        d.characterVersion = prevVer;
-        if (id === currentId) {
-          ctx.state.characterVersion = prevVer;
-          panel.saveCurrentDraft();
-        }
+        pngBase64 = await panel.buildPngBase64ForDraft(id, { cardJson: pub.cardJson });
         if (!pngBase64) {
           setCardManagerStatus('无头像，已跳过 PNG；仍发布 JSON', true);
         }
@@ -1355,6 +1350,16 @@ export function registerCardManager(ctx) {
         pngEnabled: !!(withPng && pngBase64),
         pngBase64: pngBase64,
       });
+      // 云成功后再写本地
+      all[id] = working;
+      localStorage.setItem(DRAFTS_KEY, JSON.stringify(all));
+      if (id === currentId) {
+        ctx.state.characterVersion = working.characterVersion;
+        ctx.state.versions = working.versions;
+        ctx.state.updatedAt = working.updatedAt || ctx.state.updatedAt;
+        var verEl = ctx.$('characterVersion');
+        if (verEl) verEl.value = working.characterVersion;
+      }
       try {
         var mirror = await import('../../sync/cardMirror.mjs');
         await mirror.mirrorCardReleaseToPouch(id, {
@@ -1375,11 +1380,21 @@ export function registerCardManager(ctx) {
         + (data.pngStored ? '（含 PNG）' : ''));
       panel.updateCardManagerUI();
     } catch (err) {
+      // 回滚：不保留本地假「已发」
+      all[id] = before;
+      localStorage.setItem(DRAFTS_KEY, JSON.stringify(all));
+      if (id === currentId) {
+        ctx.state.characterVersion = before.characterVersion;
+        ctx.state.versions = before.versions || [];
+        var verEl2 = ctx.$('characterVersion');
+        if (verEl2) verEl2.value = before.characterVersion || '1.0';
+      }
       if (err && err.status === 401) {
         setCardManagerStatus('请先在「账户与同步」登录后再发布', true);
       } else {
         setCardManagerStatus('发布失败：' + (err.message || err), true);
       }
+      panel.updateCardManagerUI();
     }
   };
 
@@ -1903,6 +1918,23 @@ export function registerCardManager(ctx) {
       if (getCurrentAppView() === 'card-manager') panel.updateCardManagerUI();
     });
 
+    // 关页 / 切后台：冲掉双路径 debounce，避免丢最后一次编辑
+    function flushPendingCardSaves() {
+      try {
+        clearTimeout(autoSaveTimer);
+        if (ctx.sm && typeof ctx.sm.flushSave === 'function') {
+          syncDomFieldsToState();
+          ctx.sm.flushSave();
+        } else {
+          panel.flushUpdateAndSave();
+        }
+      } catch (eFlush) { /* ignore */ }
+    }
+    window.addEventListener('pagehide', flushPendingCardSaves);
+    document.addEventListener('visibilitychange', function() {
+      if (document.visibilityState === 'hidden') flushPendingCardSaves();
+    });
+
     // Assistant card API
     window.__assistantCardApi__ = {
       list: function () {
@@ -1960,6 +1992,11 @@ export function registerCardManager(ctx) {
         var id = getCurrentDraftId();
         if (!id) throw new Error('无当前卡');
         return panel.bumpDraftVersion(id, which === 'major' ? 'major' : 'minor');
+      },
+      switchVersion: function (targetVer) {
+        var id = getCurrentDraftId();
+        if (!id) throw new Error('无当前卡');
+        return panel.switchDraftVersion(id, targetVer);
       },
       delete: async function (id) {
         return panel.deleteDraft(id || getCurrentDraftId(), { force: true });

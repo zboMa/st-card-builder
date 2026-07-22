@@ -76,7 +76,7 @@ shareRouter.post('/novels', requireUser, async function(req, res) {
     if (!release) {
       return res.status(409).json({
         error: 'no_release',
-        message: '请先「增版」发布后再分享',
+        message: '请先「发布」后再分享',
       });
     }
 
@@ -135,7 +135,7 @@ shareRouter.post('/novels', requireUser, async function(req, res) {
   }
 });
 
-/** 公开只读：永远读当前 release（主动增版后的快照） */
+/** 公开只读：永远读当前 release（主动发布后的快照） */
 shareRouter.get('/novels/:token', async function(req, res) {
   try {
     var token = String(req.params.token || '').trim();

@@ -18,11 +18,11 @@
 
 ## 版本模型（卡 / 小说一致）
 
-- **唯一草稿** + **`versions[]` 正式列表**（每版完整快照 + `published` 标记）
-- **保存**：只写草稿，不写 `versions`
-- **切版 / 增版 / 发布**：才把当前草稿写入 `versions`
-- **发布**：标记已发布，草稿自动再升一版；升版号须 **> 全局最大已发号**
-- **分享**：`latest` 固定链对接最新已发；另有带版本号链接
+- **唯一草稿** + **`versions[]` 正式列表**（每版快照 + `published`；**已发条目不可变**）
+- **保存**：只写草稿，不写 `versions`；`updatedAt` 仅在真实落盘时刷新
+- **切版 / 增版 / 发布**：才把当前草稿写入 `versions`（若草稿坐在已发号上会先 fork）
+- **发布**：标记已发布，草稿自动再升一版；升版号须 **> 全局最大已发号**；云失败则回滚本地
+- **分享**：`latest` 固定链对接最新已发；另有带版本号链接；读者进度按 token+版本隔离
 - 实现：`cardVersions.mjs` / `novelVersions.mjs`（开发期无旧数据兼容负担）
 
 ## 视图约定（UI）
@@ -53,6 +53,7 @@
 - 工作稿：`branches[]`（`choiceLabel` / `kind: path|ending` / `publishReady`）+ 章 `branchId`
 - **发布**：只打包 `publishReady` 支及其祖先 → `story-release`（`schemaVersion: 2`），并写入 `versions` 已发项；草稿自动升版
 - 分享 token：`latest` 读最新已发；`#share/{token}/v/{ver}` 钉版本；读者在分叉章后**选线**；结局支展示结局页
+- 读者选线进度：`sharePlay` 的 localStorage key 在钉版本时含版本号，避免与 latest 串进度（旧 token-only key 可读回退）
 - **复制到本地创作**：读者可将分享树复制为本机可编辑小说（清 share/发布字段）
 
 ## 写章闭环

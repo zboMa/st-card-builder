@@ -28,6 +28,7 @@ import {
   getCardBundle,
   putCardBundle,
   cascadeDeleteCard,
+  listUserDocsByPrefix,
 } from './userDocs.mjs';
 
 export var dataRouter = Router();
@@ -493,8 +494,19 @@ dataRouter.delete('/stories/:cardId/:novelId', async function(req, res) {
   try {
     var cardId = String(req.params.cardId || '').trim();
     var novelId = String(req.params.novelId || '').trim();
-    await deleteUserDoc(userIdOf(req), storyNovelDocId(cardId, novelId), { force: true });
-    await deleteUserDoc(userIdOf(req), storyReleaseDocId(cardId, novelId), { force: true });
+    var uid = userIdOf(req);
+    await deleteUserDoc(uid, storyNovelDocId(cardId, novelId), { force: true });
+    await deleteUserDoc(uid, storyReleaseDocId(cardId, novelId), { force: true });
+    // 钉版本 release/{ver}
+    try {
+      var rows = await listUserDocsByPrefix(uid, storyReleaseDocId(cardId, novelId) + '/');
+      for (var i = 0; i < (rows || []).length; i++) {
+        var rid = rows[i] && (rows[i].id || rows[i]._id);
+        if (rid) {
+          try { await deleteUserDoc(uid, rid, { force: true }); } catch (eDel) { /* ignore */ }
+        }
+      }
+    } catch (eList) { /* ignore */ }
     res.json({ ok: true });
   } catch (e) {
     sendErr(res, e);

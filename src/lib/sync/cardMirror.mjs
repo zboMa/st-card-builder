@@ -49,6 +49,13 @@ export async function mirrorCardReleaseToPouch(cardId, release) {
       body: doc,
       dedupeKey: 'putDoc:' + doc._id,
     });
+    enqueueOutbox({
+      op: 'putDoc',
+      body: Object.assign({}, doc, {
+        _id: 'card/' + id + '/release/' + encodeURIComponent(String(release.characterVersion || '1.0')),
+      }),
+      dedupeKey: 'putDoc:card/' + id + '/release/' + encodeURIComponent(String(release.characterVersion || '1.0')),
+    });
     return;
   }
   try {
@@ -62,6 +69,13 @@ export async function mirrorCardReleaseToPouch(cardId, release) {
       op: 'putDoc',
       body: doc,
       dedupeKey: 'putDoc:' + doc._id,
+    });
+    enqueueOutbox({
+      op: 'putDoc',
+      body: Object.assign({}, doc, {
+        _id: 'card/' + id + '/release/' + encodeURIComponent(String(release.characterVersion || '1.0')),
+      }),
+      dedupeKey: 'putDoc:card/' + id + '/release/' + encodeURIComponent(String(release.characterVersion || '1.0')),
     });
   }
 }

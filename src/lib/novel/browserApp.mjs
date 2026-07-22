@@ -699,4 +699,14 @@ export function initNovelWorkshop() {
     console.warn('[novel] init bind failed', err);
     renderAll();
   });
+
+  function flushNovelSaves() {
+    try {
+      if (sm && typeof sm.save === 'function') sm.save();
+    } catch (e) { /* ignore */ }
+  }
+  window.addEventListener('pagehide', flushNovelSaves);
+  document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'hidden') flushNovelSaves();
+  });
 }

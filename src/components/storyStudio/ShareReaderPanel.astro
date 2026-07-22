@@ -223,7 +223,7 @@
     var chapters = currentChapters();
     var cur = chapters[shareState.chapterIndex];
     shareState.play.chapterId = cur && cur.id || shareState.play.chapterId;
-    savePlayState(shareState.token, shareState.play);
+    savePlayState(shareState.token, shareState.play, shareState.pinnedVersion);
   }
 
   function renderPathBar() {
@@ -364,7 +364,7 @@
 
   function restartMain() {
     if (!shareState.novel) return;
-    clearPlayState(shareState.token);
+    clearPlayState(shareState.token, shareState.pinnedVersion);
     shareState.play = initPlayState(shareState.novel, null);
     shareState.chapterIndex = 0;
     persistPlay();
@@ -414,7 +414,7 @@
       shareState.novel = data.novel || null;
       if (shareState.novel && isTreeRelease(shareState.novel)) {
         ensureBranches(shareState.novel);
-        var saved = loadPlayState(token);
+        var saved = loadPlayState(token, shareState.pinnedVersion);
         shareState.play = initPlayState(shareState.novel, saved);
         var idx = chapterIndexOnPath(
           shareState.novel,

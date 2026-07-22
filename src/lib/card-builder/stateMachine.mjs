@@ -7,6 +7,8 @@ import {
   CURRENT_KEY,
   genId,
   buildDraftSnapshot,
+  stampDraftUpdatedAt,
+  draftDisplayName,
 } from './state.mjs';
 import { deepCopy } from '../utils.mjs';
 
@@ -33,6 +35,8 @@ export function createCardStateMachine(state) {
     opts = opts || {};
     if (!state.draftId) state.draftId = genId();
     var dr = getAllDrafts();
+    // 仅在真实落盘时刷新 updatedAt（列表渲染用的快照不得伪造时间，否则云状态永远 dirty）
+    state.updatedAt = stampDraftUpdatedAt();
     dr[state.draftId] = buildDraftSnapshot(state);
     var saved = false;
     try {
@@ -155,6 +159,7 @@ export function createCardStateMachine(state) {
     state.corruptionSyncStatusBar = d.corruptionSyncStatusBar !== false;
     state.characterVersion = String(d.characterVersion != null ? d.characterVersion : '1.0').trim() || '1.0';
     state.versions = Array.isArray(d.versions) ? d.versions : [];
+    state.updatedAt = d.updatedAt || '';
     return true;
   }
 
@@ -220,7 +225,7 @@ export function createCardStateMachine(state) {
     var newId = genId();
     var copy = deepCopy(src);
     copy.charName = draftDisplayName(src) + ' 副本';
-    copy.updatedAt = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+    copy.updatedAt = stampDraftUpdatedAt();
     copy.avatarInIdb = !!(src.avatarInIdb || src.avatarBase64);
     if (copy.avatarInIdb) copy.avatarBase64 = '';
     dr[newId] = copy;
@@ -236,10 +241,13 @@ export function createCardStateMachine(state) {
     var next = String(newName || '').trim();
     if (!next) return { ok: false, error: '名称为空' };
     d.charName = next;
-    d.updatedAt = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+    d.updatedAt = stampDraftUpdatedAt();
     dr[id] = d;
     localStorage.setItem(DRAFTS_KEY, JSON.stringify(dr));
-    if (id === state.draftId) state.charName = next;
+    if (id === state.draftId) {
+      state.charName = next;
+      state.updatedAt = d.updatedAt;
+    }
     return { ok: true, id: id, name: next };
   }
 
