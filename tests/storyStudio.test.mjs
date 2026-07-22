@@ -206,7 +206,11 @@ describe('storyStudio UI mount', function() {
     assert.match(manage, /id="ssNovelList"/);
     assert.match(manage, /ss-manage-header/);
     assert.match(manage, /id="ssManageStatus"/);
-    const app = readFileSync(join(root, 'src/lib/storyStudio/browserApp.mjs'), 'utf8');
+    const app = [
+      readFileSync(join(root, 'src/lib/storyStudio/browserApp.mjs'), 'utf8'),
+      readFileSync(join(root, 'src/lib/storyStudio/renderViews.mjs'), 'utf8'),
+      readFileSync(join(root, 'src/lib/storyStudio/manageActions.mjs'), 'utf8'),
+    ].join('');
     assert.match(app, /导出 TXT/);
     assert.match(app, /btn-icon btn-icon--sm ss-novel-icon/);
     assert.match(app, /ss-novel-item__main/);

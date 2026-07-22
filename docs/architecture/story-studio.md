@@ -14,7 +14,18 @@
 
 ## Boot
 
-`StoryStudioApp` → `src/lib/storyStudio/browserApp.mjs`。分享读者壳：`ShareReaderPanel`（`#share/{token}`）。
+`StoryStudioApp` → `src/lib/storyStudio/browserApp.mjs`（`initStoryStudio` + 事件绑定）。分享读者壳：`ShareReaderPanel`（`#share/{token}`）。
+
+## 浏览器控制器（拆自 `browserApp.mjs`）
+
+| 文件 | 职责 |
+|---|---|
+| `browserApp.mjs` | boot、`bindEvents`、`window.__storyStudio__` |
+| `shared.mjs` | 共享 `state` / `ui`、持久化、AI 调用、DOM 工具 |
+| `renderViews.mjs` | 五视图渲染（manage / graph / outline / write / read） |
+| `writeBranchUi.mjs` | 写作页、分支树浮层 |
+| `manageActions.mjs` | CRUD、增版、发布、分享、导出 |
+| `writeActions.mjs` | 图谱/大纲收集、大纲生成、写章/连写、开分支 |
 
 ## 版本模型（卡 / 小说一致）
 
