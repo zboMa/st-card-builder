@@ -7,6 +7,7 @@ import {
   cardDocId,
   shouldReplicateDocId,
 } from './docIds.mjs';
+import { markLocalDirty } from './localDirty.mjs';
 
 var localDb = null;
 var PouchDBCtor = null;
@@ -34,7 +35,8 @@ export async function resetLocalDbForTests() {
   localDb = null;
 }
 
-export async function putDoc(doc) {
+export async function putDoc(doc, opts) {
+  opts = opts || {};
   var db = await getLocalDb();
   var id = doc._id;
   if (!id) throw new Error('missing_id');
@@ -44,7 +46,9 @@ export async function putDoc(doc) {
   } catch (e) {
     if (!e || e.status !== 404) throw e;
   }
-  return db.put(doc);
+  var res = await db.put(doc);
+  if (!opts.skipDirty) markLocalDirty();
+  return res;
 }
 
 export async function getDoc(id) {
@@ -57,11 +61,14 @@ export async function getDoc(id) {
   }
 }
 
-export async function removeDoc(id) {
+export async function removeDoc(id, opts) {
+  opts = opts || {};
   var db = await getLocalDb();
   try {
     var doc = await db.get(id);
-    return db.remove(doc);
+    var res = await db.remove(doc);
+    if (!opts.skipDirty) markLocalDirty();
+    return res;
   } catch (e) {
     if (e && e.status === 404) return null;
     throw e;

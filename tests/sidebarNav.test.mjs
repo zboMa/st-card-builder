@@ -319,11 +319,17 @@ describe('sidebar navigation contract', function() {
     assert.doesNotMatch(chat, /max-height:\s*380px/);
     const layout = readFileSync(join(root, 'src/layouts/Layout.astro'), 'utf8');
     assert.match(layout, /\.panel\.chat-playground/);
-    assert.match(layout, /\.chat-playground\s+\.chat-conversation/);
-    // 试聊已嵌入右栏，主栏不再挂 chat view
+    // 移动端不再对 .chat-conversation 限高（会把助手内输入栏顶出空白）
+    assert.doesNotMatch(layout, /\.chat-playground\s+\.chat-conversation\s*\{[^}]*max-height:\s*min\(50vh/s);
+    // 试聊已嵌入右栏，主栏不再挂 chat view；助手宿主保证对话区拉伸、输入贴底
     const asst = readFileSync(join(root, 'src/components/AssistantPanel.astro'), 'utf8');
     assert.match(asst, /assistant-chat-host/);
     assert.match(asst, /ChatPlayground/);
+    assert.match(asst, /\.assistant-chat-host\s+\.chat-playground\s+\.chat-conversation/);
+    assert.match(asst, /\.assistant-chat-host\s+\.chat-playground\s+\.chat-input-area/);
+    // 配置抽屉纵向排列；窄屏隐藏 Enter 提示
+    assert.match(chat, /\.chat-setting-group\s*\{[^}]*flex-direction:\s*column/s);
+    assert.match(chat, /chat-compose-hint[\s\S]*@media \(max-width:\s*900px\)/);
   });
 
   it('小说菜单顺序为 资料→拆章→分析→设定→开场白→人物列表→世界书条目→文风', function() {

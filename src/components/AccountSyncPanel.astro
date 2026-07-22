@@ -73,10 +73,18 @@
       <div class="account-session-card-top">
         <div>
           <h3 id="accountSyncTitle" class="account-session-card-title">云同步</h3>
-          <p class="account-session-meta">每 5 分钟自动同步一次；也可立即推送。</p>
+          <p class="account-session-meta">默认仅手动同步；开启自动同步后约每 5 分钟推送，本地无变更时跳过。</p>
         </div>
         <button type="button" id="btnManualSync" class="btn btn-primary btn-inline">立即同步</button>
       </div>
+      <label class="account-sync-switch" for="autoSyncToggle">
+        <span class="account-sync-switch__text">
+          <span class="account-sync-switch__label">自动同步</span>
+          <span class="account-sync-switch__hint">开启后定时同步；本地未改动时不请求</span>
+        </span>
+        <input type="checkbox" id="autoSyncToggle" class="account-sync-switch__input" role="switch" />
+        <span class="account-sync-switch__track" aria-hidden="true"><span class="account-sync-switch__thumb"></span></span>
+      </label>
       <div class="account-session-sync-row">
         <span id="syncStatusLine" class="account-session-sync-status">尚未同步</span>
         <span id="syncCountdownLine" class="account-session-sync-eta" hidden></span>
@@ -193,6 +201,74 @@
     flex-wrap: wrap;
   }
 
+  .account-sync-switch {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 12px 0 14px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--color-border-subtle);
+    background: var(--color-surface-inset, transparent);
+    cursor: pointer;
+    user-select: none;
+  }
+  .account-sync-switch__text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+  .account-sync-switch__label {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--color-text);
+  }
+  .account-sync-switch__hint {
+    font-size: 0.72rem;
+    line-height: 1.4;
+    color: var(--color-text-muted);
+  }
+  .account-sync-switch__input {
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+    pointer-events: none;
+  }
+  .account-sync-switch__track {
+    position: relative;
+    flex-shrink: 0;
+    width: 42px;
+    height: 24px;
+    border-radius: 999px;
+    background: oklch(28% 0.02 285);
+    border: 1px solid var(--color-border-subtle);
+    transition: background 0.18s ease, border-color 0.18s ease;
+  }
+  .account-sync-switch__thumb {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: oklch(88% 0.02 285);
+    transition: transform 0.18s ease;
+  }
+  .account-sync-switch__input:checked + .account-sync-switch__track {
+    background: oklch(42% 0.1 155);
+    border-color: oklch(62% 0.12 155 / 0.55);
+  }
+  .account-sync-switch__input:checked + .account-sync-switch__track .account-sync-switch__thumb {
+    transform: translateX(18px);
+  }
+  .account-sync-switch__input:focus-visible + .account-sync-switch__track {
+    outline: 2px solid var(--color-focus-ring, oklch(72% 0.12 305));
+    outline-offset: 2px;
+  }
+
   .account-session-sync-status {
     font-size: 0.82rem;
     color: var(--color-text-secondary);
@@ -276,6 +352,8 @@
     runSync,
     startAutoSync,
     stopAutoSync,
+    applyAutoSyncPref,
+    setAutoSyncPref,
     onSyncEvent,
     getSyncStatus,
     getMsUntilNextSync,
@@ -370,6 +448,7 @@
     }
     stopAutoSync();
     stopPanelCountdown();
+    syncAutoSyncToggle(false);
     setSidebarAuth(false);
   }
 
@@ -397,13 +476,30 @@
       }
     }
     if (!st.disabled) {
-      startAutoSync();
-      startPanelCountdown();
+      applyAutoSyncPref().then(function(on) {
+        syncAutoSyncToggle(on);
+        if (on) startPanelCountdown();
+        else stopPanelCountdown();
+        setSyncLine();
+      }).catch(function() {
+        syncAutoSyncToggle(false);
+        stopAutoSync();
+        stopPanelCountdown();
+      });
       setSidebarAuth(true);
     } else {
+      syncAutoSyncToggle(false);
       stopAutoSync();
       stopPanelCountdown();
       setSidebarAuth(false);
+    }
+  }
+
+  function syncAutoSyncToggle(on) {
+    var el = document.getElementById('autoSyncToggle');
+    if (el) {
+      el.checked = !!on;
+      el.setAttribute('aria-checked', on ? 'true' : 'false');
     }
   }
 
@@ -496,7 +592,7 @@
         tip.textContent = '';
         tip.classList.remove('is-err');
       }
-      await runSync({ refreshCred: true });
+      await runSync({ refreshCred: true, force: true });
       if (tip) tip.textContent = '同步完成';
     } catch (e) {
       if (tip) {
@@ -530,7 +626,7 @@
       await apiEmailLogin({ email: email, password: password });
       setTip('登录成功');
       await refreshAuthUi();
-      await runSync({ refreshCred: true }).catch(function() {});
+      await runSync({ refreshCred: true, force: true }).catch(function() {});
       setSyncLine();
     } catch (err) {
       setTip(String(err && err.message || err), true);
@@ -547,7 +643,7 @@
       await apiEmailRegister({ email: email, password: password, inviteCode: inviteCode });
       setTip('注册成功');
       await refreshAuthUi();
-      await runSync({ refreshCred: true }).catch(function() {});
+      await runSync({ refreshCred: true, force: true }).catch(function() {});
       setSyncLine();
     } catch (err) {
       setTip(String(err && err.message || err), true);
@@ -560,7 +656,7 @@
       await apiDevLogin(name);
       setTip('调试登录成功');
       await refreshAuthUi();
-      await runSync({ refreshCred: true }).catch(function() {});
+      await runSync({ refreshCred: true, force: true }).catch(function() {});
       setSyncLine();
     } catch (e) {
       setTip(String(e && e.message || e), true);
@@ -570,10 +666,37 @@
   document.getElementById('btnAuthLogout')?.addEventListener('click', async function() {
     await apiLogout();
     stopAutoSync();
+    syncAutoSyncToggle(false);
     await refreshAuthUi();
   });
 
   document.getElementById('btnManualSync')?.addEventListener('click', function() { doSync(); });
+
+  document.getElementById('autoSyncToggle')?.addEventListener('change', async function(e) {
+    var on = !!(e && e.target && e.target.checked);
+    syncAutoSyncToggle(on);
+    try {
+      await setAutoSyncPref(on);
+      if (on) {
+        startAutoSync();
+        startPanelCountdown();
+      } else {
+        stopAutoSync();
+        stopPanelCountdown();
+      }
+      setSyncLine();
+      if (typeof window.__refreshSidebarSyncEta__ === 'function') {
+        try { window.__refreshSidebarSyncEta__(); } catch (err) { /* ignore */ }
+      }
+    } catch (err) {
+      syncAutoSyncToggle(!on);
+      var tip = document.getElementById('syncTip');
+      if (tip) {
+        tip.textContent = '自动同步偏好保存失败';
+        tip.classList.add('is-err');
+      }
+    }
+  });
 
   function secretsTip(msg, isErr) {
     var el = document.getElementById('aiSecretsSyncTip');
