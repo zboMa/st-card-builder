@@ -1,6 +1,16 @@
 /**
  * 成人配置：Bind + window 桥（拆自 adultConfig）
  */
+import {
+  buildCorruptionExportIssues,
+  CORRUPTION_ARC_BRIEFS,
+} from '../../corruptionProgress.mjs';
+import { buildAdultCanonDigest } from '../../adult/canon.mjs';
+import {
+  getWorldviewPreset,
+  normalizeWorldviewPresetItems,
+  primaryWorldviewPresetId,
+} from '../../presets/worldviews/index.mjs';
 
 /** @param {object} ctx @param {object} s @param {object} panel */
 export function attachAdultConfigBind(ctx, s, panel) {

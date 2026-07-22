@@ -1,6 +1,39 @@
 /**
  * 成人配置：面板 API（拆自 adultConfig）
  */
+import {
+  normalizeCorruptionConfig,
+  resolveStageNames,
+  parseStageNamesFromAiText,
+  pickCorruptionTargets,
+  buildRulesWorldbookEntry,
+  buildArchiveWorldbookEntry,
+  buildCustomStagesSystemPrompt,
+  buildCustomStagesUserPrompt,
+  buildArchiveSystemPrompt,
+  buildArchiveExpandSystemPrompt,
+  buildArchiveUserPrompt,
+  upsertWorldbookByComment,
+  ensureCorruptionModuleInDesign,
+  findWorldbookPersonContext,
+  evaluateArchiveRichness,
+  CORRUPTION_MIN_CHARS_PER_STAGE,
+  CORRUPTION_PRESETS,
+  DEFAULT_CORRUPTION_PRESET,
+} from '../../corruptionProgress.mjs';
+import { CORRUPTION_EXPAND_WB } from '../../novel/contextBudgets.mjs';
+import {
+  isPersonWorldbookComment,
+  personNameFromWorldbookComment,
+} from '../../novel/sync.mjs';
+import { buildPlaceholderPaths, normalizeDesign } from '../../statusBar.mjs';
+import { buildAdultCanonDigest, formatCorruptionArchiveDigests } from '../../adult/canon.mjs';
+import {
+  listWorldviewPresetsByGroup,
+  getWorldviewPreset,
+  primaryWorldviewPresetId,
+  MAX_WORLDVIEW_PRESET_ITEMS,
+} from '../../presets/worldviews/index.mjs';
 
 /** @param {object} ctx @param {object} s @param {object} panel */
 export function attachAdultConfigPanel(ctx, s, panel) {
@@ -293,8 +326,8 @@ export function attachAdultConfigPanel(ctx, s, panel) {
       document.querySelectorAll('#adultCorruptionTargets [data-corruption-target]').forEach(function(el) {
         if (!el.checked) return;
         var idx = parseInt(el.getAttribute('data-corruption-target'), 10);
-        if (isNaN(idx) || !corruptionTargetsCache[idx]) return;
-        names.push(corruptionTargetsCache[idx].name);
+        if (isNaN(idx) || !s.corruptionTargetsCache[idx]) return;
+        names.push(s.corruptionTargetsCache[idx].name);
       });
       return names;
     },

@@ -205,7 +205,7 @@ export function attachNovelCharactersRender(ctx, panel) {
     });
     grid.querySelectorAll('[data-char-enrich]').forEach(function(btn) {
       btn.addEventListener('click', function() {
-        ctx.runAnalyzeEnrich({ ids: [btn.getAttribute('data-char-enrich')] }).catch(function(e) {
+        ctx.panels.analyze.runAnalyzeEnrich({ ids: [btn.getAttribute('data-char-enrich')] }).catch(function(e) {
           if (!ctx.isTrackedAbort(e)) alert('丰满失败: ' + (e.message || e));
         });
       });
