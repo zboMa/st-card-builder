@@ -12,6 +12,7 @@ import {
   getUserRegistry,
 } from '../couch.mjs';
 import { config } from '../config.mjs';
+import { sanitizeReleaseDoc } from './logic.mjs';
 
 export var shareRouter = Router();
 
@@ -24,22 +25,6 @@ function requireUser(req, res, next) {
 
 function genToken() {
   return crypto.randomBytes(18).toString('base64url');
-}
-
-function sanitizeReleaseDoc(doc) {
-  if (!doc) return null;
-  var data = doc.data && typeof doc.data === 'object' ? doc.data : doc;
-  return {
-    title: String(data.title || doc.title || '未命名小说'),
-    displayVersion: String(doc.displayVersion || data.displayVersion || ''),
-    characterVersion: String(doc.characterVersion || data.characterVersion || ''),
-    novelVersion: String(doc.novelVersion || data.novelVersion || ''),
-    publishedAt: typeof doc.publishedAt === 'number'
-      ? doc.publishedAt
-      : (typeof data.publishedAt === 'number' ? data.publishedAt : null),
-    outline: Array.isArray(data.outline) ? data.outline : [],
-    chapters: Array.isArray(data.chapters) ? data.chapters : [],
-  };
 }
 
 function shareUrl(token) {

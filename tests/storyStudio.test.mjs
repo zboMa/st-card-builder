@@ -229,6 +229,7 @@ describe('storyStudio UI mount', function() {
     assert.match(write, /id="btnSsWriteAutoNext"/);
     assert.match(write, /id="btnSsForkBranch"/);
     assert.match(write, /id="ssWriteLedger"/);
+    assert.match(write, /id="ssBranchTree"/);
     const read = readFileSync(join(root, 'src/components/storyStudio/StoryReadPanel.astro'), 'utf8');
     assert.match(read, /id="btnSsReadFullscreen"/);
     assert.match(read, /id="ssReadMode"/);

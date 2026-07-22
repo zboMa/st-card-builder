@@ -1,5 +1,5 @@
 ---
-/** 分享链接只读阅读壳：#share/{token} */
+/** 分享链接只读阅读壳：#share/{token}；支持分支选线与复制到本地创作 */
 ---
 <div id="shareReaderRoot" class="share-reader" hidden aria-hidden="true">
   <header class="share-reader__head">
@@ -7,15 +7,22 @@
       <strong id="shareReaderTitle">—</strong>
       <span id="shareReaderVersion" class="share-reader__ver"></span>
     </div>
-    <button type="button" id="btnShareReaderRefresh" class="btn btn-sm btn-ghost">刷新</button>
+    <div class="share-reader__head-actions">
+      <button type="button" id="btnShareReaderCopy" class="btn btn-sm btn-ghost">复制到本地创作</button>
+      <button type="button" id="btnShareReaderRestart" class="btn btn-sm btn-ghost">重开主线</button>
+      <button type="button" id="btnShareReaderRefresh" class="btn btn-sm btn-ghost">刷新</button>
+    </div>
   </header>
+  <div id="shareReaderPath" class="share-reader__path" hidden></div>
   <div class="share-reader__layout">
     <aside class="share-reader__toc-wrap">
-      <div class="ss-card-head" style="padding:8px 0;border:none;"><strong>目录</strong></div>
+      <div class="ss-card-head" style="padding:8px 0;border:none;"><strong>本线目录</strong></div>
       <div id="shareReaderToc" class="ss-toc"></div>
     </aside>
     <div class="share-reader__stage">
       <div id="shareReaderBody" class="ss-read-body"></div>
+      <div id="shareReaderChoices" class="share-reader__choices" hidden></div>
+      <div id="shareReaderEnding" class="share-reader__ending" hidden></div>
       <div class="ss-read-nav">
         <button type="button" id="btnShareReaderPrev" class="btn btn-ghost btn-sm">上一章</button>
         <span id="shareReaderPageInfo" class="ss-muted"></span>
@@ -49,14 +56,26 @@
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    margin-bottom: 16px;
+    margin-bottom: 10px;
     max-width: 1100px;
     margin-left: auto;
     margin-right: auto;
+    flex-wrap: wrap;
+  }
+  .share-reader__head-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
   }
   .share-reader__ver {
     margin-left: 10px;
     font-size: 0.85rem;
+    color: var(--color-text-muted, #9aa0b4);
+  }
+  .share-reader__path {
+    max-width: 1100px;
+    margin: 0 auto 12px;
+    font-size: 0.78rem;
     color: var(--color-text-muted, #9aa0b4);
   }
   .share-reader__layout {
@@ -78,14 +97,76 @@
     padding: 16px;
     background: rgba(0, 0, 0, 0.2);
   }
+  .share-reader__choices {
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .share-reader__choices-title {
+    font-size: 0.85rem;
+    margin-bottom: 8px;
+    color: var(--color-text-secondary, #c4c0d4);
+  }
+  .share-reader__choice {
+    display: block;
+    width: 100%;
+    text-align: left;
+    margin: 0 0 8px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.04);
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+  }
+  .share-reader__choice:hover {
+    border-color: rgba(190, 120, 160, 0.45);
+    background: rgba(190, 120, 160, 0.1);
+  }
+  .share-reader__choice-label {
+    font-weight: 600;
+    display: block;
+  }
+  .share-reader__choice-teaser {
+    font-size: 0.78rem;
+    color: var(--color-text-muted, #9aa0b4);
+    margin-top: 4px;
+  }
+  .share-reader__ending {
+    margin-top: 16px;
+    padding: 14px;
+    border-radius: 10px;
+    border: 1px solid rgba(190, 120, 160, 0.35);
+    background: rgba(190, 120, 160, 0.08);
+  }
+  .share-reader__ending h3 {
+    margin: 0 0 8px;
+  }
 </style>
 
 <script>
   import { apiFetchSharedNovel, parseShareTokenFromHash } from '../../lib/storyStudio/shareClient.mjs';
+  import {
+    isTreeRelease,
+    loadPlayState,
+    savePlayState,
+    clearPlayState,
+    initPlayState,
+    pathChapters,
+    chapterIndexOnPath,
+    choicesAtChapter,
+    endingInfo,
+    sharedNovelToEditableDraft,
+  } from '../../lib/storyStudio/sharePlay.mjs';
+  import { getBranch, branchAncestry, ensureBranches } from '../../lib/storyStudio/branch.mjs';
+  import { saveNovel, saveCatalog, saveActiveNovelId, loadCatalog } from '../../lib/storyStudio/idb.mjs';
+  import { upsertCatalogEntry } from '../../lib/storyStudio/state.mjs';
 
   var shareState = {
     token: '',
     novel: null,
+    play: null,
     chapterIndex: 0,
   };
 
@@ -114,10 +195,47 @@
     if (el) el.textContent = String(msg || '');
   }
 
-  function sortedChapters(novel) {
+  function getCardId() {
+    try {
+      return localStorage.getItem('st_v3_builder_current_id') || 'default';
+    } catch (e) {
+      return 'default';
+    }
+  }
+
+  function sortedLinearChapters(novel) {
     var ch = (novel && Array.isArray(novel.chapters)) ? novel.chapters.slice() : [];
     ch.sort(function(a, b) { return (a.order || 0) - (b.order || 0); });
     return ch;
+  }
+
+  function currentChapters() {
+    if (!shareState.novel) return [];
+    if (!isTreeRelease(shareState.novel) || !shareState.play) {
+      return sortedLinearChapters(shareState.novel);
+    }
+    return pathChapters(shareState.novel, shareState.play.currentBranchId);
+  }
+
+  function persistPlay() {
+    if (!shareState.token || !shareState.play) return;
+    var chapters = currentChapters();
+    var cur = chapters[shareState.chapterIndex];
+    shareState.play.chapterId = cur && cur.id || shareState.play.chapterId;
+    savePlayState(shareState.token, shareState.play);
+  }
+
+  function renderPathBar() {
+    var el = $('shareReaderPath');
+    if (!el || !shareState.novel || !shareState.play || !isTreeRelease(shareState.novel)) {
+      if (el) el.hidden = true;
+      return;
+    }
+    var chain = branchAncestry(shareState.novel, shareState.play.currentBranchId).reverse();
+    el.hidden = false;
+    el.innerHTML = '路径：' + chain.map(function(b) {
+      return escapeHtml(b.name);
+    }).join(' / ');
   }
 
   function renderShare() {
@@ -127,26 +245,36 @@
     var toc = $('shareReaderToc');
     var body = $('shareReaderBody');
     var info = $('shareReaderPageInfo');
+    var choicesEl = $('shareReaderChoices');
+    var endingEl = $('shareReaderEnding');
     if (!novel) {
       if (titleEl) titleEl.textContent = '—';
       if (verEl) verEl.textContent = '';
       if (toc) toc.innerHTML = '';
       if (body) body.innerHTML = '';
+      if (choicesEl) { choicesEl.hidden = true; choicesEl.innerHTML = ''; }
+      if (endingEl) { endingEl.hidden = true; endingEl.innerHTML = ''; }
+      renderPathBar();
       return;
     }
     if (titleEl) titleEl.textContent = novel.title || '未命名小说';
     if (verEl) {
       verEl.textContent = novel.displayVersion ? ('v' + novel.displayVersion) : '';
     }
-    var chapters = sortedChapters(novel);
+    renderPathBar();
+
+    var chapters = currentChapters();
     if (!chapters.length) {
       if (toc) toc.innerHTML = '<div class="ss-empty">暂无章节</div>';
       if (body) body.innerHTML = '<div class="ss-empty">此发布版尚无正文</div>';
       if (info) info.textContent = '';
+      if (choicesEl) choicesEl.hidden = true;
+      if (endingEl) endingEl.hidden = true;
       return;
     }
     if (shareState.chapterIndex < 0) shareState.chapterIndex = 0;
     if (shareState.chapterIndex >= chapters.length) shareState.chapterIndex = chapters.length - 1;
+
     if (toc) {
       toc.innerHTML = chapters.map(function(c, i) {
         var active = i === shareState.chapterIndex ? ' is-active' : '';
@@ -163,6 +291,117 @@
         + '</div>';
     }
     if (info) info.textContent = (shareState.chapterIndex + 1) + ' / ' + chapters.length;
+
+    // 选线
+    var opts = [];
+    if (isTreeRelease(novel) && shareState.play) {
+      opts = choicesAtChapter(novel, shareState.play.currentBranchId, cur.id);
+    }
+    if (choicesEl) {
+      if (opts.length) {
+        choicesEl.hidden = false;
+        choicesEl.innerHTML = '<div class="share-reader__choices-title">选择走向</div>'
+          + opts.map(function(o) {
+            return '<button type="button" class="share-reader__choice" data-share-pick="'
+              + escapeHtml(o.branchId) + '">'
+              + '<span class="share-reader__choice-label">' + escapeHtml(o.label)
+              + (o.kind === 'ending' ? ' · 结局' : '') + '</span>'
+              + (o.teaser ? ('<span class="share-reader__choice-teaser">' + escapeHtml(o.teaser) + '</span>') : '')
+              + '</button>';
+          }).join('');
+      } else {
+        choicesEl.hidden = true;
+        choicesEl.innerHTML = '';
+      }
+    }
+
+    // 结局
+    if (endingEl) {
+      var atEnd = shareState.chapterIndex >= chapters.length - 1;
+      var ending = isTreeRelease(novel) && shareState.play && atEnd && !opts.length
+        ? endingInfo(novel, shareState.play.currentBranchId)
+        : null;
+      if (ending) {
+        endingEl.hidden = false;
+        endingEl.innerHTML = '<h3>' + escapeHtml(ending.title) + '</h3>'
+          + (ending.teaser ? ('<p>' + escapeHtml(ending.teaser) + '</p>') : '')
+          + '<div class="ss-toolbar" style="margin-top:10px;">'
+          + '<button type="button" class="btn btn-ghost btn-sm" data-share-restart>从头再读</button>'
+          + '</div>';
+      } else {
+        endingEl.hidden = true;
+        endingEl.innerHTML = '';
+      }
+    }
+
+    persistPlay();
+  }
+
+  function pickBranch(branchId) {
+    if (!shareState.novel || !shareState.play) return;
+    var chapters = pathChapters(shareState.novel, branchId);
+    // 进入子支：定位到第一私有章（可见序列末尾附近：fork 后）
+    var br = getBranch(shareState.novel, branchId);
+    var idx = 0;
+    if (br && br.forkOrder >= 0) {
+      // 子支第一私有章通常是 forkOrder+1 对应的可见下标
+      idx = Math.min(chapters.length - 1, Math.max(0, br.forkOrder + 1));
+      // 若该下标仍是继承章，找第一篇 branchId===子支 的
+      var ownedIdx = chapters.findIndex(function(c) { return c.branchId === branchId; });
+      if (ownedIdx >= 0) idx = ownedIdx;
+    }
+    shareState.play.currentBranchId = branchId;
+    shareState.play.choices = (shareState.play.choices || []).concat([{
+      pickedBranchId: branchId,
+      at: Date.now(),
+    }]);
+    shareState.chapterIndex = idx;
+    shareState.play.chapterId = chapters[idx] && chapters[idx].id || '';
+    persistPlay();
+    renderShare();
+  }
+
+  function restartMain() {
+    if (!shareState.novel) return;
+    clearPlayState(shareState.token);
+    shareState.play = initPlayState(shareState.novel, null);
+    shareState.chapterIndex = 0;
+    persistPlay();
+    renderShare();
+  }
+
+  async function copyToLocal() {
+    if (!shareState.novel) {
+      setStatus('没有可复制的内容');
+      return;
+    }
+    if (!window.confirm('将把本分享小说复制到本机「小说创作」，可自行改写分支与结局。继续？')) return;
+    setStatus('正在复制…');
+    try {
+      var cardId = getCardId();
+      var draft = sharedNovelToEditableDraft(shareState.novel, { cardId: cardId });
+      await saveNovel(cardId, draft.id, draft);
+      var catalog = await loadCatalog(cardId);
+      catalog = upsertCatalogEntry(catalog, draft);
+      await saveCatalog(cardId, catalog);
+      await saveActiveNovelId(cardId, draft.id);
+      setStatus('已复制到本地创作：「' + draft.title + '」。正在打开…');
+      // 退出分享壳，进入小说管理
+      setShareMode(false);
+      try {
+        if (location.hash && location.hash.indexOf('share/') >= 0) {
+          history.replaceState(null, '', location.pathname + location.search + '#story-manage');
+        }
+      } catch (e) { /* ignore */ }
+      window.dispatchEvent(new CustomEvent('app-view-changed', { detail: { view: 'story-manage' } }));
+      if (window.__setAppView__) window.__setAppView__('story-manage');
+      if (window.__storyStudio__ && window.__storyStudio__.reload) {
+        await window.__storyStudio__.reload();
+        if (window.__storyStudio__.render) window.__storyStudio__.render();
+      }
+    } catch (err) {
+      setStatus('复制失败：' + (err.message || err));
+    }
   }
 
   async function loadShare(token) {
@@ -172,11 +411,25 @@
     try {
       var data = await apiFetchSharedNovel(token);
       shareState.novel = data.novel || null;
-      shareState.chapterIndex = 0;
+      if (shareState.novel && isTreeRelease(shareState.novel)) {
+        ensureBranches(shareState.novel);
+        var saved = loadPlayState(token);
+        shareState.play = initPlayState(shareState.novel, saved);
+        var idx = chapterIndexOnPath(
+          shareState.novel,
+          shareState.play.currentBranchId,
+          shareState.play.chapterId
+        );
+        shareState.chapterIndex = idx >= 0 ? idx : 0;
+      } else {
+        shareState.play = null;
+        shareState.chapterIndex = 0;
+      }
       setStatus(shareState.novel ? '' : '无内容');
       renderShare();
     } catch (e) {
       shareState.novel = null;
+      shareState.play = null;
       renderShare();
       setStatus('无法打开分享：' + (e.message || e));
     }
@@ -188,6 +441,7 @@
       setShareMode(false);
       shareState.token = '';
       shareState.novel = null;
+      shareState.play = null;
     }
   }
 
@@ -222,7 +476,7 @@
     var next = $('btnShareReaderNext');
     if (next) {
       next.addEventListener('click', function() {
-        var n = sortedChapters(shareState.novel).length;
+        var n = currentChapters().length;
         shareState.chapterIndex = Math.min(n - 1, shareState.chapterIndex + 1);
         renderShare();
       });
@@ -231,6 +485,22 @@
     if (refresh) {
       refresh.addEventListener('click', function() {
         if (shareState.token) loadShare(shareState.token);
+      });
+    }
+    var restart = $('btnShareReaderRestart');
+    if (restart) restart.addEventListener('click', restartMain);
+    var copyBtn = $('btnShareReaderCopy');
+    if (copyBtn) copyBtn.addEventListener('click', copyToLocal);
+
+    var stage = document.querySelector('.share-reader__stage');
+    if (stage) {
+      stage.addEventListener('click', function(ev) {
+        var pick = ev.target.closest('[data-share-pick]');
+        if (pick) {
+          pickBranch(pick.getAttribute('data-share-pick'));
+          return;
+        }
+        if (ev.target.closest('[data-share-restart]')) restartMain();
       });
     }
   });
