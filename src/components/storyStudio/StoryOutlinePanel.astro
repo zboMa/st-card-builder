@@ -1,9 +1,20 @@
 ---
-/** 大纲：章节名 + 摘要；分段生成 / 续写；废弃后续；新书向导 */
+/** 大纲：章节名点击编辑；分段/续写弹窗额外提示词；操作右上角 */
 ---
 <div class="panel story-studio-panel" data-story-panel="outline">
-  <h2>大纲</h2>
-  <p class="ss-tip ui-panel-lead">维护章节标题与摘要。可分段生成或续写；「废弃后续」从该章起清空后段并重开。</p>
+  <div class="ss-panel-header">
+    <div class="ss-panel-heading">
+      <h2>大纲</h2>
+      <p class="ss-tip ui-panel-lead">维护章节标题与摘要。点标题编辑；分段/续写会弹出额外提示词。张力曲线在列表上方。</p>
+    </div>
+    <div class="ss-panel-actions" aria-label="大纲操作">
+      <button type="button" id="btnSsOutlineGen" class="btn btn-ghost btn-inline">分段生成大纲</button>
+      <button type="button" id="btnSsOutlineContinue" class="btn btn-ghost btn-inline">续写大纲</button>
+      <button type="button" id="btnSsOutlineAdd" class="btn btn-ghost btn-inline">手动加章</button>
+      <button type="button" id="btnSsOutlineSave" class="btn btn-ghost btn-inline">保存</button>
+      <button type="button" id="btnSsWizardStart" class="btn btn-ghost btn-inline">新书向导</button>
+    </div>
+  </div>
 
   <div id="ssWizardBox" class="ss-wizard" hidden>
     <div class="ui-label-row">
@@ -29,13 +40,7 @@
     </div>
     <textarea id="ssOutlineDirection" rows="2" placeholder="例如：都市异能，慢热复仇线，共 12 章左右"></textarea>
   </div>
-  <div class="ss-toolbar">
-    <button type="button" id="btnSsOutlineGen" class="btn btn-ghost btn-inline">分段生成大纲</button>
-    <button type="button" id="btnSsOutlineContinue" class="btn btn-ghost btn-inline">续写大纲</button>
-    <button type="button" id="btnSsOutlineAdd" class="btn btn-ghost btn-inline">手动加章</button>
-    <button type="button" id="btnSsOutlineSave" class="btn btn-ghost btn-inline">保存</button>
-    <button type="button" id="btnSsWizardStart" class="btn btn-ghost btn-inline">新书向导</button>
-  </div>
+
   <div id="ssOutlineTension" class="ss-tension" hidden></div>
   <div id="ssOutlineList" class="ss-outline-list"></div>
   <div id="ssOutlineStatus" class="ss-status"></div>

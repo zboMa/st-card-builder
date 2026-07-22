@@ -1,23 +1,33 @@
 ---
-/** 在线阅读：滑动/分页、书签、目录、全屏 */
+/** 在线阅读：操作右上角；目录默认隐藏，浮动出现 */
 ---
 <div class="panel story-studio-panel" data-story-panel="read">
-  <h2>在线阅读</h2>
-  <p class="ss-tip ui-panel-lead">一章一屏滑动，或分页阅读。无正文时显示摘要。支持书签与全屏。</p>
-  <div class="ss-toolbar">
-    <strong id="ssReadTitle" style="margin-right:auto;">—</strong>
-    <label style="display:flex;gap:6px;align-items:center;font-size:0.78rem;color:var(--color-text-muted);">
-      模式
-      <select id="ssReadMode">
-        <option value="swipe">滑动（一章一屏）</option>
-        <option value="page">分页</option>
-      </select>
-    </label>
-    <button type="button" id="btnSsReadBookmark" class="btn btn-ghost btn-inline">书签</button>
-    <button type="button" id="btnSsReadFullscreen" class="btn btn-ghost btn-inline">全屏</button>
+  <div class="ss-panel-header">
+    <div class="ss-panel-heading">
+      <h2>在线阅读</h2>
+      <p class="ss-tip ui-panel-lead">一章一屏或分页。目录默认收起，点「目录」浮动打开。</p>
+    </div>
+    <div class="ss-panel-actions" aria-label="阅读操作">
+      <strong id="ssReadTitle" class="ss-read-title-chip">—</strong>
+      <button type="button" id="btnSsReadToc" class="btn btn-ghost btn-inline" aria-expanded="false" aria-controls="ssReadAside">目录</button>
+      <label class="ss-read-mode-label">
+        模式
+        <select id="ssReadMode">
+          <option value="swipe">滑动（一章一屏）</option>
+          <option value="page">分页</option>
+        </select>
+      </label>
+      <button type="button" id="btnSsReadBookmark" class="btn btn-ghost btn-inline">书签</button>
+      <button type="button" id="btnSsReadFullscreen" class="btn btn-ghost btn-inline">全屏</button>
+    </div>
   </div>
-  <div class="ss-read-layout">
-    <aside class="ss-read-aside">
+
+  <div class="ss-read-layout ss-read-layout--solo">
+    <aside id="ssReadAside" class="ss-read-aside ss-read-aside--float" hidden>
+      <div class="ss-read-aside__head">
+        <strong>目录 / 书签</strong>
+        <button type="button" class="btn-icon btn-icon--sm" id="btnSsReadTocClose" aria-label="关闭目录">×</button>
+      </div>
       <div class="ss-card-head" style="padding:8px 0;border:none;"><strong>目录</strong></div>
       <div id="ssReadToc" class="ss-toc"></div>
       <div class="ss-card-head" style="padding:12px 0 6px;border:none;"><strong>书签</strong></div>
