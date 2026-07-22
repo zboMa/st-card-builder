@@ -9,6 +9,15 @@ export function readLayoutSources(base) {
     readFileSync(join(base, 'src/layouts/Layout.astro'), 'utf8'),
     readFileSync(join(base, 'src/styles/layout-chrome.css'), 'utf8'),
     readFileSync(join(base, 'src/lib/layout/chromeBoot.mjs'), 'utf8'),
+    readFileSync(join(base, 'src/lib/layout/gsapAnimationsBoot.mjs'), 'utf8'),
+  ].join('');
+}
+
+/** GSAP 动画（Astro + boot） */
+export function readGsapAnimationsSources(base) {
+  return [
+    readFileSync(join(base, 'src/components/GsapAnimations.astro'), 'utf8'),
+    readFileSync(join(base, 'src/lib/layout/gsapAnimationsBoot.mjs'), 'utf8'),
   ].join('');
 }
 
@@ -45,10 +54,11 @@ export function readAiConfigPanelSources(base) {
   ].join('');
 }
 
-/** 试聊 playground（Astro + boot） */
+/** 试聊 playground（Astro + CSS + boot） */
 export function readChatPlaygroundSources(base) {
   return [
     readFileSync(join(base, 'src/components/ChatPlayground.astro'), 'utf8'),
+    readFileSync(join(base, 'src/styles/chat-playground.css'), 'utf8'),
     readFileSync(join(base, 'src/lib/chatRuntime/playgroundBoot.mjs'), 'utf8'),
   ].join('');
 }
@@ -77,10 +87,11 @@ export function readTavernScriptsPanelSources(base) {
   ].join('');
 }
 
-/** 卡管理面板（Astro + 导入 boot + cardManager 模块） */
+/** 卡管理面板（Astro + CSS + 导入 boot + cardManager 模块） */
 export function readCardManagerPanelSources(base) {
   return [
     readFileSync(join(base, 'src/components/CardManagerPanel.astro'), 'utf8'),
+    readFileSync(join(base, 'src/styles/card-manager-panel.css'), 'utf8'),
     readFileSync(join(base, 'src/lib/card-builder/cardManagerPanelBoot.mjs'), 'utf8'),
     readFileSync(join(base, 'src/lib/card-builder/panels/cardManager.mjs'), 'utf8'),
     readFileSync(join(base, 'src/lib/card-builder/panels/cardManagerBind.mjs'), 'utf8'),
@@ -107,6 +118,7 @@ export function readPreviewPanelSources(base) {
 export function readPromptConfigPanelSources(base) {
   return [
     readFileSync(join(base, 'src/components/PromptConfigPanel.astro'), 'utf8'),
+    readFileSync(join(base, 'src/styles/prompt-config-panel.css'), 'utf8'),
     readFileSync(join(base, 'src/lib/promptConfigPanelBoot.mjs'), 'utf8'),
   ].join('');
 }
@@ -115,7 +127,17 @@ export function readPromptConfigPanelSources(base) {
 export function readSecurityCordonSources(base) {
   return [
     readFileSync(join(base, 'src/components/SecurityCordon.astro'), 'utf8'),
+    readFileSync(join(base, 'src/styles/security-cordon.css'), 'utf8'),
     readFileSync(join(base, 'src/lib/securityCordonBoot.mjs'), 'utf8'),
+  ].join('');
+}
+
+/** AI 引擎弹窗 */
+export function readAiEngineModalSources(base) {
+  return [
+    readFileSync(join(base, 'src/components/AiEngineModal.astro'), 'utf8'),
+    readFileSync(join(base, 'src/styles/ai-engine-modal.css'), 'utf8'),
+    readFileSync(join(base, 'src/lib/aiConfig/aiEngineModalBoot.mjs'), 'utf8'),
   ].join('');
 }
 

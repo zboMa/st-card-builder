@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { readLayoutSources, readAssistantPanelSources, readVariableCardPanelSources, readWorldbookPanelSources, readNovelBrowserAppSources, readNovelWorldbookPanelSources, readNovelCharactersPanelSources, readAiConfigPanelSources, readChatPlaygroundSources, readCharacterPanelSources } from './helpers/uiSources.mjs';
+import { readLayoutSources, readAssistantPanelSources, readVariableCardPanelSources, readWorldbookPanelSources, readNovelBrowserAppSources, readNovelWorldbookPanelSources, readNovelCharactersPanelSources, readAiConfigPanelSources, readChatPlaygroundSources, readCharacterPanelSources, readAiEngineModalSources } from './helpers/uiSources.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const tokensPath = join(root, 'src/styles/tokens.css');
@@ -106,7 +106,7 @@ describe('design tokens (Nocturne Atelier)', function() {
     const panel = readAiConfigPanelSources(root);
     assert.match(panel, /ui-tabs ai-config-tabs/);
     assert.doesNotMatch(panel, /⚙️ AI 配置/);
-    const modal = readFileSync(join(root, 'src/components/AiEngineModal.astro'), 'utf8');
+    const modal = readAiEngineModalSources(root);
     assert.match(modal, /ui-pill-btn wb-count-btn/);
   });
 

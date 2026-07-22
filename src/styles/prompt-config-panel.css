@@ -1,0 +1,252 @@
+  /* 列表由脚本 innerHTML 注入，必须 global，否则标题/分隔/正文层级全部失效 */
+  .prompt-config-panel {
+    max-width: 100%;
+    overflow-x: hidden;
+    min-width: 0;
+  }
+  .prompt-config-panel > .prompt-config-hint {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    line-height: 1.55;
+    margin: -6px 0 12px;
+    padding: 8px 10px;
+    border-left: 2px solid var(--color-accent, #8a7a5a);
+    border-radius: 0 8px 8px 0;
+    background: color-mix(in srgb, var(--color-surface) 88%, var(--color-accent, #8a7a5a) 12%);
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+  .prompt-config-panel > .prompt-config-hint code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--color-text-muted);
+    background: rgba(148, 163, 184, 0.08);
+    padding: 1px 5px;
+    border-radius: 4px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .prompt-config-panel .prompt-config-tabs {
+    margin-bottom: 14px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    max-width: 100%;
+  }
+  .prompt-config-panel .prompt-config-tabs .ui-tabs__tab,
+  .prompt-config-panel .prompt-config-tabs .prompt-config-tab {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    min-width: max-content;
+  }
+  .prompt-config-panel .prompt-config-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-height: 120px;
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+  .prompt-config-panel .prompt-config-item {
+    border: 1px solid var(--color-accent-soft);
+    border-radius: 10px;
+    padding: 12px;
+    background: rgba(0, 0, 0, 0.22);
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .prompt-config-panel .prompt-config-item textarea {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    min-height: 110px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    line-height: 1.45;
+    margin: 0;
+    border: 1px dashed var(--color-border);
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.28);
+    padding: 10px;
+    color: var(--color-text-secondary);
+  }
+  .prompt-config-panel .prompt-config-item-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    margin: 0;
+    padding-bottom: 8px;
+    border-bottom: 1px dashed var(--color-border-subtle);
+  }
+  .prompt-config-panel .prompt-config-item-title {
+    margin: 0;
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--color-accent);
+    line-height: 1.35;
+  }
+  .prompt-config-panel .prompt-config-item-id {
+    display: inline-block;
+    font-size: 0.62rem;
+    color: var(--color-text-muted);
+    margin-left: 8px;
+    font-weight: 500;
+    font-family: 'JetBrains Mono', monospace;
+    opacity: 0.85;
+  }
+  .prompt-config-panel .prompt-config-item-actions {
+    display: flex;
+    gap: 8px;
+    margin: 0;
+    padding-top: 2px;
+    border-top: 1px dashed var(--color-border-subtle);
+  }
+  .prompt-config-panel .prompt-config-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-top: 18px;
+    padding-top: 14px;
+    border-top: 1px solid var(--color-accent-soft);
+  }
+  .prompt-config-panel .prompt-config-actions .btn {
+    width: auto;
+    margin: 0;
+    padding: 8px 14px;
+    font-size: 0.8rem;
+  }
+  .prompt-config-panel .prompt-config-actions.is-catalog-mode .btn {
+    display: none;
+  }
+  .prompt-config-panel .prompt-catalog-toolbar {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 8px;
+    padding-bottom: 12px;
+    border-bottom: 1px dashed var(--color-border-subtle);
+    min-width: 0;
+    max-width: 100%;
+  }
+  .prompt-config-panel .prompt-catalog-hint,
+  .prompt-config-panel .prompt-config-list > .prompt-config-hint {
+    font-size: 0.7rem;
+    color: var(--color-text-muted);
+    line-height: 1.5;
+    margin: 0;
+    padding: 6px 8px;
+    border-left: 2px solid var(--color-accent, #8a7a5a);
+    border-radius: 0 6px 6px 0;
+    background: color-mix(in srgb, var(--color-surface) 88%, var(--color-accent, #8a7a5a) 12%);
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+  .prompt-config-panel .prompt-catalog-select-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .prompt-config-panel .prompt-catalog-select-row label {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+  }
+  .prompt-config-panel .prompt-catalog-select-row .cs-wrap,
+  .prompt-config-panel .prompt-catalog-select-row select {
+    flex: 1 1 200px;
+    min-width: 160px;
+    max-width: 100%;
+  }
+  .prompt-config-panel .prompt-catalog-block {
+    margin: 0;
+    min-width: 0;
+    max-width: 100%;
+    padding: 10px 12px;
+    border: 1px dashed var(--color-border);
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.16);
+  }
+  .prompt-config-panel .prompt-catalog-block-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--color-text-secondary);
+    margin: 0 0 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px dashed var(--color-border-subtle);
+    letter-spacing: 0.01em;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px;
+  }
+  .prompt-config-panel .prompt-catalog-block-label-main {
+    color: var(--color-accent);
+  }
+  .prompt-config-panel .prompt-catalog-block-label-sub {
+    font-size: 0.62rem;
+    font-weight: 500;
+    color: var(--color-text-muted);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .prompt-config-panel .prompt-catalog-block-body {
+    margin: 0;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    font-size: 0.74rem;
+    line-height: 1.55;
+    color: var(--color-text-secondary);
+    font-family: inherit;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    padding: 0;
+    max-height: 320px;
+    max-width: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+    box-sizing: border-box;
+  }
+  .prompt-config-panel .prompt-catalog-list {
+    margin: 0;
+    padding-left: 1.15rem;
+    font-size: 0.74rem;
+    line-height: 1.55;
+    color: var(--color-text-secondary);
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+  .prompt-config-panel .prompt-catalog-list li {
+    margin-bottom: 4px;
+  }
+  .prompt-config-panel .prompt-catalog-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .prompt-config-panel .prompt-catalog-chip {
+    font-size: 0.65rem;
+    padding: 2px 8px;
+    border-radius: 999px;
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    color: var(--color-text-muted);
+    background: rgba(148, 163, 184, 0.06);
+  }
+  .prompt-config-panel .prompt-catalog-blocks {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+  }
