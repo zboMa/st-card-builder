@@ -38,8 +38,9 @@ npm run dev            # Astro :4321，/api 代理到 8787
 |---|---|
 | **保存** | 始终先写本地；已登录则 `PUT` 云端，失败入 outbox |
 | **列表** | `GET /api/data/cards`；仅摘要，正文懒加载 |
-| **打开卡** | `GET .../bundle`：卡草稿 + 头像 + 小说工坊 + RAG + Story 目录/工作稿/release |
-| **删除** | 本地删除 + `DELETE /api/data/cards/:id`（级联关联文档） |
+| **打开卡** | `GET .../bundle`：卡草稿 + 头像 + **小说工坊** + **RAG**（与卡一套） |
+| **写出的小说** | Story Studio 独立：`GET /stories/:cardId/catalog`、打开时拉单部；**不进**开卡 bundle |
+| **删除** | 本地确认弹窗；默认删绑卡套件；**可勾选**是否级联删 Story 小说 |
 | **偏好** | `PUT /api/data/prefs/ui|prompts`（防抖） |
 | **AI 密钥** | `PUT/GET/DELETE /api/data/secrets/ai-config`（客户端口令加密，服务端只存密文） |
 
@@ -49,12 +50,9 @@ npm run dev            # Astro :4321，/api 代理到 8787
 |---|---|---|
 | GET | `/api/data/status` | 云端就绪探测 |
 | GET/PUT | `/api/data/cards`、`/cards/:id` | 列表 / 单卡草稿 |
-| GET/PUT | `/api/data/cards/:id/bundle` | **完整卡包**（开卡必用） |
-| DELETE | `/api/data/cards/:id` | 级联删卡 |
-| GET/PUT/DELETE | `/api/data/doc?id=` | 通用文档 |
-| GET/PUT | `/api/data/prefs/:kind` | ui / prompts / sync |
-| PUT/GET/DELETE | `/api/data/secrets/ai-config` | 加密 AI 配置 |
-| PUT | `/api/data/novels/:cardId`、`/rag/:cardId`、`/avatars/...`、`/stories/...` | 单资源写入 |
+| GET/PUT | `/api/data/cards/:id/bundle` | **卡包**（卡+头像+工坊+RAG；不含 Story） |
+| DELETE | `/api/data/cards/:id?deleteStories=0\|1` | 删卡；`deleteStories=1` 才级联删写出的小说 |
+| GET/PUT | `/api/data/stories/:cardId/catalog` 等 | Story 独立存取 |
 
 文档 ID 约定仍见 `src/lib/sync/docIds.mjs`（与历史 Couch 文档兼容，存量库无需迁移格式）。
 

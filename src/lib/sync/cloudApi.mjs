@@ -80,8 +80,24 @@ export function putCardBundle(cardId, bundle) {
   });
 }
 
-export function deleteCloudCard(cardId) {
-  return cloudDelete('/api/data/cards/' + encodeURIComponent(cardId));
+export function deleteCloudCard(cardId, opts) {
+  opts = opts || {};
+  var q = opts.deleteStories ? '?deleteStories=1' : '';
+  return cloudDelete('/api/data/cards/' + encodeURIComponent(cardId) + q);
+}
+
+export function getStoryCatalog(cardId) {
+  return cloudGet('/api/data/stories/' + encodeURIComponent(cardId) + '/catalog');
+}
+
+export function getStoryActive(cardId) {
+  return cloudGet('/api/data/stories/' + encodeURIComponent(cardId) + '/active');
+}
+
+export function getStoryNovel(cardId, novelId) {
+  return cloudGet(
+    '/api/data/stories/' + encodeURIComponent(cardId) + '/' + encodeURIComponent(novelId)
+  );
 }
 
 export function putCloudDoc(doc, opts) {
