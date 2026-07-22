@@ -134,6 +134,12 @@ describe('sidebar navigation contract', function() {
     assert.match(chSrc, /applyAvatarFromImage/);
     assert.match(cmSrc, /getDraftsForDisplay/);
     assert.match(stSrc, /buildDraftSnapshot/);
+    assert.match(cmSrc, /card-manager-item-actions__group--end/);
+    assert.match(cmSrc, /document\.body\.appendChild\(pop\)/);
+    assert.match(cmSrc, /is-fixed-portal/);
+    assert.match(cmSrc, /handleCardMoreAction/);
+    assert.match(mgr, /card-manager-item-actions__group--end/);
+    assert.match(mgr, /position:\s*fixed/);
     assert.match(cmSrc, /buildCardManagerActionsHtml/);
     assert.match(cmSrc, /btn-icon--sm card-mgr-icon/);
     assert.match(cmSrc, /card-manager-item-actions__group/);
