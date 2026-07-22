@@ -197,7 +197,8 @@ export async function upsertCardDraft(userId, cardId, draft, opts) {
 }
 
 /**
- * 完整卡包：开卡所需的全部关联文档（避免拆碎）
+ * 完整卡包：开卡所需的绑卡数据（卡+头像+小说工坊+RAG）
+ * 写出的小说（Story Studio）不在此列，独立拉取。
  */
 export async function getCardBundle(userId, cardId) {
   var id = String(cardId || '').trim();
@@ -208,31 +209,7 @@ export async function getCardBundle(userId, cardId) {
   var avatarThumb = await getUserDoc(userId, avatarDocId(id, 'thumb'));
   var novel = await getUserDoc(userId, novelDocId(id));
   var rag = await getUserDoc(userId, ragDocId(id));
-  var catalog = await getUserDoc(userId, storyCatalogDocId(id));
-  var active = await getUserDoc(userId, storyActiveDocId(id));
   var releaseCurrent = await getUserDoc(userId, cardReleaseDocId(id));
-
-  var novelMetas = catalogNovelsList(catalog);
-  var novels = [];
-  var releases = [];
-  for (var i = 0; i < novelMetas.length; i++) {
-    var meta = novelMetas[i];
-    var nid = meta && (meta.id || meta.novelId);
-    if (!nid) continue;
-    var sn = await getUserDoc(userId, storyNovelDocId(id, nid));
-    if (sn) novels.push(sn);
-    var rel = await getUserDoc(userId, storyReleaseDocId(id, nid));
-    if (rel) releases.push(rel);
-  }
-
-  // 若 catalog 为空但 active 有 novelId，仍拉工作稿
-  if (!novels.length && active && active.data && active.data.novelId) {
-    var activeNid = String(active.data.novelId);
-    var sn2 = await getUserDoc(userId, storyNovelDocId(id, activeNid));
-    if (sn2) novels.push(sn2);
-    var rel2 = await getUserDoc(userId, storyReleaseDocId(id, activeNid));
-    if (rel2) releases.push(rel2);
-  }
 
   return {
     cardId: id,
@@ -243,12 +220,6 @@ export async function getCardBundle(userId, cardId) {
     },
     novel: novel,
     rag: rag,
-    story: {
-      catalog: catalog,
-      active: active,
-      novels: novels,
-      releases: releases,
-    },
     cardRelease: releaseCurrent,
   };
 }
@@ -330,91 +301,40 @@ export async function putCardBundle(userId, cardId, bundle, opts) {
     });
   }
 
-  if (bundle.story) {
-    if (bundle.story.catalog != null) {
-      var cat = bundle.story.catalog;
-      var list = catalogNovelsList(cat);
-      results.catalog = await putUserDoc(userId, {
-        _id: storyCatalogDocId(id),
-        type: 'story-catalog',
-        cardId: id,
-        data: list,
-        updatedAt: new Date().toISOString(),
-      }, { force: true });
-    }
-    if (bundle.story.active != null) {
-      var act = bundle.story.active;
-      results.active = await putUserDoc(userId, {
-        _id: storyActiveDocId(id),
-        type: 'story-active',
-        cardId: id,
-        data: act.data != null ? act.data : act,
-        updatedAt: new Date().toISOString(),
-      }, { force: true });
-    }
-    var novels = Array.isArray(bundle.story.novels) ? bundle.story.novels : [];
-    results.novels = [];
-    for (var i = 0; i < novels.length; i++) {
-      var n = novels[i];
-      var ndata = n && (n.data != null ? n.data : n);
-      var nid = (n && n.novelId) || (ndata && ndata.id) || '';
-      if (!nid) continue;
-      results.novels.push(await putUserDoc(userId, {
-        _id: storyNovelDocId(id, nid),
-        type: 'story-novel',
-        cardId: id,
-        novelId: String(nid),
-        data: ndata,
-        updatedAt: new Date().toISOString(),
-      }, { force: true }));
-    }
-    var releases = Array.isArray(bundle.story.releases) ? bundle.story.releases : [];
-    results.releases = [];
-    for (var j = 0; j < releases.length; j++) {
-      var r = releases[j];
-      var rdata = r && (r.data != null ? r.data : r);
-      var rnid = (r && r.novelId) || (rdata && rdata.novelId) || '';
-      if (!rnid) continue;
-      results.releases.push(await putUserDoc(userId, {
-        _id: storyReleaseDocId(id, rnid),
-        type: 'story-release',
-        cardId: id,
-        novelId: String(rnid),
-        characterVersion: r.characterVersion || rdata.characterVersion,
-        novelVersion: r.novelVersion || rdata.novelVersion,
-        displayVersion: r.displayVersion || rdata.displayVersion,
-        publishedAt: r.publishedAt || rdata.publishedAt,
-        data: rdata,
-        updatedAt: new Date().toISOString(),
-      }, { force: true }));
-    }
-  }
+  // Story 写出的小说不进卡包；请走 /api/data/stories/*
 
   return { ok: true, cardId: id, results: results };
 }
 
-export async function cascadeDeleteCard(userId, cardId) {
+/**
+ * 删卡：始终删除绑卡套件（草稿/头像/工坊/RAG/卡 release）
+ * @param {{ deleteStories?: boolean }} [opts] 勾选后才级联删 Story 小说
+ */
+export async function cascadeDeleteCard(userId, cardId, opts) {
+  opts = opts || {};
+  var deleteStories = !!opts.deleteStories;
   var id = String(cardId || '').trim();
   if (!id) return { ok: false };
-  var catalog = await getUserDoc(userId, storyCatalogDocId(id));
-  var novels = catalogNovelsList(catalog);
   var ids = [
     cardDocId(id),
     avatarDocId(id, 'full'),
     avatarDocId(id, 'thumb'),
     novelDocId(id),
     ragDocId(id),
-    storyCatalogDocId(id),
-    storyActiveDocId(id),
     cardReleaseDocId(id),
   ];
-  novels.forEach(function(n) {
-    var nid = n && (n.id || n.novelId);
-    if (nid) {
-      ids.push(storyNovelDocId(id, nid));
-      ids.push(storyReleaseDocId(id, nid));
-    }
-  });
+  if (deleteStories) {
+    var catalog = await getUserDoc(userId, storyCatalogDocId(id));
+    var novels = catalogNovelsList(catalog);
+    ids.push(storyCatalogDocId(id), storyActiveDocId(id));
+    novels.forEach(function(n) {
+      var nid = n && (n.id || n.novelId);
+      if (nid) {
+        ids.push(storyNovelDocId(id, nid));
+        ids.push(storyReleaseDocId(id, nid));
+      }
+    });
+  }
   for (var i = 0; i < ids.length; i++) {
     try { await deleteUserDoc(userId, ids[i], { force: true }); } catch (e) { /* ignore */ }
   }
@@ -428,7 +348,7 @@ export async function cascadeDeleteCard(userId, cardId) {
     updatedAt: new Date().toISOString(),
   }, { force: true });
 
-  return { ok: true, deleted: ids.length };
+  return { ok: true, deleted: ids.length, deleteStories: deleteStories };
 }
 
 /** 禁用用户时仍可轮换旧同步账号密码（兼容） */

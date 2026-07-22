@@ -109,3 +109,19 @@ export async function deleteRelease(cardId, novelId) {
   await idbDeleteJson(key);
   return true;
 }
+
+/** 删除某卡下全部写出的小说（本地 IDB） */
+export async function deleteAllStoriesForCard(cardId) {
+  var c = String(cardId || '').trim();
+  if (!c) return false;
+  var catalog = await loadCatalog(c);
+  for (var i = 0; i < catalog.length; i++) {
+    var nid = catalog[i] && (catalog[i].id || catalog[i].novelId);
+    if (!nid) continue;
+    try { await deleteNovel(c, nid); } catch (e) { /* ignore */ }
+    try { await deleteRelease(c, nid); } catch (e) { /* ignore */ }
+  }
+  try { await idbDeleteJson(storyCatalogKey(c)); } catch (e) { /* ignore */ }
+  try { await idbDeleteJson(storyActiveKey(c)); } catch (e) { /* ignore */ }
+  return true;
+}

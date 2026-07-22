@@ -15,6 +15,7 @@ import {
   storyActiveDocId,
   storyReleaseDocId,
   avatarDocId,
+  catalogNovelsList,
 } from './docIds.mjs';
 import {
   ensureUserDbExists,
@@ -151,7 +152,14 @@ dataRouter.put('/cards/:cardId/bundle', async function(req, res) {
 
 dataRouter.delete('/cards/:cardId', async function(req, res) {
   try {
-    var out = await cascadeDeleteCard(userIdOf(req), req.params.cardId);
+    var q = req.query || {};
+    var body = req.body || {};
+    var deleteStories = String(q.deleteStories || '') === '1'
+      || String(q.deleteStories || '').toLowerCase() === 'true'
+      || !!body.deleteStories;
+    var out = await cascadeDeleteCard(userIdOf(req), req.params.cardId, {
+      deleteStories: deleteStories,
+    });
     res.json(out);
   } catch (e) {
     sendErr(res, e);
@@ -348,6 +356,45 @@ dataRouter.put('/avatars/:cardId/:kind', async function(req, res) {
       updatedAt: new Date().toISOString(),
     }, { force: true });
     res.json({ ok: true, rev: saved.rev });
+  } catch (e) {
+    sendErr(res, e);
+  }
+});
+
+dataRouter.get('/stories/:cardId/catalog', async function(req, res) {
+  try {
+    var cardId = String(req.params.cardId || '').trim();
+    var doc = await getUserDoc(userIdOf(req), storyCatalogDocId(cardId));
+    res.json({
+      ok: true,
+      doc: doc,
+      data: doc ? (Array.isArray(doc.data) ? doc.data : catalogNovelsList(doc)) : [],
+    });
+  } catch (e) {
+    sendErr(res, e);
+  }
+});
+
+dataRouter.get('/stories/:cardId/active', async function(req, res) {
+  try {
+    var cardId = String(req.params.cardId || '').trim();
+    var doc = await getUserDoc(userIdOf(req), storyActiveDocId(cardId));
+    res.json({ ok: true, doc: doc, data: doc && doc.data });
+  } catch (e) {
+    sendErr(res, e);
+  }
+});
+
+dataRouter.get('/stories/:cardId/:novelId', async function(req, res) {
+  try {
+    var cardId = String(req.params.cardId || '').trim();
+    var novelId = String(req.params.novelId || '').trim();
+    if (novelId === 'catalog' || novelId === 'active') {
+      return res.status(404).json({ ok: false, error: 'not_found' });
+    }
+    var doc = await getUserDoc(userIdOf(req), storyNovelDocId(cardId, novelId));
+    if (!doc) return res.status(404).json({ ok: false, error: 'not_found' });
+    res.json({ ok: true, doc: doc, data: doc.data });
   } catch (e) {
     sendErr(res, e);
   }

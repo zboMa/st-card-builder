@@ -64,7 +64,20 @@ export function createCardBuilderContext(sm) {
     showConfirmDialog: function(options) {
       var opts = options || {};
       var previousActiveElement = document.activeElement;
+      var checks = Array.isArray(opts.checks) ? opts.checks : [];
       return new Promise(function(resolve) {
+        var checksHtml = '';
+        if (checks.length) {
+          checksHtml = '<div class="app-confirm-checks">' + checks.map(function(c) {
+            var id = String(c.id || '');
+            var label = escapeHtml(c.label || id);
+            var checked = c.checked ? ' checked' : '';
+            return '<label class="app-confirm-check">'
+              + '<input type="checkbox" data-confirm-check="' + escapeHtml(id) + '"' + checked + ' />'
+              + '<span>' + label + '</span>'
+              + '</label>';
+          }).join('') + '</div>';
+        }
         var overlay = document.createElement('div');
         overlay.className = 'app-confirm-overlay';
         overlay.setAttribute('role', 'presentation');
@@ -79,6 +92,7 @@ export function createCardBuilderContext(sm) {
               '</div>' +
             '</div>' +
             (opts.detail ? '<div class="app-confirm-body">' + escapeHtml(opts.detail) + '</div>' : '') +
+            checksHtml +
             '<div class="app-confirm-actions">' +
               '<button type="button" class="app-confirm-btn" data-confirm="cancel">' + escapeHtml(opts.cancelText || '取消') + '</button>' +
               '<button type="button" class="app-confirm-btn danger" data-confirm="ok">' + escapeHtml(opts.okText || '确认') + '</button>' +
@@ -114,6 +128,15 @@ export function createCardBuilderContext(sm) {
           }
         }
 
+        function collectChecks() {
+          var out = {};
+          checks.forEach(function(c) {
+            var el = overlay.querySelector('[data-confirm-check="' + String(c.id || '') + '"]');
+            out[c.id] = !!(el && el.checked);
+          });
+          return out;
+        }
+
         function close(value) {
           document.removeEventListener('keydown', onKeydown);
           overlay.remove();
@@ -121,16 +144,28 @@ export function createCardBuilderContext(sm) {
           resolve(value);
         }
 
+        function confirmOk() {
+          if (checks.length) {
+            close({ confirmed: true, checks: collectChecks() });
+          } else {
+            close(true);
+          }
+        }
+
         function onKeydown(event) {
           if (event.key === 'Escape') { close(false); return; }
-          if (event.key === 'Enter') close(true);
+          if (event.key === 'Enter') {
+            var tag = event.target && event.target.tagName;
+            if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+            confirmOk();
+          }
         }
 
         overlay.addEventListener('click', function(event) {
           if (event.target === overlay) close(false);
         });
         overlay.querySelector('[data-confirm="cancel"]').addEventListener('click', function() { close(false); });
-        overlay.querySelector('[data-confirm="ok"]').addEventListener('click', function() { close(true); });
+        overlay.querySelector('[data-confirm="ok"]').addEventListener('click', function() { confirmOk(); });
         document.addEventListener('keydown', onKeydown);
         document.body.appendChild(overlay);
         var dialogEl = overlay.querySelector('.app-confirm-dialog');

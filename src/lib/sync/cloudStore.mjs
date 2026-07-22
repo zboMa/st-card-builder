@@ -112,7 +112,7 @@ async function readLocalAvatarParts(cardId) {
 }
 
 /**
- * 组装本地完整卡包（用于上传 / 导入）
+ * 组装本地卡包（绑卡套件：草稿+头像+工坊+RAG；不含 Story 写出小说）
  */
 export async function buildLocalCardBundle(cardId) {
   var id = String(cardId || '').trim();
@@ -120,37 +120,17 @@ export async function buildLocalCardBundle(cardId) {
   var draft = drafts[id] || null;
   var novelRec = await idbGetJson(idbNovelKey(id)).catch(function() { return null; });
   var ragRec = await idbGetJson('novelRagV1:card:' + id).catch(function() { return null; });
-  var catalog = await idbGetJson('storyStudioV1:catalog:card:' + id).catch(function() { return null; });
-  var active = await idbGetJson('storyStudioV1:active:card:' + id).catch(function() { return null; });
-  var list = catalogNovelsList(catalog);
-  var novels = [];
-  var releases = [];
-  for (var i = 0; i < list.length; i++) {
-    var meta = list[i];
-    var nid = meta && (meta.id || meta.novelId);
-    if (!nid) continue;
-    var sn = await idbGetJson('storyStudioV1:card:' + id + ':' + nid).catch(function() { return null; });
-    if (sn) novels.push({ novelId: nid, data: sn });
-    var rel = await idbGetJson('storyStudioV1:release:card:' + id + ':' + nid).catch(function() { return null; });
-    if (rel) releases.push({ novelId: nid, data: rel });
-  }
   var avatar = await readLocalAvatarParts(id);
   return {
     card: draft,
     avatar: avatar,
     novel: novelRec,
     rag: ragRec,
-    story: {
-      catalog: list,
-      active: active,
-      novels: novels,
-      releases: releases,
-    },
   };
 }
 
 /**
- * 将云端完整卡包灌回 LS + IDB（开卡可直接用）
+ * 将云端卡包灌回 LS + IDB（开卡：工坊与卡一套）
  */
 export async function hydrateCardBundleToLocal(bundle) {
   if (!bundle || !bundle.cardId) return false;
@@ -182,31 +162,6 @@ export async function hydrateCardBundleToLocal(bundle) {
   if (bundle.rag) {
     var ragData = bundle.rag.data != null ? bundle.rag.data : bundle.rag;
     await idbSetJson('novelRagV1:card:' + id, ragData);
-  }
-
-  if (bundle.story) {
-    var catList = catalogNovelsList(bundle.story.catalog);
-    await idbSetJson('storyStudioV1:catalog:card:' + id, catList);
-    if (bundle.story.active) {
-      var act = bundle.story.active.data != null ? bundle.story.active.data : bundle.story.active;
-      await idbSetJson('storyStudioV1:active:card:' + id, act);
-    }
-    var novels = Array.isArray(bundle.story.novels) ? bundle.story.novels : [];
-    for (var i = 0; i < novels.length; i++) {
-      var n = novels[i];
-      var ndata = n.data != null ? n.data : n;
-      var nid = n.novelId || (ndata && ndata.id);
-      if (!nid || !ndata) continue;
-      await idbSetJson('storyStudioV1:card:' + id + ':' + nid, ndata);
-    }
-    var releases = Array.isArray(bundle.story.releases) ? bundle.story.releases : [];
-    for (var j = 0; j < releases.length; j++) {
-      var r = releases[j];
-      var rdata = r.data != null ? r.data : r;
-      var rnid = r.novelId || (rdata && rdata.novelId);
-      if (!rnid || !rdata) continue;
-      await idbSetJson('storyStudioV1:release:card:' + id + ':' + rnid, rdata);
-    }
   }
 
   emit('bundle-hydrated', { cardId: id });
@@ -263,14 +218,17 @@ export async function cloudSaveCardBundle(cardId) {
   });
 }
 
-export async function cloudDeleteCard(cardId) {
+export async function cloudDeleteCard(cardId, opts) {
+  opts = opts || {};
   var id = String(cardId || '').trim();
   if (!id) return;
+  var deleteStories = !!opts.deleteStories;
   return withCloudOrOutbox('deleteCard', function() {
-    return api.deleteCloudCard(id);
+    return api.deleteCloudCard(id, { deleteStories: deleteStories });
   }, {
     op: 'deleteCard',
     cardId: id,
+    body: { deleteStories: deleteStories },
     dedupeKey: 'deleteCard:' + id,
   });
 }
@@ -407,7 +365,9 @@ async function handleOutboxItem(item) {
     case 'putBundle':
       return api.putCardBundle(item.cardId, item.body && item.body.bundle);
     case 'deleteCard':
-      return api.deleteCloudCard(item.cardId);
+      return api.deleteCloudCard(item.cardId, {
+        deleteStories: !!(item.body && item.body.deleteStories),
+      });
     case 'putNovel':
       return api.putNovel(item.cardId, item.body && item.body.data);
     case 'putRag':
@@ -478,15 +438,44 @@ export async function ensureCardBundleLocal(cardId, opts) {
   var drafts = readDrafts();
   var local = drafts[id];
   var need = opts.force || !local || local._cloudStub;
-  if (!need && opts.includeRelated) {
-    // 轻量探测：无小说桶也不强制；由调用方 force
-  }
   if (!need) return local;
   if (!cloudEnabled) return local || null;
   var res = await api.fetchCardBundle(id);
   if (!res || !res.bundle) return local || null;
   await hydrateCardBundleToLocal(res.bundle);
   return readDrafts()[id] || null;
+}
+
+/**
+ * Story 独立：拉目录并灌本地（不经过卡 bundle）
+ */
+export async function pullStoryCatalogToLocal(cardId) {
+  var id = String(cardId || '').trim();
+  if (!id || !cloudEnabled) return null;
+  var res = await api.getStoryCatalog(id);
+  var list = Array.isArray(res && res.data) ? res.data : catalogNovelsList(res && res.doc);
+  await idbSetJson('storyStudioV1:catalog:card:' + id, list);
+  try {
+    var activeRes = await api.getStoryActive(id);
+    if (activeRes && activeRes.data) {
+      await idbSetJson('storyStudioV1:active:card:' + id, activeRes.data);
+    }
+  } catch (e) { /* optional */ }
+  return list;
+}
+
+/**
+ * Story 独立：拉单部小说工作稿
+ */
+export async function pullStoryNovelToLocal(cardId, novelId) {
+  var id = String(cardId || '').trim();
+  var nid = String(novelId || '').trim();
+  if (!id || !nid || !cloudEnabled) return null;
+  var res = await api.getStoryNovel(id, nid);
+  var data = res && (res.data != null ? res.data : null);
+  if (!data) return null;
+  await idbSetJson('storyStudioV1:card:' + id + ':' + nid, data);
+  return data;
 }
 
 /**
