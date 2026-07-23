@@ -121,7 +121,8 @@ describe('app shell themes', function() {
     var shared = readFileSync(join(root, 'src/styles/theme/scenes/_shared.css'), 'utf8');
     assert.match(shared, /@media \(max-width:\s*900px\)/);
     assert.match(shared, /\.app-sidebar[\s\S]*position:\s*fixed/);
-    assert.doesNotMatch(shared, /\.app-sidebar,\s*\nhtml/);
+    assert.doesNotMatch(shared, /\.app-shell\s*\{[^}]*z-index/);
+    assert.match(shared, /assistant-panel[\s\S]*z-index:\s*8500/);
 
     var sceneDir = join(root, 'src/styles/theme/scenes');
     ['sumi-ink.css', 'frost-shard.css', 'ember-blaze.css', 'bamboo-edge.css'].forEach(function(file) {
