@@ -66,6 +66,7 @@ import {
   copyNovelBucket,
   removeNovelBucket,
 } from '../src/lib/novel/state.mjs';
+import { createNovelStateMachine } from '../src/lib/novel/stateMachine.mjs';
 
 const novelRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -163,6 +164,23 @@ describe('novel chapters', function() {
     var chs = splitIntoChapters(text, { mode: 'title', chunkSize: 8000 });
     assert.ok(chs.length >= 2);
     assert.ok(chs[0].title.includes('第'));
+  });
+
+  it('标题拆章：章/回后须空白，避免「回答」等正文误切', function() {
+    var text = [
+      '第一章 系统激活',
+      '他第一时间冲了出去，第一次见到龙女。',
+      '第二个问题，你的权限不足无法回答。',
+      '第三个问题，你的权限不足无法回答！”后面还有一大段正文内容补足字数。',
+      '第二章 惊见小龙女',
+      '正文继续。',
+    ].join('\n');
+    var chs = splitIntoChapters(text, { mode: 'title', chunkSize: 8000 });
+    assert.equal(chs.length, 2, '应只拆出两章，got ' + chs.length + ' · ' + chs.map(function(c) { return c.title; }).join(' | '));
+    assert.match(chs[0].title, /第一章/);
+    assert.match(chs[1].title, /第二章/);
+    assert.match(chs[0].text, /无法回答/);
+    assert.match(chs[0].text, /第一时间/);
   });
 
   it('空行拆章与合并 / 拆分 / 调序', function() {
@@ -532,6 +550,34 @@ describe('novel cardId buckets', function() {
     assert.ok(exportFn, 'exportDraftAsJson missing');
     assert.doesNotMatch(exportFn[0], /novelWorkshop/);
   });
+
+  it('切卡：有小说的卡 ↔ 空卡互切，内存状态随桶切换且不串桶', async function() {
+    var store = Object.create(null);
+    var sm = createNovelStateMachine({
+      idbGet: async function(key) {
+        return store[key] != null ? store[key] : null;
+      },
+      idbSet: async function(key, val) {
+        store[key] = val;
+      },
+      idbDelete: async function(key) {
+        delete store[key];
+      },
+    });
+    await sm.bindCard('card_a');
+    sm.state.sourceText = '卡A小说正文';
+    sm.state.chapters = [{ id: 'c1', title: '一', text: 't', enabled: true }];
+    await sm.save();
+    await sm.bindCard('card_b');
+    assert.equal(String(sm.state.sourceText || '').trim(), '', '空卡不应残留上一张卡的原文');
+    assert.equal((sm.state.chapters || []).length, 0, '空卡不应残留章节');
+    await sm.save();
+    await sm.bindCard('card_a');
+    assert.equal(sm.state.sourceText, '卡A小说正文', '切回原卡应恢复小说');
+    assert.equal((sm.state.chapters || []).length, 1);
+    await sm.bindCard('card_b');
+    assert.equal(String(sm.state.sourceText || '').trim(), '', '再次切到空卡仍应为空');
+  });
 });
 
 describe('novel panel visual contract', function() {
@@ -708,6 +754,8 @@ describe('novel panel visual contract', function() {
     assert.match(app, /showChapterPreview/);
     assert.match(app, /openNovelModal\('novelModalChapter'\)/);
     assert.match(app, /openNovelModal\('novelModalSplit'\)/);
+    assert.match(app, /openNovelModal\('novelModalChapterRename'\)|novelModalChapterRename/);
+    assert.doesNotMatch(app, /\bprompt\s*\(/);
     assert.match(app, /novel-icon-btn/);
     assert.match(app, /is-disabled/);
     // 操作在右侧横排，不塞进 novel-chapter-main 内部

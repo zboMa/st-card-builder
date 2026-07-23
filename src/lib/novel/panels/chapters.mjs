@@ -41,6 +41,43 @@ export function registerChapters(ctx) {
     ctx.openNovelModal('novelModalChapter');
   }
 
+  function openChapterRename(ch) {
+    if (!ch) return;
+    ctx.editState.renamingChapterId = ch.id;
+    var input = ctx.$('novelChapterRenameInput');
+    if (input) {
+      input.value = ch.title || '';
+    }
+    ctx.openNovelModal('novelModalChapterRename');
+    setTimeout(function() {
+      if (!input) return;
+      try {
+        input.focus();
+        input.select();
+      } catch (e) { /* ignore */ }
+    }, 0);
+  }
+
+  function confirmChapterRename() {
+    var id = ctx.editState.renamingChapterId;
+    var input = ctx.$('novelChapterRenameInput');
+    if (!id || !input) {
+      ctx.closeNovelModal('novelModalChapterRename');
+      return;
+    }
+    var title = String(input.value || '').trim();
+    if (!title) {
+      if (ctx.setStatus) ctx.setStatus('novelChapterStatus', '标题不能为空');
+      try { input.focus(); } catch (e) { /* ignore */ }
+      return;
+    }
+    ctx.state.chapters = renameChapter(ctx.state.chapters, id, title);
+    ctx.editState.renamingChapterId = null;
+    ctx.closeNovelModal('novelModalChapterRename');
+    ctx.save();
+    ctx.renderAll();
+  }
+
   panel.render = function() {
     var state = ctx.state;
     var es = ctx.editState;
@@ -128,11 +165,7 @@ export function registerChapters(ctx) {
         var id = btn.getAttribute('data-ch-rename');
         var ch = state.chapters.find(function(c) { return c.id === id; });
         if (!ch) return;
-        var title = prompt('新标题', ch.title || '');
-        if (title == null) return;
-        state.chapters = renameChapter(state.chapters, id, title);
-        ctx.save();
-        ctx.renderAll();
+        openChapterRename(ch);
       });
     });
     list.querySelectorAll('[data-ch-up]').forEach(function(btn) {
@@ -234,6 +267,18 @@ export function registerChapters(ctx) {
     });
     var splitConfirm = ctx.$('btnNovelSplitConfirm');
     if (splitConfirm) splitConfirm.addEventListener('click', runSplit);
+
+    var renameConfirm = ctx.$('btnNovelChapterRenameConfirm');
+    if (renameConfirm) renameConfirm.addEventListener('click', confirmChapterRename);
+    var renameInput = ctx.$('novelChapterRenameInput');
+    if (renameInput) {
+      renameInput.addEventListener('keydown', function(ev) {
+        if (ev.key === 'Enter') {
+          ev.preventDefault();
+          confirmChapterRename();
+        }
+      });
+    }
 
     function withSelected(fn) {
       var state = ctx.state;

@@ -88,3 +88,24 @@
     </div>
   </div>
 </div>
+
+<!-- 章节重命名 -->
+<div id="novelModalChapterRename" class="novel-modal" hidden aria-hidden="true">
+  <div class="novel-modal-backdrop" data-novel-modal-close="novelModalChapterRename"></div>
+  <div class="novel-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="novelModalChapterRenameTitle">
+    <div class="novel-modal-head">
+      <strong id="novelModalChapterRenameTitle">重命名章节</strong>
+      <span class="novel-modal-tip">修改标题后保存 · Esc / 遮罩关闭</span>
+    </div>
+    <div class="novel-modal-body">
+      <div class="form-group">
+        <label for="novelChapterRenameInput">新标题</label>
+        <input type="text" id="novelChapterRenameInput" placeholder="例如：第一章 系统激活" autocomplete="off" />
+      </div>
+    </div>
+    <div class="novel-modal-actions">
+      <button type="button" class="btn novel-modal-cancel" data-novel-modal-close="novelModalChapterRename">取消</button>
+      <button type="button" class="btn btn-ai" id="btnNovelChapterRenameConfirm">保存</button>
+    </div>
+  </div>
+</div>

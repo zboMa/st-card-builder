@@ -1,10 +1,13 @@
 /**
  * 拆章：标题正则 / 空行密度 / 按字数切片；章节合并拆分调序
+ *
+ * 「章节标题优先」：第…章/节/卷/回/部/篇 后须跟空白或行尾，
+ * 避免「无法回答」「一部分」等正文误切。
  */
 
 import { uid } from '../utils.mjs';
 
-var TITLE_RE = /(?=第[^\n]{0,20}[章节卷回部篇])|(?=Chapter\s+\d+)/i;
+var TITLE_RE = /(?=第[^\n]{0,20}[章节卷回部篇](?:\s|$))|(?=Chapter\s+\d+)/i;
 
 /** @param {string} text @param {{ mode?: string, chunkSize?: number }} opts */
 export function splitIntoChapters(text, opts) {
@@ -69,7 +72,7 @@ function chunkBySize(text, size) {
 function guessTitle(text, index) {
   var first = String(text || '').split('\n').find(function(l) { return l.trim(); }) || '';
   first = first.trim().slice(0, 40);
-  if (/^第.{0,20}[章节卷回部篇]/.test(first) || /^Chapter\s+\d+/i.test(first)) return first;
+  if (/^第[^\n]{0,20}[章节卷回部篇](?:\s|$)/.test(first) || /^Chapter\s+\d+/i.test(first)) return first;
   return first || ('章节 ' + (index + 1));
 }
 

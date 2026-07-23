@@ -78,15 +78,24 @@ export function createNovelStateMachine(opts) {
       clearTimeout(_debounceTimer);
       _debounceTimer = null;
     }
-    _persist();
+    return _persist();
   }
 
+  /** @returns {Promise<void>} */
   function _persist() {
-    var raw = state;
     var key = _bucketKey();
-    if (!key || key === NOVEL_BUCKET_PREFIX) return;
+    if (!key || key === NOVEL_BUCKET_PREFIX) return Promise.resolve();
     var cardId = boundCardId;
-    _idbSet(key, raw).then(function() {
+    // 必须快照：bindCard 会就地 _replaceState，若把同一引用交给异步 idbSet，
+    // 切卡清空后会把「上一张卡」的落盘内容冲成空（表现为小说不随卡）。
+    var raw;
+    try {
+      raw = JSON.parse(JSON.stringify(state));
+    } catch (e) {
+      _debug('stateMachine: snapshot failed', e);
+      return Promise.resolve();
+    }
+    return _idbSet(key, raw).then(function() {
       if (cardId) {
         import('../sync/contentRev.mjs').then(function(m) {
           m.bumpCardBundleTouch(cardId);
@@ -110,6 +119,18 @@ export function createNovelStateMachine(opts) {
   function _loadBucket(key) {
     return _idbGet(key).then(function(data) {
       if (data && typeof data === 'object' && Object.keys(data).length) return data;
+      // IDB 失败时可能只写到了 localStorage，读时需回退
+      try {
+        if (typeof localStorage !== 'undefined') {
+          var raw = localStorage.getItem(key);
+          if (raw) {
+            var parsed = JSON.parse(raw);
+            if (parsed && typeof parsed === 'object' && Object.keys(parsed).length) return parsed;
+          }
+        }
+      } catch (e) {
+        _debug('stateMachine: localStorage bucket load failed', e);
+      }
       return null;
     });
   }
@@ -160,49 +181,50 @@ export function createNovelStateMachine(opts) {
      * @returns {Promise<void>}
      */
     bindCard: function(cardId) {
-      _flush();
       var id = String(cardId || _getCardId() || '');
-      if (!id) {
-        _replaceState(createDefaultNovelState());
-        boundCardId = '';
-        return Promise.resolve();
-      }
-      boundCardId = id;
-      var key = _bucketKey();
-      return _loadBucket(key).then(function(data) {
-        if (data) {
-          _replaceState(hydrateNovelState(data));
-          _notify(['*']);
+      // 先等当前卡落盘完成，再换桶；否则异步写与就地清空会竞态丢数据
+      return Promise.resolve(_flush()).then(function() {
+        if (!id) {
+          _replaceState(createDefaultNovelState());
+          boundCardId = '';
           return;
         }
-        return Promise.resolve().then(function() {
-          return _loadLegacy(legacyGlobalKey());
-        }).then(function(globalData) {
-          if (globalData && Object.keys(globalData).length) {
-            return _migrateOldGlobal(id, globalData);
+        boundCardId = id;
+        var key = _bucketKey();
+        return _loadBucket(key).then(function(data) {
+          if (data) {
+            _replaceState(hydrateNovelState(data));
+            _notify(['*']);
+            return;
           }
-          return Promise.resolve();
-        }).then(function() {
-          return _loadLegacy(legacyV2Key());
-        }).then(function(v2Data) {
-          if (v2Data && typeof v2Data === 'string' && v2Data.trim()) {
-            var migrated = hydrateNovelState({ sourceText: v2Data });
-            return _idbSet(key, migrated);
-          }
-          return Promise.resolve();
-        }).then(function() {
-          return _loadBucket(key);
-        }).then(function(d) {
-          if (d) {
-            _replaceState(hydrateNovelState(d));
-          }
-          _notify(['*']);
+          return Promise.resolve().then(function() {
+            return _loadLegacy(legacyGlobalKey());
+          }).then(function(globalData) {
+            if (globalData && Object.keys(globalData).length) {
+              return _migrateOldGlobal(id, globalData);
+            }
+            return Promise.resolve();
+          }).then(function() {
+            return _loadLegacy(legacyV2Key());
+          }).then(function(v2Data) {
+            if (v2Data && typeof v2Data === 'object' && (v2Data.sourceText || v2Data.contextText)) {
+              var migrated = hydrateNovelState(v2Data);
+              return _idbSet(key, migrated);
+            }
+            return Promise.resolve();
+          }).then(function() {
+            return _loadBucket(key);
+          }).then(function(d) {
+            // 无桶数据时必须清空内存，否则会把上一张卡的小说「粘」到新卡上
+            _replaceState(d ? hydrateNovelState(d) : createDefaultNovelState());
+            _notify(['*']);
+          });
         });
       });
     },
 
-    /** 主动保存（绕过 debounce） */
-    save: function() { _flush(); },
+    /** 主动保存（绕过 debounce）；返回 Promise 便于切卡前等待 */
+    save: function() { return Promise.resolve(_flush()); },
 
     /** 延迟保存（滚动输入时用，减少 I/O） */
     saveDebounced: function() { _debouncedSave(); },

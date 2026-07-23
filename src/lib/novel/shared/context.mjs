@@ -79,7 +79,7 @@ export function createNovelAppContext(sm, opts) {
       'novelModalChapter', 'novelModalProfile', 'novelModalExpandConfirm',
       'novelModalWb', 'novelModalEntity',
       'novelModalSplit', 'novelModalAnalyze', 'novelModalSetup', 'novelModalGreet', 'novelModalStyle',
-      'novelModalCharScan', 'novelModalWbExtract',
+      'novelModalCharScan', 'novelModalWbExtract', 'novelModalChapterRename',
     ],
 
     openNovelModal: function(id) {
@@ -106,6 +106,7 @@ export function createNovelAppContext(sm, opts) {
         ctx.editState.isCreatingWbEntry = false;
       }
       if (id === 'novelModalEntity') ctx.editState.editingEntityId = null;
+      if (id === 'novelModalChapterRename') ctx.editState.renamingChapterId = null;
       if (id === 'novelModalExpandConfirm' && ctx.editState.pendingExpandConfirm) {
         ctx.editState.pendingExpandConfirm.resolve(false);
         ctx.editState.pendingExpandConfirm = null;
@@ -170,6 +171,7 @@ export function createNovelAppContext(sm, opts) {
       novelWbTypeFilter: '',
       novelCharSearchQuery: '',
       novelChapterSearchQuery: '',
+      renamingChapterId: null,
       pendingExpandConfirm: null,
     },
 
@@ -256,7 +258,8 @@ export function createNovelAppContext(sm, opts) {
         ctx.state = ctx.sm.state;
         ctx.editState.editingCharId = null;
         ctx.syncRagOptionsToAiPanel();
-        if (!(renderOpts && renderOpts.skipSave)) ctx.save();
+        // 切卡后立即落盘（含空桶标记），避免 debounce 期间再切卡写串桶
+        if (!(renderOpts && renderOpts.skipSave) && typeof ctx.sm.save === 'function') ctx.sm.save();
         if (!(renderOpts && renderOpts.render === false)) ctx.renderAll();
       }).catch(function(err) {
         console.warn('[novel] bindCard failed', err);
