@@ -55,14 +55,7 @@ export function createCardStateMachine(state) {
       if (typeof alert !== 'undefined') alert(tip);
       console.warn('[stateMachine] save failed', e);
     }
-    // 双写 Pouch（供云同步）；失败不阻断本地保存
-    if (saved && typeof window !== 'undefined') {
-      try {
-        import('../sync/index.mjs').then(function(sync) {
-          return sync.upsertLocalCardAndIndex(state.draftId, dr[state.draftId], dr);
-        }).catch(function(err) { console.warn('[sync] pouch upsert', err); });
-      } catch (e2) { /* ignore */ }
-    }
+    // 本地落盘即权威；卡包上云仅在卡管理「同步上云」或账户页 flush outbox 时进行
     return { saved: saved, drafts: dr, id: state.draftId };
   }
 

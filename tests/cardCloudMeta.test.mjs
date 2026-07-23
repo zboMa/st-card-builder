@@ -76,14 +76,14 @@ describe('cardCloudMeta', function() {
     assert.match(cloudStatusLabel(CLOUD_STATUS.CLOUD_SYNCED), /已同步/);
   });
 
-  it('云快捷按钮：未同步显示上云，已同步隐藏', function() {
+  it('云快捷按钮：未同步显示同步上云，已同步隐藏', function() {
     assert.deepEqual(resolveCardCloudQuickAction(CLOUD_STATUS.LOCAL_ONLY), {
       action: 'cloud-upload',
-      label: '上传到云',
+      label: '同步上云',
     });
     assert.deepEqual(resolveCardCloudQuickAction(CLOUD_STATUS.CLOUD_DIRTY), {
       action: 'cloud-upload',
-      label: '同步到云',
+      label: '同步上云',
     });
     assert.equal(resolveCardCloudQuickAction(CLOUD_STATUS.CLOUD_SYNCED), null);
   });

@@ -58,7 +58,7 @@
       <div>
         <p class="account-session-kicker">账户</p>
         <h2 class="account-session-title">账户与云端</h2>
-        <p class="account-session-lead">登录后草稿自动保存到云端；未登录仍可完整离线使用。</p>
+        <p class="account-session-lead">登录后可手动同步草稿到云端；未登录仍可完整离线使用。</p>
       </div>
       <button type="button" id="btnAuthLogout" class="btn btn-ghost btn-inline">退出登录</button>
     </header>
@@ -73,14 +73,14 @@
       <div class="account-session-card-top">
         <div>
           <h3 id="accountSyncTitle" class="account-session-card-title">云端数据</h3>
-          <p class="account-session-meta">角色卡（含头像、小说工坊、创作进度）以完整卡包保存。点「立即对齐」上传本地并拉取云端列表；打开某张卡时自动下载完整数据。</p>
+          <p class="account-session-meta">角色卡（含头像、小说工坊、创作进度）以完整卡包保存。点「刷新云端列表」拉取索引并处理离线队列；卡包上云请在卡管理对单卡点「同步上云」。打开某张云端卡时自动下载完整数据。</p>
         </div>
-        <button type="button" id="btnManualSync" class="btn btn-primary btn-inline">立即对齐</button>
+        <button type="button" id="btnManualSync" class="btn btn-primary btn-inline">刷新云端列表</button>
       </div>
       <label class="account-sync-switch" for="autoSyncToggle">
         <span class="account-sync-switch__text">
           <span class="account-sync-switch__label">自动对齐云端</span>
-          <span class="account-sync-switch__hint">开启后定时上传本地变更；无待传时跳过</span>
+          <span class="account-sync-switch__hint">开启后定时拉取云端列表并刷新离线队列；不上传本地卡包</span>
         </span>
         <input type="checkbox" id="autoSyncToggle" class="account-sync-switch__input" role="switch" />
         <span class="account-sync-switch__track" aria-hidden="true"><span class="account-sync-switch__thumb"></span></span>
@@ -95,7 +95,7 @@
     <section class="account-session-card" aria-labelledby="accountPrefsTitle">
       <h3 id="accountPrefsTitle" class="account-session-card-title">用户配置</h3>
       <p class="account-session-meta">
-        提示词覆盖、当前打开卡等界面偏好。登录后本地一改即防抖保存到云端，无需点「立即对齐」。
+        提示词覆盖、当前打开卡等界面偏好。登录后本地一改即防抖保存到云端，无需点「刷新云端列表」。
       </p>
       <div id="userPrefsSyncTip" class="account-session-tip" role="status"></div>
     </section>

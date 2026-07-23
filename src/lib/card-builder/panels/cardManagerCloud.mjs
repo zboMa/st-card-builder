@@ -9,19 +9,19 @@ export function attachCardManagerCloud(ctx, s, panel) {
     if (!id) return;
     var ok = await ctx.showConfirmDialog({
       icon: '☁️',
-      title: '上传覆盖云端？',
+      title: '同步上云？',
       message: '将用本机这张卡（含工坊/头像等绑卡数据）覆盖云端版本。',
-      detail: '写出的小说（Story）不随此操作上传。',
-      okText: '上传覆盖',
+      detail: '写出的小说（Story）不随此操作上传。本地编辑不会自动上云，需在此确认。',
+      okText: '同步上云',
       cancelText: '取消',
     });
     if (!ok) return;
-    s.setCardManagerStatus('正在上传覆盖云端…');
+    s.setCardManagerStatus('正在同步上云…');
     try {
       var sync = await import('../../sync/index.mjs');
       if (sync.fetchSyncCredentials) await sync.fetchSyncCredentials();
       await sync.cloudUploadOverwrite(id);
-      s.setCardManagerStatus('已上传覆盖云端');
+      s.setCardManagerStatus('已同步上云');
       panel.updateCardManagerUI();
     } catch (e) {
       s.setCardManagerStatus('上传失败：' + (e && e.message || e), true);
@@ -32,18 +32,18 @@ export function attachCardManagerCloud(ctx, s, panel) {
     if (!id) return;
     var ok = await ctx.showConfirmDialog({
       icon: '⬇️',
-      title: '拉取覆盖本地？',
-      message: '将用云端版本覆盖本机这张卡（含工坊/头像等）。本地未上云的修改会丢失。',
-      okText: '拉取覆盖',
+      title: '从云端覆盖？',
+      message: '将用云端最新版本覆盖本机这张卡（含工坊/头像等）。本地未同步的修改会丢失。',
+      okText: '从云端覆盖',
       cancelText: '取消',
     });
     if (!ok) return;
-    s.setCardManagerStatus('正在拉取覆盖本地…');
+    s.setCardManagerStatus('正在从云端覆盖…');
     try {
       var sync = await import('../../sync/index.mjs');
       if (sync.fetchSyncCredentials) await sync.fetchSyncCredentials();
       await sync.cloudDownloadOverwrite(id);
-      s.setCardManagerStatus('已拉取覆盖本地');
+      s.setCardManagerStatus('已从云端覆盖本地');
       panel.updateCardManagerUI();
       if (id === s.getCurrentDraftId()) panel.loadDraft(id);
     } catch (e) {
