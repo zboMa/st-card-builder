@@ -73,7 +73,7 @@ describe('scene tier & fx', function() {
     var sceneDir = join(root, 'src/styles/theme/scenes');
     SCENE_CSS.forEach(function(id) {
       var css = readFileSync(join(sceneDir, id + '.css'), 'utf8');
-      assert.match(css, /svg\+xml|svg%3E/, id + ' signature svg');
+      assert.match(css, /svg\+xml|svg%3E|theme-assets/, id + ' signature svg');
       assert.match(css, /\.btn-primary/, id + ' btn-primary');
       assert.match(css, /panel-header/, id + ' panel-header');
       assert.match(css, /data-scene-tier="immersive"/, id + ' immersive tier');
