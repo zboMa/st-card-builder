@@ -124,6 +124,20 @@ async function main() {
     if (!sidebarInView) fail('drawer open but sidebar not visible');
     ok('打开时侧栏可见');
 
+    var backdropBelowSidebar = await page.evaluate(function() {
+      var sidebar = document.getElementById('appSidebar');
+      var backdrop = document.getElementById('appShellBackdrop');
+      var btn = sidebar && sidebar.querySelector('.app-sidebar-item[data-view]');
+      if (!sidebar || !backdrop || !btn) return false;
+      var rect = btn.getBoundingClientRect();
+      var cx = rect.left + rect.width / 2;
+      var cy = rect.top + rect.height / 2;
+      var top = document.elementFromPoint(cx, cy);
+      return sidebar.contains(top);
+    });
+    if (!backdropBelowSidebar) fail('backdrop covers sidebar — cannot click nav items');
+    ok('遮罩在侧栏之下，导航可点');
+
     await browser.close();
     ok('all checks passed');
   } finally {
