@@ -15,19 +15,39 @@ const { title } = Astro.props;
     <script is:inline>
       (function () {
         var K = 'st_v3_app_theme';
+        var FX = 'st_v3_scene_fx';
+        var FXL = 'st_v3_fx_enabled';
         var D = 'nocturne';
         var M = { ink: 'sumi-ink', frost: 'frost-shard', jade: 'bamboo-edge', rose: 'nocturne', neon: 'nocturne', slate: 'nocturne', daybreak: 'nocturne' };
         var ids = ['nocturne', 'sumi-ink', 'frost-shard', 'ember-blaze', 'bamboo-edge'];
         function sceneFor(t) { return t === 'nocturne' ? 'none' : t; }
+        function tierFor(scene, fxOn) {
+          if (!scene || scene === 'none') return 'none';
+          try {
+            if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return 'scene';
+          } catch (e) {}
+          return fxOn ? 'immersive' : 'scene';
+        }
         try {
           var t = localStorage.getItem(K) || D;
           if (M[t]) t = M[t];
           if (ids.indexOf(t) < 0) t = D;
+          var scene = sceneFor(t);
+          var fx = localStorage.getItem(FX);
+          if (fx === null) fx = localStorage.getItem(FXL);
+          if (fx === null) {
+            try { fx = window.matchMedia('(max-width: 900px)').matches ? '0' : '1'; } catch (e2) { fx = '1'; }
+          }
+          var fxOn = fx === '1';
           document.documentElement.setAttribute('data-app-theme', t);
-          document.documentElement.setAttribute('data-app-scene', sceneFor(t));
+          document.documentElement.setAttribute('data-app-scene', scene);
+          document.documentElement.setAttribute('data-scene-fx', fxOn ? 'on' : 'off');
+          document.documentElement.setAttribute('data-scene-tier', tierFor(scene, fxOn));
         } catch (e) {
           document.documentElement.setAttribute('data-app-theme', D);
           document.documentElement.setAttribute('data-app-scene', 'none');
+          document.documentElement.setAttribute('data-scene-fx', 'off');
+          document.documentElement.setAttribute('data-scene-tier', 'none');
         }
       })();
     </script>
@@ -43,6 +63,7 @@ const { title } = Astro.props;
     </style>
   </head>
   <body>
+    <canvas id="sceneFxCanvas" aria-hidden="true"></canvas>
     <slot />
     <ThemeGallery />
 
@@ -51,9 +72,13 @@ const { title } = Astro.props;
       import { initLayoutChrome } from '../lib/layout/chromeBoot.mjs';
       import { initTheme } from '../lib/theme/themeBoot.mjs';
       import { initThemePicker } from '../lib/theme/themePickerBoot.mjs';
+      import { initThemeSceneFx } from '../lib/theme/themeSceneFxBoot.mjs';
+      import { isImmersiveFxEnabled } from '../lib/theme/themeSceneTier.mjs';
       initTheme();
+      initThemeSceneFx();
       initLayoutChrome();
       initThemePicker();
+      window.__fxEnabled__ = function() { return isImmersiveFxEnabled(); };
     </script>
   </body>
 </html>
