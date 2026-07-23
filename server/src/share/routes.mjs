@@ -14,6 +14,7 @@ import {
 } from '../couch.mjs';
 import { config } from '../config.mjs';
 import { sanitizeReleaseDoc } from './logic.mjs';
+import { assertQuota } from '../quota/quotaService.mjs';
 
 export var shareRouter = Router();
 
@@ -91,6 +92,7 @@ shareRouter.post('/novels', requireUser, async function(req, res) {
       token = '';
     }
     if (!mapping) {
+      await assertQuota({ id: ownerId }, 'create_share');
       token = genToken();
       mapping = {
         _id: 'share/' + token,

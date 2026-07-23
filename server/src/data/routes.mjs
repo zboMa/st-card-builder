@@ -30,6 +30,7 @@ import {
   cascadeDeleteCard,
   listUserDocsByPrefix,
 } from './userDocs.mjs';
+import { getQuotaSnapshot, assertQuota } from '../quota/quotaService.mjs';
 
 export var dataRouter = Router();
 
@@ -57,6 +58,15 @@ function sendErr(res, e, fallbackStatus) {
   if (code === 'missing_id' || code === 'missing_card_id') {
     return res.status(400).json({ ok: false, error: code, message: e.message });
   }
+  if (code === 'quota_cards' || code === 'quota_bytes' || code === 'quota_shares'
+    || code === 'quota_story' || code === 'quota_bearer' || code === 'quota_batch') {
+    return res.status(413).json({
+      ok: false,
+      error: code,
+      message: String(e && e.message || code),
+      quota: e.quota || null,
+    });
+  }
   console.error('[data]', e);
   return res.status(status).json({
     ok: false,
@@ -79,6 +89,84 @@ dataRouter.get('/status', async function(req, res) {
       cardCount: (idx.cards || []).length,
       disabled: !!(reg && reg.disabled),
       mode: 'rest',
+    });
+  } catch (e) {
+    sendErr(res, e);
+  }
+});
+
+dataRouter.get('/quota', async function(req, res) {
+  try {
+    var snap = await getQuotaSnapshot(req.user);
+    res.json({ ok: true, quota: snap });
+  } catch (e) {
+    sendErr(res, e);
+  }
+});
+
+dataRouter.get('/cards/:cardId/conflict', async function(req, res) {
+  try {
+    var uid = userIdOf(req);
+    var cardId = String(req.params.cardId || '').trim();
+    var idx = await getCardIndexDoc(uid);
+    var cards = idx.cards || [];
+    var row = null;
+    for (var i = 0; i < cards.length; i++) {
+      if (cards[i] && cards[i].id === cardId) { row = cards[i]; break; }
+    }
+    if (!row) {
+      return res.status(404).json({ ok: false, error: 'not_on_cloud' });
+    }
+    var novelDoc = await getUserDoc(uid, novelDocId(cardId));
+    var novelData = novelDoc && (novelDoc.data != null ? novelDoc.data : novelDoc);
+    var entityCount = 0;
+    if (novelData && Array.isArray(novelData.entities)) entityCount = novelData.entities.length;
+    var avatarFull = await getUserDoc(uid, avatarDocId(cardId, 'full'));
+    res.json({
+      ok: true,
+      cardId: cardId,
+      remote: {
+        charName: row.charName || '',
+        updatedAt: row.updatedAt || null,
+        contentRev: row.contentRev || null,
+        wbCount: row.wbCount || 0,
+        workshopEntityCount: entityCount,
+        hasAvatar: !!(row.avatarInIdb || avatarFull),
+        bundleBytes: row.bundleBytes || 0,
+      },
+    });
+  } catch (e) {
+    sendErr(res, e);
+  }
+});
+
+dataRouter.get('/export', async function(req, res) {
+  try {
+    var uid = userIdOf(req);
+    await ensureUserDbExists(uid);
+    var idx = await getCardIndexDoc(uid);
+    var cards = idx.cards || [];
+    var bundles = [];
+    for (var i = 0; i < cards.length; i++) {
+      if (!cards[i] || !cards[i].id) continue;
+      try {
+        var b = await getCardBundle(uid, cards[i].id);
+        if (b) bundles.push(b);
+      } catch (eB) { /* skip */ }
+    }
+    var prefsUi = await getUserDoc(uid, DOC.ui);
+    var prefsPrompts = await getUserDoc(uid, DOC.prompts);
+    res.json({
+      ok: true,
+      exportedAt: new Date().toISOString(),
+      userId: uid,
+      cardIndex: cards,
+      bundles: bundles,
+      prefs: {
+        ui: prefsUi && prefsUi.data,
+        prompts: prefsPrompts && prefsPrompts.data,
+      },
+      note: 'AI 密钥密文未包含在导出中；请单独备份同步口令。',
     });
   } catch (e) {
     sendErr(res, e);
@@ -410,6 +498,15 @@ dataRouter.put('/stories/:cardId/catalog', async function(req, res) {
     var list = Array.isArray(body.data) ? body.data
       : Array.isArray(body.novels) ? body.novels
         : Array.isArray(body) ? body : [];
+    var snap = await getQuotaSnapshot(req.user);
+    if (snap.limits.storyNovels !== Infinity && list.length > snap.limits.storyNovels) {
+      return res.status(413).json({
+        ok: false,
+        error: 'quota_story',
+        message: '该卡 Story 目录超过上限 ' + snap.limits.storyNovels + ' 部',
+        quota: snap,
+      });
+    }
     var saved = await putUserDoc(userIdOf(req), {
       _id: storyCatalogDocId(cardId),
       type: 'story-catalog',

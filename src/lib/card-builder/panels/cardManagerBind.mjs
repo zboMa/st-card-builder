@@ -382,6 +382,17 @@ export function attachCardManagerBind(ctx, s, panel) {
         }, 5000);
       }).catch(function() { /* ignore */ });
     });
+
+    window.addEventListener('assistant-change-summary', function() {
+      import('../../sync/index.mjs').then(function(sync) {
+        if (!sync.isCloudEnabled || !sync.isCloudEnabled()) return;
+        var bar = ctx.$('importStatusBar');
+        if (!bar) return;
+        bar.style.display = 'block';
+        bar.classList.remove('is-error');
+        bar.textContent = '助手已修改卡片；请到卡管理点「同步上云」';
+      }).catch(function() { /* ignore */ });
+    });
   };
   return panel;
 }

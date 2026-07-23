@@ -18,6 +18,7 @@ import {
 } from '../couch.mjs';
 import { config } from '../config.mjs';
 import { hashSharePassword, verifySharePassword } from './password.mjs';
+import { assertQuota } from '../quota/quotaService.mjs';
 
 export var cardShareRouter = Router();
 
@@ -137,6 +138,7 @@ cardShareRouter.post('/', requireUserFlexible, async function(req, res) {
       token = '';
     }
     if (!mapping) {
+      await assertQuota(req.user, 'create_share');
       token = genToken();
       mapping = {
         _id: 'share/' + token,

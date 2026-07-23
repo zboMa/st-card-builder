@@ -9,7 +9,7 @@
 | Agent / 贡献者硬约束 | [`../AGENTS.md`](../AGENTS.md) |
 | UI 按钮、tip、搜索条、空态 | [`ui/design-system.md`](./ui/design-system.md) |
 | 邮箱/Discord 登录、Session | [`systems/auth.md`](./systems/auth.md) |
-| 云端数据 REST、分享、密钥上云 | [`systems/cloud-sync.md`](./systems/cloud-sync.md) |
+| 云端数据 REST、分享、密钥上云、配额 | [`systems/cloud-sync.md`](./systems/cloud-sync.md)、[`systems/quota.md`](./systems/quota.md) |
 | 管理端权限与 API | [`systems/admin.md`](./systems/admin.md) |
 | NSFW/NTL/恶堕层与入口 | [`domains/nsfw-ntl.md`](./domains/nsfw-ntl.md) |
 | ST 卡字段名（creatorNotes 等） | [`domains/st-card-fields.md`](./domains/st-card-fields.md) |
@@ -20,7 +20,7 @@
 | 小说创作（story studio） | [`architecture/story-studio.md`](./architecture/story-studio.md) |
 | 试聊运行时 | [`architecture/chat-runtime.md`](./architecture/chat-runtime.md) |
 | 生产部署 / Nginx | [`ops/production.md`](./ops/production.md)、[`ops/nginx.md`](./ops/nginx.md) |
-| 升级路线 / 回归 / 基线 | [`ops/upgrade-roadmap.md`](./ops/upgrade-roadmap.md)、[`ops/regression-checklist.md`](./ops/regression-checklist.md)、[`ops/baseline-metrics.md`](./ops/baseline-metrics.md) |
+| 升级路线 / 回归 / 基线 | [`ops/upgrade-roadmap.md`](./ops/upgrade-roadmap.md)、[`ops/product-roadmap-v1.md`](./ops/product-roadmap-v1.md)、[`ops/regression-checklist.md`](./ops/regression-checklist.md)、[`ops/baseline-metrics.md`](./ops/baseline-metrics.md) |
 | 写卡教程 / 目录扩写质量 | [`guides/`](./guides/) |
 
 ## 真相源（SoT）

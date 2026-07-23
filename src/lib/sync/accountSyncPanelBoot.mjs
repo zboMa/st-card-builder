@@ -33,6 +33,10 @@ import {
     pullUserPrefsFromCloud,
     pushUserPrefsToCloudNow,
   } from './userPrefsMirror.mjs';
+  import { buildSyncCenterSnapshot } from './syncCenter.mjs';
+  import { fetchCloudQuota, quotaUsageHtml, invalidateQuotaCache } from './quotaClient.mjs';
+  import { fetchCloudExport, fetchAuthTokens, revokeAuthToken } from './cloudApi.mjs';
+  import { DRAFTS_KEY } from '../card-builder/state.mjs';
 
 export function initAccountSyncPanel() {
   window.__scheduleUserPrefsCloudPush__ = scheduleUserPrefsCloudPush;
@@ -167,6 +171,7 @@ export function initAccountSyncPanel() {
         stopPanelCountdown();
       });
       setSidebarAuth(true);
+      refreshAccountPanelExtras();
     } else {
       setUserPrefsSyncEnabled(false);
       syncAutoSyncToggle(false);
@@ -250,6 +255,92 @@ export function initAccountSyncPanel() {
       } else {
         eta.hidden = false;
         eta.textContent = '下次 ' + formatSyncCountdown(ms);
+      }
+    }
+    refreshAccountPanelExtras();
+  }
+
+  function readLocalDraftsForSyncCenter() {
+    try {
+      return JSON.parse(localStorage.getItem(DRAFTS_KEY) || '{}') || {};
+    } catch (e) {
+      return {};
+    }
+  }
+
+  async function refreshAccountPanelExtras() {
+    var centerEl = document.getElementById('syncCenterBlock');
+    var quotaEl = document.getElementById('quotaUsageBlock');
+    if (!centerEl && !quotaEl) return;
+    try {
+      var snap = await buildSyncCenterSnapshot({
+        getDrafts: readLocalDraftsForSyncCenter,
+      });
+      if (centerEl) {
+        centerEl.textContent = snap.loggedIn
+          ? (snap.summaryLine + (snap.outbox.failed ? ' · 其中失败 ' + snap.outbox.failed + ' 条' : ''))
+          : '';
+      }
+      if (quotaEl) {
+        var q = snap.quota || await fetchCloudQuota(false);
+        quotaEl.textContent = quotaUsageHtml(q) || '—';
+      }
+    } catch (e) {
+      if (centerEl) centerEl.textContent = '';
+    }
+    refreshDeviceTokensList();
+  }
+
+  async function refreshDeviceTokensList() {
+    var ul = document.getElementById('deviceTokensList');
+    if (!ul) return;
+    try {
+      var res = await fetchAuthTokens();
+      var tokens = (res && res.tokens) || [];
+      if (!tokens.length) {
+        ul.innerHTML = '<li>暂无插件 Bearer 会话</li>';
+        return;
+      }
+      ul.innerHTML = tokens.map(function(t) {
+        var label = (t.displayName || t.username || t.id || '设备').slice(0, 40);
+        var exp = t.expiresAt ? (' · 至 ' + fmtLastSync(t.expiresAt)) : '';
+        return '<li>' + label + exp
+          + ' <button type="button" class="btn-inline" data-revoke-token="'
+          + encodeURIComponent(t.id) + '">吊销</button></li>';
+      }).join('');
+      ul.querySelectorAll('[data-revoke-token]').forEach(function(btn) {
+        btn.addEventListener('click', async function() {
+          var docId = decodeURIComponent(btn.getAttribute('data-revoke-token') || '');
+          try {
+            await revokeAuthToken(docId);
+            await refreshDeviceTokensList();
+          } catch (e) {
+            alert('吊销失败：' + (e && e.message || e));
+          }
+        });
+      });
+    } catch (e) {
+      ul.innerHTML = '<li>无法加载设备列表</li>';
+    }
+  }
+
+  async function exportCloudDataJson() {
+    var tip = document.getElementById('exportDataTip');
+    if (tip) tip.textContent = '正在导出…';
+    try {
+      var data = await fetchCloudExport();
+      var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'stcb-cloud-export-' + Date.now() + '.json';
+      a.click();
+      URL.revokeObjectURL(url);
+      if (tip) tip.textContent = '已下载 JSON 导出（不含 AI 密钥明文）';
+    } catch (e) {
+      if (tip) {
+        tip.textContent = '导出失败：' + (e && e.message || e);
+        tip.classList.add('is-err');
       }
     }
   }
@@ -361,6 +452,22 @@ export function initAccountSyncPanel() {
   });
 
   document.getElementById('btnManualSync')?.addEventListener('click', function() { doSync(); });
+
+  document.getElementById('btnGoCardManagerSync')?.addEventListener('click', function() {
+    location.hash = 'card-manager';
+  });
+  document.getElementById('btnRetryOutbox')?.addEventListener('click', function() { doSync(); });
+  document.getElementById('btnExportCloudData')?.addEventListener('click', function() {
+    exportCloudDataJson();
+  });
+
+  window.addEventListener('card-local-saved', function() {
+    refreshAccountPanelExtras();
+  });
+  onSyncEvent(function() {
+    invalidateQuotaCache();
+    refreshAccountPanelExtras();
+  });
 
   document.getElementById('autoSyncToggle')?.addEventListener('change', async function(e) {
     var on = !!(e && e.target && e.target.checked);

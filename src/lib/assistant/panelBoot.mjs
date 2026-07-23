@@ -1353,6 +1353,13 @@ var boot = window.__assistantBoot__ || {};
         return result;
       }
       pushUi(buildToolUiMessage(toolName, args || {}, result));
+      if (result && result.ok) {
+        try {
+          window.dispatchEvent(new CustomEvent('assistant-change-summary', {
+            detail: { tool: toolName, cardId: bridge.getDraftId && bridge.getDraftId() },
+          }));
+        } catch (eEv) { /* ignore */ }
+      }
       return result;
     }
 

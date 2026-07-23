@@ -117,6 +117,14 @@ export async function purgeExpiredBearerTokens() {
   return { purged: n };
 }
 
+export async function listBearerTokensForUser(userId) {
+  var uid = String(userId || '');
+  var list = await listBearerTokenDocs(500);
+  return list.filter(function(t) {
+    return t && String(t.userId || '') === uid && !t.expired;
+  });
+}
+
 export async function countBearersByUserIds(userIds) {
   var set = {};
   (userIds || []).forEach(function(id) { set[String(id)] = 0; });

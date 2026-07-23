@@ -21,6 +21,8 @@ import {
   buildCardIndexFromDrafts,
   cardReleaseDocId,
 } from './docIds.mjs';
+import { computeDraftContentRev, estimateBundleBytes } from '../quota/draftContentRev.mjs';
+import { assertQuota } from '../quota/quotaService.mjs';
 
 /** 确保用户库存在（不再轮换浏览器同步密码） */
 export async function ensureUserDbExists(userId) {
@@ -165,22 +167,33 @@ export async function upsertCardDraft(userId, cardId, draft, opts) {
   var found = false;
   for (var i = 0; i < cards.length; i++) {
     if (cards[i] && cards[i].id === id) {
+      var wbCount = 0;
+      try {
+        wbCount = Array.isArray(draft && draft.worldbookEntries) ? draft.worldbookEntries.length : 0;
+      } catch (eWb) { /* ignore */ }
       cards[i] = {
         id: id,
         charName: String((draft && (draft.charName || draft.name)) || cards[i].charName || '').trim(),
         updatedAt: doc.updatedAt,
         avatarInIdb: !!(draft && draft.avatarInIdb),
+        contentRev: computeDraftContentRev(draft),
+        wbCount: wbCount,
+        bundleBytes: opts.bundleBytes != null ? Number(opts.bundleBytes) : (cards[i].bundleBytes || 0),
       };
       found = true;
       break;
     }
   }
   if (!found) {
+    var wbCountNew = Array.isArray(draft && draft.worldbookEntries) ? draft.worldbookEntries.length : 0;
     cards.unshift({
       id: id,
       charName: String((draft && (draft.charName || draft.name)) || '').trim(),
       updatedAt: doc.updatedAt,
       avatarInIdb: !!(draft && draft.avatarInIdb),
+      contentRev: computeDraftContentRev(draft),
+      wbCount: wbCountNew,
+      bundleBytes: opts.bundleBytes != null ? Number(opts.bundleBytes) : 0,
     });
   }
   cards.sort(function(a, b) {
@@ -237,10 +250,34 @@ export async function putCardBundle(userId, cardId, bundle, opts) {
   }
   bundle = bundle || {};
   var results = {};
+  var bundleBytes = estimateBundleBytes(bundle);
+
+  await assertQuota({ id: userId }, 'upload_bundle', {
+    cardId: id,
+    addBytes: bundleBytes,
+  });
 
   if (bundle.card != null) {
     var draft = bundle.card.data != null ? bundle.card.data : bundle.card;
-    results.card = await upsertCardDraft(userId, id, draft, { force: !!opts.force });
+    results.card = await upsertCardDraft(userId, id, draft, {
+      force: !!opts.force,
+      bundleBytes: bundleBytes,
+    });
+  } else if (opts.bundleBytesOnly) {
+    var idxOnly = await getCardIndexDoc(userId);
+    var cardsOnly = Array.isArray(idxOnly.cards) ? idxOnly.cards.slice() : [];
+    for (var bi = 0; bi < cardsOnly.length; bi++) {
+      if (cardsOnly[bi] && cardsOnly[bi].id === id) {
+        cardsOnly[bi].bundleBytes = bundleBytes;
+        break;
+      }
+    }
+    await putUserDoc(userId, {
+      _id: DOC.cardIndex,
+      type: 'card-index',
+      cards: cardsOnly,
+      updatedAt: new Date().toISOString(),
+    }, { force: true });
   }
 
   async function putMaybe(docOrData, build) {
