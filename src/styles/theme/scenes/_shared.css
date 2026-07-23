@@ -16,7 +16,12 @@ html[data-app-scene]:not([data-app-scene="none"]) body {
   pointer-events: none;
   z-index: 0;
   opacity: 0;
-  transition: opacity 0.45s var(--ease-out);
+  transition: opacity 0.55s var(--ease-out);
+}
+
+html[data-app-scene="sumi-ink"][data-scene-tier="immersive"] #sceneFxCanvas {
+  mix-blend-mode: soft-light;
+  opacity: 1;
 }
 
 html[data-app-scene="sumi-ink"] body::before,
