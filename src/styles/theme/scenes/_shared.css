@@ -20,8 +20,8 @@ html[data-app-scene]:not([data-app-scene="none"]) body {
 }
 
 html[data-app-scene="sumi-ink"][data-scene-tier="immersive"] #sceneFxCanvas {
-  mix-blend-mode: soft-light;
-  opacity: 1;
+  mix-blend-mode: multiply;
+  opacity: 0.72;
 }
 
 html[data-app-scene="frost-shard"][data-scene-tier="immersive"] #sceneFxCanvas {
