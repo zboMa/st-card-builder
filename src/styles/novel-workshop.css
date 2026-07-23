@@ -3,12 +3,73 @@
     /* 仅作命名钩子，供布局/测试识别 */
   }
 
-  /* 与开场白 .greetings-tip 同级说明文案 */
-  .novel-panel-tip {
-    font-size: 0.78rem;
+  /* 面板说明：对齐 .ui-pref-tip（左色条 + 柔底），禁止灰正文裸放 */
+  .novel-panel-tip,
+  .novel-modal-desc {
+    margin: 0 0 12px;
+    padding: 6px 8px;
+    border-left: 2px solid var(--color-accent, #8a7a5a);
+    background: color-mix(in srgb, var(--color-surface) 88%, var(--color-accent, #8a7a5a) 12%);
+    border-radius: 0 6px 6px 0;
+    font-size: 0.7rem;
     color: var(--color-text-muted);
-    margin: -4px 0 16px 0;
-    line-height: 1.45;
+    line-height: 1.4;
+  }
+  /* 标题行：左标题(+计数) 右操作，对齐主世界书 wb-panel-head */
+  .novel-panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+  }
+  .novel-panel-head h2 {
+    margin: 0;
+    display: inline-flex;
+    align-items: baseline;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .novel-panel-count {
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--color-text-muted);
+    letter-spacing: 0;
+  }
+  .novel-head-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 5px;
+    margin-left: auto;
+  }
+  /* 头栏按钮等高：覆盖 .btn-ai 的大 padding / margin-top */
+  .novel-head-actions .btn,
+  .novel-head-actions .btn-ai,
+  .novel-head-actions .btn-fetch,
+  .novel-head-actions .btn-add,
+  .novel-head-actions .btn-delete,
+  .novel-head-actions .novel-btn-sm {
+    width: auto !important;
+    min-width: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    margin-top: 0 !important;
+    padding: 4px 10px !important;
+    font-size: 0.68rem !important;
+    line-height: 1.25 !important;
+    font-weight: 600;
+    white-space: nowrap;
+    flex-shrink: 0;
+    box-sizing: border-box;
+    border-radius: 7px;
+  }
+  .novel-head-actions .novel-sync-badge {
+    margin: 0;
+    align-self: center;
   }
   .novel-panel-tip .novel-config-link {
     color: var(--color-accent-hover);
@@ -206,7 +267,10 @@
     margin: 0 0 6px;
     font-size: 0.75rem;
     color: var(--color-warning);
-    min-height: 1.1em;
+  }
+  .novel-setup-ai-tip:empty {
+    display: none;
+    margin: 0;
   }
   .novel-setup-preview-wrap {
     flex: 1 1 auto;
@@ -480,10 +544,15 @@
   }
 
   .novel-status-text {
-    margin-top: 8px;
+    margin: 8px 0 0;
     color: var(--color-text-muted);
     font-size: 0.8rem;
-    min-height: 20px;
+    line-height: 1.4;
+  }
+  /* 无文案时不占位（去掉旧 min-height 占高） */
+  .novel-status-text:empty {
+    display: none;
+    margin: 0;
   }
 
   .novel-focus-tags { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -609,16 +678,32 @@
   .novel-modal-actions {
     display: flex;
     justify-content: flex-end;
+    align-items: center;
     gap: 8px;
     padding: 12px 16px 14px;
     border-top: 1px solid rgba(51, 65, 85, 0.45);
     flex-shrink: 0;
   }
-  .novel-modal-cancel {
+  /* 弹窗底栏：取消在左、主操作在右；同高同字号（压住 .btn-ai） */
+  .novel-modal-actions .btn,
+  .novel-modal-actions .btn-ai,
+  .novel-modal-actions .btn-add,
+  .novel-modal-actions .btn-fetch,
+  .novel-modal-actions .novel-modal-cancel {
     width: auto !important;
+    min-width: 0 !important;
+    height: auto !important;
     margin: 0 !important;
-    padding: 8px 12px !important;
+    margin-top: 0 !important;
+    padding: 8px 14px !important;
     font-size: 0.78rem !important;
+    line-height: 1.25 !important;
+    font-weight: 600;
+    white-space: nowrap;
+    box-sizing: border-box;
+    border-radius: 8px;
+  }
+  .novel-modal-cancel {
     background: linear-gradient(135deg, var(--color-surface-elevated), var(--color-surface));
   }
   .novel-modal-pre,
@@ -662,6 +747,19 @@
   .novel-analyze-grid .form-group {
     margin-bottom: 6px;
   }
+  /* 分片方式切换：强制隐藏对应控件，避免 flex/grid 盖掉 [hidden] 导致「按字数」旁仍显示章节数 */
+  .grid-3[data-shard-mode="chars"] [id$="ChaptersPerShardWrap"],
+  .grid-3 [id$="ChaptersPerShardWrap"][hidden] {
+    display: none !important;
+  }
+  .grid-3[data-shard-mode="chapters"] [id$="ChunkSizeWrap"],
+  .grid-3 [id$="ChunkSizeWrap"][hidden] {
+    display: none !important;
+  }
+  .novel-analyze-grid[data-shard-mode="chars"],
+  .novel-analyze-grid[data-shard-mode="chapters"] {
+    grid-template-columns: 1fr 1fr;
+  }
   .novel-analyze-toolbar {
     margin-top: 2px;
     margin-bottom: 2px;
@@ -676,6 +774,11 @@
   .novel-analyze-status-row .novel-status-text {
     margin: 0;
     font-size: 0.72rem;
+  }
+  .novel-analyze-status-row .novel-status-text:empty,
+  .novel-analyze-status-row .novel-status-text[style*="display: none"],
+  .novel-analyze-status-row .novel-status-text[style*="display:none"] {
+    display: none;
   }
   .novel-graph-cy {
     flex: 1 1 auto;

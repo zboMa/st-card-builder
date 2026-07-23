@@ -1,16 +1,57 @@
 ---
-/** 小说分析主入口：RAG 索引 + 统一分析 + 关系图谱（G6） */
+/** 小说分析：右上操作；开始分析进弹窗（分片/预计次数/仅骨架） */
 ---
 <div class="panel novel-workshop-panel novel-extract-panel novel-analyze-panel" data-novel-panel="analyze">
-  <h2>小说分析</h2>
-  <p class="novel-panel-tip">
+  <div class="novel-panel-head">
+    <h2>小说分析</h2>
+    <div class="novel-head-actions" aria-label="小说分析操作">
+      <button id="btnNovelNsfwStatusDraft" type="button" class="btn btn-fetch novel-btn-sm" title="从人物 NSFW 生成状态栏变量草案">NSFW→状态栏</button>
+      <button id="btnNovelNtlStatusDraft" type="button" class="btn btn-fetch novel-btn-sm" title="从人物 NTL 生成状态栏变量草案">NTL→状态栏</button>
+      <button id="btnNovelVesselStatusDraft" type="button" class="btn btn-fetch novel-btn-sm" title="从世界观成人载体生成状态栏变量草案">载体→状态栏</button>
+      <button id="btnGraphClear" type="button" class="btn btn-fetch novel-btn-sm" title="清空关系与图谱，保留实体">清空图谱</button>
+      <button id="btnGraphRelayout" type="button" class="btn btn-fetch novel-btn-sm" title="重新布局图谱">重新布局</button>
+      <button id="btnNovelRetryFailed" type="button" class="btn btn-fetch novel-btn-sm" title="仅重跑失败片" hidden>重跑失败</button>
+      <button id="btnNovelRagIndex" type="button" class="btn btn-fetch novel-btn-sm" title="强制重建向量/关键词索引">重建索引</button>
+      <button id="btnNovelAnalyzeAll" type="button" class="btn btn-ai novel-btn-sm" title="打开分析配置">开始分析</button>
+    </div>
+  </div>
+  <p class="novel-panel-tip ui-pref-tip">
     建索引 → 统一分析（骨架 / 丰满 / 关系）。结果在「人物列表 / 世界书条目」；本页为关系图谱。
-    向量检索需先在侧栏 <a href="#ai-config" class="novel-config-link">AI 配置</a> 填写 Embedding（可与主对话 API 分开配置），再点下方「重建索引」。
+    <strong>丰满</strong>＝对已有骨架实体用原文（RAG）补写正文详情。
+    向量检索需先在侧栏 <a href="#ai-config" class="novel-config-link">AI 配置</a> 填写 Embedding。
   </p>
   <p id="novelAnalyzeGate" class="novel-gate-hint" style="display:none;"></p>
 
   <div class="novel-extract-body novel-analyze-body">
-    <div class="novel-extract-controls novel-analyze-controls">
+    <div class="novel-analyze-status-row">
+      <p id="novelRagIndexInfo" class="novel-status-text">索引：未建</p>
+      <p id="novelFailedShardsInfo" class="novel-status-text" style="display:none;"></p>
+      <div id="novelAnalyzeQueue" class="novel-status-text" style="display:none;"></div>
+      <div id="novelAnalyzeStatus" class="novel-status-text"></div>
+      <pre id="novelNsfwStatusDraft" class="novel-status-text" style="display:none;white-space:pre-wrap;max-height:120px;overflow:auto;"></pre>
+    </div>
+
+    <div id="novelGraphCy" class="novel-graph-cy" role="img" aria-label="知识图谱可视化"></div>
+
+    <div class="novel-graph-footer">
+      <div class="novel-graph-footer-meta">
+        <p id="novelAnalyzeSummary" class="novel-analyze-summary" aria-live="polite">实体 0 · 关系 0</p>
+        <p id="novelGraphStats" class="novel-graph-stats" aria-live="polite">节点 0 · 边 0</p>
+      </div>
+      <div id="novelGraphDetail" class="novel-graph-detail">点击节点或边查看详情</div>
+    </div>
+  </div>
+</div>
+
+<!-- 开始分析配置（分片控件仍用原 id，供 syncShardModeUi / 状态读写） -->
+<div id="novelModalAnalyze" class="novel-modal" hidden aria-hidden="true">
+  <div class="novel-modal-backdrop" data-novel-modal-close="novelModalAnalyze"></div>
+  <div class="novel-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="novelModalAnalyzeTitle">
+    <div class="novel-modal-head">
+      <strong id="novelModalAnalyzeTitle">开始分析</strong>
+      <span class="novel-modal-tip">配置分片与范围后执行 · Esc / 遮罩关闭</span>
+    </div>
+    <div class="novel-modal-body">
       <div class="grid-3 novel-analyze-grid">
         <div class="form-group">
           <label for="novelAnalyzeShardMode">分析分片方式</label>
@@ -37,38 +78,22 @@
           <input id="novelAnalyzeChaptersPerShard" type="number" min="1" step="1" value="1" />
         </div>
       </div>
-
-      <div class="novel-toolbar novel-analyze-toolbar" aria-label="小说分析操作">
-        <button id="btnNovelRagIndex" type="button" class="btn btn-fetch novel-btn-sm" title="强制重建向量/关键词索引">重建索引</button>
-        <button id="btnNovelAnalyzeAll" type="button" class="btn btn-ai novel-btn-sm" title="骨架+丰满+关系（索引过期才重建）">开始完整分析</button>
-        <button id="btnNovelAnalyzeSkeleton" type="button" class="btn btn-fetch novel-btn-sm">仅骨架</button>
-        <button id="btnNovelAnalyzeEnrich" type="button" class="btn btn-fetch novel-btn-sm">仅丰满</button>
-        <button id="btnNovelRetryFailed" type="button" class="btn btn-fetch novel-btn-sm" title="仅重跑失败片" hidden>重跑失败</button>
-        <button id="btnGraphRelayout" type="button" class="btn btn-fetch novel-btn-sm" title="重新布局图谱">重新布局</button>
-        <button id="btnGraphClear" type="button" class="btn btn-fetch novel-btn-sm" title="清空关系与图谱，保留实体">清空图谱</button>
-        <button id="btnNovelNsfwStatusDraft" type="button" class="btn btn-fetch novel-btn-sm" title="从人物 NSFW 生成状态栏变量草案">NSFW→状态栏草案</button>
-        <button id="btnNovelNtlStatusDraft" type="button" class="btn btn-fetch novel-btn-sm" title="从人物 NTL 生成状态栏变量草案">NTL→状态栏草案</button>
-        <button id="btnNovelVesselStatusDraft" type="button" class="btn btn-fetch novel-btn-sm" title="从世界观成人载体生成状态栏变量草案">载体→状态栏草案</button>
-      </div>
-
-      <div class="novel-analyze-status-row">
-        <p id="novelRagIndexInfo" class="novel-status-text">索引：未建</p>
-        <p id="novelFailedShardsInfo" class="novel-status-text" style="display:none;"></p>
-        <div id="novelAnalyzeQueue" class="novel-status-text" style="display:none;"></div>
-        <div id="novelAnalyzeStatus" class="novel-status-text"></div>
-        <pre id="novelNsfwStatusDraft" class="novel-status-text" style="display:none;white-space:pre-wrap;max-height:120px;overflow:auto;"></pre>
-      </div>
+      <label class="novel-switch" style="margin:8px 0;">
+        <input id="novelAnalyzeSkeletonOnly" type="checkbox" />
+        <span>仅骨架（只扫人名/实体框架，不做正文丰满与关系）</span>
+      </label>
+      <p id="novelAnalyzeEstimate" class="novel-modal-desc ui-pref-tip" aria-live="polite">预计调用次数将显示在此</p>
+      <p class="novel-modal-desc ui-pref-tip">
+        完整分析 = 骨架分片 + 待丰满实体 + 关系收尾。
+        「丰满」指用原文检索补写实体正文；已有完整正文的实体会跳过。
+      </p>
+      <!-- 保留隐藏钩子，供旧接线 / 助手调用「仅丰满」 -->
+      <button id="btnNovelAnalyzeSkeleton" type="button" hidden aria-hidden="true">仅骨架</button>
+      <button id="btnNovelAnalyzeEnrich" type="button" hidden aria-hidden="true">仅丰满</button>
     </div>
-
-    <!-- G6 关系图谱：占满中部剩余高度 -->
-    <div id="novelGraphCy" class="novel-graph-cy" role="img" aria-label="知识图谱可视化"></div>
-
-    <div class="novel-graph-footer">
-      <div class="novel-graph-footer-meta">
-        <p id="novelAnalyzeSummary" class="novel-analyze-summary" aria-live="polite">实体 0 · 关系 0</p>
-        <p id="novelGraphStats" class="novel-graph-stats" aria-live="polite">节点 0 · 边 0</p>
-      </div>
-      <div id="novelGraphDetail" class="novel-graph-detail">点击节点或边查看详情</div>
+    <div class="novel-modal-actions">
+      <button type="button" class="btn novel-modal-cancel" data-novel-modal-close="novelModalAnalyze">取消</button>
+      <button type="button" class="btn btn-ai" id="btnNovelAnalyzeConfirm">开始分析</button>
     </div>
   </div>
 </div>

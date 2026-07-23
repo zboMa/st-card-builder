@@ -62,10 +62,12 @@ function syncEntryRow() {
     var meta = APP_THEMES[i];
     var label = document.getElementById('themeEntryLabel');
     var preview = document.getElementById('themeEntryPreview');
+    var entry = document.getElementById('btnThemeGalleryOpen');
     if (label) label.textContent = meta.label;
     if (preview) {
       preview.className = 'theme-entry__preview ' + meta.previewClass;
     }
+    if (entry) entry.setAttribute('aria-label', '外观：' + meta.label);
     return;
   }
 }

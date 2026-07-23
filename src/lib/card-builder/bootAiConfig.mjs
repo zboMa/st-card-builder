@@ -398,7 +398,9 @@ export function attachBootAiConfig(ctx) {
     if (!opts.silent) window.dispatchEvent(new CustomEvent('card-builder-data-changed'));
   };
   window.__runAiTask__ = ctx.runTracked;
-  window.__isAiAbortError__ = ctx.isTrackedAbort;
+  // 注意：不要在此覆盖 window.__isAiAbortError__ —— 该全局已由 AiTaskCenterUI 设为
+  // aiTaskCenter.mjs 的 isAbortError（真正实现）；ctx.isTrackedAbort 本身会回退读取
+  // 这个全局，若在此赋值为 ctx.isTrackedAbort 会造成自我递归调用，导致调用栈溢出。
   window.__assistantFetchAI__ = ctx.fetchAIContent;
   window.__persistAiConfig__ = saveAIConfig;
 

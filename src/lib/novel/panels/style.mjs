@@ -67,8 +67,14 @@ export function registerStyle(ctx) {
     });
 
     var distill = ctx.$('btnStyleDistill');
-    if (distill) distill.addEventListener('click', async function() {
+    if (distill) distill.addEventListener('click', function() {
+      panel.render();
+      ctx.openNovelModal('novelModalStyle');
+    });
+    var distillConfirm = ctx.$('btnStyleDistillConfirm');
+    if (distillConfirm) distillConfirm.addEventListener('click', async function() {
       if (ctx.busyFlags.styleDistill) return;
+      ctx.closeNovelModal('novelModalStyle');
       try {
         await panel.runDistill();
       } catch (e) {

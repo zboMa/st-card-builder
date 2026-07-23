@@ -241,6 +241,12 @@ describe('novel chapters', function() {
     assert.match(groups[1].text, /丙/);
     assert.equal(buildExtractShards(chs, { mode: 'chapters', chaptersPerShard: 1 }).length, 3);
     assert.equal(buildExtractShards(chs, { mode: 'chapters', chaptersPerShard: 10 }).length, 1);
+    // 178 章、每 20 章一片 → ceil(178/20)=9（勿与「骨架+丰满」合计次数混淆）
+    var longBook = [];
+    for (var i = 0; i < 178; i++) {
+      longBook.push({ id: 'c' + i, title: '第' + (i + 1) + '章', text: '正文', enabled: true });
+    }
+    assert.equal(estimateExtractCalls(longBook, { mode: 'chapters', chaptersPerShard: 20 }), 9);
   });
 });
 
@@ -594,22 +600,23 @@ describe('novel panel visual contract', function() {
     assert.match(style, /文风/);
     assert.match(style, /novel-style-panel/);
     assert.match(style, /novel-style-body/);
-    assert.match(style, /novel-style-controls/);
+    assert.match(style, /novel-panel-head|novel-head-actions/);
+    assert.match(style, /novelModalStyle/);
     assert.match(style, /novel-style-content/);
     assert.doesNotMatch(style, /class="[^"]*novel-card/);
   });
 
-  it('文风蒸馏：配置固定 + 内容区占满主区高度', function() {
+  it('文风蒸馏：配置弹窗 + 内容区占满主区高度', function() {
     const style = readFileSync(join(novelRoot, 'src/components/novel/NovelStylePanel.astro'), 'utf8');
     assert.match(style, /novel-style-panel/);
-    assert.match(style, /novel-style-controls[\s\S]*novelStyleChunkSize/);
+    assert.match(style, /novelModalStyle[\s\S]*novelStyleChunkSize|novelStyleChunkSize[\s\S]*novelModalStyle/);
     assert.match(style, /novel-style-content[\s\S]*novelStyleText/);
     const css = readNovelWorkshopStylesSources(novelRoot);
     assert.match(css, /\.novel-style-panel/);
     assert.match(css, /\.novel-style-body/);
     assert.match(css, /\.novel-style-content\s+#novelStyleText[\s\S]*flex:\s*1/s);
     const layout = readLayoutSources(novelRoot);
-    assert.match(layout, /\[data-view="novel-style"\]\.is-active/);
+    assert.match(layout, /\.app-view\.is-active/);
     assert.match(layout, /\.panel\.novel-style-panel/);
   });
 
@@ -635,8 +642,7 @@ describe('novel panel visual contract', function() {
     assert.match(css, /\.novel-setup-panel/);
     assert.match(css, /\.novel-setup-preview/);
     const layout = readLayoutSources(novelRoot);
-    assert.match(layout, /\[data-view="novel-character-setup"\]\.is-active/);
-    assert.match(layout, /\[data-view="novel-greetings"\]\.is-active/);
+    assert.match(layout, /\.app-view\.is-active/);
     assert.match(layout, /\.panel\.novel-setup-panel/);
     const app = readNovelBrowserAppSources(novelRoot);
     assert.match(app, /buildSetupCorpus|resolveSetupCorpus/);
@@ -652,7 +658,7 @@ describe('novel panel visual contract', function() {
     assert.match(index, /data-view="novel-greetings"/);
   });
 
-  it('拆章：顶栏批量 + 行内图标 + 居中弹窗预览 + 禁用样式 + 列表内滚', function() {
+  it('拆章：右上操作 + 检索 + 弹窗配置 + 行内图标 + 列表内滚', function() {
     const panel = readFileSync(join(novelRoot, 'src/components/novel/NovelChaptersPanel.astro'), 'utf8');
     // 顶栏仅保留真正批量项
     assert.match(panel, /btnChMerge/);
@@ -660,10 +666,17 @@ describe('novel panel visual contract', function() {
     assert.match(panel, /btnChDisable/);
     assert.match(panel, /btnChExport/);
     assert.match(panel, /btnChDelete/);
+    assert.match(panel, /novel-panel-head|novel-head-actions/);
+    assert.match(panel, /novelModalSplit|btnNovelSplitConfirm/);
+    assert.match(panel, /novelChapterSearchInput/);
+    assert.match(panel, /ui-pref-tip/);
+    // 右上：主操作自动拆章在最右
+    const splitIdx = panel.indexOf('btnNovelSplitChapters');
+    const mergeIdx = panel.indexOf('btnChMerge');
+    assert.ok(splitIdx > mergeIdx, '自动拆章应在合并所选之后（最右主操作）');
     assert.doesNotMatch(panel, /btnChSplit|btnChRename|btnChUp|btnChDown|btnChPreview/);
     assert.doesNotMatch(panel, /novelChapterPreview/); // 禁止列表内嵌预览框
     assert.match(panel, /novelModalChapter/);
-    assert.match(panel, /novel-chapters-controls/);
     assert.match(panel, /novel-chapter-list/);
     assert.match(panel, /novel-chapters-body/);
     // 去掉卡套卡：配置/列表不再包在 novel-card class 内
@@ -673,9 +686,8 @@ describe('novel panel visual contract', function() {
     const css = readNovelWorkshopStylesSources(novelRoot);
     assert.match(css, /\.novel-chapter-row\.is-disabled/);
     assert.match(css, /\.novel-chapter-list[\s\S]*overflow-y:\s*auto/);
-    assert.match(css, /\.novel-chapters-controls/);
+    assert.match(css, /\.novel-panel-head/);
     assert.match(css, /\.novel-chapters-body/);
-    assert.match(css, /\.novel-chapters-meta/);
     assert.doesNotMatch(css, /\.novel-chapters-card\b/);
     assert.match(css, /\.novel-modal\b/);
     assert.match(css, /\.novel-icon-btn/);
@@ -695,6 +707,7 @@ describe('novel panel visual contract', function() {
     assert.match(app, /data-ch-delete/);
     assert.match(app, /showChapterPreview/);
     assert.match(app, /openNovelModal\('novelModalChapter'\)/);
+    assert.match(app, /openNovelModal\('novelModalSplit'\)/);
     assert.match(app, /novel-icon-btn/);
     assert.match(app, /is-disabled/);
     // 操作在右侧横排，不塞进 novel-chapter-main 内部
@@ -782,7 +795,8 @@ describe('novel panel visual contract', function() {
     assert.match(ch, /btnCharEnrichSelected/);
     assert.match(ch, /id="btnNovelProfileSave"/);
     assert.doesNotMatch(ch, /btnCharExpandSelected|AI 扩展所选/);
-    assert.match(ch, /有实体走丰满|行内仍可用 AI 扩展/);
+    assert.match(ch, /丰满|RAG|档案/);
+    assert.match(ch, /novel-panel-head|novelModalCharScan/);
     assert.doesNotMatch(ch, /人物抽取/);
   });
 
@@ -827,17 +841,18 @@ describe('novel panel visual contract', function() {
     assert.match(analyzePanel, /mode === 'analyze'|runAnalyzeAll/);
   });
 
-  it('世界书条目：操作行 AI/新建/丰满/清空/同步；类型筛选+搜索；列表内滚', function() {
+  it('世界书条目：右上操作 + 抽取弹窗；类型筛选+搜索；列表内滚', function() {
     const wb = readFileSync(join(novelRoot, 'src/components/novel/NovelWorldbookPanel.astro'), 'utf8');
     assert.doesNotMatch(wb, /id="novelWbName"|for="novelWbName"/);
     assert.match(wb, /novel-extract-panel|novel-worldbook-panel/);
-    assert.match(wb, /novel-extract-controls/);
+    assert.match(wb, /novel-panel-head|novel-head-actions/);
     assert.match(wb, /novel-extract-body/);
-    assert.match(wb, /<h2>世界书条目<\/h2>/);
-    // 分片方式/数值与冲突策略同在配置行
+    assert.match(wb, /世界书条目/);
+    assert.match(wb, /novelModalWbExtract/);
+    // 分片方式/数值与冲突策略同在抽取弹窗
     assert.match(wb, /novelWbShardMode/);
     assert.match(wb, /novelWbChunkSize[\s\S]*novelWbConflictPolicy|novelWbConflictPolicy[\s\S]*novelWbChunkSize/);
-    // 操作行：AI 抽取 → 新建 → 丰满 → 清空 → 同步；成人勾选已迁至原始资料全局配置
+    // 右上操作：次 → 主（主操作 AI 抽取在最右）
     const extractIdx = wb.indexOf('btnWbExtract');
     const createIdx = wb.indexOf('btnWbCreateEntry');
     const enrichIdx = wb.indexOf('btnWbEnrichSelected');
@@ -846,12 +861,13 @@ describe('novel panel visual contract', function() {
     const typeIdx = wb.indexOf('novelWbTypeFilter');
     const searchIdx = wb.indexOf('novelWbSearchInput');
     const listIdx = wb.indexOf('novelWbPreview');
-    assert.ok(extractIdx > 0 && createIdx > extractIdx && enrichIdx > createIdx && clearIdx > enrichIdx);
-    assert.ok(syncIdx > clearIdx, '同步应在清空之后');
+    assert.ok(clearIdx > 0 && createIdx > clearIdx && enrichIdx > createIdx && syncIdx > enrichIdx);
+    assert.ok(extractIdx > syncIdx, 'AI 抽取应在最右（主操作）');
     assert.doesNotMatch(wb, /novelIncludeAdult/);
-    assert.ok(typeIdx > syncIdx && searchIdx > typeIdx, '类型筛选与搜索应在操作行之后');
+    assert.ok(typeIdx > extractIdx && searchIdx > typeIdx, '类型筛选与搜索应在操作行之后');
     assert.ok(listIdx > searchIdx, '列表应紧跟搜索之后');
     assert.match(wb, /novel-wb-search-only/);
+    assert.match(wb, /ui-pref-tip/);
     assert.doesNotMatch(wb, /class="[^"]*novel-card/);
 
     const source = readFileSync(join(novelRoot, 'src/components/novel/NovelSourcePanel.astro'), 'utf8');
@@ -859,19 +875,18 @@ describe('novel panel visual contract', function() {
 
     const chars = readFileSync(join(novelRoot, 'src/components/novel/NovelCharactersPanel.astro'), 'utf8');
     assert.match(chars, /novel-extract-panel|novel-characters-panel/);
-    assert.match(chars, /novel-extract-controls|novelCharGrid/);
+    assert.match(chars, /novelCharGrid/);
     assert.match(chars, /novelCharShardMode|novelCharChaptersPerShard/);
     assert.match(chars, /novelModalExpandConfirm/);
     assert.doesNotMatch(chars, /class="[^"]*novel-card/);
 
     const css = readNovelWorkshopStylesSources(novelRoot);
     assert.match(css, /\.novel-extract-panel/);
-    assert.match(css, /\.novel-extract-controls/);
+    assert.match(css, /\.novel-panel-head/);
     assert.match(css, /\.novel-entity-list[\s\S]*overflow-y:\s*auto/);
 
     const layout = readLayoutSources(novelRoot);
-    assert.match(layout, /data-view="novel-characters"\]\.is-active/);
-    assert.match(layout, /data-view="novel-worldbook"\]\.is-active/);
+    assert.match(layout, /\.app-view\.is-active/);
     assert.doesNotMatch(layout, /data-view="novel-knowledge"/);
     assert.match(layout, /novel-extract-panel/);
 

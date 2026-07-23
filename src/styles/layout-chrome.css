@@ -105,12 +105,10 @@
       .app-container {
         display: flex;
         flex-direction: column;
-        gap: 18px;
+        gap: 0;
         min-width: 0;
         height: 100%;
-        overflow-x: hidden;
-        overflow-y: auto;
-        scrollbar-gutter: stable;
+        overflow: hidden;
       }
 
       /* 视图切换：非激活仍占 DOM（保留表单数据），仅隐藏 */
@@ -118,24 +116,8 @@
         display: none;
         min-width: 0;
       }
+      /* 激活视图占满主区；面板在其内滚动，避免底部/侧边留白 */
       .app-view.is-active {
-        display: block;
-      }
-      /* 世界书 / 拆章 / 角色设定·开场白生成 / 人物·世界书抽取 / 文风 / 试聊：激活时占满主区 */
-      .app-view[data-view="worldbook"].is-active,
-      .app-view[data-view="novel-chapters"].is-active,
-      .app-view[data-view="novel-character-setup"].is-active,
-      .app-view[data-view="novel-greetings"].is-active,
-      .app-view[data-view="novel-analyze"].is-active,
-      .app-view[data-view="novel-characters"].is-active,
-      .app-view[data-view="novel-worldbook"].is-active,
-      .app-view[data-view="novel-style"].is-active,
-      .app-view[data-view="story-manage"].is-active,
-      .app-view[data-view="story-graph"].is-active,
-      .app-view[data-view="story-outline"].is-active,
-      .app-view[data-view="story-write"].is-active,
-      .app-view[data-view="story-read"].is-active,
-      .app-view[data-view="chat"].is-active {
         display: flex;
         flex-direction: column;
         flex: 1 1 auto;
@@ -144,6 +126,11 @@
       }
       .app-view-slot {
         min-width: 0;
+        flex: 1 1 auto;
+        min-height: 0;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
       }
 
       /* —— 侧栏 —— */
@@ -201,6 +188,19 @@
         padding: var(--space-1) var(--space-2) var(--space-2);
         user-select: none;
         pointer-events: none;
+      }
+      .app-sidebar-group-title--row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-2);
+        padding-right: var(--space-1);
+      }
+      .app-sidebar-group-title--row > span {
+        pointer-events: none;
+      }
+      .app-sidebar-group-title--row > .theme-entry {
+        pointer-events: auto;
       }
       .app-sidebar-item {
         display: flex;
@@ -276,17 +276,13 @@
         padding-top: var(--space-2);
         border-top: 1px solid var(--color-border-subtle);
       }
-      .app-sidebar-theme {
-        flex-shrink: 0;
-        margin-top: var(--space-1);
-        padding: var(--space-2) var(--space-2) var(--space-1);
-        border-top: 1px solid var(--color-border-subtle);
-      }
-
-      /* 主内容区面板：随主区高度约束，过长时在面板内滚动 */
+      /* 主内容区面板：铺满主区高度，过长时在面板内滚动（勿用固定 max-height，否则高屏底部留白） */
       .app-container .panel,
       .app-container .code-window {
-        max-height: min(860px, calc(100dvh - 48px));
+        flex: 1 1 auto;
+        min-height: 0;
+        max-height: none;
+        height: 100%;
       }
       /* 世界书 / 拆章 / 角色设定·开场白生成 / 人物·世界书抽取 / 文风 / 试聊：内容区内滚 */
       .app-container .panel.area-worldbook,
@@ -296,8 +292,6 @@
       .app-container .panel.novel-style-panel,
       .app-container .panel.chat-playground,
       .app-container .panel.story-studio-panel {
-        max-height: none;
-        height: 100%;
         overflow: hidden;
       }
 
@@ -450,25 +444,17 @@
           -webkit-overflow-scrolling: touch;
         }
 
-        /* 窄屏：面板随内容增高，列表/对话自限高度内滚 */
+        /* 窄屏：面板随内容增高，列表/对话自限高度内滚；主区整体滚动 */
         .panel, .code-window {
           max-height: none !important;
           position: static !important;
         }
-        .app-view[data-view="worldbook"].is-active,
-        .app-view[data-view="novel-chapters"].is-active,
-        .app-view[data-view="novel-character-setup"].is-active,
-        .app-view[data-view="novel-greetings"].is-active,
-        .app-view[data-view="novel-analyze"].is-active,
-        .app-view[data-view="novel-characters"].is-active,
-        .app-view[data-view="novel-worldbook"].is-active,
-        .app-view[data-view="novel-style"].is-active,
-        .app-view[data-view="story-manage"].is-active,
-        .app-view[data-view="story-graph"].is-active,
-        .app-view[data-view="story-outline"].is-active,
-        .app-view[data-view="story-write"].is-active,
-        .app-view[data-view="story-read"].is-active,
-        .app-view[data-view="chat"].is-active {
+        .app-view.is-active {
+          height: auto;
+          flex: none;
+        }
+        .app-container .panel,
+        .app-container .code-window {
           height: auto;
           flex: none;
         }
@@ -479,7 +465,6 @@
         .app-container .panel.novel-style-panel,
         .app-container .panel.chat-playground,
         .app-container .panel.story-studio-panel {
-          height: auto;
           overflow: visible;
         }
         .area-worldbook #entriesList {
@@ -527,9 +512,7 @@
         padding: var(--space-5);
         border-radius: var(--radius-md);
         border: 1px solid var(--color-glass-border);
-        max-height: min(720px, calc(100vh - 112px));
         overflow-y: auto;
-        scrollbar-gutter: stable;
         box-shadow: var(--shadow-panel), var(--shadow-inset);
         transition: border-color var(--dur-normal) var(--ease-out),
           box-shadow var(--dur-normal) var(--ease-out);

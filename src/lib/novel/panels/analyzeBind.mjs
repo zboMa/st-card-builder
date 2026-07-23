@@ -10,10 +10,10 @@ import {
  */
 export function attachNovelAnalyzeBind(ctx, panel, graphRef) {
   panel.bind = function() {
-    var state = ctx.state;
     var $ = ctx.$;
     var mode = $('novelAnalyzeShardMode');
     if (mode) mode.addEventListener('change', function() {
+      var state = ctx.state;
       state.analyzeShardMode = mode.value === 'chapters' ? 'chapters' : 'chars';
       if (ctx.syncShardModeUi) ctx.syncShardModeUi('novelAnalyze', state.analyzeShardMode);
       ctx.save();
@@ -21,23 +21,27 @@ export function attachNovelAnalyzeBind(ctx, panel, graphRef) {
     });
     var chunk = $('novelAnalyzeChunkSize');
     if (chunk) chunk.addEventListener('change', function() {
-      state.analyzeChunkSize = parseInt(chunk.value, 10) || 8000;
+      ctx.state.analyzeChunkSize = parseInt(chunk.value, 10) || 8000;
       ctx.save();
       if (ctx.updateExtractCallEstimates) ctx.updateExtractCallEstimates();
     });
     var per = $('novelAnalyzeChaptersPerShard');
     if (per) {
       per.addEventListener('change', function() {
-        state.analyzeChaptersPerShard = Math.max(1, Math.floor(parseInt(per.value, 10) || 1));
-        per.value = String(state.analyzeChaptersPerShard);
+        ctx.state.analyzeChaptersPerShard = Math.max(1, Math.floor(parseInt(per.value, 10) || 1));
+        per.value = String(ctx.state.analyzeChaptersPerShard);
         ctx.save();
         if (ctx.updateExtractCallEstimates) ctx.updateExtractCallEstimates();
       });
       per.addEventListener('input', function() {
-        state.analyzeChaptersPerShard = Math.max(1, Math.floor(parseInt(per.value, 10) || 1));
+        ctx.state.analyzeChaptersPerShard = Math.max(1, Math.floor(parseInt(per.value, 10) || 1));
         if (ctx.updateExtractCallEstimates) ctx.updateExtractCallEstimates();
       });
     }
+    var skOnly = $('novelAnalyzeSkeletonOnly');
+    if (skOnly) skOnly.addEventListener('change', function() {
+      if (ctx.updateExtractCallEstimates) ctx.updateExtractCallEstimates();
+    });
     function showStatusBarDraft(draft, storageKey) {
       var box = $('novelNsfwStatusDraft');
       if (box) {
@@ -54,6 +58,7 @@ export function attachNovelAnalyzeBind(ctx, panel, graphRef) {
     }
     var sbDraft = $('btnNovelNsfwStatusDraft');
     if (sbDraft) sbDraft.addEventListener('click', function() {
+      var state = ctx.state;
       showStatusBarDraft(
         buildStatusBarNsfwDraftFromEntities(state.entities, state.setupCharName || ''),
         'st_v3_nsfw_status_draft'
@@ -61,6 +66,7 @@ export function attachNovelAnalyzeBind(ctx, panel, graphRef) {
     });
     var ntlDraftBtn = $('btnNovelNtlStatusDraft');
     if (ntlDraftBtn) ntlDraftBtn.addEventListener('click', function() {
+      var state = ctx.state;
       showStatusBarDraft(
         buildStatusBarNtlDraftFromEntities(state.entities, state.setupCharName || ''),
         'st_v3_ntl_status_draft'
@@ -68,6 +74,7 @@ export function attachNovelAnalyzeBind(ctx, panel, graphRef) {
     });
     var vesselDraftBtn = $('btnNovelVesselStatusDraft');
     if (vesselDraftBtn) vesselDraftBtn.addEventListener('click', function() {
+      var state = ctx.state;
       var wf = resolveWorldframe(state);
       showStatusBarDraft(
         buildStatusBarVesselDraftFromEntities(state.entities, { worldframe: wf.id }),
@@ -87,13 +94,31 @@ export function attachNovelAnalyzeBind(ctx, panel, graphRef) {
       }
     });
     var allBtn = $('btnNovelAnalyzeAll');
-    if (allBtn) allBtn.addEventListener('click', async function() {
-      if (ctx.busyFlags.analyzeAll) return;
+    if (allBtn) allBtn.addEventListener('click', function() {
+      var state = ctx.state;
+      var modeEl = $('novelAnalyzeShardMode');
+      var chunk = $('novelAnalyzeChunkSize');
+      var per = $('novelAnalyzeChaptersPerShard');
+      if (modeEl) modeEl.value = state.analyzeShardMode === 'chapters' ? 'chapters' : 'chars';
+      if (chunk) chunk.value = String(state.analyzeChunkSize || 8000);
+      if (per) per.value = String(state.analyzeChaptersPerShard || 1);
+      if (ctx.syncShardModeUi) ctx.syncShardModeUi('novelAnalyze', state.analyzeShardMode);
+      if (ctx.updateExtractCallEstimates) ctx.updateExtractCallEstimates();
+      var skOnly = $('novelAnalyzeSkeletonOnly');
+      if (skOnly) skOnly.checked = false;
+      ctx.openNovelModal('novelModalAnalyze');
+    });
+    var analyzeConfirm = $('btnNovelAnalyzeConfirm');
+    if (analyzeConfirm) analyzeConfirm.addEventListener('click', async function() {
+      if (ctx.busyFlags.analyzeAll || ctx.busyFlags.analyzeSkeleton) return;
+      var skOnly = $('novelAnalyzeSkeletonOnly');
+      ctx.closeNovelModal('novelModalAnalyze');
       try {
-        await panel.runAnalyzeAll();
+        if (skOnly && skOnly.checked) await panel.runAnalyzeSkeleton();
+        else await panel.runAnalyzeAll();
       } catch (e) {
         if (!ctx.isTrackedAbort(e)) {
-          alert('完整分析失败: ' + (e.message || e));
+          alert((skOnly && skOnly.checked ? '骨架' : '完整') + '分析失败: ' + (e.message || e));
           if (ctx.setStatus) ctx.setStatus('novelAnalyzeStatus', '分析失败');
         }
       }

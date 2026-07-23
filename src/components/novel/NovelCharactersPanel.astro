@@ -1,20 +1,54 @@
 ---
-/** 人物列表：分析结果展示/编辑；扫描为可选降级路径 */
+/** 人物列表：右上操作；扫描配置弹窗；检索 + 列表 */
 ---
 <div class="panel novel-workshop-panel novel-extract-panel novel-characters-panel" data-novel-panel="characters">
-  <h2>人物列表</h2>
-  <p class="novel-panel-tip">
+  <div class="novel-panel-head">
+    <h2>人物列表 <span id="novelCharCount" class="novel-panel-count">0</span></h2>
+    <div class="novel-head-actions" aria-label="人物列表操作">
+      <button id="btnCharClear" type="button" class="btn btn-fetch novel-btn-sm">清空</button>
+      <button id="btnCharMerge" type="button" class="btn btn-fetch novel-btn-sm">合并所选</button>
+      <button id="btnSyncCharsSelected" type="button" class="btn btn-fetch novel-btn-sm">同步→世界书</button>
+      <button id="btnSyncCharsWb" type="button" class="btn btn-fetch novel-btn-sm" hidden aria-hidden="true">同步所选 → 世界书</button>
+      <button id="btnCharEnrichSelected" type="button" class="btn btn-ai novel-btn-sm" title="按原文丰满所选人物（RAG）">丰满所选</button>
+      <button id="btnCharScan" type="button" class="btn btn-ai novel-btn-sm" title="降级：仅扫描人名">扫描全书</button>
+    </div>
+  </div>
+  <p class="novel-panel-tip ui-pref-tip">
     展示分析或扫描得到的<strong>人物结果</strong>。推荐在「小说分析」统一抽取后于此查看、「丰满所选」/同步；
-    也可在本页用「扫描全书」走降级路径。有实体走丰满（RAG）；无实体时行内仍可用 AI 扩展。
-    点标题打开档案；人物只同步到<strong>世界书人物条</strong>（与主角「角色设定」分管道，互不写入）。
+    「丰满」＝用原文（RAG）补写人物正文。点标题打开档案。
   </p>
   <p id="novelCharGate" class="novel-gate-hint" style="display:none;"></p>
+  <div id="novelCharStatus" class="novel-status-text"></div>
 
   <div class="novel-extract-body">
-    <div class="novel-extract-controls">
+    <div class="novel-toolbar" style="margin-bottom:8px;">
+      <input id="novelCharManual" type="text" placeholder="手动添加：小李, 小王" style="flex:1;" />
+      <button id="btnCharAdd" type="button" class="btn btn-add novel-btn-sm">添加</button>
+    </div>
+    <div class="wb-toolbar novel-wb-toolbar novel-wb-search-only">
+      <div class="wb-search-wrap">
+        <div class="wb-search-bar">
+          <span class="wb-search-icon" aria-hidden="true">🔍</span>
+          <input type="text" id="novelCharSearchInput" class="wb-search-input" placeholder="搜索姓名 / 别名 / 说明..." autocomplete="off" />
+          <button id="novelCharSearchClear" class="wb-search-clear" title="清空" type="button" style="display:none;">✕</button>
+        </div>
+      </div>
+    </div>
+    <div id="novelCharGrid" class="novel-entity-list" aria-live="polite"></div>
+  </div>
+</div>
+
+<div id="novelModalCharScan" class="novel-modal" hidden aria-hidden="true">
+  <div class="novel-modal-backdrop" data-novel-modal-close="novelModalCharScan"></div>
+  <div class="novel-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="novelModalCharScanTitle">
+    <div class="novel-modal-head">
+      <strong id="novelModalCharScanTitle">扫描全书</strong>
+      <span class="novel-modal-tip">降级路径：分片扫人名 · Esc / 遮罩关闭</span>
+    </div>
+    <div class="novel-modal-body">
       <div class="grid-3">
         <div class="form-group">
-          <label for="novelCharShardMode">扫描分片方式（降级）</label>
+          <label for="novelCharShardMode">扫描分片方式</label>
           <select id="novelCharShardMode">
             <option value="chars" selected>按字数</option>
             <option value="chapters">按章节</option>
@@ -46,27 +80,13 @@
           </select>
         </div>
       </div>
-      <div class="form-group">
-        <label for="novelCharManual">手动添加角色（用原文准确称呼，多个用逗号 / 空格分隔）</label>
-        <div class="novel-toolbar" style="margin-bottom:0;">
-          <input id="novelCharManual" type="text" placeholder="如：小李, 小王, 小张" style="flex:1;" />
-          <button id="btnCharAdd" type="button" class="btn btn-add novel-btn-sm">添加</button>
-        </div>
-      </div>
-      <div class="novel-toolbar">
-        <button id="btnCharScan" type="button" class="btn novel-btn-sm" title="降级：仅扫描人名">扫描全书</button>
-        <button id="btnCharEnrichSelected" type="button" class="btn btn-ai novel-btn-sm" title="按原文丰满所选人物（RAG）">丰满所选</button>
-        <button id="btnCharMerge" type="button" class="btn btn-fetch novel-btn-sm">合并所选</button>
-        <button id="btnCharClear" type="button" class="btn btn-fetch novel-btn-sm">清空列表</button>
-        <button id="btnSyncCharsSelected" type="button" class="btn btn-fetch novel-btn-sm">同步所选 → 世界书</button>
-        <button id="btnSyncCharsWb" type="button" class="btn btn-fetch novel-btn-sm" hidden aria-hidden="true">同步所选 → 世界书</button>
-        <label class="novel-switch"><input id="novelScanIdentity" type="checkbox" /><span>扫描时附带身份说明</span></label>
-        <label class="novel-switch"><input id="novelSplitStage" type="checkbox" /><span>按人物阶段拆分</span></label>
-      </div>
-      <div id="novelCharStatus" class="novel-status-text"></div>
+      <label class="novel-switch"><input id="novelScanIdentity" type="checkbox" /><span>扫描时附带身份说明</span></label>
+      <label class="novel-switch"><input id="novelSplitStage" type="checkbox" /><span>按人物阶段拆分</span></label>
     </div>
-
-    <div id="novelCharGrid" class="novel-entity-list" aria-live="polite"></div>
+    <div class="novel-modal-actions">
+      <button type="button" class="btn novel-modal-cancel" data-novel-modal-close="novelModalCharScan">取消</button>
+      <button type="button" class="btn btn-ai" id="btnCharScanConfirm">开始扫描</button>
+    </div>
   </div>
 </div>
 

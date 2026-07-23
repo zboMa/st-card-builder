@@ -18,7 +18,9 @@ export function registerWorldbook(ctx) {
     applyTriggerKeySuggestions: s.applyTriggerKeySuggestions,
     openWbModal: s.openWbModal,
     closeWbModal: s.closeWbModal,
+    resetWBForm: s.resetWBForm,
     bindModals: panel.bindModals,
   };
-  panel.bindModals();
+  // 注意：不要在此调用 bindModals()。browserApp.safeBind('worldbook', …) 会挂一次；
+  // 若此处再调，保存/新建监听器会双绑 → 校验弹两遍、成功新增两条。
 }
