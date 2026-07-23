@@ -64,6 +64,10 @@ export async function saveAvatarFromImage(draftId, img) {
   await idbSetBlob(idbAvatarFullKey(draftId), fullBlob, 'image/jpeg');
   await idbSetBlob(idbAvatarThumbKey(draftId), thumbBlob, 'image/jpeg');
   try {
+    var revMod = await import('./sync/contentRev.mjs');
+    revMod.bumpCardBundleTouch(draftId);
+  } catch (eRev) { /* ignore */ }
+  try {
     var sync = await import('./sync/avatarMirror.mjs');
     await sync.mirrorAvatarToPouch(draftId);
   } catch (e) {
@@ -106,6 +110,10 @@ export async function deleteAvatarDraft(draftId) {
   if (!draftId) return;
   await idbDeleteBlob(idbAvatarFullKey(draftId));
   await idbDeleteBlob(idbAvatarThumbKey(draftId));
+  try {
+    var revMod = await import('./sync/contentRev.mjs');
+    revMod.bumpCardBundleTouch(draftId);
+  } catch (eRev) { /* ignore */ }
 }
 
 /** 旧草稿 avatarBase64 → IndexedDB */

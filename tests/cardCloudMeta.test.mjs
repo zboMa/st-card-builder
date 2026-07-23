@@ -39,6 +39,24 @@ describe('cardCloudMeta', function() {
     assert.equal(resolveCardCloudStatus({ updatedAt: 't2' }, getCardCloudMeta('c1')), CLOUD_STATUS.CLOUD_DIRTY);
   });
 
+  it('contentRev 主判据：正文未变则 dirty 为 false', function() {
+    var draft = { charName: 'A', charDesc: 'd', updatedAt: '11:00:00', contentRev: 'a1b2c3d4' };
+    globalThis.localStorage.setItem(CARD_CLOUD_META_KEY, JSON.stringify({
+      rev1: {
+        cardId: 'rev1',
+        onCloud: true,
+        localSyncedAt: '10:00:00',
+        syncedContentRev: 'a1b2c3d4',
+        syncedBundleTouch: 0,
+        bundleTouch: 0,
+      },
+    }));
+    assert.equal(
+      resolveCardCloudStatus(Object.assign({}, draft, { updatedAt: '99:99:99' }), getCardCloudMeta('rev1')),
+      CLOUD_STATUS.CLOUD_SYNCED
+    );
+  });
+
   it('pendingUpload 在 markSynced 后清除；云 ISO 与本地时分秒不误判 dirty', function() {
     globalThis.localStorage.setItem(CARD_CLOUD_META_KEY, JSON.stringify({
       c2: {
@@ -50,10 +68,16 @@ describe('cardCloudMeta', function() {
       },
     }));
     assert.equal(resolveCardCloudStatus({ updatedAt: '23:24:53' }, getCardCloudMeta('c2')), CLOUD_STATUS.CLOUD_DIRTY);
-    markCardSynced('c2', '2026-07-22T15:24:53.000Z', '23:24:53');
+    markCardSynced('c2', '2026-07-22T15:24:53.000Z', '23:24:53', {
+      contentRev: 'deadbeef',
+      bundleTouch: 0,
+    });
     var meta = getCardCloudMeta('c2');
     assert.equal(meta.pendingUpload, false);
-    assert.equal(resolveCardCloudStatus({ updatedAt: '23:24:53' }, meta), CLOUD_STATUS.CLOUD_SYNCED);
+    assert.equal(
+      resolveCardCloudStatus({ updatedAt: '23:24:53', contentRev: 'deadbeef' }, meta),
+      CLOUD_STATUS.CLOUD_SYNCED
+    );
   });
 
   it('仅有 onCloud 标记、无 localSyncedAt 时视为未上云', function() {

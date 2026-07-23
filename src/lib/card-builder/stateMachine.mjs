@@ -12,6 +12,7 @@ import {
   draftDisplayName,
 } from './state.mjs';
 import { deepCopy } from '../utils.mjs';
+import { attachContentRevToDraft } from '../sync/contentRev.mjs';
 
 var DEBOUNCE_MS = 500;
 
@@ -44,7 +45,7 @@ export function createCardStateMachine(state) {
     }
     // 仅在真实落盘时刷新 updatedAt（列表渲染用的快照不得伪造时间，否则云状态永远 dirty）
     state.updatedAt = stampDraftUpdatedAt();
-    dr[state.draftId] = buildDraftSnapshot(state);
+    dr[state.draftId] = attachContentRevToDraft(buildDraftSnapshot(state));
     var saved = false;
     try {
       localStorage.setItem(DRAFTS_KEY, JSON.stringify(dr));
@@ -228,7 +229,7 @@ export function createCardStateMachine(state) {
     copy.updatedAt = stampDraftUpdatedAt();
     copy.avatarInIdb = !!(src.avatarInIdb || src.avatarBase64);
     if (copy.avatarInIdb) copy.avatarBase64 = '';
-    dr[newId] = copy;
+    dr[newId] = attachContentRevToDraft(copy);
     localStorage.setItem(DRAFTS_KEY, JSON.stringify(dr));
     loadDraftIntoState(newId);
     return newId;
@@ -242,7 +243,7 @@ export function createCardStateMachine(state) {
     if (!next) return { ok: false, error: '名称为空' };
     d.charName = next;
     d.updatedAt = stampDraftUpdatedAt();
-    dr[id] = d;
+    dr[id] = attachContentRevToDraft(d);
     localStorage.setItem(DRAFTS_KEY, JSON.stringify(dr));
     if (id === state.draftId) {
       state.charName = next;
@@ -258,14 +259,20 @@ export function createCardStateMachine(state) {
   /** 写入整张 drafts map（版本/发布等已组装好对象时使用） */
   function writeDraftsMap(dr, opts) {
     opts = opts || {};
+    var next = dr || {};
+    Object.keys(next).forEach(function(k) {
+      if (next[k] && typeof next[k] === 'object') {
+        next[k] = attachContentRevToDraft(next[k]);
+      }
+    });
     try {
-      localStorage.setItem(DRAFTS_KEY, JSON.stringify(dr || {}));
-      var result = { saved: true, drafts: dr, id: state.draftId };
+      localStorage.setItem(DRAFTS_KEY, JSON.stringify(next));
+      var result = { saved: true, drafts: next, id: state.draftId };
       if (opts.notify !== false) notifyListeners(result);
       return Object.assign({ ok: true }, result);
     } catch (e) {
       console.warn('[stateMachine] writeDraftsMap failed', e);
-      return { ok: false, drafts: dr };
+      return { ok: false, drafts: next };
     }
   }
 

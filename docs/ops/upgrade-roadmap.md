@@ -8,7 +8,7 @@
 | Phase | 主题 | 状态 |
 |---|---|---|
 | 0 | 基线文档与度量 | ✅ 已合并 #71 |
-| 1 | 云同步（冲突/stub/批量/1A–1C 已合并） | ✅ 本 PR 补全 1B+批量 |
+| 1 | 云同步（冲突/stub/批量/1A–1C/1D） | ✅ #75 + 1D |
 | 2 | 保存链收敛 `writeDraftsMap` | ✅ 本 PR |
 | 3 | 大模块拆分 | ⏭ 首期未拆 mega panel；Cloud 已独立模块 |
 | 4 | 小说/Story 懒 boot | ✅ 本 PR |
@@ -22,7 +22,6 @@
 ## 后续迭代（未在本 PR）
 
 - Phase 3 深拆：`assistant/panelBoot`、`worldbookShared`、`mvu/variableCardPanel`
-- Phase 1D `contentRev` 云 dirty 主判据
 - Phase 5B bundle 分片存储
 
 ## 相关 SoT
