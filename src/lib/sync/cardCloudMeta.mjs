@@ -71,17 +71,27 @@ export function markCardLocalOnly(cardId) {
     onCloud: false,
     cloudUpdatedAt: null,
     localSyncedAt: null,
+    syncedContentRev: null,
+    syncedBundleTouch: null,
+    bundleTouch: null,
     lastSyncedAt: null,
     pendingUpload: false,
     pendingDownload: false,
   });
 }
 
-export function markCardSynced(cardId, cloudUpdatedAt, localUpdatedAt) {
+export function markCardSynced(cardId, cloudUpdatedAt, localUpdatedAt, syncBaseline) {
+  syncBaseline = syncBaseline || {};
+  var prev = getCardCloudMeta(cardId) || {};
+  var bundleTouch = syncBaseline.bundleTouch != null
+    ? syncBaseline.bundleTouch
+    : (prev.bundleTouch != null ? prev.bundleTouch : 0);
   return setCardCloudMeta(cardId, {
     onCloud: true,
     cloudUpdatedAt: cloudUpdatedAt || localUpdatedAt || null,
     localSyncedAt: localUpdatedAt || cloudUpdatedAt || null,
+    syncedContentRev: syncBaseline.contentRev || null,
+    syncedBundleTouch: bundleTouch,
     lastSyncedAt: new Date().toISOString(),
     // 成功同步后清掉挂起标记，否则会永远显示「未同步」
     pendingUpload: false,
@@ -94,19 +104,30 @@ export function markCardSynced(cardId, cloudUpdatedAt, localUpdatedAt) {
  * @param {object|null} meta
  * @returns {'local_only'|'cloud_dirty'|'cloud_synced'}
  *
- * 判定以「本地是否相对上次成功同步基线有变化」为准。
- * 不把 cloudUpdatedAt 与 draft.updatedAt 直接比字符串：云索引可能是 ISO，
- * 本地草稿常用 locale 时分秒，硬比会永远 dirty。
+ * 判定以 contentRev（正文指纹）+ bundleTouch（工坊/头像/RAG）为主；
+ * 无基线时回退 localSyncedAt vs draft.updatedAt（兼容旧数据）。
  */
 export function resolveCardCloudStatus(draft, meta) {
   if (draft && draft._cloudStub) return CLOUD_STATUS.CLOUD_DIRTY;
   if (!meta || !meta.onCloud) return CLOUD_STATUS.LOCAL_ONLY;
   var syncedLocal = String(meta.localSyncedAt || '');
   // 从未 markCardSynced 成功：仅云端索引/onCloud 标记不算「已上云」
-  if (!syncedLocal) return CLOUD_STATUS.LOCAL_ONLY;
+  if (!syncedLocal && !meta.syncedContentRev) return CLOUD_STATUS.LOCAL_ONLY;
   if (meta.pendingUpload || meta.pendingDownload) return CLOUD_STATUS.CLOUD_DIRTY;
-  var localAt = String((draft && draft.updatedAt) || '');
-  if (localAt && localAt !== syncedLocal) return CLOUD_STATUS.CLOUD_DIRTY;
+
+  var hasRevBaseline = !!meta.syncedContentRev;
+  if (hasRevBaseline) {
+    var localRev = String((draft && draft.contentRev) || '');
+    if (!localRev || localRev !== String(meta.syncedContentRev)) return CLOUD_STATUS.CLOUD_DIRTY;
+  } else {
+    var localAt = String((draft && draft.updatedAt) || '');
+    if (localAt && localAt !== syncedLocal) return CLOUD_STATUS.CLOUD_DIRTY;
+  }
+
+  if (meta.syncedBundleTouch != null && meta.bundleTouch != null
+    && meta.bundleTouch !== meta.syncedBundleTouch) {
+    return CLOUD_STATUS.CLOUD_DIRTY;
+  }
   return CLOUD_STATUS.CLOUD_SYNCED;
 }
 

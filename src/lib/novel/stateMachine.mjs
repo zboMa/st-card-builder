@@ -72,7 +72,14 @@ export function createNovelStateMachine(opts) {
     var raw = state;
     var key = _bucketKey();
     if (!key || key === NOVEL_BUCKET_PREFIX) return;
-    _idbSet(key, raw).catch(function(err) {
+    var cardId = boundCardId;
+    _idbSet(key, raw).then(function() {
+      if (cardId) {
+        import('../sync/contentRev.mjs').then(function(m) {
+          m.bumpCardBundleTouch(cardId);
+        }).catch(function() { /* ignore */ });
+      }
+    }).catch(function(err) {
       _debug('stateMachine: IDB 写入失败，回退 localStorage', err);
       try {
         localStorage.setItem(key, JSON.stringify(raw));

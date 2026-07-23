@@ -45,6 +45,10 @@ export async function saveRagIndex(cardId, index) {
   payload.version = RAG_INDEX_VERSION;
   payload.updatedAt = new Date().toISOString();
   await idbSetJson(key, payload);
+  try {
+    var revMod = await import('../../sync/contentRev.mjs');
+    revMod.bumpCardBundleTouch(cardId);
+  } catch (eRev) { /* ignore */ }
   return true;
 }
 

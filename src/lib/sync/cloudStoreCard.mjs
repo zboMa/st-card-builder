@@ -20,6 +20,7 @@ import {
   readLocalAvatarParts,
   isCloudEnabled,
 } from './cloudStoreShared.mjs';
+import { attachContentRevToDraft, collectSyncBaseline } from './contentRev.mjs';
 
 export async function buildLocalCardBundle(cardId) {
   var id = String(cardId || '').trim();
@@ -44,10 +45,10 @@ export async function hydrateCardBundleToLocal(bundle) {
   var id = String(bundle.cardId);
   var drafts = readDrafts();
   if (bundle.card && bundle.card.data) {
-    drafts[id] = Object.assign({}, bundle.card.data, { _cloudStub: false });
+    drafts[id] = attachContentRevToDraft(Object.assign({}, bundle.card.data, { _cloudStub: false }));
     writeDrafts(drafts);
   } else if (bundle.card && typeof bundle.card === 'object' && !bundle.card._id) {
-    drafts[id] = Object.assign({}, bundle.card, { _cloudStub: false });
+    drafts[id] = attachContentRevToDraft(Object.assign({}, bundle.card, { _cloudStub: false }));
     writeDrafts(drafts);
   }
 
@@ -88,7 +89,8 @@ export async function cloudSaveCard(cardId, draft) {
   if (out && !out.queued) {
     try {
       var { markCardSynced } = await import('./cardCloudMeta.mjs');
-      markCardSynced(id, draft.updatedAt, draft.updatedAt);
+      var { getCardCloudMeta } = await import('./cardCloudMeta.mjs');
+      markCardSynced(id, draft.updatedAt, draft.updatedAt, collectSyncBaseline(draft, getCardCloudMeta(id)));
     } catch (e) { /* ignore */ }
   } else if (out && out.queued) {
     try {
@@ -151,9 +153,10 @@ export async function cloudUploadOverwrite(cardId) {
   var bundle = await buildLocalCardBundle(id);
   if (!bundle.card) throw new Error('no_local_card');
   await api.putCardBundle(id, bundle);
-  var { markCardSynced } = await import('./cardCloudMeta.mjs');
+  var { markCardSynced, getCardCloudMeta } = await import('./cardCloudMeta.mjs');
   var localAt = bundle.card && bundle.card.updatedAt;
-  markCardSynced(id, localAt, localAt);
+  var draft = bundle.card;
+  markCardSynced(id, localAt, localAt, collectSyncBaseline(draft, getCardCloudMeta(id)));
   emit('cloud-uploaded', { cardId: id });
   return { ok: true, cardId: id };
 }
@@ -166,13 +169,13 @@ export async function cloudDownloadOverwrite(cardId) {
   var res = await api.fetchCardBundle(id);
   if (!res || !res.bundle || !res.bundle.card) throw new Error('not_found');
   await hydrateCardBundleToLocal(res.bundle);
-  var { markCardSynced } = await import('./cardCloudMeta.mjs');
+  var { markCardSynced, getCardCloudMeta } = await import('./cardCloudMeta.mjs');
   var cloudAt = res.bundle.card.updatedAt
     || (res.bundle.card.data && res.bundle.card.data.updatedAt)
     || null;
   var drafts = readDrafts();
   var localAt = drafts[id] && drafts[id].updatedAt;
-  markCardSynced(id, cloudAt, localAt);
+  markCardSynced(id, cloudAt, localAt, collectSyncBaseline(drafts[id], getCardCloudMeta(id)));
   emit('cloud-downloaded', { cardId: id });
   return { ok: true, cardId: id, draft: drafts[id] };
 }
@@ -274,11 +277,11 @@ export async function ensureCardBundleLocal(cardId, opts) {
   if (!res || !res.bundle) return local || null;
   await hydrateCardBundleToLocal(res.bundle);
   try {
-    var { markCardSynced } = await import('./cardCloudMeta.mjs');
+    var { markCardSynced, getCardCloudMeta } = await import('./cardCloudMeta.mjs');
     var cloudAt = res.bundle.card && (res.bundle.card.updatedAt
       || (res.bundle.card.data && res.bundle.card.data.updatedAt));
     var after = readDrafts()[id];
-    markCardSynced(id, cloudAt, after && after.updatedAt);
+    markCardSynced(id, cloudAt, after && after.updatedAt, collectSyncBaseline(after, getCardCloudMeta(id)));
   } catch (e) { /* ignore */ }
   return readDrafts()[id] || null;
 }

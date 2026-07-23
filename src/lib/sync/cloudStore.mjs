@@ -92,8 +92,16 @@ export async function runCloudReconcile(opts) {
           if (!markSyncedMod) {
             markSyncedMod = await import('./cardCloudMeta.mjs');
           }
+          var metaMod = markSyncedMod;
+          var getMeta = metaMod.getCardCloudMeta;
+          var { collectSyncBaseline } = await import('./contentRev.mjs');
           var localAt = bundle.card && bundle.card.updatedAt;
-          markSyncedMod.markCardSynced(id, localAt, localAt);
+          markSyncedMod.markCardSynced(
+            id,
+            localAt,
+            localAt,
+            collectSyncBaseline(bundle.card, getMeta(id))
+          );
         } catch (e) {
           console.warn('[cloud] upload local card', id, e);
           enqueueOutbox({

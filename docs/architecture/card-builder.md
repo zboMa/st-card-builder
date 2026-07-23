@@ -50,7 +50,8 @@
 ## 本地草稿保存触发矩阵
 
 > 落盘目标：`localStorage` `st_v3_builder_drafts`；核心 API：`stateMachine.saveDraft()`。  
-> **内容未变**时不刷新 `updatedAt`、不写 LS（`draftContentEqual`，见 `state.mjs`）。
+> **内容未变**时不刷新 `updatedAt`、不写 LS（`draftContentEqual`，见 `state.mjs`）。  
+> 真实落盘时写入 `contentRev`（正文 CRC，见 `sync/contentRev.mjs`），云 dirty 主判据。
 
 ### 底层入口
 

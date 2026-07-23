@@ -62,7 +62,7 @@ npm run dev            # Astro :4321，/api 代理到 8787
 | **离线 / 未登录** | 全功能 | — | 不做云操作 |
 | **Story 写出的小说** | 独立 | 独立 API | 不进开卡 bundle；删卡可选是否删 Story |
 
-云标三态：无 `localSyncedAt` → **未上云**；有基线且 `updatedAt` ≠ `localSyncedAt` → **上云未同步**；否则 **已同步**。  
+云标三态：无 `localSyncedAt` / `syncedContentRev` 基线 → **未上云**；有基线且 `contentRev` ≠ `syncedContentRev` 或 `bundleTouch` ≠ `syncedBundleTouch` → **上云未同步**；否则 **已同步**（旧卡无 `contentRev` 时回退 `updatedAt` vs `localSyncedAt`）。  
 手动回归见 [`../ops/regression-checklist.md`](../ops/regression-checklist.md)。
 
 ## 主要 API
@@ -97,7 +97,7 @@ npm run dev            # Astro :4321，/api 代理到 8787
 
 - **版本列表** `versions[]`：切版 / 增版 / 发布时写入；**普通保存只写草稿**；**已发条目不可变**
 - **发布**：写入该版快照并 `published=true`，草稿自动升小版本；云成功后再落本地（失败回滚）；云端写 `card/{id}/release` + `card/{id}/release/{ver}`（删卡/删小说会清历史版）
-- **卡云标**：以 `localSyncedAt` 对齐草稿 `updatedAt`；`markCardSynced` 清除 `pendingUpload`；**无 `localSyncedAt` 一律显示「未上云」**（merge 索引不得单独置 `onCloud`）
+- **卡云标**：以 `contentRev`（正文 CRC）+ `bundleTouch`（工坊/头像/RAG）为主判据；`markCardSynced` 写入 `syncedContentRev` / `syncedBundleTouch`；旧数据回退 `localSyncedAt` vs `updatedAt`
 - **映射**：`stcb-public-shares` → `share/{token}`
 - **API**：`/api/share/cards/*`；info 含 latest + 各已发版 `versions/:ver/json|png`
 
