@@ -30,8 +30,8 @@
 
 .theme-preview--bamboo-edge {
   background:
+    linear-gradient(90deg, transparent 70%, oklch(55% 0.08 155 / 0.45) 70%, oklch(48% 0.06 155 / 0.35) 85%, transparent 100%),
     repeating-linear-gradient(125deg, oklch(70% 0.06 155 / 0.06) 0 1px, transparent 1px 10px),
-    radial-gradient(ellipse 40% 80% at 95% 50%, oklch(55% 0.08 155 / 0.35) 0%, transparent 55%),
     oklch(17% 0.02 165);
 }
 
@@ -44,8 +44,8 @@
 
 .theme-preview--fresh-lime {
   background:
-    radial-gradient(circle at 75% 25%, oklch(78% 0.16 130 / 0.35) 0%, transparent 45%),
-    radial-gradient(circle at 25% 75%, oklch(65% 0.12 125 / 0.2) 0%, transparent 35%),
+    radial-gradient(circle at 70% 30%, oklch(78% 0.16 130 / 0.5) 0%, oklch(65% 0.12 125 / 0.3) 35%, transparent 55%),
+    radial-gradient(circle at 25% 75%, oklch(82% 0.14 128 / 0.35) 0%, transparent 40%),
     oklch(17% 0.028 135);
 }
 
@@ -58,7 +58,20 @@
 
 .theme-preview--morning-drizzle {
   background:
-    repeating-linear-gradient(95deg, oklch(88% 0.04 245 / 0.06) 0 1px, transparent 1px 8px),
-    radial-gradient(ellipse 80% 50% at 50% 0%, oklch(82% 0.04 245 / 0.2) 0%, transparent 55%),
+    repeating-linear-gradient(95deg, oklch(88% 0.04 245 / 0.18) 0 1px, transparent 1px 6px),
+    radial-gradient(ellipse 80% 50% at 50% 0%, oklch(82% 0.04 245 / 0.25) 0%, transparent 55%),
     oklch(18% 0.018 245);
+}
+
+.theme-preview--doom-carrion {
+  background:
+    radial-gradient(ellipse 80% 50% at 50% 100%, oklch(58% 0.14 45 / 0.4) 0%, transparent 55%),
+    linear-gradient(180deg, oklch(28% 0.01 50 / 0.5) 0%, oklch(14% 0.01 50) 100%);
+}
+
+.theme-preview--moon-haze {
+  background:
+    radial-gradient(circle at 78% 22%, oklch(92% 0.02 280 / 0.45) 0%, transparent 35%),
+    radial-gradient(ellipse 80% 30% at 50% 100%, oklch(82% 0.02 280 / 0.15) 0%, transparent 55%),
+    oklch(15% 0.012 280);
 }

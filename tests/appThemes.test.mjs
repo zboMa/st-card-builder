@@ -1,5 +1,5 @@
 /**
- * 壳层精品场景主题契约（9 套 + 场景层）
+ * 壳层精品场景主题契约（11 套 + 场景层）
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
@@ -37,6 +37,7 @@ var THEME_COLOR_TOKENS = [
 var SCENE_THEMES = [
   'sumi-ink', 'frost-shard', 'ember-blaze', 'bamboo-edge',
   'water-wave', 'fresh-lime', 'cloud-pavilion', 'morning-drizzle',
+  'doom-carrion', 'moon-haze',
 ];
 
 describe('app shell themes', function() {
@@ -44,12 +45,13 @@ describe('app shell themes', function() {
     assert.ok(existsSync(themesPath));
   });
 
-  it('catalog 为 9 套主题', function() {
-    assert.equal(APP_THEMES.length, 9);
+  it('catalog 为 11 套主题', function() {
+    assert.equal(APP_THEMES.length, 11);
     assert.deepEqual(
       APP_THEMES.map(function(t) { return t.id; }),
       ['nocturne', 'sumi-ink', 'frost-shard', 'ember-blaze', 'bamboo-edge',
-        'water-wave', 'fresh-lime', 'cloud-pavilion', 'morning-drizzle'],
+        'water-wave', 'fresh-lime', 'cloud-pavilion', 'morning-drizzle',
+        'doom-carrion', 'moon-haze'],
     );
   });
 
@@ -113,7 +115,8 @@ describe('app shell themes', function() {
     assert.match(layout, /themeBoot\.mjs/);
     assert.match(layout, /themePickerBoot\.mjs/);
     assert.match(layout, /ThemeGallery/);
-    assert.match(layout, /morning-drizzle/);
+    assert.match(layout, /doom-carrion/);
+    assert.match(layout, /moon-haze/);
   });
 
   it('侧栏单行入口，无 v1 swatch 网格', function() {

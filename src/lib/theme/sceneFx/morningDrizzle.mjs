@@ -18,7 +18,7 @@ export function createSceneFx(ctx, canvas) {
     W = w;
     H = h;
     if (!streaks.length) {
-      for (var i = 0; i < 50; i++) {
+      for (var i = 0; i < 80; i++) {
         streaks.push({
           x: Math.random() * W,
           y: Math.random() * H,
@@ -43,9 +43,9 @@ export function createSceneFx(ctx, canvas) {
         s.y = -20;
         s.x = Math.random() * W;
       }
-      var a = introT * 0.18;
+      var a = introT * 0.42;
       ctx.strokeStyle = RAIN + a.toFixed(3) + ')';
-      ctx.lineWidth = 0.8;
+      ctx.lineWidth = 1.4;
       ctx.beginPath();
       ctx.moveTo(s.x, s.y);
       ctx.lineTo(s.x + s.vx * 3, s.y + s.len);

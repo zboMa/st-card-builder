@@ -59,6 +59,16 @@ html[data-app-scene="morning-drizzle"][data-scene-tier="immersive"] #sceneFxCanv
   opacity: 1;
 }
 
+html[data-app-scene="doom-carrion"][data-scene-tier="immersive"] #sceneFxCanvas {
+  mix-blend-mode: multiply;
+  opacity: 1;
+}
+
+html[data-app-scene="moon-haze"][data-scene-tier="immersive"] #sceneFxCanvas {
+  mix-blend-mode: soft-light;
+  opacity: 1;
+}
+
 html[data-app-scene="sumi-ink"] body::before,
 html[data-app-scene="sumi-ink"] body::after,
 html[data-app-scene="frost-shard"] body::before,
@@ -74,7 +84,11 @@ html[data-app-scene="fresh-lime"] body::after,
 html[data-app-scene="cloud-pavilion"] body::before,
 html[data-app-scene="cloud-pavilion"] body::after,
 html[data-app-scene="morning-drizzle"] body::before,
-html[data-app-scene="morning-drizzle"] body::after {
+html[data-app-scene="morning-drizzle"] body::after,
+html[data-app-scene="doom-carrion"] body::before,
+html[data-app-scene="doom-carrion"] body::after,
+html[data-app-scene="moon-haze"] body::before,
+html[data-app-scene="moon-haze"] body::after {
   content: '';
   position: fixed;
   inset: 0;

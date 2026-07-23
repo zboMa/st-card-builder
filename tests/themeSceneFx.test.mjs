@@ -20,11 +20,14 @@ var SCENE_FX_MODULES = {
   'fresh-lime': 'freshLime.mjs',
   'cloud-pavilion': 'cloudPavilion.mjs',
   'morning-drizzle': 'morningDrizzle.mjs',
+  'doom-carrion': 'doomCarrion.mjs',
+  'moon-haze': 'moonHaze.mjs',
 };
 
 var SCENE_CSS = [
   'sumi-ink', 'frost-shard', 'ember-blaze', 'bamboo-edge',
   'water-wave', 'fresh-lime', 'cloud-pavilion', 'morning-drizzle',
+  'doom-carrion', 'moon-haze',
 ];
 
 describe('scene tier & fx', function() {
