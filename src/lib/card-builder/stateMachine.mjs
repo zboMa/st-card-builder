@@ -8,6 +8,7 @@ import {
   genId,
   buildDraftSnapshot,
   stampDraftUpdatedAt,
+  draftContentEqual,
   draftDisplayName,
 } from './state.mjs';
 import { deepCopy } from '../utils.mjs';
@@ -35,6 +36,12 @@ export function createCardStateMachine(state) {
     opts = opts || {};
     if (!state.draftId) state.draftId = genId();
     var dr = getAllDrafts();
+    var prev = dr[state.draftId];
+    // 内容未变时不刷新 updatedAt（pagehide/flush 刷新页面时常见，否则会误判云 dirty）
+    if (prev && draftContentEqual(prev, state)) {
+      state.updatedAt = prev.updatedAt || state.updatedAt || '';
+      return { saved: true, drafts: dr, id: state.draftId, unchanged: true };
+    }
     // 仅在真实落盘时刷新 updatedAt（列表渲染用的快照不得伪造时间，否则云状态永远 dirty）
     state.updatedAt = stampDraftUpdatedAt();
     dr[state.draftId] = buildDraftSnapshot(state);

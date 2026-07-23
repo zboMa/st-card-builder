@@ -99,4 +99,12 @@ describe('cardCloudMeta', function() {
     assert.equal(resolveCardCloudStatus({ updatedAt: '12:00:00' }, yMeta), CLOUD_STATUS.LOCAL_ONLY);
     assert.ok(localStorage.getItem(CARD_CLOUD_META_KEY));
   });
+
+  it('同步基线对齐后，同 updatedAt 仍视为已同步', function() {
+    markCardSynced('synced1', '11:30:45', '11:30:45');
+    assert.equal(
+      resolveCardCloudStatus({ updatedAt: '11:30:45' }, getCardCloudMeta('synced1')),
+      CLOUD_STATUS.CLOUD_SYNCED
+    );
+  });
 });

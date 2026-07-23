@@ -127,6 +127,16 @@ export function stampDraftUpdatedAt() {
   return new Date().toLocaleTimeString('zh-CN', { hour12: false });
 }
 
+/** 比较两份草稿正文（忽略 updatedAt；均经 buildDraftSnapshot 归一化） */
+export function draftContentEqual(a, b) {
+  if (!a || !b) return false;
+  var left = buildDraftSnapshot(a);
+  var right = buildDraftSnapshot(b);
+  left.updatedAt = '';
+  right.updatedAt = '';
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
 export function normalizeTags(input) {
   var list = Array.isArray(input) ? input : [];
   var seen = Object.create(null);

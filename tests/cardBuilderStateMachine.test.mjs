@@ -25,4 +25,35 @@ describe('card-builder stateMachine exposes state', function() {
     assert.ok(Array.isArray(ctx.state.eroticPostureItems));
     assert.ok(Array.isArray(ctx.state.eroticSpeechItems));
   });
+
+  it('内容未变时 saveDraft 不刷新 updatedAt', function() {
+    var prevStorage = globalThis.localStorage;
+    var map = {};
+    globalThis.localStorage = {
+      getItem: function(k) { return Object.prototype.hasOwnProperty.call(map, k) ? map[k] : null; },
+      setItem: function(k, v) { map[k] = String(v); },
+      removeItem: function(k) { delete map[k]; },
+    };
+    try {
+      var state = createDefaultCardState();
+      state.draftId = 'draft_test';
+      state.charName = '测试';
+      var sm = createCardStateMachine(state);
+      var first = sm.saveDraft();
+      assert.ok(first.saved);
+      var stamped = state.updatedAt;
+      assert.ok(stamped);
+      var again = sm.saveDraft();
+      assert.equal(again.unchanged, true);
+      assert.equal(state.updatedAt, stamped);
+      state.charName = '测试改';
+      var changed = sm.saveDraft();
+      assert.notEqual(changed.unchanged, true);
+      assert.ok(changed.saved);
+      var stored = JSON.parse(map['st_v3_builder_drafts']);
+      assert.equal(stored.draft_test.charName, '测试改');
+    } finally {
+      globalThis.localStorage = prevStorage;
+    }
+  });
 });
