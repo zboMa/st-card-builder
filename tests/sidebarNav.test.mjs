@@ -200,8 +200,8 @@ describe('sidebar navigation contract', function() {
 
   it('世界书条目面板 flex 占满且列表内部滚动', function() {
     const layout = readLayoutSources(root);
-    // 选择器形如 .app-view[data-view="worldbook"].is-active
-    assert.match(layout, /\[data-view="worldbook"\]\.is-active/);
+    // 激活视图统一 flex 铺满；世界书面板自身再占满并让 #entriesList 内滚
+    assert.match(layout, /\.app-view\.is-active\s*\{[^}]*display:\s*flex/s);
     assert.match(layout, /\.area-worldbook\s*\{[^}]*display:\s*flex/s);
     assert.match(layout, /#entriesList\s*\{[^}]*overflow-y:\s*auto/s);
     // 列表行禁止 flex 压缩，避免条目叠扁
@@ -272,7 +272,7 @@ describe('sidebar navigation contract', function() {
     assert.match(wbAppSrc, /renderStrategyTag|wb-strategy-tag/);
     assert.match(wbAppSrc, /strategyLabelZh/);
     assert.match(wbAppSrc, /entry-icon-btn/);
-    assert.match(wbAppSrc, /entry-icon-btn btn-edit/);
+    assert.match(wbAppSrc, /btnWbEntryEdit_/);
     // 列表不再挂行内保存按钮
     assert.doesNotMatch(wbAppSrc, /btn-save-inline/);
     assert.match(wb, /id="wbModalEdit"/);

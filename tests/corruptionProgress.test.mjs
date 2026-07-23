@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { readAdultConfigPanelSources, readNovelBridgeSources, readAssistantExecutorSources, readCharacterPanelSources } from './helpers/uiSources.mjs';
+import { readAdultConfigPanelSources, readNovelBridgeSources, readAssistantExecutorSources, readCharacterPanelSources, readNovelCharactersPanelSources } from './helpers/uiSources.mjs';
 import {
   CORRUPTION_PRESETS,
   CORRUPTION_ARC_BRIEFS,
@@ -221,7 +221,11 @@ describe('corruptionProgress', function() {
   it('pipeline docs: adult config separate; worldbook person prefix', function() {
     var adult = readFileSync(join(root, 'src/components/AdultConfigPanel.astro'), 'utf8');
     assert.match(adult, /仅世界书管道|世界书管道/);
-    var chars = readFileSync(join(root, 'src/components/novel/NovelCharactersPanel.astro'), 'utf8');
+    // Astro 壳 + 渲染逻辑：同步目标为世界书人物条，禁止「→ 角色设定」
+    var chars = [
+      readFileSync(join(root, 'src/components/novel/NovelCharactersPanel.astro'), 'utf8'),
+      readNovelCharactersPanelSources(root),
+    ].join('');
     assert.match(chars, /世界书人物条/);
     assert.doesNotMatch(chars, /同步所选 → 角色设定/);
     var wb = readFileSync(join(root, 'src/components/WorldbookPanel.astro'), 'utf8');
