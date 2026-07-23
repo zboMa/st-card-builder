@@ -192,19 +192,19 @@ export function attachAdultConfigBind(ctx, s, panel) {
       var posturePicker = document.getElementById('adultPosturePicker');
       var speechList = document.getElementById('adultSpeechList');
       var speechPicker = document.getElementById('adultSpeechPicker');
-      if (adultEl) adultEl.addEventListener('change', function() {
+      if (adultEl) adultEl.addEventListener('change', async function() {
         var on = !!adultEl.checked;
-        if (!s.confirmAdultOp(on
+        if (!(await s.confirmAdultOp(on
           ? '启用 NSFW？将显示口味 / 姿势语言 / 情趣话风配置。'
-          : '关闭 NSFW？口味与表达层将隐藏（已选项仍保留在卡内）。')) {
+          : '关闭 NSFW？口味与表达层将隐藏（已选项仍保留在卡内）。'))) {
           adultEl.checked = !on;
           return;
         }
         ctx.panels.adultConfig.syncNsfwBlockFromUi();
       });
-      if (ntlEl) ntlEl.addEventListener('change', function() {
+      if (ntlEl) ntlEl.addEventListener('change', async function() {
         var on = !!ntlEl.checked;
-        if (!s.confirmAdultOp(on ? '启用 NTL 禁忌层？' : '关闭 NTL 禁忌层？已选项仍保留在卡内。')) {
+        if (!(await s.confirmAdultOp(on ? '启用 NTL 禁忌层？' : '关闭 NTL 禁忌层？已选项仍保留在卡内。'))) {
           ntlEl.checked = !on;
           return;
         }
@@ -218,12 +218,12 @@ export function attachAdultConfigBind(ctx, s, panel) {
         });
       }
       if (flavorList) {
-        flavorList.addEventListener('click', function(e) {
+        flavorList.addEventListener('click', async function(e) {
           var t = e.target && e.target.closest ? e.target.closest('[data-flavor-remove], [data-flavor-up], [data-flavor-down]') : null;
           if (!t) return;
           if (t.hasAttribute('data-flavor-remove')) {
             var ri = parseInt(t.getAttribute('data-flavor-remove'), 10);
-            if (!isNaN(ri)) ctx.panels.adultConfig.removeFlavorItem(ri);
+            if (!isNaN(ri)) await ctx.panels.adultConfig.removeFlavorItem(ri);
             return;
           }
           if (t.hasAttribute('data-flavor-up')) {
@@ -257,7 +257,7 @@ export function attachAdultConfigBind(ctx, s, panel) {
       }
       function bindExpressionList(listEl, kind) {
         if (!listEl) return;
-        listEl.addEventListener('click', function(e) {
+        listEl.addEventListener('click', async function(e) {
           var t = e.target && e.target.closest
             ? e.target.closest('[data-expression-remove], [data-expression-up], [data-expression-down]')
             : null;
@@ -271,7 +271,7 @@ export function attachAdultConfigBind(ctx, s, panel) {
           }
           if (t.hasAttribute('data-expression-remove')) {
             var ri = parseExpressionToken('data-expression-remove');
-            if (ri != null) ctx.panels.adultConfig.removeExpressionItem(kind, ri);
+            if (ri != null) await ctx.panels.adultConfig.removeExpressionItem(kind, ri);
             return;
           }
           if (t.hasAttribute('data-expression-up')) {
@@ -304,7 +304,7 @@ export function attachAdultConfigBind(ctx, s, panel) {
         });
       }
       if (wvList) {
-        wvList.addEventListener('click', function(e) {
+        wvList.addEventListener('click', async function(e) {
           var t = e.target;
           if (!t || !t.getAttribute) return;
           var items = s.ensureWorldviewPresetItemsOnState().slice();
@@ -314,7 +314,7 @@ export function attachAdultConfigBind(ctx, s, panel) {
             if (!isNaN(ri) && ri >= 0 && ri < items.length) {
               var rem = getWorldviewPreset(items[ri].id);
               var remLab = (rem && rem.label) || items[ri].id;
-              if (!s.confirmAdultOp('移除世界观预设「' + remLab + '」？')) return;
+              if (!(await s.confirmAdultRemove({ kind: '世界观预设', label: remLab }))) return;
               items.splice(ri, 1);
               changed = true;
             }
@@ -366,8 +366,11 @@ export function attachAdultConfigBind(ctx, s, panel) {
       var wfRefresh = document.getElementById('btnAdultWorldframeRefresh');
       var wfSelect = document.getElementById('adultWorldframeSelect');
       if (wfRefresh) {
-        wfRefresh.addEventListener('click', function() {
-          if (!s.confirmAdultOp('重新推断载体框架？将清除手动覆盖，按主预设映射重算。')) return;
+        wfRefresh.addEventListener('click', async function() {
+          if (!(await s.confirmAdultOp({
+            title: '重新推断载体框架？',
+            message: '将清除手动覆盖，按主预设映射重算。',
+          }))) return;
           ctx.state.adultWorldframeForced = '';
           s.syncWorldframeFromPresets();
           var info = s.inferWorldframeFromCard();
@@ -383,15 +386,21 @@ export function attachAdultConfigBind(ctx, s, panel) {
         });
       }
       if (wfSelect) {
-        wfSelect.addEventListener('change', function() {
+        wfSelect.addEventListener('change', async function() {
           var v = wfSelect.value || '';
           var data = window.__nsfwFlavorData__;
           var lab = v && data && data.worldframes && data.worldframes[v]
             ? data.worldframes[v].label
             : (v || '自动（跟主预设）');
-          if (!s.confirmAdultOp(v
-            ? '手动锁定载体框架为「' + lab + '」？'
-            : '取消手动覆盖，改回自动跟随主预设？')) {
+          if (!(await s.confirmAdultOp(v
+            ? {
+              title: '手动锁定载体框架？',
+              message: '将锁定为「' + lab + '」。',
+            }
+            : {
+              title: '取消手动覆盖？',
+              message: '改回自动跟随主预设。',
+            }))) {
             wfSelect.value = ctx.state.adultWorldframeForced || '';
             return;
           }
@@ -415,14 +424,14 @@ export function attachAdultConfigBind(ctx, s, panel) {
 
       var ntlList = document.getElementById('adultNtlTabooList');
       if (ntlList) {
-        ntlList.addEventListener('click', function(e) {
+        ntlList.addEventListener('click', async function(e) {
           var btn = e.target && e.target.closest ? e.target.closest('[data-ntl-remove]') : null;
           if (!btn) return;
           var idx = parseInt(btn.getAttribute('data-ntl-remove'), 10);
           var items = ctx.panels.adultConfig.readNtlItemsFromUi();
           if (isNaN(idx) || idx < 0 || idx >= items.length) return;
           var remLab = s.labelNtl(items[idx].id);
-          if (!s.confirmAdultOp('移除 NTL「' + remLab + '」？')) return;
+          if (!(await s.confirmAdultRemove({ kind: 'NTL', label: remLab }))) return;
           items.splice(idx, 1);
           ctx.state.ntlTabooItems = items;
           ctx.state.ntlTabooTypes = items.map(function(it) { return it.id; });
@@ -444,11 +453,11 @@ export function attachAdultConfigBind(ctx, s, panel) {
       var corrSync = document.getElementById('adultCorruptionSyncSb');
       var corrRefresh = document.getElementById('btnRefreshCorruptionTargets');
       var corrGen = document.getElementById('btnGenCorruptionLore');
-      if (corrEnabled) corrEnabled.addEventListener('change', function() {
+      if (corrEnabled) corrEnabled.addEventListener('change', async function() {
         var on = !!corrEnabled.checked;
-        if (!s.confirmAdultOp(on
+        if (!(await s.confirmAdultOp(on
           ? '启用恶堕进度线？将显示阶段与档案生成配置。'
-          : '关闭恶堕进度线？已生成内容仍保留在世界书中。')) {
+          : '关闭恶堕进度线？已生成内容仍保留在世界书中。'))) {
           corrEnabled.checked = !on;
           return;
         }
@@ -498,8 +507,11 @@ export function attachAdultConfigBind(ctx, s, panel) {
         });
         ctx.panels.adultConfig.setCorruptionTip('已刷新角色列表', 'ok');
       });
-      if (corrGen) corrGen.addEventListener('click', function() {
-        if (!s.confirmAdultOp('生成/更新恶堕世界书条目？可能覆盖已有同名条目。')) return;
+      if (corrGen) corrGen.addEventListener('click', async function() {
+        if (!(await s.confirmAdultOp({
+          title: '生成恶堕世界书条目？',
+          message: '可能覆盖已有同名条目。',
+        }))) return;
         ctx.panels.adultConfig.runGenerateCorruptionLore();
       });
       var corrTargets = document.getElementById('adultCorruptionTargets');

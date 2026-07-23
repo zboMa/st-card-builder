@@ -222,8 +222,32 @@ export function createAdultConfigShared(ctx) {
     }
   }
 
-  function confirmAdultOp(message) {
-    return window.confirm(String(message || '确认执行此操作？'));
+  function confirmAdultOp(messageOrOpts) {
+    var opts = typeof messageOrOpts === 'string'
+      ? { message: messageOrOpts }
+      : Object.assign({}, messageOrOpts || {});
+    if (!opts.message && typeof messageOrOpts === 'string') {
+      opts.message = messageOrOpts;
+    }
+    return ctx.showConfirmDialog({
+      icon: opts.icon || '⚠️',
+      title: opts.title || '确认操作',
+      message: opts.message || '确认执行此操作？',
+      detail: opts.detail || '',
+      okText: opts.okText || '确认',
+      cancelText: opts.cancelText || '取消',
+    }).then(function(result) { return !!result; });
+  }
+
+  function confirmAdultRemove(opts) {
+    var o = typeof opts === 'string' ? { label: opts } : (opts || {});
+    return confirmAdultOp({
+      icon: '🗑️',
+      title: o.title || ('移除' + (o.kind ? o.kind : '') + '？'),
+      message: o.message || ('即将移除「' + (o.label || '') + '」。'),
+      okText: '移除',
+      cancelText: '取消',
+    });
   }
 
   function labelFlavor(id) {
@@ -265,6 +289,7 @@ export function createAdultConfigShared(ctx) {
     inferWorldframeFromCard: inferWorldframeFromCard,
     withAppScrollPreserved: withAppScrollPreserved,
     confirmAdultOp: confirmAdultOp,
+    confirmAdultRemove: confirmAdultRemove,
     labelFlavor: labelFlavor,
     labelExpression: labelExpression,
     labelNtl: labelNtl,
