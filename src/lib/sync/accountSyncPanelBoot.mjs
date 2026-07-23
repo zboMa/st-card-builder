@@ -275,7 +275,7 @@ export function initAccountSyncPanel() {
         tip.classList.remove('is-err');
       }
       await runSync({ refreshCred: true, force: true, hydrateAll: true });
-      if (tip) tip.textContent = '云端对齐完成';
+      if (tip) tip.textContent = '云端列表已刷新';
     } catch (e) {
       if (tip) {
         tip.textContent = friendlySyncError(e);

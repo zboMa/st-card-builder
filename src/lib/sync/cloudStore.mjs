@@ -61,7 +61,8 @@ export { cloudSavePrefs } from './cloudStorePrefs.mjs';
 export { buildCardIndexFromDrafts, DOC } from './cloudStoreShared.mjs';
 
 /**
- * 全量云端对齐：flush + 索引 +（可选）把本地有而云端无的卡以 bundle 上传
+ * 全量云端对齐：flush 离线队列 + 拉云端索引（可选水合 stub）
+ * 本地上云不在此自动推送，请用卡管理「同步上云」。
  */
 export async function runCloudReconcile(opts) {
   opts = opts || {};
@@ -78,7 +79,7 @@ export async function runCloudReconcile(opts) {
 
     var flushResult = await flushOutbox(handleOutboxItem);
 
-    if (opts.uploadLocal !== false) {
+    if (opts.uploadLocal === true) {
       var drafts = readDrafts();
       var ids = Object.keys(drafts);
       var markSyncedMod = null;

@@ -220,8 +220,8 @@ export function attachCardManagerRender(ctx, s, panel) {
       + '<div class="card-more-divider" role="separator"></div>'
       + '<div class="card-more-section">'
       + '<div class="card-more-section__title">云端</div>'
-      + item('cloud-upload', '上传覆盖云端', !cloudLoggedIn)
-      + item('cloud-download', '拉取覆盖本地', !cloudLoggedIn)
+      + item('cloud-upload', '同步上云', !cloudLoggedIn)
+      + item('cloud-download', '从云端覆盖', !cloudLoggedIn)
       + item('cloud-delete', '删除云端', !cloudLoggedIn)
       + (!cloudLoggedIn ? '<p class="card-more-hint">请先在「账户与云端」登录</p>' : '')
       + '</div>'

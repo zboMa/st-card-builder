@@ -1,6 +1,6 @@
 /**
  * 云端引擎：产品化 REST 存取（兼容旧 syncEngine 导出名）
- * 本地 LS/IDB 始终可离线使用；登录后保存走 API + outbox。
+ * 本地 LS/IDB 始终可离线使用；登录后卡包上云由卡管理手动触发，outbox 负责重试。
  */
 import { SYNC_INTERVAL_MS, DOC, buildCardIndexFromDrafts, cardDocId } from './docIds.mjs';
 import { clearLocalDirty, isLocalDirty } from './localDirty.mjs';
@@ -166,7 +166,7 @@ export async function runSync(opts) {
   try {
     await fetchSyncCredentials();
     var result = await runCloudReconcile({
-      uploadLocal: opts.uploadLocal !== false,
+      uploadLocal: opts.uploadLocal === true,
       hydrateAll: !!opts.hydrateAll,
     });
     lastSyncAt = result.at || new Date().toISOString();
@@ -235,13 +235,7 @@ export async function ensureCardLocal(cardId) {
 }
 
 export async function upsertLocalCardAndIndex(cardId, draft, allDraftsMap) {
-  // 本地已由 stateMachine 写入；此处推云端 + 头像
-  await cloudSaveCard(cardId, draft);
-  try {
-    await cloudSaveAvatar(cardId);
-  } catch (e) {
-    console.warn('[cloud] avatar save', e);
-  }
+  // 保留导出名；本地 save 不再推云（见 stateMachine.saveDraft）
   return buildCardIndexFromDrafts(allDraftsMap || {});
 }
 

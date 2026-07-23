@@ -197,16 +197,41 @@ export function attachCardManagerBind(ctx, s, panel) {
       });
     }
 
-    // Hash change / view switch → refresh card manager covers
+    var cardMgrCloudPullPromise = null;
+    function refreshCardManagerCloudIndex() {
+      if (cardMgrCloudPullPromise) return cardMgrCloudPullPromise;
+      cardMgrCloudPullPromise = import('../../sync/index.mjs').then(function(sync) {
+        if (!sync.isCloudEnabled || !sync.isCloudEnabled()) return null;
+        var pull = function() { return sync.pullCloudCardIndexAndMerge(); };
+        if (sync.fetchSyncCredentials) {
+          return sync.fetchSyncCredentials().catch(function() {}).then(pull);
+        }
+        return pull();
+      }).catch(function(e) {
+        console.warn('[card-manager] cloud index pull', e);
+        return null;
+      }).finally(function() {
+        cardMgrCloudPullPromise = null;
+      });
+      return cardMgrCloudPullPromise;
+    }
+
+    function onCardManagerView() {
+      refreshCardManagerCloudIndex().finally(function() {
+        panel.updateCardManagerUI();
+      });
+    }
+
+    // Hash change / view switch → 拉云端索引后刷新列表（云+本地统一视图）
     window.addEventListener('hashchange', function () {
-      if (s.getCurrentAppView() === 'card-manager') panel.updateCardManagerUI();
+      if (s.getCurrentAppView() === 'card-manager') onCardManagerView();
     });
     window.addEventListener('app-view-changed', function (ev) {
       var view = ev && ev.detail && ev.detail.view;
-      if (view === 'card-manager') panel.updateCardManagerUI();
+      if (view === 'card-manager') onCardManagerView();
     });
     window.addEventListener('st-idb-ready', function () {
-      if (s.getCurrentAppView() === 'card-manager') panel.updateCardManagerUI();
+      if (s.getCurrentAppView() === 'card-manager') onCardManagerView();
     });
 
     // 关页 / 切后台：冲掉双路径 debounce，避免丢最后一次编辑
