@@ -14,10 +14,6 @@ html[data-app-scene="frost-shard"] body::after {
   animation: theme-frost-drift 60s linear infinite;
 }
 
-html[data-app-scene="frost-shard"] .app-sidebar {
-  position: relative;
-}
-
 html[data-app-scene="frost-shard"] .app-sidebar::before {
   content: '';
   position: absolute;

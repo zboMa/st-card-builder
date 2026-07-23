@@ -18,10 +18,6 @@ html[data-app-scene="sumi-ink"] body::after {
   background: radial-gradient(circle at 70% 20%, oklch(40% 0.015 55 / 0.08) 0%, transparent 42%);
 }
 
-html[data-app-scene="sumi-ink"] .app-sidebar {
-  position: relative;
-}
-
 html[data-app-scene="sumi-ink"] .app-sidebar::before {
   content: '';
   position: absolute;

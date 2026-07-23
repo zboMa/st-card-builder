@@ -117,6 +117,23 @@ describe('app shell themes', function() {
     assert.doesNotMatch(sidebar, /theme-swatch/);
   });
 
+  it('scene 层不得破坏移动端侧栏 fixed 抽屉', function() {
+    var shared = readFileSync(join(root, 'src/styles/theme/scenes/_shared.css'), 'utf8');
+    assert.match(shared, /@media \(max-width:\s*900px\)/);
+    assert.match(shared, /\.app-sidebar[\s\S]*position:\s*fixed/);
+    assert.doesNotMatch(shared, /\.app-sidebar,\s*\nhtml/);
+
+    var sceneDir = join(root, 'src/styles/theme/scenes');
+    ['sumi-ink.css', 'frost-shard.css', 'ember-blaze.css', 'bamboo-edge.css'].forEach(function(file) {
+      var css = readFileSync(join(sceneDir, file), 'utf8');
+      assert.doesNotMatch(
+        css,
+        /\.app-sidebar\s*\{[^}]*position:\s*relative/,
+        file + ' must not set .app-sidebar position:relative',
+      );
+    });
+  });
+
   it('STORAGE_KEY 常量', function() {
     assert.equal(STORAGE_KEY, 'st_v3_app_theme');
   });
