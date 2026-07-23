@@ -1,5 +1,7 @@
 /**
  * 场景装饰层共享约定（pointer-events: none，不挡交互）
+ * 勿给 .app-shell 设 z-index：会把壳内 fixed 侧栏/助手关进低层叠放上下文，
+ * 移动端遮罩 #appShellBackdrop(8300) 就会盖住抽屉。
  */
 html[data-app-scene]:not([data-app-scene="none"]) body {
   position: relative;
@@ -20,18 +22,21 @@ html[data-app-scene="bamboo-edge"] body::after {
   z-index: 0;
 }
 
-html[data-app-scene]:not([data-app-scene="none"]) .app-shell,
+html[data-app-scene]:not([data-app-scene="none"]) .app-sidebar,
 html[data-app-scene]:not([data-app-scene="none"]) .app-container,
 html[data-app-scene]:not([data-app-scene="none"]) .assistant-panel {
   position: relative;
   z-index: 1;
 }
 
-/* 移动端侧栏须保持 fixed 抽屉；scene 层禁止改 position */
 @media (max-width: 900px) {
   html[data-app-scene]:not([data-app-scene="none"]) .app-sidebar {
     position: fixed;
     z-index: 8400;
+  }
+  html[data-app-scene]:not([data-app-scene="none"]) .assistant-panel {
+    position: fixed;
+    z-index: 8500;
   }
 }
 
