@@ -56,6 +56,20 @@ describe('cardCloudMeta', function() {
     assert.equal(resolveCardCloudStatus({ updatedAt: '23:24:53' }, meta), CLOUD_STATUS.CLOUD_SYNCED);
   });
 
+  it('仅有 onCloud 标记、无 localSyncedAt 时视为未上云', function() {
+    globalThis.localStorage.setItem(CARD_CLOUD_META_KEY, JSON.stringify({
+      c3: {
+        cardId: 'c3',
+        onCloud: true,
+        cloudUpdatedAt: '2026-01-01',
+      },
+    }));
+    assert.equal(
+      resolveCardCloudStatus({ updatedAt: '12:00:00' }, getCardCloudMeta('c3')),
+      CLOUD_STATUS.LOCAL_ONLY
+    );
+  });
+
   it('labels', function() {
     assert.match(cloudStatusLabel(CLOUD_STATUS.LOCAL_ONLY), /未上云/);
     assert.match(cloudStatusLabel(CLOUD_STATUS.CLOUD_DIRTY), /未同步/);
@@ -79,7 +93,10 @@ describe('cardCloudMeta', function() {
     markCardLocalOnly('x');
     assert.equal(getCardCloudMeta('x').onCloud, false);
     mergeCloudIndexIntoMeta([{ id: 'y', updatedAt: '2026-01-01' }]);
-    assert.equal(getCardCloudMeta('y').onCloud, true);
+    var yMeta = getCardCloudMeta('y');
+    assert.equal(yMeta.cloudUpdatedAt, '2026-01-01');
+    assert.notEqual(yMeta.onCloud, true);
+    assert.equal(resolveCardCloudStatus({ updatedAt: '12:00:00' }, yMeta), CLOUD_STATUS.LOCAL_ONLY);
     assert.ok(localStorage.getItem(CARD_CLOUD_META_KEY));
   });
 });

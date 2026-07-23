@@ -78,7 +78,7 @@ npm run dev            # Astro :4321，/api 代理到 8787
 
 - **版本列表** `versions[]`：切版 / 增版 / 发布时写入；**普通保存只写草稿**；**已发条目不可变**
 - **发布**：写入该版快照并 `published=true`，草稿自动升小版本；云成功后再落本地（失败回滚）；云端写 `card/{id}/release` + `card/{id}/release/{ver}`（删卡/删小说会清历史版）
-- **卡云标**：以 `localSyncedAt` 对齐草稿 `updatedAt`；`markCardSynced` 清除 `pendingUpload`
+- **卡云标**：以 `localSyncedAt` 对齐草稿 `updatedAt`；`markCardSynced` 清除 `pendingUpload`；**无 `localSyncedAt` 一律显示「未上云」**（merge 索引不得单独置 `onCloud`）
 - **映射**：`stcb-public-shares` → `share/{token}`
 - **API**：`/api/share/cards/*`；info 含 latest + 各已发版 `versions/:ver/json|png`
 
