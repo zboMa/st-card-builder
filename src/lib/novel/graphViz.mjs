@@ -203,6 +203,30 @@ export function graphToG6Data(graph) {
   return { nodes: nodes, edges: edges };
 }
 
+/**
+ * 按类型过滤知识图谱（边两端均保留才保留）
+ * @param {object} graph
+ * @param {string[]} types
+ */
+export function filterKnowledgeGraphByTypes(graph, types) {
+  var g = graph || { nodes: [], edges: [] };
+  var allow = {};
+  (types || []).forEach(function(t) { allow[t] = true; });
+  var nodes = (g.nodes || []).filter(function(n) {
+    return n && allow[n.type || 'concept'];
+  });
+  var ids = {};
+  nodes.forEach(function(n) { ids[String(n.id)] = true; });
+  var edges = (g.edges || []).filter(function(e) {
+    return e && ids[String(e.from)] && ids[String(e.to)];
+  });
+  return {
+    nodes: nodes,
+    edges: edges,
+    updatedAt: g.updatedAt || '',
+  };
+}
+
 function bindSelectHandlers(graph, opts) {
   graph.off(NodeEvent.CLICK);
   graph.off(EdgeEvent.CLICK);

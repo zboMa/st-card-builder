@@ -1,7 +1,8 @@
 import { WB_FOCUS_OPTIONS } from '../state.mjs';
 import { strategyLabelZh } from '../../utils.mjs';
 import { escapeHtml, truncatePreviewLine, parseJsonLoose, normalizeNameList } from '../../utils.mjs';
-import { findEntityMatch, upsertEntity, projectEntitiesToLegacy } from '../entityStore.mjs';
+import { findEntityMatch, upsertEntity, projectEntitiesToLegacy, isEntityEnriched } from '../entityStore.mjs';
+import { getAdultMode } from '../nsfwSupport.mjs';
 import { applyDraftsToWorldbook } from '../sync.mjs';
 
 /**
@@ -195,7 +196,7 @@ export function attachNovelWorldbookRender(ctx, panel) {
     if (!prev) return;
     var q = String(es.novelWbSearchQuery || '').trim().toLowerCase();
     if (!(state.wbEntries || []).length) {
-      prev.innerHTML = '<div class="wb-entries-empty novel-wb-empty-tip">暂无条目。请先「小说分析」，或 AI 抽取 / 新建。</div>';
+      prev.innerHTML = '<div class="novel-list-empty">暂无条目。请先「小说分析」，或 AI 抽取 / 新建。</div>';
       return;
     }
 
@@ -203,6 +204,7 @@ export function attachNovelWorldbookRender(ctx, panel) {
       return '<span class="novel-sync-badge ' + (s || 'unsynced') + '">' + (s || '未同步') + '</span>';
     };
 
+    var html = '';
     state.wbEntries.forEach(function(e, i) {
       if (es.novelWbTypeFilter && (e.category || '') !== es.novelWbTypeFilter) return;
       var hay = ((e.name || '') + ' ' + (e.comment || '') + ' ' + (e.keys || []).join(' ') + ' ' + (e.content || '')).toLowerCase();
@@ -250,7 +252,7 @@ export function attachNovelWorldbookRender(ctx, panel) {
         + '</div></div>'
         + '</div>';
     });
-    prev.innerHTML = html || '<div class="novel-status-text">无匹配条目</div>';
+    prev.innerHTML = html || '<div class="novel-list-empty">无匹配条目</div>';
 
     prev.querySelectorAll('[data-wb-sel]').forEach(function(cb) {
       cb.addEventListener('change', function() {

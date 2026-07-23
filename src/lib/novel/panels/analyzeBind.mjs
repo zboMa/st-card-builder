@@ -1,5 +1,6 @@
 import { projectEntitiesToLegacy } from '../entityStore.mjs';
 import { relayoutGraph } from '../graphViz.mjs';
+import { deleteRagIndex } from '../rag/store.mjs';
 import {
   buildStatusBarNsfwDraftFromEntities, buildStatusBarNtlDraftFromEntities,
   buildStatusBarVesselDraftFromEntities, resolveWorldframe,
@@ -148,7 +149,7 @@ export function attachNovelAnalyzeBind(ctx, panel, graphRef) {
       }
     });
     var retryBtn = $('btnNovelRetryFailed');
-    if (retryBtn) retryBtn.addEventListener('click', async function() {
+    async function runRetryFailed() {
       if (ctx.busyFlags.analyzeSkeleton || ctx.busyFlags.analyzeEnrich || ctx.busyFlags.analyzeAll) return;
       try {
         await panel.runRetryFailedShards();
@@ -158,6 +159,19 @@ export function attachNovelAnalyzeBind(ctx, panel, graphRef) {
           if (ctx.setStatus) ctx.setStatus('novelAnalyzeStatus', '重跑失败');
         }
       }
+    }
+    if (retryBtn) retryBtn.addEventListener('click', function() {
+      runRetryFailed();
+    });
+    var failTag = $('btnNovelAnalyzeFailTag');
+    if (failTag) failTag.addEventListener('click', function() {
+      if (panel.renderFailedShardsList) panel.renderFailedShardsList();
+      ctx.openNovelModal('novelModalAnalyzeFails');
+    });
+    var failsRetry = $('btnNovelAnalyzeFailsRetry');
+    if (failsRetry) failsRetry.addEventListener('click', function() {
+      ctx.closeNovelModal('novelModalAnalyzeFails');
+      runRetryFailed();
     });
   };
 
@@ -167,16 +181,88 @@ export function attachNovelAnalyzeBind(ctx, panel, graphRef) {
     if (relayout) relayout.addEventListener('click', function() {
       relayoutGraph(graphRef.cy);
     });
-    var clear = $('btnGraphClear');
-    if (clear) clear.addEventListener('click', function() {
-      if (!confirm('清空关系图谱？实体（人物/世界书）保留，仅清除关系与图。')) return;
-      ctx.state.relations = [];
-      projectEntitiesToLegacy(ctx.state);
+    var personOnly = $('novelGraphPersonOnly');
+    if (personOnly) personOnly.addEventListener('change', function() {
+      ctx.editState.graphPersonOnly = !!personOnly.checked;
+      panel.renderGraph();
+    });
+
+    function readClearOpts() {
+      return {
+        relations: !!($('novelClearOptRelations') && $('novelClearOptRelations').checked),
+        entities: !!($('novelClearOptEntities') && $('novelClearOptEntities').checked),
+        failed: !!($('novelClearOptFailed') && $('novelClearOptFailed').checked),
+        rag: !!($('novelClearOptRag') && $('novelClearOptRag').checked),
+      };
+    }
+
+    function resetClearOptsChecked() {
+      ['novelClearOptRelations', 'novelClearOptEntities', 'novelClearOptFailed', 'novelClearOptRag'].forEach(function(id) {
+        var el = $(id);
+        if (el) el.checked = true;
+      });
+    }
+
+    async function runAnalyzeClear() {
+      var opts = readClearOpts();
+      if (!opts.relations && !opts.entities && !opts.failed && !opts.rag) {
+        if (ctx.setStatus) ctx.setStatus('novelAnalyzeStatus', '请至少勾选一项');
+        return;
+      }
+      var state = ctx.state;
+      var parts = [];
+      if (opts.entities) {
+        state.entities = [];
+        state.characters = [];
+        state.wbEntries = [];
+        state.relations = [];
+        parts.push('实体');
+        parts.push('关系');
+      } else if (opts.relations) {
+        state.relations = [];
+        parts.push('关系');
+      }
+      if (opts.failed) {
+        state.failedShards = [];
+        parts.push('失败记录');
+      }
+      if (opts.rag) {
+        if (!state.rag) state.rag = {};
+        state.rag.indexStatus = 'idle';
+        state.rag.chunkCount = 0;
+        state.rag.indexUpdatedAt = '';
+        state.rag.sourceFingerprint = '';
+        state.rag.embedModel = '';
+        parts.push('索引');
+        var cardId = ctx.sm && ctx.sm.getBoundCardId ? ctx.sm.getBoundCardId() : '';
+        if (cardId) {
+          try { await deleteRagIndex(cardId); } catch (e) { /* ignore */ }
+        }
+      }
+      projectEntitiesToLegacy(state);
       ctx.save();
       var detail = $('novelGraphDetail');
       if (detail) detail.textContent = '点击节点或边查看详情';
+      panel.render();
       panel.renderGraph();
-      if (ctx.setStatus) ctx.setStatus('novelAnalyzeStatus', '已清空图谱关系');
+      if (ctx.panels.characters) ctx.panels.characters.render();
+      if (ctx.panels.worldbook) ctx.panels.worldbook.render();
+      if (ctx.renderGatesFn) ctx.renderGatesFn();
+      ctx.closeNovelModal('novelModalAnalyzeClear');
+      if (ctx.setStatus) ctx.setStatus('novelAnalyzeStatus', '已清空：' + parts.join(' | '));
+    }
+
+    var clear = $('btnGraphClear');
+    if (clear) clear.addEventListener('click', function() {
+      resetClearOptsChecked();
+      ctx.openNovelModal('novelModalAnalyzeClear');
+    });
+    var clearConfirm = $('btnNovelAnalyzeClearConfirm');
+    if (clearConfirm) clearConfirm.addEventListener('click', function() {
+      runAnalyzeClear().catch(function(err) {
+        console.warn('[novel] clear analyze failed', err);
+        if (ctx.setStatus) ctx.setStatus('novelAnalyzeStatus', '清空失败');
+      });
     });
   };
 

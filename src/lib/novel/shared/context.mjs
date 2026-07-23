@@ -79,7 +79,8 @@ export function createNovelAppContext(sm, opts) {
       'novelModalChapter', 'novelModalProfile', 'novelModalExpandConfirm',
       'novelModalWb', 'novelModalEntity',
       'novelModalSplit', 'novelModalAnalyze', 'novelModalSetup', 'novelModalGreet', 'novelModalStyle',
-      'novelModalCharScan', 'novelModalWbExtract', 'novelModalChapterRename',
+      'novelModalCharScan', 'novelModalWbExtract', 'novelModalChapterRename', 'novelModalAnalyzeClear',
+      'novelModalAnalyzeFails',
     ],
 
     openNovelModal: function(id) {
@@ -173,6 +174,8 @@ export function createNovelAppContext(sm, opts) {
       novelChapterSearchQuery: '',
       renamingChapterId: null,
       pendingExpandConfirm: null,
+      /** 图谱：只显示人物节点及其关系 */
+      graphPersonOnly: false,
     },
 
     // ===== 忙碌标记 =====

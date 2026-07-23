@@ -98,7 +98,7 @@ export function registerChapters(ctx) {
 
     if (!list) return;
     if (!(state.chapters || []).length) {
-      list.innerHTML = '<div class="novel-status-text">尚未拆章。请先导入资料后点击右上「自动拆章」。</div>';
+      list.innerHTML = '<div class="novel-list-empty">尚未拆章。请先导入资料后点击右上「自动拆章」。</div>';
       return;
     }
     var q = String(es.novelChapterSearchQuery || '').trim().toLowerCase();
@@ -107,7 +107,7 @@ export function registerChapters(ctx) {
       return String(row.c.title || '').toLowerCase().indexOf(q) >= 0;
     });
     if (!rows.length) {
-      list.innerHTML = '<div class="novel-status-text">未找到匹配「' + escapeHtml(es.novelChapterSearchQuery) + '」的章节。</div>';
+      list.innerHTML = '<div class="novel-list-empty">未找到匹配「' + escapeHtml(es.novelChapterSearchQuery) + '」的章节。</div>';
       return;
     }
     // 左：勾选 + 标题/字数；右：图标操作（不换到标题下方）

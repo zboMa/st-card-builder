@@ -637,7 +637,8 @@ describe('novel panel visual contract', function() {
     assert.match(analyze, /btnGraphRelayout/);
     assert.match(analyze, /btnGraphClear/);
     assert.match(analyze, /btnNovelRetryFailed/);
-    assert.match(analyze, /novelFailedShardsInfo/);
+    assert.match(analyze, /btnNovelAnalyzeFailTag|novelModalAnalyzeFails/);
+    assert.doesNotMatch(analyze, /novelFailedShardsInfo/);
     assert.doesNotMatch(analyze, /btnGraphUnifiedExtract/);
     assert.match(analyze, /关系图谱|G6|知识图谱/);
     const style = readFileSync(join(novelRoot, 'src/components/novel/NovelStylePanel.astro'), 'utf8');
@@ -734,6 +735,9 @@ describe('novel panel visual contract', function() {
     assert.match(css, /\.novel-chapter-list[\s\S]*overflow-y:\s*auto/);
     assert.match(css, /\.novel-panel-head/);
     assert.match(css, /\.novel-chapters-body/);
+    assert.match(css, /\.novel-list-empty/);
+    const chJs = readFileSync(join(novelRoot, 'src/lib/novel/panels/chapters.mjs'), 'utf8');
+    assert.match(chJs, /novel-list-empty/);
     assert.doesNotMatch(css, /\.novel-chapters-card\b/);
     assert.match(css, /\.novel-modal\b/);
     assert.match(css, /\.novel-icon-btn/);
@@ -846,6 +850,8 @@ describe('novel panel visual contract', function() {
     assert.match(ch, /丰满|RAG|档案/);
     assert.match(ch, /novel-panel-head|novelModalCharScan/);
     assert.doesNotMatch(ch, /人物抽取/);
+    const render = readFileSync(join(novelRoot, 'src/lib/novel/panels/charactersRender.mjs'), 'utf8');
+    assert.match(render, /novel-list-empty/);
   });
 
   it('小说分析含 G6 图谱；无独立图谱侧栏/一体分析', function() {
@@ -855,20 +861,55 @@ describe('novel panel visual contract', function() {
     assert.match(analyze, /id="novelGraphStats"/);
     assert.match(analyze, /id="novelGraphDetail"/);
     assert.match(analyze, /btnGraphClear/);
+    assert.match(analyze, /novelModalAnalyzeClear/);
+    assert.match(analyze, /novelClearOptRelations|novelClearOptEntities|novelClearOptFailed|novelClearOptRag/);
+    assert.match(analyze, /btnNovelAnalyzeClearConfirm/);
     assert.match(analyze, /btnGraphRelayout/);
-    assert.match(analyze, /btnNovelRetryFailed|novelFailedShardsInfo/);
+    assert.match(analyze, /btnNovelAnalyzeFailTag|novelModalAnalyzeFails|novelAnalyzeFailsList/);
+    assert.match(analyze, /btnNovelRetryFailed/);
+    assert.match(analyze, /novelGraphPersonOnly|只看人物节点/);
+    assert.match(analyze, /novelAnalyzeTypeBreakdown|novel-meta-group|novel-meta-line/);
+    assert.doesNotMatch(analyze, /novelFailedShardsInfo/);
     assert.doesNotMatch(analyze, /btnGraphUnifiedExtract/);
+    const bind = readFileSync(join(novelRoot, 'src/lib/novel/panels/analyzeBind.mjs'), 'utf8');
+    assert.doesNotMatch(bind, /\bconfirm\s*\(/);
+    assert.match(bind, /deleteRagIndex|novelClearOpt/);
+    assert.match(bind, /novelModalAnalyzeFails|btnNovelAnalyzeFailTag/);
+    assert.match(bind, /novelGraphPersonOnly|graphPersonOnly/);
+    // 分析执行模块不可裸调 gates/getApiConfig（拆模块后不在作用域内）
+    const run = readFileSync(join(novelRoot, 'src/lib/novel/panels/analyzeRun.mjs'), 'utf8');
+    assert.match(run, /function gates\s*\(/);
+    assert.match(run, /ctx\.gates|panel\.getApiConfig|ctx\.getApiConfig/);
+    assert.match(run, /panel\.isRagIndexStale|panel\.clearFailedShards/);
+    const bridgeCreate = readFileSync(join(novelRoot, 'src/lib/novel/shared/bridgeCreate.mjs'), 'utf8');
+    assert.match(bridgeCreate, /import\s*\{[^}]*applyRagOptionsFromUi[^}]*\}\s*from\s*['\"]\.\/bridgeFields\.mjs['\"]/);
+    // 主世界书行内操作按唯一 id 绑定，禁止用通用 .btn-delete 全页 query
+    const wbShared = readFileSync(join(novelRoot, 'src/lib/card-builder/panels/worldbookShared.mjs'), 'utf8');
+    assert.match(wbShared, /btnWbEntryDelete_/);
+    assert.match(wbShared, /getElementById\(['"]btnWbEntryDelete_/);
+    assert.doesNotMatch(wbShared, /querySelectorAll\(['"]\.btn-delete['"]\)/);
     const css = readNovelWorkshopStylesSources(novelRoot);
     assert.match(css, /\.novel-graph-cy/);
     assert.match(css, /\.novel-graph-footer/);
+    assert.match(css, /\.novel-fail-tag/);
+    assert.match(css, /\.novel-meta-group/);
+    assert.match(css, /\.novel-graph-detail[\s\S]*height:\s*4\.6em/);
     assert.match(css, /\.novel-analyze-body/);
     assert.match(css, /min-height:\s*min\(58vh/);
     assert.match(css, /\.novel-analyze-controls|\.novel-analyze-status-row/);
+    const render = readFileSync(join(novelRoot, 'src/lib/novel/panels/analyzeRender.mjs'), 'utf8');
+    assert.match(render, /btnNovelAnalyzeFailTag/);
+    assert.match(render, /novel-meta-group|filterKnowledgeGraphByTypes/);
+    assert.doesNotMatch(render, /novelFailedShardsInfo/);
+    const uiPat = readFileSync(join(novelRoot, 'src/styles/ui-patterns.css'), 'utf8');
+    assert.match(uiPat, /\.novel-panel-head > h2::before/);
+    assert.match(uiPat, /\.wb-panel-head > h2::before/);
     const viz = readFileSync(join(novelRoot, 'src/lib/novel/graphViz.mjs'), 'utf8');
     assert.match(viz, /type:\s*'d3-force'/);
     assert.match(viz, /manyBody|collide|nodeSpacing/);
     assert.match(viz, /seedNodePositions|deoverlapGraphNodes/);
     assert.match(viz, /ResizeObserver|attachResizeRelayout/);
+    assert.match(viz, /filterKnowledgeGraphByTypes/);
     const layout = readLayoutSources(novelRoot);
     assert.doesNotMatch(layout, /data-view="novel-graph"/);
     const sidebar = readFileSync(join(novelRoot, 'src/components/AppSidebar.astro'), 'utf8');
@@ -909,14 +950,19 @@ describe('novel panel visual contract', function() {
     const typeIdx = wb.indexOf('novelWbTypeFilter');
     const searchIdx = wb.indexOf('novelWbSearchInput');
     const listIdx = wb.indexOf('novelWbPreview');
-    assert.ok(clearIdx > 0 && createIdx > clearIdx && enrichIdx > createIdx && syncIdx > enrichIdx);
-    assert.ok(extractIdx > syncIdx, 'AI 抽取应在最右（主操作）');
+    assert.ok(syncIdx > 0 && clearIdx > syncIdx && createIdx > clearIdx && enrichIdx > createIdx);
+    assert.ok(extractIdx > enrichIdx, 'AI 抽取应在最右（主操作）');
     assert.doesNotMatch(wb, /novelIncludeAdult/);
     assert.ok(typeIdx > extractIdx && searchIdx > typeIdx, '类型筛选与搜索应在操作行之后');
     assert.ok(listIdx > searchIdx, '列表应紧跟搜索之后');
     assert.match(wb, /novel-wb-search-only/);
     assert.match(wb, /ui-pref-tip/);
     assert.doesNotMatch(wb, /class="[^"]*novel-card/);
+    // 列表渲染须初始化 html，且导入 isEntityEnriched（否则计数有、列表空）
+    const wbRender = readFileSync(join(novelRoot, 'src/lib/novel/panels/worldbookRender.mjs'), 'utf8');
+    assert.match(wbRender, /var html\s*=\s*['"]['"]/);
+    assert.match(wbRender, /isEntityEnriched/);
+    assert.match(wbRender, /getAdultMode/);
 
     const source = readFileSync(join(novelRoot, 'src/components/novel/NovelSourcePanel.astro'), 'utf8');
     assert.doesNotMatch(source, /novelGlobalAdult|novelGlobalNtl/);
@@ -1060,7 +1106,7 @@ describe('graphMerge + graphViz', function() {
       graphNodeId,
       applyUnifiedShardResult,
     } = await import('../src/lib/novel/graphMerge.mjs');
-    const { graphToG6Data, seedNodePositions } = await import('../src/lib/novel/graphViz.mjs');
+    const { graphToG6Data, seedNodePositions, filterKnowledgeGraphByTypes } = await import('../src/lib/novel/graphViz.mjs');
     const { formatPriorRelationsRef, buildSkeletonPriorBlock } = await import('../src/lib/novel/analyzePipeline.mjs');
 
     assert.equal(graphNodeId('person', '秦月'), 'person:秦月');
@@ -1090,6 +1136,9 @@ describe('graphMerge + graphViz', function() {
     var data = graphToG6Data(g2);
     assert.equal(data.nodes.length, 2);
     assert.equal(data.edges.length, 1);
+    var personsOnly = filterKnowledgeGraphByTypes(g2, ['person']);
+    assert.equal(personsOnly.nodes.length, 1);
+    assert.equal(personsOnly.edges.length, 0);
     assert.ok(data.nodes[0].data.label);
     // 孤立点预散开：外环坐标应与有边节点不同
     data.nodes.push({

@@ -31,6 +31,27 @@ import { novelCanonBlock, vesselOptsFromState, ENTITY_TYPE_ZH } from './analyzeS
  * attachNovelAnalyzeRun（拆自原模块）
  */
 export function attachNovelAnalyzeRun(ctx, panel) {
+  function gates() {
+    return ctx.gates ? ctx.gates() : { canExtract: false, reasons: ['未就绪'] };
+  }
+  function getApiConfig() {
+    if (typeof panel.getApiConfig === 'function') return panel.getApiConfig();
+    if (typeof ctx.getApiConfig === 'function') return ctx.getApiConfig();
+    throw new Error('API 配置未就绪');
+  }
+  function analyzeShardOpts() {
+    return panel.analyzeShardOpts();
+  }
+  function clearFailedShards(phase) {
+    return panel.clearFailedShards(phase);
+  }
+  function pushFailedShard(rec) {
+    return panel.pushFailedShard(rec);
+  }
+  function isRagIndexStale() {
+    return panel.isRagIndexStale();
+  }
+
   panel.runBuildRagIndex = async function(opts) {
     opts = opts || {};
     var state = ctx.state;
@@ -75,7 +96,7 @@ export function attachNovelAnalyzeRun(ctx, panel) {
         state.rag.sourceFingerprint = chaptersSourceFingerprint(state.chapters);
         ctx.save();
         panel.render();
-        if (ctx.setStatus) ctx.setStatus('novelAnalyzeStatus', '索引就绪 · ' + (result.mode || 'keyword') + ' · ' + (result.chunkCount || 0) + ' 块');
+        if (ctx.setStatus) ctx.setStatus('novelAnalyzeStatus', '索引就绪 | ' + (result.mode || 'keyword') + ' | ' + (result.chunkCount || 0) + ' 块');
         return result;
       });
     } catch (e) {
@@ -126,7 +147,7 @@ export function attachNovelAnalyzeRun(ctx, panel) {
           var shard = shards[idx];
           if (queue) {
             queue.textContent = '骨架 ' + (ri + 1) + '/' + runList.length
-              + ' · 实体 ' + (state.entities || []).length;
+              + ' | 实体 ' + (state.entities || []).length;
           }
           var prior = buildSkeletonPriorBlock(state);
           var user = head
@@ -164,12 +185,12 @@ export function attachNovelAnalyzeRun(ctx, panel) {
             window.__aiTaskCenter__.setProgress(task.id, (ri + 1) / runList.length, (ri + 1) + '/' + runList.length);
           }
           if (ctx.setStatus) ctx.setStatus('novelAnalyzeStatus', '骨架 ' + (ri + 1) + '/' + runList.length
-            + ' · 实体 ' + (state.entities || []).length
-            + (totals.failed ? ' · 失败 ' + totals.failed : ''));
+            + ' | 实体 ' + (state.entities || []).length
+            + (totals.failed ? ' | 失败 ' + totals.failed : ''));
         }
-        if (ctx.setStatus) ctx.setStatus('novelAnalyzeStatus', '骨架完成 · 实体 ' + (state.entities || []).length
+        if (ctx.setStatus) ctx.setStatus('novelAnalyzeStatus', '骨架完成 | 实体 ' + (state.entities || []).length
           + '（+' + totals.add + '/合' + totals.merge + '）· 关系 +' + totals.relAdd
-          + (totals.failed ? ' · 失败 ' + totals.failed : ''));
+          + (totals.failed ? ' | 失败 ' + totals.failed : ''));
         panel.render();
         return totals;
       });
@@ -293,7 +314,7 @@ export function attachNovelAnalyzeRun(ctx, panel) {
                     weakDimensions: richness.weakDimensions,
                     minChars: richness.minChars,
                     flavorHint: buildNsfwFlavorHint(state),
-                    context: live.type + ' · ' + live.name,
+                    context: live.type + ' | ' + live.name,
                     text: JSON.stringify(parsed),
                   })
                   + '\n请输出加厚后的完整 JSON 实体（保持 type/name）。';
@@ -311,7 +332,7 @@ export function attachNovelAnalyzeRun(ctx, panel) {
                     weakDimensions: ntlRich.weakDimensions,
                     minChars: ntlRich.minChars,
                     ntlHint: buildNtlTabooHint(state),
-                    context: live.type + ' · ' + live.name,
+                    context: live.type + ' | ' + live.name,
                     text: JSON.stringify(parsed),
                   })
                   + '\n请输出加厚后的完整 JSON 实体，写满 attrs.ntl。';
@@ -329,7 +350,7 @@ export function attachNovelAnalyzeRun(ctx, panel) {
                     weakDimensions: vRich.weakDimensions,
                     minChars: vRich.minChars,
                     vesselHint: buildVesselHintForState(state),
-                    context: live.type + ' · ' + live.name,
+                    context: live.type + ' | ' + live.name,
                     text: JSON.stringify(parsed),
                   })
                   + '\n请输出加厚后的完整 JSON 实体，写满 attrs.adult（含 powerLogic/vesselKind/costOrRisk/relatedPersons）。';
@@ -377,11 +398,11 @@ export function attachNovelAnalyzeRun(ctx, panel) {
           if (window.__aiTaskCenter__ && task.id) {
             window.__aiTaskCenter__.setProgress(task.id, (i + 1) / queue.length, (i + 1) + '/' + queue.length);
           }
-          if (ctx.setStatus) ctx.setStatus('novelAnalyzeStatus', '丰满 ' + (i + 1) + '/' + queue.length + ' · ' + live.name
-            + (failed ? ' · 失败 ' + failed : ''));
+          if (ctx.setStatus) ctx.setStatus('novelAnalyzeStatus', '丰满 ' + (i + 1) + '/' + queue.length + ' | ' + live.name
+            + (failed ? ' | 失败 ' + failed : ''));
         }
-        if (ctx.setStatus) ctx.setStatus('novelAnalyzeStatus', '丰满完成 · ' + done + '/' + queue.length
-          + (failed ? ' · 失败 ' + failed : ''));
+        if (ctx.setStatus) ctx.setStatus('novelAnalyzeStatus', '丰满完成 | ' + done + '/' + queue.length
+          + (failed ? ' | 失败 ' + failed : ''));
         if (ctx.setStatus) ctx.setStatus('novelCharStatus', '已丰满 ' + done + ' 项');
         if (ctx.setStatus) ctx.setStatus('novelWbStatus', '已丰满 ' + done + ' 项');
         panel.render();
@@ -419,8 +440,8 @@ export function attachNovelAnalyzeRun(ctx, panel) {
       out.enrich = await panel.runAnalyzeEnrich({ ids: enIds, clearFailed: false });
     }
     if (ctx.setStatus) ctx.setStatus('novelAnalyzeStatus', '失败项重跑完成'
-      + (skIdx.length ? ' · 骨架 ' + skIdx.length : '')
-      + (enIds.length ? ' · 丰满 ' + enIds.length : ''));
+      + (skIdx.length ? ' | 骨架 ' + skIdx.length : '')
+      + (enIds.length ? ' | 丰满 ' + enIds.length : ''));
     panel.render();
     return out;
   };
@@ -469,7 +490,7 @@ export function attachNovelAnalyzeRun(ctx, panel) {
         var parsed = parseJsonLoose(text);
         var st = applySkeletonResult(state, { relations: parsed.relations || parsed.edges || [] });
         panel.flushAnalyzePreview();
-        if (ctx.setStatus) ctx.setStatus('novelAnalyzeStatus', '关系补全完成 · +' + st.relAdd + ' 条');
+        if (ctx.setStatus) ctx.setStatus('novelAnalyzeStatus', '关系补全完成 | +' + st.relAdd + ' 条');
         return st;
       });
     } catch (e) {
@@ -492,7 +513,7 @@ export function attachNovelAnalyzeRun(ctx, panel) {
     try {
       clearFailedShards();
       if (isRagIndexStale()) {
-        if (ctx.setStatus) ctx.setStatus('novelAnalyzeStatus', 'Step0 · 建索引…');
+        if (ctx.setStatus) ctx.setStatus('novelAnalyzeStatus', 'Step0 | 建索引…');
         try {
           await panel.runBuildRagIndex({});
         } catch (e) {
@@ -501,13 +522,13 @@ export function attachNovelAnalyzeRun(ctx, panel) {
           await panel.runBuildRagIndex({ keywordOnly: true });
         }
       } else {
-        if (ctx.setStatus) ctx.setStatus('novelAnalyzeStatus', 'Step0 · 索引仍有效，跳过重建');
+        if (ctx.setStatus) ctx.setStatus('novelAnalyzeStatus', 'Step0 | 索引仍有效，跳过重建');
       }
-      if (ctx.setStatus) ctx.setStatus('novelAnalyzeStatus', 'Step1 · 骨架扫描…');
+      if (ctx.setStatus) ctx.setStatus('novelAnalyzeStatus', 'Step1 | 骨架扫描…');
       await panel.runAnalyzeSkeleton();
-      if (ctx.setStatus) ctx.setStatus('novelAnalyzeStatus', 'Step2 · 实体丰满…');
+      if (ctx.setStatus) ctx.setStatus('novelAnalyzeStatus', 'Step2 | 实体丰满…');
       await panel.runAnalyzeEnrich({});
-      if (ctx.setStatus) ctx.setStatus('novelAnalyzeStatus', 'Step3 · 关系补全…');
+      if (ctx.setStatus) ctx.setStatus('novelAnalyzeStatus', 'Step3 | 关系补全…');
       await panel.runAnalyzeRelations();
       if (ctx.setStatus) ctx.setStatus('novelAnalyzeStatus', '完整分析完成'
         + ((state.failedShards || []).length ? '（有 ' + state.failedShards.length + ' 项失败可重跑）' : ''));

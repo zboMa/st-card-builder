@@ -27,7 +27,7 @@
   .novel-panel-head h2 {
     margin: 0;
     display: inline-flex;
-    align-items: baseline;
+    align-items: center;
     gap: 8px;
     flex-shrink: 0;
   }
@@ -36,6 +36,78 @@
     font-weight: 500;
     color: var(--color-text-muted);
     letter-spacing: 0;
+  }
+  /* 对齐角色卡导出检查徽章：标题旁可点失败计数 */
+  .novel-fail-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin: 0;
+    padding: 2px 7px;
+    border-radius: 999px;
+    border: 1px solid rgba(248, 113, 113, 0.45);
+    color: #fecaca;
+    background: rgba(127, 29, 29, 0.72);
+    font-size: 0.68rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.2;
+    cursor: pointer;
+    vertical-align: middle;
+  }
+  .novel-fail-tag:hover {
+    filter: brightness(1.08);
+  }
+  .novel-fail-tag[hidden] {
+    display: none !important;
+  }
+  .novel-fail-tag svg {
+    width: 11px;
+    height: 11px;
+    flex-shrink: 0;
+  }
+  .novel-fail-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: min(48vh, 420px);
+    overflow: auto;
+  }
+  .novel-fail-list li {
+    margin: 0;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(248, 113, 113, 0.28);
+    background: rgba(127, 29, 29, 0.18);
+  }
+  .novel-fail-list .novel-fail-phase {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #fecaca;
+    margin-bottom: 2px;
+  }
+  .novel-fail-list .novel-fail-label {
+    display: block;
+    font-size: 0.78rem;
+    color: var(--color-text);
+    margin-bottom: 4px;
+  }
+  .novel-fail-list .novel-fail-error {
+    display: block;
+    font-size: 0.7rem;
+    color: var(--color-text-muted);
+    line-height: 1.45;
+    word-break: break-word;
+  }
+  .novel-fail-list .novel-fail-empty {
+    border-color: var(--color-border-subtle);
+    background: var(--color-surface);
+    color: var(--color-text-muted);
+    text-align: center;
   }
   .novel-head-actions {
     display: flex;
@@ -518,6 +590,8 @@
   .novel-entity-list.wb-entries-list .entry-actions {
     max-width: none;
   }
+  .novel-chapter-list .novel-list-empty,
+  .novel-entity-list .novel-list-empty,
   .novel-entity-list .wb-entries-empty,
   .novel-entity-list .novel-wb-empty-tip {
     margin: auto;
@@ -541,6 +615,15 @@
     gap: 8px;
     color: var(--color-text-muted);
     font-size: 0.8rem;
+  }
+  .novel-clear-opts {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 4px 0 8px;
+  }
+  .novel-clear-opts .novel-switch {
+    color: var(--color-text-secondary);
   }
 
   .novel-status-text {
@@ -780,6 +863,27 @@
   .novel-analyze-status-row .novel-status-text[style*="display:none"] {
     display: none;
   }
+  .novel-graph-wrap {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: min(58vh, 560px);
+    display: flex;
+    flex-direction: column;
+  }
+  .novel-graph-filter {
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    z-index: 2;
+    margin: 0;
+    padding: 4px 8px;
+    border-radius: 6px;
+    border: 1px solid var(--color-border-subtle);
+    background: rgba(7, 12, 24, 0.82);
+    backdrop-filter: blur(4px);
+    font-size: 0.72rem;
+    color: var(--color-text-secondary);
+  }
   .novel-graph-cy {
     flex: 1 1 auto;
     min-height: min(58vh, 560px);
@@ -792,6 +896,29 @@
       radial-gradient(ellipse at 88% 90%, rgba(56, 189, 248, 0.08), transparent 42%),
       var(--color-surface-inset);
   }
+  /* 组内 ·；组间用竖条（非文字 |） */
+  .novel-meta-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0;
+  }
+  .novel-meta-group {
+    display: inline-flex;
+    align-items: center;
+    min-width: 0;
+  }
+  .novel-meta-group + .novel-meta-group::before {
+    content: '';
+    display: inline-block;
+    width: 2px;
+    height: 0.95em;
+    margin: 0 10px;
+    border-radius: 99px;
+    background: linear-gradient(180deg, var(--color-accent-hover), var(--color-accent));
+    opacity: 0.55;
+    flex-shrink: 0;
+  }
   .novel-graph-footer {
     flex-shrink: 0;
     margin: 0;
@@ -801,11 +928,7 @@
     background: var(--color-surface-inset);
   }
   .novel-graph-footer-meta {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: 6px 14px;
-    margin-bottom: 2px;
+    margin-bottom: 4px;
   }
   .novel-analyze-summary {
     margin: 0;
@@ -822,11 +945,16 @@
     font-weight: 700;
     color: var(--color-accent-hover);
   }
+  /* 固定详情高度，避免点选撑高 footer → 图谱 ResizeObserver 重绘 */
   .novel-graph-detail {
     font-size: 0.74rem;
     line-height: 1.4;
     color: var(--color-text-secondary);
-    min-height: 1.2em;
+    height: 4.6em;
+    max-height: 4.6em;
+    overflow-x: hidden;
+    overflow-y: auto;
+    scrollbar-gutter: stable;
   }
   .novel-graph-detail strong {
     color: var(--color-text);

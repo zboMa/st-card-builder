@@ -583,13 +583,25 @@
   background: oklch(62% 0.18 25 / 0.12);
 }
 
-/* —— 面板标题 accent 条（非 panel-header 内的 h2） —— */
-.panel > h2:first-child {
+/* —— 面板标题 accent 条 —— */
+.panel > h2:first-child,
+.novel-panel-head > h2,
+.wb-panel-head > h2,
+.panel-header h2,
+.ss-panel-heading h2,
+.admin-panel-head h2,
+.card-manager-heading h2 {
   display: flex;
   align-items: center;
   gap: var(--space-2);
 }
-.panel > h2:first-child::before {
+.panel > h2:first-child::before,
+.novel-panel-head > h2::before,
+.wb-panel-head > h2::before,
+.panel-header h2::before,
+.ss-panel-heading h2::before,
+.admin-panel-head h2::before,
+.card-manager-heading h2::before {
   content: '';
   width: 3px;
   height: 1em;

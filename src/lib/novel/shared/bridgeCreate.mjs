@@ -22,6 +22,7 @@ import {
   NSFW_FLAVOR_PRESETS, NTL_TABOO_TYPES, MAX_NSFW_FLAVOR_ITEMS,
 } from '../nsfwSupport.mjs';
 import { syncOutputs } from './bridgeSyncOutputs.mjs';
+import { applyRagOptionsFromUi, syncRagOptionsToAiPanel } from './bridgeFields.mjs';
 
 export function createBridge(ctx) {
   var state = ctx.state;

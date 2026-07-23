@@ -1,10 +1,11 @@
 import { getPipelineGates, WB_FOCUS_OPTIONS } from '../state.mjs';
 import { buildExtractShards, estimateExtractCalls, chaptersSourceFingerprint } from '../chapters.mjs';
 import { emptyKnowledgeGraph } from '../graphMerge.mjs';
-import { mountOrUpdateGraph, relayoutGraph } from '../graphViz.mjs';
+import { mountOrUpdateGraph, relayoutGraph, filterKnowledgeGraphByTypes } from '../graphViz.mjs';
 import { countEntitiesByType, isEntityEnriched, ENTITY_TYPES, projectEntitiesToLegacy } from '../entityStore.mjs';
 import { getAdultMode } from '../nsfwSupport.mjs';
 import { escapeHtml } from '../../utils.mjs';
+import { getEmbeddingConfig, EMBEDDING_API_URL_KEY, EMBEDDING_API_KEY_KEY, EMBEDDING_MODEL_KEY } from '../rag/embeddingConfig.mjs';
 import { ENTITY_TYPE_ZH } from './analyzeShared.mjs';
 
 /**
@@ -101,6 +102,12 @@ export function attachNovelAnalyzeRender(ctx, panel, graphRef) {
     return getPipelineGates(state);
   }
 
+  panel.getApiConfig = getApiConfig;
+  panel.isRagIndexStale = isRagIndexStale;
+  panel.analyzeShardOpts = analyzeShardOpts;
+  panel.pushFailedShard = pushFailedShard;
+  panel.clearFailedShards = clearFailedShards;
+
   panel.render = function() {
     var state = ctx.state;
     var $ = ctx.$;
@@ -120,30 +127,34 @@ export function attachNovelAnalyzeRender(ctx, panel, graphRef) {
       var statusZh = status === 'ready'
         ? (stale ? '过期' : '就绪')
         : (status === 'building' ? '构建中' : (status === 'error' ? '失败' : '未建'));
-      ragInfo.textContent = '索引：' + statusZh
-        + (rag.chunkCount ? ' · ' + rag.chunkCount + ' 块' : '')
-        + (rag.embedModel ? ' · ' + rag.embedModel : '')
-        + (rag.indexUpdatedAt ? ' · ' + String(rag.indexUpdatedAt).slice(0, 19).replace('T', ' ') : '')
-        + (stale && status === 'ready' ? ' · 章节已变，请重建' : '');
+      var groups = [];
+      var head = '索引：' + statusZh;
+      if (rag.chunkCount) head += ' · ' + rag.chunkCount + ' 块';
+      groups.push(head);
+      if (rag.embedModel) groups.push(String(rag.embedModel));
+      if (rag.indexUpdatedAt) groups.push(String(rag.indexUpdatedAt).slice(0, 19).replace('T', ' '));
+      if (stale && status === 'ready') groups.push('章节已变，请重建');
+      ragInfo.innerHTML = groups.map(function(t) {
+        return '<span class="novel-meta-group">' + escapeHtml(t) + '</span>';
+      }).join('');
     }
 
     var failed = state.failedShards || [];
-    var failInfo = $('novelFailedShardsInfo');
+    var failTag = $('btnNovelAnalyzeFailTag');
+    var failCount = $('novelAnalyzeFailCount');
     var retryBtn = $('btnNovelRetryFailed');
-    if (failInfo) {
-      if (failed.length) {
-        failInfo.style.display = '';
-        failInfo.textContent = '失败 ' + failed.length + ' 项：'
-          + failed.slice(0, 4).map(function(f) {
-            return (f.phase || '?') + '/' + (f.label || f.entityId || f.shardIndex || '');
-          }).join('；')
-          + (failed.length > 4 ? '…' : '');
-      } else {
-        failInfo.style.display = 'none';
-        failInfo.textContent = '';
-      }
+    if (failCount) failCount.textContent = String(failed.length);
+    if (failTag) {
+      failTag.hidden = !failed.length;
+      failTag.title = failed.length ? ('失败 ' + failed.length + ' 项，点击查看') : '无失败项';
     }
     if (retryBtn) retryBtn.hidden = !failed.length;
+    panel.renderFailedShardsList();
+
+    var personOnlyEl = $('novelGraphPersonOnly');
+    if (personOnlyEl && document.activeElement !== personOnlyEl) {
+      personOnlyEl.checked = !!ctx.editState.graphPersonOnly;
+    }
 
     var counts = countEntitiesByType(state.entities);
     var relN = (state.relations || []).length;
@@ -152,14 +163,45 @@ export function attachNovelAnalyzeRender(ctx, panel, graphRef) {
     }).length;
     var summary = $('novelAnalyzeSummary');
     if (summary) {
+      summary.textContent = '实体 ' + ((state.entities || []).length) + '（已丰满 ' + enriched + '）';
+    }
+    var breakdown = $('novelAnalyzeTypeBreakdown');
+    if (breakdown) {
       var parts = ENTITY_TYPES.filter(function(t) { return counts[t]; }).map(function(t) {
         return (ENTITY_TYPE_ZH[t] || t) + ' ' + counts[t];
       });
-      summary.textContent = '实体 ' + ((state.entities || []).length) + '（已丰满 ' + enriched + '）'
-        + (parts.length ? ' · ' + parts.join(' · ') : '')
-        + ' · 关系 ' + relN
-        + (failed.length ? ' · 失败 ' + failed.length : '');
+      if (relN) parts.push('关系 ' + relN);
+      breakdown.textContent = parts.length ? parts.join(' · ') : '—';
     }
+  };
+
+  panel.renderFailedShardsList = function() {
+    var state = ctx.state;
+    var $ = ctx.$;
+    var failed = state.failedShards || [];
+    var summary = $('novelAnalyzeFailsSummary');
+    var list = $('novelAnalyzeFailsList');
+    if (summary) {
+      summary.textContent = failed.length
+        ? ('共 ' + failed.length + ' 项失败。可关闭后点标题旁徽章再次打开，或直接「重跑失败」。')
+        : '暂无失败项';
+    }
+    if (!list) return;
+    if (!failed.length) {
+      list.innerHTML = '<li class="novel-fail-empty">暂无失败记录</li>';
+      return;
+    }
+    var phaseZh = { skeleton: '骨架', enrich: '丰满', relations: '关系', rag: '索引' };
+    list.innerHTML = failed.map(function(f) {
+      var phase = phaseZh[f.phase] || f.phase || '未知';
+      var label = f.label || f.entityId || (f.shardIndex != null ? ('分片 #' + f.shardIndex) : '（无标签）');
+      var err = f.error || '未知错误';
+      return '<li>'
+        + '<span class="novel-fail-phase">' + escapeHtml(phase) + '</span>'
+        + '<span class="novel-fail-label">' + escapeHtml(String(label)) + '</span>'
+        + '<span class="novel-fail-error">' + escapeHtml(String(err)) + '</span>'
+        + '</li>';
+    }).join('');
   };
 
   panel.flushAnalyzePreview = function() {
@@ -176,6 +218,9 @@ export function attachNovelAnalyzeRender(ctx, panel, graphRef) {
     var state = ctx.state;
     var $ = ctx.$;
     var g = state.knowledgeGraph || emptyKnowledgeGraph();
+    if (ctx.editState.graphPersonOnly) {
+      g = filterKnowledgeGraphByTypes(g, ['person']);
+    }
     var n = (g.nodes || []).length;
     var e = (g.edges || []).length;
     var stats = $('novelGraphStats');

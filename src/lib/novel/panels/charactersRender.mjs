@@ -143,7 +143,7 @@ export function attachNovelCharactersRender(ctx, panel) {
 
     if (!grid) return;
     if (!(state.characters || []).length) {
-      grid.innerHTML = '<div class="novel-status-text">暂无人物。请先「小说分析」，或手动添加 / 扫描全书。</div>';
+      grid.innerHTML = '<div class="novel-list-empty">暂无人物。请先「小说分析」，或手动添加 / 扫描全书。</div>';
       return;
     }
     var q = String(es.novelCharSearchQuery || '').trim().toLowerCase();
@@ -153,7 +153,7 @@ export function attachNovelCharactersRender(ctx, panel) {
       return hay.indexOf(q) >= 0;
     });
     if (!list.length) {
-      grid.innerHTML = '<div class="novel-status-text">未找到匹配「' + escapeHtml(es.novelCharSearchQuery) + '」的人物。</div>';
+      grid.innerHTML = '<div class="novel-list-empty">未找到匹配「' + escapeHtml(es.novelCharSearchQuery) + '」的人物。</div>';
       return;
     }
     grid.innerHTML = list.map(function(c) {

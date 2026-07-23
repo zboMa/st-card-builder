@@ -3,12 +3,18 @@
 ---
 <div class="panel novel-workshop-panel novel-extract-panel novel-analyze-panel" data-novel-panel="analyze">
   <div class="novel-panel-head">
-    <h2>小说分析</h2>
+    <h2>
+      小说分析
+      <button type="button" id="btnNovelAnalyzeFailTag" class="novel-fail-tag" hidden title="查看失败项" aria-label="查看失败项">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+        <span id="novelAnalyzeFailCount">0</span>
+      </button>
+    </h2>
     <div class="novel-head-actions" aria-label="小说分析操作">
       <button id="btnNovelNsfwStatusDraft" type="button" class="btn btn-fetch novel-btn-sm" title="从人物 NSFW 生成状态栏变量草案">NSFW→状态栏</button>
       <button id="btnNovelNtlStatusDraft" type="button" class="btn btn-fetch novel-btn-sm" title="从人物 NTL 生成状态栏变量草案">NTL→状态栏</button>
       <button id="btnNovelVesselStatusDraft" type="button" class="btn btn-fetch novel-btn-sm" title="从世界观成人载体生成状态栏变量草案">载体→状态栏</button>
-      <button id="btnGraphClear" type="button" class="btn btn-fetch novel-btn-sm" title="清空关系与图谱，保留实体">清空图谱</button>
+      <button id="btnGraphClear" type="button" class="btn btn-fetch novel-btn-sm" title="按范围清空分析产出">清空…</button>
       <button id="btnGraphRelayout" type="button" class="btn btn-fetch novel-btn-sm" title="重新布局图谱">重新布局</button>
       <button id="btnNovelRetryFailed" type="button" class="btn btn-fetch novel-btn-sm" title="仅重跑失败片" hidden>重跑失败</button>
       <button id="btnNovelRagIndex" type="button" class="btn btn-fetch novel-btn-sm" title="强制重建向量/关键词索引">重建索引</button>
@@ -24,19 +30,25 @@
 
   <div class="novel-extract-body novel-analyze-body">
     <div class="novel-analyze-status-row">
-      <p id="novelRagIndexInfo" class="novel-status-text">索引：未建</p>
-      <p id="novelFailedShardsInfo" class="novel-status-text" style="display:none;"></p>
+      <div id="novelRagIndexInfo" class="novel-status-text novel-meta-line">索引：未建</div>
       <div id="novelAnalyzeQueue" class="novel-status-text" style="display:none;"></div>
       <div id="novelAnalyzeStatus" class="novel-status-text"></div>
       <pre id="novelNsfwStatusDraft" class="novel-status-text" style="display:none;white-space:pre-wrap;max-height:120px;overflow:auto;"></pre>
     </div>
 
-    <div id="novelGraphCy" class="novel-graph-cy" role="img" aria-label="知识图谱可视化"></div>
+    <div class="novel-graph-wrap">
+      <label class="novel-graph-filter novel-switch" for="novelGraphPersonOnly">
+        <input id="novelGraphPersonOnly" type="checkbox" />
+        <span>只看人物节点</span>
+      </label>
+      <div id="novelGraphCy" class="novel-graph-cy" role="img" aria-label="知识图谱可视化"></div>
+    </div>
 
     <div class="novel-graph-footer">
-      <div class="novel-graph-footer-meta">
-        <p id="novelAnalyzeSummary" class="novel-analyze-summary" aria-live="polite">实体 0 · 关系 0</p>
-        <p id="novelGraphStats" class="novel-graph-stats" aria-live="polite">节点 0 · 边 0</p>
+      <div class="novel-graph-footer-meta novel-meta-line" aria-live="polite">
+        <span id="novelAnalyzeSummary" class="novel-meta-group novel-analyze-summary">实体 0（已丰满 0）</span>
+        <span id="novelAnalyzeTypeBreakdown" class="novel-meta-group">—</span>
+        <span id="novelGraphStats" class="novel-meta-group novel-graph-stats">节点 0 · 边 0</span>
       </div>
       <div id="novelGraphDetail" class="novel-graph-detail">点击节点或边查看详情</div>
     </div>
@@ -94,6 +106,61 @@
     <div class="novel-modal-actions">
       <button type="button" class="btn novel-modal-cancel" data-novel-modal-close="novelModalAnalyze">取消</button>
       <button type="button" class="btn btn-ai" id="btnNovelAnalyzeConfirm">开始分析</button>
+    </div>
+  </div>
+</div>
+
+<!-- 按范围清空分析产出 -->
+<div id="novelModalAnalyzeClear" class="novel-modal" hidden aria-hidden="true">
+  <div class="novel-modal-backdrop" data-novel-modal-close="novelModalAnalyzeClear"></div>
+  <div class="novel-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="novelModalAnalyzeClearTitle">
+    <div class="novel-modal-head">
+      <strong id="novelModalAnalyzeClearTitle">清空分析产出</strong>
+      <span class="novel-modal-tip">勾选要清除的范围 · 默认全选 · Esc / 遮罩关闭</span>
+    </div>
+    <div class="novel-modal-body">
+      <p class="novel-modal-desc ui-pref-tip">不改动原文与拆章。清「实体」时会同步清空人物列表 / 世界书草稿，并去掉相关关系。</p>
+      <div class="novel-clear-opts" role="group" aria-label="清空范围">
+        <label class="novel-switch">
+          <input id="novelClearOptRelations" type="checkbox" checked />
+          <span>关系与图谱连线</span>
+        </label>
+        <label class="novel-switch">
+          <input id="novelClearOptEntities" type="checkbox" checked />
+          <span>实体（人物 / 世界书投影）</span>
+        </label>
+        <label class="novel-switch">
+          <input id="novelClearOptFailed" type="checkbox" checked />
+          <span>失败分片记录</span>
+        </label>
+        <label class="novel-switch">
+          <input id="novelClearOptRag" type="checkbox" checked />
+          <span>RAG 索引</span>
+        </label>
+      </div>
+    </div>
+    <div class="novel-modal-actions">
+      <button type="button" class="btn novel-modal-cancel" data-novel-modal-close="novelModalAnalyzeClear">取消</button>
+      <button type="button" class="btn btn-delete" id="btnNovelAnalyzeClearConfirm">确认清空</button>
+    </div>
+  </div>
+</div>
+
+<!-- 分析失败项列表 -->
+<div id="novelModalAnalyzeFails" class="novel-modal" hidden aria-hidden="true">
+  <div class="novel-modal-backdrop" data-novel-modal-close="novelModalAnalyzeFails"></div>
+  <div class="novel-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="novelModalAnalyzeFailsTitle">
+    <div class="novel-modal-head">
+      <strong id="novelModalAnalyzeFailsTitle">分析失败项</strong>
+      <span class="novel-modal-tip">可点「重跑失败」仅重试这些分片 · Esc / 遮罩关闭</span>
+    </div>
+    <div class="novel-modal-body">
+      <p id="novelAnalyzeFailsSummary" class="novel-modal-desc ui-pref-tip">暂无失败项</p>
+      <ul id="novelAnalyzeFailsList" class="novel-fail-list"></ul>
+    </div>
+    <div class="novel-modal-actions">
+      <button type="button" class="btn novel-modal-cancel" data-novel-modal-close="novelModalAnalyzeFails">关闭</button>
+      <button type="button" class="btn btn-fetch" id="btnNovelAnalyzeFailsRetry">重跑失败</button>
     </div>
   </div>
 </div>
