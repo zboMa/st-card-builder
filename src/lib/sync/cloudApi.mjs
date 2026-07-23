@@ -184,3 +184,23 @@ export function deleteStoryNovel(cardId, novelId) {
     '/api/data/stories/' + encodeURIComponent(cardId) + '/' + encodeURIComponent(novelId)
   );
 }
+
+export function fetchCloudQuota() {
+  return cloudGet('/api/data/quota');
+}
+
+export function fetchCardConflict(cardId) {
+  return cloudGet('/api/data/cards/' + encodeURIComponent(cardId) + '/conflict');
+}
+
+export function fetchCloudExport() {
+  return cloudGet('/api/data/export');
+}
+
+export function fetchAuthTokens() {
+  return cloudGet('/api/auth/tokens');
+}
+
+export function revokeAuthToken(docId) {
+  return cloudDelete('/api/auth/tokens/' + encodeURIComponent(docId));
+}

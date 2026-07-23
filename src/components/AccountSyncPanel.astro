@@ -90,6 +90,26 @@
         <span id="syncCountdownLine" class="account-session-sync-eta" hidden></span>
       </div>
       <div id="syncTip" class="account-session-tip" role="status"></div>
+      <div id="syncCenterBlock" class="account-session-tip" role="status"></div>
+      <div class="ui-row" style="gap:8px;flex-wrap:wrap;margin-top:8px;">
+        <button type="button" id="btnGoCardManagerSync" class="btn-inline">前往卡管理同步</button>
+        <button type="button" id="btnRetryOutbox" class="btn-inline">刷新云端列表</button>
+      </div>
+    </section>
+
+    <section class="account-session-card" aria-labelledby="accountQuotaTitle">
+      <h3 id="accountQuotaTitle" class="account-session-card-title">云端用量</h3>
+      <pre id="quotaUsageBlock" class="account-session-meta" style="white-space:pre-wrap;margin:0;font-family:inherit;"></pre>
+      <div class="ui-row" style="gap:8px;flex-wrap:wrap;margin-top:8px;">
+        <button type="button" id="btnExportCloudData" class="btn-inline">导出云端数据</button>
+      </div>
+      <div id="exportDataTip" class="account-session-tip" role="status"></div>
+    </section>
+
+    <section class="account-session-card" aria-labelledby="accountDevicesTitle">
+      <h3 id="accountDevicesTitle" class="account-session-card-title">登录设备（插件 Bearer）</h3>
+      <p class="account-session-meta">列出 ST 插件等使用的 Bearer 会话，可远程吊销。</p>
+      <ul id="deviceTokensList" class="account-session-meta" style="padding-left:1.2em;margin:8px 0;"></ul>
     </section>
 
     <section class="account-session-card" aria-labelledby="accountPrefsTitle">

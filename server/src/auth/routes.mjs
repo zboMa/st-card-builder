@@ -18,7 +18,8 @@ import {
   getEmailAuthDoc,
   registerEmailUser,
 } from '../couch.mjs';
-import { issueBearerToken, revokeBearerToken } from './bearer.mjs';
+import { issueBearerToken, revokeBearerToken, listBearerTokensForUser, revokeBearerByDocId } from './bearer.mjs';
+import { assertQuota } from '../quota/quotaService.mjs';
 import { resolveRequestUser } from './requireUser.mjs';
 import { buildReturnToAllowlist, sanitizeReturnTo } from './returnTo.mjs';
 import {
@@ -283,6 +284,7 @@ authRouter.get('/discord/callback', async function(req, res) {
     try { await upsertUserRegistry(req.session.user); } catch (e) { console.warn('[auth] registry', e); }
 
     if (oauthClient === 'st_plugin') {
+      await assertQuota(req.session.user, 'issue_bearer');
       var issued = await issueBearerToken(req.session.user);
       return res.redirect('/api/auth/plugin-done#token=' + encodeURIComponent(issued.token)
         + '&expiresAt=' + encodeURIComponent(issued.expiresAt));
@@ -325,4 +327,32 @@ authRouter.post('/plugin-logout', async function(req, res) {
     try { await revokeBearerToken(m[1]); } catch (e) { /* ignore */ }
   }
   res.json({ ok: true });
+});
+
+/** 当前用户的插件 Bearer 设备列表 */
+authRouter.get('/tokens', async function(req, res) {
+  var user = await resolveRequestUser(req);
+  if (!user) return res.status(401).json({ error: 'unauthorized' });
+  try {
+    var tokens = await listBearerTokensForUser(user.id);
+    res.json({ ok: true, tokens: tokens });
+  } catch (e) {
+    res.status(500).json({ error: 'tokens_failed', message: String(e && e.message || e) });
+  }
+});
+
+/** 吊销指定设备（doc id bearer/...） */
+authRouter.delete('/tokens/:docId', async function(req, res) {
+  var user = await resolveRequestUser(req);
+  if (!user) return res.status(401).json({ error: 'unauthorized' });
+  var docId = decodeURIComponent(String(req.params.docId || ''));
+  try {
+    var tokens = await listBearerTokensForUser(user.id);
+    var owned = tokens.some(function(t) { return t.id === docId; });
+    if (!owned) return res.status(403).json({ error: 'forbidden' });
+    await revokeBearerByDocId(docId);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: 'token_revoke_failed', message: String(e && e.message || e) });
+  }
 });

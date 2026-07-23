@@ -7,6 +7,8 @@ import {
   getCardCloudMeta,
   resolveCardCloudStatus,
 } from '../../sync/cardCloudMeta.mjs';
+import { computeDraftContentRev } from '../../sync/contentRev.mjs';
+import { ensureCloudQuota, invalidateQuotaCache } from '../../sync/quotaClient.mjs';
 
 /** @param {object} ctx @param {object} s @param {object} panel */
 export function attachCardManagerCloud(ctx, s, panel) {
@@ -18,21 +20,45 @@ export function attachCardManagerCloud(ctx, s, panel) {
     if (panel.saveCurrentDraft) panel.saveCurrentDraft();
   }
 
+  function buildLocalConflictSummary(id) {
+    var dr = s.getAllDrafts();
+    var draft = dr[id];
+    if (!draft) return null;
+    return {
+      charName: draft.charName || '',
+      updatedAt: draft.updatedAt || '',
+      contentRev: draft.contentRev || computeDraftContentRev(draft),
+      wbCount: Array.isArray(draft.worldbookEntries) ? draft.worldbookEntries.length : 0,
+      hasAvatar: !!(draft.avatarInIdb || draft.avatarBase64),
+    };
+  }
+
   async function fetchCloudConflictHint(id) {
     try {
       var apiMod = await import('../../sync/cloudApi.mjs');
+      var local = buildLocalConflictSummary(id);
       var localMeta = getCardCloudMeta(id);
-      if (!localMeta || !localMeta.onCloud || !localMeta.cloudUpdatedAt) return '';
-      var res = await apiMod.fetchCloudCards();
-      var cards = (res && res.cards) || [];
-      var row = null;
-      for (var i = 0; i < cards.length; i++) {
-        if (cards[i] && cards[i].id === id) { row = cards[i]; break; }
-      }
-      if (!row || !row.updatedAt || row.updatedAt === localMeta.cloudUpdatedAt) return '';
-      return '云端该卡已有较新版本（更新于 ' + row.updatedAt + '）。继续将用本机覆盖云端。';
+      if (!localMeta || !localMeta.onCloud) return { hint: '', hasConflict: false };
+      var res = await apiMod.fetchCardConflict(id);
+      var remote = res && res.remote;
+      if (!remote) return { hint: '', hasConflict: false };
+      var revDiff = remote.contentRev && local && local.contentRev
+        && remote.contentRev !== local.contentRev;
+      var timeDiff = remote.updatedAt && localMeta.cloudUpdatedAt
+        && remote.updatedAt !== localMeta.cloudUpdatedAt;
+      if (!revDiff && !timeDiff) return { hint: '', hasConflict: false, local: local, remote: remote };
+      var lines = [
+        '本地：' + (local.charName || '—') + ' · 世界书 ' + (local.wbCount || 0) + ' 条 · rev ' + (local.contentRev || '—'),
+        '云端：' + (remote.charName || '—') + ' · 世界书 ' + (remote.wbCount || 0) + ' 条 · rev ' + (remote.contentRev || '—'),
+      ];
+      return {
+        hint: lines.join('\n'),
+        hasConflict: true,
+        local: local,
+        remote: remote,
+      };
     } catch (e) {
-      return '';
+      return { hint: '', hasConflict: false };
     }
   }
 
@@ -52,13 +78,30 @@ export function attachCardManagerCloud(ctx, s, panel) {
       var sync = await import('../../sync/index.mjs');
       if (sync.fetchSyncCredentials) await sync.fetchSyncCredentials();
     } catch (eCred) { /* ignore */ }
-    var conflictHint = await fetchCloudConflictHint(id);
+    var conflict = await fetchCloudConflictHint(id);
+    var meta = getCardCloudMeta(id);
+    var isNew = !(meta && meta.onCloud);
+    var quotaCheck = await ensureCloudQuota('upload_bundle', { isNewCard: isNew });
+    if (!quotaCheck.ok) {
+      s.setCardManagerStatus(quotaCheck.message, true);
+      return;
+    }
+    if (conflict.hasConflict) {
+      var pick = await ctx.showConfirmDialog({
+        icon: '⚠️',
+        title: '云端版本不一致',
+        message: '本机与云端内容可能不同，请选择操作。',
+        detail: conflict.hint + '\n\n· 同步上云 = 用本机覆盖云端\n· 取消后可在 ⋯ 菜单选「从云端覆盖」',
+        okText: '仍用本机覆盖上云',
+        cancelText: '取消',
+      });
+      if (!pick) return;
+    }
     var ok = await ctx.showConfirmDialog({
       icon: '☁️',
       title: '同步上云？',
       message: '将用本机这张卡（含工坊/头像等绑卡数据）覆盖云端版本。',
-      detail: '写出的小说（Story）不随此操作上传。本地编辑不会自动上云，需在此确认。'
-        + (conflictHint ? '\n\n' + conflictHint : ''),
+      detail: '写出的小说（Story）不随此操作上传。本地编辑不会自动上云，需在此确认。',
       okText: '同步上云',
       cancelText: '取消',
     });
@@ -68,6 +111,7 @@ export function attachCardManagerCloud(ctx, s, panel) {
     try {
       var sync2 = await import('../../sync/index.mjs');
       await sync2.cloudUploadOverwrite(id);
+      invalidateQuotaCache();
       s.setCardManagerStatus('已同步上云');
       panel.updateCardManagerUI();
     } catch (e) {
@@ -90,6 +134,11 @@ export function attachCardManagerCloud(ctx, s, panel) {
     var ids = listDirtyCloudUploadIds();
     if (!ids.length) {
       s.setCardManagerStatus('所有本地卡均已同步上云');
+      return;
+    }
+    var batchQuota = await ensureCloudQuota('batch_upload', { count: ids.length });
+    if (!batchQuota.ok) {
+      s.setCardManagerStatus(batchQuota.message, true);
       return;
     }
     var ok = await ctx.showConfirmDialog({

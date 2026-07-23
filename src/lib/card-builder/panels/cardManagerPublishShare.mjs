@@ -7,6 +7,8 @@ import { createTextChunk, deepCopy } from '../../utils.mjs';
 import { normalizeCharacterVersion } from '../cardRelease.mjs';
 import { apiPublishCard, apiCreateCardShare, apiDeleteCardShare, getCardShareMeta, setCardShareMeta, clearCardShareToken } from '../cardShareClient.mjs';
 import { publishCardDraft, bumpCardDraftVersion, switchCardDraftVersion, listCardVersions, ensureCardVersions } from '../cardVersions.mjs';
+import { buildPublishGate, confirmPublishGate, isCardCloudDirty } from '../publishGate.mjs';
+import { ensureCloudQuota } from '../../sync/quotaClient.mjs';
 
 /** @param {object} ctx @param {object} s @param {object} panel */
 export function attachCardManagerPublishShare(ctx, s, panel) {
@@ -77,6 +79,23 @@ export function attachCardManagerPublishShare(ctx, s, panel) {
       ? Object.assign({}, buildDraftSnapshot(ctx.state), { draftId: id })
       : Object.assign({}, stored, { draftId: id });
     ensureCardVersions(d);
+
+    var gate = buildPublishGate({
+      charName: d.charName,
+      charDesc: d.charDesc,
+      firstMes: d.firstMes,
+      hasAvatar: !!(d.avatarInIdb || d.avatarBase64),
+      worldbookCount: (d.worldbookEntries || []).length,
+      worldbookNoKeys: (d.worldbookEntries || []).filter(function(e) {
+        return e && (!e.keys || !e.keys.length);
+      }).length,
+      nsfwEnabled: d.nsfwEnabled,
+      nsfwFlavor: d.nsfwFlavor,
+      nsfwFlavorItems: d.nsfwFlavorItems,
+      cloudDirty: isCardCloudDirty(d, id),
+    }, 'publish');
+    var gateOk = await confirmPublishGate(ctx, gate);
+    if (!gateOk) return;
 
     var okPublish = await ctx.showConfirmDialog({
       icon: '📣',
@@ -231,6 +250,11 @@ export function attachCardManagerPublishShare(ctx, s, panel) {
 
     s.setCardManagerStatus(opts.resetToken ? '重置分享链接…' : '创建分享链接…');
     try {
+      var shareQuota = await ensureCloudQuota('create_share');
+      if (!shareQuota.ok) {
+        s.setCardManagerStatus(shareQuota.message, true);
+        return;
+      }
       var payload = {
         cardId: id,
         token: meta.token || '',
