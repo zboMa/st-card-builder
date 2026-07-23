@@ -52,24 +52,28 @@ function waitForServer() {
 
 function sampleCanvasBrightness(page) {
   return page.evaluate(function() {
-    var c = document.getElementById('sceneFxCanvas');
-    if (!c) return { ok: false, reason: 'no canvas' };
-    var ctx = c.getContext('2d');
-    if (!ctx) return { ok: false, reason: 'no ctx' };
-    var w = c.width;
-    var h = c.height;
-    if (w < 10 || h < 10) return { ok: false, reason: 'canvas zero size' };
-    var pts = [
-      [w * 0.2, h * 0.2], [w * 0.5, h * 0.45], [w * 0.75, h * 0.65], [w * 0.35, h * 0.55],
-    ];
+    var ids = ['sceneFxCanvasBlend', 'sceneFxCanvasAmbient'];
     var max = 0;
     var hits = 0;
-    pts.forEach(function(p) {
-      var d = ctx.getImageData(Math.floor(p[0]), Math.floor(p[1]), 1, 1).data;
-      var lum = d[0] + d[1] + d[2];
-      if (d[3] > 6) hits++;
-      if (lum > max) max = lum;
-    });
+    for (var k = 0; k < ids.length; k++) {
+      var c = document.getElementById(ids[k]);
+      if (!c) continue;
+      var ctx = c.getContext('2d');
+      if (!ctx) continue;
+      var w = c.width;
+      var h = c.height;
+      if (w < 10 || h < 10) continue;
+      var pts = [
+        [w * 0.2, h * 0.2], [w * 0.5, h * 0.45], [w * 0.75, h * 0.65], [w * 0.35, h * 0.55],
+      ];
+      pts.forEach(function(p) {
+        var d = ctx.getImageData(Math.floor(p[0]), Math.floor(p[1]), 1, 1).data;
+        var lum = d[0] + d[1] + d[2];
+        if (d[3] > 6) hits++;
+        if (lum > max) max = lum;
+      });
+    }
+    if (hits === 0 && max === 0) return { ok: false, reason: 'no canvas pixels' };
     return { ok: hits >= 1 && max > 80, hits: hits, max: max, tier: document.documentElement.getAttribute('data-scene-tier') };
   });
 }
@@ -125,13 +129,19 @@ async function main() {
         await page.mouse.click(cx, cy);
         await page.waitForTimeout(450);
         var afterClick = await page.evaluate(function(click) {
-          var c = document.getElementById('sceneFxCanvas');
-          var ctx = c && c.getContext('2d');
-          if (!ctx) return { ok: false };
-          var x = Math.floor(click.x * (c.width / c.clientWidth));
-          var y = Math.floor(click.y * (c.height / c.clientHeight));
-          var d = ctx.getImageData(x, y, 1, 1).data;
-          return { ok: d[3] > 20 && (d[0] + d[1] + d[2]) > 60, a: d[3], lum: d[0] + d[1] + d[2] };
+          var ids = ['sceneFxCanvasBlend', 'sceneFxCanvasAmbient'];
+          for (var k = 0; k < ids.length; k++) {
+            var c = document.getElementById(ids[k]);
+            var ctx = c && c.getContext('2d');
+            if (!ctx) continue;
+            var x = Math.floor(click.x * (c.width / c.clientWidth));
+            var y = Math.floor(click.y * (c.height / c.clientHeight));
+            var d = ctx.getImageData(x, y, 1, 1).data;
+            if (d[3] > 20 && (d[0] + d[1] + d[2]) > 60) {
+              return { ok: true, a: d[3], lum: d[0] + d[1] + d[2], layer: ids[k] };
+            }
+          }
+          return { ok: false };
         }, { x: cx, y: cy });
         if (!afterClick.ok) fail('click burst not visible at button: ' + JSON.stringify(afterClick));
         ok('click burst visible at button (lum ' + afterClick.lum + ')');

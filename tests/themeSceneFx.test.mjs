@@ -54,9 +54,10 @@ describe('scene tier & fx', function() {
     });
   });
 
-  it('Layout 含 sceneFxCanvas 与 tier FOUC', function() {
+  it('Layout 含双层 sceneFxCanvas 与 tier FOUC', function() {
     var layout = readLayoutSources(root);
-    assert.match(layout, /sceneFxCanvas/);
+    assert.match(layout, /sceneFxCanvasBlend/);
+    assert.match(layout, /sceneFxCanvasAmbient/);
     assert.match(layout, /data-scene-tier/);
     assert.match(layout, /data-scene-fx/);
     assert.match(layout, /initThemeSceneFx/);
@@ -80,12 +81,22 @@ describe('scene tier & fx', function() {
     });
   });
 
-  it('shared 含 sceneFxCanvas 且勿 app-shell z-index', function() {
+  it('shared 含双层 sceneFxCanvas 且勿 app-shell z-index', function() {
     var css = readFileSync(join(root, 'src/styles/theme/scenes/_shared.css'), 'utf8');
-    assert.match(css, /#sceneFxCanvas/);
+    assert.match(css, /#sceneFxCanvasBlend/);
+    assert.match(css, /#sceneFxCanvasAmbient/);
     assert.doesNotMatch(css, /\.app-shell\s*\{[^}]*z-index/);
     SCENE_CSS.forEach(function(id) {
-      assert.match(css, new RegExp('data-app-scene="' + id + '"\\]\\[data-scene-tier="immersive"\\] #sceneFxCanvas'));
+      assert.match(css, new RegExp('data-app-scene="' + id + '"\\]\\[data-scene-tier="immersive"\\] #sceneFxCanvasAmbient'));
     });
+  });
+
+  it('sceneFxUtils 算法模块存在', function() {
+    assert.ok(existsSync(join(root, 'src/lib/theme/sceneFx/sceneFxUtils.mjs')));
+    var utils = readFileSync(join(root, 'src/lib/theme/sceneFx/sceneFxUtils.mjs'), 'utf8');
+    assert.match(utils, /export function fbm1d/);
+    assert.match(utils, /export function tickRain/);
+    assert.match(utils, /export function tickEmbers/);
+    assert.match(utils, /export function drawCloudBlob/);
   });
 });
