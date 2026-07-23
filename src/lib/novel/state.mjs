@@ -40,6 +40,50 @@ export var WB_FOCUS_OPTIONS = [
   { id: 'event', label: '事件' },
 ];
 
+/** 小说分析弹窗：人物 + 与世界书抽取同款非人物类型 */
+export var ANALYZE_FOCUS_OPTIONS = [
+  { id: 'person', label: '人物' },
+].concat(WB_FOCUS_OPTIONS);
+
+/** analyzeFocus id → 允许的 entity.type 列表 */
+export function analyzeFocusToEntityTypes(focusList) {
+  var focus = Array.isArray(focusList) ? focusList : [];
+  var out = {};
+  focus.forEach(function(id) {
+    if (id === 'person') out.person = true;
+    else if (id === 'faction') out.faction = true;
+    else if (id === 'location') out.location = true;
+    else if (id === 'item') out.item = true;
+    else if (id === 'event') out.event = true;
+    else if (id === 'nsfw') out.nsfw = true;
+    else if (id === 'worldview' || id === 'setting' || id === 'history') out.lore = true;
+  });
+  return Object.keys(out);
+}
+
+/** 实体是否落在分析 Focus 内（关系端点解析不受此限） */
+export function entityMatchesAnalyzeFocus(ent, focusList) {
+  if (!ent) return false;
+  var focus = Array.isArray(focusList) ? focusList : [];
+  if (!focus.length) return true;
+  var types = analyzeFocusToEntityTypes(focus);
+  if (types.indexOf(ent.type) < 0) return false;
+  if (ent.type === 'lore') {
+    var aspect = ent.attrs && ent.attrs.aspect;
+    var loreOk = focus.indexOf('worldview') >= 0
+      || focus.indexOf('setting') >= 0
+      || focus.indexOf('history') >= 0;
+    if (!loreOk) return false;
+    if (!aspect) return true;
+    return focus.indexOf(aspect) >= 0;
+  }
+  return true;
+}
+
+export function defaultAnalyzeFocus() {
+  return ANALYZE_FOCUS_OPTIONS.map(function(o) { return o.id; });
+}
+
 /** 分片字数可选项（拆章 / 人物 / 世界书 / 文风各自选用） */
 export var CHUNK_SIZE_OPTIONS = [
   { value: 4000, label: '4,000 字' },
@@ -120,6 +164,8 @@ export function createDefaultNovelState() {
     analyzeIncludeAdult: false, // 与 adultMode 同步
     /** 分析用主角锚点名（null=未确认，走工坊/主卡回退；string 含空=按确认值，不同步设定） */
     analyzeProtagonistName: null,
+    /** 分析要抽取的类型（人物 + wbFocus 同类） */
+    analyzeFocus: defaultAnalyzeFocus(),
     rag: {
       enabled: true,
       budget: 12000,
@@ -185,6 +231,10 @@ export function hydrateNovelState(raw) {
   base.analyzeChunkSize = Math.max(1000, Math.floor(Number(base.analyzeChunkSize) || 8000));
   if (!Array.isArray(base.entities)) base.entities = [];
   if (!Array.isArray(base.relations)) base.relations = [];
+  if (!Array.isArray(base.analyzeFocus) || !base.analyzeFocus.length) {
+    base.analyzeFocus = defaultAnalyzeFocus();
+  }
+  if (base.analyzeFocus.indexOf('person') < 0) base.analyzeFocus = ['person'].concat(base.analyzeFocus);
   if (!base.rag || typeof base.rag !== 'object') {
     base.rag = {
       enabled: true,

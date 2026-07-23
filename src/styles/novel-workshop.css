@@ -702,6 +702,10 @@
     background: var(--color-focus-ring);
     color: var(--color-text);
   }
+  .novel-focus-tag.is-locked {
+    cursor: default;
+    opacity: 0.95;
+  }
 
   /* NTL 禁忌类型 chip 按钮 */
   .novel-chip-btn {
@@ -879,10 +883,9 @@
     margin-bottom: 6px;
   }
   /* 分片方式切换：强制隐藏对应控件，避免 flex/grid 盖掉 [hidden] 导致「按字数」旁仍显示章节数 */
+  .form-group.is-shard-hidden,
   .grid-3[data-shard-mode="chars"] [id$="ChaptersPerShardWrap"],
-  .grid-3 [id$="ChaptersPerShardWrap"][hidden] {
-    display: none !important;
-  }
+  .grid-3 [id$="ChaptersPerShardWrap"][hidden],
   .grid-3[data-shard-mode="chapters"] [id$="ChunkSizeWrap"],
   .grid-3 [id$="ChunkSizeWrap"][hidden] {
     display: none !important;
@@ -927,10 +930,38 @@
     padding: 4px 8px;
     border-radius: 6px;
     border: 1px solid var(--color-border-subtle);
-    background: rgba(7, 12, 24, 0.82);
+    background: rgba(12, 14, 20, 0.72);
     backdrop-filter: blur(4px);
-    font-size: 0.72rem;
+  }
+  .novel-graph-legend {
+    position: absolute;
+    top: 8px;
+    left: 10px;
+    z-index: 2;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    max-width: calc(100% - 140px);
+    padding: 4px 8px;
+    border-radius: 6px;
+    border: 1px solid var(--color-border-subtle);
+    background: rgba(12, 14, 20, 0.72);
+    backdrop-filter: blur(4px);
+    font-size: 0.68rem;
     color: var(--color-text-secondary);
+  }
+  .novel-graph-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+  }
+  .novel-graph-legend-item i {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
   }
   .novel-graph-cy {
     flex: 1 1 auto;

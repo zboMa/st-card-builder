@@ -206,15 +206,27 @@ export function initNovelWorkshop() {
     var modeEl = $(prefix + 'ShardMode');
     var grid = modeEl && modeEl.closest ? modeEl.closest('.grid-3') : null;
     if (grid) grid.setAttribute('data-shard-mode', byChars ? 'chars' : 'chapters');
-    // 同时写 hidden + display：父级 flex/grid 在部分环境下会盖掉 [hidden]
-    if (sizeWrap) {
-      sizeWrap.hidden = !byChars;
-      sizeWrap.style.display = byChars ? '' : 'none';
+    function applyWrap(el, show) {
+      if (!el) return;
+      el.hidden = !show;
+      el.classList.toggle('is-shard-hidden', !show);
+      if (show) el.style.removeProperty('display');
+      else el.style.setProperty('display', 'none', 'important');
     }
-    if (chWrap) {
-      chWrap.hidden = byChars;
-      chWrap.style.display = byChars ? 'none' : '';
-    }
+    applyWrap(sizeWrap, byChars);
+    applyWrap(chWrap, !byChars);
+  }
+
+  function isAnalyzeBusy() {
+    return !!(ctx.busyFlags.ragIndex
+      || ctx.busyFlags.analyzeSkeleton
+      || ctx.busyFlags.analyzeEnrich
+      || ctx.busyFlags.analyzeRelations
+      || ctx.busyFlags.analyzeAll);
+  }
+
+  function refreshAnalyzeBusyUi() {
+    if (typeof renderGates === 'function') renderGates();
   }
 
   function updateExtractCallEstimates() {
@@ -236,7 +248,13 @@ export function initNovelWorkshop() {
       chunkSize: s.analyzeChunkSize || s.chunkSize || 8000,
       chaptersPerShard: s.analyzeChaptersPerShard || 1,
     });
-    var enrichN = listEntitiesNeedingEnrich(s.entities, s.strictQuality, getAdultMode(s), getNtlMode(s)).length;
+    var enrichN = listEntitiesNeedingEnrich(
+      s.entities,
+      s.strictQuality,
+      getAdultMode(s),
+      getNtlMode(s),
+      s.analyzeFocus
+    ).length;
     var analyzeAllN = analyzeShards + enrichN + 2;
     var skOnlyN = analyzeShards;
     var detailFull = enrichN > 0
@@ -287,8 +305,7 @@ export function initNovelWorkshop() {
       } else el.style.display = 'none';
     });
     var extractDisabled = !g.canExtract;
-    var analyzeBusy = ctx.busyFlags.ragIndex || ctx.busyFlags.analyzeSkeleton || ctx.busyFlags.analyzeEnrich
-      || ctx.busyFlags.analyzeRelations || ctx.busyFlags.analyzeAll;
+    var analyzeBusy = isAnalyzeBusy();
     var scanBtn = $('btnCharScan');
     if (scanBtn) scanBtn.disabled = extractDisabled || ctx.busyFlags.charScan;
     var extractBtn = $('btnWbExtract');
@@ -304,13 +321,37 @@ export function initNovelWorkshop() {
     var ragBtn = $('btnNovelRagIndex');
     if (ragBtn) ragBtn.disabled = extractDisabled || analyzeBusy;
     var analyzeAllBtn = $('btnNovelAnalyzeAll');
-    if (analyzeAllBtn) analyzeAllBtn.disabled = extractDisabled || analyzeBusy;
+    if (analyzeAllBtn) {
+      analyzeAllBtn.disabled = extractDisabled || analyzeBusy;
+      if (analyzeBusy && !analyzeAllBtn.dataset.idleLabel) {
+        analyzeAllBtn.dataset.idleLabel = analyzeAllBtn.textContent || '开始分析';
+      }
+      if (analyzeBusy) analyzeAllBtn.textContent = '分析中…';
+      else if (analyzeAllBtn.dataset.idleLabel) {
+        analyzeAllBtn.textContent = analyzeAllBtn.dataset.idleLabel;
+        delete analyzeAllBtn.dataset.idleLabel;
+      }
+    }
+    var analyzeConfirm = $('btnNovelAnalyzeConfirm');
+    if (analyzeConfirm) analyzeConfirm.disabled = extractDisabled || analyzeBusy;
     var skBtn = $('btnNovelAnalyzeSkeleton');
     if (skBtn) skBtn.disabled = extractDisabled || analyzeBusy;
     var enBtn = $('btnNovelAnalyzeEnrich');
     if (enBtn) enBtn.disabled = extractDisabled || analyzeBusy;
     var enrichSelBtn = $('btnKnowledgeEnrichSelected');
     if (enrichSelBtn) enrichSelBtn.disabled = extractDisabled || analyzeBusy;
+    var retryBtn = $('btnNovelRetryFailed');
+    if (retryBtn) retryBtn.disabled = analyzeBusy;
+    var failsRetry = $('btnNovelAnalyzeFailsRetry');
+    if (failsRetry) failsRetry.disabled = analyzeBusy;
+    ['btnNovelNsfwStatusDraft', 'btnNovelNtlStatusDraft', 'btnNovelVesselStatusDraft'].forEach(function(id) {
+      var b = $(id);
+      if (b) b.disabled = analyzeBusy;
+    });
+    var charEnrich = $('btnCharEnrichSelected');
+    if (charEnrich) charEnrich.disabled = extractDisabled || analyzeBusy;
+    var wbEnrich = $('btnWbEnrichSelected');
+    if (wbEnrich) wbEnrich.disabled = extractDisabled || analyzeBusy;
     var graphRelayoutBtn = $('btnGraphRelayout');
     if (graphRelayoutBtn) graphRelayoutBtn.disabled = analyzeBusy;
     var graphClearBtn = $('btnGraphClear');
@@ -334,6 +375,8 @@ export function initNovelWorkshop() {
   ctx.renderGatesFn = renderGates;
   ctx.updateExtractCallEstimates = updateExtractCallEstimates;
   ctx.syncShardModeUi = syncShardModeUi;
+  ctx.isAnalyzeBusy = isAnalyzeBusy;
+  ctx.refreshAnalyzeBusyUi = refreshAnalyzeBusyUi;
   ctx.syncOutputs = function(opts) { return bridgeSyncOutputs(ctx, opts); };
   ctx._getApiConfig = getApiConfig;
   ctx._isRagIndexStale = isRagIndexStale;

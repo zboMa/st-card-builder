@@ -452,16 +452,51 @@ var boot = window.__assistantBoot__ || {};
           + '（近似）';
       }
       if (contextModalBody) {
+        var tabsEl = document.getElementById('assistantContextTabs');
         if (!sections.length) {
+          if (tabsEl) tabsEl.innerHTML = '';
           contextModalBody.innerHTML = '<p class="assistant-context-empty">当前无可展示上下文</p>';
         } else {
-          contextModalBody.innerHTML = sections.map(function(sec) {
-            return '<section class="assistant-context-section" data-section="' + escapeHtmlLite(sec.id) + '">'
+          var shortTitle = function(title) {
+            return String(title || '')
+              .replace(/（[^）]*）/g, '')
+              .replace(/\([^)]*\)/g, '')
+              .trim()
+              .slice(0, 8) || '段';
+          };
+          if (tabsEl) {
+            tabsEl.innerHTML = sections.map(function(sec, i) {
+              return '<button type="button" class="ui-tabs__tab' + (i === 0 ? ' is-active' : '')
+                + '" role="tab" aria-selected="' + (i === 0 ? 'true' : 'false')
+                + '" data-context-tab="' + escapeHtmlLite(sec.id) + '" title="'
+                + escapeHtmlLite(sec.title) + ' ≈ ' + sec.tokens + ' tok">'
+                + escapeHtmlLite(shortTitle(sec.title))
+                + '</button>';
+            }).join('');
+          }
+          contextModalBody.innerHTML = sections.map(function(sec, i) {
+            return '<section class="assistant-context-section' + (i === 0 ? ' is-active' : '')
+              + '" data-section="' + escapeHtmlLite(sec.id) + '" role="tabpanel">'
               + '<div class="assistant-context-section__head"><span>' + escapeHtmlLite(sec.title) + '</span>'
               + '<span class="assistant-context-section__tokens">≈ ' + sec.tokens + ' tok</span></div>'
               + '<pre class="assistant-context-section__pre">' + escapeHtmlLite(sec.body) + '</pre>'
               + '</section>';
           }).join('');
+          if (tabsEl) {
+            tabsEl.querySelectorAll('[data-context-tab]').forEach(function(tab) {
+              tab.addEventListener('click', function() {
+                var id = tab.getAttribute('data-context-tab');
+                tabsEl.querySelectorAll('[data-context-tab]').forEach(function(t) {
+                  var on = t === tab;
+                  t.classList.toggle('is-active', on);
+                  t.setAttribute('aria-selected', on ? 'true' : 'false');
+                });
+                contextModalBody.querySelectorAll('.assistant-context-section').forEach(function(sec) {
+                  sec.classList.toggle('is-active', sec.getAttribute('data-section') === id);
+                });
+              });
+            });
+          }
         }
       }
       setContextModalOpen(true);

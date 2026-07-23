@@ -6,11 +6,45 @@ import {
   buildStatusBarVesselDraftFromEntities, resolveWorldframe,
 } from '../nsfwSupport.mjs';
 import { suggestProtagonistName } from '../protagonist.mjs';
+import { ANALYZE_FOCUS_OPTIONS, defaultAnalyzeFocus } from '../state.mjs';
+import { escapeHtml } from '../../utils.mjs';
 
 /**
  * attachNovelAnalyzeBind（拆自原模块）
  */
 export function attachNovelAnalyzeBind(ctx, panel, graphRef) {
+  function renderAnalyzeFocusTags() {
+    var box = ctx.$('novelAnalyzeFocusTags');
+    if (!box) return;
+    var state = ctx.state;
+    if (!Array.isArray(state.analyzeFocus) || !state.analyzeFocus.length) {
+      state.analyzeFocus = defaultAnalyzeFocus();
+    }
+    box.innerHTML = ANALYZE_FOCUS_OPTIONS.map(function(opt) {
+      var active = (state.analyzeFocus || []).indexOf(opt.id) >= 0;
+      var locked = opt.id === 'person';
+      return '<button type="button" class="novel-focus-tag' + (active ? ' active' : '')
+        + (locked ? ' is-locked' : '')
+        + '" data-analyze-focus="' + escapeHtml(opt.id) + '"'
+        + (locked ? ' title="人物为分析默认类型"' : '') + '>'
+        + escapeHtml(opt.label) + '</button>';
+    }).join('');
+    box.querySelectorAll('[data-analyze-focus]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var id = btn.getAttribute('data-analyze-focus');
+        if (id === 'person') return; // 人物默认保留
+        if (!state.analyzeFocus) state.analyzeFocus = defaultAnalyzeFocus();
+        var idx = state.analyzeFocus.indexOf(id);
+        if (idx >= 0) state.analyzeFocus.splice(idx, 1);
+        else state.analyzeFocus.push(id);
+        ctx.save();
+        renderAnalyzeFocusTags();
+        if (ctx.updateExtractCallEstimates) ctx.updateExtractCallEstimates();
+      });
+    });
+  }
+  panel.renderAnalyzeFocusTags = renderAnalyzeFocusTags;
+
   panel.bind = function() {
     var $ = ctx.$;
     var mode = $('novelAnalyzeShardMode');
@@ -97,6 +131,7 @@ export function attachNovelAnalyzeBind(ctx, panel, graphRef) {
     });
     var allBtn = $('btnNovelAnalyzeAll');
     if (allBtn) allBtn.addEventListener('click', function() {
+      if (ctx.isAnalyzeBusy && ctx.isAnalyzeBusy()) return;
       var state = ctx.state;
       var modeEl = $('novelAnalyzeShardMode');
       var chunk = $('novelAnalyzeChunkSize');
@@ -105,20 +140,30 @@ export function attachNovelAnalyzeBind(ctx, panel, graphRef) {
       if (chunk) chunk.value = String(state.analyzeChunkSize || 8000);
       if (per) per.value = String(state.analyzeChaptersPerShard || 1);
       if (ctx.syncShardModeUi) ctx.syncShardModeUi('novelAnalyze', state.analyzeShardMode);
+      // 再强制一次，避免弹窗打开前 grid 未布局导致显隐错位
+      requestAnimationFrame(function() {
+        if (ctx.syncShardModeUi) ctx.syncShardModeUi('novelAnalyze', state.analyzeShardMode);
+      });
       if (ctx.updateExtractCallEstimates) ctx.updateExtractCallEstimates();
       var skOnly = $('novelAnalyzeSkeletonOnly');
       if (skOnly) skOnly.checked = false;
       var protagInput = $('novelAnalyzeProtagonistName');
       if (protagInput) protagInput.value = suggestProtagonistName(state);
+      renderAnalyzeFocusTags();
       ctx.openNovelModal('novelModalAnalyze');
     });
     var analyzeConfirm = $('btnNovelAnalyzeConfirm');
     if (analyzeConfirm) analyzeConfirm.addEventListener('click', async function() {
       if (ctx.busyFlags.analyzeAll || ctx.busyFlags.analyzeSkeleton) return;
+      var state = ctx.state;
+      if (!(state.analyzeFocus || []).length) {
+        state.analyzeFocus = defaultAnalyzeFocus();
+      }
+      if ((state.analyzeFocus || []).indexOf('person') < 0) state.analyzeFocus.unshift('person');
       var skOnly = $('novelAnalyzeSkeletonOnly');
       var protagInput = $('novelAnalyzeProtagonistName');
       // 确认值写入分析锚点；空串也锁定（不回退工坊/主卡）；不同步角色设定
-      ctx.state.analyzeProtagonistName = protagInput ? String(protagInput.value || '').trim() : '';
+      state.analyzeProtagonistName = protagInput ? String(protagInput.value || '').trim() : '';
       ctx.save();
       ctx.closeNovelModal('novelModalAnalyze');
       try {

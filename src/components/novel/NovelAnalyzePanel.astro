@@ -41,6 +41,7 @@
         <input id="novelGraphPersonOnly" type="checkbox" />
         <span>只看人物节点</span>
       </label>
+      <div id="novelGraphLegend" class="novel-graph-legend" aria-hidden="true"></div>
       <div id="novelGraphCy" class="novel-graph-cy" role="img" aria-label="知识图谱可视化"></div>
     </div>
 
@@ -94,6 +95,13 @@
         <input id="novelAnalyzeSkeletonOnly" type="checkbox" />
         <span>仅骨架（只扫人名/实体框架，不做正文丰满与关系）</span>
       </label>
+      <div class="form-group" style="margin-top:10px;">
+        <label>要抽取的类型</label>
+        <div id="novelAnalyzeFocusTags" class="novel-focus-tags" role="group" aria-label="分析实体类型"></div>
+        <p class="novel-modal-desc ui-pref-tip" style="margin-top:6px;">
+          未勾选的类型不会新建实体；关系边可连到已有任意类型节点（不限人物）。
+        </p>
+      </div>
       <div class="form-group" style="margin-top:10px;">
         <label for="novelAnalyzeProtagonistName">主角锚点名称</label>
         <input id="novelAnalyzeProtagonistName" type="text" placeholder="例如：轩辕腾" autocomplete="off" />

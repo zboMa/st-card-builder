@@ -253,6 +253,40 @@ describe('novel entityStore', function() {
     }).length, 1);
   });
 
+  it('event.participants 投影为跨类型边', function() {
+    var state = createDefaultNovelState();
+    applySkeletonResult(state, {
+      entities: [
+        { type: 'person', name: '李长青' },
+        {
+          type: 'event',
+          name: '长安夜宴',
+          summary: '宴会',
+          attrs: { participants: ['李长青'], where: '长安', effect: '结识' },
+        },
+        { type: 'location', name: '长安', summary: '帝都' },
+      ],
+      relations: [],
+    });
+    assert.ok(state.relations.some(function(r) { return r.rel === '参与'; }));
+    assert.ok(state.relations.some(function(r) { return r.rel === '发生于'; }));
+  });
+
+  it('analyzeFocus 过滤未勾选类型的新建', function() {
+    var state = createDefaultNovelState();
+    state.analyzeFocus = ['person', 'event'];
+    applySkeletonResult(state, {
+      entities: [
+        { type: 'person', name: '甲' },
+        { type: 'item', name: '神剑' },
+        { type: 'event', name: '决战' },
+      ],
+    });
+    assert.ok(state.entities.some(function(e) { return e.name === '甲'; }));
+    assert.ok(state.entities.some(function(e) { return e.name === '决战'; }));
+    assert.equal(state.entities.some(function(e) { return e.name === '神剑'; }), false);
+  });
+
   it('工坊无名时 resolveProtagonistName 回退主卡', async function() {
     var { resolveProtagonistName } = await import('../src/lib/novel/protagonist.mjs');
     var state = createDefaultNovelState();

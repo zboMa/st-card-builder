@@ -30,19 +30,101 @@ import {
   matchesProtagonist,
   isProtagonistEntity,
 } from './protagonist.mjs';
+import { entityMatchesAnalyzeFocus, analyzeFocusToEntityTypes } from './state.mjs';
+
+/** 跨类型关系提示（骨架 / 关系步共用） */
+export function buildCrossTypeRelationHint() {
+  return '\n【关系·全类型实体图】'
+    + '\n- 关系是实体图，不是「仅人物社交网」。凡原文有关联的两端都要出边。'
+    + '\n- 鼓励跨类型：人物↔事件(参与/触发)、事件↔地点(发生于)、人物↔物品(持有/使用)、'
+    + '人物↔势力(隶属)、事件↔物品(涉及)、地点↔势力 等。'
+    + '\n- from/to 必须是实体 name（或已有别名），勿发明列表外新端点；rel 用短中文谓词。'
+    + '\n';
+}
+
+/** Focus 提示 */
+export function buildAnalyzeFocusHint(state) {
+  var focus = (state && state.analyzeFocus) || [];
+  var types = analyzeFocusToEntityTypes(focus);
+  if (!types.length) return '';
+  return '\n【本步允许新建的实体类型】' + types.join('|')
+    + '\n未列出的类型不要新建；已有实体仍可作为关系端点。\n';
+}
+
+/**
+ * 从 event.attrs 投影结构边（参与者 / 地点）
+ * @returns {number} 新增边数
+ */
+export function projectEventStructuralRelations(state) {
+  if (!state.relations) state.relations = [];
+  var added = 0;
+  (state.entities || []).forEach(function(ev) {
+    if (!ev || ev.type !== 'event') return;
+    var attrs = ev.attrs || {};
+    var parts = attrs.participants;
+    if (Array.isArray(parts)) {
+      parts.forEach(function(p) {
+        var name = typeof p === 'string' ? p : (p && (p.name || p.label));
+        var pid = resolveEntityId(state.entities, name);
+        if (!pid || pid === ev.id) return;
+        var r = upsertRelation(state.relations, {
+          fromId: pid,
+          toId: ev.id,
+          from: pid,
+          to: ev.id,
+          rel: '参与',
+          evidence: ['event.attrs.participants'],
+        });
+        if (r.action === 'add') added++;
+      });
+    }
+    if (attrs.where) {
+      var locId = resolveEntityId(state.entities, attrs.where);
+      if (locId && locId !== ev.id) {
+        var r2 = upsertRelation(state.relations, {
+          fromId: ev.id,
+          toId: locId,
+          from: ev.id,
+          to: locId,
+          rel: '发生于',
+          evidence: ['event.attrs.where'],
+        });
+        if (r2.action === 'add') added++;
+      }
+    }
+  });
+  return added;
+}
 
 /**
  * 应用骨架扫描 JSON
- * @returns {{ add: number, merge: number, relAdd: number }}
+ * @returns {{ add: number, merge: number, relAdd: number, relSkipped: number, relProjected: number }}
  */
 export function applySkeletonResult(state, parsed) {
   if (!state.entities) state.entities = [];
   if (!state.relations) state.relations = [];
-  var stats = { add: 0, merge: 0, relAdd: 0 };
+  var stats = { add: 0, merge: 0, relAdd: 0, relSkipped: 0, relProjected: 0 };
   var protag = resolveProtagonistName(state);
   if (protag.name) ensureProtagonistEntity(state, protag.name);
+  var focus = state.analyzeFocus;
+
+  function tryUpsertEntity(item, source) {
+    if (!item || !item.name) return;
+    if (item.type === 'person' && protag.name
+      && matchesProtagonist(item.name, item.aliases, protag.name)) {
+      return;
+    }
+    // Focus：禁止新建未勾选类型；已有同名仍允许 merge
+    if (focus && focus.length && !entityMatchesAnalyzeFocus(item, focus)) {
+      var existing = resolveEntityId(state.entities, item.name);
+      if (!existing) return;
+    }
+    var r = upsertEntity(state.entities, item, { source: source || 'analyze' });
+    if (r.action === 'add') stats.add++;
+    else if (r.action === 'merge') stats.merge++;
+  }
+
   (parsed.entities || parsed.characters || []).forEach(function(raw) {
-    // 兼容旧 characters 形状
     var item = raw;
     if (raw && !raw.type && raw.name) {
       item = {
@@ -54,16 +136,8 @@ export function applySkeletonResult(state, parsed) {
         op: raw.op,
       };
     }
-    // 同名主角不另建 person：端点关系仍可在后面挂到锚点
-    if (item && item.type === 'person' && protag.name
-      && matchesProtagonist(item.name, item.aliases, protag.name)) {
-      return;
-    }
-    var r = upsertEntity(state.entities, item, { source: 'analyze' });
-    if (r.action === 'add') stats.add++;
-    else if (r.action === 'merge') stats.merge++;
+    tryUpsertEntity(item, 'analyze');
   });
-  // 世界书形状兼容
   (parsed.worldbook || parsed.entries || []).forEach(function(w) {
     if (!w || !w.name) return;
     var type = 'lore';
@@ -80,7 +154,7 @@ export function applySkeletonResult(state, parsed) {
     } else if (attrsWb.adult) {
       attrsWb.adult = normalizeAdultAttrs(attrsWb.adult);
     }
-    var r = upsertEntity(state.entities, {
+    tryUpsertEntity({
       type: type,
       name: w.name,
       content: w.content,
@@ -89,14 +163,15 @@ export function applySkeletonResult(state, parsed) {
       attrs: attrsWb,
       layer: w.layer,
       op: w.op,
-    }, { source: 'analyze' });
-    if (r.action === 'add') stats.add++;
-    else if (r.action === 'merge') stats.merge++;
+    }, 'analyze');
   });
   (parsed.relations || (parsed.graph && parsed.graph.edges) || []).forEach(function(edge) {
     var fromId = resolveEntityId(state.entities, edge.from || edge.fromId || edge.source);
     var toId = resolveEntityId(state.entities, edge.to || edge.toId || edge.target);
-    if (!fromId || !toId) return;
+    if (!fromId || !toId) {
+      stats.relSkipped++;
+      return;
+    }
     var r = upsertRelation(state.relations, {
       fromId: fromId,
       toId: toId,
@@ -109,26 +184,19 @@ export function applySkeletonResult(state, parsed) {
     });
     if (r.action === 'add') stats.relAdd++;
   });
-  // 图谱节点兼容
   ((parsed.graph && parsed.graph.nodes) || []).forEach(function(n) {
     if (!n) return;
-    var nType = n.type || 'lore';
-    var nName = n.label || n.name;
-    if (nType === 'person' && protag.name && matchesProtagonist(nName, n.aliases, protag.name)) {
-      return;
-    }
-    var r = upsertEntity(state.entities, {
-      type: nType,
-      name: nName,
+    tryUpsertEntity({
+      type: n.type || 'lore',
+      name: n.label || n.name,
       aliases: n.aliases,
       summary: (n.attrs && n.attrs.summary) || '',
       attrs: n.attrs || {},
       op: n.op,
-    }, { source: 'analyze' });
-    if (r.action === 'add') stats.add++;
-    else if (r.action === 'merge') stats.merge++;
+    }, 'analyze');
   });
   if (protag.name) reconcileProtagonistAfterExtract(state, protag.name);
+  stats.relProjected = projectEventStructuralRelations(state);
   projectEntitiesToLegacy(state);
   return stats;
 }
@@ -179,9 +247,10 @@ export function applyEnrichResult(state, entityId, parsed) {
 }
 
 /** 待丰满实体列表（成人/NTL 开时优先排缺口） */
-export function listEntitiesNeedingEnrich(entities, strict, adultMode, ntlMode) {
+export function listEntitiesNeedingEnrich(entities, strict, adultMode, ntlMode, focusList) {
   var list = (entities || []).filter(function(e) {
     if (isProtagonistEntity(e)) return false;
+    if (focusList && focusList.length && !entityMatchesAnalyzeFocus(e, focusList)) return false;
     return !isEntityEnriched(e, !!strict, !!adultMode);
   });
   if (!adultMode && !ntlMode) return list;

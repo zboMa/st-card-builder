@@ -372,7 +372,8 @@ export const DEFAULT_PROMPTS = {
     + '\n4) 亲密 event.attrs.intimate=true；关系可含暧昧/主从/禁忌/性张力。',
     '\nNtlMode=true 时额外挖权力差/背德/胁迫张力边与 attrs.ntl 草稿。',
     '\nrelations: { from, to, rel, evidence, attrs? }，from/to 用实体名；evidence 为短摘录（可数组）。',
-    '\n边须连接本片或已有实体；勿发明列表外新端点。',
+    '\n【关系·全类型实体图】边须连接本片或已有实体；不限人物↔人物。'
+    + '须尽量覆盖人物↔事件/物品/势力/地点、事件↔地点/物品等跨类型关联；勿发明列表外新端点。',
     '\n只输出 JSON：{ "entities":[...], "relations":[...] }'
   ),
 
@@ -407,8 +408,9 @@ export const DEFAULT_PROMPTS = {
     B.outputCanon,
     '\n只输出 JSON：{ "relations":[ { "from":"名", "to":"名", "rel":"关系", "evidence":["短摘录"], "attrs":{"intimacy"?,"power"?,"taboo"?} } ] }',
     '\nfrom/to 必须是实体列表中已有名称；勿发明新实体；evidence 尽量贴原文。',
-    '\nAdultMode=true 时优先补暧昧/恋人/前任/主从/禁忌/性张力等亲密边并填 attrs；'
-    + '若原文无直接描写，可据人物互动与氛围推断张力（evidence 可注「推断」），供后续丰满修订 NSFW。',
+    '\n【关系·全类型实体图】不要只做人与人。须补全人物↔事件/物品/势力/地点、事件↔地点/物品等；'
+    + 'rel 用短中文（参与/发生于/持有/隶属/导致/使用/涉及…）。',
+    '\nAdultMode=true 时额外可补暧昧/恋人/前任/主从/禁忌/性张力等亲密边并填 attrs（在跨类型事实边之上，而非取代）。',
     '\nNtlMode=true 时优先补权力差/背德/胁迫/服从等张力边并填 attrs.power/taboo。',
     '\n已有边可补充 evidence 或更精确 rel，勿无意义重复。'
   ),
