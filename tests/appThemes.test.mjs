@@ -1,5 +1,5 @@
 /**
- * 壳层精品场景主题契约（5 套 + 场景层）
+ * 壳层精品场景主题契约（9 套 + 场景层）
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
@@ -34,16 +34,22 @@ var THEME_COLOR_TOKENS = [
   '--shadow-panel',
 ];
 
+var SCENE_THEMES = [
+  'sumi-ink', 'frost-shard', 'ember-blaze', 'bamboo-edge',
+  'water-wave', 'fresh-lime', 'cloud-pavilion', 'morning-drizzle',
+];
+
 describe('app shell themes', function() {
   it('tokens-themes.css 存在', function() {
     assert.ok(existsSync(themesPath));
   });
 
-  it('catalog 为 5 套主题', function() {
-    assert.equal(APP_THEMES.length, 5);
+  it('catalog 为 9 套主题', function() {
+    assert.equal(APP_THEMES.length, 9);
     assert.deepEqual(
       APP_THEMES.map(function(t) { return t.id; }),
-      ['nocturne', 'sumi-ink', 'frost-shard', 'ember-blaze', 'bamboo-edge'],
+      ['nocturne', 'sumi-ink', 'frost-shard', 'ember-blaze', 'bamboo-edge',
+        'water-wave', 'fresh-lime', 'cloud-pavilion', 'morning-drizzle'],
     );
   });
 
@@ -87,10 +93,9 @@ describe('app shell themes', function() {
 
   it('scene id：nocturne 无场景，其余与 theme id 对齐', function() {
     assert.equal(sceneIdForTheme('nocturne'), 'none');
-    assert.equal(sceneIdForTheme('sumi-ink'), 'sumi-ink');
-    assert.equal(sceneIdForTheme('frost-shard'), 'frost-shard');
-    assert.equal(sceneIdForTheme('ember-blaze'), 'ember-blaze');
-    assert.equal(sceneIdForTheme('bamboo-edge'), 'bamboo-edge');
+    SCENE_THEMES.forEach(function(id) {
+      assert.equal(sceneIdForTheme(id), id);
+    });
     assert.equal(sceneIdForTheme('ink'), 'sumi-ink');
   });
 
@@ -108,6 +113,7 @@ describe('app shell themes', function() {
     assert.match(layout, /themeBoot\.mjs/);
     assert.match(layout, /themePickerBoot\.mjs/);
     assert.match(layout, /ThemeGallery/);
+    assert.match(layout, /morning-drizzle/);
   });
 
   it('侧栏单行入口，无 v1 swatch 网格', function() {
@@ -125,8 +131,8 @@ describe('app shell themes', function() {
     assert.match(shared, /assistant-panel[\s\S]*z-index:\s*8500/);
 
     var sceneDir = join(root, 'src/styles/theme/scenes');
-    ['sumi-ink.css', 'frost-shard.css', 'ember-blaze.css', 'bamboo-edge.css'].forEach(function(file) {
-      var css = readFileSync(join(sceneDir, file), 'utf8');
+    SCENE_THEMES.forEach(function(file) {
+      var css = readFileSync(join(sceneDir, file + '.css'), 'utf8');
       assert.doesNotMatch(
         css,
         /\.app-sidebar\s*\{[^}]*position:\s*relative/,

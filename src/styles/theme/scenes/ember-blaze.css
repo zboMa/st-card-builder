@@ -1,24 +1,148 @@
-/* 烈焰 · 底部余烬 + 热晕 */
+/* 烈焰 · 余烬池 + 锻铁 */
 
-html[data-app-scene="ember-blaze"] body::before {
-  background:
+html[data-app-scene="ember-blaze"] body {
+  background-color: oklch(14% 0.024 32);
+  background-image:
     radial-gradient(ellipse 120% 55% at 50% 110%, oklch(58% 0.18 45 / 0.22) 0%, transparent 55%),
     radial-gradient(ellipse 60% 40% at 20% 100%, oklch(52% 0.16 35 / 0.15) 0%, transparent 50%);
 }
 
+html[data-app-scene="ember-blaze"] body::before {
+  z-index: 0;
+  opacity: 1;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 200'%3E%3Cpath d='M0 120 Q150 80 300 110 T600 95 T900 105 T1200 85 L1200 200 L0 200 Z' fill='%23a04020' fill-opacity='0.25'/%3E%3Cpath d='M0 140 Q200 100 400 130 T800 115 T1200 125 L1200 200 L0 200 Z' fill='%23c05828' fill-opacity='0.18'/%3E%3Cpath d='M0 160 Q100 135 250 150 T550 140 T850 155 T1200 145 L1200 200 L0 200 Z' fill='%23e07030' fill-opacity='0.12'/%3E%3C/svg%3E") center bottom / cover no-repeat,
+    radial-gradient(ellipse 120% 55% at 50% 110%, oklch(58% 0.18 45 / 0.18) 0%, transparent 55%);
+}
+
+html[data-app-scene="ember-blaze"][data-scene-tier="immersive"] body::before {
+  animation: theme-ember-ignite 680ms var(--ease-out) both;
+}
+
 html[data-app-scene="ember-blaze"] body::after {
+  z-index: 0;
   background:
     radial-gradient(circle at 15% 85%, oklch(65% 0.14 45 / 0.12) 0%, transparent 8%),
     radial-gradient(circle at 78% 92%, oklch(60% 0.13 40 / 0.1) 0%, transparent 6%),
     radial-gradient(circle at 42% 88%, oklch(55% 0.12 38 / 0.08) 0%, transparent 5%);
+}
+
+html[data-app-scene="ember-blaze"][data-scene-tier="immersive"] body::after {
   animation: theme-ember-float 8s ease-in-out infinite alternate;
 }
 
-html[data-app-scene="ember-blaze"] .app-sidebar-item.is-active {
-  box-shadow: inset 0 0 20px oklch(62% 0.14 45 / 0.08);
+html[data-app-scene="ember-blaze"] .app-sidebar,
+html[data-app-scene="ember-blaze"] .assistant-panel,
+html[data-app-scene="ember-blaze"] .app-container > .panel {
+  background: oklch(22% 0.03 38 / 0.45) !important;
+  backdrop-filter: blur(16px) saturate(110%);
+  -webkit-backdrop-filter: blur(16px) saturate(110%);
+  border-color: oklch(72% 0.14 45 / 0.16) !important;
+  box-shadow:
+    var(--shadow-panel),
+    inset 0 1px 0 oklch(72% 0.14 45 / 0.12),
+    inset 0 -1px 0 oklch(40% 0.1 35 / 0.2);
+}
+
+html[data-app-scene="ember-blaze"] .app-sidebar::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 3px;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    oklch(62% 0.14 45 / 0.4) 20%,
+    oklch(72% 0.14 45 / 0.65) 50%,
+    oklch(55% 0.12 38 / 0.45) 80%,
+    transparent 100%
+  );
+  opacity: 0.7;
+}
+
+html[data-app-scene="ember-blaze"] .app-sidebar-item {
+  position: relative;
+}
+
+html[data-app-scene="ember-blaze"] .app-sidebar-item.is-active::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  margin-top: -4px;
+  border-radius: 50%;
+  background: radial-gradient(circle, oklch(76% 0.14 45) 0%, oklch(55% 0.12 38 / 0.4) 70%);
+  box-shadow: 0 0 14px oklch(72% 0.14 45 / 0.45);
+}
+
+html[data-app-scene="ember-blaze"] .app-container > .panel .panel-header h2::after {
+  content: '';
+  display: block;
+  width: 3rem;
+  height: 2px;
+  margin-top: var(--space-1);
+  background: linear-gradient(90deg, oklch(72% 0.14 45), oklch(55% 0.12 38 / 0.4), transparent);
+  opacity: 0.85;
+}
+
+html[data-app-scene="ember-blaze"] .btn-primary {
+  background: linear-gradient(165deg, oklch(68% 0.15 42) 0%, oklch(52% 0.14 38) 100%);
+  border-color: oklch(72% 0.14 45 / 0.55);
+  color: oklch(98% 0.01 55);
+  box-shadow: 0 2px 18px oklch(55% 0.14 42 / 0.35), inset 0 1px 0 oklch(82% 0.1 55 / 0.25);
+}
+
+html[data-app-scene="ember-blaze"] .btn-primary:hover {
+  box-shadow: 0 4px 24px oklch(55% 0.14 42 / 0.45), inset 0 1px 0 oklch(82% 0.1 55 / 0.3);
+}
+
+html[data-app-scene="ember-blaze"][data-scene-tier="immersive"] .btn-primary:active {
+  animation: theme-ember-heat-pulse 320ms var(--ease-out);
+}
+
+html[data-app-scene="ember-blaze"] .ui-modal-dialog {
+  background: oklch(20% 0.03 38 / 0.58) !important;
+  backdrop-filter: blur(20px);
+  box-shadow: var(--shadow-panel), inset 0 0 0 1px oklch(72% 0.14 45 / 0.14);
+}
+
+html[data-app-scene="ember-blaze"] .app-mobile-topbar {
+  background: oklch(17% 0.028 35 / 0.78);
+  border-bottom-color: oklch(72% 0.14 45 / 0.14);
+}
+
+@keyframes theme-ember-ignite {
+  from { opacity: 0; transform: translateY(12px); filter: blur(3px); }
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
 }
 
 @keyframes theme-ember-float {
   from { transform: translateY(0); opacity: 0.85; }
   to { transform: translateY(-6px); opacity: 1; }
+}
+
+@keyframes theme-ember-heat-pulse {
+  0% { filter: brightness(1); box-shadow: 0 2px 18px oklch(55% 0.14 42 / 0.35); }
+  50% { filter: brightness(1.3); box-shadow: 0 4px 28px oklch(72% 0.14 45 / 0.5); }
+  100% { filter: brightness(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-app-scene="ember-blaze"] body::before,
+  html[data-app-scene="ember-blaze"] body::after {
+    animation: none !important;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  html[data-app-scene="ember-blaze"] .app-sidebar,
+  html[data-app-scene="ember-blaze"] .assistant-panel,
+  html[data-app-scene="ember-blaze"] .app-container > .panel {
+    background: var(--color-glass) !important;
+  }
 }

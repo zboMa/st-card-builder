@@ -1,22 +1,69 @@
 /* 翠竹风刀 · 竹影 + 风纹 */
 
+html[data-app-scene="bamboo-edge"] body {
+  background-color: oklch(14% 0.018 162);
+  background-image:
+    radial-gradient(ellipse 50% 70% at 92% 50%, oklch(55% 0.08 155 / 0.12) 0%, transparent 62%),
+    radial-gradient(ellipse 80% 50% at 10% 20%, oklch(45% 0.06 165 / 0.08) 0%, transparent 50%);
+}
+
 html[data-app-scene="bamboo-edge"] body::before {
+  z-index: 0;
+  opacity: 1;
   background:
     repeating-linear-gradient(
       125deg,
       oklch(70% 0.06 155 / 0.025) 0 1px,
       transparent 1px 28px
     ),
-    radial-gradient(ellipse 50% 70% at 92% 50%, oklch(55% 0.08 155 / 0.12) 0%, transparent 62%);
+    radial-gradient(ellipse 50% 70% at 92% 50%, oklch(55% 0.08 155 / 0.1) 0%, transparent 62%);
+}
+
+html[data-app-scene="bamboo-edge"][data-scene-tier="immersive"] body::before {
+  animation: theme-bamboo-unfold 640ms var(--ease-out) both;
 }
 
 html[data-app-scene="bamboo-edge"] body::after {
+  z-index: 0;
   opacity: 0.55;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 400'%3E%3Cpath d='M95 0 Q98 100 92 200 Q88 300 95 400' fill='none' stroke='%2368a87a' stroke-opacity='0.25' stroke-width='3'/%3E%3Cpath d='M95 80 L70 60 M95 160 L68 175 M95 240 L72 220 M95 320 L70 340' fill='none' stroke='%2368a87a' stroke-opacity='0.2' stroke-width='1.5'/%3E%3Cpath d='M25 0 Q22 120 28 240 Q30 360 25 400' fill='none' stroke='%235a9470' stroke-opacity='0.18' stroke-width='2'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 2% center;
   background-size: auto 85%;
+}
+
+html[data-app-scene="bamboo-edge"][data-scene-tier="immersive"] body::after {
   animation: theme-bamboo-sway 8s ease-in-out infinite alternate;
+}
+
+html[data-app-scene="bamboo-edge"] .app-sidebar,
+html[data-app-scene="bamboo-edge"] .assistant-panel,
+html[data-app-scene="bamboo-edge"] .app-container > .panel {
+  background: oklch(22% 0.024 167 / 0.4) !important;
+  backdrop-filter: blur(18px) saturate(105%);
+  -webkit-backdrop-filter: blur(18px) saturate(105%);
+  border-color: oklch(72% 0.09 155 / 0.14) !important;
+  box-shadow:
+    var(--shadow-panel),
+    inset 0 1px 0 oklch(72% 0.09 155 / 0.08),
+    inset 0 0 0 1px oklch(55% 0.06 155 / 0.1);
+}
+
+html[data-app-scene="bamboo-edge"] .app-sidebar::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 4px;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    180deg,
+    oklch(55% 0.06 155 / 0.3) 0 8px,
+    oklch(72% 0.09 155 / 0.5) 8px 10px,
+    transparent 10px 18px
+  );
+  opacity: 0.65;
 }
 
 html[data-app-scene="bamboo-edge"] .app-sidebar-item {
@@ -38,9 +85,73 @@ html[data-app-scene="bamboo-edge"] .app-sidebar-item.is-active::before {
     oklch(55% 0.06 155 / 0.4) 45%,
     var(--color-accent) 100%
   );
+  box-shadow: 0 0 8px oklch(72% 0.09 155 / 0.35);
+}
+
+html[data-app-scene="bamboo-edge"] .app-container > .panel .panel-header h2::after {
+  content: '';
+  display: block;
+  width: 2rem;
+  height: 2px;
+  margin-top: var(--space-1);
+  background: linear-gradient(90deg, oklch(72% 0.09 155), transparent);
+  clip-path: polygon(0 0, 100% 0, 85% 100%, 0 100%);
+  opacity: 0.8;
+}
+
+html[data-app-scene="bamboo-edge"] .btn-primary {
+  background: linear-gradient(165deg, oklch(66% 0.1 152) 0%, oklch(52% 0.09 155) 100%);
+  border-color: oklch(72% 0.09 155 / 0.55);
+  color: oklch(98% 0.008 165);
+  box-shadow: 0 2px 16px oklch(55% 0.08 155 / 0.3), inset 0 1px 0 oklch(82% 0.06 155 / 0.22);
+}
+
+html[data-app-scene="bamboo-edge"] .btn-primary:hover {
+  box-shadow: 0 4px 22px oklch(55% 0.08 155 / 0.4), inset 0 1px 0 oklch(82% 0.06 155 / 0.28);
+}
+
+html[data-app-scene="bamboo-edge"][data-scene-tier="immersive"] .btn-primary:active {
+  animation: theme-bamboo-cut 200ms var(--ease-out);
+}
+
+html[data-app-scene="bamboo-edge"] .ui-modal-dialog {
+  background: oklch(20% 0.024 167 / 0.52) !important;
+  backdrop-filter: blur(20px);
+  box-shadow: var(--shadow-panel), inset 0 0 0 1px oklch(72% 0.09 155 / 0.12);
+}
+
+html[data-app-scene="bamboo-edge"] .app-mobile-topbar {
+  background: oklch(17% 0.02 165 / 0.75);
+  border-bottom-color: oklch(72% 0.09 155 / 0.12);
+}
+
+@keyframes theme-bamboo-unfold {
+  from { opacity: 0; transform: scaleX(0.92); }
+  to { opacity: 1; transform: scaleX(1); }
 }
 
 @keyframes theme-bamboo-sway {
   from { transform: rotate(0deg); }
   to { transform: rotate(0.35deg); }
+}
+
+@keyframes theme-bamboo-cut {
+  0% { filter: brightness(1); }
+  40% { filter: brightness(1.2); transform: translateX(1px); }
+  100% { filter: brightness(1); transform: translateX(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-app-scene="bamboo-edge"] body::before,
+  html[data-app-scene="bamboo-edge"] body::after {
+    animation: none !important;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  html[data-app-scene="bamboo-edge"] .app-sidebar,
+  html[data-app-scene="bamboo-edge"] .assistant-panel,
+  html[data-app-scene="bamboo-edge"] .app-container > .panel {
+    background: var(--color-glass) !important;
+  }
 }

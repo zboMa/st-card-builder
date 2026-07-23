@@ -1,32 +1,151 @@
-/* 碎冰寒霜 · 冰裂 overlay + 冷棱高光 */
+/* 碎冰寒霜 · 冰裂棱镜 + 冷玻璃 */
+
+html[data-app-scene="frost-shard"] body {
+  background-color: oklch(14% 0.02 240);
+  background-image:
+    radial-gradient(ellipse 100% 60% at 50% -5%, oklch(78% 0.08 220 / 0.12) 0%, transparent 55%),
+    radial-gradient(ellipse 70% 50% at 90% 80%, oklch(68% 0.06 230 / 0.08) 0%, transparent 50%);
+}
 
 html[data-app-scene="frost-shard"] body::before {
+  z-index: 0;
+  opacity: 1;
   background:
-    linear-gradient(135deg, oklch(88% 0.04 220 / 0.04) 0%, transparent 40%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 600'%3E%3Cpath d='M0 180 L120 80 L240 160 L360 60 L480 140 L600 40 L720 120 L800 50' fill='none' stroke='%23c8e8ff' stroke-opacity='0.12' stroke-width='1.2'/%3E%3Cpath d='M40 320 L160 240 L280 340 L400 220 L520 300 L640 200 L760 280' fill='none' stroke='%23a8d4f0' stroke-opacity='0.1' stroke-width='1'/%3E%3Cpath d='M0 420 L100 360 L220 440 L340 380 L460 460 L580 350 L700 430 L800 370' fill='none' stroke='%23d0ecff' stroke-opacity='0.08' stroke-width='0.8'/%3E%3Cpath d='M200 0 L220 120 M400 0 L390 100 M600 0 L610 90' fill='none' stroke='%23e8f4ff' stroke-opacity='0.06' stroke-width='0.6'/%3E%3C/svg%3E") center center / cover no-repeat,
+    linear-gradient(135deg, oklch(88% 0.04 220 / 0.05) 0%, transparent 45%),
     radial-gradient(ellipse 80% 50% at 50% -10%, oklch(78% 0.08 220 / 0.1) 0%, transparent 55%);
 }
 
+html[data-app-scene="frost-shard"][data-scene-tier="immersive"] body::before {
+  animation: theme-frost-crawl 720ms var(--ease-out) both;
+}
+
 html[data-app-scene="frost-shard"] body::after {
-  opacity: 0.35;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 400'%3E%3Cpath d='M0 120 L80 40 L160 100 L240 20 L320 90 L400 30' fill='none' stroke='white' stroke-opacity='0.08' stroke-width='1'/%3E%3Cpath d='M20 200 L100 140 L180 220 L260 150 L340 210 L400 170' fill='none' stroke='white' stroke-opacity='0.06' stroke-width='0.8'/%3E%3Cpath d='M0 300 L120 250 L200 320 L280 260 L400 310' fill='none' stroke='white' stroke-opacity='0.07' stroke-width='1'/%3E%3C/svg%3E");
-  background-size: cover;
+  z-index: 0;
+  opacity: 0.4;
+  background:
+    radial-gradient(circle at 15% 25%, oklch(92% 0.04 220 / 0.08) 0%, transparent 25%),
+    radial-gradient(circle at 85% 70%, oklch(88% 0.03 230 / 0.06) 0%, transparent 20%),
+    linear-gradient(105deg, transparent 60%, oklch(90% 0.04 220 / 0.04) 100%);
   mix-blend-mode: overlay;
+}
+
+html[data-app-scene="frost-shard"][data-scene-tier="immersive"] body::after {
   animation: theme-frost-drift 60s linear infinite;
+}
+
+html[data-app-scene="frost-shard"] .app-sidebar,
+html[data-app-scene="frost-shard"] .assistant-panel,
+html[data-app-scene="frost-shard"] .app-container > .panel {
+  background: oklch(22% 0.024 242 / 0.42) !important;
+  backdrop-filter: blur(22px) saturate(140%);
+  -webkit-backdrop-filter: blur(22px) saturate(140%);
+  border-color: oklch(92% 0.02 240 / 0.14) !important;
+  box-shadow:
+    var(--shadow-panel),
+    inset 0 1px 0 oklch(98% 0.008 240 / 0.1),
+    inset 0 0 0 1px oklch(74% 0.1 220 / 0.08);
 }
 
 html[data-app-scene="frost-shard"] .app-sidebar::before {
   content: '';
   position: absolute;
-  inset: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 4px;
   pointer-events: none;
-  background: linear-gradient(105deg, transparent 70%, oklch(90% 0.04 220 / 0.06) 100%);
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    oklch(88% 0.04 220 / 0.5) 15%,
+    oklch(74% 0.1 220 / 0.7) 50%,
+    oklch(88% 0.04 220 / 0.4) 85%,
+    transparent 100%
+  );
+  opacity: 0.65;
 }
 
-html[data-app-scene="frost-shard"] .app-container > .panel {
-  box-shadow: var(--shadow-panel), 0 0 24px oklch(85% 0.04 220 / 0.06);
+html[data-app-scene="frost-shard"] .app-sidebar-item {
+  position: relative;
+}
+
+html[data-app-scene="frost-shard"] .app-sidebar-item.is-active::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  margin-top: -3px;
+  transform: rotate(45deg);
+  background: oklch(88% 0.04 220);
+  box-shadow: 0 0 12px oklch(74% 0.1 220 / 0.5);
+}
+
+html[data-app-scene="frost-shard"] .app-container > .panel .panel-header h2::after {
+  content: '';
+  display: block;
+  width: 2.5rem;
+  height: 2px;
+  margin-top: var(--space-1);
+  background: linear-gradient(90deg, oklch(74% 0.1 220), oklch(88% 0.04 220 / 0.3), transparent);
+  opacity: 0.8;
+}
+
+html[data-app-scene="frost-shard"] .btn-primary {
+  background: linear-gradient(165deg, oklch(68% 0.11 218) 0%, oklch(58% 0.1 220) 100%);
+  border-color: oklch(74% 0.1 220 / 0.55);
+  color: oklch(16% 0.02 240);
+  box-shadow: 0 2px 16px oklch(74% 0.1 220 / 0.28), inset 0 1px 0 oklch(92% 0.04 220 / 0.3);
+}
+
+html[data-app-scene="frost-shard"] .btn-primary:hover {
+  box-shadow: 0 4px 22px oklch(74% 0.1 220 / 0.38), inset 0 1px 0 oklch(92% 0.04 220 / 0.35);
+}
+
+html[data-app-scene="frost-shard"][data-scene-tier="immersive"] .btn-primary:active {
+  animation: theme-frost-shimmer 280ms var(--ease-out);
+}
+
+html[data-app-scene="frost-shard"] .ui-modal-dialog {
+  background: oklch(20% 0.024 242 / 0.52) !important;
+  backdrop-filter: blur(24px);
+  box-shadow: var(--shadow-panel), inset 0 0 0 1px oklch(74% 0.1 220 / 0.12);
+}
+
+html[data-app-scene="frost-shard"] .app-mobile-topbar {
+  background: oklch(18% 0.02 240 / 0.75);
+  border-bottom-color: oklch(92% 0.02 240 / 0.12);
+}
+
+@keyframes theme-frost-crawl {
+  from { opacity: 0; clip-path: inset(0 100% 0 0); }
+  to { opacity: 1; clip-path: inset(0 0 0 0); }
 }
 
 @keyframes theme-frost-drift {
   from { transform: translate3d(0, 0, 0); }
   to { transform: translate3d(-12px, 8px, 0); }
+}
+
+@keyframes theme-frost-shimmer {
+  0% { filter: brightness(1); }
+  50% { filter: brightness(1.2); }
+  100% { filter: brightness(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-app-scene="frost-shard"] body::before,
+  html[data-app-scene="frost-shard"] body::after {
+    animation: none !important;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  html[data-app-scene="frost-shard"] .app-sidebar,
+  html[data-app-scene="frost-shard"] .assistant-panel,
+  html[data-app-scene="frost-shard"] .app-container > .panel {
+    background: var(--color-glass) !important;
+  }
 }

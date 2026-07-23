@@ -10,6 +10,13 @@ var H = 0;
 
 var LOADERS = {
   'sumi-ink': function() { return import('./sumiInk.mjs'); },
+  'frost-shard': function() { return import('./frostShard.mjs'); },
+  'ember-blaze': function() { return import('./emberBlaze.mjs'); },
+  'bamboo-edge': function() { return import('./bambooEdge.mjs'); },
+  'water-wave': function() { return import('./waterWave.mjs'); },
+  'fresh-lime': function() { return import('./freshLime.mjs'); },
+  'cloud-pavilion': function() { return import('./cloudPavilion.mjs'); },
+  'morning-drizzle': function() { return import('./morningDrizzle.mjs'); },
 };
 
 function resize() {

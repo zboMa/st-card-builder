@@ -17,7 +17,7 @@ export var LEGACY_THEME_MAP = Object.freeze({
 });
 
 /**
- * @typedef {'none'|'sumi-ink'|'frost-shard'|'ember-blaze'|'bamboo-edge'} SceneId
+ * @typedef {'none'|'sumi-ink'|'frost-shard'|'ember-blaze'|'bamboo-edge'|'water-wave'|'fresh-lime'|'cloud-pavilion'|'morning-drizzle'} SceneId
  */
 
 /** @type {readonly { id: string, label: string, tagline: string, blurb: string, previewClass: string, scene: SceneId, mode: 'dark'|'light', themeColor: string }[]} */
@@ -71,6 +71,46 @@ export var APP_THEMES = Object.freeze([
     scene: 'bamboo-edge',
     mode: 'dark',
     themeColor: '#101a14',
+  },
+  {
+    id: 'water-wave',
+    label: '水浪',
+    tagline: '精品',
+    blurb: '潮涌层波 · 深海青蓝',
+    previewClass: 'theme-preview--water-wave',
+    scene: 'water-wave',
+    mode: 'dark',
+    themeColor: '#0c1820',
+  },
+  {
+    id: 'fresh-lime',
+    label: '鲜果青柠',
+    tagline: '精品',
+    blurb: '青柠切片 · 果香跃动',
+    previewClass: 'theme-preview--fresh-lime',
+    scene: 'fresh-lime',
+    mode: 'dark',
+    themeColor: '#121a10',
+  },
+  {
+    id: 'cloud-pavilion',
+    label: '云楼雕粱',
+    tagline: '精品',
+    blurb: '飞檐云气 · 雕梁金漆',
+    previewClass: 'theme-preview--cloud-pavilion',
+    scene: 'cloud-pavilion',
+    mode: 'dark',
+    themeColor: '#1a1410',
+  },
+  {
+    id: 'morning-drizzle',
+    label: '清晨细雨',
+    tagline: '精品',
+    blurb: '薄雾雨丝 · 晓色微蓝',
+    previewClass: 'theme-preview--morning-drizzle',
+    scene: 'morning-drizzle',
+    mode: 'dark',
+    themeColor: '#141820',
   },
 ]);
 

@@ -1,0 +1,148 @@
+/* 清晨细雨 · 雨丝 + 薄雾晓色 */
+
+html[data-app-scene="morning-drizzle"] body {
+  background-color: oklch(14% 0.016 242);
+  background-image:
+    radial-gradient(ellipse 90% 60% at 50% 0%, oklch(82% 0.04 245 / 0.1) 0%, transparent 55%),
+    radial-gradient(ellipse 70% 50% at 20% 80%, oklch(68% 0.03 250 / 0.06) 0%, transparent 50%);
+}
+
+html[data-app-scene="morning-drizzle"] body::before {
+  z-index: 0;
+  opacity: 1;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 600'%3E%3Cline x1='40' y1='0' x2='35' y2='600' stroke='%23a8c8e8' stroke-opacity='0.08' stroke-width='0.8'/%3E%3Cline x1='100' y1='0' x2='95' y2='600' stroke='%23b0d0f0' stroke-opacity='0.06' stroke-width='0.6'/%3E%3Cline x1='180' y1='0' x2='175' y2='600' stroke='%23a8c8e8' stroke-opacity='0.07' stroke-width='0.7'/%3E%3Cline x1='260' y1='0' x2='255' y2='600' stroke='%23c0d8f0' stroke-opacity='0.05' stroke-width='0.5'/%3E%3Cline x1='340' y1='0' x2='335' y2='600' stroke='%23a8c8e8' stroke-opacity='0.08' stroke-width='0.8'/%3E%3C/svg%3E") center center / cover repeat,
+    radial-gradient(ellipse 90% 60% at 50% 0%, oklch(82% 0.04 245 / 0.08) 0%, transparent 55%);
+}
+
+html[data-app-scene="morning-drizzle"][data-scene-tier="immersive"] body::before {
+  animation: theme-drizzle-fade 680ms var(--ease-out) both;
+}
+
+html[data-app-scene="morning-drizzle"] body::after {
+  z-index: 0;
+  background:
+    radial-gradient(ellipse 100% 40% at 50% 0%, oklch(92% 0.02 245 / 0.08) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 30% at 80% 90%, oklch(75% 0.03 250 / 0.05) 0%, transparent 50%);
+  mix-blend-mode: soft-light;
+}
+
+html[data-app-scene="morning-drizzle"][data-scene-tier="immersive"] body::after {
+  animation: theme-drizzle-mist 14s ease-in-out infinite alternate;
+}
+
+html[data-app-scene="morning-drizzle"] .app-sidebar,
+html[data-app-scene="morning-drizzle"] .assistant-panel,
+html[data-app-scene="morning-drizzle"] .app-container > .panel {
+  background: oklch(23% 0.022 247 / 0.38) !important;
+  backdrop-filter: blur(22px) saturate(110%);
+  -webkit-backdrop-filter: blur(22px) saturate(110%);
+  border-color: oklch(94% 0.01 245 / 0.12) !important;
+  box-shadow:
+    var(--shadow-panel),
+    inset 0 1px 0 oklch(98% 0.006 245 / 0.1),
+    inset 0 0 0 1px oklch(78% 0.06 245 / 0.08);
+}
+
+html[data-app-scene="morning-drizzle"] .app-sidebar::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 3px;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    oklch(88% 0.04 245 / 0.3) 20%,
+    oklch(78% 0.06 245 / 0.45) 50%,
+    oklch(88% 0.04 245 / 0.25) 80%,
+    transparent 100%
+  );
+  opacity: 0.65;
+}
+
+html[data-app-scene="morning-drizzle"] .app-sidebar-item {
+  position: relative;
+}
+
+html[data-app-scene="morning-drizzle"] .app-sidebar-item.is-active::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 50%;
+  width: 4px;
+  height: 4px;
+  margin-top: -2px;
+  border-radius: 50%;
+  background: oklch(88% 0.04 245);
+  box-shadow: 0 0 8px oklch(78% 0.06 245 / 0.4);
+}
+
+html[data-app-scene="morning-drizzle"] .app-container > .panel .panel-header h2::after {
+  content: '';
+  display: block;
+  width: 2.5rem;
+  height: 1px;
+  margin-top: var(--space-1);
+  background: linear-gradient(90deg, oklch(78% 0.06 245), transparent);
+  opacity: 0.75;
+}
+
+html[data-app-scene="morning-drizzle"] .btn-primary {
+  background: linear-gradient(165deg, oklch(74% 0.07 242) 0%, oklch(58% 0.06 245) 100%);
+  border-color: oklch(78% 0.06 245 / 0.5);
+  color: oklch(98% 0.008 245);
+  box-shadow: 0 2px 14px oklch(68% 0.05 245 / 0.25), inset 0 1px 0 oklch(92% 0.03 245 / 0.22);
+}
+
+html[data-app-scene="morning-drizzle"] .btn-primary:hover {
+  box-shadow: 0 4px 20px oklch(68% 0.05 245 / 0.35), inset 0 1px 0 oklch(92% 0.03 245 / 0.28);
+}
+
+html[data-app-scene="morning-drizzle"][data-scene-tier="immersive"] .btn-primary:active {
+  animation: theme-drizzle-splash 280ms var(--ease-out);
+}
+
+html[data-app-scene="morning-drizzle"] .ui-modal-dialog {
+  background: oklch(21% 0.022 247 / 0.48) !important;
+  backdrop-filter: blur(24px);
+  box-shadow: var(--shadow-panel), inset 0 0 0 1px oklch(78% 0.06 245 / 0.1);
+}
+
+html[data-app-scene="morning-drizzle"] .app-mobile-topbar {
+  background: oklch(18% 0.018 245 / 0.72);
+  border-bottom-color: oklch(94% 0.01 245 / 0.1);
+}
+
+@keyframes theme-drizzle-fade {
+  from { opacity: 0; filter: blur(3px); }
+  to { opacity: 1; filter: blur(0); }
+}
+
+@keyframes theme-drizzle-mist {
+  from { opacity: 0.85; transform: translateY(0); }
+  to { opacity: 1; transform: translateY(-6px); }
+}
+
+@keyframes theme-drizzle-splash {
+  0% { filter: brightness(1); }
+  50% { filter: brightness(1.15); }
+  100% { filter: brightness(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-app-scene="morning-drizzle"] body::before,
+  html[data-app-scene="morning-drizzle"] body::after {
+    animation: none !important;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  html[data-app-scene="morning-drizzle"] .app-sidebar,
+  html[data-app-scene="morning-drizzle"] .assistant-panel,
+  html[data-app-scene="morning-drizzle"] .app-container > .panel {
+    background: var(--color-glass) !important;
+  }
+}
