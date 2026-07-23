@@ -177,9 +177,6 @@ export function attachAdultConfigPanel(ctx, s, panel) {
       var items = s.ensureWorldviewPresetItemsOnState();
       if (items.length >= MAX_WORLDVIEW_PRESET_ITEMS) return;
       if (items.some(function(it) { return it.id === id; })) return;
-      var preset = getWorldviewPreset(id);
-      var lab = (preset && preset.label) || id;
-      if (!s.confirmAdultOp('添加世界观预设「' + lab + '」？')) return;
       items.push({ id: id, note: '' });
       ctx.state.worldviewPresetItems = items;
       s.syncWorldframeFromPresets();
@@ -537,11 +534,13 @@ export function attachAdultConfigPanel(ctx, s, panel) {
             + '</button>';
         }).join('');
         ntlContainer.querySelectorAll('[data-adult-ntl]').forEach(function(btn) {
-          btn.addEventListener('click', function() {
+          btn.addEventListener('click', async function() {
             var id = btn.getAttribute('data-adult-ntl') || '';
             var willOn = !btn.classList.contains('active');
-            var lab = s.labelNtl(id);
-            if (!s.confirmAdultOp((willOn ? '启用' : '取消') + ' NTL「' + lab + '」？')) return;
+            if (!willOn) {
+              var lab = s.labelNtl(id);
+              if (!(await s.confirmAdultRemove({ kind: 'NTL', label: lab }))) return;
+            }
             btn.classList.toggle('active');
             btn.setAttribute('aria-pressed', btn.classList.contains('active'));
             ctx.panels.adultConfig.syncNsfwBlockFromUi();
@@ -728,16 +727,15 @@ export function attachAdultConfigPanel(ctx, s, panel) {
       var items = ctx.panels.adultConfig.readFlavorItemsFromUi();
       if (items.length >= s.maxFlavorItems()) return;
       if (items.some(function(it) { return it.id === id; })) return;
-      if (!s.confirmAdultOp('添加口味「' + s.labelFlavor(id) + '」？')) return;
       items.push({ id: id, note: '' });
       ctx.panels.adultConfig.commitFlavorItems(items);
     },
 
-    removeFlavorItem: function(idx) {
+    removeFlavorItem: async function(idx) {
       var items = ctx.panels.adultConfig.readFlavorItemsFromUi();
       if (idx < 0 || idx >= items.length) return;
       var lab = s.labelFlavor(items[idx].id);
-      if (!s.confirmAdultOp('移除口味「' + lab + '」？')) return;
+      if (!(await s.confirmAdultRemove({ kind: '口味', label: lab }))) return;
       items.splice(idx, 1);
       ctx.panels.adultConfig.commitFlavorItems(items);
     },
@@ -758,18 +756,16 @@ export function attachAdultConfigPanel(ctx, s, panel) {
       if (!id) return;
       var items = ctx.panels.adultConfig.readExpressionItemsFromUi(kind);
       if (items.some(function(it) { return it.id === id; })) return;
-      var kindLabel = kind === 'speech' ? '情趣话风' : '姿势语言';
-      if (!s.confirmAdultOp('添加' + kindLabel + '「' + s.labelExpression(kind, id) + '」？')) return;
       items.push({ id: id, note: '' });
       ctx.panels.adultConfig.commitExpressionItems(kind, items);
     },
 
-    removeExpressionItem: function(kind, idx) {
+    removeExpressionItem: async function(kind, idx) {
       var items = ctx.panels.adultConfig.readExpressionItemsFromUi(kind);
       if (idx < 0 || idx >= items.length) return;
       var kindLabel = kind === 'speech' ? '情趣话风' : '姿势语言';
       var lab = s.labelExpression(kind, items[idx].id);
-      if (!s.confirmAdultOp('移除' + kindLabel + '「' + lab + '」？')) return;
+      if (!(await s.confirmAdultRemove({ kind: kindLabel, label: lab }))) return;
       items.splice(idx, 1);
       ctx.panels.adultConfig.commitExpressionItems(kind, items);
     },
