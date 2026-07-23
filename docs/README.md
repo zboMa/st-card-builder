@@ -20,7 +20,7 @@
 | 小说创作（story studio） | [`architecture/story-studio.md`](./architecture/story-studio.md) |
 | 试聊运行时 | [`architecture/chat-runtime.md`](./architecture/chat-runtime.md) |
 | 生产部署 / Nginx | [`ops/production.md`](./ops/production.md)、[`ops/nginx.md`](./ops/nginx.md) |
-| 升级路线 / 回归 / 基线 | [`ops/upgrade-roadmap.md`](./ops/upgrade-roadmap.md)、[`ops/product-roadmap-v1.md`](./ops/product-roadmap-v1.md)、[`ops/regression-checklist.md`](./ops/regression-checklist.md)、[`ops/baseline-metrics.md`](./ops/baseline-metrics.md) |
+| 升级路线 / 回归 / 基线 | [`ops/upgrade-roadmap.md`](./ops/upgrade-roadmap.md)、[`ops/product-roadmap-v1.md`](./ops/product-roadmap-v1.md)、[`ops/competitive-research-2026.md`](./ops/competitive-research-2026.md)、[`ops/regression-checklist.md`](./ops/regression-checklist.md)、[`ops/baseline-metrics.md`](./ops/baseline-metrics.md) |
 | 写卡教程 / 目录扩写质量 | [`guides/`](./guides/) |
 
 ## 真相源（SoT）
