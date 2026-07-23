@@ -1,29 +1,29 @@
-/* 水墨 · 远山宣纸 + 透景面板 + 枯笔侧栏 */
+/* 水墨 · 黑白灰 + 远山；朱砂仅主按钮/钤印 */
 
 html[data-app-scene="sumi-ink"] body {
-  background-color: oklch(17% 0.02 52);
+  background-color: oklch(15% 0.005 0);
   background-image:
-    radial-gradient(ellipse 120% 80% at 50% 110%, oklch(32% 0.025 50 / 0.35) 0%, transparent 55%),
-    radial-gradient(ellipse 70% 50% at 15% 0%, oklch(38% 0.03 55 / 0.12) 0%, transparent 50%);
+    radial-gradient(ellipse 120% 80% at 50% 110%, oklch(28% 0.008 0 / 0.3) 0%, transparent 55%),
+    radial-gradient(ellipse 70% 50% at 15% 0%, oklch(36% 0.008 0 / 0.1) 0%, transparent 50%);
 }
 
 html[data-app-scene="sumi-ink"] body::before {
   z-index: 0;
   opacity: 1;
   background:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 600' preserveAspectRatio='xMidYMid slice'%3E%3Cdefs%3E%3ClinearGradient id='m' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0%25' stop-color='%238a8478' stop-opacity='0.15'/%3E%3Cstop offset='100%25' stop-color='%233a3530' stop-opacity='0.55'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M0 380 L180 260 L320 340 L520 180 L720 300 L920 140 L1200 260 L1200 600 L0 600 Z' fill='url(%23m)'/%3E%3Cpath d='M0 420 L240 320 L420 400 L640 280 L880 360 L1200 300 L1200 600 L0 600 Z' fill='%235a544c' fill-opacity='0.4'/%3E%3Cpath d='M0 480 L200 400 L480 460 L760 380 L1200 440 L1200 600 L0 600 Z' fill='%2348403a' fill-opacity='0.55'/%3E%3Cpath d='M0 520 Q300 480 600 500 T1200 510 L1200 600 L0 600 Z' fill='%2328221c' fill-opacity='0.65'/%3E%3C/svg%3E") center center / cover no-repeat,
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 600' preserveAspectRatio='xMidYMid slice'%3E%3Cdefs%3E%3ClinearGradient id='m' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0%25' stop-color='%23999999' stop-opacity='0.12'/%3E%3Cstop offset='100%25' stop-color='%23333333' stop-opacity='0.55'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M0 380 L180 260 L320 340 L520 180 L720 300 L920 140 L1200 260 L1200 600 L0 600 Z' fill='url(%23m)'/%3E%3Cpath d='M0 420 L240 320 L420 400 L640 280 L880 360 L1200 300 L1200 600 L0 600 Z' fill='%23555555' fill-opacity='0.38'/%3E%3Cpath d='M0 480 L200 400 L480 460 L760 380 L1200 440 L1200 600 L0 600 Z' fill='%23404040' fill-opacity='0.5'/%3E%3Cpath d='M0 520 Q300 480 600 500 T1200 510 L1200 600 L0 600 Z' fill='%23202020' fill-opacity='0.62'/%3E%3C/svg%3E") center center / cover no-repeat,
     repeating-linear-gradient(
       93deg,
-      oklch(98% 0.008 75 / 0.025) 0 1px,
+      oklch(98% 0.004 0 / 0.022) 0 1px,
       transparent 1px 5px
     ),
     repeating-linear-gradient(
       0deg,
-      oklch(98% 0.008 75 / 0.012) 0 1px,
+      oklch(98% 0.004 0 / 0.012) 0 1px,
       transparent 1px 4px
     ),
-    radial-gradient(ellipse 100% 70% at 10% 5%, oklch(35% 0.025 50 / 0.45) 0%, transparent 55%),
-    radial-gradient(ellipse 60% 50% at 92% 88%, oklch(40% 0.022 55 / 0.28) 0%, transparent 50%);
+    radial-gradient(ellipse 100% 70% at 10% 5%, oklch(32% 0.008 0 / 0.42) 0%, transparent 55%),
+    radial-gradient(ellipse 60% 50% at 92% 88%, oklch(38% 0.008 0 / 0.26) 0%, transparent 50%);
 }
 
 html[data-app-scene="sumi-ink"][data-scene-tier="immersive"] body::before {
@@ -33,27 +33,26 @@ html[data-app-scene="sumi-ink"][data-scene-tier="immersive"] body::before {
 html[data-app-scene="sumi-ink"] body::after {
   z-index: 0;
   background:
-    radial-gradient(ellipse 80% 40% at 50% 0%, oklch(88% 0.02 75 / 0.06) 0%, transparent 60%),
-    radial-gradient(circle at 68% 22%, oklch(55% 0.02 55 / 0.12) 0%, transparent 38%),
-    radial-gradient(ellipse 90% 35% at 50% 100%, oklch(30% 0.03 50 / 0.2) 0%, transparent 55%);
+    radial-gradient(ellipse 80% 40% at 50% 0%, oklch(92% 0.006 0 / 0.05) 0%, transparent 60%),
+    radial-gradient(circle at 68% 22%, oklch(52% 0.008 0 / 0.1) 0%, transparent 38%),
+    radial-gradient(ellipse 90% 35% at 50% 100%, oklch(26% 0.008 0 / 0.18) 0%, transparent 55%);
 }
 
 html[data-app-scene="sumi-ink"][data-scene-tier="immersive"] body::after {
   animation: theme-sumi-mist 14s ease-in-out infinite alternate;
 }
 
-/* 透景：让背景山水/墨流可见 */
 html[data-app-scene="sumi-ink"] .app-sidebar,
 html[data-app-scene="sumi-ink"] .assistant-panel,
 html[data-app-scene="sumi-ink"] .app-container > .panel {
-  background: oklch(26% 0.018 55 / 0.38) !important;
-  backdrop-filter: blur(18px) saturate(115%);
-  -webkit-backdrop-filter: blur(18px) saturate(115%);
-  border-color: oklch(88% 0.02 75 / 0.12) !important;
+  background: oklch(22% 0.008 0 / 0.38) !important;
+  backdrop-filter: blur(18px) saturate(100%);
+  -webkit-backdrop-filter: blur(18px) saturate(100%);
+  border-color: oklch(92% 0.008 0 / 0.1) !important;
   box-shadow:
     var(--shadow-panel),
-    inset 0 1px 0 oklch(98% 0.01 75 / 0.08),
-    inset 0 0 0 1px oklch(45% 0.02 55 / 0.1);
+    inset 0 1px 0 oklch(98% 0.006 0 / 0.08),
+    inset 0 0 0 1px oklch(48% 0.008 0 / 0.1);
 }
 
 html[data-app-scene="sumi-ink"] .app-sidebar::before {
@@ -67,9 +66,9 @@ html[data-app-scene="sumi-ink"] .app-sidebar::before {
   background: linear-gradient(
     180deg,
     transparent 0%,
-    oklch(55% 0.03 50 / 0.65) 12%,
-    oklch(38% 0.025 50 / 0.85) 50%,
-    oklch(55% 0.03 50 / 0.55) 88%,
+    oklch(58% 0.008 0 / 0.55) 12%,
+    oklch(38% 0.008 0 / 0.75) 50%,
+    oklch(58% 0.008 0 / 0.45) 88%,
     transparent 100%
   );
   opacity: 0.75;
@@ -85,12 +84,12 @@ html[data-app-scene="sumi-ink"] .app-sidebar-item.is-active::before {
   position: absolute;
   left: 5px;
   top: 50%;
-  width: 8px;
-  height: 8px;
-  margin-top: -4px;
+  width: 7px;
+  height: 7px;
+  margin-top: -3px;
   border-radius: 50%;
-  background: var(--color-accent);
-  box-shadow: 0 0 12px var(--color-accent-glow), 0 0 4px oklch(58% 0.12 25 / 0.8);
+  background: oklch(92% 0.01 0);
+  box-shadow: 0 0 10px oklch(98% 0.008 0 / 0.35);
 }
 
 html[data-app-scene="sumi-ink"] .app-container > .panel .panel-header h2::after {
@@ -99,10 +98,11 @@ html[data-app-scene="sumi-ink"] .app-container > .panel .panel-header h2::after 
   width: 3rem;
   height: 2px;
   margin-top: var(--space-1);
-  background: linear-gradient(90deg, var(--color-accent), oklch(88% 0.02 75 / 0.2));
-  opacity: 0.85;
+  background: linear-gradient(90deg, oklch(88% 0.01 0), transparent);
+  opacity: 0.75;
 }
 
+/* 朱砂：仅主 CTA / 钤印 */
 html[data-app-scene="sumi-ink"] .btn-primary {
   background: linear-gradient(
     165deg,
@@ -110,11 +110,12 @@ html[data-app-scene="sumi-ink"] .btn-primary {
     oklch(46% 0.12 22) 100%
   );
   border-color: oklch(62% 0.13 25 / 0.55);
-  box-shadow: 0 2px 16px oklch(45% 0.12 25 / 0.35), inset 0 1px 0 oklch(88% 0.06 25 / 0.25);
+  color: oklch(98% 0.008 75);
+  box-shadow: 0 2px 16px oklch(40% 0.12 25 / 0.32), inset 0 1px 0 oklch(88% 0.06 25 / 0.22);
 }
 
 html[data-app-scene="sumi-ink"] .btn-primary:hover {
-  box-shadow: 0 4px 22px oklch(45% 0.14 25 / 0.45), inset 0 1px 0 oklch(88% 0.06 25 / 0.3);
+  box-shadow: 0 4px 22px oklch(40% 0.14 25 / 0.42), inset 0 1px 0 oklch(88% 0.06 25 / 0.28);
 }
 
 html[data-app-scene="sumi-ink"][data-scene-tier="immersive"] .btn-primary:active {
@@ -122,14 +123,14 @@ html[data-app-scene="sumi-ink"][data-scene-tier="immersive"] .btn-primary:active
 }
 
 html[data-app-scene="sumi-ink"] .ui-modal-dialog {
-  background: oklch(24% 0.018 55 / 0.55) !important;
+  background: oklch(20% 0.008 0 / 0.55) !important;
   backdrop-filter: blur(22px);
-  box-shadow: var(--shadow-panel), inset 0 0 0 1px oklch(45% 0.02 55 / 0.18);
+  box-shadow: var(--shadow-panel), inset 0 0 0 1px oklch(48% 0.008 0 / 0.16);
 }
 
 html[data-app-scene="sumi-ink"] .app-mobile-topbar {
-  background: oklch(22% 0.018 55 / 0.72);
-  border-bottom-color: oklch(88% 0.02 75 / 0.1);
+  background: oklch(18% 0.008 0 / 0.72);
+  border-bottom-color: oklch(92% 0.008 0 / 0.1);
 }
 
 @keyframes theme-sumi-bloom {

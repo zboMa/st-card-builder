@@ -2,9 +2,9 @@
  * 水墨 L3：可见墨晕流动 + 淡墨洗 + 溅墨/钤印
  */
 
-var WASH = 'rgba(210, 200, 185, ';
-var INK = 'rgba(45, 38, 32, ';
-var SPLASH_DARK = 'rgba(35, 28, 24, ';
+var WASH = 'rgba(225, 225, 223, ';
+var INK = 'rgba(28, 28, 28, ';
+var SPLASH_DARK = 'rgba(18, 18, 18, ';
 var SPLASH_SEAL = 'rgba(160, 55, 42, ';
 
 /** @param {CanvasRenderingContext2D} ctx @param {HTMLCanvasElement} canvas */
