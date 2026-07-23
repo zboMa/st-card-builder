@@ -36,11 +36,11 @@ export var APP_THEMES = Object.freeze([
     id: 'sumi-ink',
     label: '水墨',
     tagline: '精品',
-    blurb: '宣纸墨晕 · 朱砂点题',
+    blurb: '宣纸墨晕 · 黑白灰 · 朱砂点题',
     previewClass: 'theme-preview--sumi-ink',
     scene: 'sumi-ink',
     mode: 'dark',
-    themeColor: '#1a1814',
+    themeColor: '#141414',
   },
   {
     id: 'frost-shard',
