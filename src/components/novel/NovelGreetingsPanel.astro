@@ -1,15 +1,36 @@
 ---
-/** 拆章后：按范围截取原文 → 生成开场白并写入 first_mes + alternate_greetings */
+/** 开场白：右上生成；配置进弹窗；预览留主区 */
 ---
 <div class="panel novel-workshop-panel novel-setup-panel novel-greetings-gen-panel" data-novel-panel="greetings">
-  <h2>开场白</h2>
-  <p class="novel-panel-tip">
-    依赖已拆章。优先实体库选人 + RAG 原文；无命中回退范围截取。按数量生成主开场 + 备选，写入当前卡开场白字段。
+  <div class="novel-panel-head">
+    <h2>开场白</h2>
+    <div class="novel-head-actions">
+      <button id="btnNovelGenGreetings" type="button" class="btn btn-ai novel-btn-sm">生成开场白</button>
+    </div>
+  </div>
+  <p class="novel-panel-tip ui-pref-tip">
+    依赖已拆章。优先实体库选人 + RAG 原文；按数量生成主开场 + 备选，写入当前卡开场白字段。
   </p>
   <p id="novelGreetGate" class="novel-gate-hint" style="display:none;"></p>
+  <p id="novelGreetAiTip" class="novel-setup-ai-tip" role="status" aria-live="polite"></p>
+  <div id="novelGreetStatus" class="novel-status-text"></div>
 
   <div class="novel-setup-body">
-    <div class="novel-setup-controls">
+    <div class="novel-setup-preview-wrap">
+      <div class="novel-setup-preview-meta" id="novelGreetPreviewMeta">匹配原文 0 字 · 0 章</div>
+      <pre id="novelGreetPreview" class="novel-setup-preview" aria-live="polite"></pre>
+    </div>
+  </div>
+</div>
+
+<div id="novelModalGreet" class="novel-modal" hidden aria-hidden="true">
+  <div class="novel-modal-backdrop" data-novel-modal-close="novelModalGreet"></div>
+  <div class="novel-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="novelModalGreetTitle">
+    <div class="novel-modal-head">
+      <strong id="novelModalGreetTitle">生成开场白</strong>
+      <span class="novel-modal-tip">配置后开始生成并写卡 · Esc / 遮罩关闭</span>
+    </div>
+    <div class="novel-modal-body">
       <div class="form-group">
         <label for="novelGreetEntityPick">从实体库选人（可选）</label>
         <select id="novelGreetEntityPick">
@@ -50,14 +71,10 @@
         <label for="novelGreetCount">开场白数量（含主开场）</label>
         <input type="number" id="novelGreetCount" min="1" max="12" value="3" />
       </div>
-      <button id="btnNovelGenGreetings" type="button" class="btn btn-ai" style="width:100%;margin-bottom:8px;">生成开场白</button>
-      <p id="novelGreetAiTip" class="novel-setup-ai-tip" role="status" aria-live="polite"></p>
-      <div id="novelGreetStatus" class="novel-status-text"></div>
     </div>
-
-    <div class="novel-setup-preview-wrap">
-      <div class="novel-setup-preview-meta" id="novelGreetPreviewMeta">匹配原文 0 字 · 0 章</div>
-      <pre id="novelGreetPreview" class="novel-setup-preview" aria-live="polite"></pre>
+    <div class="novel-modal-actions">
+      <button type="button" class="btn novel-modal-cancel" data-novel-modal-close="novelModalGreet">取消</button>
+      <button type="button" class="btn btn-ai" id="btnNovelGreetConfirm">开始生成</button>
     </div>
   </div>
 </div>

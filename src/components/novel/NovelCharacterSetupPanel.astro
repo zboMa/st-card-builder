@@ -1,17 +1,37 @@
 ---
-/** 拆章后：按范围截取原文 → 生成角色设定并直接写入当前卡 */
+/** 角色设定：右上生成；配置进弹窗；预览留主区 */
 ---
 <div class="panel novel-workshop-panel novel-setup-panel novel-character-setup-panel" data-novel-panel="character-setup">
-  <h2>🪪 角色设定</h2>
-  <p class="novel-panel-tip">
+  <div class="novel-panel-head">
+    <h2>角色设定</h2>
+    <div class="novel-head-actions">
+      <button id="btnNovelGenCharSetup" type="button" class="btn btn-ai novel-btn-sm">生成角色设定</button>
+    </div>
+  </div>
+  <p class="novel-panel-tip ui-pref-tip">
     <strong>主角管道</strong>：结果只写入当前卡面（名称 / 描述 / 作者注释等），与世界书人物分管道。
-    依赖已拆章。优先从实体库选人并以 RAG 召回原文；无命中时回退下方字数/章节范围。
-    勿在此生成 NSFW / 恶堕（那些属于世界书 + 成人配置）。
+    依赖已拆章。优先从实体库选人并以 RAG 召回原文。勿在此生成 NSFW / 恶堕。
   </p>
   <p id="novelSetupGate" class="novel-gate-hint" style="display:none;"></p>
+  <p id="novelSetupAiTip" class="novel-setup-ai-tip" role="status" aria-live="polite"></p>
+  <div id="novelSetupStatus" class="novel-status-text"></div>
 
   <div class="novel-setup-body">
-    <div class="novel-setup-controls">
+    <div class="novel-setup-preview-wrap">
+      <div class="novel-setup-preview-meta" id="novelSetupPreviewMeta">匹配原文 0 字 · 0 章</div>
+      <pre id="novelSetupPreview" class="novel-setup-preview" aria-live="polite"></pre>
+    </div>
+  </div>
+</div>
+
+<div id="novelModalSetup" class="novel-modal" hidden aria-hidden="true">
+  <div class="novel-modal-backdrop" data-novel-modal-close="novelModalSetup"></div>
+  <div class="novel-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="novelModalSetupTitle">
+    <div class="novel-modal-head">
+      <strong id="novelModalSetupTitle">生成角色设定</strong>
+      <span class="novel-modal-tip">配置后开始生成并写卡 · Esc / 遮罩关闭</span>
+    </div>
+    <div class="novel-modal-body">
       <div class="form-group">
         <label for="novelSetupEntityPick">从实体库选人（可选）</label>
         <select id="novelSetupEntityPick">
@@ -48,14 +68,10 @@
           <input type="number" id="novelSetupChapterCount" min="1" max="999" value="3" />
         </div>
       </div>
-      <button id="btnNovelGenCharSetup" type="button" class="btn btn-ai" style="width:100%;margin-bottom:8px;">生成角色设定</button>
-      <p id="novelSetupAiTip" class="novel-setup-ai-tip" role="status" aria-live="polite"></p>
-      <div id="novelSetupStatus" class="novel-status-text"></div>
     </div>
-
-    <div class="novel-setup-preview-wrap">
-      <div class="novel-setup-preview-meta" id="novelSetupPreviewMeta">匹配原文 0 字 · 0 章</div>
-      <pre id="novelSetupPreview" class="novel-setup-preview" aria-live="polite"></pre>
+    <div class="novel-modal-actions">
+      <button type="button" class="btn novel-modal-cancel" data-novel-modal-close="novelModalSetup">取消</button>
+      <button type="button" class="btn btn-ai" id="btnNovelSetupConfirm">开始生成</button>
     </div>
   </div>
 </div>

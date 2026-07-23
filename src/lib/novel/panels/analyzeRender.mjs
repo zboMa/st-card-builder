@@ -75,12 +75,25 @@ export function attachNovelAnalyzeRender(ctx, panel, graphRef) {
   }
 
   function syncShardModeUi(prefix, mode) {
+    if (ctx.syncShardModeUi) {
+      ctx.syncShardModeUi(prefix, mode);
+      return;
+    }
     var $ = ctx.$;
     var byChars = mode !== 'chapters';
     var sizeWrap = $(prefix + 'ChunkSizeWrap');
     var chWrap = $(prefix + 'ChaptersPerShardWrap');
-    if (sizeWrap) sizeWrap.hidden = !byChars;
-    if (chWrap) chWrap.hidden = byChars;
+    var modeEl = $(prefix + 'ShardMode');
+    var grid = modeEl && modeEl.closest ? modeEl.closest('.grid-3') : null;
+    if (grid) grid.setAttribute('data-shard-mode', byChars ? 'chars' : 'chapters');
+    if (sizeWrap) {
+      sizeWrap.hidden = !byChars;
+      sizeWrap.style.display = byChars ? '' : 'none';
+    }
+    if (chWrap) {
+      chWrap.hidden = byChars;
+      chWrap.style.display = byChars ? 'none' : '';
+    }
   }
 
   function gates() {

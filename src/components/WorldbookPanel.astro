@@ -104,6 +104,7 @@ import WorldbookAuditor from './WorldbookAuditor.astro';
       <div class="wb-modal-head">
         <strong id="wbModalEditTitle">编辑世界书条目</strong>
         <span class="wb-modal-tip" id="wbModalEditTip">保存后写回列表 · Esc / 遮罩关闭</span>
+        <span class="wb-modal-tip is-err" id="wbModalEditError" hidden role="alert"></span>
       </div>
       <div class="wb-modal-body wb-modal-body-scroll" id="wbModalEditBody"></div>
       <div class="wb-modal-actions">
@@ -373,6 +374,9 @@ import WorldbookAuditor from './WorldbookAuditor.astro';
   .wb-modal-tip {
     font-size: 0.68rem;
     color: var(--color-text-muted);
+  }
+  .wb-modal-tip.is-err {
+    color: var(--color-danger);
   }
   .wb-modal-body {
     padding: 12px 16px 8px;

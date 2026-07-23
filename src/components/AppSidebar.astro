@@ -116,20 +116,14 @@ const CONFIG_ITEMS = [
     ))}
   </nav>
 
-  <div class="app-sidebar-theme" id="appSidebarTheme">
-    <div class="app-sidebar-group-title">外观</div>
-    <button type="button" class="theme-entry" id="btnThemeGalleryOpen" aria-haspopup="dialog">
-      <span class="theme-entry__preview theme-preview--nocturne" id="themeEntryPreview" aria-hidden="true"></span>
-      <span class="theme-entry__text">
-        <span class="theme-entry__label" id="themeEntryLabel">夜庭</span>
-        <span class="theme-entry__hint ui-hint">创作场景</span>
-      </span>
-      <svg class="theme-entry__chev" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
-    </button>
-  </div>
-
   <div class="app-sidebar-group app-sidebar-group-config" id="appSidebarConfig">
-    <div class="app-sidebar-group-title">配置</div>
+    <div class="app-sidebar-group-title app-sidebar-group-title--row">
+      <span>配置</span>
+      <button type="button" class="theme-entry theme-entry--compact" id="btnThemeGalleryOpen" aria-haspopup="dialog" aria-label="外观：夜庭">
+        <span class="theme-entry__preview theme-preview--nocturne" id="themeEntryPreview" aria-hidden="true"></span>
+        <span class="sr-only" id="themeEntryLabel">夜庭</span>
+      </button>
+    </div>
     {CONFIG_ITEMS.map((item) => (
       <button type="button" class="app-sidebar-item" data-view={item.view}>
         <svg class="app-sidebar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" set:html={item.icon} />

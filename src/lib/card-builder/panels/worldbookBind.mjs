@@ -5,6 +5,9 @@
 /** @param {object} ctx @param {object} s @param {object} panel */
 export function attachWorldbookBind(ctx, s, panel) {
   function bind() {
+    if (panel._modalsBound) return;
+    panel._modalsBound = true;
+
     s.entriesList = ctx.$('entriesList');
     s.btnCreateEntry = ctx.$('btnCreateEntry');
 

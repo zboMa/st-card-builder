@@ -220,13 +220,21 @@ export function createWorldbookShared(ctx) {
   function openWbEditModal(index, entry, isNew) {
     var titleEl = ctx.$('wbModalEditTitle');
     var tipEl = ctx.$('wbModalEditTip');
+    var errEl = ctx.$('wbModalEditError');
     var bodyEl = ctx.$('wbModalEditBody');
     var saveBtn = ctx.$('btnWbModalSave');
     if (!bodyEl) return;
     if (titleEl) titleEl.textContent = isNew ? '\u65B0\u5EFA\u4E16\u754C\u4E66\u6761\u76EE' : '\u7F16\u8F91\u4E16\u754C\u4E66\u6761\u76EE';
-    if (tipEl) tipEl.textContent = isNew
-      ? '\u624B\u52A8\u5F55\u5165\u4F1A\u63D2\u5165\u5230\u6761\u76EE\u5217\u8868 \u00B7 Esc / \u906E\u7F69\u5173\u95ED'
-      : '\u4FDD\u5B58\u540E\u8986\u76D6\u672C\u6761 \u00B7 Esc / \u906E\u7F69\u5173\u95ED';
+    if (tipEl) {
+      tipEl.hidden = false;
+      tipEl.textContent = isNew
+        ? '\u624B\u52A8\u5F55\u5165\u4F1A\u63D2\u5165\u5230\u6761\u76EE\u5217\u8868 \u00B7 Esc / \u906E\u7F69\u5173\u95ED'
+        : '\u4FDD\u5B58\u540E\u8986\u76D6\u672C\u6761 \u00B7 Esc / \u906E\u7F69\u5173\u95ED';
+    }
+    if (errEl) {
+      errEl.hidden = true;
+      errEl.textContent = '';
+    }
     if (saveBtn) saveBtn.textContent = isNew ? '\u4FDD\u5B58\u65B0\u6761\u76EE' : '\u4FDD\u5B58\u4FEE\u6539';
     bodyEl.innerHTML = renderWbEditorFields(index, entry, isNew);
     openWbModal('wbModalEdit');
@@ -273,11 +281,26 @@ export function createWorldbookShared(ctx) {
     closeWbModal('wbModalEdit');
   }
 
+  function showWbEditError(msg) {
+    var tipEl = ctx.$('wbModalEditTip');
+    var errEl = ctx.$('wbModalEditError');
+    if (tipEl) tipEl.hidden = true;
+    if (errEl) {
+      errEl.hidden = false;
+      errEl.textContent = msg || '';
+    }
+  }
+
   function saveInlineEntry(index) {
     var editorRoot = getInlineEditorRoot(index);
     if (!editorRoot) return;
     var nextEntry = readInlineEditorEntry(editorRoot);
-    if (!nextEntry.content.trim()) return alert('\u5185\u5BB9\u4E0D\u80FD\u4E3A\u7A7A\uFF01');
+    if (!nextEntry.content.trim()) {
+      showWbEditError('\u5185\u5BB9\u4E0D\u80FD\u4E3A\u7A7A');
+      var contentEl = editorRoot.querySelector('[data-field="content"]');
+      if (contentEl) contentEl.focus();
+      return;
+    }
     if (index >= 0) ctx.state.worldbookEntries[index] = nextEntry;
     else ctx.state.worldbookEntries.push(nextEntry);
     closeWbModal('wbModalEdit');

@@ -115,6 +115,7 @@ export function attachNovelCharactersRender(ctx, panel) {
 
   panel.render = function() {
     var state = ctx.state;
+    var es = ctx.editState;
     var grid = ctx.$('novelCharGrid');
     var idCheck = ctx.$('novelScanIdentity');
     var stage = ctx.$('novelSplitStage');
@@ -129,12 +130,33 @@ export function attachNovelCharactersRender(ctx, panel) {
     if (perCh) perCh.value = String(state.charChaptersPerShard || 1);
     if (ctx.syncShardModeUi) ctx.syncShardModeUi('novelChar', state.charShardMode);
     if (policy) policy.value = state.conflictPolicy || 'merge';
+
+    var countEl = ctx.$('novelCharCount');
+    if (countEl) countEl.textContent = String((state.characters || []).length);
+
+    var searchInput = ctx.$('novelCharSearchInput');
+    var searchClear = ctx.$('novelCharSearchClear');
+    if (searchInput && searchInput.value !== es.novelCharSearchQuery) {
+      if (document.activeElement !== searchInput) searchInput.value = es.novelCharSearchQuery;
+    }
+    if (searchClear) searchClear.style.display = es.novelCharSearchQuery ? '' : 'none';
+
     if (!grid) return;
     if (!(state.characters || []).length) {
       grid.innerHTML = '<div class="novel-status-text">暂无人物。请先「小说分析」，或手动添加 / 扫描全书。</div>';
       return;
     }
-    grid.innerHTML = state.characters.map(function(c) {
+    var q = String(es.novelCharSearchQuery || '').trim().toLowerCase();
+    var list = state.characters.filter(function(c) {
+      if (!q) return true;
+      var hay = ((c.name || '') + ' ' + (c.aliases || []).join(' ') + ' ' + (c.note || '')).toLowerCase();
+      return hay.indexOf(q) >= 0;
+    });
+    if (!list.length) {
+      grid.innerHTML = '<div class="novel-status-text">未找到匹配「' + escapeHtml(es.novelCharSearchQuery) + '」的人物。</div>';
+      return;
+    }
+    grid.innerHTML = list.map(function(c) {
       var ent = panel.findPersonEntityForChar(c);
       var enriched = ent ? isEntityEnriched(ent, !!state.strictQuality, getAdultMode(state)) : !!c.profile;
       var note = c.note || (c.profile ? '已扩展' : '待扩展');

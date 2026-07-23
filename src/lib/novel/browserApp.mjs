@@ -203,13 +203,24 @@ export function initNovelWorkshop() {
     var byChars = mode !== 'chapters';
     var sizeWrap = $(prefix + 'ChunkSizeWrap');
     var chWrap = $(prefix + 'ChaptersPerShardWrap');
-    if (sizeWrap) sizeWrap.hidden = !byChars;
-    if (chWrap) chWrap.hidden = byChars;
+    var modeEl = $(prefix + 'ShardMode');
+    var grid = modeEl && modeEl.closest ? modeEl.closest('.grid-3') : null;
+    if (grid) grid.setAttribute('data-shard-mode', byChars ? 'chars' : 'chapters');
+    // 同时写 hidden + display：父级 flex/grid 在部分环境下会盖掉 [hidden]
+    if (sizeWrap) {
+      sizeWrap.hidden = !byChars;
+      sizeWrap.style.display = byChars ? '' : 'none';
+    }
+    if (chWrap) {
+      chWrap.hidden = byChars;
+      chWrap.style.display = byChars ? 'none' : '';
+    }
   }
 
   function updateExtractCallEstimates() {
-    var charN = estimateExtractCalls(state.chapters, { mode: state.charShardMode === 'chapters' ? 'chapters' : 'chars', chunkSize: state.charChunkSize || state.chunkSize || 8000, chaptersPerShard: state.charChaptersPerShard || 1 });
-    var wbN = estimateExtractCalls(state.chapters, { mode: state.wbShardMode === 'chapters' ? 'chapters' : 'chars', chunkSize: state.wbChunkSize || state.chunkSize || 8000, chaptersPerShard: state.wbChaptersPerShard || 1 });
+    var s = ctx.state || state;
+    var charN = estimateExtractCalls(s.chapters, { mode: s.charShardMode === 'chapters' ? 'chapters' : 'chars', chunkSize: s.charChunkSize || s.chunkSize || 8000, chaptersPerShard: s.charChaptersPerShard || 1 });
+    var wbN = estimateExtractCalls(s.chapters, { mode: s.wbShardMode === 'chapters' ? 'chapters' : 'chars', chunkSize: s.wbChunkSize || s.chunkSize || 8000, chaptersPerShard: s.wbChaptersPerShard || 1 });
     var scanBtn = $('btnCharScan');
     if (scanBtn && !ctx.busyFlags.charScan) {
       scanBtn.textContent = '约 ' + charN + ' 次 · 扫描全书';
@@ -220,23 +231,37 @@ export function initNovelWorkshop() {
       extractBtn.textContent = '约 ' + wbN + ' 次 · AI 抽取';
       if (extractBtn.dataset.idleLabel != null) extractBtn.dataset.idleLabel = extractBtn.textContent;
     }
-    var analyzeShards = estimateExtractCalls(state.chapters, { mode: state.analyzeShardMode === 'chapters' ? 'chapters' : 'chars', chunkSize: state.analyzeChunkSize || state.chunkSize || 8000, chaptersPerShard: state.analyzeChaptersPerShard || 1 });
-    var enrichN = listEntitiesNeedingEnrich(state.entities, state.strictQuality, getAdultMode(state), getNtlMode(state)).length;
+    var analyzeShards = estimateExtractCalls(s.chapters, {
+      mode: s.analyzeShardMode === 'chapters' ? 'chapters' : 'chars',
+      chunkSize: s.analyzeChunkSize || s.chunkSize || 8000,
+      chaptersPerShard: s.analyzeChaptersPerShard || 1,
+    });
+    var enrichN = listEntitiesNeedingEnrich(s.entities, s.strictQuality, getAdultMode(s), getNtlMode(s)).length;
+    var analyzeAllN = analyzeShards + enrichN + 2;
+    var skOnlyN = analyzeShards;
+    var detailFull = enrichN > 0
+      ? ('骨架 ' + analyzeShards + ' · 丰满 ' + enrichN + ' · 收尾 2')
+      : ('骨架 ' + analyzeShards + ' · 收尾 2');
+    var estimateEl = $('novelAnalyzeEstimate');
+    if (estimateEl) {
+      estimateEl.textContent = '完整约 ' + analyzeAllN + ' 次（' + detailFull + '）；仅骨架约 ' + skOnlyN + ' 次。';
+    }
     var analyzeAllBtn = $('btnNovelAnalyzeAll');
     if (analyzeAllBtn && !ctx.busyFlags.analyzeAll && !ctx.busyFlags.analyzeSkeleton && !ctx.busyFlags.analyzeEnrich) {
-      var analyzeAllN = analyzeShards + enrichN + 2;
-      analyzeAllBtn.textContent = '约 ' + analyzeAllN + ' 次 · 开始完整分析';
+      analyzeAllBtn.textContent = '开始分析';
       if (analyzeAllBtn.dataset.idleLabel != null) analyzeAllBtn.dataset.idleLabel = analyzeAllBtn.textContent;
+    }
+    var analyzeConfirm = $('btnNovelAnalyzeConfirm');
+    if (analyzeConfirm && !ctx.busyFlags.analyzeAll && !ctx.busyFlags.analyzeSkeleton) {
+      var skOnly = $('novelAnalyzeSkeletonOnly');
+      analyzeConfirm.textContent = (skOnly && skOnly.checked)
+        ? ('开始骨架（约 ' + skOnlyN + ' 次）')
+        : ('开始分析（约 ' + analyzeAllN + ' 次）');
     }
   }
 
   function gates() {
     return getPipelineGates(state);
-  }
-
-  function setStatus(id, msg) {
-    var el = $(id);
-    if (el) el.textContent = msg || '';
   }
 
   function isAiConfigured() {
@@ -307,7 +332,6 @@ export function initNovelWorkshop() {
 
   ctx.gates = gates;
   ctx.renderGatesFn = renderGates;
-  ctx.setStatus = setStatus;
   ctx.updateExtractCallEstimates = updateExtractCallEstimates;
   ctx.syncShardModeUi = syncShardModeUi;
   ctx.syncOutputs = function(opts) { return bridgeSyncOutputs(ctx, opts); };
@@ -347,7 +371,7 @@ export function initNovelWorkshop() {
   async function runDistillStyle() { return ctx.panels.style ? ctx.panels.style.runDistill() : Promise.reject(new Error('未挂载')); }
 
   var setupBoot = attachNovelBootSetup(ctx, {
-    state: state, sm: sm, $: $, gates: gates, setStatus: setStatus,
+    state: state, sm: sm, $: $, gates: gates, setStatus: ctx.setStatus,
     isAiConfigured: isAiConfigured, getApiConfig: getApiConfig,
     renderGates: renderGates, promptText: promptText, callAI: callAI,
     runTracked: runTracked, isTrackedAbort: isTrackedAbort,
@@ -376,6 +400,11 @@ export function initNovelWorkshop() {
     renderStyle();
     updateExtractCallEstimates();
   }
+
+  // 覆盖 ctx.renderAll（shared/context.mjs 的精简版不含门控/预估刷新）：
+  // 各 panel 内部散落的 ctx.renderAll() 调用需要同步刷新门控提示与按钮态，
+  // 否则如「导入原文后拆章仍提示未导入」等门控滞后问题会复现。
+  ctx.renderAll = renderAll;
 
   attachNovelBootEvents({
     bindCharacterSetup: setupBoot.bindCharacterSetup,

@@ -38,13 +38,49 @@ export function createNovelAppContext(sm, opts) {
         + '" title="' + title + '" aria-label="' + title + '" ' + attrs + '>' + icon + '</button>';
     },
 
+    /** 轻量提示（message toast） */
+    showAppMessage: function(message, options) {
+      var opts = options || {};
+      var text = String(message || '').trim();
+      if (!text || typeof document === 'undefined') return;
+      var host = document.getElementById('appToastHost');
+      if (!host) {
+        host = document.createElement('div');
+        host.id = 'appToastHost';
+        host.className = 'app-toast-host';
+        host.setAttribute('aria-live', 'polite');
+        document.body.appendChild(host);
+      }
+      var toast = document.createElement('div');
+      toast.className = 'app-toast' + (opts.level === 'error' ? ' is-error' : (opts.level === 'warn' ? ' is-warn' : ''));
+      toast.textContent = text;
+      host.appendChild(toast);
+      var ms = opts.duration != null ? opts.duration : 2600;
+      setTimeout(function() {
+        toast.classList.add('is-leaving');
+        setTimeout(function() { toast.remove(); }, 220);
+      }, ms);
+    },
+
+    /** 面板状态行：写入对应 DOM；空文案不占高度（见 .novel-status-text:empty） */
+    setStatus: function(id, msg) {
+      var el = $(id);
+      if (!el) return;
+      el.textContent = msg || '';
+    },
+
     isUnexpandedWbContent: function(content) {
       var c = String(content || '').trim();
       return c.length < 60 || c.indexOf('待展开') >= 0;
     },
 
     // ===== 弹窗 =====
-    NOVEL_MODAL_IDS: ['novelModalChapter', 'novelModalProfile', 'novelModalExpandConfirm', 'novelModalWb', 'novelModalEntity'],
+    NOVEL_MODAL_IDS: [
+      'novelModalChapter', 'novelModalProfile', 'novelModalExpandConfirm',
+      'novelModalWb', 'novelModalEntity',
+      'novelModalSplit', 'novelModalAnalyze', 'novelModalSetup', 'novelModalGreet', 'novelModalStyle',
+      'novelModalCharScan', 'novelModalWbExtract',
+    ],
 
     openNovelModal: function(id) {
       var el = $(id);
@@ -132,6 +168,8 @@ export function createNovelAppContext(sm, opts) {
       editingEntityId: null,
       novelWbSearchQuery: '',
       novelWbTypeFilter: '',
+      novelCharSearchQuery: '',
+      novelChapterSearchQuery: '',
       pendingExpandConfirm: null,
     },
 
@@ -165,6 +203,10 @@ export function createNovelAppContext(sm, opts) {
       if (ps.style) ps.style.render();
       if (ps.analyze && ps.analyze.renderGraph) ps.analyze.renderGraph();
       if (ctx.panels.shared) ctx.panels.shared.updateEstimates();
+      // 门控 / 按钮预估由 browserApp 在 initNovelWorkshop 中注入，须在此一并刷新，
+      // 否则「导入原始资料」等操作后拆章/角色/世界书等门控提示不会消失（见 #上传小说后仍提示上传）。
+      if (typeof ctx.renderGatesFn === 'function') ctx.renderGatesFn();
+      if (typeof ctx.updateExtractCallEstimates === 'function') ctx.updateExtractCallEstimates();
     },
 
     // ===== 卡片写回 =====
@@ -296,7 +338,6 @@ export function createNovelAppContext(sm, opts) {
     // ===== 门控（由 browserApp 在 initNovelWorkshop 中注入） =====
     gates: null,
     renderGatesFn: null,
-    setStatus: null,
     syncOutputs: null,
     updateExtractCallEstimates: null,
   };

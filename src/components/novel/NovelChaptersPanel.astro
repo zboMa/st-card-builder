@@ -1,17 +1,45 @@
 ---
-/** 模块2：拆章与章级操作；含拆章分片字数；列表内滚；正文居中弹窗预览 */
+/** 拆章：标题行右上操作；检索列表；自动拆章进弹窗配置后开始 */
 ---
 <div class="panel novel-workshop-panel novel-chapters-panel" data-novel-panel="chapters">
-  <h2>拆章</h2>
-  <p class="novel-panel-tip">按标题 / 空行 / 字数切分章节；结果供小说分析、人物列表、世界书条目与文风蒸馏使用。点击标题或预览图标打开正文弹窗。</p>
+  <div class="novel-panel-head">
+    <h2>拆章 <span id="novelChapterCount" class="novel-panel-count">0 章</span></h2>
+    <div class="novel-head-actions" aria-label="拆章操作">
+      <button id="btnChDelete" type="button" class="btn btn-delete novel-btn-sm">删除所选</button>
+      <button id="btnChExport" type="button" class="btn btn-fetch novel-btn-sm">导出选中</button>
+      <button id="btnChDisable" type="button" class="btn btn-fetch novel-btn-sm">禁用所选</button>
+      <button id="btnChEnable" type="button" class="btn btn-fetch novel-btn-sm">启用所选</button>
+      <button id="btnChMerge" type="button" class="btn btn-fetch novel-btn-sm">合并所选</button>
+      <button id="btnNovelSplitChapters" type="button" class="btn btn-ai novel-btn-sm">自动拆章</button>
+    </div>
+  </div>
+  <p class="novel-panel-tip ui-pref-tip">按标题 / 空行 / 字数切分章节；结果供小说分析、人物列表、世界书条目与文风蒸馏使用。点击标题或预览图标打开正文弹窗。</p>
   <p id="novelChapterGate" class="novel-gate-hint" style="display:none;"></p>
+  <div id="novelChapterStatus" class="novel-status-text"></div>
 
   <div class="novel-chapters-body">
-    <div class="novel-chapters-controls">
-      <div class="novel-chapters-meta">
-        <strong>自动拆章</strong>
-        <span id="novelChapterCount">0 章</span>
+    <div class="wb-toolbar novel-wb-toolbar novel-wb-search-only">
+      <div class="wb-search-wrap">
+        <div class="wb-search-bar">
+          <span class="wb-search-icon" aria-hidden="true">🔍</span>
+          <input type="text" id="novelChapterSearchInput" class="wb-search-input" placeholder="搜索章节标题..." autocomplete="off" />
+          <button id="novelChapterSearchClear" class="wb-search-clear" title="清空" type="button" style="display:none;">✕</button>
+        </div>
       </div>
+    </div>
+    <div id="novelChapterList" class="novel-chapter-list" aria-live="polite"></div>
+  </div>
+</div>
+
+<!-- 自动拆章配置 -->
+<div id="novelModalSplit" class="novel-modal" hidden aria-hidden="true">
+  <div class="novel-modal-backdrop" data-novel-modal-close="novelModalSplit"></div>
+  <div class="novel-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="novelModalSplitTitle">
+    <div class="novel-modal-head">
+      <strong id="novelModalSplitTitle">自动拆章</strong>
+      <span class="novel-modal-tip">配置规则后开始拆分 · Esc / 遮罩关闭</span>
+    </div>
+    <div class="novel-modal-body">
       <div class="grid-2">
         <div class="form-group">
           <label for="novelChapterSplitMode">拆分规则</label>
@@ -35,17 +63,12 @@
           </select>
         </div>
       </div>
-      <div class="novel-toolbar" aria-label="批量操作">
-        <button id="btnNovelSplitChapters" type="button" class="btn novel-btn-sm">自动拆章</button>
-        <button id="btnChMerge" type="button" class="btn btn-fetch novel-btn-sm">合并所选</button>
-        <button id="btnChEnable" type="button" class="btn btn-fetch novel-btn-sm">启用所选</button>
-        <button id="btnChDisable" type="button" class="btn btn-fetch novel-btn-sm">禁用所选</button>
-        <button id="btnChExport" type="button" class="btn btn-fetch novel-btn-sm">导出选中</button>
-        <button id="btnChDelete" type="button" class="btn btn-delete novel-btn-sm">删除所选</button>
-      </div>
-      <div id="novelChapterStatus" class="novel-status-text"></div>
+      <p class="novel-modal-desc ui-pref-tip">将按规则重新切分全文；已有章节列表会被覆盖。</p>
     </div>
-    <div id="novelChapterList" class="novel-chapter-list" aria-live="polite"></div>
+    <div class="novel-modal-actions">
+      <button type="button" class="btn novel-modal-cancel" data-novel-modal-close="novelModalSplit">取消</button>
+      <button type="button" class="btn btn-ai" id="btnNovelSplitConfirm">开始拆分</button>
+    </div>
   </div>
 </div>
 

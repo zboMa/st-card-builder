@@ -273,7 +273,15 @@ export function attachNovelBootSetup(ctx, deps) {
     var chN = $('novelSetupChapterCount');
     if (chN) chN.addEventListener('input', function() { state.setupChapterCount = Math.max(1, parseInt(chN.value, 10) || 1); ctx.save(); renderSetupCorpusPreview('setup'); });
     var gen = $('btnNovelGenCharSetup');
-    if (gen) gen.addEventListener('click', async function() { try { await runGenerateCharSetup(); } catch (e) { if (!isTrackedAbort(e)) alert('生成失败: ' + (e.message || e)); } });
+    if (gen) gen.addEventListener('click', function() {
+      renderCharacterSetup();
+      ctx.openNovelModal('novelModalSetup');
+    });
+    var setupConfirm = $('btnNovelSetupConfirm');
+    if (setupConfirm) setupConfirm.addEventListener('click', async function() {
+      ctx.closeNovelModal('novelModalSetup');
+      try { await runGenerateCharSetup(); } catch (e) { if (!isTrackedAbort(e)) alert('生成失败: ' + (e.message || e)); }
+    });
   }
 
   function bindGreetingsGen() {
@@ -300,7 +308,15 @@ export function attachNovelBootSetup(ctx, deps) {
     var count = $('novelGreetCount');
     if (count) count.addEventListener('input', function() { state.greetCount = Math.max(1, Math.min(12, parseInt(count.value, 10) || 3)); ctx.save(); });
     var gen = $('btnNovelGenGreetings');
-    if (gen) gen.addEventListener('click', async function() { try { await runGenerateGreetings(); } catch (e) { if (!isTrackedAbort(e)) alert('生成失败: ' + (e.message || e)); } });
+    if (gen) gen.addEventListener('click', function() {
+      renderGreetingsGen();
+      ctx.openNovelModal('novelModalGreet');
+    });
+    var greetConfirm = $('btnNovelGreetConfirm');
+    if (greetConfirm) greetConfirm.addEventListener('click', async function() {
+      ctx.closeNovelModal('novelModalGreet');
+      try { await runGenerateGreetings(); } catch (e) { if (!isTrackedAbort(e)) alert('生成失败: ' + (e.message || e)); }
+    });
   }
 
   return {

@@ -60,6 +60,19 @@ export function createNovelStateMachine(opts) {
     return bucketKey(boundCardId);
   }
 
+  /**
+   * 用新数据替换 state 的内容，但保持同一个对象引用不变。
+   * 注意：browserApp/panels 里大量代码在 bind() 时做过 `var state = ctx.state`
+   * 这类"只拷贝一次引用"的写法；若这里改成 `state = xxx` 重新赋值一个新对象，
+   * 那些早先捕获的旧引用就再也收不到后续（如 bindCard 异步加载完成）的数据，
+   * 表现为"刷新后卡绑定的小说就没了"。因此必须就地替换属性，而不是换对象。
+   */
+  function _replaceState(nextState) {
+    var keys = Object.keys(state);
+    for (var i = 0; i < keys.length; i++) delete state[keys[i]];
+    Object.assign(state, nextState || {});
+  }
+
   function _flush() {
     if (_debounceTimer) {
       clearTimeout(_debounceTimer);
@@ -150,7 +163,7 @@ export function createNovelStateMachine(opts) {
       _flush();
       var id = String(cardId || _getCardId() || '');
       if (!id) {
-        state = createDefaultNovelState();
+        _replaceState(createDefaultNovelState());
         boundCardId = '';
         return Promise.resolve();
       }
@@ -158,7 +171,7 @@ export function createNovelStateMachine(opts) {
       var key = _bucketKey();
       return _loadBucket(key).then(function(data) {
         if (data) {
-          state = hydrateNovelState(data);
+          _replaceState(hydrateNovelState(data));
           _notify(['*']);
           return;
         }
@@ -181,7 +194,7 @@ export function createNovelStateMachine(opts) {
           return _loadBucket(key);
         }).then(function(d) {
           if (d) {
-            state = hydrateNovelState(d);
+            _replaceState(hydrateNovelState(d));
           }
           _notify(['*']);
         });
@@ -196,7 +209,7 @@ export function createNovelStateMachine(opts) {
 
     /** 重置为本卡默认空状态 */
     reset: function() {
-      state = createDefaultNovelState();
+      _replaceState(createDefaultNovelState());
       _persist();
       _notify(['*']);
     },
@@ -207,7 +220,7 @@ export function createNovelStateMachine(opts) {
       if (!key || key === NOVEL_BUCKET_PREFIX) return Promise.resolve();
       _idbDelete(key).catch(function(e) { _debug('stateMachine: delete failed', e); });
       try { localStorage.removeItem(key); } catch (e) { console.warn('Removing novel bucket from localStorage failed', e); }
-      state = createDefaultNovelState();
+      _replaceState(createDefaultNovelState());
       boundCardId = '';
       return Promise.resolve();
     },
@@ -234,7 +247,7 @@ export function createNovelStateMachine(opts) {
       if (!json) return;
       var parsed;
       try { parsed = JSON.parse(json); } catch (e) { return; }
-      state = hydrateNovelState(parsed);
+      _replaceState(hydrateNovelState(parsed));
       _persist();
     },
 

@@ -1,13 +1,36 @@
 ---
-/** 模块5：文风蒸馏；模块内分片；同步为标题固定「文风」的世界书条目；配置固定 + 内容区占满 */
+/** 文风蒸馏：右上操作；配置进弹窗；正文区占满 */
 ---
 <div class="panel novel-workshop-panel novel-style-panel" data-novel-panel="style">
-  <h2>✒️ 文风蒸馏</h2>
-  <p class="novel-panel-tip">从启用章节抽样分析视角、句式、用词与节奏，产出可复用文风提示词。同步时写入主世界书，条目标题固定为「文风」（已存在则按冲突策略更新）。</p>
+  <div class="novel-panel-head">
+    <h2>文风蒸馏</h2>
+    <div class="novel-head-actions" aria-label="文风操作">
+      <div id="novelStyleSyncBadge" class="novel-sync-badge unsynced">未同步</div>
+      <button id="btnStyleCopy" type="button" class="btn btn-fetch novel-btn-sm">复制</button>
+      <button id="btnStyleDownload" type="button" class="btn btn-fetch novel-btn-sm">下载</button>
+      <button id="btnSyncStyle" type="button" class="btn btn-fetch novel-btn-sm">同步为「文风」</button>
+      <button id="btnStyleDistill" type="button" class="btn btn-ai novel-btn-sm">蒸馏文风</button>
+    </div>
+  </div>
+  <p class="novel-panel-tip ui-pref-tip">从启用章节抽样分析视角、句式、用词与节奏，产出可复用文风提示词。同步时写入主世界书，条目标题固定为「文风」。</p>
   <p id="novelStyleGate" class="novel-gate-hint" style="display:none;"></p>
+  <div id="novelStyleStatus" class="novel-status-text"></div>
 
   <div class="novel-style-body">
-    <div class="novel-style-controls">
+    <div class="novel-style-content">
+      <textarea id="novelStyleText" placeholder="文风分析 + 可复用文风提示词会显示在这里，可直接编辑..."></textarea>
+    </div>
+  </div>
+</div>
+
+<div id="novelModalStyle" class="novel-modal" hidden aria-hidden="true">
+  <div class="novel-modal-backdrop" data-novel-modal-close="novelModalStyle"></div>
+  <div class="novel-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="novelModalStyleTitle">
+    <div class="novel-modal-head">
+      <strong id="novelModalStyleTitle">蒸馏文风</strong>
+      <span class="novel-modal-tip">配置抽样与要求后开始 · Esc / 遮罩关闭</span>
+    </div>
+    <div class="novel-modal-body">
       <div class="grid-2">
         <div class="form-group">
           <label for="novelStyleChunkSize">抽样分片字数（预算上限）</label>
@@ -35,18 +58,10 @@
         <label for="novelStyleCustom">自定义要求（可选，留空用默认）</label>
         <textarea id="novelStyleCustom" style="min-height:72px;" placeholder="例如：偏冷淡克制，少形容词堆砌"></textarea>
       </div>
-      <button id="btnStyleDistill" type="button" class="btn" style="width:100%;margin-bottom:10px;">蒸馏文风</button>
-      <div id="novelStyleSyncBadge" class="novel-sync-badge unsynced" style="margin-bottom:4px;">未同步</div>
     </div>
-
-    <div class="novel-style-content">
-      <textarea id="novelStyleText" placeholder="文风分析 + 可复用文风提示词会显示在这里，可直接编辑..."></textarea>
-      <div class="novel-toolbar" style="margin-top:10px;">
-        <button id="btnSyncStyle" type="button" class="btn novel-btn-sm">同步为世界书「文风」</button>
-        <button id="btnStyleCopy" type="button" class="btn btn-fetch novel-btn-sm">复制</button>
-        <button id="btnStyleDownload" type="button" class="btn btn-fetch novel-btn-sm">下载 .md</button>
-      </div>
-      <div id="novelStyleStatus" class="novel-status-text"></div>
+    <div class="novel-modal-actions">
+      <button type="button" class="btn novel-modal-cancel" data-novel-modal-close="novelModalStyle">取消</button>
+      <button type="button" class="btn btn-ai" id="btnStyleDistillConfirm">开始蒸馏</button>
     </div>
   </div>
 </div>

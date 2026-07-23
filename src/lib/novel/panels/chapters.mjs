@@ -43,6 +43,7 @@ export function registerChapters(ctx) {
 
   panel.render = function() {
     var state = ctx.state;
+    var es = ctx.editState;
     var list = ctx.$('novelChapterList');
     var count = ctx.$('novelChapterCount');
     if (count) count.textContent = (state.chapters || []).length + ' 章';
@@ -50,13 +51,32 @@ export function registerChapters(ctx) {
     if (mode) mode.value = state.chapterSplitMode || 'title';
     var chunk = ctx.$('novelChunkSize');
     if (chunk) chunk.value = String(state.chunkSize || 8000);
+
+    var searchInput = ctx.$('novelChapterSearchInput');
+    var searchClear = ctx.$('novelChapterSearchClear');
+    if (searchInput && searchInput.value !== es.novelChapterSearchQuery) {
+      if (document.activeElement !== searchInput) searchInput.value = es.novelChapterSearchQuery || '';
+    }
+    if (searchClear) searchClear.style.display = es.novelChapterSearchQuery ? '' : 'none';
+
     if (!list) return;
     if (!(state.chapters || []).length) {
-      list.innerHTML = '<div class="novel-status-text">尚未拆章。请先导入资料后点击「自动拆章」。</div>';
+      list.innerHTML = '<div class="novel-status-text">尚未拆章。请先导入资料后点击右上「自动拆章」。</div>';
+      return;
+    }
+    var q = String(es.novelChapterSearchQuery || '').trim().toLowerCase();
+    var rows = state.chapters.map(function(c, i) { return { c: c, i: i }; }).filter(function(row) {
+      if (!q) return true;
+      return String(row.c.title || '').toLowerCase().indexOf(q) >= 0;
+    });
+    if (!rows.length) {
+      list.innerHTML = '<div class="novel-status-text">未找到匹配「' + escapeHtml(es.novelChapterSearchQuery) + '」的章节。</div>';
       return;
     }
     // 左：勾选 + 标题/字数；右：图标操作（不换到标题下方）
-    list.innerHTML = state.chapters.map(function(c, i) {
+    list.innerHTML = rows.map(function(row) {
+      var c = row.c;
+      var i = row.i;
       var disabled = c.enabled === false;
       return '<div class="novel-chapter-row' + (disabled ? ' is-disabled' : '') + '" data-ch-id="' + c.id + '">'
         + '<input type="checkbox" data-ch-sel="' + c.id + '"' + (c.selected ? ' checked' : '') + ' />'
@@ -159,21 +179,38 @@ export function registerChapters(ctx) {
   };
 
   panel.bind = function() {
-    var state = ctx.state;
     var splitMode = ctx.$('novelChapterSplitMode');
     if (splitMode) splitMode.addEventListener('change', function() {
-      state.chapterSplitMode = splitMode.value;
+      ctx.state.chapterSplitMode = splitMode.value;
       ctx.save();
     });
     var chunkEl = ctx.$('novelChunkSize');
     if (chunkEl) chunkEl.addEventListener('change', function() {
-      state.chunkSize = parseInt(chunkEl.value, 10) || 8000;
+      ctx.state.chunkSize = parseInt(chunkEl.value, 10) || 8000;
       ctx.save();
     });
-    var splitBtn = ctx.$('btnNovelSplitChapters');
-    if (splitBtn) splitBtn.addEventListener('click', function() {
+
+    var searchInput = ctx.$('novelChapterSearchInput');
+    var searchClear = ctx.$('novelChapterSearchClear');
+    if (searchInput) {
+      searchInput.addEventListener('input', function() {
+        ctx.editState.novelChapterSearchQuery = searchInput.value || '';
+        panel.render();
+      });
+    }
+    if (searchClear) searchClear.addEventListener('click', function() {
+      ctx.editState.novelChapterSearchQuery = '';
+      if (searchInput) searchInput.value = '';
+      panel.render();
+    });
+
+    function runSplit() {
+      var state = ctx.state;
       if (ctx.syncInputsFromSource) ctx.syncInputsFromSource();
-      if (chunkEl) state.chunkSize = parseInt(chunkEl.value, 10) || 8000;
+      var modeEl = ctx.$('novelChapterSplitMode');
+      var sizeEl = ctx.$('novelChunkSize');
+      if (modeEl) state.chapterSplitMode = modeEl.value || 'title';
+      if (sizeEl) state.chunkSize = parseInt(sizeEl.value, 10) || 8000;
       var full = getFullSourceText(state).trim();
       if (!full) return alert('请先导入原始资料');
       state.chapters = splitIntoChapters(full, {
@@ -181,11 +218,25 @@ export function registerChapters(ctx) {
         chunkSize: state.chunkSize || 8000,
       });
       ctx.save();
+      ctx.closeNovelModal('novelModalSplit');
       ctx.renderAll();
       if (ctx.setStatus) ctx.setStatus('novelChapterStatus', '已拆为 ' + state.chapters.length + ' 章');
+    }
+
+    var splitBtn = ctx.$('btnNovelSplitChapters');
+    if (splitBtn) splitBtn.addEventListener('click', function() {
+      var state = ctx.state;
+      var modeEl = ctx.$('novelChapterSplitMode');
+      var sizeEl = ctx.$('novelChunkSize');
+      if (modeEl) modeEl.value = state.chapterSplitMode || 'title';
+      if (sizeEl) sizeEl.value = String(state.chunkSize || 8000);
+      ctx.openNovelModal('novelModalSplit');
     });
+    var splitConfirm = ctx.$('btnNovelSplitConfirm');
+    if (splitConfirm) splitConfirm.addEventListener('click', runSplit);
 
     function withSelected(fn) {
+      var state = ctx.state;
       var ids = selectedChapterIds(state);
       if (!ids.length) return alert('请先勾选章节');
       fn(ids);
@@ -198,31 +249,31 @@ export function registerChapters(ctx) {
     if (mergeBtn) mergeBtn.addEventListener('click', function() {
       withSelected(function(ids) {
         if (ids.length < 2) return alert('请至少选择两章合并');
-        state.chapters = mergeChapters(state.chapters, ids);
+        ctx.state.chapters = mergeChapters(ctx.state.chapters, ids);
       });
     });
     var en = ctx.$('btnChEnable');
     if (en) en.addEventListener('click', function() {
       withSelected(function(ids) {
-        ids.forEach(function(id) { state.chapters = setChapterEnabled(state.chapters, id, true); });
+        ids.forEach(function(id) { ctx.state.chapters = setChapterEnabled(ctx.state.chapters, id, true); });
       });
     });
     var dis = ctx.$('btnChDisable');
     if (dis) dis.addEventListener('click', function() {
       withSelected(function(ids) {
-        ids.forEach(function(id) { state.chapters = setChapterEnabled(state.chapters, id, false); });
+        ids.forEach(function(id) { ctx.state.chapters = setChapterEnabled(ctx.state.chapters, id, false); });
       });
     });
     var exp = ctx.$('btnChExport');
     if (exp) exp.addEventListener('click', function() {
-      downloadChapterMarkdown(exportSelectedChapters(state.chapters, selectedChapterIds(state)), 'novel-chapters.md');
+      downloadChapterMarkdown(exportSelectedChapters(ctx.state.chapters, selectedChapterIds(ctx.state)), 'novel-chapters.md');
     });
     var del = ctx.$('btnChDelete');
     if (del) del.addEventListener('click', function() {
       withSelected(function(ids) {
         var set = {};
         ids.forEach(function(id) { set[id] = true; });
-        state.chapters = state.chapters.filter(function(c) { return !set[c.id]; });
+        ctx.state.chapters = ctx.state.chapters.filter(function(c) { return !set[c.id]; });
       });
     });
   };

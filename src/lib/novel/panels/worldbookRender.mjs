@@ -181,6 +181,9 @@ export function attachNovelWorldbookRender(ctx, panel) {
     if (typeEl && document.activeElement !== typeEl) typeEl.value = es.novelWbTypeFilter || '';
     panel.renderWbFocus();
 
+    var countEl = $('novelWbCount');
+    if (countEl) countEl.textContent = String((state.wbEntries || []).length);
+
     var searchInput = $('novelWbSearchInput');
     var searchClear = $('novelWbSearchClear');
     if (searchInput && searchInput.value !== es.novelWbSearchQuery) {
@@ -410,8 +413,25 @@ export function attachNovelWorldbookRender(ctx, panel) {
     }
 
     var extractBtn = $('btnWbExtract');
-    if (extractBtn) extractBtn.addEventListener('click', async function() {
+    if (extractBtn) extractBtn.addEventListener('click', function() {
+      var state = ctx.state;
+      var modeEl = $('novelWbShardMode');
+      var chunk = $('novelWbChunkSize');
+      var perCh = $('novelWbChaptersPerShard');
+      var policy = $('novelWbConflictPolicy');
+      if (modeEl) modeEl.value = state.wbShardMode === 'chapters' ? 'chapters' : 'chars';
+      if (chunk) chunk.value = String(state.wbChunkSize || 8000);
+      if (perCh) perCh.value = String(state.wbChaptersPerShard || 1);
+      if (policy) policy.value = state.conflictPolicy || 'merge';
+      if (ctx.syncShardModeUi) ctx.syncShardModeUi('novelWb', state.wbShardMode);
+      if (ctx.updateExtractCallEstimates) ctx.updateExtractCallEstimates();
+      panel.renderWbFocus();
+      ctx.openNovelModal('novelModalWbExtract');
+    });
+    var extractConfirm = $('btnWbExtractConfirm');
+    if (extractConfirm) extractConfirm.addEventListener('click', async function() {
       if (ctx.busyFlags.wbExtract) return;
+      ctx.closeNovelModal('novelModalWbExtract');
       try {
         await panel.runExtractWorldbook();
       } catch (e) {

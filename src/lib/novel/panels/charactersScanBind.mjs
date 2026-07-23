@@ -203,8 +203,28 @@ export function attachNovelCharactersScanBind(ctx, panel) {
     });
 
     var scanBtn = ctx.$('btnCharScan');
-    if (scanBtn) scanBtn.addEventListener('click', async function() {
+    if (scanBtn) scanBtn.addEventListener('click', function() {
+      var state = ctx.state;
+      var modeEl = ctx.$('novelCharShardMode');
+      var chunk = ctx.$('novelCharChunkSize');
+      var perCh = ctx.$('novelCharChaptersPerShard');
+      var policy = ctx.$('novelCharConflictPolicy');
+      var idCheck = ctx.$('novelScanIdentity');
+      var stage = ctx.$('novelSplitStage');
+      if (modeEl) modeEl.value = state.charShardMode === 'chapters' ? 'chapters' : 'chars';
+      if (chunk) chunk.value = String(state.charChunkSize || 8000);
+      if (perCh) perCh.value = String(state.charChaptersPerShard || 1);
+      if (policy) policy.value = state.conflictPolicy || 'merge';
+      if (idCheck) idCheck.checked = !!state.scanWithIdentity;
+      if (stage) stage.checked = !!state.splitByStage;
+      if (ctx.syncShardModeUi) ctx.syncShardModeUi('novelChar', state.charShardMode);
+      if (ctx.updateExtractCallEstimates) ctx.updateExtractCallEstimates();
+      ctx.openNovelModal('novelModalCharScan');
+    });
+    var scanConfirm = ctx.$('btnCharScanConfirm');
+    if (scanConfirm) scanConfirm.addEventListener('click', async function() {
       if (ctx.busyFlags.charScan) return;
+      ctx.closeNovelModal('novelModalCharScan');
       try {
         await panel.runScan();
       } catch (e) {
@@ -328,6 +348,20 @@ export function attachNovelCharactersScanBind(ctx, panel) {
       ctx.save();
       if (ctx.panels.style) ctx.panels.style.render();
       if (ctx.panels.worldbook) ctx.panels.worldbook.render();
+    });
+
+    var charSearchInput = ctx.$('novelCharSearchInput');
+    var charSearchClear = ctx.$('novelCharSearchClear');
+    if (charSearchInput) {
+      charSearchInput.addEventListener('input', function() {
+        ctx.editState.novelCharSearchQuery = charSearchInput.value || '';
+        panel.render();
+      });
+    }
+    if (charSearchClear) charSearchClear.addEventListener('click', function() {
+      ctx.editState.novelCharSearchQuery = '';
+      if (charSearchInput) charSearchInput.value = '';
+      panel.render();
     });
 
     var syncChars = ctx.$('btnSyncCharsSelected');
