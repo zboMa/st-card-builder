@@ -10,11 +10,12 @@ import { readLayoutSources, readAssistantPanelSources, readVariableCardPanelSour
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const tokensPath = join(root, 'src/styles/tokens.css');
+const tokensThemesPath = join(root, 'src/styles/tokens-themes.css');
+const tokensBasePath = join(root, 'src/styles/tokens-base.css');
 const patternsPath = join(root, 'src/styles/ui-patterns.css');
-const layoutPath = join(root, 'src/layouts/Layout.astro');
 
-/** 夜庭主题必须暴露的语义 token */
-const REQUIRED_TOKENS = [
+/** 夜庭主题必须暴露的语义 token（tokens-themes.css） */
+const REQUIRED_THEME_TOKENS = [
   '--color-paper',
   '--color-surface',
   '--color-surface-inset',
@@ -28,6 +29,12 @@ const REQUIRED_TOKENS = [
   '--color-overlay',
   '--color-text',
   '--color-border',
+  '--color-paper-glow-a',
+  '--color-scrim',
+];
+
+/** tokens-base.css */
+const REQUIRED_BASE_TOKENS = [
   '--font-sans',
   '--radius-md',
   '--ease-out',
@@ -54,13 +61,25 @@ const REQUIRED_UI_CLASSES = [
 ];
 
 describe('design tokens (Nocturne Atelier)', function() {
-  it('tokens.css 存在', function() {
+  it('tokens.css 存在且引入 base + themes', function() {
     assert.ok(existsSync(tokensPath), 'missing src/styles/tokens.css');
+    const css = readFileSync(tokensPath, 'utf8');
+    assert.match(css, /tokens-base\.css/);
+    assert.match(css, /tokens-themes\.css/);
   });
 
-  it('tokens.css 含关键语义变量', function() {
-    const css = readFileSync(tokensPath, 'utf8');
-    REQUIRED_TOKENS.forEach(function(name) {
+  it('tokens-themes.css 含关键语义变量（默认 nocturne / :root）', function() {
+    assert.ok(existsSync(tokensThemesPath), 'missing src/styles/tokens-themes.css');
+    const css = readFileSync(tokensThemesPath, 'utf8');
+    REQUIRED_THEME_TOKENS.forEach(function(name) {
+      assert.match(css, new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), 'missing ' + name);
+    });
+  });
+
+  it('tokens-base.css 含间距与字体', function() {
+    assert.ok(existsSync(tokensBasePath), 'missing src/styles/tokens-base.css');
+    const css = readFileSync(tokensBasePath, 'utf8');
+    REQUIRED_BASE_TOKENS.forEach(function(name) {
       assert.match(css, new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), 'missing ' + name);
     });
   });
@@ -78,6 +97,7 @@ describe('design tokens (Nocturne Atelier)', function() {
     assert.match(layout, /tokens\.css/);
     assert.match(layout, /ui-patterns\.css/);
     assert.match(layout, /layout-chrome\.css/);
+    assert.match(layout, /st_v3_app_theme/);
   });
 
   it('CharacterPanel 使用 form-section 与分级按钮', function() {
@@ -118,7 +138,7 @@ describe('design tokens (Nocturne Atelier)', function() {
   });
 
   it('未扩展 AI 按钮金色 token 与 btn-ai-expand', function() {
-    const tokens = readFileSync(join(root, 'src/styles/tokens.css'), 'utf8');
+    const tokens = readFileSync(tokensThemesPath, 'utf8');
     assert.match(tokens, /--color-ai-gold/);
     const css = readFileSync(join(root, 'src/styles/ui-patterns.css'), 'utf8');
     assert.match(css, /\.btn-ai-expand/);

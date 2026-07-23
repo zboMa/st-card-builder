@@ -116,6 +116,12 @@ const CONFIG_ITEMS = [
     ))}
   </nav>
 
+  <div class="app-sidebar-theme" id="appSidebarTheme">
+    <div class="app-sidebar-group-title">外观</div>
+    <div class="theme-swatch-grid" id="themeSwatchGrid" role="group" aria-label="界面主题"></div>
+    <p class="theme-swatch-lead ui-hint" id="themeSwatchLead"></p>
+  </div>
+
   <div class="app-sidebar-group app-sidebar-group-config" id="appSidebarConfig">
     <div class="app-sidebar-group-title">配置</div>
     {CONFIG_ITEMS.map((item) => (

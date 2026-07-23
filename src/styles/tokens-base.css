@@ -1,0 +1,32 @@
+/**
+ * 全站设计 token — 与主题无关（间距 / 圆角 / 字体 / 动效）
+ */
+
+:root {
+  --font-sans: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --font-mono: ui-monospace, "Cascadia Code", "Segoe UI Mono", "JetBrains Mono", monospace;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-pill: 999px;
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast: 150ms;
+  --dur-normal: 240ms;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --color-glass: var(--color-surface);
+    --color-glass-border: var(--color-border-subtle);
+  }
+}
