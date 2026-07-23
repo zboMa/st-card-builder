@@ -5,6 +5,7 @@ import {
   getThemeMeta,
   sceneIdForTheme,
 } from './themeCatalog.mjs';
+import { applySceneTier } from './themeSceneTier.mjs';
 
 /** @returns {string} */
 export function getThemeId() {
@@ -36,6 +37,7 @@ export function applyTheme(id) {
     localStorage.setItem(STORAGE_KEY, id);
   } catch (e) {}
   syncMetaThemeColor(id);
+  applySceneTier();
   window.dispatchEvent(new CustomEvent('app-theme-changed', { detail: { theme: id } }));
 }
 
@@ -54,4 +56,5 @@ export function initTheme() {
   }
   syncSceneAttr(id);
   syncMetaThemeColor(id);
+  applySceneTier();
 }

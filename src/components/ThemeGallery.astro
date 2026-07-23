@@ -12,6 +12,14 @@
       <button type="button" class="btn-icon btn-icon--sm" data-theme-gallery-close aria-label="关闭">×</button>
     </div>
     <div id="themeGalleryGrid" class="theme-gallery-grid" role="listbox" aria-label="界面主题"></div>
+    <div class="theme-gallery-modal__fx">
+      <label class="theme-gallery-fx-toggle" for="themeGalleryFxToggle">
+        <input type="checkbox" id="themeGalleryFxToggle" />
+        <span class="theme-gallery-fx-toggle__track" aria-hidden="true"></span>
+        <span class="theme-gallery-fx-toggle__label">场景特效</span>
+      </label>
+      <p class="ui-hint theme-gallery-fx-hint">开：流动墨/粒子/点击反馈；关：保留完整静态场景，不是只换色。</p>
+    </div>
     <div class="theme-gallery-modal__foot">
       <button type="button" class="btn-ghost" data-theme-gallery-close>取消</button>
       <button type="button" class="btn-primary" id="btnThemeGalleryApply">应用</button>

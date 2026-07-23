@@ -1,9 +1,12 @@
 import { APP_THEMES } from './themeCatalog.mjs';
 import { applyTheme, getThemeId } from './themeBoot.mjs';
+import { getUserSceneFxOn, setUserSceneFxOn } from './themeSceneTier.mjs';
 
 var modalEl = null;
 var originalId = null;
 var selectedId = null;
+var originalFxOn = null;
+var pendingFxOn = null;
 
 function renderCards(grid) {
   if (!grid) return;
@@ -67,12 +70,22 @@ function syncEntryRow() {
   }
 }
 
+function syncFxToggle() {
+  var el = document.getElementById('themeGalleryFxToggle');
+  if (!el) return;
+  var on = pendingFxOn != null ? pendingFxOn : getUserSceneFxOn();
+  el.checked = !!on;
+}
+
 function openGallery() {
   if (!modalEl) return;
   originalId = getThemeId();
   selectedId = originalId;
+  originalFxOn = getUserSceneFxOn();
+  pendingFxOn = originalFxOn;
   renderCards(modalEl.querySelector('#themeGalleryGrid'));
   syncCardsSelection();
+  syncFxToggle();
   modalEl.hidden = false;
   modalEl.setAttribute('aria-hidden', 'false');
   document.body.classList.add('is-theme-gallery-open');
@@ -83,11 +96,14 @@ function openGallery() {
 
 function closeGallery(revert) {
   if (!modalEl) return;
-  if (revert && originalId != null) {
-    applyTheme(originalId);
+  if (revert) {
+    if (originalId != null) applyTheme(originalId);
+    if (originalFxOn != null) setUserSceneFxOn(originalFxOn);
   }
   originalId = null;
   selectedId = null;
+  originalFxOn = null;
+  pendingFxOn = null;
   modalEl.hidden = true;
   modalEl.setAttribute('aria-hidden', 'true');
   document.body.classList.remove('is-theme-gallery-open');
@@ -118,8 +134,15 @@ function bindModal() {
 
   btnApply && btnApply.addEventListener('click', function() {
     if (selectedId) applyTheme(selectedId);
+    if (pendingFxOn != null) setUserSceneFxOn(pendingFxOn);
     syncEntryRow();
     closeGallery(false);
+  });
+
+  var fxToggle = document.getElementById('themeGalleryFxToggle');
+  fxToggle && fxToggle.addEventListener('change', function() {
+    pendingFxOn = !!fxToggle.checked;
+    setUserSceneFxOn(pendingFxOn);
   });
 
   document.addEventListener('keydown', function(e) {
