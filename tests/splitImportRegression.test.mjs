@@ -55,4 +55,15 @@ describe('split import regression', function() {
     assert.match(src, /import \{ hybridSearch \} from '\.\/rag\/hybridSearch\.mjs'/);
     assert.match(src, /import \{ buildRagInjectBlock, pickRelatedEntities \} from '\.\/rag\/inject\.mjs'/);
   });
+
+  it('设定/开场白事件只绑一次（避免确认生成跑两遍）', function() {
+    var app = readFileSync(join(root, 'src/lib/novel/browserApp.mjs'), 'utf8');
+    var boot = readFileSync(join(root, 'src/lib/novel/bootSetupGreetings.mjs'), 'utf8');
+    // attachNovelBootEvents 已调 bind；初始化段不得再直接调一次
+    assert.match(app, /attachNovelBootEvents\s*\(/);
+    assert.doesNotMatch(app, /setupBoot\.bindCharacterSetup\s*\(\s*\)/);
+    assert.doesNotMatch(app, /setupBoot\.bindGreetingsGen\s*\(\s*\)/);
+    assert.match(boot, /bindGreetingsGen\._bound/);
+    assert.match(boot, /bindCharacterSetup\._bound/);
+  });
 });

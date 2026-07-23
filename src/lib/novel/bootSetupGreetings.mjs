@@ -256,6 +256,8 @@ export function attachNovelBootSetup(ctx, deps) {
 
 
   function bindCharacterSetup() {
+    if (bindCharacterSetup._bound) return;
+    bindCharacterSetup._bound = true;
     var pick = $('novelSetupEntityPick');
     if (pick) pick.addEventListener('change', function() {
       var id = pick.value;
@@ -289,6 +291,8 @@ export function attachNovelBootSetup(ctx, deps) {
   }
 
   function bindGreetingsGen() {
+    if (bindGreetingsGen._bound) return;
+    bindGreetingsGen._bound = true;
     var pick = $('novelGreetEntityPick');
     if (pick) pick.addEventListener('change', function() {
       var id = pick.value;

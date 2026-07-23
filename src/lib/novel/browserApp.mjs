@@ -405,8 +405,7 @@ export function initNovelWorkshop() {
   ctx.bindNovelModals();
   if (ctx.panels.source) ctx.panels.source.bind();
   if (ctx.panels.chapters) ctx.panels.chapters.bind();
-  setupBoot.bindCharacterSetup();
-  setupBoot.bindGreetingsGen();
+  // 设定/开场白绑定已由 attachNovelBootEvents 完成，勿再调一次（否则确认生成会跑两遍）
   if (ctx.panels.characters) ctx.panels.characters.bind();
   bindWorldbook();
   bindAnalyze();
