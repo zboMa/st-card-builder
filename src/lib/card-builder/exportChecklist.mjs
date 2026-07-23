@@ -54,8 +54,12 @@ export function buildExportChecklist(input) {
   }
   if (unsynced > 0) {
     push('novel_unsynced', 'warning',
-      '小说工坊有 ' + unsynced + ' 项未同步到主卡（导出不含小说桶）',
+      '小说工坊有 ' + unsynced + ' 项未同步到主卡（导出不含小说桶；上云随卡包手动同步）',
       'novel-characters');
+  }
+  if (d.nsfwEnabled && !String(d.nsfwFlavor || '').trim()
+      && !(Array.isArray(d.nsfwFlavorItems) && d.nsfwFlavorItems.length)) {
+    push('nsfw_no_flavor', 'warning', '已开启成人配置但未选口味/表达偏好', 'adult-config');
   }
 
   if (/NSFW_information|恶堕档案|【小说人物·|desire_palette|sexual_psychology/i.test(desc)) {

@@ -255,6 +255,35 @@ export function createCardStateMachine(state) {
     return state.draftId || '';
   }
 
+  /** 写入整张 drafts map（版本/发布等已组装好对象时使用） */
+  function writeDraftsMap(dr, opts) {
+    opts = opts || {};
+    try {
+      localStorage.setItem(DRAFTS_KEY, JSON.stringify(dr || {}));
+      var result = { saved: true, drafts: dr, id: state.draftId };
+      if (opts.notify !== false) notifyListeners(result);
+      return Object.assign({ ok: true }, result);
+    } catch (e) {
+      console.warn('[stateMachine] writeDraftsMap failed', e);
+      return { ok: false, drafts: dr };
+    }
+  }
+
+  /** 合并 patch 到某条草稿（重命名/头像迁移等） */
+  function patchDraftRecord(id, patch, opts) {
+    opts = opts || {};
+    var dr = getAllDrafts();
+    if (!dr[id]) return { ok: false, error: 'not_found' };
+    dr[id] = Object.assign({}, dr[id], patch || {});
+    var out = writeDraftsMap(dr, { notify: opts.notify });
+    if (id === state.draftId && patch) {
+      Object.keys(patch).forEach(function(k) {
+        if (Object.prototype.hasOwnProperty.call(state, k)) state[k] = dr[id][k];
+      });
+    }
+    return Object.assign({ ok: true, id: id, draft: dr[id] }, out);
+  }
+
   function on(fn) {
     listeners.push(fn);
   }
@@ -283,6 +312,8 @@ export function createCardStateMachine(state) {
     deleteDraft: deleteDraft,
     duplicateDraft: duplicateDraft,
     renameDraft: renameDraft,
+    writeDraftsMap: writeDraftsMap,
+    patchDraftRecord: patchDraftRecord,
     getCurrentDraftId: getCurrentDraftId,
     on: on,
     snapshot: snapshot,

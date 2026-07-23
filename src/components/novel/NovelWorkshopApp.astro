@@ -3,11 +3,6 @@ import NovelWorkshopStyles from './NovelWorkshopStyles.astro';
 ---
 <NovelWorkshopStyles />
 <script>
-  import { initNovelWorkshop } from '../../lib/novel/browserApp.mjs';
-  // DOM 就绪后绑定小说工坊模块
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function() { initNovelWorkshop(); });
-  } else {
-    initNovelWorkshop();
-  }
+  import { attachNovelWorkshopLazyBoot } from '../../lib/novel/novelWorkshopLazyBoot.mjs';
+  attachNovelWorkshopLazyBoot();
 </script>

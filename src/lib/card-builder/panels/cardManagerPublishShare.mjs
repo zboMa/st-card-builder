@@ -127,7 +127,7 @@ export function attachCardManagerPublishShare(ctx, s, panel) {
       });
       // 云成功后再写本地
       all[id] = working;
-      localStorage.setItem(DRAFTS_KEY, JSON.stringify(all));
+      ctx.sm.writeDraftsMap(all);
       if (id === currentId) {
         ctx.state.characterVersion = working.characterVersion;
         ctx.state.versions = working.versions;
@@ -157,7 +157,7 @@ export function attachCardManagerPublishShare(ctx, s, panel) {
     } catch (err) {
       // 回滚：不保留本地假「已发」
       all[id] = before;
-      localStorage.setItem(DRAFTS_KEY, JSON.stringify(all));
+      ctx.sm.writeDraftsMap(all);
       if (id === currentId) {
         ctx.state.characterVersion = before.characterVersion;
         ctx.state.versions = before.versions || [];

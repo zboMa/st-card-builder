@@ -70,6 +70,9 @@ export function bootCardBuilder() {
       worldbookCount: wb.length,
       worldbookNoKeys: noKeys,
       novelUnsyncedCount: countNovelUnsynced(),
+      nsfwEnabled: !!ctx.state.nsfwEnabled,
+      nsfwFlavor: ctx.state.nsfwFlavor || '',
+      nsfwFlavorItems: ctx.state.nsfwFlavorItems,
       altGreetingCount: Array.isArray(window.__altGreetings__) ? window.__altGreetings__.length : 0,
       extraIssues: extraIssues,
     });
