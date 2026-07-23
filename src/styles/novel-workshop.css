@@ -921,17 +921,70 @@
     display: flex;
     flex-direction: column;
   }
-  .novel-graph-filter {
+  .novel-graph-toolbar {
     position: absolute;
-    top: 8px;
-    right: 10px;
+    top: 6px;
+    right: 8px;
     z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     margin: 0;
-    padding: 4px 8px;
-    border-radius: 6px;
+    padding: 2px 6px;
+    border-radius: 5px;
     border: 1px solid var(--color-border-subtle);
-    background: rgba(12, 14, 20, 0.72);
+    background: rgba(12, 14, 20, 0.78);
     backdrop-filter: blur(4px);
+  }
+  .novel-graph-depth {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: 0.66rem;
+    line-height: 1.2;
+    white-space: nowrap;
+    cursor: default;
+  }
+  .novel-graph-depth input[type="number"] {
+    width: 2.4em;
+    min-width: 0;
+    margin: 0;
+    padding: 1px 3px;
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 3px;
+    background: rgba(0, 0, 0, 0.28);
+    color: var(--color-text);
+    font-size: 0.66rem;
+    font-family: inherit;
+    line-height: 1.2;
+    text-align: center;
+    -moz-appearance: textfield;
+  }
+  .novel-graph-depth input[type="number"]::-webkit-outer-spin-button,
+  .novel-graph-depth input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  .novel-graph-filter {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--color-text-muted);
+    font-size: 0.66rem;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+  .novel-graph-filter input[type="checkbox"] {
+    width: 12px;
+    height: 12px;
+    margin: 0;
+    flex-shrink: 0;
   }
   .novel-graph-legend {
     position: absolute;
@@ -941,7 +994,7 @@
     display: flex;
     flex-wrap: wrap;
     gap: 6px 10px;
-    max-width: calc(100% - 140px);
+    max-width: calc(100% - 200px);
     padding: 4px 8px;
     border-radius: 6px;
     border: 1px solid var(--color-border-subtle);

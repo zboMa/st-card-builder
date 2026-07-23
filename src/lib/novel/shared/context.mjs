@@ -178,6 +178,8 @@ export function createNovelAppContext(sm, opts) {
       pendingExpandConfirm: null,
       /** 图谱：只显示人物节点及其关系 */
       graphPersonOnly: false,
+      /** 图谱：选中高亮关系跳数（默认 2） */
+      graphHighlightDepth: 2,
     },
 
     // ===== 忙碌标记 =====

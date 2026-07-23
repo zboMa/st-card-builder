@@ -296,6 +296,12 @@ export function attachNovelAnalyzeRender(ctx, panel, graphRef) {
     if (personOnlyEl && document.activeElement !== personOnlyEl) {
       personOnlyEl.checked = !!ctx.editState.graphPersonOnly;
     }
+    var depthEl = $('novelGraphHighlightDepth');
+    if (depthEl && document.activeElement !== depthEl) {
+      var depth = ctx.editState.graphHighlightDepth;
+      if (depth == null || !Number.isFinite(Number(depth))) depth = 2;
+      depthEl.value = String(Math.max(0, Math.min(6, Math.floor(Number(depth)))));
+    }
 
     var counts = countEntitiesByType(state.entities);
     var relN = (state.relations || []).length;
@@ -370,6 +376,9 @@ export function attachNovelAnalyzeRender(ctx, panel, graphRef) {
     var container = $('novelGraphCy');
     if (!container) return;
     graphRef.cy = mountOrUpdateGraph(container, g, graphRef.cy, {
+      highlightDegree: ctx.editState.graphHighlightDepth != null
+        ? ctx.editState.graphHighlightDepth
+        : 2,
       onSelect: function(payload) {
         var detail = $('novelGraphDetail');
         if (!detail) return;

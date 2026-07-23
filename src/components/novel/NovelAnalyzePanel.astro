@@ -37,10 +37,16 @@
     </div>
 
     <div class="novel-graph-wrap">
-      <label class="novel-graph-filter novel-switch" for="novelGraphPersonOnly">
-        <input id="novelGraphPersonOnly" type="checkbox" />
-        <span>只看人物节点</span>
-      </label>
+      <div class="novel-graph-toolbar" aria-label="图谱显示选项">
+        <label class="novel-graph-depth" for="novelGraphHighlightDepth" title="选中节点时高亮的关系跳数（0 仅自身）">
+          <span>关系层级</span>
+          <input id="novelGraphHighlightDepth" type="number" min="0" max="6" step="1" value="2" inputmode="numeric" />
+        </label>
+        <label class="novel-graph-filter novel-switch" for="novelGraphPersonOnly">
+          <input id="novelGraphPersonOnly" type="checkbox" />
+          <span>只看人物</span>
+        </label>
+      </div>
       <div id="novelGraphLegend" class="novel-graph-legend" aria-hidden="true"></div>
       <div id="novelGraphCy" class="novel-graph-cy" role="img" aria-label="知识图谱可视化"></div>
     </div>

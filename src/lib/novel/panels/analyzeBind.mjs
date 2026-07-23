@@ -238,6 +238,19 @@ export function attachNovelAnalyzeBind(ctx, panel, graphRef) {
       ctx.editState.graphPersonOnly = !!personOnly.checked;
       panel.renderGraph();
     });
+    var depthEl = $('novelGraphHighlightDepth');
+    if (depthEl) {
+      function applyDepth() {
+        var n = parseInt(depthEl.value, 10);
+        if (!Number.isFinite(n)) n = 2;
+        n = Math.max(0, Math.min(6, n));
+        depthEl.value = String(n);
+        if (ctx.editState.graphHighlightDepth === n) return;
+        ctx.editState.graphHighlightDepth = n;
+        panel.renderGraph();
+      }
+      depthEl.addEventListener('change', applyDepth);
+    }
 
     function readClearOpts() {
       return {
