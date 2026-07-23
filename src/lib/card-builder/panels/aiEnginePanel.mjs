@@ -12,6 +12,7 @@ import {
   getWorldviewPreset,
   primaryWorldviewPresetId,
 } from '../../presets/worldviews/index.mjs';
+import { engineBegin, engineEnd, engineTryAllowed } from '../../actionEngine/helpers.mjs';
 import {
   normalizeEngineGenMode,
   clampSlotCount,
@@ -206,6 +207,7 @@ export function attachAiEnginePanel(ctx, s, panel) {
     // ===== AI 一键生成（完整：大纲→丰满 / 仅骨架） =====
 
     runFullGeneration: async function() {
+      if (!engineTryAllowed('card.engine.generate').ok) return;
       var apiUrlEl   = ctx.$('apiUrl');
       var apiKeyEl   = ctx.$('apiKey');
       var modelEl    = ctx.$('modelSelect');
@@ -255,6 +257,7 @@ export function attachAiEnginePanel(ctx, s, panel) {
       var charData = null;
 
       if (btnEl) btnEl.disabled = true;
+      engineBegin('card.engine.generate');
       s.setPendingOutlineSlots(null);
       s.cachedSearchResults = null;
 
@@ -486,6 +489,7 @@ export function attachAiEnginePanel(ctx, s, panel) {
           if (statusEl) { statusEl.textContent = '\u274c 中止: ' + err.message; statusEl.style.color = '#ef4444'; }
         }
       } finally {
+        engineEnd('card.engine.generate');
         if (btnEl) btnEl.disabled = false;
       }
     },
@@ -652,6 +656,7 @@ export function attachAiEnginePanel(ctx, s, panel) {
 
     /** 大纲暂停后继续丰满 + 开场白 */
     continueEnrichFromOutline: async function() {
+      if (!engineTryAllowed('card.engine.enrich').ok) return;
       var contBtn = ctx.$('btnAiContinueEnrich');
       var statusEl = ctx.$('aiStatus');
       var apiUrlEl = ctx.$('apiUrl');
@@ -692,6 +697,7 @@ export function attachAiEnginePanel(ctx, s, panel) {
         target: slots.length + ' 条',
       }) : null;
       if (contBtn) contBtn.disabled = true;
+      engineBegin('card.engine.enrich');
       if (hacker) { hacker.start(); hacker.setPhase('继续丰满...'); hacker.setProgress(0, totalSteps); }
 
       try {
@@ -726,6 +732,7 @@ export function attachAiEnginePanel(ctx, s, panel) {
         if (statusEl) { statusEl.textContent = '\u274c ' + (err.message || err); statusEl.style.color = '#ef4444'; }
         if (hacker) { hacker.stop(); setTimeout(function() { if (hacker) hacker.hide(); }, 2000); }
       } finally {
+        engineEnd('card.engine.enrich');
         if (contBtn) contBtn.disabled = false;
       }
     },

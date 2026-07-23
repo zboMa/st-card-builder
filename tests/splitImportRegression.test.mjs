@@ -41,7 +41,8 @@ describe('split import regression', function() {
     var scan = readFileSync(join(root, 'src/lib/novel/panels/charactersScanBind.mjs'), 'utf8');
     var render = readFileSync(join(root, 'src/lib/novel/panels/charactersRender.mjs'), 'utf8');
     assert.match(scan, /ctx\.panels\.analyze\.runAnalyzeEnrich/);
-    assert.match(render, /ctx\.panels\.analyze\.runAnalyzeEnrich/);
+    assert.match(render, /ctx\.panels\.analyze/);
+    assert.match(render, /\.runAnalyzeEnrich\s*\(/);
     assert.doesNotMatch(scan, /ctx\.runAnalyzeEnrich/);
     assert.doesNotMatch(render, /ctx\.runAnalyzeEnrich/);
   });

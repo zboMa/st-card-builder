@@ -15,6 +15,7 @@
 | NSFW/NTL/恶堕层与入口 | [`domains/nsfw-ntl.md`](./domains/nsfw-ntl.md) |
 | ST 卡字段名（creatorNotes 等） | [`domains/st-card-fields.md`](./domains/st-card-fields.md) |
 | 壳层启动、模块地图 | [`architecture/overview.md`](./architecture/overview.md) |
+| **操作引擎 / 重任务互斥** | [`architecture/action-engine.md`](./architecture/action-engine.md) |
 | 小说工坊 / 分析管道 | [`architecture/novel-workshop.md`](./architecture/novel-workshop.md)、[`architecture/novel-analysis.md`](./architecture/novel-analysis.md) |
 | 助手工具与风险 | [`architecture/assistant.md`](./architecture/assistant.md) |
 | 卡侧面板 | [`architecture/card-builder.md`](./architecture/card-builder.md) |

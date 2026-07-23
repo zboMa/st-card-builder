@@ -13,11 +13,14 @@ import { registerExport } from './panels/export.mjs';
 import { buildExportChecklist } from './exportChecklist.mjs';
 import { getFieldInfo, validateFullJSON, countNovelUnsynced } from './fieldValidation.mjs';
 import { attachBootAiConfig } from './bootAiConfig.mjs';
+import { bootMainActionEngine } from '../actionEngine/bootMain.mjs';
+import { engineRefresh } from '../actionEngine/helpers.mjs';
 
 /**
  * 启动制卡主侧（须在 DOM 就绪后调用）
  */
 export function bootCardBuilder() {
+  bootMainActionEngine();
   window.__fieldDict__ = { getFieldInfo: getFieldInfo, validateFullJSON: validateFullJSON };
 
   var state = createDefaultCardState();
@@ -89,6 +92,7 @@ export function bootCardBuilder() {
   if (!window.__aiDebugLog__) window.__aiDebugLog__ = [];
 
   loadAIConfig();
+  engineRefresh();
 
   window.addEventListener('st-idb-ready', async function() {
     var ensureFn = window.__ensureIdbReady__ || function() { return Promise.resolve(); };

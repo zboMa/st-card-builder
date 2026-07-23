@@ -45,8 +45,10 @@ import {
   escapeHtml,
 } from './shared.mjs';
 import { renderAll } from './renderViews.mjs';
+import { engineTryAllowed, engineRefresh } from '../actionEngine/helpers.mjs';
 
 export async function openNovel(novelId) {
+  if (!engineTryAllowed('lifecycle.story.open').ok) return;
   var cardId = getCardId();
   var raw = await loadNovelOrPull(cardId, novelId);
   if (!raw) {
@@ -57,9 +59,11 @@ export async function openNovel(novelId) {
   await saveActiveNovelId(cardId, novelId);
   setStatus('已打开：' + state.novel.title);
   renderAll();
+  engineRefresh();
 }
 
 export async function createNovel(opts) {
+  if (!engineTryAllowed('lifecycle.story.create').ok) return;
   opts = opts || {};
   var cardId = getCardId();
   var title = await showSsPrompt({
@@ -99,6 +103,7 @@ export async function createNovel(opts) {
 }
 
 export async function renameNovel(novelId) {
+  if (!engineTryAllowed('lifecycle.story.rename').ok) return;
   var cardId = getCardId();
   var entry = state.catalog.find(function(x) { return x.id === novelId; });
   var next = await showSsPrompt({
@@ -125,6 +130,7 @@ export async function renameNovel(novelId) {
 }
 
 export async function removeNovel(novelId) {
+  if (!engineTryAllowed('lifecycle.story.delete').ok) return;
   var okDel = await showSsConfirm({
     icon: '🗑️',
     title: '删除小说？',
@@ -158,6 +164,7 @@ export async function removeNovel(novelId) {
 }
 
 export async function bumpNovel(novelId) {
+  if (!engineTryAllowed('lifecycle.story.version.bump').ok) return;
   var cardId = getCardId();
   var raw = await loadNovel(cardId, novelId);
   if (!raw) {
@@ -178,6 +185,7 @@ export async function bumpNovel(novelId) {
 }
 
 export async function publishNovel(novelId) {
+  if (!engineTryAllowed('lifecycle.story.publish').ok) return;
   var cardId = getCardId();
   var raw = await loadNovel(cardId, novelId);
   if (!raw) {
@@ -258,6 +266,7 @@ export async function publishNovel(novelId) {
 }
 
 export async function switchNovelVersion(novelId, targetVer) {
+  if (!engineTryAllowed('lifecycle.story.version.switch').ok) return;
   var cardId = getCardId();
   var raw = await loadNovel(cardId, novelId);
   if (!raw) return;

@@ -4,7 +4,9 @@
 
 ## Boot
 
-`initCardBuilder()`（`browserApp.mjs` + `fieldValidation.mjs` / `bootAiConfig.mjs`）由 `index.astro` 调用，是卡侧**唯一**启动入口。
+`initCardBuilder()`（`browserApp.mjs` + `fieldValidation.mjs` / `bootAiConfig.mjs`）由 `index.astro` 调用，是卡侧**唯一**启动入口；并挂载主站 Action Engine。
+
+切卡 / 删卡 / 复制 / 新建 / 导入 / 切版本在重任务进行中 **硬禁**（含 `__assistantCardApi__`）。详见 [`action-engine.md`](./action-engine.md)。
 
 ## 结构
 

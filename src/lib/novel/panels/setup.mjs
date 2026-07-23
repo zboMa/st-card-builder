@@ -321,6 +321,7 @@ export function registerSetup(ctx) {
     ctx.setStatus('novelSetupStatus', '准备原文…');
     var btn = $('btnNovelGenCharSetup');
     ctx.busyFlags.charSetup = true;
+    if (ctx.engineBegin) ctx.engineBegin('novel.setup.generate');
     ctx.setBtnBusy(btn, true, '生成中…');
     try {
       return await ctx.runTracked({
@@ -376,6 +377,7 @@ export function registerSetup(ctx) {
       throw e;
     } finally {
       ctx.busyFlags.charSetup = false;
+      if (ctx.engineEnd) ctx.engineEnd('novel.setup.generate');
       ctx.setBtnBusy(btn, false);
       if (ctx.renderGatesFn) ctx.renderGatesFn();
     }
@@ -397,6 +399,7 @@ export function registerSetup(ctx) {
     ctx.setStatus('novelGreetStatus', '准备原文…');
     var btn = $('btnNovelGenGreetings');
     ctx.busyFlags.greetings = true;
+    if (ctx.engineBegin) ctx.engineBegin('novel.greetings.generate');
     ctx.setBtnBusy(btn, true, '生成中…');
     try {
       return await ctx.runTracked({
@@ -454,6 +457,7 @@ export function registerSetup(ctx) {
       throw e;
     } finally {
       ctx.busyFlags.greetings = false;
+      if (ctx.engineEnd) ctx.engineEnd('novel.greetings.generate');
       ctx.setBtnBusy(btn, false);
       if (ctx.renderGatesFn) ctx.renderGatesFn();
     }

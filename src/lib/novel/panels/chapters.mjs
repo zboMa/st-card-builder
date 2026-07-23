@@ -12,6 +12,7 @@ import {
   exportSelectedChapters,
 } from '../chapters.mjs';
 import { getFullSourceText } from '../state.mjs';
+import { engineTryAllowed } from '../../actionEngine/helpers.mjs';
 
 function selectedChapterIds(state) {
   return (state.chapters || []).filter(function(c) { return c.selected; }).map(function(c) { return c.id; });
@@ -238,6 +239,7 @@ export function registerChapters(ctx) {
     });
 
     function runSplit() {
+      if (!engineTryAllowed('lifecycle.novel.chapters.split').ok) return;
       var state = ctx.state;
       if (ctx.syncInputsFromSource) ctx.syncInputsFromSource();
       var modeEl = ctx.$('novelChapterSplitMode');
@@ -281,6 +283,7 @@ export function registerChapters(ctx) {
     }
 
     function withSelected(fn) {
+      if (!engineTryAllowed('lifecycle.novel.chapters.batch').ok) return;
       var state = ctx.state;
       var ids = selectedChapterIds(state);
       if (!ids.length) return alert('请先勾选章节');
@@ -327,6 +330,9 @@ export function registerChapters(ctx) {
     var state = ctx.state;
     opts = opts || {};
     var action = String(opts.action || '');
+    if (action !== 'select' && !engineTryAllowed('lifecycle.novel.chapters.batch').ok) {
+      throw new Error('任务进行中，禁止修改章节');
+    }
     var ids = Array.isArray(opts.ids) ? opts.ids.slice() : [];
     if (opts.id) ids.push(opts.id);
     if (action === 'merge') {

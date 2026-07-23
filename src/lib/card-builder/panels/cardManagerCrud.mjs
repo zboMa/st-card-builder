@@ -4,6 +4,7 @@
 
 import { genId, DRAFTS_KEY, buildCardJSONFromDraft, normalizeTags, draftDisplayName } from '../state.mjs';
 import { deepCopy } from '../../utils.mjs';
+import { engineAssert, engineTryAllowed, engineRefresh } from '../../actionEngine/helpers.mjs';
 
 /** @param {object} ctx @param {object} s @param {object} panel */
 export function attachCardManagerCrud(ctx, s, panel) {
@@ -84,6 +85,8 @@ export function attachCardManagerCrud(ctx, s, panel) {
   };
 
   async function loadDraftAsync(id) {
+    var gate = engineTryAllowed('lifecycle.card.switch');
+    if (!gate.ok) return;
     var dr = s.getAllDrafts();
     if (!dr[id]) return;
 
@@ -182,6 +185,7 @@ export function attachCardManagerCrud(ctx, s, panel) {
 
   // ---- Create blank ----
   panel.createBlankDraft = function (opts) {
+    if (!engineTryAllowed('lifecycle.card.create').ok) return;
     var jump = !opts || opts.jumpToCharacter !== false;
     ctx.sm.createBlank();
 
@@ -233,6 +237,9 @@ export function attachCardManagerCrud(ctx, s, panel) {
 
   // ---- Delete ----
   panel.deleteDraft = async function (id, opts) {
+    if (!engineTryAllowed('lifecycle.card.delete').ok) {
+      return { ok: false, error: '任务进行中，禁止删卡' };
+    }
     if (!id) return { ok: false, error: '缺少 id' };
     var dr = s.getAllDrafts();
     if (!dr[id]) return { ok: false, error: '卡不存在' };
@@ -297,6 +304,7 @@ export function attachCardManagerCrud(ctx, s, panel) {
 
   // ---- Duplicate ----
   panel.duplicateDraft = async function (id) {
+    if (!engineTryAllowed('lifecycle.card.duplicate').ok) return;
     var dr = s.getAllDrafts();
     var src = dr[id];
     if (!src) return;

@@ -161,6 +161,7 @@ export function attachNovelBootSetup(ctx, deps) {
     setStatus('novelSetupStatus', '准备原文…');
     var btn = $('btnNovelGenCharSetup');
     ctx.busyFlags.charSetup = true;
+    if (ctx.engineBegin) ctx.engineBegin('novel.setup.generate');
     ctx.setBtnBusy(btn, true, '生成中…');
     try {
       return await runTracked({
@@ -190,6 +191,7 @@ export function attachNovelBootSetup(ctx, deps) {
       throw e;
     } finally {
       ctx.busyFlags.charSetup = false;
+      if (ctx.engineEnd) ctx.engineEnd('novel.setup.generate');
       ctx.setBtnBusy(btn, false);
       renderGates();
     }
@@ -207,6 +209,7 @@ export function attachNovelBootSetup(ctx, deps) {
     setStatus('novelGreetStatus', '准备原文…');
     var btn = $('btnNovelGenGreetings');
     ctx.busyFlags.greetings = true;
+    if (ctx.engineBegin) ctx.engineBegin('novel.greetings.generate');
     ctx.setBtnBusy(btn, true, '生成中…');
     try {
       return await runTracked({
@@ -245,6 +248,7 @@ export function attachNovelBootSetup(ctx, deps) {
       throw e;
     } finally {
       ctx.busyFlags.greetings = false;
+      if (ctx.engineEnd) ctx.engineEnd('novel.greetings.generate');
       ctx.setBtnBusy(btn, false);
       renderGates();
     }

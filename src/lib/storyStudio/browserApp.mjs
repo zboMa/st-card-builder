@@ -743,7 +743,18 @@ export async function initStoryStudio() {
   renderAll();
   window.__storyStudio__ = {
     getState: function() { return state; },
+    getCurrentNovelId: function() {
+      return state.novel && state.novel.id ? String(state.novel.id) : '';
+    },
     reload: reloadCatalog,
     render: renderAll,
   };
+  if (window.__actionEngine__ && typeof window.__actionEngine__.setProviders === 'function') {
+    window.__actionEngine__.setProviders({
+      getStoryId: function() {
+        return state.novel && state.novel.id ? String(state.novel.id) : '';
+      },
+    });
+    window.__actionEngine__.refresh();
+  }
 }

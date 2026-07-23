@@ -1,3 +1,4 @@
+import { engineTryAllowed } from '../actionEngine/helpers.mjs';
 /**
  * 卡管理面板：JSON/PNG 导入 boot（从 CardManagerPanel.astro 外提）
  */
@@ -10,6 +11,7 @@ export function initCardManagerPanelImport() {
   if (!btnImportCard || !importCardInput) return;
 
   btnImportCard.addEventListener('click', function() {
+    if (!engineTryAllowed('lifecycle.card.import').ok) return;
     importCardInput.value = '';
     importCardInput.click();
   });
@@ -99,6 +101,7 @@ export function initCardManagerPanelImport() {
   }
 
   function applyImportedCard(json, filename) {
+    if (!engineTryAllowed('lifecycle.card.import').ok) return;
     try {
       var normalized = normalizeCardJSON(json);
       if (!normalized) {

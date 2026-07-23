@@ -48,6 +48,7 @@ src/lib/
 ├── chatRuntime/      试聊与 ST 运行时对齐（含 `playgroundBoot.mjs`）
 ├── mvu/              MVU 相关（`variableCardPanel.mjs` 变量节点 UI boot）
 ├── aiTaskCenter.mjs  全局 AI 任务队列
+├── actionEngine/     全站操作注册 / 策略互斥 / apply
 └── promptCanon.mjs / promptStore.mjs
 
 server/src/
@@ -61,6 +62,7 @@ server/src/
 
 子系统深读：
 
+- 操作引擎 → [`action-engine.md`](./action-engine.md)
 - 卡侧 → [`card-builder.md`](./card-builder.md)
 - 小说工坊 → [`novel-workshop.md`](./novel-workshop.md)、[`novel-analysis.md`](./novel-analysis.md)
 - 助手 → [`assistant.md`](./assistant.md)
@@ -73,6 +75,7 @@ server/src/
 2. NSFW/NTL UI 入口是 **AdultConfigPanel（侧栏成人配置）**，不是 CharacterPanel → [`../domains/nsfw-ntl.md`](../domains/nsfw-ntl.md)
 3. 行内操作按钮用 **`btn-inline`** → [`../ui/design-system.md`](../ui/design-system.md)
 4. 浏览器云端地址走 **`PUBLIC_API_URL` + `/api/data`**；Couch 仅服务端 `COUCHDB_URL`，勿把 `127.0.0.1` 发给前端 → [`../systems/cloud-sync.md`](../systems/cloud-sync.md)
+5. **写操作门禁**走 Action Engine（`src/lib/actionEngine`）：禁止面板私自 `disabled` 当互斥真相源；重任务进行中对切卡/删卡等 **硬禁** → [`action-engine.md`](./action-engine.md)
 
 ## 验证
 

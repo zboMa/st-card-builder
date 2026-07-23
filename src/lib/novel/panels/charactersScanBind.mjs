@@ -80,6 +80,7 @@ export function attachNovelCharactersScanBind(ctx, panel) {
     ctx.setStatus('novelCharStatus', '逐步扫描人物中（约 ' + shards.length + ' 次）...');
     var scanBtn = ctx.$('btnCharScan');
     ctx.busyFlags.charScan = true;
+    if (ctx.engineBegin) ctx.engineBegin('novel.char.scan');
     ctx.setBtnBusy(scanBtn, true, '扫描中…');
     try {
       return await ctx.runTracked({
@@ -183,6 +184,7 @@ export function attachNovelCharactersScanBind(ctx, panel) {
       throw e;
     } finally {
       ctx.busyFlags.charScan = false;
+      if (ctx.engineEnd) ctx.engineEnd('novel.char.scan');
       ctx.setBtnBusy(scanBtn, false);
       if (ctx.updateExtractCallEstimates) ctx.updateExtractCallEstimates();
       if (ctx.renderGatesFn) ctx.renderGatesFn();

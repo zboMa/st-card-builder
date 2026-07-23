@@ -39,6 +39,7 @@ import {
 } from './shared.mjs';
 import { renderAll, renderGraph, renderOutline, renderRead } from './renderViews.mjs';
 import { setWriteProgress, renderWrite } from './writeBranchUi.mjs';
+import { engineBegin, engineEnd, engineTryAllowed } from '../actionEngine/helpers.mjs';
 
 export function collectGraphFromDom() {
   if (!state.novel) return;
@@ -189,6 +190,7 @@ export async function promptAndGenerateOutline(mode) {
   await generateOutline(mode, hint);
 }
 export async function generateOutline(mode, extraHint) {
+  if (!engineTryAllowed('story.outline.generate').ok) return;
   if (!state.novel) {
     setStatus('请先打开小说');
     return;
@@ -234,7 +236,8 @@ export async function generateOutline(mode, extraHint) {
 
   setStatus('正在生成大纲…');
   try {
-    await runTracked({
+    engineBegin('story.outline.generate');
+  await runTracked({
       type: 'story_outline',
       typeLabel: '小说创作·大纲',
       title: mode === 'continue' ? '续写大纲' : '生成大纲',
@@ -283,11 +286,14 @@ export async function generateOutline(mode, extraHint) {
   } catch (err) {
     if (isAbort(err)) setStatus('已取消');
     else setStatus('大纲生成失败：' + (err.message || err));
+  } finally {
+    engineEnd('story.outline.generate');
   }
 }
 
 export async function writeChapter(autoNext, opts) {
   opts = opts || {};
+  if (!opts.skipActionGate && !engineTryAllowed('story.chapter.write').ok) return null;
   if (!state.novel) {
     setStatus('请先打开小说');
     return null;
@@ -311,6 +317,7 @@ export async function writeChapter(autoNext, opts) {
 
   setStatus('正在撰写：' + ch.title);
   setWriteProgress('plan');
+  if (!opts.skipScope) engineBegin('story.chapter.write');
   try {
     var result = null;
     await runTracked({
@@ -372,10 +379,13 @@ export async function writeChapter(autoNext, opts) {
     if (isAbort(err)) setStatus('已取消');
     else setStatus('撰写失败：' + (err.message || err));
     return null;
+  } finally {
+    if (!opts.skipScope) engineEnd('story.chapter.write');
   }
 }
 
 export async function writeBatchChapters() {
+  if (!engineTryAllowed('story.chapter.batch').ok) return;
   if (!state.novel) {
     setStatus('请先打开小说');
     return;
@@ -389,32 +399,37 @@ export async function writeBatchChapters() {
   }
   var stopOnFail = !!(state.novel.writeSettings && state.novel.writeSettings.stopOnQualityFail);
   setStatus('连写 ' + n + ' 章…');
-  for (var i = 0; i < n; i++) {
-    var chapters = getActiveChapters(state.novel);
-    var idx = chapters.findIndex(function(c) { return c.id === sel.value; });
-    if (idx < 0) break;
-    // 跳到下一空章或当前章
-    var targetIdx = idx;
-    while (targetIdx < chapters.length && String(chapters[targetIdx].content || '').trim() && i === 0 && targetIdx === idx) {
-      // 若当前已有正文，从下一空章开始
-      var nextEmpty = -1;
-      for (var j = idx; j < chapters.length; j++) {
-        if (!String(chapters[j].content || '').trim()) { nextEmpty = j; break; }
+  engineBegin('story.chapter.batch');
+  try {
+    for (var i = 0; i < n; i++) {
+      var chapters = getActiveChapters(state.novel);
+      var idx = chapters.findIndex(function(c) { return c.id === sel.value; });
+      if (idx < 0) break;
+      // 跳到下一空章或当前章
+      var targetIdx = idx;
+      while (targetIdx < chapters.length && String(chapters[targetIdx].content || '').trim() && i === 0 && targetIdx === idx) {
+        // 若当前已有正文，从下一空章开始
+        var nextEmpty = -1;
+        for (var j = idx; j < chapters.length; j++) {
+          if (!String(chapters[j].content || '').trim()) { nextEmpty = j; break; }
+        }
+        if (nextEmpty >= 0) {
+          sel.value = chapters[nextEmpty].id;
+          targetIdx = nextEmpty;
+        }
+        break;
       }
-      if (nextEmpty >= 0) {
-        sel.value = chapters[nextEmpty].id;
-        targetIdx = nextEmpty;
+      var result = await writeChapter(true, { skipActionGate: true, skipScope: true });
+      if (!result) break;
+      if (stopOnFail && result.quality && !result.quality.ok) {
+        setStatus('质检未通过，已熔断连写（第 ' + (i + 1) + '/' + n + ' 章）');
+        break;
       }
-      break;
     }
-    var result = await writeChapter(true);
-    if (!result) break;
-    if (stopOnFail && result.quality && !result.quality.ok) {
-      setStatus('质检未通过，已熔断连写（第 ' + (i + 1) + '/' + n + ' 章）');
-      break;
-    }
+    renderAll();
+  } finally {
+    engineEnd('story.chapter.batch');
   }
-  renderAll();
 }
 
 export async function forkCurrentChapterBranch() {

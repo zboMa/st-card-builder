@@ -6,6 +6,7 @@
 import { escapeHtml } from '../../utils.mjs';
 import { DEFAULT_EXPAND_BUDGET } from '../recall.mjs';
 import { createDefaultNovelState } from '../state.mjs';
+import { engineTryAllowed } from '../../actionEngine/helpers.mjs';
 
 /**
  * @param {object} ctx — 小说工坊上下文（由 shared/context.mjs 创建，含 $、save、busyFlags 等）
@@ -87,6 +88,7 @@ export function registerSource(ctx) {
     var drop = ctx.$('novelDropzone');
     function loadFile(f) {
       if (!f) return;
+      if (!engineTryAllowed('lifecycle.novel.source.upload').ok) return;
       var reader = new FileReader();
       reader.onload = function(ev) {
         state.fileText = String(ev.target.result || '');
@@ -109,6 +111,7 @@ export function registerSource(ctx) {
     }
     var clearBtn = ctx.$('btnNovelClearFile');
     if (clearBtn) clearBtn.addEventListener('click', function() {
+      if (!engineTryAllowed('lifecycle.novel.source.clear').ok) return;
       state.fileText = '';
       state.fileMeta = null;
       if (fileEl) fileEl.value = '';
@@ -117,6 +120,7 @@ export function registerSource(ctx) {
     });
     var reset = ctx.$('btnNovelResetAll');
     if (reset) reset.addEventListener('click', function() {
+      if (!engineTryAllowed('lifecycle.novel.source.reset').ok) return;
       if (!confirm('重置并清空结果：清空章节/人物/世界书草稿/知识图谱/文风等产出，保留原文与分片等配置？')) return;
       var keep = {
         sourceText: state.sourceText,

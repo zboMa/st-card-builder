@@ -181,6 +181,7 @@
 
 <script>
   import { createAiTaskCenter, AI_TASK_TYPES, isAbortError } from '../lib/aiTaskCenter.mjs';
+  import { bootMainActionEngine } from '../lib/actionEngine/bootMain.mjs';
 
   (function bootAiTaskCenter() {
     if (window.__aiTaskCenter__) return;
@@ -189,6 +190,7 @@
     window.__aiTaskCenter__ = center;
     window.__AI_TASK_TYPES__ = AI_TASK_TYPES;
     window.__isAiAbortError__ = isAbortError;
+    bootMainActionEngine();
 
     var STATUS_LABEL = {
       queued: '排队',

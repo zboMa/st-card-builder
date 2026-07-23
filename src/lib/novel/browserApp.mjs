@@ -68,6 +68,8 @@ import { attachNovelBootSetup } from './bootSetupGreetings.mjs';
 import { attachNovelBootEvents } from './bootEvents.mjs';
 import { estimateExtractCalls, buildExtractShards } from './chapters.mjs';
 import { listEntitiesNeedingEnrich } from './analyzePipeline.mjs';
+import { bootMainActionEngine } from '../actionEngine/bootMain.mjs';
+import { engineBegin, engineEnd, engineRefresh, getActionEngine } from '../actionEngine/helpers.mjs';
 
 // Re-export for backward compatibility (used by tests)
 export { formatPriorWbExtractRef, mergeWbExtractEntry, normalizeNameList };
@@ -226,7 +228,7 @@ export function initNovelWorkshop() {
   }
 
   function refreshAnalyzeBusyUi() {
-    if (typeof renderGates === 'function') renderGates();
+    engineRefresh();
   }
 
   function updateExtractCallEstimates() {
@@ -288,78 +290,15 @@ export function initNovelWorkshop() {
   }
 
   function renderGates() {
-    var g = gates();
-    ['novelChapterGate', 'novelSetupGate', 'novelGreetGate', 'novelCharGate', 'novelWbGate', 'novelStyleGate', 'novelAnalyzeGate'].forEach(function(id) {
-      var el = $(id);
-      if (!el) return;
-      if (id === 'novelChapterGate') {
-        if (!g.hasSource) {
-          el.style.display = 'block';
-          el.textContent = g.reasons[0] || '请先导入原始资料';
-        } else el.style.display = 'none';
-        return;
-      }
-      if (!g.canExtract) {
-        el.style.display = 'block';
-        el.textContent = g.reasons.join('；') || '请先完成原始资料与拆章';
-      } else el.style.display = 'none';
-    });
-    var extractDisabled = !g.canExtract;
-    var analyzeBusy = isAnalyzeBusy();
-    var scanBtn = $('btnCharScan');
-    if (scanBtn) scanBtn.disabled = extractDisabled || ctx.busyFlags.charScan;
-    var extractBtn = $('btnWbExtract');
-    if (extractBtn) extractBtn.disabled = extractDisabled || ctx.busyFlags.wbExtract;
-    var styleBtn = $('btnStyleDistill');
-    if (styleBtn) styleBtn.disabled = extractDisabled || ctx.busyFlags.styleDistill;
-    var setupBtn = $('btnNovelGenCharSetup');
-    if (setupBtn) setupBtn.disabled = extractDisabled || ctx.busyFlags.charSetup;
-    var greetBtn = $('btnNovelGenGreetings');
-    if (greetBtn) greetBtn.disabled = extractDisabled || ctx.busyFlags.greetings;
-    var splitBtn = $('btnNovelSplitChapters');
-    if (splitBtn) splitBtn.disabled = !g.hasSource;
-    var ragBtn = $('btnNovelRagIndex');
-    if (ragBtn) ragBtn.disabled = extractDisabled || analyzeBusy;
-    var analyzeAllBtn = $('btnNovelAnalyzeAll');
-    if (analyzeAllBtn) {
-      analyzeAllBtn.disabled = extractDisabled || analyzeBusy;
-      if (analyzeBusy && !analyzeAllBtn.dataset.idleLabel) {
-        analyzeAllBtn.dataset.idleLabel = analyzeAllBtn.textContent || '开始分析';
-      }
-      if (analyzeBusy) analyzeAllBtn.textContent = '分析中…';
-      else if (analyzeAllBtn.dataset.idleLabel) {
-        analyzeAllBtn.textContent = analyzeAllBtn.dataset.idleLabel;
-        delete analyzeAllBtn.dataset.idleLabel;
-      }
+    var eng = getActionEngine() || bootMainActionEngine();
+    if (eng && typeof eng.setProviders === 'function') {
+      eng.setProviders({
+        getNovelGates: function() { return getPipelineGates(ctx.state || state); },
+        getCardId: function() { return currentCardId(); },
+        getAiConfigured: function() { return isAiConfigured(); },
+      });
     }
-    var analyzeConfirm = $('btnNovelAnalyzeConfirm');
-    if (analyzeConfirm) analyzeConfirm.disabled = extractDisabled || analyzeBusy;
-    var skBtn = $('btnNovelAnalyzeSkeleton');
-    if (skBtn) skBtn.disabled = extractDisabled || analyzeBusy;
-    var enBtn = $('btnNovelAnalyzeEnrich');
-    if (enBtn) enBtn.disabled = extractDisabled || analyzeBusy;
-    var enrichSelBtn = $('btnKnowledgeEnrichSelected');
-    if (enrichSelBtn) enrichSelBtn.disabled = extractDisabled || analyzeBusy;
-    var retryBtn = $('btnNovelRetryFailed');
-    if (retryBtn) retryBtn.disabled = analyzeBusy;
-    var failsRetry = $('btnNovelAnalyzeFailsRetry');
-    if (failsRetry) failsRetry.disabled = analyzeBusy;
-    ['btnNovelNsfwStatusDraft', 'btnNovelNtlStatusDraft', 'btnNovelVesselStatusDraft'].forEach(function(id) {
-      var b = $(id);
-      if (b) b.disabled = analyzeBusy;
-    });
-    var charEnrich = $('btnCharEnrichSelected');
-    if (charEnrich) charEnrich.disabled = extractDisabled || analyzeBusy;
-    var wbEnrich = $('btnWbEnrichSelected');
-    if (wbEnrich) wbEnrich.disabled = extractDisabled || analyzeBusy;
-    var graphRelayoutBtn = $('btnGraphRelayout');
-    if (graphRelayoutBtn) graphRelayoutBtn.disabled = analyzeBusy;
-    var graphClearBtn = $('btnGraphClear');
-    if (graphClearBtn) graphClearBtn.disabled = analyzeBusy;
-    var tip = isAiConfigured() ? '' : '未配置 AI，请先到「AI 配置」选择模型';
-    var setAiTip = function(id, msg) { var el = $(id); if (el) el.textContent = msg || ''; };
-    setAiTip('novelSetupAiTip', tip);
-    setAiTip('novelGreetAiTip', tip);
+    engineRefresh();
   }
 
   function currentCardId() {
@@ -377,6 +316,9 @@ export function initNovelWorkshop() {
   ctx.syncShardModeUi = syncShardModeUi;
   ctx.isAnalyzeBusy = isAnalyzeBusy;
   ctx.refreshAnalyzeBusyUi = refreshAnalyzeBusyUi;
+  ctx.engineBegin = engineBegin;
+  ctx.engineEnd = engineEnd;
+  ctx.engineRefresh = engineRefresh;
   ctx.syncOutputs = function(opts) { return bridgeSyncOutputs(ctx, opts); };
   ctx._getApiConfig = getApiConfig;
   ctx._isRagIndexStale = isRagIndexStale;

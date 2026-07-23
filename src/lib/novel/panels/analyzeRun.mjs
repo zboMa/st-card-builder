@@ -99,6 +99,7 @@ export function attachNovelAnalyzeRun(ctx, panel) {
     var $ = ctx.$;
     var btn = $('btnNovelRagIndex');
     ctx.busyFlags.ragIndex = true;
+    if (ctx.engineBegin) ctx.engineBegin('novel.rag.index');
     ctx.setBtnBusy(btn, true, '建索引…');
     if (!state.rag) state.rag = {};
     state.rag.indexStatus = 'building';
@@ -142,6 +143,7 @@ export function attachNovelAnalyzeRun(ctx, panel) {
       throw e;
     } finally {
       ctx.busyFlags.ragIndex = false;
+      if (ctx.engineEnd) ctx.engineEnd('novel.rag.index');
       ctx.setBtnBusy(btn, false);
       if (ctx.renderGatesFn) ctx.renderGatesFn();
     }
@@ -166,6 +168,7 @@ export function attachNovelAnalyzeRun(ctx, panel) {
     if (queue) queue.style.display = 'block';
     var btn = opts.sourceBtn || $('btnNovelAnalyzeAll') || $('btnNovelAnalyzeSkeleton');
     ctx.busyFlags.analyzeSkeleton = true;
+    if (ctx.engineBegin) ctx.engineBegin('novel.analyze.skeleton');
     setActionBtnBusy(btn, true, '骨架扫描…');
     if (ctx.refreshAnalyzeBusyUi) ctx.refreshAnalyzeBusyUi();
     else if (ctx.renderGatesFn) ctx.renderGatesFn();
@@ -252,6 +255,7 @@ export function attachNovelAnalyzeRun(ctx, panel) {
       throw e;
     } finally {
       ctx.busyFlags.analyzeSkeleton = false;
+      if (ctx.engineEnd) ctx.engineEnd('novel.analyze.skeleton');
       setActionBtnBusy(btn, false);
       if (queue) queue.style.display = 'none';
       if (ctx.updateExtractCallEstimates) ctx.updateExtractCallEstimates();
@@ -316,6 +320,7 @@ export function attachNovelAnalyzeRun(ctx, panel) {
     if (opts.clearFailed !== false && !(opts.ids && opts.ids.length)) clearFailedShards('enrich');
     var btn = opts.sourceBtn || $('btnNovelAnalyzeEnrich') || $('btnNovelAnalyzeAll');
     ctx.busyFlags.analyzeEnrich = true;
+    if (ctx.engineBegin) ctx.engineBegin('novel.analyze.enrich');
     setActionBtnBusy(btn, true, '丰满中…');
     if (ctx.refreshAnalyzeBusyUi) ctx.refreshAnalyzeBusyUi();
     else if (ctx.renderGatesFn) ctx.renderGatesFn();
@@ -501,6 +506,7 @@ export function attachNovelAnalyzeRun(ctx, panel) {
       throw e;
     } finally {
       ctx.busyFlags.analyzeEnrich = false;
+      if (ctx.engineEnd) ctx.engineEnd('novel.analyze.enrich');
       setActionBtnBusy(btn, false);
       if (ctx.updateExtractCallEstimates) ctx.updateExtractCallEstimates();
       if (ctx.refreshAnalyzeBusyUi) ctx.refreshAnalyzeBusyUi();
@@ -543,6 +549,7 @@ export function attachNovelAnalyzeRun(ctx, panel) {
     var api = getApiConfig();
     var cardId = ctx.sm.getBoundCardId();
     ctx.busyFlags.analyzeRelations = true;
+    if (ctx.engineBegin) ctx.engineBegin('novel.analyze.relations');
     if (ctx.refreshAnalyzeBusyUi) ctx.refreshAnalyzeBusyUi();
     else if (ctx.renderGatesFn) ctx.renderGatesFn();
     if (ctx.setStatus) ctx.setStatus('novelAnalyzeStatus', '关系补全中…');
@@ -608,6 +615,7 @@ export function attachNovelAnalyzeRun(ctx, panel) {
       throw e;
     } finally {
       ctx.busyFlags.analyzeRelations = false;
+      if (ctx.engineEnd) ctx.engineEnd('novel.analyze.relations');
       if (ctx.renderGatesFn) ctx.renderGatesFn();
     }
   };
@@ -619,6 +627,7 @@ export function attachNovelAnalyzeRun(ctx, panel) {
     if (!g.canExtract) throw new Error((g.reasons || []).join('\n') || '前置未完成');
     var btn = $('btnNovelAnalyzeAll');
     ctx.busyFlags.analyzeAll = true;
+    if (ctx.engineBegin) ctx.engineBegin('novel.analyze.all');
     setActionBtnBusy(btn, true, '完整分析…');
     if (ctx.refreshAnalyzeBusyUi) ctx.refreshAnalyzeBusyUi();
     else if (ctx.renderGatesFn) ctx.renderGatesFn();
@@ -651,6 +660,7 @@ export function attachNovelAnalyzeRun(ctx, panel) {
       };
     } finally {
       ctx.busyFlags.analyzeAll = false;
+      if (ctx.engineEnd) ctx.engineEnd('novel.analyze.all');
       setActionBtnBusy(btn, false);
       if (ctx.updateExtractCallEstimates) ctx.updateExtractCallEstimates();
       if (ctx.refreshAnalyzeBusyUi) ctx.refreshAnalyzeBusyUi();

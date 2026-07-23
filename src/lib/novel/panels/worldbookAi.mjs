@@ -295,6 +295,7 @@ export function attachNovelWorldbookAi(ctx, panel) {
     if (queue) queue.style.display = 'block';
     var extractBtn = $('btnWbExtract');
     ctx.busyFlags.wbExtract = true;
+    if (ctx.engineBegin) ctx.engineBegin('novel.wb.extract');
     ctx.setBtnBusy(extractBtn, true, '抽取中…');
     try {
       return await ctx.runTracked({
@@ -386,6 +387,7 @@ export function attachNovelWorldbookAi(ctx, panel) {
       throw e;
     } finally {
       ctx.busyFlags.wbExtract = false;
+      if (ctx.engineEnd) ctx.engineEnd('novel.wb.extract');
       ctx.setBtnBusy(extractBtn, false);
       if (queue) queue.style.display = 'none';
       if (ctx.updateExtractCallEstimates) ctx.updateExtractCallEstimates();

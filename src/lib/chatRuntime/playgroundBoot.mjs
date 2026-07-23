@@ -7,6 +7,7 @@ import {
   applyDisplayRegex,
   ST_PARITY_VERSION,
 } from './browserChat.mjs';
+import { engineTryAllowed } from '../actionEngine/helpers.mjs';
 
 export function initChatPlayground() {
   var chatConversation = document.getElementById('chatConversation');
@@ -565,6 +566,7 @@ export function initChatPlayground() {
   
   async function chat(userText) {
     if (chatBusy) return;
+    if (!engineTryAllowed('card.chat.reply').ok) return;
     chatBusy = true;
     btnChatSend.disabled = true;
     chatTypingIndicator.style.display = 'inline';

@@ -9,6 +9,7 @@ import { getCardCloudMeta, resolveCardCloudStatus, resolveCardCloudQuickAction }
 import { buildDraftSnapshot, draftDisplayName, DRAFTS_KEY } from '../state.mjs';
 import { listCardVersions, ensureCardVersions, bumpCardDraftVersion, switchCardDraftVersion } from '../cardVersions.mjs';
 import { normalizeCharacterVersion } from '../cardRelease.mjs';
+import { engineTryAllowed, engineRefresh } from '../../actionEngine/helpers.mjs';
 
 /** @param {object} ctx @param {object} s @param {object} panel */
 export function attachCardManagerRender(ctx, s, panel) {
@@ -111,6 +112,7 @@ export function attachCardManagerRender(ctx, s, panel) {
 
   panel.bumpDraftVersion = async function(id, which) {
     if (!id) return;
+    if (!engineTryAllowed('lifecycle.card.version.bump').ok) return;
     var currentId = s.getCurrentDraftId();
     if (id === currentId) panel.saveCurrentDraft();
     var all = s.getAllDrafts();
@@ -142,6 +144,7 @@ export function attachCardManagerRender(ctx, s, panel) {
 
   panel.switchDraftVersion = async function(id, targetVer) {
     if (!id || !targetVer) return;
+    if (!engineTryAllowed('lifecycle.card.version.switch').ok) return;
     var currentId = s.getCurrentDraftId();
     if (id === currentId) panel.saveCurrentDraft();
     var all = s.getAllDrafts();
@@ -578,6 +581,7 @@ export function attachCardManagerRender(ctx, s, panel) {
       s.cardManagerUiPendingDrafts = undefined;
       if (s.getCurrentAppView() === 'card-manager') panel.refreshExportChecklist();
       panel.render(pending);
+      engineRefresh();
     }, s.CARD_MANAGER_UI_DEBOUNCE_MS);
   };
 

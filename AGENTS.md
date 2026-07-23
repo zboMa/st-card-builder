@@ -37,6 +37,7 @@ npm run couch            # 本地 CouchDB
 4. **浏览器云端** = `PUBLIC_API_URL` + `/api/data/*`；Couch 仅服务端 `COUCHDB_URL`，禁止把 `127.0.0.1` 发给前端。
 5. **JS**：源码一律 `.mjs` + ESM；Astro 无 SSR；测试直跑 Node，无 DOM。
 6. **`SecurityCordon`** 是故意软锁，勿随意删除。
+7. **写操作 / 重任务互斥** = Action Engine（`src/lib/actionEngine` + [`docs/architecture/action-engine.md`](docs/architecture/action-engine.md)）；新写入口必须 `register`；禁止面板私自 `disabled` 当门禁真相源；进行中任务对切卡/删卡等 **硬禁**（取消只走任务中心）。
 
 ## 架构一句话
 

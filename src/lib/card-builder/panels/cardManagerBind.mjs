@@ -5,6 +5,7 @@
 import { buildExportChecklist } from '../exportChecklist.mjs';
 import { buildCardJSONFromDraft, draftDisplayName } from '../state.mjs';
 import { getCardShareMeta } from '../cardShareClient.mjs';
+import { engineTryAllowed } from '../../actionEngine/helpers.mjs';
 
 /** @param {object} ctx @param {object} s @param {object} panel */
 export function attachCardManagerBind(ctx, s, panel) {
@@ -278,6 +279,8 @@ export function attachCardManagerBind(ctx, s, panel) {
         };
       },
       switchTo: function (idOrName) {
+        var gate = engineTryAllowed('lifecycle.card.switch');
+        if (!gate.ok) throw new Error(gate.reason || '任务进行中，禁止切卡');
         var key = String(idOrName || '').trim();
         if (!key) throw new Error('缺少 id 或 name');
         var dr = s.getAllDrafts();
@@ -293,6 +296,8 @@ export function attachCardManagerBind(ctx, s, panel) {
         return { id: found, name: draftDisplayName(dr[found]) };
       },
       create: function (opts) {
+        var gate = engineTryAllowed('lifecycle.card.create');
+        if (!gate.ok) throw new Error(gate.reason || '任务进行中，禁止新建');
         opts = opts || {};
         panel.createBlankDraft({ jumpToCharacter: false });
         if (opts.name) {
@@ -305,6 +310,8 @@ export function attachCardManagerBind(ctx, s, panel) {
         return { id: ctx.state.draftId, name: ctx.state.charName || '未命名' };
       },
       duplicate: function (id) {
+        var gate = engineTryAllowed('lifecycle.card.duplicate');
+        if (!gate.ok) throw new Error(gate.reason || '任务进行中，禁止复制');
         var src = id || s.getCurrentDraftId();
         if (!src) throw new Error('无可复制卡片');
         panel.duplicateDraft(src);
@@ -314,19 +321,27 @@ export function attachCardManagerBind(ctx, s, panel) {
         return panel.renameDraft(id || s.getCurrentDraftId(), name);
       },
       bumpVersion: function (which) {
+        var gate = engineTryAllowed('lifecycle.card.version.bump');
+        if (!gate.ok) throw new Error(gate.reason || '任务进行中，禁止增版');
         var id = s.getCurrentDraftId();
         if (!id) throw new Error('无当前卡');
         return panel.bumpDraftVersion(id, which === 'major' ? 'major' : 'minor');
       },
       switchVersion: function (targetVer) {
+        var gate = engineTryAllowed('lifecycle.card.version.switch');
+        if (!gate.ok) throw new Error(gate.reason || '任务进行中，禁止切版本');
         var id = s.getCurrentDraftId();
         if (!id) throw new Error('无当前卡');
         return panel.switchDraftVersion(id, targetVer);
       },
       delete: async function (id) {
+        var gate = engineTryAllowed('lifecycle.card.delete');
+        if (!gate.ok) throw new Error(gate.reason || '任务进行中，禁止删卡');
         return panel.deleteDraft(id || s.getCurrentDraftId(), { force: true });
       },
       importJson: function (cardJson) {
+        var gate = engineTryAllowed('lifecycle.card.import');
+        if (!gate.ok) throw new Error(gate.reason || '任务进行中，禁止导入');
         if (!cardJson || typeof cardJson !== 'object') throw new Error('需要已解析的 cardJson 对象');
         if (typeof window.applyJSONFromEditor !== 'function') throw new Error('导入桥接未就绪');
         window.applyJSONFromEditor(cardJson);

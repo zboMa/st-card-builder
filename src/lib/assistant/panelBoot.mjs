@@ -33,6 +33,7 @@ import {
   } from './ragInject.mjs';
 import { inferMvuCandidatesFromCard, corruptionProgressGap } from '../mvu/inferFromCard.mjs';
 import { STATUS_BAR_EXT_KEY } from '../statusBar.mjs';
+import { engineTryAllowed } from '../actionEngine/helpers.mjs';
 
 export function initAssistantPanelShellMode() {
 function initAssistantModeSwitch() {
@@ -1444,6 +1445,7 @@ var boot = window.__assistantBoot__ || {};
     }
 
     async function reactLoop(userText) {
+      if (!engineTryAllowed('card.assistant.react').ok) return;
       abortFlag = false;
       busy = true;
       syncActionBtn();

@@ -124,6 +124,7 @@ export function registerStyle(ctx) {
       ctx.setStatus('novelStyleStatus', '蒸馏中...');
     var styleBtn = ctx.$('btnStyleDistill');
     ctx.busyFlags.styleDistill = true;
+    if (ctx.engineBegin) ctx.engineBegin('novel.style.distill');
     ctx.setBtnBusy(styleBtn, true, '蒸馏中…');
     try {
       return await ctx.runTracked({
@@ -180,6 +181,7 @@ export function registerStyle(ctx) {
       throw e;
     } finally {
       ctx.busyFlags.styleDistill = false;
+      if (ctx.engineEnd) ctx.engineEnd('novel.style.distill');
       ctx.setBtnBusy(styleBtn, false);
       if (ctx.renderGatesFn) ctx.renderGatesFn();
     }

@@ -13,6 +13,8 @@
 
 未完成前置时后续禁用。视图 id 前缀 `novel-*`，勿与主卡 `character` / `greetings` 混淆。
 
+门控与重任务互斥统一走 **Action Engine**（`renderGates` → `engine.refresh()`）；扫描/抽取/分析等须 `beginScope`/`endScope`。详见 [`action-engine.md`](./action-engine.md)。
+
 ## 状态
 
 - IndexedDB 桶：`novelWorkshopV3:card:{cardId}`  

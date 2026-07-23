@@ -19,6 +19,8 @@
 
 写操作记入 `stcb-admin` 审计。备份需 `ADMIN_BACKUP_ENABLED=true`。
 
+客户端写入口经 **独立 Action Engine 实例**（同契约，不与主站共享单例）做 ops / busy 门禁 → [`../architecture/action-engine.md`](../architecture/action-engine.md)。
+
 ## UI 注意
 
 - 登录门禁与主站共用 `auth-login.css`；隐藏门禁须尊重 `[hidden]`

@@ -6,6 +6,8 @@ import {
   state, api, $, escapeHtml, setBanner, setStatus, isOps, apiEmailLogin,
 } from './adminShared.mjs';
 import { showView } from './adminViews.mjs';
+import { bootAdminActionEngine } from '../actionEngine/bootAdmin.mjs';
+import { engineBegin, engineEnd, engineTryAllowed, engineRefresh } from '../actionEngine/helpers.mjs';
 
 async function doLogoutAndReload() {
   try {
@@ -144,24 +146,32 @@ function bindEvents() {
   });
   $('btnAdminPurgeTokens') && $('btnAdminPurgeTokens').addEventListener('click', async function() {
     if (!isOps()) return;
+    if (!engineTryAllowed('admin.token.purge').ok) return;
     if (!window.confirm('清理所有过期插件 Token？')) return;
+    engineBegin('admin.token.purge');
     try {
       var r = await api('/api/admin/tokens/purge-expired', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
       setStatus('已清理 ' + r.purged + ' 个过期 Token');
       loadTokens();
     } catch (e) {
       setStatus(String(e.message || e));
+    } finally {
+      engineEnd('admin.token.purge');
     }
   });
   $('btnAdminBackup') && $('btnAdminBackup').addEventListener('click', async function() {
     if (!isOps()) return;
+    if (!engineTryAllowed('admin.backup.run').ok) return;
     if (!window.confirm('确认在服务器执行逻辑备份？可能耗时较长。')) return;
+    engineBegin('admin.backup.run');
     setStatus('备份进行中…');
     try {
       var r = await api('/api/admin/backup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
       setStatus('备份完成：' + r.outDir);
     } catch (e) {
       setStatus('备份失败：' + (e.message || e));
+    } finally {
+      engineEnd('admin.backup.run');
     }
   });
 
@@ -191,6 +201,7 @@ function bindEvents() {
 
     var uid = t.getAttribute('data-user-toggle');
     if (uid) {
+      if (!engineTryAllowed('admin.user.disable').ok) return;
       var disabled = t.getAttribute('data-disabled') === '1';
       try {
         await api('/api/admin/users/' + encodeURIComponent(uid) + '/disable', {
@@ -208,6 +219,7 @@ function bindEvents() {
 
     var soft = t.getAttribute('data-share-soft');
     if (soft) {
+      if (!engineTryAllowed('admin.share.toggle').ok) return;
       var on = t.getAttribute('data-on') === '1';
       try {
         await api('/api/admin/shares/' + encodeURIComponent(soft) + '/enabled', {
@@ -225,6 +237,7 @@ function bindEvents() {
 
     var del = t.getAttribute('data-share-del');
     if (del) {
+      if (!engineTryAllowed('admin.share.delete').ok) return;
       if (!window.confirm('硬删除分享映射？此操作不可恢复。')) return;
       try {
         await api('/api/admin/shares/' + encodeURIComponent(del), { method: 'DELETE' });
@@ -238,6 +251,7 @@ function bindEvents() {
 
     var tok = t.getAttribute('data-token-revoke');
     if (tok) {
+      if (!engineTryAllowed('admin.token.revoke').ok) return;
       if (!window.confirm('吊销该插件 Token？')) return;
       try {
         await api('/api/admin/tokens/' + encodeURIComponent(tok), { method: 'DELETE' });
@@ -251,7 +265,12 @@ function bindEvents() {
 }
 
 export async function bootAdminApp() {
+  var engine = bootAdminActionEngine({
+    isOps: function() { return isOps(); },
+    backupEnabled: function() { return !!(state.overview && state.overview.flags && state.overview.flags.backupEnabled); },
+  });
   bindEvents();
+  engineRefresh();
   setAppBackLinks(getPublicAppUrl() || '/');
   showLoginGate({ tip: '正在校验登录状态…', discordOk: true });
   try {

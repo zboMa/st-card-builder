@@ -16,6 +16,8 @@
 
 `StoryStudioApp` → `src/lib/storyStudio/browserApp.mjs`（`initStoryStudio` + 事件绑定）。分享读者壳：`ShareReaderPanel`（`#share/{token}`）。
 
+大纲/章文长任务与切书/删书等 lifecycle 走 Action Engine 硬禁互斥 → [`action-engine.md`](./action-engine.md)。
+
 ## 浏览器控制器（拆自 `browserApp.mjs`）
 
 | 文件 | 职责 |

@@ -321,13 +321,18 @@ async function loadSystem() {
   try {
     var health = await api('/api/health');
     var overview = await api('/api/admin/overview');
+    try { state.overview = overview; } catch (e0) { /* ignore */ }
     box.innerHTML = '<div class="admin-pre-wrap">'
       + '<h3>Health</h3><pre class="admin-pre">' + escapeHtml(JSON.stringify(health, null, 2)) + '</pre>'
       + '<h3>Overview flags</h3><pre class="admin-pre">' + escapeHtml(JSON.stringify(overview.flags || {}, null, 2)) + '</pre>'
       + '<p class="admin-muted">备份：需在服务器 .env 设置 ADMIN_BACKUP_ENABLED=true。逻辑备份写入 ADMIN_BACKUP_DIR 或 server/backups/。</p>'
       + '</div>';
     var btn = $('btnAdminBackup');
-    if (btn) btn.disabled = !isOps() || !(overview.flags && overview.flags.backupEnabled);
+    if (window.__actionEngine__ && typeof window.__actionEngine__.refresh === 'function') {
+      window.__actionEngine__.refresh();
+    } else if (btn) {
+      btn.disabled = !isOps() || !(overview.flags && overview.flags.backupEnabled);
+    }
   } catch (e) {
     box.innerHTML = '<div class="admin-empty">' + escapeHtml(bannerForError(e)) + '</div>';
   }
