@@ -661,6 +661,8 @@ export function initGsapAnimations() {
   // ============================================================
   //  初始化状态
   // ============================================================
-  // 特效始终开启
-  window.__fxEnabled__ = function () { return true; };
+  // 特效开关由 Layout 模块注入 window.__fxEnabled__
+  if (typeof window.__fxEnabled__ !== 'function') {
+    window.__fxEnabled__ = function () { return false; };
+  }
 }

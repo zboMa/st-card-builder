@@ -7,6 +7,18 @@ html[data-app-scene]:not([data-app-scene="none"]) body {
   position: relative;
 }
 
+#sceneFxCanvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0;
+  transition: opacity 0.45s var(--ease-out);
+}
+
 html[data-app-scene="sumi-ink"] body::before,
 html[data-app-scene="sumi-ink"] body::after,
 html[data-app-scene="frost-shard"] body::before,

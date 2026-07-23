@@ -188,10 +188,24 @@
 
   init();
 
-  // 读取偏好决定是否启动
+  // 读取偏好决定是否启动（精品 scene 主题用 SceneFx Canvas，此处仅夜庭）
   var FX_KEY = 'st_v3_fx_enabled';
   var shouldRun = true;
   try { var s = localStorage.getItem(FX_KEY); if (s !== null) shouldRun = s === '1'; } catch(e) {}
+  var sceneAttr = document.documentElement.getAttribute('data-app-scene') || 'none';
+  if (sceneAttr !== 'none') shouldRun = false;
+
+  window.__particleFx__ = { start: start, stop: stop };
+
+  window.addEventListener('app-theme-changed', function() {
+    var sc = document.documentElement.getAttribute('data-app-scene') || 'none';
+    if (sc !== 'none') { stop(); return; }
+    var fx = true;
+    try { var v = localStorage.getItem(FX_KEY); if (v !== null) fx = v === '1'; } catch (e) {}
+    var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (fx && !reduceMotion) start();
+    else stop();
+  });
 
   if (shouldRun) {
     var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;

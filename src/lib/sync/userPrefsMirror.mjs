@@ -5,8 +5,11 @@ import { DOC } from './docIds.mjs';
 import { cloudSavePrefs, isCloudEnabled } from './cloudStore.mjs';
 import * as api from './cloudApi.mjs';
 import { PROMPT_STORAGE_KEY } from '../promptStore.mjs';
+import { SCENE_FX_KEY, applySceneTier } from '../theme/themeSceneTier.mjs';
+import { STORAGE_KEY as APP_THEME_KEY } from '../theme/themeCatalog.mjs';
 
-export var FX_KEY = 'st_v3_fx_enabled';
+export var FX_KEY = SCENE_FX_KEY;
+export var FX_KEY_LEGACY = 'st_v3_fx_enabled';
 export var CURRENT_CARD_KEY = 'st_v3_builder_current_id';
 
 var DEBOUNCE_MS = 800;
@@ -37,19 +40,39 @@ export function isUserPrefsSyncEnabled() {
 
 export function readLocalUiPrefs() {
   var fx = null;
-  try { fx = localStorage.getItem(FX_KEY); } catch (e) { fx = null; }
+  try { fx = localStorage.getItem(SCENE_FX_KEY); } catch (e) { fx = null; }
+  if (fx === null) {
+    try { fx = localStorage.getItem(FX_KEY_LEGACY); } catch (e) { fx = null; }
+  }
+  var theme = '';
+  try { theme = localStorage.getItem(APP_THEME_KEY) || ''; } catch (e) { theme = ''; }
   var currentId = '';
   try { currentId = localStorage.getItem(CURRENT_CARD_KEY) || ''; } catch (e) { currentId = ''; }
   return {
     fxEnabled: fx,
+    sceneFx: fx,
+    appTheme: theme,
     currentCardId: currentId,
   };
 }
 
 export function applyLocalUiPrefs(data) {
   if (!data || typeof data !== 'object') return;
-  if (data.fxEnabled != null) {
-    try { localStorage.setItem(FX_KEY, String(data.fxEnabled)); } catch (e) { /* ignore */ }
+  var fxVal = data.sceneFx != null ? data.sceneFx : data.fxEnabled;
+  if (fxVal != null) {
+    try {
+      localStorage.setItem(SCENE_FX_KEY, String(fxVal));
+      localStorage.setItem(FX_KEY_LEGACY, String(fxVal));
+    } catch (e) { /* ignore */ }
+    applySceneTier();
+    if (typeof window !== 'undefined') {
+      try {
+        window.dispatchEvent(new CustomEvent('scene-tier-changed'));
+      } catch (e2) { /* ignore */ }
+    }
+  }
+  if (data.appTheme != null && String(data.appTheme)) {
+    try { localStorage.setItem(APP_THEME_KEY, String(data.appTheme)); } catch (e) { /* ignore */ }
   }
   if (data.currentCardId != null && String(data.currentCardId)) {
     try { localStorage.setItem(CURRENT_CARD_KEY, String(data.currentCardId)); } catch (e) { /* ignore */ }
