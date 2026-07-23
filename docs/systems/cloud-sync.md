@@ -48,6 +48,22 @@ npm run dev            # Astro :4321，/api 代理到 8787
 | **偏好** | `PUT /api/data/prefs/ui|prompts`（防抖） |
 | **AI 密钥** | `PUT/GET/DELETE /api/data/secrets/ai-config`（客户端口令加密，服务端只存密文） |
 
+## 用户场景（怎么做）
+
+| 场景 | 本地 | 云端 | 用户操作 |
+|---|---|---|---|
+| **日常制作** | 编辑即 autosave 到 LS/IDB | 不推 | 无需点同步；Network 不应频繁 PUT bundle |
+| **首次上云** | 已有草稿 | 无 | 卡管理 →「同步上云」 |
+| **改完要上云** | dirty（云标「上云未同步」） | 旧版 | 「同步上云」 |
+| **换机 / 另一台有新版本** | 旧 | 新 | 卡管理 →「从云端覆盖」（或先拉列表再覆盖） |
+| **只看云上有啥** | 可有 stub | 索引 | 进卡管理或账户「刷新云端列表」 |
+| **打开云端 stub 卡** | stub | 有正文 | 点开卡 → `GET .../bundle` 水合 |
+| **离线 / 未登录** | 全功能 | — | 不做云操作 |
+| **Story 写出的小说** | 独立 | 独立 API | 不进开卡 bundle；删卡可选是否删 Story |
+
+云标三态：无 `localSyncedAt` → **未上云**；有基线且 `updatedAt` ≠ `localSyncedAt` → **上云未同步**；否则 **已同步**。  
+手动回归见 [`../ops/regression-checklist.md`](../ops/regression-checklist.md)。
+
 ## 主要 API
 
 | 方法 | 路径 | 说明 |
