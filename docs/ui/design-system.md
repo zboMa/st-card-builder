@@ -4,6 +4,8 @@
 
 SillyTavern 卡片构建器壳层设计 token。状态栏 **30 套预览主题** 在 `src/lib/statusBarThemes/`，与本文档的壳层 token 分层独立。
 
+**壳层换肤**：8 套内置主题，`html[data-app-theme]` + `src/styles/tokens-themes.css`；侧栏「外观」切换；持久化 `localStorage` key `st_v3_app_theme`。详见 [`theme-skins-plan.md`](./theme-skins-plan.md)。
+
 **所有 UI 变更须遵循本文档。** 新增控件优先复用 `ui-patterns.css` 共享类，禁止在局部再发明一套 tip / 搜索 / 行内按钮。
 
 ---
@@ -124,7 +126,9 @@ SillyTavern 卡片构建器壳层设计 token。状态栏 **30 套预览主题**
 
 | 文件 | 说明 |
 |------|------|
-| `src/styles/tokens.css` | 语义色、间距、圆角、阴影 |
+| `src/styles/tokens.css` | 入口：`tokens-base.css` + `tokens-themes.css` |
+| `src/styles/tokens-base.css` | 间距、圆角、字体、动效 |
+| `src/styles/tokens-themes.css` | 8 套 `[data-app-theme]` 语义色 |
 | `src/styles/ui-patterns.css` | 共享 UI 类（chip、工具条、按钮层级、搜索、空态、文本分层） |
 | `src/styles/layout-chrome.css` | 壳层布局、三栏、移动端抽屉、`.panel` / `.btn` 基线（从 Layout 外提） |
 

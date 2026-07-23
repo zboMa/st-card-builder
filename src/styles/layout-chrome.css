@@ -18,12 +18,12 @@
         background-image:
           radial-gradient(
             ellipse 110% 75% at 50% -12%,
-            oklch(76% 0.095 310 / 0.07) 0%,
+            var(--color-paper-glow-a) 0%,
             transparent 52%
           ),
           radial-gradient(
             ellipse 70% 55% at 95% 95%,
-            oklch(68% 0.05 260 / 0.04) 0%,
+            var(--color-paper-glow-b) 0%,
             transparent 48%
           );
         background-attachment: fixed;
@@ -242,7 +242,7 @@
         font-weight: 700;
         font-variant-numeric: tabular-nums;
         letter-spacing: 0.02em;
-        color: oklch(72% 0.16 145);
+        color: var(--color-sync-live);
         line-height: 1;
       }
       .app-sidebar-sync-eta[hidden] {
@@ -274,6 +274,12 @@
         flex-shrink: 0;
         margin-top: var(--space-1);
         padding-top: var(--space-2);
+        border-top: 1px solid var(--color-border-subtle);
+      }
+      .app-sidebar-theme {
+        flex-shrink: 0;
+        margin-top: var(--space-1);
+        padding: var(--space-2) var(--space-2) var(--space-1);
         border-top: 1px solid var(--color-border-subtle);
       }
 
@@ -378,7 +384,7 @@
           inset: 0;
           /* 叠放：主内容 < 遮罩(8300) < 顶栏(8350) < 侧栏(8400) < 助手(8500) */
           z-index: 8300;
-          background: oklch(12% 0.02 285 / 0.55);
+          background: var(--color-scrim);
           opacity: 0;
           pointer-events: none;
           transition: opacity 0.2s var(--ease-out);
@@ -533,7 +539,7 @@
         -moz-osx-font-smoothing: grayscale;
       }
       .panel:hover {
-        border-color: oklch(92% 0.02 285 / 0.14);
+        border-color: var(--color-panel-hover-border);
         box-shadow: var(--shadow-panel-hover), var(--shadow-inset);
       }
 
@@ -997,7 +1003,7 @@
       .btn-fetch:hover {
         background: var(--color-surface);
         border-color: var(--color-accent-border);
-        box-shadow: 0 4px 16px oklch(8% 0.02 285 / 0.35);
+        box-shadow: 0 4px 16px var(--color-shadow-elevated);
       }
 
       .btn-ai {
@@ -1019,38 +1025,38 @@
         color: var(--color-accent-hover);
       }
       .btn-add:hover {
-        background: oklch(76% 0.095 310 / 0.16);
+        background: var(--color-accent-soft-hover);
         border-color: var(--color-accent);
         color: var(--color-text);
         box-shadow: 0 4px 16px var(--color-accent-glow);
       }
 
       .btn-delete {
-        background: oklch(48% 0.16 25);
-        border-color: oklch(55% 0.16 25 / 0.4);
+        background: var(--color-danger-fill);
+        border-color: var(--color-danger-fill-border);
         color: var(--color-text);
         width: auto;
         padding: 5px 10px;
         font-size: 0.75rem;
       }
       .btn-delete:hover {
-        background: oklch(52% 0.18 25);
-        border-color: oklch(55% 0.18 25 / 0.55);
-        box-shadow: 0 6px 20px oklch(50% 0.16 25 / 0.25);
+        background: var(--color-danger-fill-hover);
+        border-color: var(--color-danger-fill-border);
+        box-shadow: 0 6px 20px var(--color-danger-fill-shadow);
       }
 
       .btn-img {
-        background: oklch(55% 0.12 75);
-        border-color: oklch(60% 0.12 75 / 0.4);
-        color: var(--color-paper-deep);
+        background: var(--color-ai-gold-fill);
+        border-color: var(--color-ai-gold-fill-border);
+        color: var(--color-on-ai-gold-fill);
         width: auto;
         margin: 0;
         padding: 6px 14px;
       }
       .btn-img:hover {
-        background: oklch(60% 0.13 75);
-        border-color: oklch(65% 0.13 75 / 0.5);
-        box-shadow: 0 6px 20px oklch(55% 0.12 75 / 0.25);
+        background: var(--color-ai-gold-fill-hover);
+        border-color: var(--color-ai-gold-fill-border);
+        box-shadow: 0 6px 20px var(--color-ai-gold-fill-shadow);
       }
 
       /* ========== 世界书条目：禁止 flex 压缩，折叠/展开可读可点 ========== */
@@ -1076,7 +1082,7 @@
         min-height: 52px;
         overflow: visible;
         border-color: var(--color-accent-border);
-        background: oklch(76% 0.095 310 / 0.04);
+        background: var(--color-entry-active-bg);
       }
       .entry-item:hover {
         border-color: var(--color-accent-border);
