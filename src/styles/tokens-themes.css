@@ -132,8 +132,8 @@
   --color-syntax-null: var(--color-text-muted);
   --color-chip-bg: oklch(23% 0.024 55 / 0.45);
   --color-chip-border: oklch(58% 0.12 25 / 0.2);
-  --color-glass: oklch(23% 0.024 55 / 0.58);
-  --color-glass-border: oklch(90% 0.02 75 / 0.1);
+  --color-glass: oklch(26% 0.02 55 / 0.36);
+  --color-glass-border: oklch(90% 0.025 75 / 0.14);
   --color-glass-highlight: oklch(98% 0.008 75 / 0.07);
   --color-panel-hover-border: oklch(90% 0.02 75 / 0.14);
   --color-shadow-elevated: oklch(8% 0.02 50 / 0.35);

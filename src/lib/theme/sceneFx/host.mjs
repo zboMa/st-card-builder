@@ -75,6 +75,7 @@ async function syncModule() {
   canvas.style.display = '';
   resize();
   if (mod.mount) mod.mount();
+  canvas.style.display = '';
   canvas.style.opacity = '1';
   startLoop();
   if (mod.playIntro) mod.playIntro();
