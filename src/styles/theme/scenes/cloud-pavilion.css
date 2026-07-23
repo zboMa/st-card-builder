@@ -1,0 +1,145 @@
+/* 云楼雕粱 · 飞檐 + 金漆 */
+
+html[data-app-scene="cloud-pavilion"] body {
+  background-color: oklch(13% 0.02 42);
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% 0%, oklch(76% 0.12 75 / 0.08) 0%, transparent 55%),
+    radial-gradient(ellipse 60% 40% at 85% 75%, oklch(55% 0.06 50 / 0.1) 0%, transparent 50%);
+}
+
+html[data-app-scene="cloud-pavilion"] body::before {
+  z-index: 0;
+  opacity: 1;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 400'%3E%3Cpath d='M100 280 L200 180 L350 220 L500 160 L650 200 L750 140 L750 400 L100 400 Z' fill='%23403020' fill-opacity='0.35'/%3E%3Cpath d='M180 180 L220 140 L280 160 L320 120 L380 150 L420 110 L480 140' fill='none' stroke='%23c9a46a' stroke-opacity='0.35' stroke-width='2'/%3E%3Cpath d='M120 200 Q200 120 400 140 Q600 160 680 100' fill='none' stroke='%23e8d0a0' stroke-opacity='0.15' stroke-width='1.5'/%3E%3Cpath d='M0 320 Q100 280 200 300 Q400 260 600 290 Q700 270 800 300 L800 400 L0 400 Z' fill='%23ffffff' fill-opacity='0.04'/%3E%3C/svg%3E") center bottom / cover no-repeat,
+    radial-gradient(ellipse 80% 50% at 50% 0%, oklch(76% 0.12 75 / 0.06) 0%, transparent 55%);
+}
+
+html[data-app-scene="cloud-pavilion"][data-scene-tier="immersive"] body::before {
+  animation: theme-pavilion-reveal 700ms var(--ease-out) both;
+}
+
+html[data-app-scene="cloud-pavilion"] body::after {
+  z-index: 0;
+  background:
+    radial-gradient(ellipse 50% 30% at 30% 15%, oklch(92% 0.02 75 / 0.06) 0%, transparent 50%),
+    radial-gradient(ellipse 40% 25% at 70% 25%, oklch(88% 0.03 55 / 0.05) 0%, transparent 45%);
+}
+
+html[data-app-scene="cloud-pavilion"][data-scene-tier="immersive"] body::after {
+  animation: theme-pavilion-cloud 16s ease-in-out infinite alternate;
+}
+
+html[data-app-scene="cloud-pavilion"] .app-sidebar,
+html[data-app-scene="cloud-pavilion"] .assistant-panel,
+html[data-app-scene="cloud-pavilion"] .app-container > .panel {
+  background: oklch(22% 0.026 48 / 0.45) !important;
+  backdrop-filter: blur(18px) saturate(105%);
+  -webkit-backdrop-filter: blur(18px) saturate(105%);
+  border-color: oklch(76% 0.12 75 / 0.16) !important;
+  box-shadow:
+    var(--shadow-panel),
+    inset 0 1px 0 oklch(76% 0.12 75 / 0.12),
+    inset 0 0 0 1px oklch(55% 0.06 50 / 0.12);
+}
+
+html[data-app-scene="cloud-pavilion"] .app-sidebar::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 5px;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    180deg,
+    oklch(76% 0.12 75 / 0.35) 0 6px,
+    oklch(55% 0.06 50 / 0.25) 6px 8px,
+    transparent 8px 14px
+  );
+  opacity: 0.75;
+}
+
+html[data-app-scene="cloud-pavilion"] .app-sidebar-item {
+  position: relative;
+}
+
+html[data-app-scene="cloud-pavilion"] .app-sidebar-item.is-active::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  margin-top: -3px;
+  transform: rotate(45deg);
+  background: oklch(76% 0.12 75);
+  box-shadow: 0 0 10px oklch(76% 0.12 75 / 0.4);
+}
+
+html[data-app-scene="cloud-pavilion"] .app-container > .panel .panel-header h2::after {
+  content: '';
+  display: block;
+  width: 3rem;
+  height: 2px;
+  margin-top: var(--space-1);
+  background: linear-gradient(90deg, oklch(76% 0.12 75), oklch(55% 0.06 50 / 0.4), transparent);
+  opacity: 0.85;
+}
+
+html[data-app-scene="cloud-pavilion"] .btn-primary {
+  background: linear-gradient(165deg, oklch(72% 0.13 72) 0%, oklch(55% 0.1 55) 100%);
+  border-color: oklch(76% 0.12 75 / 0.55);
+  color: oklch(98% 0.01 55);
+  box-shadow: 0 2px 16px oklch(55% 0.1 55 / 0.32), inset 0 1px 0 oklch(88% 0.08 75 / 0.25);
+}
+
+html[data-app-scene="cloud-pavilion"] .btn-primary:hover {
+  box-shadow: 0 4px 22px oklch(55% 0.1 55 / 0.42), inset 0 1px 0 oklch(88% 0.08 75 / 0.3);
+}
+
+html[data-app-scene="cloud-pavilion"][data-scene-tier="immersive"] .btn-primary:active {
+  animation: theme-pavilion-gild 300ms var(--ease-out);
+}
+
+html[data-app-scene="cloud-pavilion"] .ui-modal-dialog {
+  background: oklch(20% 0.026 48 / 0.55) !important;
+  backdrop-filter: blur(20px);
+  box-shadow: var(--shadow-panel), inset 0 0 0 1px oklch(76% 0.12 75 / 0.14);
+}
+
+html[data-app-scene="cloud-pavilion"] .app-mobile-topbar {
+  background: oklch(17% 0.022 45 / 0.78);
+  border-bottom-color: oklch(76% 0.12 75 / 0.14);
+}
+
+@keyframes theme-pavilion-reveal {
+  from { opacity: 0; transform: translateY(10px); filter: blur(2px); }
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+
+@keyframes theme-pavilion-cloud {
+  from { transform: translateX(0); opacity: 0.85; }
+  to { transform: translateX(12px); opacity: 1; }
+}
+
+@keyframes theme-pavilion-gild {
+  0% { filter: brightness(1); }
+  50% { filter: brightness(1.3); }
+  100% { filter: brightness(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-app-scene="cloud-pavilion"] body::before,
+  html[data-app-scene="cloud-pavilion"] body::after {
+    animation: none !important;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  html[data-app-scene="cloud-pavilion"] .app-sidebar,
+  html[data-app-scene="cloud-pavilion"] .assistant-panel,
+  html[data-app-scene="cloud-pavilion"] .app-container > .panel {
+    background: var(--color-glass) !important;
+  }
+}

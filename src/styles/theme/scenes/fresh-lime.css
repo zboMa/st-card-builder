@@ -1,0 +1,148 @@
+/* 鲜果青柠 · 切片 + 果香 */
+
+html[data-app-scene="fresh-lime"] body {
+  background-color: oklch(13% 0.024 132);
+  background-image:
+    radial-gradient(ellipse 70% 60% at 80% 20%, oklch(78% 0.16 130 / 0.12) 0%, transparent 55%),
+    radial-gradient(ellipse 50% 40% at 15% 85%, oklch(65% 0.12 125 / 0.08) 0%, transparent 50%);
+}
+
+html[data-app-scene="fresh-lime"] body::before {
+  z-index: 0;
+  opacity: 1;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Ccircle cx='100' cy='100' r='80' fill='none' stroke='%2388cc44' stroke-opacity='0.15' stroke-width='2'/%3E%3Cpath d='M100 20 L100 180 M20 100 L180 100 M45 45 L155 155 M155 45 L45 155' fill='none' stroke='%23a0dd55' stroke-opacity='0.12' stroke-width='1.5'/%3E%3Ccircle cx='100' cy='100' r='12' fill='%23c8ee66' fill-opacity='0.2'/%3E%3C/svg%3E") 85% 15% / 180px no-repeat,
+    radial-gradient(ellipse 70% 60% at 80% 20%, oklch(78% 0.16 130 / 0.08) 0%, transparent 55%);
+}
+
+html[data-app-scene="fresh-lime"][data-scene-tier="immersive"] body::before {
+  animation: theme-lime-pop 560ms var(--ease-out) both;
+}
+
+html[data-app-scene="fresh-lime"] body::after {
+  z-index: 0;
+  background:
+    radial-gradient(circle at 25% 70%, oklch(82% 0.14 128 / 0.06) 0%, transparent 25%),
+    radial-gradient(circle at 60% 40%, oklch(75% 0.12 130 / 0.05) 0%, transparent 20%);
+}
+
+html[data-app-scene="fresh-lime"][data-scene-tier="immersive"] body::after {
+  animation: theme-lime-float 10s ease-in-out infinite alternate;
+}
+
+html[data-app-scene="fresh-lime"] .app-sidebar,
+html[data-app-scene="fresh-lime"] .assistant-panel,
+html[data-app-scene="fresh-lime"] .app-container > .panel {
+  background: oklch(22% 0.032 137 / 0.42) !important;
+  backdrop-filter: blur(18px) saturate(120%);
+  -webkit-backdrop-filter: blur(18px) saturate(120%);
+  border-color: oklch(78% 0.16 130 / 0.14) !important;
+  box-shadow:
+    var(--shadow-panel),
+    inset 0 1px 0 oklch(78% 0.16 130 / 0.1),
+    inset 0 0 0 1px oklch(65% 0.1 128 / 0.1);
+}
+
+html[data-app-scene="fresh-lime"] .app-sidebar::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 4px;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    oklch(78% 0.16 130 / 0.4) 25%,
+    oklch(82% 0.14 95 / 0.5) 50%,
+    oklch(78% 0.16 130 / 0.35) 75%,
+    transparent 100%
+  );
+  opacity: 0.7;
+}
+
+html[data-app-scene="fresh-lime"] .app-sidebar-item {
+  position: relative;
+}
+
+html[data-app-scene="fresh-lime"] .app-sidebar-item.is-active::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  margin-top: -3px;
+  border-radius: 50%;
+  background: radial-gradient(circle, oklch(82% 0.14 128) 30%, oklch(78% 0.16 130) 100%);
+  box-shadow: 0 0 10px oklch(78% 0.16 130 / 0.4);
+}
+
+html[data-app-scene="fresh-lime"] .app-container > .panel .panel-header h2::after {
+  content: '';
+  display: block;
+  width: 2.5rem;
+  height: 3px;
+  margin-top: var(--space-1);
+  border-radius: 2px;
+  background: linear-gradient(90deg, oklch(78% 0.16 130), oklch(82% 0.14 95 / 0.5), transparent);
+  opacity: 0.85;
+}
+
+html[data-app-scene="fresh-lime"] .btn-primary {
+  background: linear-gradient(165deg, oklch(72% 0.17 128) 0%, oklch(58% 0.15 130) 100%);
+  border-color: oklch(78% 0.16 130 / 0.55);
+  color: oklch(14% 0.024 132);
+  box-shadow: 0 2px 16px oklch(65% 0.12 128 / 0.32), inset 0 1px 0 oklch(88% 0.1 128 / 0.28);
+}
+
+html[data-app-scene="fresh-lime"] .btn-primary:hover {
+  box-shadow: 0 4px 22px oklch(65% 0.12 128 / 0.42), inset 0 1px 0 oklch(88% 0.1 128 / 0.35);
+}
+
+html[data-app-scene="fresh-lime"][data-scene-tier="immersive"] .btn-primary:active {
+  animation: theme-lime-zest 260ms var(--ease-out);
+}
+
+html[data-app-scene="fresh-lime"] .ui-modal-dialog {
+  background: oklch(20% 0.032 137 / 0.52) !important;
+  backdrop-filter: blur(20px);
+  box-shadow: var(--shadow-panel), inset 0 0 0 1px oklch(78% 0.16 130 / 0.12);
+}
+
+html[data-app-scene="fresh-lime"] .app-mobile-topbar {
+  background: oklch(17% 0.028 135 / 0.75);
+  border-bottom-color: oklch(78% 0.16 130 / 0.12);
+}
+
+@keyframes theme-lime-pop {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes theme-lime-float {
+  from { transform: translateY(0); }
+  to { transform: translateY(-5px); }
+}
+
+@keyframes theme-lime-zest {
+  0% { filter: brightness(1); }
+  50% { filter: brightness(1.25) saturate(1.2); }
+  100% { filter: brightness(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-app-scene="fresh-lime"] body::before,
+  html[data-app-scene="fresh-lime"] body::after {
+    animation: none !important;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  html[data-app-scene="fresh-lime"] .app-sidebar,
+  html[data-app-scene="fresh-lime"] .assistant-panel,
+  html[data-app-scene="fresh-lime"] .app-container > .panel {
+    background: var(--color-glass) !important;
+  }
+}

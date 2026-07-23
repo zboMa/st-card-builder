@@ -1,0 +1,148 @@
+/* 水浪 · 层波 + 深海玻璃 */
+
+html[data-app-scene="water-wave"] body {
+  background-color: oklch(12% 0.022 212);
+  background-image:
+    radial-gradient(ellipse 100% 50% at 50% 100%, oklch(45% 0.1 210 / 0.25) 0%, transparent 55%),
+    radial-gradient(ellipse 60% 40% at 20% 30%, oklch(38% 0.08 215 / 0.12) 0%, transparent 50%);
+}
+
+html[data-app-scene="water-wave"] body::before {
+  z-index: 0;
+  opacity: 1;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 300'%3E%3Cpath d='M0 80 Q150 40 300 80 T600 60 T900 85 T1200 55 L1200 300 L0 300 Z' fill='%23206080' fill-opacity='0.2'/%3E%3Cpath d='M0 130 Q200 90 400 125 T800 100 T1200 120 L1200 300 L0 300 Z' fill='%233080a0' fill-opacity='0.15'/%3E%3Cpath d='M0 180 Q100 150 250 170 T550 155 T850 175 T1200 160 L1200 300 L0 300 Z' fill='%2340a0c0' fill-opacity='0.1'/%3E%3C/svg%3E") center bottom / cover no-repeat,
+    radial-gradient(ellipse 100% 50% at 50% 100%, oklch(45% 0.1 210 / 0.18) 0%, transparent 55%);
+}
+
+html[data-app-scene="water-wave"][data-scene-tier="immersive"] body::before {
+  animation: theme-wave-rise 720ms var(--ease-out) both;
+}
+
+html[data-app-scene="water-wave"] body::after {
+  z-index: 0;
+  background:
+    radial-gradient(ellipse 80% 30% at 50% 0%, oklch(72% 0.08 210 / 0.08) 0%, transparent 60%),
+    radial-gradient(circle at 70% 60%, oklch(55% 0.1 215 / 0.06) 0%, transparent 30%);
+}
+
+html[data-app-scene="water-wave"][data-scene-tier="immersive"] body::after {
+  animation: theme-wave-swell 12s ease-in-out infinite alternate;
+}
+
+html[data-app-scene="water-wave"] .app-sidebar,
+html[data-app-scene="water-wave"] .assistant-panel,
+html[data-app-scene="water-wave"] .app-container > .panel {
+  background: oklch(21% 0.028 217 / 0.4) !important;
+  backdrop-filter: blur(20px) saturate(130%);
+  -webkit-backdrop-filter: blur(20px) saturate(130%);
+  border-color: oklch(72% 0.11 210 / 0.14) !important;
+  box-shadow:
+    var(--shadow-panel),
+    inset 0 1px 0 oklch(72% 0.11 210 / 0.1),
+    inset 0 0 0 1px oklch(45% 0.08 215 / 0.12);
+}
+
+html[data-app-scene="water-wave"] .app-sidebar::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 4px;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    oklch(72% 0.11 210 / 0.35) 20%,
+    oklch(55% 0.1 215 / 0.55) 50%,
+    oklch(72% 0.11 210 / 0.3) 80%,
+    transparent 100%
+  );
+  opacity: 0.7;
+}
+
+html[data-app-scene="water-wave"] .app-sidebar-item {
+  position: relative;
+}
+
+html[data-app-scene="water-wave"] .app-sidebar-item.is-active::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 50%;
+  width: 8px;
+  height: 4px;
+  margin-top: -2px;
+  border-radius: 50%;
+  background: oklch(72% 0.11 210);
+  box-shadow: 0 0 10px oklch(72% 0.11 210 / 0.45);
+}
+
+html[data-app-scene="water-wave"] .app-container > .panel .panel-header h2::after {
+  content: '';
+  display: block;
+  width: 3rem;
+  height: 2px;
+  margin-top: var(--space-1);
+  background: linear-gradient(90deg, oklch(72% 0.11 210), transparent);
+  border-radius: 1px;
+  opacity: 0.8;
+}
+
+html[data-app-scene="water-wave"] .btn-primary {
+  background: linear-gradient(165deg, oklch(66% 0.12 208) 0%, oklch(52% 0.11 212) 100%);
+  border-color: oklch(72% 0.11 210 / 0.55);
+  color: oklch(98% 0.01 215);
+  box-shadow: 0 2px 16px oklch(45% 0.1 210 / 0.32), inset 0 1px 0 oklch(82% 0.06 210 / 0.25);
+}
+
+html[data-app-scene="water-wave"] .btn-primary:hover {
+  box-shadow: 0 4px 22px oklch(45% 0.1 210 / 0.42), inset 0 1px 0 oklch(82% 0.06 210 / 0.3);
+}
+
+html[data-app-scene="water-wave"][data-scene-tier="immersive"] .btn-primary:active {
+  animation: theme-wave-ripple 300ms var(--ease-out);
+}
+
+html[data-app-scene="water-wave"] .ui-modal-dialog {
+  background: oklch(19% 0.028 217 / 0.52) !important;
+  backdrop-filter: blur(22px);
+  box-shadow: var(--shadow-panel), inset 0 0 0 1px oklch(72% 0.11 210 / 0.12);
+}
+
+html[data-app-scene="water-wave"] .app-mobile-topbar {
+  background: oklch(16% 0.024 215 / 0.78);
+  border-bottom-color: oklch(72% 0.11 210 / 0.12);
+}
+
+@keyframes theme-wave-rise {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes theme-wave-swell {
+  from { transform: translateY(0); opacity: 0.9; }
+  to { transform: translateY(-6px); opacity: 1; }
+}
+
+@keyframes theme-wave-ripple {
+  0% { transform: scale(1); }
+  50% { transform: scale(0.98); filter: brightness(1.15); }
+  100% { transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-app-scene="water-wave"] body::before,
+  html[data-app-scene="water-wave"] body::after {
+    animation: none !important;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  html[data-app-scene="water-wave"] .app-sidebar,
+  html[data-app-scene="water-wave"] .assistant-panel,
+  html[data-app-scene="water-wave"] .app-container > .panel {
+    background: var(--color-glass) !important;
+  }
+}

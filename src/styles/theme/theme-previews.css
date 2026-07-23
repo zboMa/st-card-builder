@@ -34,3 +34,31 @@
     radial-gradient(ellipse 40% 80% at 95% 50%, oklch(55% 0.08 155 / 0.35) 0%, transparent 55%),
     oklch(17% 0.02 165);
 }
+
+.theme-preview--water-wave {
+  background:
+    radial-gradient(ellipse 90% 50% at 50% 100%, oklch(45% 0.1 210 / 0.4) 0%, transparent 55%),
+    linear-gradient(180deg, oklch(38% 0.08 215 / 0.15) 0%, transparent 40%),
+    oklch(16% 0.024 215);
+}
+
+.theme-preview--fresh-lime {
+  background:
+    radial-gradient(circle at 75% 25%, oklch(78% 0.16 130 / 0.35) 0%, transparent 45%),
+    radial-gradient(circle at 25% 75%, oklch(65% 0.12 125 / 0.2) 0%, transparent 35%),
+    oklch(17% 0.028 135);
+}
+
+.theme-preview--cloud-pavilion {
+  background:
+    radial-gradient(ellipse 70% 40% at 50% 0%, oklch(76% 0.12 75 / 0.25) 0%, transparent 55%),
+    linear-gradient(180deg, transparent 50%, oklch(55% 0.06 50 / 0.2) 100%),
+    oklch(17% 0.022 45);
+}
+
+.theme-preview--morning-drizzle {
+  background:
+    repeating-linear-gradient(95deg, oklch(88% 0.04 245 / 0.06) 0 1px, transparent 1px 8px),
+    radial-gradient(ellipse 80% 50% at 50% 0%, oklch(82% 0.04 245 / 0.2) 0%, transparent 55%),
+    oklch(18% 0.018 245);
+}
