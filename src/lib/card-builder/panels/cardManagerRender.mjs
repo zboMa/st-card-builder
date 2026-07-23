@@ -436,12 +436,14 @@ export function attachCardManagerRender(ctx, s, panel) {
         cloudMeta = null;
       }
       var cloudStatus = resolveCardCloudStatus(d, cloudMeta);
+      var stubHint = d._cloudStub ? ' · 云端摘要' : '';
       var overlay = document.createElement('div');
       overlay.className = 'card-manager-cover-overlay';
       overlay.innerHTML =
         '<button type="button" class="card-manager-item-name" data-card-action="rename" title="点击重命名">'
         + ctx.escapeHtml(draftDisplayName(d)) + '</button>'
         + '<div class="card-manager-item-meta">更新 ' + ctx.escapeHtml(d.updatedAt || '—')
+        + stubHint
         + ' ' + cloudStatusIconHtml(cloudStatus)
         + '<br>' + ctx.escapeHtml(s.buildShareMetaLine(d, shareMeta)) + '</div>';
       cover.appendChild(overlay);

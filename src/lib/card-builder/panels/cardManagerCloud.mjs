@@ -5,22 +5,46 @@
 
 /** @param {object} ctx @param {object} s @param {object} panel */
 export function attachCardManagerCloud(ctx, s, panel) {
+  async function fetchCloudConflictHint(id) {
+    try {
+      var metaMod = await import('../../sync/cardCloudMeta.mjs');
+      var apiMod = await import('../../sync/cloudApi.mjs');
+      var localMeta = metaMod.getCardCloudMeta(id);
+      if (!localMeta || !localMeta.onCloud || !localMeta.cloudUpdatedAt) return '';
+      var res = await apiMod.fetchCloudCards();
+      var cards = (res && res.cards) || [];
+      var row = null;
+      for (var i = 0; i < cards.length; i++) {
+        if (cards[i] && cards[i].id === id) { row = cards[i]; break; }
+      }
+      if (!row || !row.updatedAt || row.updatedAt === localMeta.cloudUpdatedAt) return '';
+      return '云端该卡已有较新版本（更新于 ' + row.updatedAt + '）。继续将用本机覆盖云端。';
+    } catch (e) {
+      return '';
+    }
+  }
+
   panel.cloudUploadOverwrite = async function (id) {
     if (!id) return;
+    try {
+      var sync = await import('../../sync/index.mjs');
+      if (sync.fetchSyncCredentials) await sync.fetchSyncCredentials();
+    } catch (eCred) { /* confirm 内仍可能失败 */ }
+    var conflictHint = await fetchCloudConflictHint(id);
     var ok = await ctx.showConfirmDialog({
       icon: '☁️',
       title: '同步上云？',
       message: '将用本机这张卡（含工坊/头像等绑卡数据）覆盖云端版本。',
-      detail: '写出的小说（Story）不随此操作上传。本地编辑不会自动上云，需在此确认。',
+      detail: '写出的小说（Story）不随此操作上传。本地编辑不会自动上云，需在此确认。'
+        + (conflictHint ? '\n\n' + conflictHint : ''),
       okText: '同步上云',
       cancelText: '取消',
     });
     if (!ok) return;
     s.setCardManagerStatus('正在同步上云…');
     try {
-      var sync = await import('../../sync/index.mjs');
-      if (sync.fetchSyncCredentials) await sync.fetchSyncCredentials();
-      await sync.cloudUploadOverwrite(id);
+      var sync2 = await import('../../sync/index.mjs');
+      await sync2.cloudUploadOverwrite(id);
       s.setCardManagerStatus('已同步上云');
       panel.updateCardManagerUI();
     } catch (e) {
