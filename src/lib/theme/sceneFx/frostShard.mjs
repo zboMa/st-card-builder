@@ -1,12 +1,12 @@
 /**
- * 碎冰 L3：霜雾漂移 + 冰晶迸裂
+ * 碎冰 L3：ambient 霜雾漂移 + 冰晶迸裂
  */
-
 var FROST = 'rgba(200, 230, 255, ';
 var ICE = 'rgba(120, 180, 220, ';
 
-/** @param {CanvasRenderingContext2D} ctx @param {HTMLCanvasElement} canvas */
-export function createSceneFx(ctx, canvas) {
+/** @param {{ blend: CanvasRenderingContext2D|null, ambient: CanvasRenderingContext2D|null }} env */
+export function createSceneFx(env) {
+  var ctxA = env.ambient;
   var W = 0;
   var H = 0;
   var flakes = [];
@@ -18,10 +18,9 @@ export function createSceneFx(ctx, canvas) {
     W = w;
     H = h;
     if (!flakes.length) {
-      for (var i = 0; i < 18; i++) {
+      for (var i = 0; i < 22; i++) {
         flakes.push({
-          x: Math.random() * W,
-          y: Math.random() * H,
+          x: Math.random() * W, y: Math.random() * H,
           r: 2 + Math.random() * 4,
           phase: Math.random() * 6.28,
           drift: 0.0002 + Math.random() * 0.0003,
@@ -30,43 +29,41 @@ export function createSceneFx(ctx, canvas) {
     }
   }
 
-  function tick() {
+  function tickAmbient() {
+    if (!ctxA) return;
     t += 16;
     if (introT < 1) introT = Math.min(1, introT + 0.014);
-    ctx.clearRect(0, 0, W, H);
-
     for (var i = 0; i < flakes.length; i++) {
       var f = flakes[i];
-      f.x += Math.sin(t * f.drift * 900 + f.phase) * 0.3;
-      f.y += Math.cos(t * f.drift * 700 + f.phase) * 0.25;
+      f.x += Math.sin(t * f.drift * 900 + f.phase) * 0.35;
+      f.y += Math.cos(t * f.drift * 700 + f.phase) * 0.28;
       if (f.x < 0) f.x = W;
       if (f.x > W) f.x = 0;
       if (f.y < 0) f.y = H;
       if (f.y > H) f.y = 0;
-      var a = introT * (0.08 + Math.sin(t * 0.001 + f.phase) * 0.04);
-      var g = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, f.r * 3);
+      var a = introT * (0.1 + Math.sin(t * 0.001 + f.phase) * 0.05);
+      var g = ctxA.createRadialGradient(f.x, f.y, 0, f.x, f.y, f.r * 3);
       g.addColorStop(0, FROST + a.toFixed(3) + ')');
       g.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = g;
-      ctx.beginPath();
-      ctx.arc(f.x, f.y, f.r * 3, 0, Math.PI * 2);
-      ctx.fill();
+      ctxA.fillStyle = g;
+      ctxA.beginPath();
+      ctxA.arc(f.x, f.y, f.r * 3, 0, Math.PI * 2);
+      ctxA.fill();
     }
-
     for (var j = bursts.length - 1; j >= 0; j--) {
       var b = bursts[j];
       b.life -= 1;
       if (b.life <= 0) { bursts.splice(j, 1); continue; }
       var ba = b.life / b.maxLife;
-      ctx.strokeStyle = ICE + (ba * 0.7).toFixed(3) + ')';
-      ctx.lineWidth = 1.2;
-      ctx.beginPath();
+      ctxA.strokeStyle = ICE + (ba * 0.7).toFixed(3) + ')';
+      ctxA.lineWidth = 1.2;
+      ctxA.beginPath();
       for (var k = 0; k < b.lines; k++) {
         var ang = (Math.PI * 2 * k) / b.lines + b.rot;
-        ctx.moveTo(b.x, b.y);
-        ctx.lineTo(b.x + Math.cos(ang) * b.r * ba, b.y + Math.sin(ang) * b.r * ba);
+        ctxA.moveTo(b.x, b.y);
+        ctxA.lineTo(b.x + Math.cos(ang) * b.r * ba, b.y + Math.sin(ang) * b.r * ba);
       }
-      ctx.stroke();
+      ctxA.stroke();
       b.r += 0.6;
     }
   }
@@ -80,14 +77,12 @@ export function createSceneFx(ctx, canvas) {
     });
   }
 
-  function playIntro() { introT = 0; }
-
   return {
     mount: function() {},
     destroy: function() { bursts = []; introT = 0; },
     resize: resize,
-    tick: tick,
+    tickAmbient: tickAmbient,
     burst: burst,
-    playIntro: playIntro,
+    playIntro: function() { introT = 0; },
   };
 }

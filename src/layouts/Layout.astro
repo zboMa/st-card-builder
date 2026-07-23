@@ -63,7 +63,8 @@ const { title } = Astro.props;
     </style>
   </head>
   <body>
-    <canvas id="sceneFxCanvas" aria-hidden="true"></canvas>
+    <canvas id="sceneFxCanvasBlend" aria-hidden="true"></canvas>
+    <canvas id="sceneFxCanvasAmbient" aria-hidden="true"></canvas>
     <slot />
     <ThemeGallery />
 

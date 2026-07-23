@@ -1,13 +1,14 @@
 /**
  * 场景装饰层共享约定（pointer-events: none，不挡交互）
- * 勿给 .app-shell 设 z-index：会把壳内 fixed 侧栏/助手关进低层叠放上下文，
- * 移动端遮罩 #appShellBackdrop(8300) 就会盖住抽屉。
+ * L3 双层：blend(z0 与 L2 混合) + ambient(z2 飘过 UI)
+ * 勿给 .app-shell 设 z-index：会把壳内 fixed 侧栏/助手关进低层叠放上下文
  */
 html[data-app-scene]:not([data-app-scene="none"]) body {
   position: relative;
 }
 
-#sceneFxCanvas {
+/* —— L3 blend：底层，与 L2 背景混合（multiply/screen 等） —— */
+#sceneFxCanvasBlend {
   position: fixed;
   top: 0;
   left: 0;
@@ -19,52 +20,91 @@ html[data-app-scene]:not([data-app-scene="none"]) body {
   transition: opacity 0.55s var(--ease-out);
 }
 
-html[data-app-scene="sumi-ink"][data-scene-tier="immersive"] #sceneFxCanvas {
+/* —— L3 ambient：顶层装饰，pointer-events:none，不挡点击 —— */
+#sceneFxCanvasAmbient {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 2;
+  opacity: 0;
+  transition: opacity 0.55s var(--ease-out);
+}
+
+html[data-app-scene="sumi-ink"][data-scene-tier="immersive"] #sceneFxCanvasBlend {
   mix-blend-mode: multiply;
   opacity: 0.72;
 }
 
-html[data-app-scene="frost-shard"][data-scene-tier="immersive"] #sceneFxCanvas {
-  mix-blend-mode: screen;
-  opacity: 1;
-}
-
-html[data-app-scene="ember-blaze"][data-scene-tier="immersive"] #sceneFxCanvas {
-  mix-blend-mode: screen;
-  opacity: 1;
-}
-
-html[data-app-scene="bamboo-edge"][data-scene-tier="immersive"] #sceneFxCanvas {
-  mix-blend-mode: soft-light;
-  opacity: 1;
-}
-
-html[data-app-scene="water-wave"][data-scene-tier="immersive"] #sceneFxCanvas {
-  mix-blend-mode: soft-light;
-  opacity: 1;
-}
-
-html[data-app-scene="fresh-lime"][data-scene-tier="immersive"] #sceneFxCanvas {
-  mix-blend-mode: screen;
-  opacity: 1;
-}
-
-html[data-app-scene="cloud-pavilion"][data-scene-tier="immersive"] #sceneFxCanvas {
-  mix-blend-mode: soft-light;
-  opacity: 1;
-}
-
-html[data-app-scene="morning-drizzle"][data-scene-tier="immersive"] #sceneFxCanvas {
-  mix-blend-mode: overlay;
-  opacity: 1;
-}
-
-html[data-app-scene="doom-carrion"][data-scene-tier="immersive"] #sceneFxCanvas {
+html[data-app-scene="doom-carrion"][data-scene-tier="immersive"] #sceneFxCanvasBlend {
   mix-blend-mode: multiply;
+  opacity: 0.55;
+}
+
+html[data-app-scene="moon-haze"][data-scene-tier="immersive"] #sceneFxCanvasBlend {
+  mix-blend-mode: soft-light;
+  opacity: 0.85;
+}
+
+html[data-app-scene="water-wave"][data-scene-tier="immersive"] #sceneFxCanvasBlend {
+  mix-blend-mode: soft-light;
+  opacity: 0.9;
+}
+
+html[data-app-scene="ember-blaze"][data-scene-tier="immersive"] #sceneFxCanvasBlend {
+  mix-blend-mode: screen;
+  opacity: 0.75;
+}
+
+html[data-app-scene="sumi-ink"][data-scene-tier="immersive"] #sceneFxCanvasAmbient,
+html[data-app-scene="frost-shard"][data-scene-tier="immersive"] #sceneFxCanvasAmbient {
+  mix-blend-mode: normal;
   opacity: 1;
 }
 
-html[data-app-scene="moon-haze"][data-scene-tier="immersive"] #sceneFxCanvas {
+html[data-app-scene="frost-shard"][data-scene-tier="immersive"] #sceneFxCanvasAmbient {
+  mix-blend-mode: screen;
+  opacity: 1;
+}
+
+html[data-app-scene="ember-blaze"][data-scene-tier="immersive"] #sceneFxCanvasAmbient {
+  mix-blend-mode: screen;
+  opacity: 1;
+}
+
+html[data-app-scene="bamboo-edge"][data-scene-tier="immersive"] #sceneFxCanvasAmbient {
+  mix-blend-mode: soft-light;
+  opacity: 1;
+}
+
+html[data-app-scene="water-wave"][data-scene-tier="immersive"] #sceneFxCanvasAmbient {
+  mix-blend-mode: soft-light;
+  opacity: 1;
+}
+
+html[data-app-scene="fresh-lime"][data-scene-tier="immersive"] #sceneFxCanvasAmbient {
+  mix-blend-mode: screen;
+  opacity: 1;
+}
+
+html[data-app-scene="cloud-pavilion"][data-scene-tier="immersive"] #sceneFxCanvasAmbient {
+  mix-blend-mode: soft-light;
+  opacity: 1;
+}
+
+html[data-app-scene="morning-drizzle"][data-scene-tier="immersive"] #sceneFxCanvasAmbient {
+  mix-blend-mode: overlay;
+  opacity: 0.92;
+}
+
+html[data-app-scene="doom-carrion"][data-scene-tier="immersive"] #sceneFxCanvasAmbient {
+  mix-blend-mode: normal;
+  opacity: 1;
+}
+
+html[data-app-scene="moon-haze"][data-scene-tier="immersive"] #sceneFxCanvasAmbient {
   mix-blend-mode: soft-light;
   opacity: 1;
 }

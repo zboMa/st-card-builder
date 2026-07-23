@@ -1,13 +1,13 @@
 /**
- * 末日邪鸦 L3：鸦影掠过 + 羽屑
+ * 末日邪鸦 L3：ambient 鸦影掠过 + 羽屑
  */
-
 var CROW = 'rgba(30, 28, 26, ';
 var FEATHER = 'rgba(180, 100, 50, ';
 var ASH = 'rgba(120, 110, 100, ';
 
-/** @param {CanvasRenderingContext2D} ctx @param {HTMLCanvasElement} canvas */
-export function createSceneFx(ctx, canvas) {
+/** @param {{ blend: CanvasRenderingContext2D|null, ambient: CanvasRenderingContext2D|null }} env */
+export function createSceneFx(env) {
+  var ctxA = env.ambient;
   var W = 0;
   var H = 0;
   var crows = [];
@@ -15,19 +15,7 @@ export function createSceneFx(ctx, canvas) {
   var introT = 0;
   var t = 0;
 
-  function resize(w, h) {
-    W = w;
-    H = h;
-    if (!crows.length) {
-      crows = [
-        { t: 0, speed: 0.00035, y: 0.22, scale: 1.1, phase: 0 },
-        { t: 0.4, speed: 0.00028, y: 0.35, scale: 0.85, phase: 2 },
-        { t: 0.7, speed: 0.00032, y: 0.18, scale: 0.95, phase: 4 },
-      ];
-    }
-  }
-
-  function drawCrow(cx, cy, sc, wing) {
+  function drawCrow(ctx, cx, cy, sc, wing) {
     ctx.save();
     ctx.translate(cx, cy);
     ctx.scale(sc, sc);
@@ -41,11 +29,22 @@ export function createSceneFx(ctx, canvas) {
     ctx.restore();
   }
 
-  function tick() {
+  function resize(w, h) {
+    W = w;
+    H = h;
+    if (!crows.length) {
+      crows = [
+        { t: 0, speed: 0.00035, y: 0.22, scale: 1.1, phase: 0 },
+        { t: 0.4, speed: 0.00028, y: 0.35, scale: 0.85, phase: 2 },
+        { t: 0.7, speed: 0.00032, y: 0.18, scale: 0.95, phase: 4 },
+      ];
+    }
+  }
+
+  function tickAmbient() {
+    if (!ctxA) return;
     t += 16;
     if (introT < 1) introT = Math.min(1, introT + 0.012);
-    ctx.clearRect(0, 0, W, H);
-
     for (var i = 0; i < crows.length; i++) {
       var c = crows[i];
       c.t += c.speed * introT;
@@ -53,9 +52,8 @@ export function createSceneFx(ctx, canvas) {
       var cx = c.t * (W + 120) - 60;
       var cy = H * c.y + Math.sin(t * 0.001 + c.phase) * 12;
       var wing = Math.sin(t * 0.004 + c.phase) * 0.5 + 0.5;
-      drawCrow(cx, cy, c.scale * introT, wing);
+      drawCrow(ctxA, cx, cy, c.scale * introT, wing);
     }
-
     for (var j = feathers.length - 1; j >= 0; j--) {
       var f = feathers[j];
       f.life -= 1;
@@ -64,12 +62,12 @@ export function createSceneFx(ctx, canvas) {
       f.y += f.vy;
       f.vy += 0.04;
       var fa = f.life / f.maxLife;
-      ctx.strokeStyle = (f.kind === 'feather' ? FEATHER : ASH) + (fa * 0.6).toFixed(3) + ')';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.moveTo(f.x, f.y);
-      ctx.quadraticCurveTo(f.x + f.vx * 3, f.y - 4, f.x + f.vx * 6, f.y + 2);
-      ctx.stroke();
+      ctxA.strokeStyle = (f.kind === 'feather' ? FEATHER : ASH) + (fa * 0.6).toFixed(3) + ')';
+      ctxA.lineWidth = 1.5;
+      ctxA.beginPath();
+      ctxA.moveTo(f.x, f.y);
+      ctxA.quadraticCurveTo(f.x + f.vx * 3, f.y - 4, f.x + f.vx * 6, f.y + 2);
+      ctxA.stroke();
     }
   }
 
@@ -80,8 +78,7 @@ export function createSceneFx(ctx, canvas) {
       var sp = 1.5 + Math.random() * 3;
       feathers.push({
         x: x, y: y,
-        vx: Math.cos(ang) * sp,
-        vy: Math.sin(ang) * sp - 1,
+        vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp - 1,
         life: 28 + Math.floor(Math.random() * 10),
         maxLife: 38,
         kind: kind === 'eye' ? 'feather' : 'ash',
@@ -89,14 +86,12 @@ export function createSceneFx(ctx, canvas) {
     }
   }
 
-  function playIntro() { introT = 0; }
-
   return {
     mount: function() {},
     destroy: function() { feathers = []; introT = 0; },
     resize: resize,
-    tick: tick,
+    tickAmbient: tickAmbient,
     burst: burst,
-    playIntro: playIntro,
+    playIntro: function() { introT = 0; },
   };
 }
