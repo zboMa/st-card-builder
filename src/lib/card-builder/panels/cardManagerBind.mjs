@@ -138,6 +138,15 @@ export function attachCardManagerBind(ctx, s, panel) {
       });
     }
 
+    var btnCloudSyncAll = ctx.$('btnCloudSyncAllDirty');
+    if (btnCloudSyncAll && !btnCloudSyncAll._cardMgrBound) {
+      btnCloudSyncAll._cardMgrBound = true;
+      btnCloudSyncAll.addEventListener('click', function(e) {
+        e.preventDefault();
+        if (panel.cloudUploadAllDirty) panel.cloudUploadAllDirty();
+      });
+    }
+
     var listEl = ctx.$('cardManagerList');
     if (listEl) {
       listEl.addEventListener('click', function (e) {
@@ -358,6 +367,20 @@ export function attachCardManagerBind(ctx, s, panel) {
 
     window.addEventListener('card-builder-data-changed', function() {
       if (s.getCurrentAppView() === 'card-manager') panel.updateCardManagerUI();
+    });
+
+    window.addEventListener('card-local-saved', function() {
+      import('../../sync/index.mjs').then(function(sync) {
+        if (!sync.isCloudEnabled || !sync.isCloudEnabled()) return;
+        var bar = ctx.$('importStatusBar');
+        if (!bar) return;
+        bar.style.display = 'block';
+        bar.classList.remove('is-error');
+        bar.textContent = '已本地保存；改完请到卡管理点「同步上云」';
+        setTimeout(function() {
+          if (bar.textContent.indexOf('同步上云') >= 0) bar.style.display = 'none';
+        }, 5000);
+      }).catch(function() { /* ignore */ });
     });
   };
   return panel;

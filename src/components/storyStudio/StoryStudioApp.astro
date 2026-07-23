@@ -4,10 +4,6 @@ import StoryStudioStyles from './StoryStudioStyles.astro';
 <div id="storyStudioRoot" hidden aria-hidden="true"></div>
 <StoryStudioStyles />
 <script>
-  import { initStoryStudio } from '../../lib/storyStudio/browserApp.mjs';
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function() { initStoryStudio(); });
-  } else {
-    initStoryStudio();
-  }
+  import { attachStoryStudioLazyBoot } from '../../lib/storyStudio/storyStudioLazyBoot.mjs';
+  attachStoryStudioLazyBoot();
 </script>

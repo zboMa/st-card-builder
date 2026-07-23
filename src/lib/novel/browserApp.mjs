@@ -432,7 +432,7 @@ export function initNovelWorkshop() {
     }
   });
 
-  ctx.bindCard(currentCardId(), { force: true, render: false }).then(function() {
+  ctx.bindCard(currentCardId(), { force: true, render: false, skipSave: true }).then(function() {
     renderAll();
   }).catch(function(err) {
     console.warn('[novel] init bind failed', err);

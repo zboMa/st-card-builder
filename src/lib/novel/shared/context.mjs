@@ -214,7 +214,7 @@ export function createNovelAppContext(sm, opts) {
         ctx.state = ctx.sm.state;
         ctx.editState.editingCharId = null;
         ctx.syncRagOptionsToAiPanel();
-        ctx.save();
+        if (!(renderOpts && renderOpts.skipSave)) ctx.save();
         if (!(renderOpts && renderOpts.render === false)) ctx.renderAll();
       }).catch(function(err) {
         console.warn('[novel] bindCard failed', err);

@@ -4,7 +4,8 @@
 
 ## Boot
 
-`NovelWorkshopApp` → `initNovelWorkshop()`（`src/lib/novel/browserApp.mjs` + `bootSetupGreetings.mjs` / `bootEvents.mjs`）。
+`NovelWorkshopApp` → **懒加载** `novelWorkshopLazyBoot.mjs`，首次进入 `novel-*` 视图再 `initNovelWorkshop()`。  
+`bindCard(..., { skipSave: true })` 用于 init 灌桶，避免无改动写 IDB。
 
 ## 流水线（产品）
 

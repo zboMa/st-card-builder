@@ -12,8 +12,11 @@ import { dataRouter } from './data/routes.mjs';
 import { shareRouter } from './share/routes.mjs';
 import { cardShareRouter } from './share/cardRoutes.mjs';
 import { adminRouter } from './admin/routes.mjs';
+import { attachRequestTiming } from './requestTiming.mjs';
 
 var app = express();
+
+attachRequestTiming(app, { slowMs: 2000 });
 
 app.set('trust proxy', 1);
 app.use(cors({

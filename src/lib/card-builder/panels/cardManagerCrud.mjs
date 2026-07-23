@@ -17,7 +17,9 @@ export function attachCardManagerCrud(ctx, s, panel) {
     d.avatarInIdb = true;
     d.avatarBase64 = '';
     dr[id] = d;
-    try { localStorage.setItem(DRAFTS_KEY, JSON.stringify(dr)); } catch (e) { console.warn('Saving drafts to localStorage failed', e); }
+    try { ctx.sm.patchDraftRecord(id, { avatarInIdb: true, avatarBase64: '' }, { notify: false }); } catch (e) {
+      try { localStorage.setItem(DRAFTS_KEY, JSON.stringify(dr)); } catch (e2) { console.warn('Saving drafts to localStorage failed', e2); }
+    }
     return true;
   }
 
@@ -42,6 +44,11 @@ export function attachCardManagerCrud(ctx, s, panel) {
     if (result.saved && saveIndicator) {
       saveIndicator.style.display = 'inline';
       setTimeout(function () { saveIndicator.style.display = 'none'; }, 1500);
+    }
+    if (result.saved && !result.unchanged) {
+      window.dispatchEvent(new CustomEvent('card-local-saved', {
+        detail: { cardId: ctx.state.draftId, needsCloudSync: true },
+      }));
     }
     panel.updateCardManagerUI(result.drafts);
     return result.saved;
@@ -300,7 +307,7 @@ export function attachCardManagerCrud(ctx, s, panel) {
     copy.avatarInIdb = !!(src.avatarInIdb || src.avatarBase64);
     if (copy.avatarInIdb) copy.avatarBase64 = '';
     dr[newId] = copy;
-    localStorage.setItem(DRAFTS_KEY, JSON.stringify(dr));
+    ctx.sm.writeDraftsMap(dr, { notify: false });
 
     await s.ensureIdbReady();
     if (window.__avatarIdb__) {
@@ -338,13 +345,10 @@ export function attachCardManagerCrud(ctx, s, panel) {
     }
     next = String(next).trim();
     if (!next) return { ok: false, error: '名称为空' };
-    d.charName = next;
-    d.updatedAt = new Date().toLocaleTimeString('zh-CN', { hour12: false });
-    dr[id] = d;
-    localStorage.setItem(DRAFTS_KEY, JSON.stringify(dr));
+    var renamed = ctx.sm.renameDraft(id, next);
+    if (!renamed.ok) return renamed;
     var currentId = s.getCurrentDraftId();
     if (id === currentId) {
-      ctx.state.charName = next;
       var el = ctx.$('charName');
       if (el) el.value = next;
     }
@@ -353,7 +357,7 @@ export function attachCardManagerCrud(ctx, s, panel) {
       var fj = buildCardJSONFromDraft(ctx.state);
       window.updatePreviewPanel(fj);
     }
-    return { ok: true, id: id, name: next };
+    return renamed;
   };
   return panel;
 }

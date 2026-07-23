@@ -80,10 +80,10 @@
 | 导入 / AI 写回 / 助手 API | 代码写入 state 后需持久化 |
 | 导出 / 发布 / 增版前 save | 保证读到最新 DOM/ state |
 
-### 不经 `saveDraft` 的例外（Phase 2 待收敛）
+### 不经 `saveDraft` 的例外
 
-直写 `localStorage`：`renameDraft`（Crud）、增版/切版（Render）、发布回写（PublishShare）、头像迁 IDB（Crud load）。  
-云同步：**不**走 autosave；仅卡管理「同步上云」或 outbox flush。
+- `cloudStoreShared.writeDrafts`：云端水合写入 drafts map（同步子系统）
+- 其余 drafts 变更应经 `stateMachine.saveDraft` / `writeDraftsMap` / `patchDraftRecord` / `renameDraft` 等 API
 
 ### 小说工坊
 
