@@ -1,0 +1,36 @@
+/**
+ * 主题馆卡片 / 侧栏入口微缩场景 preview
+ */
+
+.theme-preview--nocturne {
+  background:
+    radial-gradient(ellipse 80% 70% at 50% 0%, oklch(76% 0.095 310 / 0.35) 0%, transparent 55%),
+    oklch(19% 0.016 285);
+}
+
+.theme-preview--sumi-ink {
+  background:
+    repeating-linear-gradient(0deg, oklch(98% 0.008 75 / 0.04) 0 1px, transparent 1px 3px),
+    radial-gradient(ellipse 70% 55% at 20% 15%, oklch(25% 0.02 50 / 0.55) 0%, transparent 60%),
+    oklch(19% 0.018 55);
+}
+
+.theme-preview--frost-shard {
+  background:
+    linear-gradient(135deg, oklch(88% 0.05 220 / 0.15) 0%, transparent 45%),
+    radial-gradient(circle at 80% 20%, oklch(78% 0.08 220 / 0.25) 0%, transparent 40%),
+    oklch(17% 0.02 240);
+}
+
+.theme-preview--ember-blaze {
+  background:
+    radial-gradient(ellipse 90% 60% at 50% 100%, oklch(58% 0.18 45 / 0.45) 0%, transparent 55%),
+    oklch(17% 0.028 35);
+}
+
+.theme-preview--bamboo-edge {
+  background:
+    repeating-linear-gradient(125deg, oklch(70% 0.06 155 / 0.06) 0 1px, transparent 1px 10px),
+    radial-gradient(ellipse 40% 80% at 95% 50%, oklch(55% 0.08 155 / 0.35) 0%, transparent 55%),
+    oklch(17% 0.02 165);
+}

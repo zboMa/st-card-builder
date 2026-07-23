@@ -61,11 +61,12 @@ const REQUIRED_UI_CLASSES = [
 ];
 
 describe('design tokens (Nocturne Atelier)', function() {
-  it('tokens.css 存在且引入 base + themes', function() {
+  it('tokens.css 存在且引入 base + themes + scenes', function() {
     assert.ok(existsSync(tokensPath), 'missing src/styles/tokens.css');
     const css = readFileSync(tokensPath, 'utf8');
     assert.match(css, /tokens-base\.css/);
     assert.match(css, /tokens-themes\.css/);
+    assert.match(css, /theme\/scenes\.css/);
   });
 
   it('tokens-themes.css 含关键语义变量（默认 nocturne / :root）', function() {

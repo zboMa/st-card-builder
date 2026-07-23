@@ -1,0 +1,45 @@
+/**
+ * 场景装饰层共享约定（pointer-events: none，不挡交互）
+ */
+html[data-app-scene]:not([data-app-scene="none"]) body {
+  position: relative;
+}
+
+html[data-app-scene="sumi-ink"] body::before,
+html[data-app-scene="sumi-ink"] body::after,
+html[data-app-scene="frost-shard"] body::before,
+html[data-app-scene="frost-shard"] body::after,
+html[data-app-scene="ember-blaze"] body::before,
+html[data-app-scene="ember-blaze"] body::after,
+html[data-app-scene="bamboo-edge"] body::before,
+html[data-app-scene="bamboo-edge"] body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+html[data-app-scene]:not([data-app-scene="none"]) .app-shell,
+html[data-app-scene]:not([data-app-scene="none"]) .app-sidebar,
+html[data-app-scene]:not([data-app-scene="none"]) .app-container,
+html[data-app-scene]:not([data-app-scene="none"]) .assistant-panel {
+  position: relative;
+  z-index: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-app-scene] body::before,
+  html[data-app-scene] body::after,
+  html[data-app-scene] .app-sidebar::before {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  html[data-app-scene] body::before,
+  html[data-app-scene] body::after {
+    opacity: 0.35;
+  }
+}

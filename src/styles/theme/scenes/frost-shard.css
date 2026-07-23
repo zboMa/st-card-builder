@@ -1,0 +1,36 @@
+/* 碎冰寒霜 · 冰裂 overlay + 冷棱高光 */
+
+html[data-app-scene="frost-shard"] body::before {
+  background:
+    linear-gradient(135deg, oklch(88% 0.04 220 / 0.04) 0%, transparent 40%),
+    radial-gradient(ellipse 80% 50% at 50% -10%, oklch(78% 0.08 220 / 0.1) 0%, transparent 55%);
+}
+
+html[data-app-scene="frost-shard"] body::after {
+  opacity: 0.35;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 400'%3E%3Cpath d='M0 120 L80 40 L160 100 L240 20 L320 90 L400 30' fill='none' stroke='white' stroke-opacity='0.08' stroke-width='1'/%3E%3Cpath d='M20 200 L100 140 L180 220 L260 150 L340 210 L400 170' fill='none' stroke='white' stroke-opacity='0.06' stroke-width='0.8'/%3E%3Cpath d='M0 300 L120 250 L200 320 L280 260 L400 310' fill='none' stroke='white' stroke-opacity='0.07' stroke-width='1'/%3E%3C/svg%3E");
+  background-size: cover;
+  mix-blend-mode: overlay;
+  animation: theme-frost-drift 60s linear infinite;
+}
+
+html[data-app-scene="frost-shard"] .app-sidebar {
+  position: relative;
+}
+
+html[data-app-scene="frost-shard"] .app-sidebar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(105deg, transparent 70%, oklch(90% 0.04 220 / 0.06) 100%);
+}
+
+html[data-app-scene="frost-shard"] .app-container > .panel {
+  box-shadow: var(--shadow-panel), 0 0 24px oklch(85% 0.04 220 / 0.06);
+}
+
+@keyframes theme-frost-drift {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(-12px, 8px, 0); }
+}
