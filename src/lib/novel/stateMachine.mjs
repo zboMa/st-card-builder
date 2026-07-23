@@ -1,6 +1,6 @@
 /**
  * 小说工坊状态机 —— 封装 state 读写、持久化、变更通知
- * 
+ *
  * 渐进迁移策略：
  * - `sm.state` 仍然可直接读写（兼容现有 browserApp 代码）
  * - `sm.set()` / `sm.get()` 为新增 API，逐步替换直接赋值
@@ -14,14 +14,14 @@ import {
   idbDeleteJson,
   idbCopyJson,
   idbNovelKey,
-} from '../idbStore.mjs';
-import { createDefaultNovelState, hydrateNovelState } from './state.mjs';
+} from "../idbStore.mjs";
+import { createDefaultNovelState, hydrateNovelState } from "./state.mjs";
 
-var NOVEL_STORAGE_KEY = 'novelWorkshopV3';
-var NOVEL_BUCKET_PREFIX = 'novelWorkshopV3:card:';
+var NOVEL_STORAGE_KEY = "novelWorkshopV3";
+var NOVEL_BUCKET_PREFIX = "novelWorkshopV3:card:";
 
 function bucketKey(cardId) {
-  return NOVEL_BUCKET_PREFIX + (cardId || '');
+  return NOVEL_BUCKET_PREFIX + (cardId || "");
 }
 
 function legacyGlobalKey() {
@@ -29,7 +29,7 @@ function legacyGlobalKey() {
 }
 
 function legacyV2Key() {
-  return 'novelWorkshopV2';
+  return "novelWorkshopV2";
 }
 
 /**
@@ -46,12 +46,16 @@ export function createNovelStateMachine(opts) {
   var _idbGet = o.idbGet || idbGetJson;
   var _idbSet = o.idbSet || idbSetJson;
   var _idbDelete = o.idbDelete || idbDeleteJson;
-  var _getCardId = o.getCardId || function() { return ''; };
-  var _debug = o.debugLog || function() {};
+  var _getCardId =
+    o.getCardId ||
+    function () {
+      return "";
+    };
+  var _debug = o.debugLog || function () {};
 
   /** @type {object} 公共可读写的 state 对象 */
   var state = createDefaultNovelState();
-  var boundCardId = '';
+  var boundCardId = "";
   var _debounceTimer = null;
   var DEBOUNCE_MS = 280;
   var _listeners = [];
@@ -86,30 +90,39 @@ export function createNovelStateMachine(opts) {
     var key = _bucketKey();
     if (!key || key === NOVEL_BUCKET_PREFIX) return;
     var cardId = boundCardId;
-    _idbSet(key, raw).then(function() {
-      if (cardId) {
-        import('../sync/contentRev.mjs').then(function(m) {
-          m.bumpCardBundleTouch(cardId);
-        }).catch(function() { /* ignore */ });
-      }
-    }).catch(function(err) {
-      _debug('stateMachine: IDB 写入失败，回退 localStorage', err);
-      try {
-        localStorage.setItem(key, JSON.stringify(raw));
-      } catch (e) {
-        _debug('stateMachine: localStorage 回退也失败', e);
-      }
-    });
+    _idbSet(key, raw)
+      .then(function () {
+        if (cardId) {
+          import("../sync/contentRev.mjs")
+            .then(function (m) {
+              m.bumpCardBundleTouch(cardId);
+            })
+            .catch(function () {
+              /* ignore */
+            });
+        }
+      })
+      .catch(function (err) {
+        _debug("stateMachine: IDB 写入失败，回退 localStorage", err);
+        try {
+          localStorage.setItem(key, JSON.stringify(raw));
+        } catch (e) {
+          _debug("stateMachine: localStorage 回退也失败", e);
+        }
+      });
   }
 
   function _debouncedSave() {
     if (_debounceTimer) clearTimeout(_debounceTimer);
-    _debounceTimer = setTimeout(function() { _persist(); }, DEBOUNCE_MS);
+    _debounceTimer = setTimeout(function () {
+      _persist();
+    }, DEBOUNCE_MS);
   }
 
   function _loadBucket(key) {
-    return _idbGet(key).then(function(data) {
-      if (data && typeof data === 'object' && Object.keys(data).length) return data;
+    return _idbGet(key).then(function (data) {
+      if (data && typeof data === "object" && Object.keys(data).length)
+        return data;
       return null;
     });
   }
@@ -119,19 +132,28 @@ export function createNovelStateMachine(opts) {
       var raw = localStorage.getItem(key);
       if (!raw) return null;
       var data = JSON.parse(raw);
-      if (data && typeof data === 'object' && Object.keys(data).length) return data;
+      if (data && typeof data === "object" && Object.keys(data).length)
+        return data;
     } catch (e) {
-      _debug('stateMachine: legacy load failed', e);
+      _debug("stateMachine: legacy load failed", e);
     }
     return null;
   }
 
   function _migrateOldGlobal(cardId, data) {
     var key = bucketKey(cardId);
-    return _idbSet(key, data).then(function() {
-      try { localStorage.removeItem(legacyGlobalKey()); } catch (e) { console.warn('Removing legacy global novel data failed', e); }
-      try { localStorage.removeItem(legacyV2Key()); } catch (e) { console.warn('Removing legacy V2 novel data failed', e); }
-      _debug('stateMachine: migrated legacy data to', key);
+    return _idbSet(key, data).then(function () {
+      try {
+        localStorage.removeItem(legacyGlobalKey());
+      } catch (e) {
+        console.warn("Removing legacy global novel data failed", e);
+      }
+      try {
+        localStorage.removeItem(legacyV2Key());
+      } catch (e) {
+        console.warn("Removing legacy V2 novel data failed", e);
+      }
+      _debug("stateMachine: migrated legacy data to", key);
     });
   }
 
@@ -144,7 +166,11 @@ export function createNovelStateMachine(opts) {
       characters: (state.characters || []).slice(),
     });
     for (var i = 0; i < _listeners.length; i++) {
-      try { _listeners[i](snapshot, changedKeys); } catch (e) { _debug('stateMachine: listener error', e); }
+      try {
+        _listeners[i](snapshot, changedKeys);
+      } catch (e) {
+        _debug("stateMachine: listener error", e);
+      }
     }
   }
 
@@ -153,80 +179,98 @@ export function createNovelStateMachine(opts) {
     state: state,
 
     /** 当前绑定的 cardId */
-    getBoundCardId: function() { return boundCardId; },
+    getBoundCardId: function () {
+      return boundCardId;
+    },
 
     /**
      * 绑定新卡片：加载对应桶数据，替换当前 state
      * @returns {Promise<void>}
      */
-    bindCard: function(cardId) {
+    bindCard: function (cardId) {
       _flush();
-      var id = String(cardId || _getCardId() || '');
+      var id = String(cardId || _getCardId() || "");
       if (!id) {
         _replaceState(createDefaultNovelState());
-        boundCardId = '';
+        boundCardId = "";
         return Promise.resolve();
       }
       boundCardId = id;
       var key = _bucketKey();
-      return _loadBucket(key).then(function(data) {
+      return _loadBucket(key).then(function (data) {
         if (data) {
           _replaceState(hydrateNovelState(data));
-          _notify(['*']);
+          _notify(["*"]);
           return;
         }
-        return Promise.resolve().then(function() {
-          return _loadLegacy(legacyGlobalKey());
-        }).then(function(globalData) {
-          if (globalData && Object.keys(globalData).length) {
-            return _migrateOldGlobal(id, globalData);
-          }
-          return Promise.resolve();
-        }).then(function() {
-          return _loadLegacy(legacyV2Key());
-        }).then(function(v2Data) {
-          if (v2Data && typeof v2Data === 'string' && v2Data.trim()) {
-            var migrated = hydrateNovelState({ sourceText: v2Data });
-            return _idbSet(key, migrated);
-          }
-          return Promise.resolve();
-        }).then(function() {
-          return _loadBucket(key);
-        }).then(function(d) {
-          if (d) {
-            _replaceState(hydrateNovelState(d));
-          }
-          _notify(['*']);
-        });
+        return Promise.resolve()
+          .then(function () {
+            return _loadLegacy(legacyGlobalKey());
+          })
+          .then(function (globalData) {
+            if (globalData && Object.keys(globalData).length) {
+              return _migrateOldGlobal(id, globalData);
+            }
+            return Promise.resolve();
+          })
+          .then(function () {
+            return _loadLegacy(legacyV2Key());
+          })
+          .then(function (v2Data) {
+            if (v2Data && typeof v2Data === "string" && v2Data.trim()) {
+              var migrated = hydrateNovelState({ sourceText: v2Data });
+              return _idbSet(key, migrated);
+            }
+            return Promise.resolve();
+          })
+          .then(function () {
+            return _loadBucket(key);
+          })
+          .then(function (d) {
+            if (d) {
+              _replaceState(hydrateNovelState(d));
+            }
+            _notify(["*"]);
+          });
       });
     },
 
     /** 主动保存（绕过 debounce） */
-    save: function() { _flush(); },
+    save: function () {
+      _flush();
+    },
 
     /** 延迟保存（滚动输入时用，减少 I/O） */
-    saveDebounced: function() { _debouncedSave(); },
+    saveDebounced: function () {
+      _debouncedSave();
+    },
 
     /** 重置为本卡默认空状态 */
-    reset: function() {
+    reset: function () {
       _replaceState(createDefaultNovelState());
       _persist();
-      _notify(['*']);
+      _notify(["*"]);
     },
 
     /** 删除当前卡的数据 */
-    remove: function() {
+    remove: function () {
       var key = _bucketKey();
       if (!key || key === NOVEL_BUCKET_PREFIX) return Promise.resolve();
-      _idbDelete(key).catch(function(e) { _debug('stateMachine: delete failed', e); });
-      try { localStorage.removeItem(key); } catch (e) { console.warn('Removing novel bucket from localStorage failed', e); }
+      _idbDelete(key).catch(function (e) {
+        _debug("stateMachine: delete failed", e);
+      });
+      try {
+        localStorage.removeItem(key);
+      } catch (e) {
+        console.warn("Removing novel bucket from localStorage failed", e);
+      }
       _replaceState(createDefaultNovelState());
-      boundCardId = '';
+      boundCardId = "";
       return Promise.resolve();
     },
 
     /** 复制数据到新卡 */
-    copyTo: function(targetCardId) {
+    copyTo: function (targetCardId) {
       _flush();
       return idbCopyJson(_bucketKey(), bucketKey(targetCardId));
     },
@@ -235,7 +279,7 @@ export function createNovelStateMachine(opts) {
      * 捕获快照（供 undo）
      * @returns {string} JSON 快照
      */
-    captureSnapshot: function() {
+    captureSnapshot: function () {
       return JSON.stringify(state);
     },
 
@@ -243,10 +287,14 @@ export function createNovelStateMachine(opts) {
      * 恢复快照
      * @param {string} json
      */
-    restoreSnapshot: function(json) {
+    restoreSnapshot: function (json) {
       if (!json) return;
       var parsed;
-      try { parsed = JSON.parse(json); } catch (e) { return; }
+      try {
+        parsed = JSON.parse(json);
+      } catch (e) {
+        return;
+      }
       _replaceState(hydrateNovelState(parsed));
       _persist();
     },
@@ -256,9 +304,9 @@ export function createNovelStateMachine(opts) {
      * @param {function(stateSnapshot, changedKeys: string[])} listener
      * @returns {function} 取消监听的函数
      */
-    onChange: function(listener) {
+    onChange: function (listener) {
       _listeners.push(listener);
-      return function() {
+      return function () {
         var idx = _listeners.indexOf(listener);
         if (idx >= 0) _listeners.splice(idx, 1);
       };
@@ -267,7 +315,7 @@ export function createNovelStateMachine(opts) {
     /**
      * 设置指定字段（渐进 API——当前与直接 state.xxx = yyy 等效，未来可加校验）
      */
-    set: function(key, value) {
+    set: function (key, value) {
       state[key] = value;
       return sm;
     },
@@ -275,7 +323,7 @@ export function createNovelStateMachine(opts) {
     /**
      * 读取指定字段
      */
-    get: function(key) {
+    get: function (key) {
       return state[key];
     },
 
