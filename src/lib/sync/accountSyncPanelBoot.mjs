@@ -232,8 +232,14 @@ export function initAccountSyncPanel() {
         tip.classList.remove('is-err');
       }
     } else {
-      el.textContent = '尚未对齐';
-      if (tip && !tip.classList.contains('is-err')) tip.textContent = '';
+      el.textContent = st.outboxSize
+        ? ('离线队列待传 ' + st.outboxSize + ' 条')
+        : '尚未对齐';
+      if (tip && !tip.classList.contains('is-err')) {
+        tip.textContent = st.outboxSize
+          ? '点「刷新云端列表」处理离线队列（不上传本地卡包）'
+          : '';
+      }
     }
 
     var ms = getMsUntilNextSync();
