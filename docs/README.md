@@ -20,6 +20,7 @@
 | 小说创作（story studio） | [`architecture/story-studio.md`](./architecture/story-studio.md) |
 | 试聊运行时 | [`architecture/chat-runtime.md`](./architecture/chat-runtime.md) |
 | 生产部署 / Nginx | [`ops/production.md`](./ops/production.md)、[`ops/nginx.md`](./ops/nginx.md) |
+| 升级路线 / 回归 / 基线 | [`ops/upgrade-roadmap.md`](./ops/upgrade-roadmap.md)、[`ops/regression-checklist.md`](./ops/regression-checklist.md)、[`ops/baseline-metrics.md`](./ops/baseline-metrics.md) |
 | 写卡教程 / 目录扩写质量 | [`guides/`](./guides/) |
 
 ## 真相源（SoT）
@@ -32,6 +33,7 @@
 | ST 卡字段 | `docs/domains/st-card-fields.md` + `src/lib/assistant/characterFields.mjs` | 随手猜的 ST 字段名 |
 | NSFW / NTL | **代码** `src/lib/adult/**`；规则见 `domains/nsfw-ntl.md`（**禁止文档写死口味数量**） | README / 旧架构里的数量 |
 | 部署 | `docs/ops/production.md` + `deploy/` + `.github/workflows/deploy.yml` | 「没有 CI/Docker」类传言 |
+| 升级执行 | `docs/ops/upgrade-roadmap.md` + `regression-checklist.md` + `baseline-metrics.md` | 口头约定无文档 |
 
 ## 目录约定
 
