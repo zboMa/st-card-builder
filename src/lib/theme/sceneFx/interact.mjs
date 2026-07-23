@@ -20,6 +20,8 @@ var BURST_KIND = {
   'fresh-lime': { default: 'zest', primary: 'zest' },
   'cloud-pavilion': { default: 'puff', primary: 'gild' },
   'morning-drizzle': { default: 'raindrop', primary: 'raindrop' },
+  'doom-carrion': { default: 'ash', primary: 'eye' },
+  'moon-haze': { default: 'halo', primary: 'halo' },
 };
 
 function onPointerDown(e) {

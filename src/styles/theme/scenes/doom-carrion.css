@@ -1,0 +1,147 @@
+/* 末日邪鸦 · 断壁 + 鸦翼掠过 */
+
+html[data-app-scene="doom-carrion"] body {
+  background-color: oklch(11% 0.01 50);
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% 100%, oklch(45% 0.12 38 / 0.2) 0%, transparent 55%),
+    radial-gradient(ellipse 60% 40% at 20% 0%, oklch(38% 0.06 300 / 0.08) 0%, transparent 50%);
+}
+
+html[data-app-scene="doom-carrion"] body::before {
+  z-index: 0;
+  opacity: 1;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 700' preserveAspectRatio='xMidYMid slice'%3E%3Cpath d='M0 420 L180 320 L320 380 L480 280 L640 360 L820 240 L980 320 L1200 260 L1200 700 L0 700 Z' fill='%23303030' fill-opacity='0.55'/%3E%3Cpath d='M0 480 L240 400 L420 460 L620 380 L880 440 L1200 400 L1200 700 L0 700 Z' fill='%23202020' fill-opacity='0.65'/%3E%3Cpath d='M200 180 Q280 120 360 160 Q420 100 520 140 L500 200 Q420 170 360 210 Q280 160 200 180' fill='%23181818' fill-opacity='0.7'/%3E%3Cpath d='M700 100 Q780 60 860 90 Q920 50 1000 80 L980 140 Q920 110 860 145 Q780 100 700 100' fill='%23181818' fill-opacity='0.65'/%3E%3Cpath d='M480 80 Q520 50 560 70 L550 95 Q520 80 480 80' fill='%23101010' fill-opacity='0.75'/%3E%3C/svg%3E") center bottom / cover no-repeat,
+    repeating-linear-gradient(92deg, oklch(90% 0.01 55 / 0.015) 0 1px, transparent 1px 6px);
+}
+
+html[data-app-scene="doom-carrion"][data-scene-tier="immersive"] body::before {
+  animation: theme-doom-ash 720ms var(--ease-out) both;
+}
+
+html[data-app-scene="doom-carrion"] body::after {
+  z-index: 0;
+  background:
+    radial-gradient(ellipse 50% 30% at 70% 25%, oklch(55% 0.1 300 / 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse 80% 40% at 50% 100%, oklch(58% 0.14 45 / 0.12) 0%, transparent 55%);
+}
+
+html[data-app-scene="doom-carrion"][data-scene-tier="immersive"] body::after {
+  animation: theme-doom-smoke 18s ease-in-out infinite alternate;
+}
+
+html[data-app-scene="doom-carrion"] .app-sidebar,
+html[data-app-scene="doom-carrion"] .assistant-panel,
+html[data-app-scene="doom-carrion"] .app-container > .panel {
+  background: oklch(21% 0.014 55 / 0.34) !important;
+  backdrop-filter: blur(16px) saturate(90%);
+  -webkit-backdrop-filter: blur(16px) saturate(90%);
+  border-color: oklch(68% 0.14 45 / 0.14) !important;
+  box-shadow:
+    var(--shadow-panel),
+    inset 0 1px 0 oklch(68% 0.14 45 / 0.08),
+    inset 0 0 0 1px oklch(38% 0.01 50 / 0.15);
+}
+
+html[data-app-scene="doom-carrion"] .app-sidebar::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 4px;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    oklch(55% 0.12 38 / 0.4) 15%,
+    oklch(68% 0.14 45 / 0.55) 50%,
+    oklch(48% 0.1 300 / 0.35) 85%,
+    transparent 100%
+  );
+  opacity: 0.7;
+}
+
+html[data-app-scene="doom-carrion"] .app-sidebar-item {
+  position: relative;
+}
+
+html[data-app-scene="doom-carrion"] .app-sidebar-item.is-active::before {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 50%;
+  width: 10px;
+  height: 6px;
+  margin-top: -3px;
+  background: oklch(68% 0.14 45);
+  clip-path: polygon(0 50%, 40% 0, 100% 20%, 70% 50%, 100% 80%, 40% 100%);
+  box-shadow: 0 0 10px oklch(68% 0.14 45 / 0.4);
+}
+
+html[data-app-scene="doom-carrion"] .app-container > .panel .panel-header h2::after {
+  content: '';
+  display: block;
+  width: 3rem;
+  height: 2px;
+  margin-top: var(--space-1);
+  background: linear-gradient(90deg, oklch(68% 0.14 45), oklch(48% 0.1 300 / 0.5), transparent);
+  opacity: 0.85;
+}
+
+html[data-app-scene="doom-carrion"] .btn-primary {
+  background: linear-gradient(165deg, oklch(62% 0.15 42) 0%, oklch(48% 0.14 38) 100%);
+  border-color: oklch(68% 0.14 45 / 0.55);
+  color: oklch(98% 0.01 55);
+  box-shadow: 0 2px 18px oklch(55% 0.14 42 / 0.35), inset 0 1px 0 oklch(82% 0.08 55 / 0.2);
+}
+
+html[data-app-scene="doom-carrion"] .btn-primary:hover {
+  box-shadow: 0 4px 24px oklch(55% 0.14 42 / 0.45), inset 0 1px 0 oklch(82% 0.08 55 / 0.25);
+}
+
+html[data-app-scene="doom-carrion"][data-scene-tier="immersive"] .btn-primary:active {
+  animation: theme-doom-eye 320ms var(--ease-out);
+}
+
+html[data-app-scene="doom-carrion"] .ui-modal-dialog {
+  background: oklch(19% 0.014 55 / 0.52) !important;
+  backdrop-filter: blur(20px);
+  box-shadow: var(--shadow-panel), inset 0 0 0 1px oklch(68% 0.14 45 / 0.12);
+}
+
+html[data-app-scene="doom-carrion"] .app-mobile-topbar {
+  background: oklch(16% 0.012 52 / 0.78);
+  border-bottom-color: oklch(68% 0.14 45 / 0.14);
+}
+
+@keyframes theme-doom-ash {
+  from { opacity: 0; filter: blur(4px) grayscale(0.5); }
+  to { opacity: 1; filter: blur(0) grayscale(0); }
+}
+
+@keyframes theme-doom-smoke {
+  from { opacity: 0.85; transform: translateY(0); }
+  to { opacity: 1; transform: translateY(-8px); }
+}
+
+@keyframes theme-doom-eye {
+  0% { filter: brightness(1); }
+  40% { filter: brightness(1.35); box-shadow: 0 0 24px oklch(48% 0.1 300 / 0.4); }
+  100% { filter: brightness(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-app-scene="doom-carrion"] body::before,
+  html[data-app-scene="doom-carrion"] body::after {
+    animation: none !important;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  html[data-app-scene="doom-carrion"] .app-sidebar,
+  html[data-app-scene="doom-carrion"] .assistant-panel,
+  html[data-app-scene="doom-carrion"] .app-container > .panel {
+    background: var(--color-glass) !important;
+  }
+}

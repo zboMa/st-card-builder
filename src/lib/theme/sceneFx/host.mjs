@@ -17,6 +17,8 @@ var LOADERS = {
   'fresh-lime': function() { return import('./freshLime.mjs'); },
   'cloud-pavilion': function() { return import('./cloudPavilion.mjs'); },
   'morning-drizzle': function() { return import('./morningDrizzle.mjs'); },
+  'doom-carrion': function() { return import('./doomCarrion.mjs'); },
+  'moon-haze': function() { return import('./moonHaze.mjs'); },
 };
 
 function resize() {

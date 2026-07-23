@@ -17,7 +17,7 @@ export var LEGACY_THEME_MAP = Object.freeze({
 });
 
 /**
- * @typedef {'none'|'sumi-ink'|'frost-shard'|'ember-blaze'|'bamboo-edge'|'water-wave'|'fresh-lime'|'cloud-pavilion'|'morning-drizzle'} SceneId
+ * @typedef {'none'|'sumi-ink'|'frost-shard'|'ember-blaze'|'bamboo-edge'|'water-wave'|'fresh-lime'|'cloud-pavilion'|'morning-drizzle'|'doom-carrion'|'moon-haze'} SceneId
  */
 
 /** @type {readonly { id: string, label: string, tagline: string, blurb: string, previewClass: string, scene: SceneId, mode: 'dark'|'light', themeColor: string }[]} */
@@ -106,11 +106,31 @@ export var APP_THEMES = Object.freeze([
     id: 'morning-drizzle',
     label: '清晨细雨',
     tagline: '精品',
-    blurb: '薄雾雨丝 · 晓色微蓝',
+    blurb: '密雨丝落 · 晓色微蓝',
     previewClass: 'theme-preview--morning-drizzle',
     scene: 'morning-drizzle',
     mode: 'dark',
     themeColor: '#141820',
+  },
+  {
+    id: 'doom-carrion',
+    label: '末日邪鸦',
+    tagline: '精品',
+    blurb: '断壁鸦影 · 锈铁余烬',
+    previewClass: 'theme-preview--doom-carrion',
+    scene: 'doom-carrion',
+    mode: 'dark',
+    themeColor: '#141210',
+  },
+  {
+    id: 'moon-haze',
+    label: '月影朦胧',
+    tagline: '精品',
+    blurb: '满月月华 · 薄雾银辉',
+    previewClass: 'theme-preview--moon-haze',
+    scene: 'moon-haze',
+    mode: 'dark',
+    themeColor: '#121218',
   },
 ]);
 

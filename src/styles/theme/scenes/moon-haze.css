@@ -1,0 +1,149 @@
+/* 月影朦胧 · 满月 + 月华 */
+
+html[data-app-scene="moon-haze"] body {
+  background-color: oklch(11% 0.01 278);
+  background-image:
+    radial-gradient(ellipse 70% 50% at 75% 12%, oklch(92% 0.02 280 / 0.12) 0%, transparent 55%),
+    radial-gradient(ellipse 90% 40% at 50% 95%, oklch(75% 0.025 280 / 0.08) 0%, transparent 50%);
+}
+
+html[data-app-scene="moon-haze"] body::before {
+  z-index: 0;
+  opacity: 1;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 700' preserveAspectRatio='xMidYMid slice'%3E%3Cdefs%3E%3CradialGradient id='mg' cx='50%25' cy='50%25' r='50%25'%3E%3Cstop offset='0%25' stop-color='%23f0f0f8' stop-opacity='0.55'/%3E%3Cstop offset='70%25' stop-color='%23c8c8e0' stop-opacity='0.25'/%3E%3Cstop offset='100%25' stop-color='%23a0a0c0' stop-opacity='0'/%3E%3C/radialGradient%3E%3C/defs%3E%3Ccircle cx='780' cy='120' r='95' fill='url(%23mg)'/%3E%3Ccircle cx='780' cy='120' r='72' fill='%23e8e8f4' fill-opacity='0.35'/%3E%3Cellipse cx='500' cy='620' rx='420' ry='80' fill='%23d0d0e8' fill-opacity='0.12'/%3E%3Cellipse cx='500' cy='640' rx='320' ry='50' fill='%23e8e8f8' fill-opacity='0.08'/%3E%3C/svg%3E") center center / cover no-repeat,
+    radial-gradient(ellipse 70% 50% at 75% 12%, oklch(92% 0.02 280 / 0.08) 0%, transparent 55%);
+}
+
+html[data-app-scene="moon-haze"][data-scene-tier="immersive"] body::before {
+  animation: theme-moon-rise 680ms var(--ease-out) both;
+}
+
+html[data-app-scene="moon-haze"] body::after {
+  z-index: 0;
+  background:
+    radial-gradient(ellipse 60% 35% at 75% 15%, oklch(95% 0.015 280 / 0.1) 0%, transparent 55%),
+    radial-gradient(ellipse 100% 30% at 50% 100%, oklch(82% 0.02 280 / 0.06) 0%, transparent 60%);
+  mix-blend-mode: soft-light;
+}
+
+html[data-app-scene="moon-haze"][data-scene-tier="immersive"] body::after {
+  animation: theme-moon-breathe 10s ease-in-out infinite alternate;
+}
+
+html[data-app-scene="moon-haze"] .app-sidebar,
+html[data-app-scene="moon-haze"] .assistant-panel,
+html[data-app-scene="moon-haze"] .app-container > .panel {
+  background: oklch(20% 0.014 282 / 0.32) !important;
+  backdrop-filter: blur(22px) saturate(105%);
+  -webkit-backdrop-filter: blur(22px) saturate(105%);
+  border-color: oklch(88% 0.025 280 / 0.12) !important;
+  box-shadow:
+    var(--shadow-panel),
+    inset 0 1px 0 oklch(92% 0.02 280 / 0.1),
+    inset 0 0 0 1px oklch(75% 0.02 280 / 0.08);
+}
+
+html[data-app-scene="moon-haze"] .app-sidebar::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 3px;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    oklch(88% 0.025 280 / 0.35) 20%,
+    oklch(92% 0.02 280 / 0.5) 50%,
+    oklch(88% 0.025 280 / 0.3) 80%,
+    transparent 100%
+  );
+  opacity: 0.65;
+}
+
+html[data-app-scene="moon-haze"] .app-sidebar-item {
+  position: relative;
+}
+
+html[data-app-scene="moon-haze"] .app-sidebar-item.is-active::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  margin-top: -3px;
+  border-radius: 50%;
+  background: radial-gradient(circle, oklch(98% 0.01 280) 30%, oklch(88% 0.025 280) 100%);
+  box-shadow: 0 0 12px oklch(92% 0.02 280 / 0.45);
+}
+
+html[data-app-scene="moon-haze"] .app-container > .panel .panel-header h2::after {
+  content: '';
+  display: block;
+  width: 2.5rem;
+  height: 2px;
+  margin-top: var(--space-1);
+  background: linear-gradient(90deg, oklch(88% 0.025 280), transparent);
+  border-radius: 1px;
+  opacity: 0.8;
+}
+
+html[data-app-scene="moon-haze"] .btn-primary {
+  background: linear-gradient(165deg, oklch(82% 0.03 278) 0%, oklch(65% 0.025 280) 100%);
+  border-color: oklch(88% 0.025 280 / 0.45);
+  color: oklch(14% 0.012 280);
+  box-shadow: 0 2px 16px oklch(75% 0.02 280 / 0.25), inset 0 1px 0 oklch(98% 0.01 280 / 0.3);
+}
+
+html[data-app-scene="moon-haze"] .btn-primary:hover {
+  box-shadow: 0 4px 22px oklch(75% 0.02 280 / 0.35), inset 0 1px 0 oklch(98% 0.01 280 / 0.35);
+}
+
+html[data-app-scene="moon-haze"][data-scene-tier="immersive"] .btn-primary:active {
+  animation: theme-moon-glow 300ms var(--ease-out);
+}
+
+html[data-app-scene="moon-haze"] .ui-modal-dialog {
+  background: oklch(18% 0.014 282 / 0.48) !important;
+  backdrop-filter: blur(24px);
+  box-shadow: var(--shadow-panel), inset 0 0 0 1px oklch(88% 0.025 280 / 0.1);
+}
+
+html[data-app-scene="moon-haze"] .app-mobile-topbar {
+  background: oklch(15% 0.012 280 / 0.75);
+  border-bottom-color: oklch(88% 0.025 280 / 0.1);
+}
+
+@keyframes theme-moon-rise {
+  from { opacity: 0; transform: scale(1.04); filter: blur(3px); }
+  to { opacity: 1; transform: scale(1); filter: blur(0); }
+}
+
+@keyframes theme-moon-breathe {
+  from { opacity: 0.8; transform: scale(1); }
+  to { opacity: 1; transform: scale(1.02); }
+}
+
+@keyframes theme-moon-glow {
+  0% { filter: brightness(1); }
+  50% { filter: brightness(1.2); box-shadow: 0 0 28px oklch(92% 0.02 280 / 0.35); }
+  100% { filter: brightness(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-app-scene="moon-haze"] body::before,
+  html[data-app-scene="moon-haze"] body::after {
+    animation: none !important;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  html[data-app-scene="moon-haze"] .app-sidebar,
+  html[data-app-scene="moon-haze"] .assistant-panel,
+  html[data-app-scene="moon-haze"] .app-container > .panel {
+    background: var(--color-glass) !important;
+  }
+}
