@@ -3,6 +3,8 @@ interface Props {
   title: string;
 }
 
+import ThemeGallery from '../components/ThemeGallery.astro';
+
 const { title } = Astro.props;
 ---
 
@@ -14,13 +16,18 @@ const { title } = Astro.props;
       (function () {
         var K = 'st_v3_app_theme';
         var D = 'nocturne';
-        var ids = ['nocturne', 'ink', 'frost', 'jade', 'rose', 'neon', 'slate', 'daybreak'];
+        var M = { ink: 'sumi-ink', frost: 'frost-shard', jade: 'bamboo-edge', rose: 'nocturne', neon: 'nocturne', slate: 'nocturne', daybreak: 'nocturne' };
+        var ids = ['nocturne', 'sumi-ink', 'frost-shard', 'ember-blaze', 'bamboo-edge'];
+        function sceneFor(t) { return t === 'nocturne' ? 'none' : t; }
         try {
           var t = localStorage.getItem(K) || D;
+          if (M[t]) t = M[t];
           if (ids.indexOf(t) < 0) t = D;
           document.documentElement.setAttribute('data-app-theme', t);
+          document.documentElement.setAttribute('data-app-scene', sceneFor(t));
         } catch (e) {
           document.documentElement.setAttribute('data-app-theme', D);
+          document.documentElement.setAttribute('data-app-scene', 'none');
         }
       })();
     </script>
@@ -37,6 +44,7 @@ const { title } = Astro.props;
   </head>
   <body>
     <slot />
+    <ThemeGallery />
 
     <!-- ★ 全局自定义下拉框增强 -->
     <script>

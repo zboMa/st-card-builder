@@ -1,15 +1,19 @@
 import {
   STORAGE_KEY,
   DEFAULT_THEME_ID,
-  isValidThemeId,
+  migrateThemeId,
   getThemeMeta,
+  sceneIdForTheme,
 } from './themeCatalog.mjs';
 
 /** @returns {string} */
 export function getThemeId() {
-  var el = document.documentElement;
-  var cur = el.getAttribute('data-app-theme');
-  return isValidThemeId(cur) ? String(cur) : DEFAULT_THEME_ID;
+  return migrateThemeId(document.documentElement.getAttribute('data-app-theme'));
+}
+
+function syncSceneAttr(themeId) {
+  var scene = sceneIdForTheme(themeId);
+  document.documentElement.setAttribute('data-app-scene', scene);
 }
 
 function syncMetaThemeColor(id) {
@@ -25,8 +29,9 @@ function syncMetaThemeColor(id) {
 
 /** @param {string} id */
 export function applyTheme(id) {
-  if (!isValidThemeId(id)) id = DEFAULT_THEME_ID;
+  id = migrateThemeId(id);
   document.documentElement.setAttribute('data-app-theme', id);
+  syncSceneAttr(id);
   try {
     localStorage.setItem(STORAGE_KEY, id);
   } catch (e) {}
@@ -38,12 +43,15 @@ export function initTheme() {
   var id = DEFAULT_THEME_ID;
   try {
     var saved = localStorage.getItem(STORAGE_KEY);
-    if (isValidThemeId(saved)) id = String(saved);
+    id = migrateThemeId(saved);
+    if (saved && saved !== id) {
+      localStorage.setItem(STORAGE_KEY, id);
+    }
   } catch (e) {}
-  if (!isValidThemeId(document.documentElement.getAttribute('data-app-theme'))) {
+  var onHtml = migrateThemeId(document.documentElement.getAttribute('data-app-theme'));
+  if (onHtml !== id) {
     document.documentElement.setAttribute('data-app-theme', id);
-  } else {
-    id = getThemeId();
   }
+  syncSceneAttr(id);
   syncMetaThemeColor(id);
 }

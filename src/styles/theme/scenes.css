@@ -1,0 +1,9 @@
+/**
+ * 壳层场景装饰层
+ */
+@import './scenes/_shared.css';
+@import './scenes/sumi-ink.css';
+@import './scenes/frost-shard.css';
+@import './scenes/ember-blaze.css';
+@import './scenes/bamboo-edge.css';
+@import './theme-previews.css';

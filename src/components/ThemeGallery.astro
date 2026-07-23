@@ -1,0 +1,20 @@
+---
+/** 壳层主题馆：精品场景选择（Modal） */
+---
+<div id="themeGalleryModal" class="theme-gallery-modal" hidden aria-hidden="true">
+  <div class="theme-gallery-modal__backdrop ui-modal-backdrop" data-theme-gallery-close aria-hidden="true"></div>
+  <div class="ui-modal-dialog theme-gallery-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="themeGalleryTitle">
+    <div class="theme-gallery-modal__head">
+      <div>
+        <h2 id="themeGalleryTitle">选择创作场景</h2>
+        <p class="ui-hint ui-hint--inline theme-gallery-modal__lead">换肤会改变全站壳层氛围；卡内状态栏样式仍在制卡面板单独设置。</p>
+      </div>
+      <button type="button" class="btn-icon btn-icon--sm" data-theme-gallery-close aria-label="关闭">×</button>
+    </div>
+    <div id="themeGalleryGrid" class="theme-gallery-grid" role="listbox" aria-label="界面主题"></div>
+    <div class="theme-gallery-modal__foot">
+      <button type="button" class="btn-ghost" data-theme-gallery-close>取消</button>
+      <button type="button" class="btn-primary" id="btnThemeGalleryApply">应用</button>
+    </div>
+  </div>
+</div>

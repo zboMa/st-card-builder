@@ -1,6 +1,7 @@
 /**
  * 全站 design token 入口
- * 语义色见 tokens-themes.css（8 套 data-app-theme）
+ * 语义色见 tokens-themes.css；场景装饰见 theme/scenes.css
  */
 @import './tokens-base.css';
 @import './tokens-themes.css';
+@import './theme/scenes.css';
