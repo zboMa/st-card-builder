@@ -5,14 +5,14 @@
  */
 ---
 <div class="panel regex-panel" id="regexPanel">
-  <div class="rx-hero">
+  <div class="panel-header rx-hero">
     <div>
       <h2>正则</h2>
-      <p>管理 SillyTavern <code>regex_scripts</code>：列表选中编辑，修改即时保存。导出仍写原字段。</p>
+      <p class="ui-hint ui-hint--inline rx-hero__sub">管理 SillyTavern <code>regex_scripts</code>：列表选中编辑，修改即时保存。导出仍写原字段。</p>
     </div>
     <div class="rx-hero-actions">
-      <button type="button" class="btn rx-tool-btn" id="rxBtnTest">测试</button>
-      <button type="button" class="btn rx-tool-btn rx-tool-primary" id="rxBtnAdd">新建</button>
+      <button type="button" class="btn-inline btn-ghost" id="rxBtnTest">测试</button>
+      <button type="button" class="btn-primary btn-inline" id="rxBtnAdd">新建</button>
     </div>
   </div>
 
@@ -93,9 +93,9 @@
   </div>
 
   <!-- 测试弹窗：对当前选中正则解析文本 -->
-  <div id="rxTestModal" class="rx-modal" hidden aria-hidden="true">
-    <div class="rx-modal-backdrop" data-rx-modal-close></div>
-    <div class="rx-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="rxTestTitle">
+  <div id="rxTestModal" class="rx-modal ui-modal" hidden aria-hidden="true">
+    <div class="rx-modal-backdrop ui-modal-backdrop" data-rx-modal-close></div>
+    <div class="rx-modal-dialog ui-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="rxTestTitle">
       <div class="rx-modal-head">
         <strong id="rxTestTitle">测试正则</strong>
         <span class="rx-modal-tip" id="rxTestTip">使用当前选中条目</span>
@@ -106,7 +106,7 @@
           <textarea id="rxTestInput" rows="6" spellcheck="false" placeholder="粘贴要解析的文本…"></textarea>
         </div>
         <div class="rx-modal-actions-inline">
-          <button type="button" class="btn rx-tool-btn rx-tool-primary" id="rxBtnParse">解析</button>
+          <button type="button" class="btn-primary btn-inline" id="rxBtnParse">解析</button>
         </div>
         <div class="rx-field">
           <label class="rx-label" for="rxTestOutput">解析结果</label>
@@ -115,7 +115,7 @@
         <p id="rxTestErr" class="rx-test-err" hidden></p>
       </div>
       <div class="rx-modal-actions">
-        <button type="button" class="btn rx-tool-btn" data-rx-modal-close>取消</button>
+        <button type="button" class="btn-inline btn-ghost" data-rx-modal-close>取消</button>
       </div>
     </div>
   </div>
@@ -123,29 +123,20 @@
 
 <style is:global>
   .regex-panel {
-    border-color: rgba(56, 189, 248, 0.22);
+    border-color: var(--color-accent-border);
     background:
-      radial-gradient(circle at top right, rgba(56, 189, 248, 0.08), transparent 36%),
-      linear-gradient(180deg, rgba(15, 18, 28, 0.96), rgba(12, 16, 26, 0.94));
+      radial-gradient(circle at top right, var(--color-accent-soft), transparent 42%),
+      var(--color-glass);
   }
   .rx-hero {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 14px;
+    gap: var(--space-2);
   }
-  .rx-hero h2 {
-    margin: 0 0 4px;
-    border: 0;
-    padding: 0;
-    color: var(--color-accent-hover);
-    font-size: 1.05rem;
-  }
-  .rx-hero p {
-    margin: 0;
-    color: var(--color-text-muted);
-    font-size: 0.74rem;
+  .rx-hero__sub {
+    margin: 2px 0 0;
+    display: block;
   }
   .rx-hero code {
     font-size: 0.72rem;
@@ -157,42 +148,27 @@
     gap: 6px;
     align-items: center;
   }
-  .rx-tool-btn {
-    padding: 4px 10px;
-    font-size: 0.74rem;
-    line-height: 1.3;
-    border-radius: 8px;
-    background: rgba(15, 23, 42, 0.75);
-    border: 1px solid rgba(100, 116, 139, 0.4);
-    color: var(--color-text-secondary);
-    cursor: pointer;
-  }
-  .rx-tool-btn:hover { color: var(--color-text-secondary); border-color: rgba(148, 163, 184, 0.55); }
-  .rx-tool-primary {
-    background: linear-gradient(135deg, rgba(14, 165, 233, 0.35), rgba(56, 189, 248, 0.2));
-    border-color: rgba(56, 189, 248, 0.45);
-    color: var(--color-text-secondary);
-  }
   .rx-layout {
     display: grid;
     grid-template-columns: minmax(220px, 0.9fr) minmax(280px, 1.2fr);
-    gap: 12px;
+    gap: var(--space-2);
   }
   @media (max-width: 900px) {
     .rx-layout { grid-template-columns: 1fr; }
   }
   .rx-list-card, .rx-editor-card {
-    border: 1px solid rgba(148, 163, 184, 0.18);
-    border-radius: 14px;
-    padding: 12px;
-    background: rgba(8, 12, 22, 0.72);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-md);
+    padding: var(--space-3);
+    background: var(--color-surface-inset);
+    box-shadow: var(--shadow-inset);
     min-height: 280px;
   }
   .rx-list-head {
     display: flex;
     justify-content: space-between;
-    gap: 8px;
-    margin-bottom: 8px;
+    gap: var(--space-2);
+    margin-bottom: var(--space-2);
     font-size: 0.72rem;
     color: var(--color-text-muted);
   }
@@ -207,18 +183,18 @@
   .rx-item {
     display: grid;
     grid-template-columns: auto 1fr auto;
-    gap: 8px;
+    gap: var(--space-2);
     align-items: center;
     padding: 8px 10px;
-    border-radius: 10px;
-    border: 1px solid rgba(100, 116, 139, 0.28);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-border-subtle);
     background: var(--color-surface-inset);
     cursor: pointer;
     text-align: left;
     color: inherit;
     font: inherit;
+    transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
   }
-  /* 列表启停：独立于行点击，避免嵌套 button 导致无效 DOM */
   .rx-toggle {
     width: 16px;
     height: 16px;
@@ -233,14 +209,15 @@
     z-index: 1;
   }
   .rx-item.is-active {
-    border-color: rgba(56, 189, 248, 0.55);
-    background: linear-gradient(135deg, rgba(14, 165, 233, 0.18), rgba(15, 23, 42, 0.8));
+    border-color: var(--color-accent-border);
+    background: var(--color-entry-active-bg);
+    box-shadow: inset 0 0 0 1px var(--color-accent-soft);
   }
   .rx-item.is-disabled { opacity: 0.55; }
   .rx-item-name {
     font-size: 0.8rem;
     font-weight: 650;
-    color: var(--color-text-secondary);
+    color: var(--color-text);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -256,18 +233,25 @@
   .rx-icon-btn {
     width: 26px;
     height: 26px;
-    border-radius: 6px;
-    border: 1px solid rgba(100, 116, 139, 0.35);
-    background: rgba(15, 23, 42, 0.7);
+    min-width: 26px;
+    padding: 0;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-border-subtle);
+    background: var(--color-surface-inset);
     color: var(--color-text-muted);
     cursor: pointer;
     font: inherit;
     font-size: 0.72rem;
   }
-  .rx-icon-btn:hover { color: var(--color-text-secondary); }
+  .rx-icon-btn:hover {
+    border-color: var(--color-accent-border);
+    background: var(--color-accent-soft);
+    color: var(--color-text);
+  }
   .rx-icon-btn.is-danger:hover {
     color: var(--color-danger);
-    border-color: rgba(248, 113, 113, 0.5);
+    border-color: var(--color-danger-border);
+    background: var(--color-danger-soft);
   }
   .rx-empty {
     margin: 24px 8px;
@@ -279,12 +263,12 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 12px;
+    margin-bottom: var(--space-3);
   }
   .rx-editor-head h3 {
     margin: 0;
     font-size: 0.9rem;
-    color: var(--color-text-secondary);
+    color: var(--color-text);
   }
   .rx-live-hint {
     font-size: 0.68rem;
@@ -305,10 +289,10 @@
   .rx-field textarea {
     width: 100%;
     box-sizing: border-box;
-    border-radius: 8px;
-    border: 1px solid rgba(100, 116, 139, 0.4);
-    background: rgba(15, 23, 42, 0.75);
-    color: var(--color-text-secondary);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-border-subtle);
+    background: var(--color-surface-input);
+    color: var(--color-text);
     padding: 8px 10px;
     font: inherit;
     font-size: 0.8rem;
@@ -317,25 +301,25 @@
   .rx-editor-cols {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 12px;
+    gap: var(--space-2);
     margin-top: 4px;
     padding-top: 10px;
-    border-top: 1px solid rgba(100, 116, 139, 0.22);
+    border-top: 1px solid var(--color-border-subtle);
   }
   @media (max-width: 700px) {
     .rx-editor-cols { grid-template-columns: 1fr; }
   }
   .rx-col {
-    border: 1px solid rgba(100, 116, 139, 0.2);
-    border-radius: 10px;
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-sm);
     padding: 10px;
-    background: rgba(15, 23, 42, 0.35);
+    background: var(--color-surface-inset);
   }
   .rx-section-title {
     margin: 0 0 8px;
     font-size: 0.72rem;
     font-weight: 650;
-    color: var(--color-accent-hover);
+    color: var(--color-text-label);
   }
   .rx-col .rx-section-title:not(:first-child) { margin-top: 12px; }
   .rx-checks { display: flex; flex-wrap: wrap; gap: 8px 14px; }
@@ -343,7 +327,7 @@
   .rx-depth-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 8px;
+    gap: var(--space-2);
     margin-top: 12px;
   }
   .rx-check {
@@ -354,7 +338,6 @@
     color: var(--color-text-secondary);
     cursor: pointer;
   }
-  /* 编辑区 checkbox 可点区域覆盖 label 全文 */
   .rx-check input[type="checkbox"] {
     flex-shrink: 0;
     cursor: pointer;
@@ -371,10 +354,10 @@
     padding: 1px 6px;
     border-radius: 999px;
     font-size: 0.62rem;
-    background: rgba(245, 158, 11, 0.2);
+    background: var(--color-warning-soft);
     color: var(--color-warning);
+    border: 1px solid var(--color-warning-border);
   }
-  /* 真弹窗：挂到 body 时 fixed 相对视口；避免 panel transform 困住 */
   .rx-modal {
     position: fixed;
     inset: 0;
@@ -391,8 +374,6 @@
   .rx-modal-backdrop {
     position: absolute;
     inset: 0;
-    background: rgba(2, 6, 23, 0.66);
-    backdrop-filter: blur(6px);
   }
   .rx-modal-dialog {
     position: relative;
@@ -400,21 +381,17 @@
     width: min(560px, 100%);
     max-height: min(84vh, 720px);
     overflow: auto;
-    border-radius: 14px;
-    border: 1px solid rgba(56, 189, 248, 0.35);
-    background: linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(8, 12, 22, 0.98));
-    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45);
     padding: 14px 16px;
   }
   .rx-modal-head {
     display: flex;
     align-items: baseline;
     justify-content: space-between;
-    gap: 8px;
+    gap: var(--space-2);
     margin-bottom: 10px;
   }
   .rx-modal-head strong {
-    color: var(--color-text-secondary);
+    color: var(--color-text);
     font-size: 0.92rem;
   }
   .rx-modal-tip { font-size: 0.68rem; color: var(--color-text-muted); }
@@ -422,7 +399,7 @@
   .rx-modal-actions {
     display: flex;
     justify-content: flex-end;
-    gap: 8px;
+    gap: var(--space-2);
   }
   .rx-modal-actions-inline {
     display: flex;

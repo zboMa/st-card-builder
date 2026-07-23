@@ -287,6 +287,7 @@ Layout.astro
 
 **可选生成流程**：Figma/Procreate 导出 → 或 AI 图生图（水墨晕染底图，去背）→ 放入 `public/theme-assets/` → PR 只改引用路径。
 
+### 5.6 持久化 & 云同步
 
 | Key | 值 | 说明 |
 |---|---|---|
@@ -296,7 +297,7 @@ Layout.astro
 
 `userPrefsMirror.mjs` 扩展：`appTheme`, `sceneFx`, `fxEnabled` 上云。
 
-### 5.5 性能预算（L3）
+### 5.7 性能预算（L3）
 
 | 项 | 上限 |
 |---|---|
@@ -307,14 +308,14 @@ Layout.astro
 | 纹理 | inline SVG / CSS；禁止大图 |
 | 移动端 | 默认 L2；主题馆内可开 L3（带 tip） |
 
-### 5.6 无障碍
+### 5.8 无障碍
 
 - `prefers-reduced-motion` → 最高 L2；burst 改静态 flash 或禁用。
 - `prefers-reduced-transparency` → 关 mix-blend，保留实色材质。
 - 所有装饰 `pointer-events: none`；FX canvas 不接收指针。
 - 正文对比度 **WCAG AA** 每 theme 抽检。
 
-### 5.7 z-index（延续已修约定）
+### 5.9 z-index（延续已修约定）
 
 - **禁止** `.app-shell { z-index }`。
 - 移动：侧栏 8400、遮罩 8300、助手 8500、scene canvas 0（under chrome）。
