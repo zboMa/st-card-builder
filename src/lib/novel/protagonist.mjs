@@ -12,11 +12,16 @@ export function isProtagonistEntity(ent) {
 }
 
 /**
- * 解析主角名：小说工坊 setupCharName → 主卡 charName
+ * 解析主角名：分析弹窗覆盖 → 工坊设定 → 主卡角色名
+ * analyzeProtagonistName 为 string 时（含空串）优先：空=不设锚点；null/undefined=走回退
  * @param {object} state
- * @returns {{ name: string, source: 'workshop'|'card'|'' }}
+ * @returns {{ name: string, source: 'analyze'|'workshop'|'card'|'' }}
  */
 export function resolveProtagonistName(state) {
+  if (state && state.analyzeProtagonistName != null) {
+    var analyze = String(state.analyzeProtagonistName || '').trim();
+    return { name: analyze, source: analyze ? 'analyze' : '' };
+  }
   var workshop = String((state && state.setupCharName) || '').trim();
   if (workshop) return { name: workshop, source: 'workshop' };
   var card = '';
@@ -32,6 +37,32 @@ export function resolveProtagonistName(state) {
   }
   if (card) return { name: card, source: 'card' };
   return { name: '', source: '' };
+}
+
+/**
+ * 弹窗预填：有分析覆盖用覆盖，否则工坊/主卡（不写入 analyzeProtagonistName）
+ */
+export function suggestProtagonistName(state) {
+  if (state && state.analyzeProtagonistName != null) {
+    return String(state.analyzeProtagonistName || '').trim();
+  }
+  var workshop = String((state && state.setupCharName) || '').trim();
+  if (workshop) return workshop;
+  try {
+    if (typeof window !== 'undefined' && window.__getCharacterFields__) {
+      var f = window.__getCharacterFields__() || {};
+      var card = String(f.charName || f.name || '').trim();
+      if (card) return card;
+    }
+  } catch (e) { /* ignore */ }
+  if (typeof document !== 'undefined') {
+    var el = document.getElementById('charName');
+    if (el) {
+      var v = String(el.value || '').trim();
+      if (v) return v;
+    }
+  }
+  return '';
 }
 
 function normName(s) {
@@ -128,5 +159,5 @@ export function buildProtagonistHintBlock(protagonistName) {
 
 /** 软提示文案 */
 export function protagonistMissingTip() {
-  return '未设定主角名：请先在「角色设定」填写名称，或填写主卡「角色名」。有主角名后图谱会固定锚点并排除列表重复。';
+  return '未设主角锚点时，难以抽取主角与他人/设定的关系。建议填写主角名（仅作分析锚点，不同步到角色设定）。';
 }

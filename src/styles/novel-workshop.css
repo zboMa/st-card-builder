@@ -977,21 +977,24 @@
   }
   .novel-graph-footer-meta {
     margin-bottom: 4px;
-  }
-  .novel-analyze-summary {
-    margin: 0;
-    padding: 0;
-    border: none;
-    background: transparent;
     font-size: 0.72rem;
     line-height: 1.35;
     color: var(--color-text-secondary);
   }
+  .novel-graph-footer-meta .novel-meta-group {
+    font-size: inherit;
+    font-weight: 500;
+    color: inherit;
+  }
+  .novel-analyze-summary,
   .novel-graph-stats {
     margin: 0;
-    font-size: 0.72rem;
-    font-weight: 700;
-    color: var(--color-accent-hover);
+    padding: 0;
+    border: none;
+    background: transparent;
+    font-size: inherit;
+    font-weight: inherit;
+    color: inherit;
   }
   /* 固定详情高度，避免点选撑高 footer → 图谱 ResizeObserver 重绘 */
   .novel-graph-detail {

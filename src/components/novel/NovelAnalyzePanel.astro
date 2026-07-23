@@ -94,6 +94,14 @@
         <input id="novelAnalyzeSkeletonOnly" type="checkbox" />
         <span>仅骨架（只扫人名/实体框架，不做正文丰满与关系）</span>
       </label>
+      <div class="form-group" style="margin-top:10px;">
+        <label for="novelAnalyzeProtagonistName">主角锚点名称</label>
+        <input id="novelAnalyzeProtagonistName" type="text" placeholder="例如：轩辕腾" autocomplete="off" />
+        <p class="novel-modal-desc ui-pref-tip" id="novelAnalyzeProtagonistTip" style="margin-top:6px;">
+          预填自「角色设定 / 主卡角色名」，可改；仅作本次分析图谱锚点，<strong>不会写回</strong>角色设定。
+          若留空，将难以抽取主角与他人、设定之间的关系。
+        </p>
+      </div>
       <p id="novelAnalyzeEstimate" class="novel-modal-desc ui-pref-tip" aria-live="polite">预计调用次数将显示在此</p>
       <p class="novel-modal-desc ui-pref-tip">
         完整分析 = 骨架分片 + 待丰满实体 + 关系收尾。

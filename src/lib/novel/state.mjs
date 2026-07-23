@@ -118,6 +118,8 @@ export function createDefaultNovelState() {
     analyzeChunkSize: 8000,
     analyzeChaptersPerShard: 1,
     analyzeIncludeAdult: false, // 与 adultMode 同步
+    /** 分析用主角锚点名（null=未确认，走工坊/主卡回退；string 含空=按确认值，不同步设定） */
+    analyzeProtagonistName: null,
     rag: {
       enabled: true,
       budget: 12000,

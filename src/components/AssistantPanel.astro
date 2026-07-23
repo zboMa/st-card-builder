@@ -127,7 +127,10 @@ const catalogOverviewText = buildCatalogOverviewText({
       </div>
       <button type="button" class="btn-icon btn-icon--sm" id="assistantContextModalClose" aria-label="关闭上下文预览">×</button>
     </div>
-    <div class="assistant-rag-modal__body assistant-context-modal__body" id="assistantContextModalBody"></div>
+    <div class="assistant-rag-modal__body assistant-context-modal__body">
+      <div class="ui-tabs assistant-context-tabs" id="assistantContextTabs" role="tablist" aria-label="上下文分段"></div>
+      <div class="assistant-context-panels" id="assistantContextModalBody"></div>
+    </div>
   </div>
 </div>
 

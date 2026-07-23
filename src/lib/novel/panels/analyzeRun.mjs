@@ -31,7 +31,6 @@ import {
   resolveProtagonistName,
   ensureProtagonistEntity,
   buildProtagonistHintBlock,
-  protagonistMissingTip,
 } from '../protagonist.mjs';
 
 /**
@@ -84,7 +83,7 @@ export function attachNovelAnalyzeRun(ctx, panel) {
       ensureProtagonistEntity(state, p.name);
       return p;
     }
-    if (ctx.setStatus) ctx.setStatus('novelAnalyzeStatus', protagonistMissingTip());
+    // 软提示已放在开始分析弹窗；此处仅短状态，不阻断
     return p;
   }
 
@@ -173,7 +172,7 @@ export function attachNovelAnalyzeRun(ctx, panel) {
         'novelAnalyzeStatus',
         (protag.name
           ? '骨架扫描中（约 ' + totalRuns + ' 次）… · 主角「' + protag.name + '」'
-          : protagonistMissingTip())
+          : '骨架扫描中（约 ' + totalRuns + ' 次）… · 未设主角锚点')
       );
     }
     try {

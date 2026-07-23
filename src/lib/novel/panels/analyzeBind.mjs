@@ -5,6 +5,7 @@ import {
   buildStatusBarNsfwDraftFromEntities, buildStatusBarNtlDraftFromEntities,
   buildStatusBarVesselDraftFromEntities, resolveWorldframe,
 } from '../nsfwSupport.mjs';
+import { suggestProtagonistName } from '../protagonist.mjs';
 
 /**
  * attachNovelAnalyzeBind（拆自原模块）
@@ -107,12 +108,18 @@ export function attachNovelAnalyzeBind(ctx, panel, graphRef) {
       if (ctx.updateExtractCallEstimates) ctx.updateExtractCallEstimates();
       var skOnly = $('novelAnalyzeSkeletonOnly');
       if (skOnly) skOnly.checked = false;
+      var protagInput = $('novelAnalyzeProtagonistName');
+      if (protagInput) protagInput.value = suggestProtagonistName(state);
       ctx.openNovelModal('novelModalAnalyze');
     });
     var analyzeConfirm = $('btnNovelAnalyzeConfirm');
     if (analyzeConfirm) analyzeConfirm.addEventListener('click', async function() {
       if (ctx.busyFlags.analyzeAll || ctx.busyFlags.analyzeSkeleton) return;
       var skOnly = $('novelAnalyzeSkeletonOnly');
+      var protagInput = $('novelAnalyzeProtagonistName');
+      // 确认值写入分析锚点；空串也锁定（不回退工坊/主卡）；不同步角色设定
+      ctx.state.analyzeProtagonistName = protagInput ? String(protagInput.value || '').trim() : '';
+      ctx.save();
       ctx.closeNovelModal('novelModalAnalyze');
       try {
         if (skOnly && skOnly.checked) await panel.runAnalyzeSkeleton();
