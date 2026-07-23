@@ -1,8 +1,8 @@
 /**
- * 与服务端 bundle 索引一致的 contentRev（复用前端 buildDraftSnapshot + crc32）
+ * 与服务端 bundle 索引一致的 contentRev（算法与 src/lib/sync/contentRev.mjs 对齐）
  */
-import { buildDraftSnapshot } from '../../../src/lib/card-builder/state.mjs';
-import { crc32 } from '../../../src/lib/utils.mjs';
+import { buildDraftSnapshot } from '../shared/draftSnapshot.mjs';
+import { crc32 } from '../shared/crc32.mjs';
 
 function stableDraftPayload(draft) {
   var snap = buildDraftSnapshot(draft);

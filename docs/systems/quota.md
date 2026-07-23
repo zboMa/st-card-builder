@@ -36,6 +36,10 @@
 - 账户页「云端用量」「同步中心」：`quotaClient.mjs` + `syncCenter.mjs`
 - 卡管理上云 / 分享前：`ensureCloudQuota()`
 
+## 服务端
+
+- `contentRev` 算法与 `src/lib/sync/contentRev.mjs` 一致；实现位于 `server/src/shared/`（部署仅 rsync `server/`，不可 import 仓库根 `src/`）
+
 ## 相关
 
 - [`cloud-sync.md`](./cloud-sync.md)
