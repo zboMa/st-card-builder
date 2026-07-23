@@ -5,6 +5,14 @@
 
 /** @param {object} ctx @param {object} s @param {object} panel */
 export function attachCardManagerCloud(ctx, s, panel) {
+  /** 上云前把当前卡未落盘的 DOM / 防抖编辑写入 LS（bundle 读本地） */
+  function flushLocalBeforeCloudUpload(id) {
+    if (!id || id !== s.getCurrentDraftId()) return;
+    s.syncDomFieldsToState();
+    if (ctx.flushSave) ctx.flushSave();
+    if (panel.saveCurrentDraft) panel.saveCurrentDraft();
+  }
+
   panel.cloudUploadOverwrite = async function (id) {
     if (!id) return;
     var ok = await ctx.showConfirmDialog({
@@ -16,6 +24,7 @@ export function attachCardManagerCloud(ctx, s, panel) {
       cancelText: '取消',
     });
     if (!ok) return;
+    flushLocalBeforeCloudUpload(id);
     s.setCardManagerStatus('正在同步上云…');
     try {
       var sync = await import('../../sync/index.mjs');

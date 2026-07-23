@@ -114,6 +114,10 @@ describe('exportChecklist', function() {
     assert.match(mgr, /export-check/);
     assert.match(mgr, /card-more-item|btn-inline/);
     assert.match(mgr, /cloud-upload|cloudUploadOverwrite/);
+    assert.match(
+      readFileSync(join(root, 'src/lib/card-builder/panels/cardManagerCloud.mjs'), 'utf8'),
+      /flushLocalBeforeCloudUpload/
+    );
     assert.doesNotMatch(mgr, /iconBtn\('rename'/);
   });
 });
