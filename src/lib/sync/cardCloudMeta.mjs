@@ -70,7 +70,10 @@ export function markCardLocalOnly(cardId) {
   return setCardCloudMeta(cardId, {
     onCloud: false,
     cloudUpdatedAt: null,
+    localSyncedAt: null,
     lastSyncedAt: null,
+    pendingUpload: false,
+    pendingDownload: false,
   });
 }
 
@@ -98,10 +101,11 @@ export function markCardSynced(cardId, cloudUpdatedAt, localUpdatedAt) {
 export function resolveCardCloudStatus(draft, meta) {
   if (draft && draft._cloudStub) return CLOUD_STATUS.CLOUD_DIRTY;
   if (!meta || !meta.onCloud) return CLOUD_STATUS.LOCAL_ONLY;
+  var syncedLocal = String(meta.localSyncedAt || '');
+  // 从未 markCardSynced 成功：仅云端索引/onCloud 标记不算「已上云」
+  if (!syncedLocal) return CLOUD_STATUS.LOCAL_ONLY;
   if (meta.pendingUpload || meta.pendingDownload) return CLOUD_STATUS.CLOUD_DIRTY;
   var localAt = String((draft && draft.updatedAt) || '');
-  var syncedLocal = String(meta.localSyncedAt || '');
-  if (!syncedLocal) return CLOUD_STATUS.CLOUD_DIRTY;
   if (localAt && localAt !== syncedLocal) return CLOUD_STATUS.CLOUD_DIRTY;
   return CLOUD_STATUS.CLOUD_SYNCED;
 }
@@ -125,7 +129,7 @@ export function resolveCardCloudQuickAction(status) {
   return { action: 'cloud-upload', label: '上传到云' };
 }
 
-/** 合并云端索引摘要到 meta（对齐后调用） */
+/** 合并云端索引摘要到 meta（对齐后调用；不擅自置 onCloud，避免误报未同步） */
 export function mergeCloudIndexIntoMeta(cards) {
   var list = Array.isArray(cards) ? cards : [];
   var all = readAll();
@@ -136,7 +140,6 @@ export function mergeCloudIndexIntoMeta(cards) {
     var prev = all[c.id] || {};
     all[c.id] = Object.assign({}, prev, {
       cardId: c.id,
-      onCloud: true,
       cloudUpdatedAt: c.updatedAt || prev.cloudUpdatedAt || null,
       updatedAt: new Date().toISOString(),
     });

@@ -81,11 +81,18 @@ export async function runCloudReconcile(opts) {
     if (opts.uploadLocal !== false) {
       var drafts = readDrafts();
       var ids = Object.keys(drafts);
+      var markSyncedMod = null;
       for (var i = 0; i < ids.length; i++) {
         var id = ids[i];
         if (!id || (drafts[id] && drafts[id]._cloudStub)) continue;
         try {
-          await api.putCardBundle(id, await buildLocalCardBundle(id));
+          var bundle = await buildLocalCardBundle(id);
+          await api.putCardBundle(id, bundle);
+          if (!markSyncedMod) {
+            markSyncedMod = await import('./cardCloudMeta.mjs');
+          }
+          var localAt = bundle.card && bundle.card.updatedAt;
+          markSyncedMod.markCardSynced(id, localAt, localAt);
         } catch (e) {
           console.warn('[cloud] upload local card', id, e);
           enqueueOutbox({
