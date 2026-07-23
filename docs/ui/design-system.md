@@ -4,7 +4,7 @@
 
 SillyTavern 卡片构建器壳层设计 token。状态栏 **30 套预览主题** 在 `src/lib/statusBarThemes/`，与本文档的壳层 token 分层独立。
 
-**壳层换肤**：5 套精品场景主题（默认夜庭 + 水墨 / 碎冰寒霜 / 烈焰 / 翠竹风刀），`html[data-app-theme]` 语义色 + `html[data-app-scene]` 场景装饰；侧栏「外观」**单行入口** → 主题馆 Modal；持久化 `localStorage` key `st_v3_app_theme`。详见 [`theme-scenes-v2.md`](./theme-scenes-v2.md)（v1 方案见 [`theme-skins-plan.md`](./theme-skins-plan.md)）。
+**壳层换肤**：5 套精品场景主题；**实施 SoT 见 [`theme-scenes-v3-final.md`](./theme-scenes-v3-final.md)**（v2 Phase 1 已落地）。`html[data-app-theme]` + `html[data-app-scene]` + 分级 `data-scene-tier`；侧栏「外观」→ 主题馆 Modal；持久化 `st_v3_app_theme` / `st_v3_scene_fx`。
 
 **所有 UI 变更须遵循本文档。** 新增控件优先复用 `ui-patterns.css` 共享类，禁止在局部再发明一套 tip / 搜索 / 行内按钮。
 

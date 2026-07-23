@@ -8,6 +8,7 @@
 |---|---|
 | Agent / 贡献者硬约束 | [`../AGENTS.md`](../AGENTS.md) |
 | UI 按钮、tip、搜索条、空态 | [`ui/design-system.md`](./ui/design-system.md) |
+| 壳层精品场景主题（换肤/特效） | [`ui/theme-scenes-v3-final.md`](./ui/theme-scenes-v3-final.md) |
 | 邮箱/Discord 登录、Session | [`systems/auth.md`](./systems/auth.md) |
 | 云端数据 REST、分享、密钥上云、配额 | [`systems/cloud-sync.md`](./systems/cloud-sync.md)、[`systems/quota.md`](./systems/quota.md) |
 | 管理端权限与 API | [`systems/admin.md`](./systems/admin.md) |
