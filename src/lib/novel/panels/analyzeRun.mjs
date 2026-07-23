@@ -26,6 +26,13 @@ import {
 import { RAG_ENTITY_BUDGET } from '../contextBudgets.mjs';
 import { parseJsonLoose } from '../../utils.mjs';
 import { novelCanonBlock, vesselOptsFromState, ENTITY_TYPE_ZH } from './analyzeShared.mjs';
+import { buildRecallPayload, DEFAULT_EXPAND_BUDGET } from '../recall.mjs';
+import {
+  resolveProtagonistName,
+  ensureProtagonistEntity,
+  buildProtagonistHintBlock,
+  protagonistMissingTip,
+} from '../protagonist.mjs';
 
 /**
  * attachNovelAnalyzeRun（拆自原模块）
@@ -50,6 +57,35 @@ export function attachNovelAnalyzeRun(ctx, panel) {
   }
   function isRagIndexStale() {
     return panel.isRagIndexStale();
+  }
+
+  function setActionBtnBusy(btn, busy, loadingText) {
+    if (!btn) return;
+    if (btn.classList && btn.classList.contains('novel-icon-btn')) {
+      if (busy) {
+        if (btn.dataset.idleHtml == null) btn.dataset.idleHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '…';
+      } else {
+        btn.disabled = false;
+        if (btn.dataset.idleHtml != null) {
+          btn.innerHTML = btn.dataset.idleHtml;
+          delete btn.dataset.idleHtml;
+        }
+      }
+      return;
+    }
+    ctx.setBtnBusy(btn, busy, loadingText);
+  }
+
+  function prepareProtagonistForAnalyze(state) {
+    var p = resolveProtagonistName(state);
+    if (p.name) {
+      ensureProtagonistEntity(state, p.name);
+      return p;
+    }
+    if (ctx.setStatus) ctx.setStatus('novelAnalyzeStatus', protagonistMissingTip());
+    return p;
   }
 
   panel.runBuildRagIndex = async function(opts) {
@@ -125,13 +161,21 @@ export function attachNovelAnalyzeRun(ctx, panel) {
       if (!indexes.length) throw new Error('无有效失败片可重跑');
     }
     if (opts.clearFailed !== false && !indexes) clearFailedShards('skeleton');
+    var protag = prepareProtagonistForAnalyze(state);
     var queue = $('novelAnalyzeQueue');
     if (queue) queue.style.display = 'block';
     var btn = $('btnNovelAnalyzeSkeleton');
     ctx.busyFlags.analyzeSkeleton = true;
     ctx.setBtnBusy(btn, true, '骨架扫描…');
     var totalRuns = indexes ? indexes.length : shards.length;
-    if (ctx.setStatus) ctx.setStatus('novelAnalyzeStatus', '骨架扫描中（约 ' + totalRuns + ' 次）…');
+    if (ctx.setStatus) {
+      ctx.setStatus(
+        'novelAnalyzeStatus',
+        (protag.name
+          ? '骨架扫描中（约 ' + totalRuns + ' 次）… · 主角「' + protag.name + '」'
+          : protagonistMissingTip())
+      );
+    }
     try {
       return await ctx.runTracked({
         type: 'novel_analyze_skeleton',
@@ -152,6 +196,7 @@ export function attachNovelAnalyzeRun(ctx, panel) {
           var prior = buildSkeletonPriorBlock(state);
           var user = head
             + prior
+            + buildProtagonistHintBlock(protag.name)
             + buildModeHintBlocks(state, 'skeleton')
             + (getAdultMode(state) ? buildNsfwFlavorHint(state) : '')
             + (getNtlMode(state) ? buildNtlTabooHint(state) : '')
@@ -227,10 +272,36 @@ export function attachNovelAnalyzeRun(ctx, panel) {
       if (ctx.setStatus) ctx.setStatus('novelAnalyzeStatus', '无待丰满实体');
       return { enriched: 0 };
     }
+    var needConfirm = opts.confirm === true
+      && !opts.silent
+      && !opts.skipConfirm
+      && queue.length === 1;
+    if (needConfirm) {
+      var previewEnt = queue[0];
+      var recall = buildRecallPayload(
+        state.chapters,
+        previewEnt.name,
+        previewEnt.aliases || [],
+        state.expandBudget || DEFAULT_EXPAND_BUDGET,
+        180
+      );
+      var ok = await ctx.confirmExpandRecall({
+        title: '实体丰满 · ' + previewEnt.name,
+        body: recall.body || '（无摘录；仍将用 RAG/关键词检索丰满）',
+        totalChars: recall.totalChars || 0,
+        snippetCount: recall.snippetCount || 0,
+        truncated: recall.truncated,
+        terms: recall.terms,
+      });
+      if (!ok) {
+        if (ctx.setStatus) ctx.setStatus('novelAnalyzeStatus', '已取消丰满「' + previewEnt.name + '」');
+        throw new DOMException('已取消', 'AbortError');
+      }
+    }
     if (opts.clearFailed !== false && !(opts.ids && opts.ids.length)) clearFailedShards('enrich');
-    var btn = $('btnNovelAnalyzeEnrich');
+    var btn = opts.sourceBtn || $('btnNovelAnalyzeEnrich');
     ctx.busyFlags.analyzeEnrich = true;
-    ctx.setBtnBusy(btn, true, '丰满中…');
+    setActionBtnBusy(btn, true, '丰满中…');
     if (ctx.setStatus) ctx.setStatus('novelAnalyzeStatus', '实体丰满 ' + queue.length + ' 项…');
     var head = ctx.promptText('novelEnrichEntity', '单实体丰满 JSON');
     var done = 0;
@@ -403,8 +474,8 @@ export function attachNovelAnalyzeRun(ctx, panel) {
         }
         if (ctx.setStatus) ctx.setStatus('novelAnalyzeStatus', '丰满完成 | ' + done + '/' + queue.length
           + (failed ? ' | 失败 ' + failed : ''));
-        if (ctx.setStatus) ctx.setStatus('novelCharStatus', '已丰满 ' + done + ' 项');
-        if (ctx.setStatus) ctx.setStatus('novelWbStatus', '已丰满 ' + done + ' 项');
+        if (ctx.panels.characters && ctx.panels.characters.render) ctx.panels.characters.render();
+        if (ctx.panels.worldbook && ctx.panels.worldbook.render) ctx.panels.worldbook.render();
         panel.render();
         return { enriched: done, total: queue.length, failed: failed };
       });
@@ -413,7 +484,7 @@ export function attachNovelAnalyzeRun(ctx, panel) {
       throw e;
     } finally {
       ctx.busyFlags.analyzeEnrich = false;
-      ctx.setBtnBusy(btn, false);
+      setActionBtnBusy(btn, false);
       if (ctx.updateExtractCallEstimates) ctx.updateExtractCallEstimates();
       if (ctx.renderGatesFn) ctx.renderGatesFn();
       panel.render();

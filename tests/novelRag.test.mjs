@@ -222,4 +222,47 @@ describe('novel entityStore', function() {
     assert.ok(state.entities.some(function(e) { return e.type === 'event'; }));
     assert.ok(state.relations.length >= 1);
   });
+
+  it('主角锚点不进人物列表，关系端点保留', function() {
+    var state = createDefaultNovelState();
+    state.setupCharName = '秦月';
+    applySkeletonResult(state, {
+      entities: [
+        { type: 'person', name: '秦月', aliases: ['月儿'] },
+        { type: 'person', name: '李长青' },
+        { type: 'faction', name: '青云门', summary: '门派' },
+      ],
+      relations: [
+        { from: '秦月', to: '李长青', rel: '师徒', evidence: ['卷一'] },
+        { from: '李长青', to: '青云门', rel: '隶属', evidence: ['卷一'] },
+      ],
+    });
+    assert.equal(state.characters.some(function(c) { return c.name === '秦月'; }), false);
+    assert.ok(state.characters.some(function(c) { return c.name === '李长青'; }));
+    var protag = state.entities.find(function(e) {
+      return e.type === 'person' && (e.role === 'protagonist' || (e.attrs && e.attrs.role === 'protagonist'));
+    });
+    assert.ok(protag);
+    assert.equal(protag.name, '秦月');
+    assert.ok(state.knowledgeGraph.nodes.some(function(n) { return n.id === protag.id; }));
+    assert.ok(state.relations.some(function(r) {
+      return r.fromId === protag.id || r.toId === protag.id;
+    }));
+    assert.equal(state.entities.filter(function(e) {
+      return e.type === 'person' && e.name === '秦月';
+    }).length, 1);
+  });
+
+  it('工坊无名时 resolveProtagonistName 回退主卡', async function() {
+    var { resolveProtagonistName } = await import('../src/lib/novel/protagonist.mjs');
+    var state = createDefaultNovelState();
+    state.setupCharName = '';
+    globalThis.window = {
+      __getCharacterFields__: function() { return { charName: '卡面主角' }; },
+    };
+    var p = resolveProtagonistName(state);
+    assert.equal(p.name, '卡面主角');
+    assert.equal(p.source, 'card');
+    delete globalThis.window;
+  });
 });

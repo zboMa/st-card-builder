@@ -113,6 +113,46 @@ export function attachNovelCharactersRender(ctx, panel) {
     projectEntitiesToLegacy(state);
   };
 
+  /** 共享：删除人物（列表 / 图谱） */
+  panel.deleteCharacter = function(id, opts) {
+    opts = opts || {};
+    var state = ctx.state;
+    if (!opts.skipConfirm && !confirm('确认删除该人物？')) return false;
+    var ch = state.characters.find(function(c) { return c.id === id; });
+    var ent = panel.findPersonEntityForChar(ch)
+      || (state.entities || []).find(function(e) { return e.id === id; });
+    if (ch) state.characters = state.characters.filter(function(c) { return c.id !== id; });
+    if (ent) {
+      state.entities = (state.entities || []).filter(function(e) { return e.id !== ent.id; });
+      state.relations = (state.relations || []).filter(function(r) {
+        return r.fromId !== ent.id && r.toId !== ent.id;
+      });
+    }
+    ctx.save();
+    ctx.renderAll();
+    return true;
+  };
+
+  /** 共享：同步人物 → 世界书人物条 */
+  panel.syncCharacterToWorldbook = function(id) {
+    ctx.syncOutputs({ target: 'character_worldbook', ids: [id], selected: false });
+    ctx.setStatus('novelCharStatus', '已同步到世界书人物条（不写入主角设定）');
+  };
+
+  /** 共享：丰满人物实体（单点默认预览确认） */
+  panel.enrichCharacterEntity = async function(entityId, opts) {
+    opts = opts || {};
+    var ana = ctx.panels.analyze;
+    if (!ana) throw new Error('分析面板未就绪');
+    return ana.runAnalyzeEnrich({
+      ids: [entityId],
+      confirm: opts.confirm !== false,
+      skipConfirm: !!opts.skipConfirm,
+      silent: !!opts.silent,
+      sourceBtn: opts.sourceBtn || null,
+    });
+  };
+
   panel.render = function() {
     var state = ctx.state;
     var es = ctx.editState;
@@ -133,6 +173,20 @@ export function attachNovelCharactersRender(ctx, panel) {
 
     var countEl = ctx.$('novelCharCount');
     if (countEl) countEl.textContent = String((state.characters || []).length);
+    var enrichedMeta = ctx.$('novelCharEnrichedMeta');
+    if (enrichedMeta) {
+      var enrichedN = (state.characters || []).filter(function(c) {
+        var ent = panel.findPersonEntityForChar(c);
+        return ent ? isEntityEnriched(ent, !!state.strictQuality, getAdultMode(state)) : !!c.profile;
+      }).length;
+      if ((state.characters || []).length && enrichedN > 0) {
+        enrichedMeta.hidden = false;
+        enrichedMeta.textContent = '已丰满 ' + enrichedN;
+      } else {
+        enrichedMeta.hidden = true;
+        enrichedMeta.textContent = '';
+      }
+    }
 
     var searchInput = ctx.$('novelCharSearchInput');
     var searchClear = ctx.$('novelCharSearchClear');
@@ -210,24 +264,12 @@ export function attachNovelCharactersRender(ctx, panel) {
     });
     grid.querySelectorAll('[data-char-del]').forEach(function(btn) {
       btn.addEventListener('click', function() {
-        if (!confirm('确认删除该人物？')) return;
-        var id = btn.getAttribute('data-char-del');
-        var ch = state.characters.find(function(c) { return c.id === id; });
-        var ent = panel.findPersonEntityForChar(ch);
-        state.characters = state.characters.filter(function(c) { return c.id !== id; });
-        if (ent) {
-          state.entities = (state.entities || []).filter(function(e) { return e.id !== ent.id; });
-          state.relations = (state.relations || []).filter(function(r) {
-            return r.fromId !== ent.id && r.toId !== ent.id;
-          });
-        }
-        ctx.save();
-        ctx.renderAll();
+        panel.deleteCharacter(btn.getAttribute('data-char-del'));
       });
     });
     grid.querySelectorAll('[data-char-enrich]').forEach(function(btn) {
       btn.addEventListener('click', function() {
-        ctx.panels.analyze.runAnalyzeEnrich({ ids: [btn.getAttribute('data-char-enrich')] }).catch(function(e) {
+        panel.enrichCharacterEntity(btn.getAttribute('data-char-enrich'), { sourceBtn: btn }).catch(function(e) {
           if (!ctx.isTrackedAbort(e)) alert('丰满失败: ' + (e.message || e));
         });
       });
@@ -240,8 +282,7 @@ export function attachNovelCharactersRender(ctx, panel) {
     });
     grid.querySelectorAll('[data-char-sync-wb]').forEach(function(btn) {
       btn.addEventListener('click', function() {
-        ctx.syncOutputs({ target: 'character_worldbook', ids: [btn.getAttribute('data-char-sync-wb')], selected: false });
-        ctx.setStatus('novelCharStatus', '已同步到世界书人物条（不写入主角设定）');
+        panel.syncCharacterToWorldbook(btn.getAttribute('data-char-sync-wb'));
       });
     });
   };

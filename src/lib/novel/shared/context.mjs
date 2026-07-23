@@ -133,7 +133,9 @@ export function createNovelAppContext(sm, opts) {
           + (iopts.truncated ? ' · 已按预算抽样' : '')
           + (iopts.terms && iopts.terms.length ? ' · 匹配词：' + iopts.terms.join('、') : '');
       }
-      bodyEl.value = iopts.body || '（无摘录）';
+      var bodyText = iopts.body || '（无摘录）';
+      if ('value' in bodyEl && bodyEl.tagName === 'TEXTAREA') bodyEl.value = bodyText;
+      else bodyEl.textContent = bodyText;
       return new Promise(function(resolve) {
         if (ctx.editState.pendingExpandConfirm) ctx.editState.pendingExpandConfirm.resolve(false);
         ctx.editState.pendingExpandConfirm = { resolve: resolve };
@@ -147,7 +149,7 @@ export function createNovelAppContext(sm, opts) {
           ctx.closeNovelModal(el.getAttribute('data-novel-modal-close'));
         });
       });
-      var confirmBtn = $('btnNovelExpandConfirm');
+      var confirmBtn = $('btnNovelExpandConfirmOk') || $('btnNovelExpandConfirm');
       if (confirmBtn) {
         confirmBtn.addEventListener('click', function() {
           var pending = ctx.editState.pendingExpandConfirm;

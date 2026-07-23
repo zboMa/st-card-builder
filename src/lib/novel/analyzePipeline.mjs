@@ -23,6 +23,13 @@ import {
   SKELETON_RELATIONS,
   ENTITY_SUMMARY_STORE,
 } from './contextBudgets.mjs';
+import {
+  resolveProtagonistName,
+  ensureProtagonistEntity,
+  reconcileProtagonistAfterExtract,
+  matchesProtagonist,
+  isProtagonistEntity,
+} from './protagonist.mjs';
 
 /**
  * 应用骨架扫描 JSON
@@ -32,6 +39,8 @@ export function applySkeletonResult(state, parsed) {
   if (!state.entities) state.entities = [];
   if (!state.relations) state.relations = [];
   var stats = { add: 0, merge: 0, relAdd: 0 };
+  var protag = resolveProtagonistName(state);
+  if (protag.name) ensureProtagonistEntity(state, protag.name);
   (parsed.entities || parsed.characters || []).forEach(function(raw) {
     // 兼容旧 characters 形状
     var item = raw;
@@ -44,6 +53,11 @@ export function applySkeletonResult(state, parsed) {
         keys: raw.keys,
         op: raw.op,
       };
+    }
+    // 同名主角不另建 person：端点关系仍可在后面挂到锚点
+    if (item && item.type === 'person' && protag.name
+      && matchesProtagonist(item.name, item.aliases, protag.name)) {
+      return;
     }
     var r = upsertEntity(state.entities, item, { source: 'analyze' });
     if (r.action === 'add') stats.add++;
@@ -98,9 +112,14 @@ export function applySkeletonResult(state, parsed) {
   // 图谱节点兼容
   ((parsed.graph && parsed.graph.nodes) || []).forEach(function(n) {
     if (!n) return;
+    var nType = n.type || 'lore';
+    var nName = n.label || n.name;
+    if (nType === 'person' && protag.name && matchesProtagonist(nName, n.aliases, protag.name)) {
+      return;
+    }
     var r = upsertEntity(state.entities, {
-      type: n.type || 'lore',
-      name: n.label || n.name,
+      type: nType,
+      name: nName,
       aliases: n.aliases,
       summary: (n.attrs && n.attrs.summary) || '',
       attrs: n.attrs || {},
@@ -109,6 +128,7 @@ export function applySkeletonResult(state, parsed) {
     if (r.action === 'add') stats.add++;
     else if (r.action === 'merge') stats.merge++;
   });
+  if (protag.name) reconcileProtagonistAfterExtract(state, protag.name);
   projectEntitiesToLegacy(state);
   return stats;
 }
@@ -161,6 +181,7 @@ export function applyEnrichResult(state, entityId, parsed) {
 /** 待丰满实体列表（成人/NTL 开时优先排缺口） */
 export function listEntitiesNeedingEnrich(entities, strict, adultMode, ntlMode) {
   var list = (entities || []).filter(function(e) {
+    if (isProtagonistEntity(e)) return false;
     return !isEntityEnriched(e, !!strict, !!adultMode);
   });
   if (!adultMode && !ntlMode) return list;

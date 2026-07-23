@@ -300,7 +300,7 @@ export function attachNovelCharactersScanBind(ctx, panel) {
       }).filter(Boolean);
       if (!ids.length) return alert('请先勾选已有实体的人物（建议先跑小说分析）');
       try {
-        await ctx.panels.analyze.runAnalyzeEnrich({ ids: ids });
+        await ctx.panels.analyze.runAnalyzeEnrich({ ids: ids, skipConfirm: true, sourceBtn: enrichSel });
       } catch (e) {
         if (!ctx.isTrackedAbort(e)) alert('丰满失败: ' + (e.message || e));
       }

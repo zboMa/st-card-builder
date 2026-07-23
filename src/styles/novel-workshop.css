@@ -37,6 +37,54 @@
     color: var(--color-text-muted);
     letter-spacing: 0;
   }
+  .novel-panel-meta {
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: var(--color-text-muted);
+    margin-left: 6px;
+    opacity: 0.9;
+  }
+  .novel-panel-meta[hidden] {
+    display: none !important;
+  }
+  .novel-graph-ctx-menu {
+    position: fixed;
+    z-index: 12000;
+    min-width: 168px;
+    padding: 4px;
+    border-radius: 8px;
+    border: 1px solid var(--color-border, rgba(255, 255, 255, 0.14));
+    background: var(--color-surface-elevated, #1a1f2a);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+  }
+  .novel-graph-ctx-menu[hidden] {
+    display: none !important;
+  }
+  .novel-graph-ctx-menu button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    border: 0;
+    background: transparent;
+    color: var(--color-text, #e8eef8);
+    font-size: 0.82rem;
+    line-height: 1.35;
+    padding: 7px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .novel-graph-ctx-menu button:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+  .novel-graph-ctx-menu button.is-danger {
+    color: #fca5a5;
+  }
+  .novel-graph-ctx-menu .novel-graph-ctx-hint {
+    padding: 7px 10px;
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    line-height: 1.35;
+  }
   /* 对齐角色卡导出检查徽章：标题旁可点失败计数 */
   .novel-fail-tag {
     display: inline-flex;

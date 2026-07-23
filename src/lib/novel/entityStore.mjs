@@ -22,6 +22,7 @@ import {
   PRIOR_ENTITIES_SUMMARY,
   ENTITY_SUMMARY_STORE,
 } from './contextBudgets.mjs';
+import { isProtagonistEntity, resolveProtagonistName, matchesProtagonist } from './protagonist.mjs';
 
 export var ENTITY_TYPES = ['person', 'faction', 'location', 'item', 'event', 'lore', 'nsfw'];
 
@@ -339,7 +340,14 @@ export function projectEntitiesToLegacy(state) {
   // 人物
   var prevChars = {};
   (state.characters || []).forEach(function(c) { if (c && c.id) prevChars[c.id] = c; });
-  state.characters = entities.filter(function(e) { return e.type === 'person'; }).map(function(e) {
+  // 卡面主角进图谱，不进人物列表 / 世界书 NPC 投影
+  var protagName = resolveProtagonistName(state).name;
+  state.characters = entities.filter(function(e) {
+    if (e.type !== 'person') return false;
+    if (isProtagonistEntity(e)) return false;
+    if (protagName && matchesProtagonist(e.name, e.aliases, protagName)) return false;
+    return true;
+  }).map(function(e) {
     var prev = prevChars[e.id] || (state.characters || []).find(function(c) {
       return c && (c.name === e.name || (c.aliases || []).indexOf(e.name) >= 0);
     });
@@ -395,11 +403,15 @@ export function projectEntitiesToLegacy(state) {
   // 图谱
   var g = emptyKnowledgeGraph();
   entities.forEach(function(e) {
+    var nodeAttrs = { summary: e.summary || '' };
+    if (isProtagonistEntity(e) || (protagName && matchesProtagonist(e.name, e.aliases, protagName))) {
+      nodeAttrs.role = 'protagonist';
+    }
     g.nodes.push({
       id: e.id || graphNodeId(e.type, e.name),
       type: e.type === 'lore' ? 'concept' : e.type,
       label: e.name,
-      attrs: { summary: e.summary || '' },
+      attrs: nodeAttrs,
     });
   });
   var idSet = {};

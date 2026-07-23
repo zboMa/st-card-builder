@@ -163,6 +163,97 @@ export function attachNovelWorldbookRender(ctx, panel) {
     if (ctx.setStatus) ctx.setStatus('novelWbStatus', '已保存条目');
   };
 
+  /** 共享：删除世界书条目（列表 / 图谱） */
+  panel.deleteWbEntry = function(indexOrId, opts) {
+    opts = opts || {};
+    var state = ctx.state;
+    if (!opts.skipConfirm && !confirm('确认删除该世界书条目？')) return false;
+    var i = typeof indexOrId === 'number' ? indexOrId : -1;
+    var entry = null;
+    if (i >= 0) entry = state.wbEntries[i];
+    else {
+      var id = String(indexOrId || '');
+      i = (state.wbEntries || []).findIndex(function(e) { return e && e.id === id; });
+      if (i < 0) {
+        var hit = (state.entities || []).find(function(e) { return e.id === id; });
+        if (hit) {
+          i = (state.wbEntries || []).findIndex(function(e) {
+            return e && (e.id === hit.id || e.name === hit.name);
+          });
+        }
+      }
+      entry = i >= 0 ? state.wbEntries[i] : null;
+    }
+    if (!entry || i < 0) return false;
+    var entId = entry.id;
+    if (!entId) {
+      var match = findEntityMatch(state.entities, entry.name, []);
+      if (match) entId = match.id;
+    }
+    state.wbEntries.splice(i, 1);
+    if (entId) {
+      state.entities = (state.entities || []).filter(function(x) { return x.id !== entId; });
+      state.relations = (state.relations || []).filter(function(r) {
+        return r.fromId !== entId && r.toId !== entId;
+      });
+    }
+    if (ctx.editState.editingWbIndex === i) ctx.closeNovelModal('novelModalWb');
+    else if (ctx.editState.editingWbIndex > i) ctx.editState.editingWbIndex--;
+    ctx.save();
+    ctx.renderAll();
+    return true;
+  };
+
+  /** 共享：同步单条 → 主世界书 */
+  panel.syncWbEntry = function(index) {
+    var state = ctx.state;
+    var entry = state.wbEntries[index];
+    if (!entry) return;
+    if (!window.__getWorldbookEntries__ || !window.__setWorldbookEntries__) {
+      return alert('世界书环境未就绪');
+    }
+    var cur = window.__getWorldbookEntries__() || [];
+    var r = applyDraftsToWorldbook(cur, [entry], state.conflictPolicy);
+    window.__setWorldbookEntries__(r.entries);
+    window.dispatchEvent(new Event('worldbook-changed'));
+    window.dispatchEvent(new Event('card-builder-data-changed'));
+    entry.syncStatus = 'synced';
+    ctx.save();
+    ctx.renderAll();
+    if (ctx.setStatus) {
+      ctx.setStatus(
+        'novelWbStatus',
+        '已同步「' + (entry.name || '') + '」：新增 ' + r.added + ' / 更新 ' + r.updated + ' / 跳过 ' + r.skipped
+      );
+    }
+  };
+
+  /** 共享：丰满世界书实体（单点默认预览确认） */
+  panel.enrichWbEntity = async function(entityId, opts) {
+    opts = opts || {};
+    var ana = ctx.panels.analyze;
+    if (!ana) throw new Error('分析面板未就绪');
+    return ana.runAnalyzeEnrich({
+      ids: [entityId],
+      confirm: opts.confirm !== false,
+      skipConfirm: !!opts.skipConfirm,
+      silent: !!opts.silent,
+      sourceBtn: opts.sourceBtn || null,
+    });
+  };
+
+  panel.findWbIndexByEntityId = function(entityId) {
+    var state = ctx.state;
+    var id = String(entityId || '');
+    var byId = (state.wbEntries || []).findIndex(function(e) { return e && e.id === id; });
+    if (byId >= 0) return byId;
+    var ent = (state.entities || []).find(function(e) { return e.id === id; });
+    if (!ent) return -1;
+    return (state.wbEntries || []).findIndex(function(e) {
+      return e && (e.id === ent.id || e.name === ent.name);
+    });
+  };
+
   // ---- 主渲染 ----
 
   panel.render = function() {
@@ -184,6 +275,22 @@ export function attachNovelWorldbookRender(ctx, panel) {
 
     var countEl = $('novelWbCount');
     if (countEl) countEl.textContent = String((state.wbEntries || []).length);
+    var enrichedMeta = $('novelWbEnrichedMeta');
+    if (enrichedMeta) {
+      var enrichedN = (state.wbEntries || []).filter(function(e) {
+        var ent = e.id
+          ? (state.entities || []).find(function(x) { return x.id === e.id; })
+          : findEntityMatch(state.entities, e.name, []);
+        return ent ? isEntityEnriched(ent, !!state.strictQuality, getAdultMode(state)) : false;
+      }).length;
+      if ((state.wbEntries || []).length && enrichedN > 0) {
+        enrichedMeta.hidden = false;
+        enrichedMeta.textContent = '已丰满 ' + enrichedN;
+      } else {
+        enrichedMeta.hidden = true;
+        enrichedMeta.textContent = '';
+      }
+    }
 
     var searchInput = $('novelWbSearchInput');
     var searchClear = $('novelWbSearchClear');
@@ -276,9 +383,7 @@ export function attachNovelWorldbookRender(ctx, panel) {
     prev.querySelectorAll('[data-wb-enrich]').forEach(function(btn) {
       btn.addEventListener('click', function(e) {
         e.stopPropagation();
-        var ana = ctx.panels.analyze;
-        if (!ana) return;
-        ana.runAnalyzeEnrich({ ids: [btn.getAttribute('data-wb-enrich')] }).catch(function(err) {
+        panel.enrichWbEntity(btn.getAttribute('data-wb-enrich'), { sourceBtn: btn }).catch(function(err) {
           if (!ctx.isTrackedAbort(err)) alert('丰满失败: ' + (err.message || err));
         });
       });
@@ -292,45 +397,13 @@ export function attachNovelWorldbookRender(ctx, panel) {
     prev.querySelectorAll('[data-wb-sync]').forEach(function(btn) {
       btn.addEventListener('click', function(e) {
         e.stopPropagation();
-        var i = Number(btn.getAttribute('data-wb-sync'));
-        var entry = state.wbEntries[i];
-        if (!entry) return;
-        if (!window.__getWorldbookEntries__ || !window.__setWorldbookEntries__) {
-          return alert('世界书环境未就绪');
-        }
-        var cur = window.__getWorldbookEntries__() || [];
-        var r = applyDraftsToWorldbook(cur, [entry], state.conflictPolicy);
-        window.__setWorldbookEntries__(r.entries);
-        window.dispatchEvent(new Event('worldbook-changed'));
-        window.dispatchEvent(new Event('card-builder-data-changed'));
-        entry.syncStatus = 'synced';
-        ctx.save();
-        ctx.renderAll();
-        if (ctx.setStatus) ctx.setStatus('novelWbStatus', '已同步「' + (entry.name || '') + '」：新增 ' + r.added + ' / 更新 ' + r.updated + ' / 跳过 ' + r.skipped);
+        panel.syncWbEntry(Number(btn.getAttribute('data-wb-sync')));
       });
     });
     prev.querySelectorAll('[data-wb-del]').forEach(function(btn) {
       btn.addEventListener('click', function(e) {
         e.stopPropagation();
-        if (!confirm('确认删除该世界书条目？')) return;
-        var i = Number(btn.getAttribute('data-wb-del'));
-        var entry = state.wbEntries[i];
-        var entId = entry && entry.id;
-        if (!entId && entry) {
-          var hit = findEntityMatch(state.entities, entry.name, []);
-          if (hit) entId = hit.id;
-        }
-        state.wbEntries.splice(i, 1);
-        if (entId) {
-          state.entities = (state.entities || []).filter(function(x) { return x.id !== entId; });
-          state.relations = (state.relations || []).filter(function(r) {
-            return r.fromId !== entId && r.toId !== entId;
-          });
-        }
-        if (ctx.editState.editingWbIndex === i) ctx.closeNovelModal('novelModalWb');
-        else if (ctx.editState.editingWbIndex > i) ctx.editState.editingWbIndex--;
-        ctx.save();
-        ctx.renderAll();
+        panel.deleteWbEntry(Number(btn.getAttribute('data-wb-del')));
       });
     });
   };
@@ -455,7 +528,7 @@ export function attachNovelWorldbookRender(ctx, panel) {
       var ana = ctx.panels.analyze;
       if (!ana) return;
       try {
-        await ana.runAnalyzeEnrich({ ids: ids });
+        await ana.runAnalyzeEnrich({ ids: ids, skipConfirm: true, sourceBtn: enrichWb });
       } catch (e) {
         if (!ctx.isTrackedAbort(e)) alert('丰满失败: ' + (e.message || e));
       }

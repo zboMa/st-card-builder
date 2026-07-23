@@ -7,11 +7,152 @@ import { getAdultMode } from '../nsfwSupport.mjs';
 import { escapeHtml } from '../../utils.mjs';
 import { getEmbeddingConfig, EMBEDDING_API_URL_KEY, EMBEDDING_API_KEY_KEY, EMBEDDING_MODEL_KEY } from '../rag/embeddingConfig.mjs';
 import { ENTITY_TYPE_ZH } from './analyzeShared.mjs';
+import { isProtagonistEntity, resolveProtagonistName, matchesProtagonist } from '../protagonist.mjs';
 
 /**
  * attachNovelAnalyzeRender（拆自原模块）
  */
 export function attachNovelAnalyzeRender(ctx, panel, graphRef) {
+
+  function hideGraphCtxMenu() {
+    var menu = ctx.$('novelGraphCtxMenu');
+    if (menu) menu.hidden = true;
+  }
+
+  function ensureGraphCtxMenu() {
+    var menu = ctx.$('novelGraphCtxMenu');
+    if (menu) return menu;
+    menu = document.createElement('div');
+    menu.id = 'novelGraphCtxMenu';
+    menu.className = 'novel-graph-ctx-menu';
+    menu.hidden = true;
+    menu.setAttribute('role', 'menu');
+    document.body.appendChild(menu);
+    if (!document.__novelGraphCtxMenuBound) {
+      document.__novelGraphCtxMenuBound = true;
+      document.addEventListener('click', function() { hideGraphCtxMenu(); });
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') hideGraphCtxMenu();
+      });
+    }
+    return menu;
+  }
+
+  function openGraphCtxMenu(payload) {
+    var state = ctx.state;
+    var ent = (state.entities || []).find(function(e) { return e.id === payload.id; });
+    var menu = ensureGraphCtxMenu();
+    var items = [];
+    var protagName = resolveProtagonistName(state).name;
+    var isProtag = !!(ent && (
+      isProtagonistEntity(ent)
+      || (payload.attrs && payload.attrs.role === 'protagonist')
+      || (protagName && matchesProtagonist(ent.name, ent.aliases, protagName))
+    ));
+    if (isProtag) {
+      items.push({ kind: 'hint', text: '卡面主角 · 请在「角色设定」编辑' });
+      items.push({
+        id: 'open-setup',
+        label: '打开角色设定',
+        run: function() {
+          var el = ctx.$('novelSetupCharName') || ctx.$('charName');
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            try { el.focus(); } catch (e) { /* ignore */ }
+          }
+        },
+      });
+    } else if (ent && ent.type === 'person') {
+      var chars = ctx.panels.characters;
+      var ch = chars ? chars.findCharacter({ id: ent.id, name: ent.name }) : null;
+      if (ch && chars) {
+        items.push({
+          id: 'edit',
+          label: '编辑档案',
+          run: function() { chars.openProfileEditor(ch.id); },
+        });
+        items.push({
+          id: 'enrich',
+          label: 'AI 丰满',
+          run: function() {
+            chars.enrichCharacterEntity(ent.id, {}).catch(function(err) {
+              if (!ctx.isTrackedAbort(err)) alert('丰满失败: ' + (err.message || err));
+            });
+          },
+        });
+        items.push({
+          id: 'sync',
+          label: '同步→世界书人物条',
+          run: function() { chars.syncCharacterToWorldbook(ch.id); },
+        });
+        items.push({
+          id: 'del',
+          label: '删除',
+          danger: true,
+          run: function() { chars.deleteCharacter(ch.id); },
+        });
+      }
+    } else if (ent && ent.type !== 'person') {
+      var wb = ctx.panels.worldbook;
+      if (wb) {
+        var wi = wb.findWbIndexByEntityId(ent.id);
+        items.push({
+          id: 'edit',
+          label: '编辑',
+          run: function() {
+            if (wi >= 0) wb.editWbEntry(wi);
+          },
+        });
+        items.push({
+          id: 'enrich',
+          label: 'AI 丰满',
+          run: function() {
+            wb.enrichWbEntity(ent.id, {}).catch(function(err) {
+              if (!ctx.isTrackedAbort(err)) alert('丰满失败: ' + (err.message || err));
+            });
+          },
+        });
+        if (wi >= 0) {
+          items.push({
+            id: 'sync',
+            label: '同步→主世界书',
+            run: function() { wb.syncWbEntry(wi); },
+          });
+          items.push({
+            id: 'del',
+            label: '删除',
+            danger: true,
+            run: function() { wb.deleteWbEntry(wi); },
+          });
+        }
+      }
+    }
+    if (!items.length) {
+      hideGraphCtxMenu();
+      return;
+    }
+    menu.innerHTML = items.map(function(it) {
+      if (it.kind === 'hint') {
+        return '<div class="novel-graph-ctx-hint">' + escapeHtml(it.text) + '</div>';
+      }
+      return '<button type="button" role="menuitem" data-graph-act="' + escapeHtml(it.id) + '"'
+        + (it.danger ? ' class="is-danger"' : '') + '>' + escapeHtml(it.label) + '</button>';
+    }).join('');
+    menu.querySelectorAll('[data-graph-act]').forEach(function(btn) {
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        var act = btn.getAttribute('data-graph-act');
+        var hit = items.find(function(x) { return x.id === act; });
+        hideGraphCtxMenu();
+        if (hit && hit.run) hit.run();
+      });
+    });
+    var x = Math.max(8, Math.min(window.innerWidth - 190, payload.clientX || 0));
+    var y = Math.max(8, Math.min(window.innerHeight - 160, payload.clientY || 0));
+    menu.style.left = x + 'px';
+    menu.style.top = y + 'px';
+    menu.hidden = false;
+  }
 
   function getApiConfig() {
     if (ctx._getApiConfig) return ctx._getApiConfig();
@@ -245,8 +386,9 @@ export function attachNovelAnalyzeRender(ctx, panel, graphRef) {
             }).join('') + '</ul>'
             : '';
           var typeZh = ENTITY_TYPE_ZH[payload.type] || payload.type || '';
+          var roleHint = attrs.role === 'protagonist' ? ' · 卡面主角' : '';
           detail.innerHTML = '<strong>' + escapeHtml(payload.label || payload.id) + '</strong>'
-            + ' <span class="novel-graph-type">' + escapeHtml(typeZh) + '</span>'
+            + ' <span class="novel-graph-type">' + escapeHtml(typeZh) + escapeHtml(roleHint) + '</span>'
             + attrHtml;
           return;
         }
@@ -255,6 +397,9 @@ export function attachNovelAnalyzeRender(ctx, panel, graphRef) {
           + ' → <em>' + escapeHtml(payload.label || 'related') + '</em> → '
           + '<strong>' + escapeHtml(payload.target) + '</strong>'
           + (ev ? '<div class="novel-graph-evidence">' + ev + '</div>' : '');
+      },
+      onNodeContextMenu: function(payload) {
+        openGraphCtxMenu(payload);
       },
     });
   };

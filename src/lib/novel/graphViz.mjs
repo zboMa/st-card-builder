@@ -231,6 +231,7 @@ function bindSelectHandlers(graph, opts) {
   graph.off(NodeEvent.CLICK);
   graph.off(EdgeEvent.CLICK);
   graph.off(CanvasEvent.CLICK);
+  if (NodeEvent.CONTEXT_MENU) graph.off(NodeEvent.CONTEXT_MENU);
   graph.on(NodeEvent.CLICK, function(evt) {
     if (typeof opts.onSelect !== 'function') return;
     var id = evt.target && evt.target.id;
@@ -261,6 +262,35 @@ function bindSelectHandlers(graph, opts) {
   graph.on(CanvasEvent.CLICK, function() {
     if (typeof opts.onSelect === 'function') opts.onSelect(null);
   });
+  if (NodeEvent.CONTEXT_MENU) {
+    graph.on(NodeEvent.CONTEXT_MENU, function(evt) {
+      if (evt && typeof evt.preventDefault === 'function') evt.preventDefault();
+      if (evt && evt.originalEvent && typeof evt.originalEvent.preventDefault === 'function') {
+        evt.originalEvent.preventDefault();
+      }
+      if (typeof opts.onNodeContextMenu !== 'function') return;
+      var id = evt.target && evt.target.id;
+      var nd = id ? graph.getNodeData(id) : null;
+      if (!nd) return;
+      var clientX = 0;
+      var clientY = 0;
+      if (evt.client) {
+        clientX = evt.client.x || 0;
+        clientY = evt.client.y || 0;
+      } else if (evt.originalEvent) {
+        clientX = evt.originalEvent.clientX || 0;
+        clientY = evt.originalEvent.clientY || 0;
+      }
+      opts.onNodeContextMenu({
+        id: nd.id,
+        label: (nd.data && nd.data.label) || nd.id,
+        type: (nd.data && nd.data.type) || 'concept',
+        attrs: (nd.data && nd.data.attrs) || {},
+        clientX: clientX,
+        clientY: clientY,
+      });
+    });
+  }
 }
 
 /** 布局 → 去重叠 → 适配视口 */
@@ -309,6 +339,12 @@ function attachResizeRelayout(container, graph) {
 export function mountOrUpdateGraph(container, graphData, existing, opts) {
   opts = opts || {};
   if (!container) return null;
+  if (!container.__novelGraphCtxGuard) {
+    container.__novelGraphCtxGuard = true;
+    container.addEventListener('contextmenu', function(e) {
+      e.preventDefault();
+    });
+  }
   var data = graphToG6Data(graphData);
   seedNodePositions(data, container.clientWidth, container.clientHeight);
 
