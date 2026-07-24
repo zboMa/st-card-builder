@@ -491,6 +491,41 @@
   top: auto !important;
 }
 
+/* 长文本只读预览（开场白 / 提示词） */
+.text-preview-modal__body {
+  margin: 0;
+  padding: 4px 2px 8px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: inherit;
+  font-size: 0.88rem;
+  line-height: 1.7;
+  color: var(--color-text);
+}
+
+/* 四角折线展开图标（预览入口） */
+.icon-expand-corners {
+  width: 14px;
+  height: 14px;
+  display: block;
+  flex-shrink: 0;
+  pointer-events: none;
+}
+.btn-expand-preview {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  line-height: 0;
+}
+.btn-expand-preview.btn-inline {
+  width: 26px !important;
+  min-width: 26px !important;
+  height: 26px !important;
+  padding: 0 !important;
+  border-radius: var(--radius-sm) !important;
+}
+
 /* —— 空态 / 提示行 —— */
 .ui-hint {
   font-size: 0.75rem;

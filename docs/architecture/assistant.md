@@ -9,10 +9,11 @@
 ## 流水线
 
 1. 用户输入 → 系统提示（含工具说明、字段 hint）  
-2. LLM ReAct 轨迹 → `reactParse.mjs`  
+2. 模型默认**自然语言**回复；仅需操作卡面时输出 tool JSON → `reactParse.mjs`（只用于执行）  
 3. `risk.mjs` 分级 → `executor.mjs` 执行工具  
 4. 小改自动应用；大改预览确认；`session.mjs` 存会话与撤销快照  
 
+**对话契约**：像现代智能体——能直接答就直接答；工具按需调用。气泡展示人读文案；送模保留该步原文（`modelContent`）。等待模型/工具时 UI 显示「正在…」提示条（`assistant-msg--pending`）。
 ## 模块
 
 | 文件 | 职责 |
@@ -34,9 +35,10 @@
 
 - 编码：`js-tiktoken`（OpenAI `cl100k_base`，浏览器/Node 可用）
 - 总窗口 **200k** tokens；预留约 **8k** 给回复，输入预算 = 200k − 8k
-- **≥60%** 输入预算：启动压缩（旧工具结果缩预览、限制旧 thought）
-- **≥80%**：激进压缩（工具只留摘要、裁剪旧 RAG、必要时丢最旧消息）
+- **≥60%** 输入预算：启动压缩（旧**工具结果**缩预览；assistant 原文不丢弃、不重组）
+- **≥80%**：激进压缩（工具只留摘要、裁剪旧 RAG、必要时对过长条按 token 截断）
 - **禁止**对单条工具结果做固定字符盲切（旧 `slice(0, 1200)` 已移除）；压缩只在 `prepareAssistantMessages` / `prepareChatCompletionMessages` 发送时整体进行
+- **禁止**把模型输出改写成 Thought-only / 自造 Action 再喂回模型（影响持续输出）
 - 试聊发送复用 `prepareChatCompletionMessages`（同一套预算；回复预留取 `max(max_tokens, 8k)`）
 - 调参入口：`CONTEXT_BUDGET`（`limit` / `softRatio` / `hardRatio` / `reserveReply`）
 - **全项目约定**：凡「送模上下文预算 / 截断 / token 指示」一律走 `contextManager`（tiktoken）；禁止 `length/2`、`chars×2`、固定字符盲切冒充 token。字数 UI（如拆章 `charLimit`）仍可按字符，但不得当作 token 预算。

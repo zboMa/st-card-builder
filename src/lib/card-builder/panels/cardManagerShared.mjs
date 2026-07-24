@@ -80,6 +80,10 @@ export function createCardManagerShared(ctx) {
     ctx.state.creatorNotes = fn('creatorNotes');
     var verEl = ctx.$('characterVersion');
     if (verEl) ctx.state.characterVersion = String(verEl.value || '').trim() || '1.0';
+    // 备选开场白只在 window.__altGreetings__，不进 DOM id；刷新丢失即因未同步
+    if (typeof window !== 'undefined' && Array.isArray(window.__altGreetings__)) {
+      ctx.state.altGreetings = window.__altGreetings__.slice();
+    }
   }
 
   // ---- State bridge helpers ----

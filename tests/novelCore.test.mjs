@@ -887,6 +887,8 @@ describe('novel panel visual contract', function() {
     const wbShared = readFileSync(join(novelRoot, 'src/lib/card-builder/panels/worldbookShared.mjs'), 'utf8');
     assert.match(wbShared, /btnWbEntryDelete_/);
     assert.match(wbShared, /getElementById\(['"]btnWbEntryDelete_/);
+    assert.match(wbShared, /showConfirmDialog/);
+    assert.doesNotMatch(wbShared, /confirm\(['"]确认删除该世界书/);
     assert.doesNotMatch(wbShared, /querySelectorAll\(['"]\.btn-delete['"]\)/);
     const css = readNovelWorkshopStylesSources(novelRoot);
     assert.match(css, /\.novel-graph-cy/);

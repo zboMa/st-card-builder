@@ -4,6 +4,7 @@ import { escapeHtml, truncatePreviewLine, parseJsonLoose, normalizeNameList } fr
 import { findEntityMatch, upsertEntity, projectEntitiesToLegacy, isEntityEnriched } from '../entityStore.mjs';
 import { getAdultMode } from '../nsfwSupport.mjs';
 import { applyDraftsToWorldbook } from '../sync.mjs';
+import { showConfirmDialog } from '../../ui/confirmDialog.mjs';
 
 /**
  * attachNovelWorldbookRender（拆自原模块）
@@ -164,10 +165,19 @@ export function attachNovelWorldbookRender(ctx, panel) {
   };
 
   /** 共享：删除世界书条目（列表 / 图谱） */
-  panel.deleteWbEntry = function(indexOrId, opts) {
+  panel.deleteWbEntry = async function(indexOrId, opts) {
     opts = opts || {};
     var state = ctx.state;
-    if (!opts.skipConfirm && !confirm('确认删除该世界书条目？')) return false;
+    if (!opts.skipConfirm) {
+      var ok = await showConfirmDialog({
+        icon: '🗑️',
+        title: '删除世界书条目？',
+        message: '确认删除该世界书条目？此操作不可撤销。',
+        okText: '删除',
+        cancelText: '取消',
+      });
+      if (!ok) return false;
+    }
     var i = typeof indexOrId === 'number' ? indexOrId : -1;
     var entry = null;
     if (i >= 0) entry = state.wbEntries[i];

@@ -610,9 +610,16 @@ export function createWorldbookShared(ctx) {
         if (!isSk && !req) return alert('\u8BF7\u586B\u5199\u4FEE\u6539\u8981\u6C42\uFF01');
         await aiRewriteEntry(index, req, e.currentTarget);
       });
-      if (delBtn) delBtn.addEventListener('click', function(e) {
+      if (delBtn) delBtn.addEventListener('click', async function(e) {
         e.stopPropagation();
-        if (!confirm('确认删除该世界书条目？')) return;
+        var ok = await ctx.showConfirmDialog({
+          icon: '🗑️',
+          title: '删除世界书条目？',
+          message: '确认删除该世界书条目？此操作不可撤销。',
+          okText: '删除',
+          cancelText: '取消',
+        });
+        if (!ok) return;
         ctx.state.worldbookEntries.splice(index, 1);
         if (editingIndex === index) closeWbModal('wbModalEdit');
         else if (editingIndex > index) editingIndex--;

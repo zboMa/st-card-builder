@@ -466,12 +466,27 @@ describe('sidebar navigation contract', function() {
     assert.match(src, /id="firstMes"/);
     assert.match(src, /id="altGreetingsList"/);
     assert.match(src, /id="btnAddGreeting"/);
+    assert.match(src, /id="btnPreviewFirstMes"/);
+    assert.match(src, /data-action="preview"/);
     assert.match(src, /__altGreetings__/);
     assert.match(src, /__renderAltGreetings__/);
+    assert.match(src, /__openTextPreview__/);
+    // 备选开场白落盘：sync 须写入 state；triggerGlobalUpdate 须走带 sync 的存盘
+    const shared = readFileSync(join(root, 'src/lib/card-builder/panels/cardManagerShared.mjs'), 'utf8');
+    assert.match(shared, /syncDomFieldsToState[\s\S]*?__altGreetings__[\s\S]*?state\.altGreetings/);
+    const bootAi = readFileSync(join(root, 'src/lib/card-builder/bootAiConfig.mjs'), 'utf8');
+    assert.match(bootAi, /triggerGlobalUpdate[\s\S]*?debouncedUpdateAndSave/);
     // 角色设定中不再承载开场白编辑
     const charSrc = readCharacterPanelSources(root);
     assert.doesNotMatch(charSrc, /id="firstMes"/);
     assert.doesNotMatch(charSrc, /id="altGreetingsList"/);
+  });
+
+  it('提示词配置每条可预览', function() {
+    const boot = readFileSync(join(root, 'src/lib/promptConfigPanelBoot.mjs'), 'utf8');
+    assert.match(boot, /btn-prompt-preview/);
+    assert.match(boot, /openTextPreview/);
+    assert.match(boot, /textPreviewModal/);
   });
 
   it('AIPanel 提供配置区；生成区在 AiEngineModal 弹窗', function() {

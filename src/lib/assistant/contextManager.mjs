@@ -103,8 +103,9 @@ export function uiMessagesToModelHistory(uiMessages) {
     if (m.role === 'assistant') {
       out.push({
         role: 'assistant',
-        content: String(m.content || ''),
-        meta: { kind: /^💭/.test(String(m.content || '')) ? 'thought' : 'assistant' },
+        // 送模优先 modelContent（完整 raw）；UI 用 content/displayContent
+        content: messageContentForModel(m),
+        meta: { kind: 'assistant' },
       });
       return;
     }
@@ -134,7 +135,7 @@ function stripToModelMessages(history) {
 }
 
 /**
- * soft：压缩旧工具正文 / 丢掉较早 thought，保留近期完整结果
+ * soft：压缩旧工具正文，保留近期完整结果；assistant 原文不丢弃、不改写结构
  * @param {{ role: string, content: string, meta?: object }[]} history
  * @param {number} keepRecentTools 近期工具条保留全文的数量
  */
@@ -147,22 +148,14 @@ function compressSoft(history, keepRecentTools) {
   var keepSet = Object.create(null);
   toolIdx.slice(-keep).forEach(function(i) { keepSet[i] = 1; });
 
-  var thoughtBudget = 3;
-  var thoughtFromEnd = 0;
   var out = [];
   for (var i = history.length - 1; i >= 0; i--) {
     var m = history[i];
     var meta = m.meta || {};
-    if (meta.kind === 'thought') {
-      thoughtFromEnd += 1;
-      if (thoughtFromEnd > thoughtBudget) continue;
-      out.push(m);
-      continue;
-    }
     if (meta.kind === 'tool' && !keepSet[i]) {
       var summary = meta.summary || '工具结果';
       var body = String(meta.fullBody || m.content || '');
-      // 按 token 预算截断旧工具正文，而非固定字符
+      // 旧工具结果按 token 预算截断预览；不改写模型 assistant 原文
       var preview = truncateToTokens(body, 180);
       out.push({
         role: 'user',
@@ -178,6 +171,7 @@ function compressSoft(history, keepRecentTools) {
 
 /**
  * hard：只留系统外最近若干轮；工具只留摘要；旧 user RAG 去掉
+ * assistant 仅允许按 token 截断，禁止 Thought/Action 重组
  * @param {{ role: string, content: string, meta?: object }[]} history
  */
 function compressHard(history) {
@@ -214,13 +208,7 @@ function compressHard(history) {
         meta: Object.assign({}, meta, { compressed: 'hard' }),
       };
     }
-    if (meta.kind === 'thought') {
-      return {
-        role: 'assistant',
-        content: truncateToTokens(String(m.content || ''), 80),
-        meta: meta,
-      };
-    }
+    // assistant / 其它：仅按 token 截断，不重组 Thought/Action
     if (String(m.content || '').length > 0 && countTokens(m.content) > 1200) {
       return {
         role: m.role,

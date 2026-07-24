@@ -68,7 +68,7 @@ function initAssistantModeSwitch() {
       if (subEl) {
         subEl.textContent = next === 'chat'
           ? '按当前卡设定试聊 · 世界书/正则试运行'
-          : 'ReAct 工具调用 · 与卡片状态同步';
+          : '智能体对话 · 需要时调用工具';
       }
       panel.classList.toggle('is-chat-mode', next === 'chat');
       panel.setAttribute('aria-label', next === 'chat' ? 'AI 试聊' : 'AI 辅助助手');
@@ -651,8 +651,35 @@ var boot = window.__assistantBoot__ || {};
         var node = el('div', cls, messageContentForDisplay(m));
         messagesEl.appendChild(node);
       });
+      if (pendingHintText) {
+        messagesEl.appendChild(buildPendingHintNode(pendingHintText));
+      }
       messagesEl.scrollTop = messagesEl.scrollHeight;
       updateTokenCount();
+    }
+
+    var pendingHintText = '';
+
+    function buildPendingHintNode(text) {
+      var wrap = el('div', 'assistant-msg assistant-msg--pending');
+      var dots = el('span', 'assistant-typing-dots');
+      dots.innerHTML = '<span></span><span></span><span></span>';
+      wrap.appendChild(dots);
+      wrap.appendChild(document.createTextNode(' ' + String(text || '处理中…')));
+      wrap.setAttribute('aria-live', 'polite');
+      return wrap;
+    }
+
+    function setPendingHint(text) {
+      pendingHintText = text ? String(text) : '';
+      setStatus(pendingHintText || (busy ? '处理中…' : '就绪'));
+      renderMessages();
+    }
+
+    function clearPendingHint() {
+      if (!pendingHintText) return;
+      pendingHintText = '';
+      renderMessages();
     }
 
     function persistSessionRagInjected() {
@@ -1410,9 +1437,8 @@ var boot = window.__assistantBoot__ || {};
         characterFieldHint: CHARACTER_FIELD_HINT,
         catalogOverview: catalogOverviewText,
       }) || (
-        '你是卡片构建助手。工具：\n' + toolListText
+        '你是卡片构建助手。默认用自然语言中文回复用户；只有需要读卡/改卡时才输出一个 tool JSON。\n工具：\n' + toolListText
         + (catalogOverviewText ? '\n\n' + catalogOverviewText : '')
-        + '\n输出 JSON：tool 或 final。'
       );
       if (userExtra) base += '\n\n' + userExtra;
       return base;
@@ -1439,7 +1465,7 @@ var boot = window.__assistantBoot__ || {};
       abortFlag = false;
       busy = true;
       syncActionBtn();
-      setStatus('思考中…');
+      setPendingHint('正在思考…');
 
       pushUi({ role: 'user', content: userText, modelContent: userText });
 
@@ -1451,7 +1477,7 @@ var boot = window.__assistantBoot__ || {};
       try {
         var ragOpt = getNovelRagOptions();
         if (ragOpt.enabled !== false && window.__novelWorkshopBridge__ && window.__novelWorkshopBridge__.searchPassages) {
-          setStatus('检索小说原文…');
+          setPendingHint('正在检索小说原文…');
           var ragPayload = await resolveAssistantRag(userText, false);
           if (ragPayload) {
             var ragBlock = ragPayload.ragBody;
@@ -1470,7 +1496,7 @@ var boot = window.__assistantBoot__ || {};
       var center = window.__aiTaskCenter__;
       var reactTask = center ? center.create({
         type: 'assistant_react',
-        title: 'AI 助手 ReAct',
+        title: 'AI 助手',
         target: String(userText || '').slice(0, 40),
       }) : null;
       var reactSignal = reactTask && reactTask.signal;
@@ -1478,42 +1504,67 @@ var boot = window.__assistantBoot__ || {};
       try {
         for (var step = 0; step < MAX_REACT_STEPS; step++) {
           if (abortFlag || (reactSignal && reactSignal.aborted)) {
+            clearPendingHint();
             pushUi({ role: 'assistant', content: '已停止。' });
             if (center && reactTask && reactTask.status !== 'cancelled') center.cancel(reactTask.id);
             break;
           }
-          setStatus('ReAct 步骤 ' + (step + 1) + '/' + MAX_REACT_STEPS);
-          if (center && reactTask) center.setProgress(reactTask.id, (step + 1) / MAX_REACT_STEPS, '步骤 ' + (step + 1));
+          var stepLabel = step === 0 ? '正在回复…' : ('继续处理（' + (step + 1) + '/' + MAX_REACT_STEPS + '）…');
+          if (center && reactTask) center.setProgress(reactTask.id, (step + 1) / MAX_REACT_STEPS, stepLabel);
           var stepHint = '';
           if (step > 0) {
-            stepHint = promptText('assistantReactHint') || '继续：输出 tool 或 final JSON。';
+            stepHint = promptText('assistantReactHint')
+              || '根据工具结果继续：仍需工具则输出 tool JSON，否则用自然语言直接回复用户。';
           }
           var prepared = prepareAssistantMessages({
             systemPrompt: buildSystemPrompt(extra),
             uiMessages: uiMessages,
             extraSystem: stepHint,
           });
-          if (prepared.level === 'soft') setStatus('ReAct 步骤 ' + (step + 1) + '/' + MAX_REACT_STEPS + ' · 上下文压缩中');
-          if (prepared.level === 'hard') setStatus('ReAct 步骤 ' + (step + 1) + '/' + MAX_REACT_STEPS + ' · 激进压缩');
+          if (prepared.level === 'soft') stepLabel = '正在整理上下文…';
+          if (prepared.level === 'hard') stepLabel = '上下文较长，正在压缩…';
+          setPendingHint(stepLabel);
           var messages = prepared.messages;
           var raw = await callChat(messages, 0.35, reactSignal);
           var parsed = parseReactStep(raw);
 
           if (parsed.type === 'tool' && parsed.tool) {
-            if (parsed.thought) {
-              pushUi({ role: 'assistant', content: '💭 ' + parsed.thought });
-            }
+            clearPendingHint();
+            // 送模：raw 原样；UI：只展示 thought（无则短提示）
+            var toolDisplay = parsed.thought
+              ? ('💭 ' + String(parsed.thought))
+              : ('💭 调用工具 ' + parsed.tool);
+            pushUi({
+              role: 'assistant',
+              content: toolDisplay,
+              displayContent: toolDisplay,
+              modelContent: raw || '',
+            });
+            setPendingHint('正在执行 ' + parsed.tool + '…');
             var tr = await runTool(parsed.tool, parsed.args || {}, false);
-            if (tr.pendingConfirm) break;
+            if (tr.pendingConfirm) {
+              clearPendingHint();
+              break;
+            }
             continue;
           }
 
           if (parsed.type === 'final') {
-            pushUi({ role: 'assistant', content: parsed.final || raw });
+            clearPendingHint();
+            var finalText = String(parsed.final != null ? parsed.final : '').trim()
+              || String(raw || '').trim()
+              || '（无输出）';
+            pushUi({
+              role: 'assistant',
+              content: finalText,
+              displayContent: finalText,
+              modelContent: raw || finalText,
+            });
             break;
           }
 
           // 无法解析则把原文当回复
+          clearPendingHint();
           pushUi({ role: 'assistant', content: raw || '（无输出）' });
           break;
         }
@@ -1522,6 +1573,7 @@ var boot = window.__assistantBoot__ || {};
         var aborted = (window.__isAiAbortError__ && window.__isAiAbortError__(err))
           || (err && err.name === 'AbortError')
           || abortFlag;
+        clearPendingHint();
         if (aborted) {
           pushUi({ role: 'assistant', content: '已停止。' });
           if (center && reactTask && reactTask.status !== 'cancelled') center.cancel(reactTask.id);
@@ -1533,6 +1585,7 @@ var boot = window.__assistantBoot__ || {};
           if (center && reactTask) center.fail(reactTask.id, err);
         }
       } finally {
+        clearPendingHint();
         busy = false;
         syncActionBtn();
         setStatus('就绪');

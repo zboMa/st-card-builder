@@ -77,6 +77,23 @@ describe('contextManager prepare', function() {
     assert.ok(toolMsg.content.length > 1200);
   });
 
+  it('assistant 送模用 modelContent 原样，UI content 可为人读摘要', function() {
+    var raw = '{"thought":"写开场","tool":"update_character_fields","args":{"fields":{"altGreetings":["苏有容在后宫"]}}}';
+    var hist = uiMessagesToModelHistory([
+      { role: 'user', content: '添加一条备用开场白', modelContent: '添加一条备用开场白' },
+      {
+        role: 'assistant',
+        content: '💭 写开场',
+        displayContent: '💭 写开场',
+        modelContent: raw,
+      },
+    ]);
+    assert.equal(hist.length, 2);
+    assert.equal(hist[1].role, 'assistant');
+    assert.equal(hist[1].content, raw);
+    assert.equal(hist[1].meta.kind, 'assistant');
+  });
+
   it('低用量不压缩', function() {
     var prepared = prepareAssistantMessages({
       systemPrompt: 'sys',

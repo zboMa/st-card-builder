@@ -2,7 +2,14 @@
  * 提示词配置面板 boot（从 PromptConfigPanel.astro 外提）
  */
 
+import {
+  installTextPreviewGlobal,
+  openTextPreview,
+  TEXT_PREVIEW_EXPAND_ICON
+} from './textPreviewModal.mjs';
+
 export function initPromptConfigPanel() {
+  installTextPreviewGlobal();
   var tabsEl = document.getElementById('promptConfigTabs');
   var listEl = document.getElementById('promptConfigList');
   var statusEl = document.getElementById('promptConfigStatus');
@@ -311,6 +318,8 @@ export function initPromptConfigPanel() {
         + '<div class="prompt-config-item-head">'
         + '<h3 class="prompt-config-item-title">' + escapeHtml(meta.label)
         + '<span class="prompt-config-item-id">' + escapeHtml(meta.id) + '</span></h3>'
+        + '<button type="button" class="btn btn-ghost btn-inline btn-expand-preview btn-prompt-preview" data-preview-id="'
+        + escapeHtml(meta.id) + '" title="预览" aria-label="预览">' + TEXT_PREVIEW_EXPAND_ICON + '</button>'
         + '</div>'
         + '<textarea data-prompt-ta="' + escapeHtml(meta.id) + '">' + escapeHtml(val) + '</textarea>'
         + '<div class="prompt-config-item-actions">'
@@ -319,6 +328,24 @@ export function initPromptConfigPanel() {
         + '</div></div>';
     });
     listEl.innerHTML = html;
+
+    listEl.querySelectorAll('.btn-prompt-preview').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var id = btn.getAttribute('data-preview-id');
+        var ta = id ? listEl.querySelector('[data-prompt-ta="' + id + '"]') : null;
+        var meta = null;
+        try {
+          var items = metaInGroup(store(), activeGroup);
+          for (var i = 0; i < items.length; i++) {
+            if (items[i].id === id) { meta = items[i]; break; }
+          }
+        } catch (e) { meta = null; }
+        openTextPreview({
+          title: (meta && meta.label) ? meta.label : (id || '预览'),
+          text: ta ? ta.value : ''
+        });
+      });
+    });
 
     listEl.querySelectorAll('.btn-prompt-reset-one').forEach(function(btn) {
       btn.addEventListener('click', function() {

@@ -113,6 +113,41 @@ export function summarizeJsonData(data) {
 }
 
 /**
+ * 送模用的工具轨迹（系统侧）：调用名 + 参数 + 返回。
+ * 模型侧原文由 panelBoot 原样写入，不在此改写。
+ * @param {string} toolName
+ * @param {object} [args]
+ * @param {object} result
+ * @returns {string}
+ */
+export function buildToolModelDetail(toolName, args, result) {
+  var r = result || {};
+  var lines = ['调用: ' + String(toolName || 'tool')];
+  try {
+    lines.push('参数: ' + JSON.stringify(args && typeof args === 'object' ? args : {}, null, 2));
+  } catch (e) {
+    lines.push('参数: (无法序列化)');
+  }
+  if (r.pendingConfirm) {
+    lines.push('状态: 待确认');
+    if (r.preview) lines.push(String(r.preview));
+    else lines.push(r.message || '等待用户确认');
+    return lines.join('\n');
+  }
+  if (!r.ok) {
+    lines.push('返回: 错误 — ' + (r.error || 'unknown'));
+    return lines.join('\n');
+  }
+  try {
+    var data = r.data != null ? r.data : r;
+    lines.push('返回: ' + JSON.stringify(data, null, 2));
+  } catch (e2) {
+    lines.push('返回: ok');
+  }
+  return lines.join('\n');
+}
+
+/**
  * @param {string} toolName
  * @param {object} result
  * @param {object} [args]
@@ -152,13 +187,17 @@ export function buildToolUiMessage(toolName, args, result) {
   var risk = r.risk || '?';
   var summary = summarizeToolTrace(toolName, r, args);
   var detail = buildToolTraceDetail(toolName, r, args);
+  var modelDetail = buildToolModelDetail(toolName, args, r);
   var header = toolName + ' [' + risk + ']';
   return {
     role: 'tool',
     toolName: toolName,
+    toolArgs: args && typeof args === 'object' ? args : {},
     risk: risk,
     summary: summary,
     detail: detail,
+    /** 送模全文：调用 + 参数 + 返回（UI 折叠区仍用 detail） */
+    modelDetail: modelDetail,
     content: header + '\n' + detail,
     error: !r.ok && !r.pendingConfirm,
     pendingConfirm: !!r.pendingConfirm,

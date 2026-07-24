@@ -29,6 +29,9 @@ export function registerExport(ctx) {
     ctx.state.creatorNotes = fn('creatorNotes');
     var ver = fn('characterVersion');
     ctx.state.characterVersion = ver || '1.0';
+    if (typeof window !== 'undefined' && Array.isArray(window.__altGreetings__)) {
+      ctx.state.altGreetings = window.__altGreetings__.slice();
+    }
   }
 
   function getCurrentDraftId() {

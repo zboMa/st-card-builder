@@ -15,11 +15,13 @@ import { getFieldInfo, validateFullJSON, countNovelUnsynced } from './fieldValid
 import { attachBootAiConfig } from './bootAiConfig.mjs';
 import { bootMainActionEngine } from '../actionEngine/bootMain.mjs';
 import { engineRefresh } from '../actionEngine/helpers.mjs';
+import { installTextPreviewGlobal } from '../textPreviewModal.mjs';
 
 /**
  * 启动制卡主侧（须在 DOM 就绪后调用）
  */
 export function bootCardBuilder() {
+  installTextPreviewGlobal();
   bootMainActionEngine();
   window.__fieldDict__ = { getFieldInfo: getFieldInfo, validateFullJSON: validateFullJSON };
 

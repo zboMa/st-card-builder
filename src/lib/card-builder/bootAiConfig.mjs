@@ -239,7 +239,14 @@ export function attachBootAiConfig(ctx) {
     skCountInput.addEventListener('input', saveAIConfig);
   }
 
-  window.triggerGlobalUpdate = function() { ctx.save(); };
+  window.triggerGlobalUpdate = function() {
+    // 须走 syncDomFieldsToState（含 __altGreetings__），禁止直接 sm.saveDebounced 漏写备选开场
+    if (ctx.panels.cardManager && typeof ctx.panels.cardManager.debouncedUpdateAndSave === 'function') {
+      ctx.panels.cardManager.debouncedUpdateAndSave();
+      return;
+    }
+    ctx.save();
+  };
   window.__getCurrentDraftId__ = function() { return ctx.sm.getCurrentDraftId(); };
   window.__getWorldbookEntries__ = function() {
     return ctx.state.worldbookEntries.map(function(e, i) {

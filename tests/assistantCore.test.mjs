@@ -698,7 +698,11 @@ describe('assistant prompts & UI wiring', function() {
     assert.match(DEFAULT_PROMPTS.assistantSystem, /禁止.*API Key|API Key/);
     assert.match(DEFAULT_PROMPTS.assistantSystem, /主次|制卡是主体/);
     assert.match(DEFAULT_PROMPTS.assistantSystem, /倾向引导|非强制/);
+    assert.match(DEFAULT_PROMPTS.assistantSystem, /自然语言|智能体|普通回复/);
+    assert.match(DEFAULT_PROMPTS.assistantSystem, /需要工具时/);
+    assert.doesNotMatch(DEFAULT_PROMPTS.assistantSystem, /严格输出一个 JSON 对象，不要其它文字/);
     assert.match(DEFAULT_PROMPTS.assistantReactHint, /勿强制|跳步/);
+    assert.match(DEFAULT_PROMPTS.assistantReactHint, /自然语言/);
     assert.match(DEFAULT_PROMPTS.assistantChatFeedback, /fixes/);
   });
 
@@ -769,7 +773,13 @@ describe('assistant prompts & UI wiring', function() {
     assert.match(panel, /contextManager\.mjs/);
     assert.match(panel, /prepareAssistantMessages/);
     assert.doesNotMatch(panel, /toolBody\.slice\(0,\s*1200\)/);
-    assert.match(panel, /id="assistantRagPreviewBtn"/);
+    // tool/final：UI 用人读文案，送模用 modelContent=raw（勿把 JSON 刷进气泡）
+    assert.match(panel, /parsed\.type === 'tool'[\s\S]*?modelContent:\s*raw/);
+    assert.match(panel, /parsed\.type === 'final'[\s\S]*?modelContent:\s*raw/);
+    assert.match(panel, /setPendingHint/);
+    assert.match(panel, /assistant-msg--pending/);
+    assert.match(panel, /正在思考/);
+    assert.match(panel, /正在执行/);
     assert.match(panel, /assistant-btn-rag-preview/);
     assert.match(panel, /id="assistantRagModal"/);
     assert.match(panel, /assistant-rag-modal/);
