@@ -1,5 +1,5 @@
 /**
- * 章节面板：渲染、绑定、补丁
+ * 章节面板：虚拟列表 + 事件委托
  */
 import { escapeHtml } from '../../utils.mjs';
 import {
@@ -13,6 +13,10 @@ import {
 } from '../chapters.mjs';
 import { getFullSourceText } from '../state.mjs';
 import { engineTryAllowed } from '../../actionEngine/helpers.mjs';
+import { createVirtualList } from '../../ui/virtualList.mjs';
+
+/** 行估算高度（TanStack estimateSize）；真实高度由 measureElement 校正 */
+export var CHAPTER_VL_ROW_HEIGHT = 64;
 
 function selectedChapterIds(state) {
   return (state.chapters || []).filter(function(c) { return c.selected; }).map(function(c) { return c.id; });
@@ -27,11 +31,27 @@ function downloadChapterMarkdown(text, filename) {
   a.click();
 }
 
+function debounce(fn, ms) {
+  var t = null;
+  return function() {
+    var args = arguments;
+    var self = this;
+    if (t) clearTimeout(t);
+    t = setTimeout(function() {
+      t = null;
+      fn.apply(self, args);
+    }, ms);
+  };
+}
+
 /**
- * @param {object} ctx — 小说工坊上下文（由 shared/context.mjs 创建，含 $、save、busyFlags 等）
+ * @param {object} ctx — 小说工坊上下文
  */
 export function registerChapters(ctx) {
   var panel = {};
+  var vl = null;
+  var delegated = false;
+  var searchTimerBound = false;
 
   function showChapterPreview(ch) {
     if (!ch) return;
@@ -46,9 +66,7 @@ export function registerChapters(ctx) {
     if (!ch) return;
     ctx.editState.renamingChapterId = ch.id;
     var input = ctx.$('novelChapterRenameInput');
-    if (input) {
-      input.value = ch.title || '';
-    }
+    if (input) input.value = ch.title || '';
     ctx.openNovelModal('novelModalChapterRename');
     setTimeout(function() {
       if (!input) return;
@@ -76,13 +94,131 @@ export function registerChapters(ctx) {
     ctx.editState.renamingChapterId = null;
     ctx.closeNovelModal('novelModalChapterRename');
     ctx.save();
-    ctx.renderAll();
+    panel.render();
+  }
+
+  function findChapter(id) {
+    return (ctx.state.chapters || []).find(function(c) { return c.id === id; });
+  }
+
+  function renderChapterRow(row) {
+    var c = row.c;
+    var i = row.i;
+    var disabled = c.enabled === false;
+    return '<div class="novel-chapter-row' + (disabled ? ' is-disabled' : '') + '" data-ch-id="' + c.id + '">'
+      + '<input type="checkbox" data-ch-act="sel" data-ch-id="' + c.id + '"' + (c.selected ? ' checked' : '') + ' />'
+      + '<div class="novel-chapter-main">'
+      + '<button type="button" class="novel-chapter-title" data-ch-act="preview" data-ch-id="' + c.id + '" title="预览正文">'
+      + escapeHtml(c.title) + '</button>'
+      + '<span class="novel-chapter-meta">#' + (i + 1) + ' · ' + (c.text || '').length + ' 字 · '
+      + (disabled ? '已禁用' : '启用') + '</span>'
+      + '</div>'
+      + '<div class="novel-chapter-actions">'
+      + ctx.iconBtn('data-ch-act="preview" data-ch-id="' + c.id + '"', '◎', '预览')
+      + ctx.iconBtn('data-ch-act="split" data-ch-id="' + c.id + '"', '½', '对半拆分')
+      + ctx.iconBtn('data-ch-act="rename" data-ch-id="' + c.id + '"', '✎', '重命名')
+      + ctx.iconBtn('data-ch-act="up" data-ch-id="' + c.id + '"', '↑', '上移')
+      + ctx.iconBtn('data-ch-act="down" data-ch-id="' + c.id + '"', '↓', '下移')
+      + ctx.iconBtn('data-ch-act="toggle" data-ch-id="' + c.id + '"', disabled ? '▶' : '⏸', disabled ? '启用' : '禁用')
+      + ctx.iconBtn('data-ch-act="export" data-ch-id="' + c.id + '"', '⬇', '导出')
+      + ctx.iconBtn('data-ch-act="delete" data-ch-id="' + c.id + '"', '×', '删除', 'is-danger')
+      + '</div></div>';
+  }
+
+  function ensureVirtualList() {
+    var list = ctx.$('novelChapterList');
+    if (!list) return null;
+    if (vl && vl._el === list) return vl;
+    if (vl) vl.destroy();
+    list.classList.add('is-vl');
+    vl = createVirtualList({
+      viewport: list,
+      rowHeight: CHAPTER_VL_ROW_HEIGHT,
+      overscan: 12,
+      gap: 8,
+      renderRow: function(item) { return renderChapterRow(item); },
+      emptyHtml: '<div class="novel-list-empty">尚未拆章。请先导入资料后点击右上「自动拆章」。</div>',
+    });
+    vl._el = list;
+    vl.mount();
+    return vl;
+  }
+
+  function ensureDelegation() {
+    var list = ctx.$('novelChapterList');
+    if (!list || delegated) return;
+    delegated = true;
+    list.addEventListener('change', function(ev) {
+      var t = ev.target;
+      if (!t || !t.getAttribute) return;
+      if (t.getAttribute('data-ch-act') !== 'sel') return;
+      var id = t.getAttribute('data-ch-id');
+      if (!id) return;
+      ctx.state.chapters = (ctx.state.chapters || []).map(function(c) {
+        return c.id === id ? Object.assign({}, c, { selected: !!t.checked }) : c;
+      });
+      ctx.save();
+    });
+    list.addEventListener('click', function(ev) {
+      var el = ev.target;
+      if (!el) return;
+      var actEl = el.closest ? el.closest('[data-ch-act]') : null;
+      if (!actEl) return;
+      var act = actEl.getAttribute('data-ch-act');
+      var id = actEl.getAttribute('data-ch-id');
+      if (!act || !id || act === 'sel') return;
+      var ch = findChapter(id);
+      if (act === 'preview') {
+        showChapterPreview(ch);
+        return;
+      }
+      if (act === 'rename') {
+        if (ch) openChapterRename(ch);
+        return;
+      }
+      if (act === 'split') {
+        if (!ch) return;
+        ctx.state.chapters = splitChapterAt(ctx.state.chapters, id, Math.floor(ch.text.length / 2));
+        ctx.save();
+        panel.render();
+        return;
+      }
+      if (act === 'up') {
+        ctx.state.chapters = moveChapter(ctx.state.chapters, id, -1);
+        ctx.save();
+        panel.render();
+        return;
+      }
+      if (act === 'down') {
+        ctx.state.chapters = moveChapter(ctx.state.chapters, id, 1);
+        ctx.save();
+        panel.render();
+        return;
+      }
+      if (act === 'toggle') {
+        if (!ch) return;
+        ctx.state.chapters = setChapterEnabled(ctx.state.chapters, id, ch.enabled === false);
+        ctx.save();
+        panel.render();
+        return;
+      }
+      if (act === 'export') {
+        var text = exportSelectedChapters(ctx.state.chapters, [id]);
+        downloadChapterMarkdown(text, (ch && ch.title ? ch.title : 'chapter') + '.md');
+        return;
+      }
+      if (act === 'delete') {
+        if (!confirm('确定删除该章节？')) return;
+        ctx.state.chapters = (ctx.state.chapters || []).filter(function(c) { return c.id !== id; });
+        ctx.save();
+        panel.render();
+      }
+    });
   }
 
   panel.render = function() {
     var state = ctx.state;
     var es = ctx.editState;
-    var list = ctx.$('novelChapterList');
     var count = ctx.$('novelChapterCount');
     if (count) count.textContent = (state.chapters || []).length + ' 章';
     var mode = ctx.$('novelChapterSplitMode');
@@ -97,122 +233,35 @@ export function registerChapters(ctx) {
     }
     if (searchClear) searchClear.style.display = es.novelChapterSearchQuery ? '' : 'none';
 
+    var list = ctx.$('novelChapterList');
     if (!list) return;
+    ensureDelegation();
+    var vlist = ensureVirtualList();
+    if (!vlist) return;
+
     if (!(state.chapters || []).length) {
+      vlist.setItems([], { resetScroll: true });
       list.innerHTML = '<div class="novel-list-empty">尚未拆章。请先导入资料后点击右上「自动拆章」。</div>';
       return;
     }
+
     var q = String(es.novelChapterSearchQuery || '').trim().toLowerCase();
     var rows = state.chapters.map(function(c, i) { return { c: c, i: i }; }).filter(function(row) {
       if (!q) return true;
       return String(row.c.title || '').toLowerCase().indexOf(q) >= 0;
     });
     if (!rows.length) {
+      vlist.setItems([], { resetScroll: true });
       list.innerHTML = '<div class="novel-list-empty">未找到匹配「' + escapeHtml(es.novelChapterSearchQuery) + '」的章节。</div>';
       return;
     }
-    // 左：勾选 + 标题/字数；右：图标操作（不换到标题下方）
-    list.innerHTML = rows.map(function(row) {
-      var c = row.c;
-      var i = row.i;
-      var disabled = c.enabled === false;
-      return '<div class="novel-chapter-row' + (disabled ? ' is-disabled' : '') + '" data-ch-id="' + c.id + '">'
-        + '<input type="checkbox" data-ch-sel="' + c.id + '"' + (c.selected ? ' checked' : '') + ' />'
-        + '<div class="novel-chapter-main">'
-        + '<button type="button" class="novel-chapter-title" data-ch-preview="' + c.id + '" title="预览正文">'
-        + escapeHtml(c.title) + '</button>'
-        + '<span class="novel-chapter-meta">#' + (i + 1) + ' · ' + (c.text || '').length + ' 字 · '
-        + (disabled ? '已禁用' : '启用') + '</span>'
-        + '</div>'
-        + '<div class="novel-chapter-actions">'
-        + ctx.iconBtn('data-ch-preview="' + c.id + '"', '◎', '预览')
-        + ctx.iconBtn('data-ch-split="' + c.id + '"', '½', '对半拆分')
-        + ctx.iconBtn('data-ch-rename="' + c.id + '"', '✎', '重命名')
-        + ctx.iconBtn('data-ch-up="' + c.id + '"', '↑', '上移')
-        + ctx.iconBtn('data-ch-down="' + c.id + '"', '↓', '下移')
-        + ctx.iconBtn('data-ch-toggle="' + c.id + '"', disabled ? '▶' : '⏸', disabled ? '启用' : '禁用')
-        + ctx.iconBtn('data-ch-export="' + c.id + '"', '⬇', '导出')
-        + ctx.iconBtn('data-ch-delete="' + c.id + '"', '×', '删除', 'is-danger')
-        + '</div></div>';
-    }).join('');
-    list.querySelectorAll('[data-ch-sel]').forEach(function(cb) {
-      cb.addEventListener('change', function() {
-        var id = cb.getAttribute('data-ch-sel');
-        state.chapters = state.chapters.map(function(c) {
-          return c.id === id ? Object.assign({}, c, { selected: cb.checked }) : c;
-        });
-        ctx.save();
-      });
-    });
-    list.querySelectorAll('[data-ch-preview]').forEach(function(btn) {
-      btn.addEventListener('click', function() {
-        var id = btn.getAttribute('data-ch-preview');
-        var ch = state.chapters.find(function(c) { return c.id === id; });
-        showChapterPreview(ch);
-      });
-    });
-    list.querySelectorAll('[data-ch-split]').forEach(function(btn) {
-      btn.addEventListener('click', function() {
-        var id = btn.getAttribute('data-ch-split');
-        var ch = state.chapters.find(function(c) { return c.id === id; });
-        if (!ch) return;
-        state.chapters = splitChapterAt(state.chapters, id, Math.floor(ch.text.length / 2));
-        ctx.save();
-        ctx.renderAll();
-      });
-    });
-    list.querySelectorAll('[data-ch-rename]').forEach(function(btn) {
-      btn.addEventListener('click', function() {
-        var id = btn.getAttribute('data-ch-rename');
-        var ch = state.chapters.find(function(c) { return c.id === id; });
-        if (!ch) return;
-        openChapterRename(ch);
-      });
-    });
-    list.querySelectorAll('[data-ch-up]').forEach(function(btn) {
-      btn.addEventListener('click', function() {
-        state.chapters = moveChapter(state.chapters, btn.getAttribute('data-ch-up'), -1);
-        ctx.save();
-        ctx.renderAll();
-      });
-    });
-    list.querySelectorAll('[data-ch-down]').forEach(function(btn) {
-      btn.addEventListener('click', function() {
-        state.chapters = moveChapter(state.chapters, btn.getAttribute('data-ch-down'), 1);
-        ctx.save();
-        ctx.renderAll();
-      });
-    });
-    list.querySelectorAll('[data-ch-toggle]').forEach(function(btn) {
-      btn.addEventListener('click', function() {
-        var id = btn.getAttribute('data-ch-toggle');
-        var ch = state.chapters.find(function(c) { return c.id === id; });
-        if (!ch) return;
-        state.chapters = setChapterEnabled(state.chapters, id, ch.enabled === false);
-        ctx.save();
-        ctx.renderAll();
-      });
-    });
-    list.querySelectorAll('[data-ch-export]').forEach(function(btn) {
-      btn.addEventListener('click', function() {
-        var id = btn.getAttribute('data-ch-export');
-        var text = exportSelectedChapters(state.chapters, [id]);
-        var ch = state.chapters.find(function(c) { return c.id === id; });
-        downloadChapterMarkdown(text, (ch && ch.title ? ch.title : 'chapter') + '.md');
-      });
-    });
-    list.querySelectorAll('[data-ch-delete]').forEach(function(btn) {
-      btn.addEventListener('click', function() {
-        var id = btn.getAttribute('data-ch-delete');
-        if (!confirm('确定删除该章节？')) return;
-        state.chapters = state.chapters.filter(function(c) { return c.id !== id; });
-        ctx.save();
-        ctx.renderAll();
-      });
-    });
+    vlist.setItems(rows);
   };
 
   panel.bind = function() {
+    ensureDelegation();
+    ensureVirtualList();
+
     var splitMode = ctx.$('novelChapterSplitMode');
     if (splitMode) splitMode.addEventListener('change', function() {
       ctx.state.chapterSplitMode = splitMode.value;
@@ -226,11 +275,13 @@ export function registerChapters(ctx) {
 
     var searchInput = ctx.$('novelChapterSearchInput');
     var searchClear = ctx.$('novelChapterSearchClear');
-    if (searchInput) {
-      searchInput.addEventListener('input', function() {
+    if (searchInput && !searchTimerBound) {
+      searchTimerBound = true;
+      var onSearch = debounce(function() {
         ctx.editState.novelChapterSearchQuery = searchInput.value || '';
         panel.render();
-      });
+      }, 200);
+      searchInput.addEventListener('input', onSearch);
     }
     if (searchClear) searchClear.addEventListener('click', function() {
       ctx.editState.novelChapterSearchQuery = '';
@@ -254,7 +305,7 @@ export function registerChapters(ctx) {
       });
       ctx.save();
       ctx.closeNovelModal('novelModalSplit');
-      ctx.renderAll();
+      panel.render();
       if (ctx.setStatus) ctx.setStatus('novelChapterStatus', '已拆为 ' + state.chapters.length + ' 章');
     }
 
@@ -289,10 +340,9 @@ export function registerChapters(ctx) {
       if (!ids.length) return alert('请先勾选章节');
       fn(ids);
       ctx.save();
-      ctx.renderAll();
+      panel.render();
     }
 
-    // 顶栏仅批量：合并 / 启停所选 / 导出选中 / 删除所选；单条操作在行内
     var mergeBtn = ctx.$('btnChMerge');
     if (mergeBtn) mergeBtn.addEventListener('click', function() {
       withSelected(function(ids) {
@@ -367,11 +417,10 @@ export function registerChapters(ctx) {
       throw new Error('未知 action: ' + action + '（merge|enable|disable|delete|rename|move|split|select）');
     }
     ctx.save();
-    ctx.renderAll();
+    panel.render();
     return { action: action, chapterCount: state.chapters.length };
   };
 
-  // 挂载到 ctx
   ctx.panels.chapters = panel;
   return panel;
 }

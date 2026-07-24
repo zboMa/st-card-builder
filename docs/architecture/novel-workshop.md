@@ -7,9 +7,11 @@
 `NovelWorkshopApp` → **懒加载** `novelWorkshopLazyBoot.mjs`，首次进入 `novel-*` 视图再 `initNovelWorkshop()`。  
 `bindCard(..., { skipSave: true })` 用于 init 灌桶，避免无改动写 IDB。
 
-## 流水线（产品）
+## 列表性能
 
-`原始资料 → 拆章 →（分析 / 角色设定 / 开场白 / 人物 / 世界书 / 文风）`
+- **拆章** `#novelChapterList`、**主卡世界书** `#entriesList`、**工坊世界书** `#novelWbPreview`：`@tanstack/virtual-core` 虚拟列表（`src/lib/ui/virtualList.mjs` 适配）+ 容器事件委托。
+- 行用 absolute 定位，避免 flex 压缩；`estimateSize` + `measureElement` 校正高度；`gap: 8`。
+- 搜索 debounce ~200ms；拆章写操作优先只 `chapters.render()`，避免无差别 `renderAll()`。
 
 未完成前置时后续禁用。视图 id 前缀 `novel-*`，勿与主卡 `character` / `greetings` 混淆。
 

@@ -443,6 +443,24 @@ import WorldbookAuditor from './WorldbookAuditor.astro';
     gap: 8px;
     min-height: 100%;
   }
+  .area-worldbook .wb-entries-list.is-vl {
+    gap: 0;
+    display: block;
+  }
+  .area-worldbook .wb-entries-list.is-vl .entry-item {
+    height: auto;
+    min-height: 64px;
+    margin: 0;
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+  .area-worldbook .wb-entries-list.is-vl .entry-item-header {
+    align-items: center;
+  }
+  .area-worldbook .wb-entries-list.is-vl .entry-actions {
+    flex-wrap: nowrap;
+    max-width: none;
+  }
   .area-worldbook .wb-entries-empty {
     margin: auto;
     padding: 28px 18px;

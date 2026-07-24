@@ -465,6 +465,62 @@
     scrollbar-gutter: stable;
     padding-right: 2px;
   }
+  /* 虚拟列表：TanStack absolute 行；禁止 flex 压缩行高 */
+  .novel-chapter-list.is-vl,
+  .wb-entries-list.is-vl,
+  .novel-entity-list.is-vl {
+    gap: 0;
+    display: block;
+    position: relative;
+  }
+  .novel-chapter-list.is-vl .vl-inner,
+  .wb-entries-list.is-vl .vl-inner,
+  .novel-entity-list.is-vl .vl-inner {
+    position: relative;
+    width: 100%;
+  }
+  .novel-chapter-list.is-vl .vl-item,
+  .wb-entries-list.is-vl .vl-item,
+  .novel-entity-list.is-vl .vl-item {
+    box-sizing: border-box;
+  }
+  .novel-chapter-list.is-vl .novel-chapter-row {
+    height: auto;
+    min-height: 52px;
+    margin: 0;
+    box-sizing: border-box;
+    align-items: center;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .novel-chapter-list.is-vl .novel-chapter-actions {
+    flex-wrap: nowrap;
+    max-width: none;
+  }
+  .novel-chapter-list.is-vl .novel-chapter-title {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .wb-entries-list.is-vl .entry-item,
+  .novel-entity-list.is-vl .entry-item {
+    height: auto;
+    min-height: 64px;
+    margin: 0;
+    box-sizing: border-box;
+    overflow: hidden;
+    flex: 0 0 auto;
+  }
+  .wb-entries-list.is-vl .entry-item-header,
+  .novel-entity-list.is-vl .entry-item-header {
+    align-items: center;
+  }
+  .wb-entries-list.is-vl .entry-actions,
+  .novel-entity-list.is-vl .entry-actions {
+    flex-wrap: nowrap;
+    max-width: none;
+  }
+
   .novel-list-row,
   .novel-chapter-row {
     display: flex;

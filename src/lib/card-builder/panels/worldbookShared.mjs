@@ -4,6 +4,10 @@
 import { getDefaultWBEntry, normalizeWBEntry, clampInt } from '../state.mjs';
 import { strategyLabelZh } from '../../utils.mjs';
 import { buildWorldviewHintFromItems } from '../../presets/worldviews/index.mjs';
+import { createVirtualList } from '../../ui/virtualList.mjs';
+
+/** 世界书行估算高度（TanStack estimateSize + measure） */
+export var WB_VL_ROW_HEIGHT = 72;
 
 /** @param {object} ctx */
 export function createWorldbookShared(ctx) {
@@ -20,6 +24,8 @@ export function createWorldbookShared(ctx) {
   var KEYGEN_BATCH_CHAR_LIMIT = 20000;
   var KEYGEN_BATCH_ITEM_LIMIT = 8;
   var KEYGEN_MAX_RETRY_ROUNDS = 3;
+  var wbVl = null;
+  var wbDelegated = false;
 
   function getWorldviewHintBlock() {
     var items = [];
@@ -532,101 +538,144 @@ export function createWorldbookShared(ctx) {
   }
 
   // ============================================================
-  //  核心渲染：条目列表
+  //  核心渲染：条目列表（虚拟列表 + 事件委托）
   // ============================================================
-  function renderEntriesList() {
-    entriesList.innerHTML = '';
-    entriesList.style.display = '';
+  function renderWbEntryRow(entry, index) {
+    entry = normalizeWBEntry(entry);
+    var isSk = entry.content.length < 60 || String(entry.content || '').indexOf('\u5F85\u5C55\u5F00') >= 0;
     var posMap = ['\u89D2\u8272\u524D', '\u89D2\u8272\u540E', '\u793A\u4F8B\u524D', '\u793A\u4F8B\u540E', '\u6309\u6DF1\u5EA6', '\u6CE8\u91CA\u524D', '\u6CE8\u91CA\u540E'];
-    var wbEntries = ctx.state.worldbookEntries;
-    if (!wbEntries.length) {
-      var empty = document.createElement('div');
-      empty.className = 'wb-entries-empty';
-      empty.textContent = '\u6682\u65E0\u4E16\u754C\u4E66\u6761\u76EE\uFF0C\u70B9\u51FB\u53F3\u4E0A\u300C\u65B0\u5EFA\u300D\u6216\u300C\u5355\u6761\u751F\u6210\u300D';
-      entriesList.appendChild(empty);
-    }
-    wbEntries.forEach(function(entry, index) {
-      entry = normalizeWBEntry(entry);
-      var isSk = entry.content.length < 60 || String(entry.content || '').indexOf('\u5F85\u5C55\u5F00') >= 0;
-      var safeComment = escapeHtml(entry.comment || '\u672A\u547D\u540D');
-      var previewLine = truncatePreviewLine(entry.content);
-      var metaLine = '\u4F4D\u7F6E: ' + (posMap[entry.position] || entry.position) + ' | \u987A\u5E8F: ' + entry.order + ' | \u6DF1\u5EA6: ' + entry.depth + ' | \u6982\u7387: ' + entry.prob + '%';
-      var skBadge = isSk ? '<span style="font-size:0.6rem;background:rgba(245,158,11,0.15);color:#f59e0b;padding:1px 6px;border-radius:99px;border:1px solid rgba(245,158,11,0.25);">\uD83E\uDDB4 \u9AA8\u67B6</span>' : '';
-      var strategyBadge = renderStrategyTag(entry.strategy);
-      var aiTitle = isSk ? 'AI \u5C55\u5F00\uFF08\u672A\u6269\u5C55\uFF09' : 'AI \u91CD\u5199';
-      var actionsHtml =
-        '<div class="entry-actions">' +
-          '<button id="btnWbEntryEdit_' + index + '" class="entry-icon-btn" type="button" title="\u7F16\u8F91" aria-label="\u7F16\u8F91">\u270E</button>' +
-          '<button id="btnWbEntryRerollToggle_' + index + '" class="entry-icon-btn' + (isSk ? ' btn-ai-expand' : '') + '" type="button" title="' + aiTitle + '" aria-label="' + aiTitle + '">\u2726</button>' +
-          '<button id="btnWbEntryDelete_' + index + '" class="entry-icon-btn is-danger" type="button" title="\u5220\u9664" aria-label="\u5220\u9664">\u00D7</button>' +
-        '</div>';
-      var div = document.createElement('div');
-      div.className = 'entry-item fade-in';
-      div.id = 'wbEntryItem_' + index;
-      div.innerHTML =
-        '<div class="entry-item-header">' +
-          '<div class="entry-info">' +
-            '<div class="entry-info-title-row"><button type="button" id="btnWbEntryTitle_' + index + '" class="entry-title-btn" title="\u7F16\u8F91\u6761\u76EE">' + safeComment + '</button>' + strategyBadge + skBadge + '</div>' +
-            (previewLine ? '<p class="entry-preview-line">' + escapeHtml(previewLine) + '</p>' : '') +
-            '<p class="entry-meta-line">' + escapeHtml(metaLine) + '</p>' +
-          '</div>' +
-          actionsHtml +
-        '</div>' +
-        '<div id="reroll_area_' + index + '" style="display:none;width:100%;margin-top:12px;padding-top:12px;border-top:1px dashed var(--color-surface-elevated);">' +
-          '<input type="text" id="reroll_prompt_' + index + '" placeholder="' + (isSk ? '\u53EF\u7559\u7A7A\u76F4\u63A5\u5C55\u5F00\uFF0C\u6216\u8F93\u5165\u989D\u5916\u8981\u6C42...' : '\u600E\u4E48\u4FEE\u6539\uFF1F') + '" style="width:100%;padding:8px;margin-bottom:8px;" />' +
-          '<button id="btnWbEntryRerollSubmit_' + index + '" class="btn" type="button" style="background:linear-gradient(135deg,var(--color-accent),#6d28d9);padding:8px;font-size:0.85rem;">' +
-            (isSk ? '\uD83E\uDDB4\u2192\uD83D\uDCD6 \u5C55\u5F00\u4E3A\u5B8C\u6574\u8BBE\u5B9A' : '\uD83C\uDFB2 \u786E\u5B9A\u8986\u76D6\u91CD\u5199') +
-          '</button>' +
-        '</div>';
-      entriesList.appendChild(div);
+    var safeComment = escapeHtml(entry.comment || '\u672A\u547D\u540D');
+    var previewLine = truncatePreviewLine(entry.content, 80);
+    var metaLine = '\u4F4D\u7F6E: ' + (posMap[entry.position] || entry.position) + ' | \u987A\u5E8F: ' + entry.order + ' | \u6DF1\u5EA6: ' + entry.depth + ' | \u6982\u7387: ' + entry.prob + '%';
+    var skBadge = isSk ? '<span class="wb-skel-badge">\u9AA8\u67B6</span>' : '';
+    var strategyBadge = renderStrategyTag(entry.strategy);
+    var aiTitle = isSk ? 'AI \u5C55\u5F00' : 'AI \u91CD\u5199';
+    return '<div class="entry-item" data-wb-index="' + index + '" id="wbEntryItem_' + index + '">'
+      + '<div class="entry-item-header">'
+      + '<div class="entry-info">'
+      + '<div class="entry-info-title-row"><button type="button" class="entry-title-btn" data-wb-act="edit" data-wb-index="' + index + '" title="\u7F16\u8F91\u6761\u76EE">' + safeComment + '</button>'
+      + strategyBadge + skBadge + '</div>'
+      + (previewLine ? '<p class="entry-preview-line">' + escapeHtml(previewLine) + '</p>' : '')
+      + '<p class="entry-meta-line">' + escapeHtml(metaLine) + '</p>'
+      + '</div>'
+      + '<div class="entry-actions">'
+      + '<button class="entry-icon-btn" type="button" data-wb-act="edit" data-wb-index="' + index + '" title="\u7F16\u8F91" aria-label="\u7F16\u8F91">\u270E</button>'
+      + '<button class="entry-icon-btn' + (isSk ? ' btn-ai-expand' : '') + '" type="button" data-wb-act="ai" data-wb-index="' + index + '" title="' + aiTitle + '" aria-label="' + aiTitle + '">\u2726</button>'
+      + '<button class="entry-icon-btn is-danger" type="button" data-wb-act="delete" data-wb-index="' + index + '" title="\u5220\u9664" aria-label="\u5220\u9664">\u00D7</button>'
+      + '</div></div></div>';
+  }
+
+  function ensureWbVirtualList() {
+    if (!entriesList) return null;
+    if (wbVl && wbVl._el === entriesList) return wbVl;
+    if (wbVl) wbVl.destroy();
+    entriesList.classList.add('is-vl');
+    wbVl = createVirtualList({
+      viewport: entriesList,
+      rowHeight: WB_VL_ROW_HEIGHT,
+      overscan: 10,
+      gap: 8,
+      renderRow: function(item) { return renderWbEntryRow(item.entry, item.index); },
+      emptyHtml: '<div class="wb-entries-empty ui-empty-tip">\u6682\u65E0\u4E16\u754C\u4E66\u6761\u76EE\uFF0C\u70B9\u51FB\u53F3\u4E0A\u300C\u65B0\u5EFA\u300D\u6216\u300C\u5355\u6761\u751F\u6210\u300D</div>',
     });
+    wbVl._el = entriesList;
+    wbVl.mount();
+    return wbVl;
+  }
+
+  function ensureWbDelegation() {
+    if (!entriesList || wbDelegated) return;
+    wbDelegated = true;
+    entriesList.addEventListener('click', function(ev) {
+      var el = ev.target;
+      if (!el || !el.closest) return;
+      var actEl = el.closest('[data-wb-act]');
+      if (!actEl) return;
+      ev.stopPropagation();
+      var act = actEl.getAttribute('data-wb-act');
+      var index = parseInt(actEl.getAttribute('data-wb-index'), 10);
+      if (!Number.isFinite(index)) return;
+      if (act === 'edit') {
+        editEntry(index);
+        return;
+      }
+      if (act === 'ai') {
+        promptAiRewrite(index, actEl);
+        return;
+      }
+      if (act === 'delete') {
+        deleteWbEntryAt(index);
+      }
+    });
+  }
+
+  async function promptAiRewrite(index, btn) {
+    var old = ctx.state.worldbookEntries[index];
+    if (!old) return;
+    var isSk = String(old.content || '').length < 60;
+    var req = '';
+    if (!isSk) {
+      var ans = await ctx.showPromptDialog({
+        icon: '✦',
+        title: 'AI 重写世界书',
+        message: '填写修改要求（将覆盖该条目正文）。',
+        okText: '开始重写',
+        cancelText: '取消',
+        defaultValue: '',
+        placeholder: '怎么修改？',
+      });
+      if (ans == null) return;
+      req = String(ans || '').trim();
+      if (!req) return alert('\u8BF7\u586B\u5199\u4FEE\u6539\u8981\u6C42\uFF01');
+    } else {
+      var ans2 = await ctx.showPromptDialog({
+        icon: '✦',
+        title: 'AI 展开骨架',
+        message: '可留空直接展开，或输入额外要求。',
+        okText: '展开',
+        cancelText: '取消',
+        defaultValue: '',
+        placeholder: '可选额外要求…',
+      });
+      if (ans2 == null) return;
+      req = String(ans2 || '').trim();
+    }
+    await aiRewriteEntry(index, req, btn);
+  }
+
+  async function deleteWbEntryAt(index) {
+    var ok = await ctx.showConfirmDialog({
+      icon: '🗑️',
+      title: '删除世界书条目？',
+      message: '确认删除该世界书条目？此操作不可撤销。',
+      okText: '删除',
+      cancelText: '取消',
+    });
+    if (!ok) return;
+    ctx.state.worldbookEntries.splice(index, 1);
+    if (editingIndex === index) closeWbModal('wbModalEdit');
+    else if (editingIndex > index) editingIndex--;
+    renderEntriesList();
+    ctx.flushSave();
+  }
+
+  function renderEntriesList() {
+    if (!entriesList) return;
+    entriesList.style.display = '';
+    ensureWbDelegation();
+    var vlist = ensureWbVirtualList();
+    var wbEntries = ctx.state.worldbookEntries || [];
     updateCreateEntryButtonState();
 
-    // 行内操作一律按唯一 id 绑定（勿用通用 class，会误绑小说「确认清空」等）
-    wbEntries.forEach(function(_entry, index) {
-      var titleBtn = document.getElementById('btnWbEntryTitle_' + index);
-      var editBtn = document.getElementById('btnWbEntryEdit_' + index);
-      var rerollToggle = document.getElementById('btnWbEntryRerollToggle_' + index);
-      var delBtn = document.getElementById('btnWbEntryDelete_' + index);
-      var submitBtn = document.getElementById('btnWbEntryRerollSubmit_' + index);
-      if (titleBtn) titleBtn.addEventListener('click', function(e) {
-        e.stopPropagation();
-        editEntry(index);
-      });
-      if (editBtn) editBtn.addEventListener('click', function(e) {
-        e.stopPropagation();
-        editEntry(index);
-      });
-      if (rerollToggle) rerollToggle.addEventListener('click', function(e) {
-        e.stopPropagation();
-        var a = document.getElementById('reroll_area_' + index);
-        if (a) a.style.display = a.style.display === 'none' ? 'block' : 'none';
-      });
-      if (submitBtn) submitBtn.addEventListener('click', async function(e) {
-        e.stopPropagation();
-        var promptEl = document.getElementById('reroll_prompt_' + index);
-        var req = promptEl ? promptEl.value.trim() : '';
-        var isSk = ctx.state.worldbookEntries[index].content.length < 60;
-        if (!isSk && !req) return alert('\u8BF7\u586B\u5199\u4FEE\u6539\u8981\u6C42\uFF01');
-        await aiRewriteEntry(index, req, e.currentTarget);
-      });
-      if (delBtn) delBtn.addEventListener('click', async function(e) {
-        e.stopPropagation();
-        var ok = await ctx.showConfirmDialog({
-          icon: '🗑️',
-          title: '删除世界书条目？',
-          message: '确认删除该世界书条目？此操作不可撤销。',
-          okText: '删除',
-          cancelText: '取消',
-        });
-        if (!ok) return;
-        ctx.state.worldbookEntries.splice(index, 1);
-        if (editingIndex === index) closeWbModal('wbModalEdit');
-        else if (editingIndex > index) editingIndex--;
-        renderEntriesList();
-        ctx.flushSave();
-      });
-    });
+    if (!wbEntries.length) {
+      if (vlist) vlist.setItems([], { resetScroll: true });
+      entriesList.innerHTML = '<div class="wb-entries-empty ui-empty-tip">\u6682\u65E0\u4E16\u754C\u4E66\u6761\u76EE\uFF0C\u70B9\u51FB\u53F3\u4E0A\u300C\u65B0\u5EFA\u300D\u6216\u300C\u5355\u6761\u751F\u6210\u300D</div>';
+    } else if (vlist) {
+      vlist.setItems(wbEntries.map(function(entry, index) {
+        return { entry: entry, index: index };
+      }));
+    }
+
     window.dispatchEvent(new CustomEvent('worldbook-changed'));
     var wbSearchInput = ctx.$('wbSearchInput');
     if (wbSearchInput && wbSearchInput.value) renderWbSearchResults(wbSearchInput.value);
@@ -751,9 +800,9 @@ export function createWorldbookShared(ctx) {
   function jumpToWbEntry(idx) {
     if (!Number.isFinite(idx) || idx < 0 || idx >= ctx.state.worldbookEntries.length) return;
     renderEntriesList();
+    if (wbVl) wbVl.scrollToIndex(idx);
     var targetDiv = document.getElementById('wbEntryItem_' + idx);
     if (targetDiv) {
-      targetDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
       targetDiv.classList.add('is-search-focus');
       targetDiv.style.transition = 'box-shadow 0.3s ease';
       targetDiv.style.boxShadow = '0 0 0 2px rgba(56, 189, 248, 0.6)';
@@ -761,7 +810,7 @@ export function createWorldbookShared(ctx) {
         targetDiv.style.boxShadow = '';
         targetDiv.classList.remove('is-search-focus');
       }, 1800);
-    } else {
+    } else if (entriesList) {
       entriesList.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
     editEntry(idx);

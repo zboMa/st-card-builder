@@ -50,6 +50,7 @@ import {
   isEntityEnriched,
 } from '../entityStore.mjs';
 import { uid, escapeHtml, parseJsonLoose, normalizeNameList } from '../../utils.mjs';
+import { showConfirmDialog } from '../../ui/confirmDialog.mjs';
 
 /**
  * @param {object} ctx — 小说工坊上下文（由 shared/context.mjs 创建，含 $、save、busyFlags 等）
@@ -114,10 +115,19 @@ export function attachNovelCharactersRender(ctx, panel) {
   };
 
   /** 共享：删除人物（列表 / 图谱） */
-  panel.deleteCharacter = function(id, opts) {
+  panel.deleteCharacter = async function(id, opts) {
     opts = opts || {};
     var state = ctx.state;
-    if (!opts.skipConfirm && !confirm('确认删除该人物？')) return false;
+    if (!opts.skipConfirm) {
+      var ok = await showConfirmDialog({
+        icon: '🗑️',
+        title: '删除人物？',
+        message: '确认删除该人物？此操作不可撤销。',
+        okText: '删除',
+        cancelText: '取消',
+      });
+      if (!ok) return false;
+    }
     var ch = state.characters.find(function(c) { return c.id === id; });
     var ent = panel.findPersonEntityForChar(ch)
       || (state.entities || []).find(function(e) { return e.id === id; });

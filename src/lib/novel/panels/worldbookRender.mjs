@@ -5,11 +5,32 @@ import { findEntityMatch, upsertEntity, projectEntitiesToLegacy, isEntityEnriche
 import { getAdultMode } from '../nsfwSupport.mjs';
 import { applyDraftsToWorldbook } from '../sync.mjs';
 import { showConfirmDialog } from '../../ui/confirmDialog.mjs';
+import { createVirtualList } from '../../ui/virtualList.mjs';
+import { wbCategoryToEntityType } from './worldbookExtractUtil.mjs';
+import { ENTITY_SUMMARY_STORE } from '../contextBudgets.mjs';
+
+/** 与主卡世界书一致：估算行高 */
+var NOVEL_WB_VL_ROW_HEIGHT = 72;
+
+function debounce(fn, ms) {
+  var t = null;
+  return function() {
+    var args = arguments;
+    var self = this;
+    if (t) clearTimeout(t);
+    t = setTimeout(function() {
+      t = null;
+      fn.apply(self, args);
+    }, ms);
+  };
+}
 
 /**
  * attachNovelWorldbookRender（拆自原模块）
  */
 export function attachNovelWorldbookRender(ctx, panel) {
+  var novelWbVl = null;
+  var novelWbDelegated = false;
   // ---- 渲染辅助 ----
 
   panel.renderStrategyTag = function(strategy) {
@@ -264,7 +285,121 @@ export function attachNovelWorldbookRender(ctx, panel) {
     });
   };
 
-  // ---- 主渲染 ----
+  // ---- 主渲染（虚拟列表 + 事件委托） ----
+
+  function renderNovelWbRow(row) {
+    var e = row.e;
+    var i = row.i;
+    var state = ctx.state;
+    var strategyBadge = panel.renderStrategyTag(e.strategy);
+    var needExpand = ctx.isUnexpandedWbContent(e.content);
+    var ent = e.id
+      ? (state.entities || []).find(function(x) { return x.id === e.id; })
+      : findEntityMatch(state.entities, e.name, []);
+    var enriched = ent ? isEntityEnriched(ent, !!state.strictQuality, getAdultMode(state)) : !needExpand;
+    var previewLine = truncatePreviewLine(e.content, 80);
+    var syncBadge = row.syncBadge;
+    return '<div class="entry-item" data-wb-index="' + i + '">'
+      + '<div class="entry-item-header">'
+      + '<input type="checkbox" data-wb-act="sel" data-wb-index="' + i + '"' + (e.selected !== false ? ' checked' : '') + ' />'
+      + '<div class="entry-info">'
+      + '<div class="entry-info-title-row"><button type="button" class="novel-list-title" data-wb-act="edit" data-wb-index="' + i + '" title="编辑条目">'
+      + escapeHtml(e.name || e.comment || '未命名') + '</button>'
+      + strategyBadge + syncBadge(e.syncStatus)
+      + (enriched ? '' : ' <span class="novel-sync-badge unsynced">待丰满</span>')
+      + '</div>'
+      + (previewLine ? '<p class="entry-preview-line">' + escapeHtml(previewLine) + '</p>' : '')
+      + '<p class="entry-meta-line">' + escapeHtml(e.category || '')
+      + ' · ' + String(e.content || '').length + ' 字'
+      + ((e.keys || []).length ? ' · 触发词 ' + escapeHtml((e.keys || []).slice(0, 4).join(', ')) : '')
+      + '</p>'
+      + '</div>'
+      + '<div class="entry-actions">'
+      + (ent
+        ? ctx.iconBtn(
+          'data-wb-act="enrich" data-wb-ent="' + escapeHtml(ent.id) + '"',
+          '✦',
+          enriched ? '重新丰满' : 'AI 丰满',
+          enriched ? '' : 'btn-ai-expand'
+        )
+        : ctx.iconBtn(
+          'data-wb-act="expand" data-wb-index="' + i + '"',
+          '✦',
+          needExpand ? 'AI 扩展（未扩展）' : 'AI 重写',
+          needExpand ? 'btn-ai-expand' : ''
+        ))
+      + ctx.iconBtn('data-wb-act="edit" data-wb-index="' + i + '"', '✎', '编辑')
+      + ctx.iconBtn('data-wb-act="sync" data-wb-index="' + i + '"', '⇢', '同步到主世界书')
+      + ctx.iconBtn('data-wb-act="del" data-wb-index="' + i + '"', '×', '删除', 'is-danger')
+      + '</div></div></div>';
+  }
+
+  function ensureNovelWbVl(prev) {
+    if (novelWbVl && novelWbVl._el === prev) return novelWbVl;
+    if (novelWbVl) novelWbVl.destroy();
+    prev.classList.add('is-vl');
+    novelWbVl = createVirtualList({
+      viewport: prev,
+      rowHeight: NOVEL_WB_VL_ROW_HEIGHT,
+      overscan: 10,
+      gap: 8,
+      renderRow: function(item) { return renderNovelWbRow(item); },
+      emptyHtml: '<div class="novel-list-empty">暂无条目。请先「小说分析」，或 AI 抽取 / 新建。</div>',
+    });
+    novelWbVl._el = prev;
+    novelWbVl.mount();
+    return novelWbVl;
+  }
+
+  function ensureNovelWbDelegation(prev) {
+    if (!prev || novelWbDelegated) return;
+    novelWbDelegated = true;
+    prev.addEventListener('change', function(ev) {
+      var t = ev.target;
+      if (!t || t.getAttribute('data-wb-act') !== 'sel') return;
+      var i = Number(t.getAttribute('data-wb-index'));
+      var state = ctx.state;
+      if (state.wbEntries[i]) {
+        state.wbEntries[i].selected = t.checked;
+        var ent = state.wbEntries[i].id
+          ? (state.entities || []).find(function(x) { return x.id === state.wbEntries[i].id; })
+          : findEntityMatch(state.entities, state.wbEntries[i].name, []);
+        if (ent) ent.selected = t.checked;
+      }
+      ctx.save();
+    });
+    prev.addEventListener('click', function(ev) {
+      var el = ev.target;
+      if (!el || !el.closest) return;
+      var actEl = el.closest('[data-wb-act]');
+      if (!actEl) return;
+      var act = actEl.getAttribute('data-wb-act');
+      if (act === 'sel') return;
+      ev.stopPropagation();
+      var i = Number(actEl.getAttribute('data-wb-index'));
+      if (act === 'edit') {
+        panel.editWbEntry(i);
+        return;
+      }
+      if (act === 'enrich') {
+        panel.enrichWbEntity(actEl.getAttribute('data-wb-ent'), { sourceBtn: actEl }).catch(function(err) {
+          if (!ctx.isTrackedAbort(err)) alert('丰满失败: ' + (err.message || err));
+        });
+        return;
+      }
+      if (act === 'expand') {
+        panel.expandWbEntry(i);
+        return;
+      }
+      if (act === 'sync') {
+        panel.syncWbEntry(i);
+        return;
+      }
+      if (act === 'del') {
+        panel.deleteWbEntry(i);
+      }
+    });
+  }
 
   panel.render = function() {
     var state = ctx.state;
@@ -311,8 +446,12 @@ export function attachNovelWorldbookRender(ctx, panel) {
 
     var prev = $('novelWbPreview');
     if (!prev) return;
+    ensureNovelWbDelegation(prev);
+    var vlist = ensureNovelWbVl(prev);
+
     var q = String(es.novelWbSearchQuery || '').trim().toLowerCase();
     if (!(state.wbEntries || []).length) {
+      if (vlist) vlist.setItems([], { resetScroll: true });
       prev.innerHTML = '<div class="novel-list-empty">暂无条目。请先「小说分析」，或 AI 抽取 / 新建。</div>';
       return;
     }
@@ -321,101 +460,22 @@ export function attachNovelWorldbookRender(ctx, panel) {
       return '<span class="novel-sync-badge ' + (s || 'unsynced') + '">' + (s || '未同步') + '</span>';
     };
 
-    var html = '';
+    var rows = [];
     state.wbEntries.forEach(function(e, i) {
       if (es.novelWbTypeFilter && (e.category || '') !== es.novelWbTypeFilter) return;
-      var hay = ((e.name || '') + ' ' + (e.comment || '') + ' ' + (e.keys || []).join(' ') + ' ' + (e.content || '')).toLowerCase();
-      if (q && hay.indexOf(q) < 0) return;
-      var strategyBadge = panel.renderStrategyTag(e.strategy);
-      var needExpand = ctx.isUnexpandedWbContent(e.content);
-      var ent = e.id
-        ? (state.entities || []).find(function(x) { return x.id === e.id; })
-        : findEntityMatch(state.entities, e.name, []);
-      var enriched = ent ? isEntityEnriched(ent, !!state.strictQuality, getAdultMode(state)) : !needExpand;
-      var previewLine = truncatePreviewLine(e.content);
-      html += '<div class="entry-item fade-in" data-wb-index="' + i + '">'
-        + '<div class="entry-item-header">'
-        + '<input type="checkbox" data-wb-sel="' + i + '"' + (e.selected !== false ? ' checked' : '')
-        + ' onclick="event.stopPropagation()" />'
-        + '<div class="entry-info">'
-        + '<div class="entry-info-title-row"><button type="button" class="novel-list-title" data-wb-edit="' + i + '" title="编辑条目">'
-        + escapeHtml(e.name || e.comment || '未命名') + '</button>'
-        + strategyBadge + syncBadge(e.syncStatus)
-        + (enriched ? '' : ' <span class="novel-sync-badge unsynced">待丰满</span>')
-        + '</div>'
-        + (previewLine ? '<p class="entry-preview-line">' + escapeHtml(previewLine) + '</p>' : '')
-        + '<p class="entry-meta-line">' + escapeHtml(e.category || '')
-        + ' · ' + String(e.content || '').length + ' 字'
-        + ((e.keys || []).length ? ' · 触发词 ' + escapeHtml((e.keys || []).slice(0, 4).join(', ')) : '')
-        + '</p>'
-        + '</div>'
-        + '<div class="entry-actions">'
-        + (ent
-          ? ctx.iconBtn(
-            'data-wb-enrich="' + escapeHtml(ent.id) + '"',
-            '✦',
-            enriched ? '重新丰满' : 'AI 丰满',
-            enriched ? '' : 'btn-ai-expand'
-          )
-          : ctx.iconBtn(
-            'data-wb-expand="' + i + '"',
-            '✦',
-            needExpand ? 'AI 扩展（未扩展）' : 'AI 重写',
-            needExpand ? 'btn-ai-expand' : ''
-          ))
-        + ctx.iconBtn('data-wb-edit="' + i + '"', '✎', '编辑')
-        + ctx.iconBtn('data-wb-sync="' + i + '"', '⇢', '同步到主世界书')
-        + ctx.iconBtn('data-wb-del="' + i + '"', '×', '删除', 'is-danger')
-        + '</div></div>'
-        + '</div>';
+      var hay = ((e.name || '') + ' ' + (e.comment || '') + ' ' + (e.keys || []).join(' ')).toLowerCase();
+      if (q && hay.indexOf(q) < 0) {
+        if (String(e.content || '').toLowerCase().indexOf(q) < 0) return;
+      }
+      rows.push({ e: e, i: i, syncBadge: syncBadge });
     });
-    prev.innerHTML = html || '<div class="novel-list-empty">无匹配条目</div>';
 
-    prev.querySelectorAll('[data-wb-sel]').forEach(function(cb) {
-      cb.addEventListener('change', function() {
-        var i = Number(cb.getAttribute('data-wb-sel'));
-        if (state.wbEntries[i]) {
-          state.wbEntries[i].selected = cb.checked;
-          var ent = state.wbEntries[i].id
-            ? (state.entities || []).find(function(x) { return x.id === state.wbEntries[i].id; })
-            : findEntityMatch(state.entities, state.wbEntries[i].name, []);
-          if (ent) ent.selected = cb.checked;
-        }
-        ctx.save();
-      });
-    });
-    prev.querySelectorAll('[data-wb-edit]').forEach(function(btn) {
-      btn.addEventListener('click', function(e) {
-        e.stopPropagation();
-        panel.editWbEntry(Number(btn.getAttribute('data-wb-edit')));
-      });
-    });
-    prev.querySelectorAll('[data-wb-enrich]').forEach(function(btn) {
-      btn.addEventListener('click', function(e) {
-        e.stopPropagation();
-        panel.enrichWbEntity(btn.getAttribute('data-wb-enrich'), { sourceBtn: btn }).catch(function(err) {
-          if (!ctx.isTrackedAbort(err)) alert('丰满失败: ' + (err.message || err));
-        });
-      });
-    });
-    prev.querySelectorAll('[data-wb-expand]').forEach(function(btn) {
-      btn.addEventListener('click', function(e) {
-        e.stopPropagation();
-        panel.expandWbEntry(Number(btn.getAttribute('data-wb-expand')));
-      });
-    });
-    prev.querySelectorAll('[data-wb-sync]').forEach(function(btn) {
-      btn.addEventListener('click', function(e) {
-        e.stopPropagation();
-        panel.syncWbEntry(Number(btn.getAttribute('data-wb-sync')));
-      });
-    });
-    prev.querySelectorAll('[data-wb-del]').forEach(function(btn) {
-      btn.addEventListener('click', function(e) {
-        e.stopPropagation();
-        panel.deleteWbEntry(Number(btn.getAttribute('data-wb-del')));
-      });
-    });
+    if (!rows.length) {
+      if (vlist) vlist.setItems([], { resetScroll: true });
+      prev.innerHTML = '<div class="novel-list-empty">无匹配条目</div>';
+      return;
+    }
+    if (vlist) vlist.setItems(rows);
   };
 
   // ---- 事件绑定 ----

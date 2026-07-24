@@ -747,14 +747,15 @@ describe('novel panel visual contract', function() {
       readFileSync(join(novelRoot, 'src/lib/novel/panels/chapters.mjs'), 'utf8'),
       readFileSync(join(novelRoot, 'src/lib/novel/shared/context.mjs'), 'utf8'),
     ].join('');
-    assert.match(app, /data-ch-preview/);
-    assert.match(app, /data-ch-split/);
-    assert.match(app, /data-ch-rename/);
-    assert.match(app, /data-ch-up/);
-    assert.match(app, /data-ch-down/);
-    assert.match(app, /data-ch-toggle/);
-    assert.match(app, /data-ch-export/);
-    assert.match(app, /data-ch-delete/);
+    assert.match(app, /createVirtualList/);
+    assert.match(app, /data-ch-act="preview"/);
+    assert.match(app, /data-ch-act="split"/);
+    assert.match(app, /data-ch-act="rename"/);
+    assert.match(app, /data-ch-act="up"/);
+    assert.match(app, /data-ch-act="down"/);
+    assert.match(app, /data-ch-act="toggle"/);
+    assert.match(app, /data-ch-act="export"/);
+    assert.match(app, /data-ch-act="delete"/);
     assert.match(app, /showChapterPreview/);
     assert.match(app, /openNovelModal\('novelModalChapter'\)/);
     assert.match(app, /openNovelModal\('novelModalSplit'\)/);
@@ -883,13 +884,14 @@ describe('novel panel visual contract', function() {
     assert.match(run, /panel\.isRagIndexStale|panel\.clearFailedShards/);
     const bridgeCreate = readFileSync(join(novelRoot, 'src/lib/novel/shared/bridgeCreate.mjs'), 'utf8');
     assert.match(bridgeCreate, /import\s*\{[^}]*applyRagOptionsFromUi[^}]*\}\s*from\s*['\"]\.\/bridgeFields\.mjs['\"]/);
-    // 主世界书行内操作按唯一 id 绑定，禁止用通用 .btn-delete 全页 query
+    // 主世界书：虚拟列表 + 委托 data-wb-act，禁止通用 .btn-delete 全页 query
     const wbShared = readFileSync(join(novelRoot, 'src/lib/card-builder/panels/worldbookShared.mjs'), 'utf8');
-    assert.match(wbShared, /btnWbEntryDelete_/);
-    assert.match(wbShared, /getElementById\(['"]btnWbEntryDelete_/);
+    assert.match(wbShared, /createVirtualList/);
+    assert.match(wbShared, /data-wb-act="delete"/);
     assert.match(wbShared, /showConfirmDialog/);
     assert.doesNotMatch(wbShared, /confirm\(['"]确认删除该世界书/);
     assert.doesNotMatch(wbShared, /querySelectorAll\(['"]\.btn-delete['"]\)/);
+    assert.doesNotMatch(wbShared, /getElementById\(['"]btnWbEntryDelete_/);
     const css = readNovelWorkshopStylesSources(novelRoot);
     assert.match(css, /\.novel-graph-cy/);
     assert.match(css, /\.novel-graph-footer/);
@@ -960,9 +962,10 @@ describe('novel panel visual contract', function() {
     assert.match(wb, /novel-wb-search-only/);
     assert.match(wb, /ui-pref-tip/);
     assert.doesNotMatch(wb, /class="[^"]*novel-card/);
-    // 列表渲染须初始化 html，且导入 isEntityEnriched（否则计数有、列表空）
+    // 列表渲染：虚拟列表 + isEntityEnriched（否则计数有、列表空）
     const wbRender = readFileSync(join(novelRoot, 'src/lib/novel/panels/worldbookRender.mjs'), 'utf8');
-    assert.match(wbRender, /var html\s*=\s*['"]['"]/);
+    assert.match(wbRender, /createVirtualList/);
+    assert.match(wbRender, /var rows\s*=\s*\[\]/);
     assert.match(wbRender, /isEntityEnriched/);
     assert.match(wbRender, /getAdultMode/);
 

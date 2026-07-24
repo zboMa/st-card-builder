@@ -1203,6 +1203,15 @@
         text-overflow: ellipsis;
         white-space: nowrap;
       }
+      .wb-skel-badge {
+        font-size: 0.6rem;
+        background: rgba(245, 158, 11, 0.15);
+        color: #f59e0b;
+        padding: 1px 6px;
+        border-radius: 99px;
+        border: 1px solid rgba(245, 158, 11, 0.25);
+        flex-shrink: 0;
+      }
       .entry-expand-hint {
         font-size: 0.64rem;
         color: var(--color-text-muted);

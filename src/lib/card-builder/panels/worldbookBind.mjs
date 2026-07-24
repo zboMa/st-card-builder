@@ -18,8 +18,13 @@ export function attachWorldbookBind(ctx, s, panel) {
     var wbScopeContent = ctx.$('wbScopeContent');
 
     if (wbSearchInput) {
+      var searchTimer = null;
       wbSearchInput.addEventListener('input', function() {
-        s.renderWbSearchResults(wbSearchInput.value);
+        if (searchTimer) clearTimeout(searchTimer);
+        searchTimer = setTimeout(function() {
+          searchTimer = null;
+          s.renderWbSearchResults(wbSearchInput.value);
+        }, 200);
       });
     }
     if (wbSearchClear) {

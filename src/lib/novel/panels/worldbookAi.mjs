@@ -2,7 +2,7 @@ import { buildExtractShards, estimateExtractCalls } from '../chapters.mjs';
 import { buildRecallPayload, DEFAULT_EXPAND_BUDGET } from '../recall.mjs';
 import { findEntityMatch, upsertEntity, projectEntitiesToLegacy, isEntityEnriched, ingestLegacyIntoEntities } from '../entityStore.mjs';
 import { applyDraftsToWorldbook } from '../sync.mjs';
-import { mergeWbExtractEntry, normalizeNameList } from './worldbookExtractUtil.mjs';
+import { mergeWbExtractEntry, normalizeNameList, formatPriorWbExtractRef, wbCategoryToEntityType } from './worldbookExtractUtil.mjs';
 import { parseJsonLoose } from '../../utils.mjs';
 import {
   getAdultMode, getNtlMode, buildModeHintBlocks, buildContentModeFlags,
@@ -15,7 +15,6 @@ import {
   buildVesselHintForState,
 } from '../nsfwSupport.mjs';
 import { PRIOR_WB_EXTRACT_PER, RAG_ENTITY_BUDGET, ENTITY_SUMMARY_STORE } from '../contextBudgets.mjs';
-import { formatPriorWbExtractRef } from './worldbookExtractUtil.mjs';
 
 /**
  * attachNovelWorldbookAi（拆自原模块）

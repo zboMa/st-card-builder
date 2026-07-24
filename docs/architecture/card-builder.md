@@ -29,7 +29,7 @@
 | `panels/cardManagerBind.mjs` | 事件绑定、`__assistantCardApi__` |
 | `panels/character.mjs` | 角色设定（**不含** NSFW 配置 UI） |
 | `panels/worldbook.mjs` | 世界书 boot（`registerWorldbook`） |
-| `panels/worldbookShared.mjs` | 列表/搜索/编辑/AI 生成逻辑 |
+| `panels/worldbookShared.mjs` | 列表/搜索/编辑/AI（虚拟列表 `virtualList` + 委托） |
 | `panels/worldbookBind.mjs` | DOM 绑定 + `__assistantWbAi__` |
 | `panels/aiEngine.mjs` | AI 引擎 boot（`registerAiEngine`） |
 | `panels/aiEngineShared.mjs` | 预设/世界观/持久化 helpers |

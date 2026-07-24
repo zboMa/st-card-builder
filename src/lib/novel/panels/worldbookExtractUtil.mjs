@@ -50,7 +50,7 @@ var ENTITY_TYPE_ZH = {
   nsfw: 'NSFW',
 };
 
-function wbCategoryToEntityType(cat) {
+export function wbCategoryToEntityType(cat) {
   var c = String(cat || 'setting');
   if (c === 'faction' || c === 'location' || c === 'item' || c === 'event' || c === 'nsfw') return c;
   return 'lore';
