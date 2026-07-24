@@ -20,6 +20,7 @@ import {
     formatAssistantContextTitle,
     buildAssistantContextSections,
   } from './tokenEstimate.mjs';
+import { prepareAssistantMessages } from './contextManager.mjs';
 import {
     buildRagPreviewPayload,
     buildUserModelContent,
@@ -27,7 +28,6 @@ import {
     filterNewSnippets,
     formatRagPreviewMeta,
     messageContentForDisplay,
-    messageContentForModel,
     pickRelatedEntities,
     formatRelationContextLines,
   } from './ragInject.mjs';
@@ -429,13 +429,15 @@ var boot = window.__assistantBoot__ || {};
 
     function openContextModal() {
       var systemPrompt = buildSystemPrompt('');
-      var history = historyForModel();
-      var pending = (inputEl && inputEl.value || '').trim();
-      var breakdown = estimateAssistantContext({
+      var prepared = prepareAssistantMessages({
         systemPrompt: systemPrompt,
-        historyMessages: history,
-        pendingInput: pending,
+        uiMessages: uiMessages,
+        pendingInput: (inputEl && inputEl.value || '').trim(),
       });
+      var history = prepared.historyForUi;
+      var pending = (inputEl && inputEl.value || '').trim();
+      var breakdown = prepared.breakdown;
+      breakdown.level = prepared.level;
       var sections = buildAssistantContextSections({
         systemPrompt: systemPrompt,
         toolList: toolListText,
@@ -450,7 +452,10 @@ var boot = window.__assistantBoot__ || {};
           + ' · 系统 ' + breakdown.system
           + ' · 历史 ' + breakdown.history
           + ' · 待发送 ' + breakdown.pending
-          + '（近似）';
+          + (prepared.level && prepared.level !== 'none'
+            ? ' · ' + (prepared.level === 'hard' ? '激进压缩后' : '已启动压缩')
+            : '')
+          + '（tiktoken）';
       }
       if (contextModalBody) {
         var tabsEl = document.getElementById('assistantContextTabs');
@@ -1413,26 +1418,11 @@ var boot = window.__assistantBoot__ || {};
       return base;
     }
 
-    function historyForModel() {
-      // 压缩：仅保留 user/assistant final 与简短 tool 摘要；user 含绑定 RAG 的 modelContent
-      var out = [];
-      uiMessages.forEach(function(m) {
-        if (m.role === 'user') out.push({ role: 'user', content: messageContentForModel(m) });
-        else if (m.role === 'assistant') out.push({ role: 'assistant', content: m.content });
-        else if (m.role === 'tool') {
-          var toolLine = m.summary || toolMessageSummary(m);
-          var toolBody = m.detail || m.content || '';
-          out.push({ role: 'user', content: '[工具结果]\n' + toolLine + '\n' + toolBody.slice(0, 1200) });
-        }
-      });
-      return out.slice(-24);
-    }
-
     function updateTokenCount() {
       if (!tokenCountEl) return;
       var breakdown = estimateAssistantContext({
         systemPrompt: buildSystemPrompt(''),
-        historyMessages: historyForModel(),
+        uiMessages: uiMessages,
         pendingInput: (inputEl.value || '').trim(),
       });
       tokenCountEl.textContent = formatAssistantContextLabel(breakdown.total);
@@ -1494,10 +1484,18 @@ var boot = window.__assistantBoot__ || {};
           }
           setStatus('ReAct 步骤 ' + (step + 1) + '/' + MAX_REACT_STEPS);
           if (center && reactTask) center.setProgress(reactTask.id, (step + 1) / MAX_REACT_STEPS, '步骤 ' + (step + 1));
-          var messages = [{ role: 'system', content: buildSystemPrompt(extra) }].concat(historyForModel());
+          var stepHint = '';
           if (step > 0) {
-            messages.push({ role: 'system', content: promptText('assistantReactHint') || '继续：输出 tool 或 final JSON。' });
+            stepHint = promptText('assistantReactHint') || '继续：输出 tool 或 final JSON。';
           }
+          var prepared = prepareAssistantMessages({
+            systemPrompt: buildSystemPrompt(extra),
+            uiMessages: uiMessages,
+            extraSystem: stepHint,
+          });
+          if (prepared.level === 'soft') setStatus('ReAct 步骤 ' + (step + 1) + '/' + MAX_REACT_STEPS + ' · 上下文压缩中');
+          if (prepared.level === 'hard') setStatus('ReAct 步骤 ' + (step + 1) + '/' + MAX_REACT_STEPS + ' · 激进压缩');
+          var messages = prepared.messages;
           var raw = await callChat(messages, 0.35, reactSignal);
           var parsed = parseReactStep(raw);
 

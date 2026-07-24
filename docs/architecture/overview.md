@@ -37,7 +37,7 @@ src/lib/
 ├── card-builder/     制卡：state / stateMachine / panels / initCardBuilder
 ├── novel/            小说工坊：分析管道、实体、RAG、面板
 ├── storyStudio/      小说创作：图谱/大纲/写作/分享
-├── assistant/        右栏助手：tools / risk / react / executor* / session
+├── assistant/        右栏助手：tools / risk / react / executor* / contextManager / session
 ├── sync/             云端 REST 客户端、outbox、密钥加密
 ├── adult/            NSFW/NTL/载体/恶堕目录与拼装（数量以代码为准）
 ├── admin/            管理端：adminShared / adminViews / adminBoot

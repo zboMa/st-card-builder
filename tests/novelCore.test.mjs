@@ -905,7 +905,7 @@ describe('novel panel visual contract', function() {
     assert.match(uiPat, /\.novel-panel-head > h2::before/);
     assert.match(uiPat, /\.wb-panel-head > h2::before/);
     const viz = readFileSync(join(novelRoot, 'src/lib/novel/graphViz.mjs'), 'utf8');
-    assert.match(viz, /type:\s*'d3-force'/);
+    assert.match(viz, /type:\s*['"]d3-force['"]/);
     assert.match(viz, /manyBody|collide|nodeSpacing/);
     assert.match(viz, /seedNodePositions|deoverlapGraphNodes/);
     assert.match(viz, /ResizeObserver|attachResizeRelayout/);

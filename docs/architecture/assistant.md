@@ -26,8 +26,18 @@
 | `characterFields.mjs` | 字段归一 |
 | `session.mjs` | 会话与快照栈 |
 | `ragInject.mjs` | 小说 RAG 注入 |
-| `tokenEstimate.mjs` | Token 估算 |
+| `contextManager.mjs` | 送模上下文预算与压缩（tiktoken / 200k · 60% / 80%） |
+| `tokenEstimate.mjs` | Token 展示文案（计数委托 contextManager） |
 | `toolTraceSummary.mjs` | 轨迹摘要 |
+
+## 上下文预算
+
+- 编码：`js-tiktoken`（OpenAI `cl100k_base`，浏览器/Node 可用）
+- 总窗口 **200k** tokens；预留约 **8k** 给回复，输入预算 = 200k − 8k
+- **≥60%** 输入预算：启动压缩（旧工具结果缩预览、限制旧 thought）
+- **≥80%**：激进压缩（工具只留摘要、裁剪旧 RAG、必要时丢最旧消息）
+- **禁止**对单条工具结果做固定字符盲切（旧 `slice(0, 1200)` 已移除）；压缩只在 `prepareAssistantMessages` 发送时整体进行
+- 调参入口：`CONTEXT_BUDGET`（`limit` / `softRatio` / `hardRatio` / `reserveReply`）
 
 ## 写入规则（摘要）
 

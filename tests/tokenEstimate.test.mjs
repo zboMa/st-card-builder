@@ -1,5 +1,5 @@
 /**
- * 助手上下文 token 近似估算
+ * 助手上下文 UI 展示（计数委托 contextManager / tiktoken）
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
@@ -11,30 +11,27 @@ import {
   formatAssistantContextLabel,
   formatAssistantContextTitle,
   buildAssistantContextSections,
+  countTokens,
+  CONTEXT_BUDGET,
 } from '../src/lib/assistant/tokenEstimate.mjs';
 
 describe('tokenEstimate', function() {
-  it('estimateTokens：空文本为 0', function() {
+  it('estimateTokens 走 tiktoken（非 chars×2）', function() {
     assert.equal(estimateTokens(''), 0);
     assert.equal(estimateTokens(null), 0);
-  });
-
-  it('estimateTokens：英文 chars × 2', function() {
-    assert.equal(estimateTokens('abcd'), 8);
-    assert.equal(estimateTokens('hello world'), 22);
-  });
-
-  it('estimateTokens：中文同样 chars × 2', function() {
-    assert.equal(estimateTokens('你好'), 4);
+    assert.equal(estimateTokens('hello'), countTokens('hello'));
+    assert.notEqual(estimateTokens('hello world'), String('hello world').length * 2);
   });
 
   it('estimateMessagesTokens 累加各条 content', function() {
+    var a = estimateMessagesTokens([
+      { role: 'user', content: 'abcd' },
+      { role: 'assistant', content: 'efgh' },
+    ]);
+    assert.ok(a > 0);
     assert.equal(
-      estimateMessagesTokens([
-        { role: 'user', content: 'abcd' },
-        { role: 'assistant', content: 'efgh' },
-      ]),
-      16,
+      a,
+      countTokens('abcd') + countTokens('efgh') + CONTEXT_BUDGET.messageOverhead * 2,
     );
   });
 
@@ -44,10 +41,11 @@ describe('tokenEstimate', function() {
       historyMessages: [{ content: 'efgh' }],
       pendingInput: 'hi',
     });
-    assert.equal(breakdown.system, 8);
-    assert.equal(breakdown.history, 8);
-    assert.equal(breakdown.pending, 4);
-    assert.equal(breakdown.total, 20);
+    assert.ok(breakdown.system > 0);
+    assert.ok(breakdown.history > 0);
+    assert.ok(breakdown.pending > 0);
+    assert.equal(breakdown.total, breakdown.system + breakdown.history + breakdown.pending);
+    assert.ok(breakdown.budget > 0);
   });
 
   it('formatTokenCount 与标签文案', function() {
@@ -57,9 +55,18 @@ describe('tokenEstimate', function() {
     assert.match(formatAssistantContextLabel(12500), /≈ 12\.5k tokens/);
   });
 
-  it('formatAssistantContextTitle 含分项', function() {
-    var title = formatAssistantContextTitle({ system: 100, history: 200, pending: 50 });
-    assert.match(title, /字符数 × 2/);
+  it('formatAssistantContextTitle 含 tiktoken 与分项', function() {
+    var title = formatAssistantContextTitle({
+      system: 100,
+      history: 200,
+      pending: 50,
+      total: 350,
+      budget: CONTEXT_BUDGET.limit,
+      softAt: 1000,
+      hardAt: 2000,
+      level: 'none',
+    });
+    assert.match(title, /tiktoken/);
     assert.match(title, /系统: 100/);
     assert.match(title, /历史: 200/);
     assert.match(title, /待发送: 50/);

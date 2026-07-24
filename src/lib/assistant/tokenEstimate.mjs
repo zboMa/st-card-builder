@@ -1,35 +1,31 @@
 /**
- * 近似 token 估算（非精确 tokenizer）。
- * 启发式：字符数 × 2。
+ * 助手上下文 UI 展示层。
+ * Token 计数 / 压缩预算见 contextManager.mjs（tiktoken cl100k_base）。
  */
+import {
+  countTokens,
+  countMessagesTokens,
+  estimateAssistantContext,
+  CONTEXT_BUDGET,
+  compressionLevelForTotal,
+} from './contextManager.mjs';
 
+export {
+  countTokens,
+  countMessagesTokens,
+  estimateAssistantContext,
+  CONTEXT_BUDGET,
+  compressionLevelForTotal,
+};
+
+/** @deprecated 使用 countTokens；保留别名兼容旧测试/调用 */
 export function estimateTokens(text) {
-  if (text == null || text === '') return 0;
-  return Math.round(String(text).length * 2);
+  return countTokens(text);
 }
 
-/** @param {{ role?: string, content?: string }[]} messages */
+/** @deprecated 使用 countMessagesTokens */
 export function estimateMessagesTokens(messages) {
-  if (!messages || !messages.length) return 0;
-  return messages.reduce(function(sum, m) {
-    return sum + estimateTokens(m && m.content);
-  }, 0);
-}
-
-/**
- * @param {{ systemPrompt?: string, historyMessages?: { content?: string }[], pendingInput?: string }} opts
- */
-export function estimateAssistantContext(opts) {
-  opts = opts || {};
-  var system = estimateTokens(opts.systemPrompt || '');
-  var history = estimateMessagesTokens(opts.historyMessages || []);
-  var pending = estimateTokens(opts.pendingInput || '');
-  return {
-    system: system,
-    history: history,
-    pending: pending,
-    total: system + history + pending,
-  };
+  return countMessagesTokens(messages);
 }
 
 /** 显示用：8420 → "8420"，12500 → "12.5k" */
@@ -51,13 +47,21 @@ export function formatAssistantContextLabel(total) {
   return '上下文 ' + n + ' tokens';
 }
 
-/** @param {{ system: number, history: number, pending: number }} breakdown */
+/**
+ * @param {{ system: number, history: number, pending: number, budget?: number, level?: string, softAt?: number, hardAt?: number }} breakdown
+ */
 export function formatAssistantContextTitle(breakdown) {
+  var b = breakdown || {};
+  var level = b.level || compressionLevelForTotal(b.total || 0);
+  var levelZh = level === 'hard' ? '激进压缩' : (level === 'soft' ? '启动压缩' : '未压缩');
   return [
-    '近似估算（非精确 tokenizer，字符数 × 2）· 点击查看上下文内容',
-    '系统: ' + breakdown.system,
-    '历史: ' + breakdown.history,
-    '待发送: ' + breakdown.pending,
+    'tiktoken (cl100k_base) · 预算 ' + formatTokenCount(b.budget || CONTEXT_BUDGET.limit)
+      + ' · 当前档：' + levelZh + ' · 点击查看上下文内容',
+    '系统: ' + (b.system || 0),
+    '历史: ' + (b.history || 0),
+    '待发送: ' + (b.pending || 0),
+    '软阈值: ' + (b.softAt != null ? b.softAt : '—')
+      + ' · 硬阈值: ' + (b.hardAt != null ? b.hardAt : '—'),
   ].join('\n');
 }
 
@@ -83,7 +87,7 @@ export function buildAssistantContextSections(opts) {
     sections.push({
       id: id,
       title: title,
-      tokens: estimateTokens(text),
+      tokens: countTokens(text),
       body: text,
     });
   }

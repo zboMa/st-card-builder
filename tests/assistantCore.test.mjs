@@ -766,6 +766,9 @@ describe('assistant prompts & UI wiring', function() {
     assert.match(panel, /assistant-token-count/);
     assert.match(panel, /updateTokenCount/);
     assert.match(panel, /tokenEstimate\.mjs/);
+    assert.match(panel, /contextManager\.mjs/);
+    assert.match(panel, /prepareAssistantMessages/);
+    assert.doesNotMatch(panel, /toolBody\.slice\(0,\s*1200\)/);
     assert.match(panel, /id="assistantRagPreviewBtn"/);
     assert.match(panel, /assistant-btn-rag-preview/);
     assert.match(panel, /id="assistantRagModal"/);

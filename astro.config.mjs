@@ -19,7 +19,7 @@ export default defineConfig({
       },
     },
     optimizeDeps: {
-      include: ['events'],
+      include: ['events', 'js-tiktoken'],
     },
   },
 });
