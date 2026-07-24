@@ -114,7 +114,7 @@ html[data-app-scene="frost-shard"] .ui-modal-dialog {
   box-shadow: var(--shadow-panel), inset 0 0 0 1px oklch(74% 0.1 220 / 0.12);
 }
 
-html[data-app-scene="frost-shard"] .app-mobile-topbar {
+html[data-app-scene="frost-shard"] .app-mobile-modbar {
   background: oklch(18% 0.02 240 / 0.75);
   border-bottom-color: oklch(92% 0.02 240 / 0.12);
 }

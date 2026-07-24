@@ -110,7 +110,7 @@ html[data-app-scene="doom-carrion"] .ui-modal-dialog {
   box-shadow: var(--shadow-panel), inset 0 0 0 1px oklch(68% 0.14 45 / 0.12);
 }
 
-html[data-app-scene="doom-carrion"] .app-mobile-topbar {
+html[data-app-scene="doom-carrion"] .app-mobile-modbar {
   background: oklch(16% 0.012 52 / 0.78);
   border-bottom-color: oklch(68% 0.14 45 / 0.14);
 }

@@ -295,7 +295,10 @@
         overflow: hidden;
       }
 
-      /* —— 移动壳：顶栏 / 遮罩（默认隐藏，≤900px 启用） —— */
+      /* —— 移动壳：底栏模块条 / 遮罩（默认隐藏，≤900px 启用） —— */
+      .app-mobile-modbar {
+        display: none;
+      }
       .app-mobile-topbar {
         display: none;
       }
@@ -314,69 +317,76 @@
         }
       }
 
-      /* —— ≤900px：左侧滑出菜单 + 主区单栏（助手改由 FAB 弹层，见 AssistantPanel） —— */
+      /* —— ≤900px：左侧滑出菜单 + 主区单栏；底栏切模块 —— */
       @media (max-width: 900px) {
-        .app-mobile-topbar {
+        .app-mobile-modbar {
           display: flex;
           align-items: center;
-          gap: 10px;
+          justify-content: space-between;
+          gap: 8px;
           position: fixed;
-          top: 0;
           left: 0;
           right: 0;
-          /* 介于遮罩(8300)与抽屉(8400)之间：打开菜单时汉堡仍可点关闭 */
+          bottom: 0;
           z-index: 8350;
-          min-height: calc(48px + env(safe-area-inset-top, 0px));
-          padding: env(safe-area-inset-top, 0px) 12px 8px 12px;
+          min-height: calc(48px + env(safe-area-inset-bottom, 0px));
+          padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px));
           background: var(--color-glass);
           backdrop-filter: blur(20px) saturate(130%);
           -webkit-backdrop-filter: blur(20px) saturate(130%);
-          border-bottom: 1px solid var(--color-glass-border);
+          border-top: 1px solid var(--color-glass-border);
           box-shadow: var(--shadow-panel);
         }
-        .app-mobile-nav-btn {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          width: 32px;
-          height: 32px;
-          margin: 0;
-          padding: 0;
-          border: 1px solid var(--color-accent-border);
-          border-radius: var(--radius-sm);
-          background: var(--color-accent-soft);
-          color: var(--color-accent);
+        .app-mobile-modbar[hidden] {
+          display: none !important;
+        }
+        .app-mobile-modbar__nav,
+        .app-mobile-modbar__current {
+          appearance: none;
+          font: inherit;
           cursor: pointer;
-          flex-shrink: 0;
-        }
-        .app-mobile-nav-btn svg {
-          width: 16px;
-          height: 16px;
-        }
-        .app-mobile-nav-btn:focus-visible {
-          outline: 2px solid var(--color-focus-ring);
-          outline-offset: 1px;
-        }
-        .app-mobile-topbar-brand {
-          min-width: 0;
-          flex: 1;
-        }
-        .app-mobile-topbar-title {
-          display: block;
-          font-size: 0.95rem;
-          font-weight: 650;
+          border: 0;
+          background: transparent;
           color: var(--color-text);
-          letter-spacing: 0.02em;
-          white-space: nowrap;
+          min-width: 0;
+        }
+        .app-mobile-modbar__nav {
+          flex: 0 0 auto;
+          padding: 6px 4px;
+          font-size: 0.78rem;
+          font-weight: 600;
+          color: var(--color-text-secondary);
+        }
+        .app-mobile-modbar__nav:disabled {
+          opacity: 0.4;
+          cursor: default;
+        }
+        .app-mobile-modbar__current {
+          flex: 1 1 auto;
+          text-align: center;
+          padding: 6px 8px;
+          font-size: 0.88rem;
+          font-weight: 700;
           overflow: hidden;
           text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .app-mobile-modbar__nav:hover,
+        .app-mobile-modbar__current:hover {
+          color: var(--color-accent-hover);
+        }
+        .app-mobile-modbar__nav:focus-visible,
+        .app-mobile-modbar__current:focus-visible {
+          outline: 2px solid var(--color-focus-ring);
+          outline-offset: 1px;
+          border-radius: 6px;
         }
 
         .app-shell-backdrop {
           display: block;
           position: fixed;
           inset: 0;
-          /* 叠放：主内容 < 遮罩(8300) < 顶栏(8350) < 侧栏(8400) < 助手(8500) */
+          /* 叠放：主内容 < FAB < 遮罩(8300) < 底栏(8350) < 侧栏(8400) < 助手(8500) */
           z-index: 8300;
           background: var(--color-scrim);
           opacity: 0;
@@ -400,7 +410,8 @@
           overflow: hidden;
           height: 100%;
           max-height: 100%;
-          padding-top: calc(48px + env(safe-area-inset-top, 0px));
+          padding-top: env(safe-area-inset-top, 0px);
+          padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px));
           gap: 0;
         }
         /* 侧栏：离屏抽屉（fixed，不占 flex 位） */
@@ -427,7 +438,7 @@
           box-shadow: var(--shadow-panel-hover);
         }
         .app-sidebar-top {
-          display: none; /* 旧「菜单」折叠钮；改由顶栏汉堡控制 */
+          display: none; /* 旧「菜单」折叠钮；改由底栏模块名打开 */
         }
         .app-sidebar-brand {
           padding-right: 4px;

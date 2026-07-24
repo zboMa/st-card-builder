@@ -111,7 +111,7 @@ html[data-app-scene="water-wave"] .ui-modal-dialog {
   box-shadow: var(--shadow-panel), inset 0 0 0 1px oklch(72% 0.11 210 / 0.12);
 }
 
-html[data-app-scene="water-wave"] .app-mobile-topbar {
+html[data-app-scene="water-wave"] .app-mobile-modbar {
   background: oklch(16% 0.024 215 / 0.78);
   border-bottom-color: oklch(72% 0.11 210 / 0.12);
 }

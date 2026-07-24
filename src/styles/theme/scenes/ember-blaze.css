@@ -111,7 +111,7 @@ html[data-app-scene="ember-blaze"] .ui-modal-dialog {
   box-shadow: var(--shadow-panel), inset 0 0 0 1px oklch(72% 0.14 45 / 0.14);
 }
 
-html[data-app-scene="ember-blaze"] .app-mobile-topbar {
+html[data-app-scene="ember-blaze"] .app-mobile-modbar {
   background: oklch(17% 0.028 35 / 0.78);
   border-bottom-color: oklch(72% 0.14 45 / 0.14);
 }

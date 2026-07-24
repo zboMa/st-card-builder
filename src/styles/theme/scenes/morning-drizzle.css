@@ -115,7 +115,7 @@ html[data-app-scene="morning-drizzle"] .ui-modal-dialog {
   box-shadow: var(--shadow-panel), inset 0 0 0 1px oklch(78% 0.06 245 / 0.12);
 }
 
-html[data-app-scene="morning-drizzle"] .app-mobile-topbar {
+html[data-app-scene="morning-drizzle"] .app-mobile-modbar {
   background: oklch(18% 0.018 245 / 0.72);
   border-bottom-color: oklch(94% 0.01 245 / 0.12);
 }

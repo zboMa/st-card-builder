@@ -112,7 +112,7 @@ html[data-app-scene="moon-haze"] .ui-modal-dialog {
   box-shadow: var(--shadow-panel), inset 0 0 0 1px oklch(88% 0.025 280 / 0.1);
 }
 
-html[data-app-scene="moon-haze"] .app-mobile-topbar {
+html[data-app-scene="moon-haze"] .app-mobile-modbar {
   background: oklch(15% 0.012 280 / 0.75);
   border-bottom-color: oklch(88% 0.025 280 / 0.1);
 }

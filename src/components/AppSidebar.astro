@@ -2,7 +2,7 @@
 /**
  * 侧栏三段式：顶品牌 / 中可滚菜单 / 底配置
  * 导航项使用统一线性 SVG，不用 emoji
- * 窄屏（≤900px）：左侧滑出抽屉，由顶栏汉堡控制
+ * 窄屏（≤900px）：左侧滑出抽屉，由底栏「当前模块名」打开
  */
 
 /** 16px 线性图标 path（stroke 由 CSS currentColor 控制） */
@@ -183,9 +183,14 @@ const CONFIG_ITEMS = [
     var sidebar = document.getElementById('appSidebar');
     var nav = document.getElementById('appSidebarNav');
     var toggle = document.getElementById('btnSidebarToggle');
-    var mobileOpenBtn = document.getElementById('btnMobileNavOpen');
+    var modbar = document.getElementById('appMobileModbar');
+    var modPrev = document.getElementById('btnMobileModPrev');
+    var modNext = document.getElementById('btnMobileModNext');
+    var modCurrent = document.getElementById('btnMobileModCurrent');
     var backdrop = document.getElementById('appShellBackdrop');
     if (!sidebar || !nav) return;
+
+    var activeViewId = DEFAULT_VIEW;
 
     function isMobileShell() {
       return window.matchMedia(MOBILE_MQ).matches;
@@ -197,6 +202,53 @@ const CONFIG_ITEMS = [
 
     function getNavItems() {
       return sidebar.querySelectorAll('.app-sidebar-item[data-view]');
+    }
+
+    function getNavOrder() {
+      var items = [];
+      getNavItems().forEach(function(btn) {
+        var view = btn.getAttribute('data-view');
+        if (!view) return;
+        var labelEl = btn.querySelector('.app-sidebar-label');
+        var label = labelEl ? String(labelEl.textContent || '').trim() : view;
+        items.push({ view: view, label: label || view });
+      });
+      return items;
+    }
+
+    function syncModbar() {
+      if (!modbar) return;
+      var mobile = isMobileShell();
+      modbar.hidden = !mobile;
+      if (!mobile) return;
+      var order = getNavOrder();
+      var idx = -1;
+      for (var i = 0; i < order.length; i++) {
+        if (order[i].view === activeViewId) { idx = i; break; }
+      }
+      if (idx < 0 && order.length) {
+        idx = 0;
+        activeViewId = order[0].view;
+      }
+      var cur = idx >= 0 ? order[idx] : null;
+      if (modCurrent) {
+        modCurrent.textContent = cur ? cur.label : '模块';
+        modCurrent.setAttribute('aria-expanded',
+          document.body.classList.contains('is-mobile-nav-open') ? 'true' : 'false');
+      }
+      if (modPrev) modPrev.disabled = order.length < 2;
+      if (modNext) modNext.disabled = order.length < 2;
+    }
+
+    function stepMod(delta) {
+      var order = getNavOrder();
+      if (order.length < 2) return;
+      var idx = 0;
+      for (var i = 0; i < order.length; i++) {
+        if (order[i].view === activeViewId) { idx = i; break; }
+      }
+      var next = order[(idx + delta + order.length) % order.length];
+      if (next) setActiveView(next.view);
     }
 
     function syncBackdropVisibility() {
@@ -212,9 +264,8 @@ const CONFIG_ITEMS = [
       var on = !!open && isMobileShell();
       sidebar.classList.toggle('is-drawer-open', on);
       document.body.classList.toggle('is-mobile-nav-open', on);
-      if (mobileOpenBtn) mobileOpenBtn.setAttribute('aria-expanded', on ? 'true' : 'false');
+      if (modCurrent) modCurrent.setAttribute('aria-expanded', on ? 'true' : 'false');
       if (toggle) toggle.setAttribute('aria-expanded', on ? 'true' : 'false');
-      // 兼容旧 class：窄屏抽屉打开时不应 is-collapsed
       if (on) sidebar.classList.remove('is-collapsed');
       syncBackdropVisibility();
     }
@@ -224,7 +275,6 @@ const CONFIG_ITEMS = [
     }
 
     function openDrawer() {
-      // 打开导航时关掉助手弹层，避免双层
       if (typeof window.__closeAssistantSheet__ === 'function') {
         try { window.__closeAssistantSheet__(); } catch (e) {}
       }
@@ -242,6 +292,7 @@ const CONFIG_ITEMS = [
 
     function setActiveView(viewId) {
       var id = viewId || DEFAULT_VIEW;
+      activeViewId = id;
       getViewEls().forEach(function(el) {
         el.classList.toggle('is-active', el.getAttribute('data-view') === id);
       });
@@ -254,11 +305,11 @@ const CONFIG_ITEMS = [
           history.replaceState(null, '', '#' + id);
         }
       } catch (e) {}
-      // 各视图共用 .app-container 滚动；切换时置顶，避免停在上一页中部
       try {
         var scroller = document.querySelector('.app-container');
         if (scroller) scroller.scrollTop = 0;
       } catch (e2) {}
+      syncModbar();
       window.dispatchEvent(new CustomEvent('app-view-changed', { detail: { view: id } }));
     }
     window.__setAppView__ = setActiveView;
@@ -268,7 +319,6 @@ const CONFIG_ITEMS = [
       if (hash.indexOf('share/') === 0) return DEFAULT_VIEW;
       if (hash === 'novel') hash = 'novel-source';
       if (hash === 'novel-outputs') hash = 'novel-characters';
-      // 旧深链兼容：试聊进右栏；JSON/监测进对应面板弹窗
       if (hash === 'chat') {
         if (typeof window.__setAssistantPanelMode__ === 'function') {
           setTimeout(function() { window.__setAssistantPanelMode__('chat'); }, 0);
@@ -299,8 +349,11 @@ const CONFIG_ITEMS = [
       });
     });
 
-    if (mobileOpenBtn) {
-      mobileOpenBtn.addEventListener('click', function() {
+    if (modPrev) modPrev.addEventListener('click', function() { stepMod(-1); });
+    if (modNext) modNext.addEventListener('click', function() { stepMod(1); });
+    if (modCurrent) {
+      modCurrent.addEventListener('click', function() {
+        if (!isMobileShell()) return;
         toggleDrawer();
       });
     }
@@ -336,9 +389,10 @@ const CONFIG_ITEMS = [
       if (!isMobileShell()) {
         sidebar.classList.remove('is-drawer-open');
         document.body.classList.remove('is-mobile-nav-open');
-        if (mobileOpenBtn) mobileOpenBtn.setAttribute('aria-expanded', 'false');
+        if (modCurrent) modCurrent.setAttribute('aria-expanded', 'false');
         syncBackdropVisibility();
       }
+      syncModbar();
     });
 
     setActiveView(readHashView());
@@ -346,6 +400,7 @@ const CONFIG_ITEMS = [
       setActiveView(readHashView());
     });
     syncBackdropVisibility();
+    syncModbar();
   }
 
   if (document.readyState === 'loading') {

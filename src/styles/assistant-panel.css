@@ -721,7 +721,7 @@
       justify-content: center;
       position: fixed;
       right: calc(16px + env(safe-area-inset-right, 0px));
-      bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+      bottom: calc(64px + env(safe-area-inset-bottom, 0px));
       z-index: 8250;
       width: 52px;
       height: 52px;

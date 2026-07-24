@@ -204,6 +204,12 @@ export function initLayoutChrome() {
           search.value = '';
           applyFilter('');
           setTimeout(function() {
+            var touchish = false;
+            try {
+              touchish = window.matchMedia('(max-width: 900px), (pointer: coarse)').matches;
+            } catch (eMq) { touchish = false; }
+            /* 移动端不默认 focus 搜索，避免一点开就弹键盘 */
+            if (touchish) return;
             try { search.focus({ preventScroll: true }); } catch (e) {
               try { search.focus(); } catch (e2) {}
             }

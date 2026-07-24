@@ -45,17 +45,12 @@ import AccountSyncPanel from '../components/AccountSyncPanel.astro';
   <ParticleCanvas />
 
   <!-- 侧栏（含品牌区）+ 主内容 + 右栏 AI 助手；各 view 常驻 DOM，切换仅显隐 -->
-  <!-- 移动端：顶栏汉堡 + 遮罩；AI 以 FAB 弹层打开（见 Layout / AssistantPanel） -->
-  <header class="app-mobile-topbar" id="appMobileTopbar">
-    <button type="button" class="app-mobile-nav-btn" id="btnMobileNavOpen" aria-controls="appSidebar" aria-expanded="false" aria-label="打开菜单">
-      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
-        <path d="M5 7h14M5 12h14M5 17h14"/>
-      </svg>
-    </button>
-    <div class="app-mobile-topbar-brand">
-      <span class="app-mobile-topbar-title">啊哈哈哈制卡器</span>
-    </div>
-  </header>
+  <!-- 移动端：底栏模块切换；侧栏仍为左滑抽屉（点模块名打开） -->
+  <nav class="app-mobile-modbar" id="appMobileModbar" aria-label="模块切换" hidden>
+    <button type="button" class="app-mobile-modbar__nav" id="btnMobileModPrev">上一个</button>
+    <button type="button" class="app-mobile-modbar__current" id="btnMobileModCurrent" aria-controls="appSidebar" aria-expanded="false" aria-haspopup="dialog">模块</button>
+    <button type="button" class="app-mobile-modbar__nav" id="btnMobileModNext">下一个</button>
+  </nav>
   <div class="app-shell-backdrop" id="appShellBackdrop" hidden aria-hidden="true"></div>
   <div class="app-shell">
     <AppSidebar />

@@ -108,7 +108,7 @@ html[data-app-scene="cloud-pavilion"] .ui-modal-dialog {
   box-shadow: var(--shadow-panel), inset 0 0 0 1px oklch(76% 0.12 75 / 0.14);
 }
 
-html[data-app-scene="cloud-pavilion"] .app-mobile-topbar {
+html[data-app-scene="cloud-pavilion"] .app-mobile-modbar {
   background: oklch(17% 0.022 45 / 0.78);
   border-bottom-color: oklch(76% 0.12 75 / 0.14);
 }

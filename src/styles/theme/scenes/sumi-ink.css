@@ -128,7 +128,7 @@ html[data-app-scene="sumi-ink"] .ui-modal-dialog {
   box-shadow: var(--shadow-panel), inset 0 0 0 1px oklch(48% 0.008 0 / 0.16);
 }
 
-html[data-app-scene="sumi-ink"] .app-mobile-topbar {
+html[data-app-scene="sumi-ink"] .app-mobile-modbar {
   background: oklch(18% 0.008 0 / 0.72);
   border-bottom-color: oklch(92% 0.008 0 / 0.1);
 }

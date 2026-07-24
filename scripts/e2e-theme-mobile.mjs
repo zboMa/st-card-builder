@@ -108,14 +108,14 @@ async function main() {
     if (!mainVisible) fail('main content area not visible');
     ok('主内容区可见');
 
-    await page.click('#btnMobileNavOpen');
+    await page.click('#btnMobileModCurrent');
     await page.waitForTimeout(350);
 
     var drawerOpen = await page.evaluate(function() {
       return document.getElementById('appSidebar').classList.contains('is-drawer-open');
     });
-    if (!drawerOpen) fail('drawer did not open after hamburger click');
-    ok('汉堡打开抽屉');
+    if (!drawerOpen) fail('drawer did not open after modbar current click');
+    ok('底栏模块名打开抽屉');
 
     var sidebarInView = await page.evaluate(function() {
       var rect = document.getElementById('appSidebar').getBoundingClientRect();
