@@ -28,6 +28,7 @@ import { collectFeedForwardsBefore } from './feedForward.mjs';
 import { showSsConfirm, showSsPrompt } from './dialogs.mjs';
 import {
   state,
+  ui,
   $,
   setStatus,
   getCardSeed,
@@ -42,34 +43,7 @@ import { setWriteProgress, renderWrite } from './writeBranchUi.mjs';
 import { engineBegin, engineEnd, engineTryAllowed } from '../actionEngine/helpers.mjs';
 
 export function collectGraphFromDom() {
-  if (!state.novel) return;
-  var nodes = [];
-  document.querySelectorAll('#ssGraphNodes .ss-graph-row').forEach(function(row) {
-    var typeEl = row.querySelector('[data-f="type"]');
-    var nameEl = row.querySelector('[data-f="name"]');
-    var noteEl = row.querySelector('[data-f="note"]');
-    var prev = state.novel.graph.nodes[Number(row.getAttribute('data-node-idx'))] || {};
-    nodes.push({
-      id: prev.id || genStoryId('node'),
-      type: typeEl ? typeEl.value : 'other',
-      name: nameEl ? nameEl.value : '',
-      note: noteEl ? noteEl.value : '',
-    });
-  });
-  var edges = [];
-  document.querySelectorAll('#ssGraphEdges .ss-graph-row').forEach(function(row) {
-    var fromEl = row.querySelector('[data-f="from"]');
-    var toEl = row.querySelector('[data-f="to"]');
-    var labelEl = row.querySelector('[data-f="label"]');
-    var prev = state.novel.graph.edges[Number(row.getAttribute('data-edge-idx'))] || {};
-    edges.push({
-      id: prev.id || genStoryId('edge'),
-      from: fromEl ? fromEl.value : '',
-      to: toEl ? toEl.value : '',
-      label: labelEl ? labelEl.value : '关系',
-    });
-  });
-  state.novel.graph = { nodes: nodes, edges: edges, updatedAt: new Date().toISOString() };
+  // 图谱已改为弹窗编辑，直接改 state.novel.graph；保留空实现兼容旧调用点
 }
 
 export function collectOutlineFromDom() {
@@ -110,11 +84,16 @@ export function collectOutlineFromDom() {
   });
 }
 
-export function collectWriteFromDom() {
+export function collectWriteFromDom(opts) {
+  opts = opts || {};
   if (!state.novel) return;
   var sel = $('ssWriteChapterSelect');
-  if (!sel || !sel.value) return;
-  var ch = state.novel.chapters.find(function(c) { return c.id === sel.value; });
+  var targetId = opts.chapterId
+    || (ui.writeChapterId || '')
+    || (sel && sel.value)
+    || '';
+  if (!targetId) return;
+  var ch = state.novel.chapters.find(function(c) { return c.id === targetId; });
   if (!ch) return;
   var titleEl = $('ssWriteChapterTitle');
   var summaryEl = $('ssWriteChapterSummary');

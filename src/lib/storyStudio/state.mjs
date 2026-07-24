@@ -380,14 +380,26 @@ export function syncChaptersFromOutline(novel) {
   return n;
 }
 
-/** 当前活动分支可见章节 */
+/**
+ * 当前活动分支可见章节（活引用，禁止在此 normalizeNovel）。
+ * normalize 只用于加载 / 导入 / 持久化边界；运行时写回必须打在 novel.chapters 原对象上。
+ */
 export function getActiveChapters(novel) {
-  var n = normalizeNovel(novel);
-  return resolveBranchChapters(n, n.activeBranchId);
+  if (!novel || typeof novel !== 'object') return [];
+  return resolveBranchChapters(novel, novel.activeBranchId);
 }
 
-/** 当前活动分支可见大纲 */
+/**
+ * 当前活动分支可见大纲（活引用，禁止在此 normalizeNovel）。
+ */
 export function getActiveOutline(novel) {
-  var n = normalizeNovel(novel);
-  return resolveBranchOutline(n, n.activeBranchId);
+  if (!novel || typeof novel !== 'object') return [];
+  return resolveBranchOutline(novel, novel.activeBranchId);
+}
+
+/** 按 id 从 novel.chapters 取活章节（写流水线专用） */
+export function getLiveChapterById(novel, chapterId) {
+  var id = String(chapterId || '');
+  if (!novel || !id || !Array.isArray(novel.chapters)) return null;
+  return novel.chapters.find(function(c) { return c && c.id === id; }) || null;
 }

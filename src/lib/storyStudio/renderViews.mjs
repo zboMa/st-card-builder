@@ -9,6 +9,11 @@ import { tensionCurveFromChapters } from './quality.mjs';
 import { mountStoryGraph, destroyStoryGraph } from './graphView.mjs';
 import { state, ui, $, getCharacterVersion, escapeHtml } from './shared.mjs';
 import { renderWrite } from './writeBranchUi.mjs';
+import {
+  storyGraphUi,
+  formatStoryGraphDetail,
+  openStoryGraphCtxMenu,
+} from './graphUi.mjs';
 
 export function buildNovelActionsHtml(item) {
   function iconBtn(act, label, extraClass, svg) {
@@ -46,7 +51,7 @@ export function renderManage() {
   var activeId = state.novel ? state.novel.id : '';
   var charVer = getCharacterVersion();
   list.innerHTML = state.catalog.map(function(item) {
-    var active = item.id === activeId ? ' is-active' : '';
+    var active = item.id === activeId;
     var workVer = buildDisplayVersion(charVer, item.novelVersion || '1');
     var pub = item.publishedDisplayVersion
       ? ('已发布 ' + item.publishedDisplayVersion)
@@ -57,10 +62,13 @@ export function renderManage() {
       : '';
     var share = item.shareToken ? ' · 分享中' : '';
     return (
-      '<div class="ss-novel-item' + active + '" data-novel-id="' + escapeHtml(item.id) + '">'
+      '<div class="ss-novel-item' + (active ? ' is-active' : '') + '" data-novel-id="' + escapeHtml(item.id) + '">'
       + '<div class="ss-novel-item__main">'
+      + '<div class="ss-novel-item__title-row">'
       + '<button type="button" class="ss-novel-title" data-ss-act="rename" title="点击重命名">'
       + escapeHtml(item.title || '未命名') + '</button>'
+      + (active ? '<span class="ss-novel-badge">当前</span>' : '')
+      + '</div>'
       + '<button type="button" class="ss-novel-meta" data-ss-act="open" title="打开">'
       + (item.chapterCount || 0) + ' 章 · '
       + (item.outlineCount || 0) + ' 大纲'
@@ -75,78 +83,58 @@ export function renderManage() {
   }).join('');
 }
 export function renderGraph() {
-  var box = $('ssGraphNodes');
-  var edgeBox = $('ssGraphEdges');
-  var title = $('ssCurrentNovelTitle');
   var stats = $('ssGraphStats');
   var detail = $('ssGraphDetail');
-  if (title) title.textContent = state.novel ? state.novel.title : '（未打开小说）';
+  var depthEl = $('ssGraphHighlightDepth');
+  var personEl = $('ssGraphPersonOnly');
+  if (depthEl && document.activeElement !== depthEl) {
+    depthEl.value = String(storyGraphUi.highlightDepth);
+  }
+  if (personEl && document.activeElement !== personEl) {
+    personEl.checked = !!storyGraphUi.personOnly;
+  }
   if (!state.novel) {
-    if (box) box.innerHTML = '<div class="ss-empty ui-empty-tip">请先在「管理」打开一部小说</div>';
-    if (edgeBox) edgeBox.innerHTML = '';
     if (stats) stats.textContent = '节点 0 · 边 0';
     if (detail) detail.textContent = '打开小说后可查看图谱';
     destroyStoryGraph();
     return;
   }
   var g = state.novel.graph || { nodes: [], edges: [] };
-  if (stats) stats.textContent = '节点 ' + (g.nodes || []).length + ' · 边 ' + (g.edges || []).length;
-
-  if (box) {
-    box.innerHTML = (g.nodes || []).map(function(n, i) {
-      return (
-        '<div class="ss-graph-row" data-node-idx="' + i + '">'
-        + '<select class="ss-node-type" data-f="type">'
-        + '<option value="character"' + (n.type === 'character' ? ' selected' : '') + '>人物</option>'
-        + '<option value="location"' + (n.type === 'location' ? ' selected' : '') + '>地点</option>'
-        + '<option value="other"' + (n.type === 'other' ? ' selected' : '') + '>其他</option>'
-        + '</select>'
-        + '<input class="ss-node-name" data-f="name" value="' + escapeHtml(n.name) + '" placeholder="名称" />'
-        + '<input class="ss-node-note" data-f="note" value="' + escapeHtml(n.note) + '" placeholder="备注" />'
-        + '<button type="button" class="btn btn-ghost btn-inline" data-ss-node-del>删</button>'
-        + '</div>'
-      );
-    }).join('') || '<div class="ss-empty ui-empty-tip">暂无节点。可从卡面种子生成。</div>';
+  var viewNodes = g.nodes || [];
+  var viewEdges = g.edges || [];
+  if (storyGraphUi.personOnly) {
+    viewNodes = viewNodes.filter(function(n) { return n && n.type === 'character'; });
+    var ids = {};
+    viewNodes.forEach(function(n) { ids[String(n.id)] = true; });
+    viewEdges = viewEdges.filter(function(e) {
+      return e && ids[String(e.from)] && ids[String(e.to)];
+    });
   }
-
-  var nodeOpts = (g.nodes || []).map(function(n) {
-    return '<option value="' + escapeHtml(n.id) + '">' + escapeHtml(n.name) + '</option>';
-  }).join('');
-  if (edgeBox) {
-    edgeBox.innerHTML = (g.edges || []).map(function(e, i) {
-      return (
-        '<div class="ss-graph-row" data-edge-idx="' + i + '">'
-        + '<select data-f="from">' + nodeOpts.replace(
-          'value="' + escapeHtml(e.from) + '"',
-          'value="' + escapeHtml(e.from) + '" selected'
-        ) + '</select>'
-        + '<input data-f="label" value="' + escapeHtml(e.label) + '" placeholder="关系" />'
-        + '<select data-f="to">' + nodeOpts.replace(
-          'value="' + escapeHtml(e.to) + '"',
-          'value="' + escapeHtml(e.to) + '" selected'
-        ) + '</select>'
-        + '<button type="button" class="btn btn-ghost btn-inline" data-ss-edge-del>删</button>'
-        + '</div>'
-      );
-    }).join('') || '<div class="ss-empty ui-empty-tip">暂无关系边</div>';
+  if (stats) {
+    stats.textContent = '节点 ' + viewNodes.length + ' · 边 ' + viewEdges.length
+      + (storyGraphUi.personOnly ? '（仅人物）' : '');
   }
 
   var cy = $('ssGraphCy');
   if (cy) {
-    mountStoryGraph(cy, g, function(payload) {
-      var d = $('ssGraphDetail');
-      if (!d) return;
-      if (!payload) {
-        d.textContent = '点击节点或边查看详情';
-        return;
-      }
-      if (payload.kind === 'node') {
-        var note = (payload.attrs && payload.attrs.note) || '';
-        d.textContent = '节点 · ' + payload.label + '（' + payload.type + '）'
-          + (note ? ' — ' + note : '');
-      } else {
-        d.textContent = '关系 · ' + (payload.label || '') + '：' + payload.source + ' → ' + payload.target;
-      }
+    mountStoryGraph(cy, g, {
+      personOnly: !!storyGraphUi.personOnly,
+      highlightDegree: storyGraphUi.highlightDepth,
+      onSelect: function(payload) {
+        var d = $('ssGraphDetail');
+        if (!d) return;
+        if (!payload) {
+          d.textContent = '点击节点或边查看详情';
+          return;
+        }
+        d.innerHTML = formatStoryGraphDetail(payload);
+      },
+      onNodeContextMenu: function(payload) {
+        openStoryGraphCtxMenu(payload);
+      },
+      onEdgeContextMenu: function(payload) {
+        openStoryGraphCtxMenu(payload);
+      },
     });
   }
 }

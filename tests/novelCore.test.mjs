@@ -1153,9 +1153,37 @@ describe('graphMerge + graphViz', function() {
     var isolate = data.nodes.find(function(n) { return n.id === 'concept:孤岛'; });
     assert.ok(linked.style && typeof linked.style.x === 'number');
     assert.ok(isolate.style && typeof isolate.style.x === 'number');
+    assert.equal(isolate.data.isolate, true);
+    assert.ok(typeof isolate.data.fx === 'number', '孤立点应钉住 fx');
+    assert.ok(typeof isolate.data.fy === 'number', '孤立点应钉住 fy');
     var dLink = Math.hypot(linked.style.x - 400, linked.style.y - 300);
     var dIso = Math.hypot(isolate.style.x - 400, isolate.style.y - 300);
     assert.ok(dIso > dLink, '孤立点应在更外环');
+
+    // 布局后贴簇外环：孤立点应落在连通簇外围
+    const { placeIsolatesOnClusterRing } = await import('../src/lib/novel/graphViz.mjs');
+    linked.style.x = 400;
+    linked.style.y = 300;
+    data.nodes.find(function(n) { return n.id === 'place:长安'; }).style = { x: 460, y: 320 };
+    isolate.style.x = 50;
+    isolate.style.y = 50;
+    var fakeGraph = {
+      destroyed: false,
+      getNodeData: function() { return data.nodes; },
+      updateNodeData: function(list) {
+        list.forEach(function(u) {
+          var n = data.nodes.find(function(x) { return x.id === u.id; });
+          if (!n) return;
+          n.style = Object.assign({}, n.style, u.style);
+          n.data = Object.assign({}, n.data, u.data);
+        });
+      },
+      draw: function() { return Promise.resolve(); },
+    };
+    await placeIsolatesOnClusterRing(fakeGraph);
+    var dIso2 = Math.hypot(isolate.style.x - 400, isolate.style.y - 300);
+    assert.ok(dIso2 > 60, '贴簇后孤立点仍在主簇外');
+    assert.ok(dIso2 < 280, '贴簇后不应飞到画布角落');
     var pref = formatPriorGraphRef(g2);
     assert.match(pref, /已有知识图谱/);
 

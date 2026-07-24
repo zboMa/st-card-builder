@@ -192,6 +192,9 @@ export function initLayoutChrome() {
         var mo = new MutationObserver(function() { buildOptions(); });
         mo.observe(sel, { childList: true, attributes: true, subtree: true });
         sel.addEventListener('change', syncLabel);
+        // label 包裹时浏览器会把点击转发给隐藏 select，冒泡到 document 会立刻关掉下拉
+        sel.addEventListener('click', function(e) { e.stopPropagation(); });
+        sel.addEventListener('mousedown', function(e) { e.stopPropagation(); });
 
         function openDrop() {
           wrap.classList.add('cs-open');

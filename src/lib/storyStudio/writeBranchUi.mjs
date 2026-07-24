@@ -196,6 +196,7 @@ export function renderWrite() {
   if (!state.novel) {
     if (sel) sel.innerHTML = '<option value="">请先打开小说</option>';
     if (branchSel) branchSel.innerHTML = '';
+    ui.writeChapterId = '';
     renderBranchTree();
     return;
   }
@@ -217,7 +218,10 @@ export function renderWrite() {
   }
 
   var chapters = getActiveChapters(state.novel);
-  var curId = sel && sel.value ? sel.value : (chapters[0] && chapters[0].id) || '';
+  var curId = ui.writeChapterId || (sel && sel.value) || (chapters[0] && chapters[0].id) || '';
+  if (curId && !chapters.some(function(c) { return c.id === curId; })) {
+    curId = (chapters[0] && chapters[0].id) || '';
+  }
   if (sel) {
     sel.innerHTML = chapters.map(function(c, i) {
       return '<option value="' + escapeHtml(c.id) + '"'
@@ -228,6 +232,7 @@ export function renderWrite() {
     }).join('') || '<option value="">无章节（请先做大纲）</option>';
     curId = sel.value;
   }
+  ui.writeChapterId = curId;
   var ch = chapters.find(function(c) { return c.id === curId; });
   if (titleEl) titleEl.value = ch ? ch.title : '';
   var titleBtn = $('ssWriteChapterTitleBtn');

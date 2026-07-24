@@ -44,7 +44,6 @@ import {
   exportNovel,
 } from './manageActions.mjs';
 import {
-  collectGraphFromDom,
   collectOutlineFromDom,
   collectWriteFromDom,
   collectLedgerFromDom,
@@ -55,6 +54,11 @@ import {
   writeBatchChapters,
   forkCurrentChapterBranch,
 } from './writeActions.mjs';
+import {
+  bindStoryGraphUi,
+  openEditNodeDialog,
+  openEditEdgeDialog,
+} from './graphUi.mjs';
 
 function bindEvents() {
   var root = document.getElementById('storyStudioRoot') || document;
@@ -100,35 +104,23 @@ function bindEvents() {
 
   var btnAddNode = $('btnSsAddNode');
   if (btnAddNode) {
-    btnAddNode.addEventListener('click', async function() {
-      if (!state.novel) return;
-      collectGraphFromDom();
-      state.novel.graph.nodes.push({
-        id: genStoryId('node'),
-        type: 'character',
-        name: '新节点',
-        note: '',
-      });
-      await persistNovel();
-      renderGraph();
+    btnAddNode.addEventListener('click', function() {
+      if (!state.novel) {
+        setStatus('请先打开小说', true);
+        return;
+      }
+      openEditNodeDialog(null);
     });
   }
 
   var btnAddEdge = $('btnSsAddEdge');
   if (btnAddEdge) {
-    btnAddEdge.addEventListener('click', async function() {
-      if (!state.novel || !state.novel.graph.nodes.length) return;
-      collectGraphFromDom();
-      var a = state.novel.graph.nodes[0];
-      var b = state.novel.graph.nodes[1] || a;
-      state.novel.graph.edges.push({
-        id: genStoryId('edge'),
-        from: a.id,
-        to: b.id,
-        label: '关系',
-      });
-      await persistNovel();
-      renderGraph();
+    btnAddEdge.addEventListener('click', function() {
+      if (!state.novel) {
+        setStatus('请先打开小说', true);
+        return;
+      }
+      openEditEdgeDialog({});
     });
   }
 
@@ -136,7 +128,6 @@ function bindEvents() {
   if (btnSaveGraph) {
     btnSaveGraph.addEventListener('click', async function() {
       if (!state.novel) return;
-      collectGraphFromDom();
       await persistNovel();
       setStatus('图谱已保存');
       renderGraph();
@@ -150,34 +141,7 @@ function bindEvents() {
     });
   }
 
-  var graphNodes = $('ssGraphNodes');
-  if (graphNodes) {
-    graphNodes.addEventListener('click', async function(ev) {
-      var del = ev.target.closest('[data-ss-node-del]');
-      if (!del) return;
-      var row = del.closest('[data-node-idx]');
-      if (!row || !state.novel) return;
-      collectGraphFromDom();
-      var i = Number(row.getAttribute('data-node-idx'));
-      state.novel.graph.nodes.splice(i, 1);
-      await persistNovel();
-      renderGraph();
-    });
-  }
-  var graphEdges = $('ssGraphEdges');
-  if (graphEdges) {
-    graphEdges.addEventListener('click', async function(ev) {
-      var del = ev.target.closest('[data-ss-edge-del]');
-      if (!del) return;
-      var row = del.closest('[data-edge-idx]');
-      if (!row || !state.novel) return;
-      collectGraphFromDom();
-      var i = Number(row.getAttribute('data-edge-idx'));
-      state.novel.graph.edges.splice(i, 1);
-      await persistNovel();
-      renderGraph();
-    });
-  }
+  bindStoryGraphUi();
 
   var btnOlGen = $('btnSsOutlineGen');
   if (btnOlGen) btnOlGen.addEventListener('click', function() { promptAndGenerateOutline('segment'); });
@@ -297,7 +261,13 @@ function bindEvents() {
   var writeSel = $('ssWriteChapterSelect');
   if (writeSel) {
     writeSel.addEventListener('change', function() {
-      collectWriteFromDom();
+      var nextId = String(writeSel.value || '');
+      var prevId = String(ui.writeChapterId || '');
+      // change 时 value 已是新章：必须把表单写回旧章，否则像「切不过去」
+      if (prevId && prevId !== nextId) {
+        collectWriteFromDom({ chapterId: prevId });
+      }
+      ui.writeChapterId = nextId;
       renderWrite();
     });
   }

@@ -1,11 +1,11 @@
 ---
-/** 创作图谱：G6 可视化（同小说分析）+ 可折叠列表编辑 */
+/** 创作图谱：对齐小说工坊关系图谱（G6 + 工具栏/图例/右键/弹窗编辑） */
 ---
 <div class="panel story-studio-panel" data-story-panel="graph">
   <div class="ss-panel-header">
     <div class="ss-panel-heading">
       <h2>创作图谱</h2>
-      <p class="ss-tip ui-panel-lead">当前小说：<span id="ssCurrentNovelTitle">（未打开）</span>。拖拽缩放查看关系；下方可折叠编辑节点。</p>
+      <p class="ss-tip ui-panel-lead">拖拽缩放；点击查看详情；右键节点/边编辑。</p>
     </div>
     <div class="ss-panel-actions" aria-label="图谱操作">
       <button type="button" id="btnSsSeedGraph" class="btn btn-ghost btn-inline">从卡面种子生成</button>
@@ -16,26 +16,28 @@
     </div>
   </div>
 
-  <div id="ssGraphCy" class="ss-graph-cy" role="img" aria-label="创作图谱可视化"></div>
-  <div class="ss-graph-footer">
-    <div class="ss-graph-footer-meta">
-      <span id="ssGraphStats" class="ss-muted">节点 0 · 边 0</span>
+  <div class="novel-graph-wrap ss-graph-wrap">
+    <div class="novel-graph-toolbar" aria-label="图谱显示选项">
+      <label class="novel-graph-depth" for="ssGraphHighlightDepth" title="选中节点时高亮的关系跳数（0 仅自身）">
+        <span>关系层级</span>
+        <input id="ssGraphHighlightDepth" type="number" min="0" max="6" step="1" value="2" inputmode="numeric" />
+      </label>
+      <label class="novel-graph-filter novel-switch" for="ssGraphPersonOnly">
+        <input id="ssGraphPersonOnly" type="checkbox" />
+        <span>只看人物</span>
+      </label>
     </div>
-    <div id="ssGraphDetail" class="ss-graph-detail">点击节点或边查看详情</div>
+    <div id="ssGraphLegend" class="novel-graph-legend" aria-hidden="true"></div>
+    <div id="ssGraphCy" class="novel-graph-cy ss-graph-cy" role="img" aria-label="创作图谱可视化"></div>
   </div>
 
-  <details class="ss-fold" id="ssGraphEditFold">
-    <summary>列表编辑节点 / 关系</summary>
-    <div class="ss-graph-stack">
-      <section class="ss-card">
-        <div class="ss-card-head"><strong>节点</strong><span>人物 / 地点 / 其他</span></div>
-        <div class="ss-card-body" id="ssGraphNodes"></div>
-      </section>
-      <section class="ss-card">
-        <div class="ss-card-head"><strong>关系</strong><span>from → label → to</span></div>
-        <div class="ss-card-body" id="ssGraphEdges"></div>
-      </section>
+  <div class="novel-graph-footer ss-graph-footer">
+    <div class="novel-graph-footer-meta novel-meta-line" aria-live="polite">
+      <span id="ssGraphStats" class="novel-meta-group novel-graph-stats">节点 0 · 边 0</span>
+      <span class="novel-meta-group ss-muted">点击节点或边查看详情 · 右键编辑</span>
     </div>
-  </details>
+    <div id="ssGraphDetail" class="novel-graph-detail ss-graph-detail">点击节点或边查看详情</div>
+  </div>
+
   <div id="ssGraphStatus" class="ss-status"></div>
 </div>

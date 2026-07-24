@@ -35,6 +35,8 @@ var NODE_R_MAX = 28;
 var NODE_R_PROTAG = 34;
 var COLLIDE_BASE = 44;
 var MIN_CENTER_DIST = 56;
+/** 孤立点相对主簇外沿的额外间距 */
+var ISOLATE_RING_PAD = 80;
 
 var FORCE_LAYOUT = {
   type: "d3-force",
@@ -43,7 +45,14 @@ var FORCE_LAYOUT = {
     strength: 0.28,
   },
   manyBody: {
-    strength: -480,
+    // 孤立点不参与斥力，避免被推到画布外缘把 fitView 撑爆
+    strength: function (d) {
+      if (d && d.data && (d.data.isolate || Number(d.data.degree) === 0)) {
+        if (d.data.role === "protagonist") return -480;
+        return 0;
+      }
+      return -480;
+    },
     distanceMax: 700,
   },
   collide: {
@@ -95,7 +104,7 @@ function radiusForWeight(weight, isProtag) {
 }
 
 /**
- * 按度数预散开；主角固定画布中心
+ * 按度数预散开；主角固定画布中心；孤立点钉在外环（fx/fy），避免力导向推飞
  */
 export function seedNodePositions(data, width, height) {
   var nodes = (data && data.nodes) || [];
@@ -122,34 +131,140 @@ export function seedNodePositions(data, width, height) {
     var isP = isProtagonistNode(n) || (n.data && n.data.role === "protagonist");
     n.data.role = isP ? "protagonist" : n.data.role || "";
     n.data.nodeR = radiusForWeight(deg + (isP ? 6 : 0), isP);
+    n.data.isolate = !isP && deg === 0;
     if (isP) protag = n;
-    else if (deg > 0) connected.push(n);
-    else isolates.push(n);
+    else if (deg > 0) {
+      n.data.isolate = false;
+      connected.push(n);
+    } else {
+      isolates.push(n);
+    }
   });
 
   if (protag) {
     protag.style = Object.assign({}, protag.style, { x: cx, y: cy });
     protag.data.fx = cx;
     protag.data.fy = cy;
+    protag.fx = cx;
+    protag.fy = cy;
   }
 
-  function placeRing(list, radius) {
+  function placeRing(list, radius, pin) {
     var n = list.length;
     if (!n) return;
+    // 点数多时略放大环半径，减少重叠
+    var rUse = Math.max(radius, (n * 30) / (2 * Math.PI));
     list.forEach(function (node, i) {
       var a = (2 * Math.PI * i) / n - Math.PI / 2;
       var jitter = ((i % 7) - 3) * 5;
-      var r = radius + jitter;
-      node.style = Object.assign({}, node.style, {
-        x: cx + Math.cos(a) * r,
-        y: cy + Math.sin(a) * r,
-      });
+      var r = rUse + jitter;
+      var x = cx + Math.cos(a) * r;
+      var y = cy + Math.sin(a) * r;
+      node.style = Object.assign({}, node.style, { x: x, y: y });
+      if (pin) {
+        node.data.fx = x;
+        node.data.fy = y;
+        // d3-force 认顶层 fx/fy
+        node.fx = x;
+        node.fy = y;
+      } else {
+        delete node.data.fx;
+        delete node.data.fy;
+        delete node.fx;
+        delete node.fy;
+      }
     });
   }
 
-  placeRing(connected, innerR);
-  placeRing(isolates, outerR);
+  placeRing(connected, innerR, false);
+  placeRing(isolates, outerR, true);
   return data;
+}
+
+/**
+ * 力导向结束后：把孤立点收成主簇外环，避免散点把默认视野撑空
+ */
+export function placeIsolatesOnClusterRing(graph) {
+  if (!graph || graph.destroyed) return Promise.resolve();
+  var nodes =
+    typeof graph.getNodeData === "function" ? graph.getNodeData() : [];
+  if (!nodes.length) return Promise.resolve();
+
+  var isolates = [];
+  var connected = [];
+  nodes.forEach(function (n) {
+    if (!n) return;
+    var isP = !!(n.data && n.data.role === "protagonist");
+    var isIso = !!(n.data && n.data.isolate) ||
+      (!isP && Number(n.data && n.data.degree) === 0);
+    if (isIso && !isP) isolates.push(n);
+    else connected.push(n);
+  });
+  if (!isolates.length) return Promise.resolve();
+
+  var cx = 0;
+  var cy = 0;
+  var nC = connected.length;
+  if (nC) {
+    connected.forEach(function (n) {
+      cx += Number((n.style && n.style.x) || 0);
+      cy += Number((n.style && n.style.y) || 0);
+    });
+    cx /= nC;
+    cy /= nC;
+  }
+
+  var maxR = 0;
+  connected.forEach(function (n) {
+    var x = Number((n.style && n.style.x) || 0);
+    var y = Number((n.style && n.style.y) || 0);
+    var r = (n.data && n.data.nodeR) || NODE_R_MIN;
+    maxR = Math.max(maxR, Math.hypot(x - cx, y - cy) + r);
+  });
+
+  var nIso = isolates.length;
+  var circumferenceNeed = nIso * 36;
+  var ringR = Math.max(
+    maxR + ISOLATE_RING_PAD,
+    nC ? circumferenceNeed / (2 * Math.PI) : 140,
+  );
+
+  // 多圈：单圈太挤时扩成 2～3 环
+  var maxPerRing = Math.max(12, Math.floor((2 * Math.PI * ringR) / 36));
+  var rings = Math.max(1, Math.ceil(nIso / maxPerRing));
+
+  var updates = isolates.map(function (node, i) {
+    var ringIdx = i % rings;
+    var slot = Math.floor(i / rings);
+    var onRing = Math.ceil(nIso / rings);
+    var a = (2 * Math.PI * slot) / onRing - Math.PI / 2 + ringIdx * 0.17;
+    var r = ringR + ringIdx * 52;
+    var x = cx + Math.cos(a) * r;
+    var y = cy + Math.sin(a) * r;
+    if (!node.data) node.data = {};
+    node.data.isolate = true;
+    node.data.fx = x;
+    node.data.fy = y;
+    node.fx = x;
+    node.fy = y;
+    return {
+      id: node.id,
+      data: Object.assign({}, node.data, { isolate: true, fx: x, fy: y }),
+      style: { x: x, y: y },
+      fx: x,
+      fy: y,
+    };
+  });
+
+  if (typeof graph.updateNodeData === "function") {
+    graph.updateNodeData(updates);
+  }
+  if (typeof graph.draw === "function") {
+    return Promise.resolve(graph.draw()).catch(function () {
+      /* ignore */
+    });
+  }
+  return Promise.resolve();
 }
 
 export function deoverlapGraphNodes(graph, minDist) {
@@ -167,7 +282,12 @@ export function deoverlapGraphNodes(graph, minDist) {
       x: Number(st.x) || 0,
       y: Number(st.y) || 0,
       r: r,
-      fixed: !!(n.data && (n.data.fx != null || n.data.role === "protagonist")),
+      fixed: !!(
+        n.data &&
+        (n.data.fx != null ||
+          n.data.role === "protagonist" ||
+          n.data.isolate)
+      ),
     };
   });
 
@@ -248,6 +368,7 @@ export function graphToG6Data(graph) {
         attrs: attrs,
         degree: deg,
         nodeR: nodeR,
+        isolate: !isP && deg === 0,
       },
       style: {
         fill: fill,
@@ -475,6 +596,9 @@ function bindSelectHandlers(graph, opts) {
   if (NodeEvent.CONTEXT_MENU && graph.__novelOnNodeCtx) {
     graph.off(NodeEvent.CONTEXT_MENU, graph.__novelOnNodeCtx);
   }
+  if (EdgeEvent.CONTEXT_MENU && graph.__novelOnEdgeCtx) {
+    graph.off(EdgeEvent.CONTEXT_MENU, graph.__novelOnEdgeCtx);
+  }
 
   /** 节点/边点击常会冒泡到画布；只吞掉「同一次点击」里的 canvas clear，避免标志残留导致要点两下空白 */
   function armIgnoreCanvasClear() {
@@ -574,6 +698,7 @@ function bindSelectHandlers(graph, opts) {
         clientY = evt.originalEvent.clientY || 0;
       }
       opts.onNodeContextMenu({
+        kind: "node",
         id: nd.id,
         label: (nd.data && nd.data.label) || nd.id,
         type: (nd.data && nd.data.type) || "concept",
@@ -583,6 +708,43 @@ function bindSelectHandlers(graph, opts) {
       });
     };
     graph.on(NodeEvent.CONTEXT_MENU, graph.__novelOnNodeCtx);
+  }
+
+  if (EdgeEvent.CONTEXT_MENU) {
+    graph.__novelOnEdgeCtx = function (evt) {
+      if (evt && typeof evt.preventDefault === "function") evt.preventDefault();
+      if (
+        evt &&
+        evt.originalEvent &&
+        typeof evt.originalEvent.preventDefault === "function"
+      ) {
+        evt.originalEvent.preventDefault();
+      }
+      if (typeof opts.onEdgeContextMenu !== "function") return;
+      var id = evt.target && evt.target.id;
+      var ed = id ? graph.getEdgeData(id) : null;
+      if (!ed) return;
+      var clientX = 0;
+      var clientY = 0;
+      if (evt.client) {
+        clientX = evt.client.x || 0;
+        clientY = evt.client.y || 0;
+      } else if (evt.originalEvent) {
+        clientX = evt.originalEvent.clientX || 0;
+        clientY = evt.originalEvent.clientY || 0;
+      }
+      opts.onEdgeContextMenu({
+        kind: "edge",
+        id: ed.id,
+        label: (ed.data && ed.data.label) || "related",
+        source: ed.source,
+        target: ed.target,
+        evidence: (ed.data && ed.data.evidence) || [],
+        clientX: clientX,
+        clientY: clientY,
+      });
+    };
+    graph.on(EdgeEvent.CONTEXT_MENU, graph.__novelOnEdgeCtx);
   }
 }
 
@@ -594,6 +756,9 @@ function layoutAndFit(graph) {
     })
     .then(function () {
       return graph.layout();
+    })
+    .then(function () {
+      return placeIsolatesOnClusterRing(graph);
     })
     .then(function () {
       return deoverlapGraphNodes(graph, MIN_CENTER_DIST);
@@ -702,7 +867,9 @@ export function mountOrUpdateGraph(container, graphData, existing, opts) {
 
   var legend =
     container.parentElement && container.parentElement.querySelector
-      ? container.parentElement.querySelector("#novelGraphLegend")
+      ? container.parentElement.querySelector(
+          ".novel-graph-legend, #novelGraphLegend, #ssGraphLegend",
+        )
       : null;
   if (legend) legend.innerHTML = buildGraphLegendHtml();
 
@@ -868,4 +1035,5 @@ export {
   FORCE_LAYOUT,
   COLLIDE_BASE as COLLIDE_R,
   MIN_CENTER_DIST,
+  ISOLATE_RING_PAD,
 };

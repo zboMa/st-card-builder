@@ -30,6 +30,8 @@ export var ui = {
   ssBranchExpandedId: '',
   ssReadTocOpen: false,
   ssBranchPopoverDocHandler: null,
+  /** 写作台当前选中的章节 id（切章前用来把 DOM 写回旧章） */
+  writeChapterId: '',
 };
 
 export function $(id) {
