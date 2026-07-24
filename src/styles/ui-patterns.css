@@ -438,7 +438,7 @@
   box-shadow: 0 4px 16px oklch(62% 0.12 75 / 0.25);
 }
 
-/* —— 面板内大弹窗（JSON / 世界书监测） —— */
+/* —— 面板内大弹窗（JSON / 世界书监测 / 长文本预览） —— */
 .panel-feature-modal[hidden] {
   display: none !important;
 }
@@ -446,21 +446,30 @@
   position: fixed;
   inset: 0;
   z-index: 9200;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: grid;
+  place-items: center;
   padding: 24px;
+  box-sizing: border-box;
+}
+.panel-feature-modal > .ui-modal-backdrop {
+  position: absolute;
+  inset: 0;
 }
 .panel-feature-modal__dialog {
-  width: min(920px, calc(100vw - 32px));
+  position: relative;
+  z-index: 1;
+  width: min(920px, 100%);
   max-height: min(82vh, 860px);
   display: flex;
   flex-direction: column;
   overflow: hidden;
   padding: 0;
+  margin: 0;
+  justify-self: center;
+  align-self: center;
 }
 .panel-feature-modal__dialog--wide {
-  width: min(1080px, calc(100vw - 28px));
+  width: min(1080px, 100%);
   max-height: min(88vh, 920px);
 }
 .panel-feature-modal__head {

@@ -160,7 +160,7 @@ API / 搜索 / 预设 / 标签上下文字数请到「配置 → AI 配置」对
 - 每张卡底部操作并列：复制、重命名、导出 JSON、导出 PNG、删除（导出**该卡**，ST 格式；**不含**小说工坊）
 - 点击某卡（封面或卡名区域）：切换为当前卡并跳转「角色设定」
 
-存储仍使用浏览器本地多卡草稿（`st_v3_builder_drafts` / `st_v3_builder_current_id`），不改变卡片字段语义。深链：`#card-manager`。
+多卡草稿存 IndexedDB `cardDraftsV1`（`st_v3_builder_current_id` 仅记当前卡 id），不改变卡片字段语义。深链：`#card-manager`。
 
 ### 3.2 `角色设定`
 

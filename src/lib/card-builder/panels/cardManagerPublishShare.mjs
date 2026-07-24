@@ -2,7 +2,7 @@
  * 卡片管理：PublishShare（拆自 cardManager）
  */
 
-import { DRAFTS_KEY, buildDraftSnapshot, buildCardJSONFromDraft, draftDisplayName } from '../state.mjs';
+import { buildDraftSnapshot, buildCardJSONFromDraft, draftDisplayName } from '../state.mjs';
 import { createTextChunk, deepCopy } from '../../utils.mjs';
 import { normalizeCharacterVersion } from '../cardRelease.mjs';
 import { apiPublishCard, apiCreateCardShare, apiDeleteCardShare, getCardShareMeta, setCardShareMeta, clearCardShareToken } from '../cardShareClient.mjs';

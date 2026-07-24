@@ -97,6 +97,9 @@
     overflow-x: hidden;
     overflow-y: auto;
     scrollbar-gutter: stable;
+    /* 空态 .ss-empty--panel / .ui-empty-tip 的 margin:auto 需父级 flex 才能垂直居中 */
+    display: flex;
+    flex-direction: column;
   }
   .ss-empty, .ss-muted {
     color: var(--color-text-muted);
@@ -559,17 +562,18 @@
     color: var(--color-text);
   }
   .ss-write-config__advance {
-    margin: 12px 0;
+    margin: 10px 0 0;
   }
   .ss-write-config__advance textarea {
     width: 100%;
-    min-height: 72px;
+    min-height: 64px;
   }
   .ss-write-config__opts {
     display: flex;
     flex-wrap: wrap;
-    gap: 10px 16px;
+    gap: 8px 14px;
     align-items: center;
+    margin-top: 10px;
   }
   .ss-write-config__opts .form-group {
     margin: 0;
@@ -718,29 +722,144 @@
     color: var(--color-accent-hover);
     outline: none;
   }
+  .ss-mode-menu {
+    position: relative;
+    flex: 0 0 auto;
+  }
+  .ss-mode-menu__trigger {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--color-text-secondary);
+    font: inherit;
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 2px 1.15em 2px 0;
+    margin: 0;
+    cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%2394a3b8' d='M1 1l4 4 4-4'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right center;
+    background-size: 10px 6px;
+  }
+  .ss-mode-menu__trigger:hover,
+  .ss-mode-menu__trigger[aria-expanded="true"] {
+    color: var(--color-accent-hover);
+  }
+  .ss-mode-menu__list {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 6px);
+    z-index: 40;
+    min-width: 7.5rem;
+    padding: 4px;
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 10px;
+    background: var(--color-surface-elevated, var(--color-surface));
+    box-shadow: 0 10px 28px color-mix(in oklch, var(--color-text) 14%, transparent);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .ss-mode-menu__list[hidden] {
+    display: none !important;
+  }
+  .ss-mode-menu__opt {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--color-text-secondary);
+    font: inherit;
+    font-size: 0.78rem;
+    text-align: left;
+    padding: 7px 10px;
+    border-radius: 7px;
+    cursor: pointer;
+  }
+  .ss-mode-menu__opt:hover,
+  .ss-mode-menu__opt.is-active {
+    background: var(--color-accent-soft);
+    color: var(--color-accent-hover);
+  }
+  .ss-studio-modal[hidden],
   .ss-write-modal[hidden] {
     display: none !important;
   }
+  .ss-studio-modal,
   .ss-write-modal {
     z-index: 9800;
   }
+  .ss-studio-modal.app-confirm-overlay {
+    background:
+      radial-gradient(circle at 50% 28%, color-mix(in oklch, var(--color-accent) 18%, transparent), transparent 36%),
+      color-mix(in oklch, var(--color-scrim, rgba(2, 6, 23, 0.72)) 92%, transparent);
+  }
+  .ss-studio-modal .app-confirm-dialog,
+  .ss-studio-modal__dialog,
   .ss-write-modal__dialog {
     width: min(520px, calc(100vw - 32px));
     max-height: min(86vh, 720px);
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 16px;
+    background: var(--color-surface-elevated, var(--color-surface));
+    box-shadow: var(--shadow-panel-hover, 0 24px 70px rgba(0, 0, 0, 0.4));
+    color: var(--color-text);
   }
+  .ss-studio-modal__title {
+    margin: 0;
+    color: var(--color-text);
+    font-size: 0.98rem;
+    font-weight: 750;
+  }
+  .ss-studio-modal .ss-modal-body,
+  .ss-studio-modal .ss-modal-body--form,
   .ss-write-modal__dialog .ss-modal-body {
+    white-space: normal;
+    padding: 4px 16px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
     overflow: auto;
     flex: 1 1 auto;
-    max-height: none;
+    max-height: min(70vh, 560px);
+    color: var(--color-text-secondary);
+  }
+  .ss-studio-modal .ss-write-config__modes {
+    gap: 6px 12px;
+  }
+  .ss-studio-modal .form-group {
+    margin: 0;
+  }
+  .ss-studio-modal .app-confirm-actions {
+    padding: 10px 16px 14px;
+    border-top: 1px solid var(--color-border-subtle);
+    gap: 8px;
+  }
+  .ss-studio-modal .app-confirm-btn {
+    border-color: var(--color-border-subtle);
+    background: var(--color-surface);
+    color: var(--color-text);
+  }
+  .ss-studio-modal .app-confirm-btn.primary {
+    border-color: var(--color-accent-border);
+    background: var(--color-accent);
+    color: var(--color-on-accent, #fff);
   }
   .ss-branch-modal {
     width: min(420px, calc(100vw - 32px));
   }
   .ss-ledger-modal {
     width: min(560px, calc(100vw - 32px));
+  }
+  .ss-wizard-lead {
+    margin: 0;
+  }
+  .ss-wizard-actions {
+    flex-wrap: wrap;
+    gap: 8px;
   }
   .ss-branch-hint {
     margin: 0 0 10px;
@@ -1015,7 +1134,11 @@
     justify-content: flex-end;
     align-items: center;
     flex-shrink: 0;
-    max-width: min(560px, 58%);
+    max-width: min(640px, 62%);
+  }
+  .ss-panel-actions.ss-panel-actions--nowrap {
+    flex-wrap: nowrap;
+    max-width: none;
   }
   .story-studio-panel > .ss-panel-header,
   .story-studio-panel > .ss-fold,
@@ -1293,6 +1416,8 @@
     font-size: 0.82rem;
     line-height: 1.6;
     color: var(--color-text-secondary);
+  }
+  .ss-modal-body--pre {
     white-space: pre-wrap;
   }
   .ss-modal-dialog { width: min(560px, 100%); }

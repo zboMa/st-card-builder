@@ -95,10 +95,10 @@ export function hideCenteredModal(id) {
 export function closeBranchTreePopover() {
   ui.ssBranchTreeOpen = false;
   hideCenteredModal('ssBranchTreeModal');
-  var btn = $('btnSsBranchTag');
-  if (btn) btn.setAttribute('aria-expanded', 'false');
-  var btnR = $('btnSsReadBranchTag');
-  if (btnR) btnR.setAttribute('aria-expanded', 'false');
+  ['btnSsBranchTag', 'btnSsReadBranchTag', 'btnSsOutlineBranchTag'].forEach(function(id) {
+    var btn = $(id);
+    if (btn) btn.setAttribute('aria-expanded', 'false');
+  });
 }
 
 export function closeLedgerPopover() {
@@ -158,10 +158,10 @@ export function openBranchTreePopover() {
   ui.ssBranchTreeOpen = true;
   renderBranchTree();
   showCenteredModal('ssBranchTreeModal');
-  var btn = $('btnSsBranchTag');
-  if (btn) btn.setAttribute('aria-expanded', 'true');
-  var btnR = $('btnSsReadBranchTag');
-  if (btnR) btnR.setAttribute('aria-expanded', 'true');
+  ['btnSsBranchTag', 'btnSsReadBranchTag', 'btnSsOutlineBranchTag'].forEach(function(id) {
+    var btn = $(id);
+    if (btn) btn.setAttribute('aria-expanded', 'true');
+  });
 }
 
 export function openLedgerPopover() {

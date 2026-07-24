@@ -115,6 +115,10 @@ export function initCharacterPanel() {
     var modal = document.getElementById('jsonPreviewModal');
     if (!modal) return;
     function openModal() {
+      if (modal.parentNode !== document.body) {
+        if (!modal._home) modal._home = modal.parentNode;
+        document.body.appendChild(modal);
+      }
       modal.hidden = false;
       modal.setAttribute('aria-hidden', 'false');
       document.body.classList.add('panel-feature-modal-open');
@@ -133,6 +137,9 @@ export function initCharacterPanel() {
       modal.hidden = true;
       modal.setAttribute('aria-hidden', 'true');
       document.body.classList.remove('panel-feature-modal-open');
+      if (modal._home && modal.parentNode === document.body) {
+        modal._home.appendChild(modal);
+      }
     }
     window.__openJsonPreviewModal__ = openModal;
     window.__closeJsonPreviewModal__ = closeModal;

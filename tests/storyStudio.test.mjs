@@ -273,6 +273,10 @@ describe('storyStudio UI mount', function() {
     assert.match(outline, /btn-inline/);
     assert.match(outline, /ss-outline-list/);
     assert.doesNotMatch(outline, /ss-current-novel-select/);
+    assert.match(outline, /id="btnSsOutlineBranchTag"/);
+    assert.match(outline, /id="ssWizardModal"/);
+    assert.match(outline, /ss-panel-actions--nowrap/);
+    assert.match(outline, /id="ssOutlineDirection"/);
     const write = readFileSync(join(root, 'src/components/storyStudio/StoryWritePanel.astro'), 'utf8');
     assert.doesNotMatch(write, /ss-current-novel-select/);
     assert.match(write, /id="ssWriteSyncMvu"/);
@@ -281,6 +285,7 @@ describe('storyStudio UI mount', function() {
     assert.match(write, /id="btnSsWriteRun"/);
     assert.match(write, /name="ssWriteMode"/);
     assert.match(write, /id="ssWriteConfigModal"/);
+    assert.match(write, /ss-studio-modal/);
     assert.match(write, /id="btnSsBranchTag"/);
     assert.match(write, /id="ssBranchTreeModal"/);
     assert.match(write, /id="btnSsWriteToc"/);
@@ -315,11 +320,16 @@ describe('storyStudio UI mount', function() {
     assert.doesNotMatch(read, /ss-current-novel-select/);
     assert.match(read, /id="btnSsReadFullscreen"/);
     assert.match(read, /id="ssReadMode"/);
-    assert.match(read, /ss-text-select/);
+    assert.match(read, /id="btnSsReadMode"/);
+    assert.match(read, /ss-mode-menu/);
     assert.match(read, /id="btnSsReadBranchTag"/);
     assert.match(read, /id="ssReadPageInfo"/);
     assert.match(read, /class="ss-read-nav"/);
     assert.match(write, /id="ssWriteEmptyPreview"/);
+    const shared = readFileSync(join(root, 'src/lib/storyStudio/shared.mjs'), 'utf8');
+    assert.match(shared, /showAppMessage/);
+    const msg = readFileSync(join(root, 'src/lib/ui/appMessage.mjs'), 'utf8');
+    assert.match(msg, /export function showAppMessage/);
     const index = readFileSync(join(root, 'src/pages/index.astro'), 'utf8');
     assert.match(index, /StoryStudioApp/);
     assert.match(index, /data-view="story-manage"/);

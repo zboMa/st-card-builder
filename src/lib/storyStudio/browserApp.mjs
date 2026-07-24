@@ -23,6 +23,8 @@ import {
   renderOutline,
   renderRead,
   setReadTocOpen,
+  openWizardModal,
+  closeWizardModal,
 } from './renderViews.mjs';
 import {
   closeBranchTreePopover,
@@ -348,6 +350,14 @@ function bindEvents() {
       else openBranchTreePopover();
     });
   }
+  var btnOutlineBranchTag = $('btnSsOutlineBranchTag');
+  if (btnOutlineBranchTag) {
+    btnOutlineBranchTag.addEventListener('click', function(ev) {
+      ev.preventDefault();
+      if (ui.ssBranchTreeOpen) closeBranchTreePopover();
+      else openBranchTreePopover();
+    });
+  }
   var btnBrClose = $('btnSsBranchTreeClose');
   if (btnBrClose) btnBrClose.addEventListener('click', function() { closeBranchTreePopover(); });
   var branchModal = $('ssBranchTreeModal');
@@ -577,14 +587,24 @@ function bindEvents() {
     btnWizStart.addEventListener('click', async function() {
       if (!state.novel) return;
       var dirEl = $('ssOutlineDirection');
-      state.novel.wizard = {
-        step: 'direction',
-        direction: dirEl ? dirEl.value : '',
-        approvedOutline: false,
-      };
-      await persistNovel();
-      renderOutline();
-      setStatus('向导已启动：请确认方向');
+      if (!state.novel.wizard || !state.novel.wizard.step) {
+        state.novel.wizard = {
+          step: 'direction',
+          direction: dirEl ? dirEl.value : '',
+          approvedOutline: false,
+        };
+        await persistNovel();
+      }
+      openWizardModal();
+      setStatus('向导已打开：请确认方向');
+    });
+  }
+  var btnWizClose = $('btnSsWizardClose');
+  if (btnWizClose) btnWizClose.addEventListener('click', function() { closeWizardModal(); });
+  var wizModal = $('ssWizardModal');
+  if (wizModal) {
+    wizModal.addEventListener('click', function(ev) {
+      if (ev.target === wizModal) closeWizardModal();
     });
   }
   var btnWizDir = $('btnSsWizardApproveDir');
@@ -594,9 +614,10 @@ function bindEvents() {
       var dirEl = $('ssOutlineDirection');
       if (!state.novel.wizard) state.novel.wizard = {};
       state.novel.wizard.direction = dirEl ? dirEl.value : '';
-      state.novel.wizard.step = 'direction';
+      state.novel.wizard.step = 'outline';
       await persistNovel();
       await generateOutline(getActiveOutline(state.novel).length ? 'continue' : 'segment');
+      renderOutline();
     });
   }
   var btnWizOl = $('btnSsWizardApproveOl');
@@ -608,6 +629,7 @@ function bindEvents() {
       state.novel.wizard.step = 'ready';
       await persistNovel();
       setStatus('大纲已批准，可以开始写作');
+      closeWizardModal();
       renderOutline();
       try {
         if (window.__setAppView__) window.__setAppView__('story-write');
@@ -620,6 +642,7 @@ function bindEvents() {
       if (!state.novel) return;
       state.novel.wizard = { step: '', direction: '', approvedOutline: true };
       await persistNovel();
+      closeWizardModal();
       renderOutline();
       setStatus('已跳过向导');
     });
@@ -647,6 +670,50 @@ function bindEvents() {
       renderRead();
     });
   }
+  function closeReadModeMenu() {
+    var list = $('ssReadModeList');
+    var btn = $('btnSsReadMode');
+    if (list) list.hidden = true;
+    if (btn) btn.setAttribute('aria-expanded', 'false');
+  }
+  function openReadModeMenu() {
+    var list = $('ssReadModeList');
+    var btn = $('btnSsReadMode');
+    if (!list) return;
+    list.hidden = false;
+    if (btn) btn.setAttribute('aria-expanded', 'true');
+  }
+  var btnReadMode = $('btnSsReadMode');
+  if (btnReadMode) {
+    btnReadMode.addEventListener('click', function(ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      var list = $('ssReadModeList');
+      if (!list) return;
+      if (list.hidden) openReadModeMenu();
+      else closeReadModeMenu();
+    });
+  }
+  var modeList = $('ssReadModeList');
+  if (modeList) {
+    modeList.addEventListener('click', async function(ev) {
+      var opt = ev.target.closest('[data-ss-mode]');
+      if (!opt || !state.novel) return;
+      var mode = opt.getAttribute('data-ss-mode');
+      state.novel.readState.mode = mode;
+      state.novel.readState.pageIndex = 0;
+      var modeSel = $('ssReadMode');
+      if (modeSel) modeSel.value = mode;
+      closeReadModeMenu();
+      await persistNovel();
+      renderRead();
+    });
+  }
+  document.addEventListener('mousedown', function(ev) {
+    var menu = $('ssReadModeMenu');
+    if (!menu || menu.contains(ev.target)) return;
+    closeReadModeMenu();
+  });
   var modeSel = $('ssReadMode');
   if (modeSel) {
     modeSel.addEventListener('change', async function() {

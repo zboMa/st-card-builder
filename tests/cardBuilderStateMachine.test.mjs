@@ -54,7 +54,7 @@ describe('card-builder stateMachine exposes state', function() {
       assert.ok(changed.saved);
       var stored = getDraftsMapSync();
       assert.equal(stored.draft_test.charName, '测试改');
-      assert.equal(JSON.parse(map['st_v3_builder_drafts']).draft_test.charName, '测试改');
+      assert.equal(map['st_v3_builder_drafts'], undefined, '不得写 localStorage 草稿大 JSON');
     } finally {
       resetDraftsStoreForTests();
       globalThis.localStorage = prevStorage;

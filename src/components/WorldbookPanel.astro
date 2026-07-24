@@ -488,6 +488,10 @@ import WorldbookAuditor from './WorldbookAuditor.astro';
   var modal = document.getElementById('wbAuditorModal');
   if (!modal) return;
   function openModal() {
+    if (modal.parentNode !== document.body) {
+      if (!modal._home) modal._home = modal.parentNode;
+      document.body.appendChild(modal);
+    }
     modal.hidden = false;
     modal.setAttribute('aria-hidden', 'false');
     document.body.classList.add('panel-feature-modal-open');
@@ -496,6 +500,9 @@ import WorldbookAuditor from './WorldbookAuditor.astro';
     modal.hidden = true;
     modal.setAttribute('aria-hidden', 'true');
     document.body.classList.remove('panel-feature-modal-open');
+    if (modal._home && modal.parentNode === document.body) {
+      modal._home.appendChild(modal);
+    }
   }
   window.__openWbAuditorModal__ = openModal;
   window.__closeWbAuditorModal__ = closeModal;

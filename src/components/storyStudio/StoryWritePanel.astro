@@ -65,13 +65,13 @@
   </div>
 
   <!-- 写作配置：居中弹窗 -->
-  <div id="ssWriteConfigModal" class="app-confirm-overlay ss-write-modal" hidden role="presentation">
-    <div class="app-confirm-dialog ss-write-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="ssWriteConfigTitle">
+  <div id="ssWriteConfigModal" class="app-confirm-overlay ss-studio-modal" hidden role="presentation">
+    <div class="app-confirm-dialog ss-studio-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="ssWriteConfigTitle">
       <div class="ss-modal-head">
-        <h3 id="ssWriteConfigTitle" class="app-confirm-title">写作</h3>
+        <h3 id="ssWriteConfigTitle" class="ss-studio-modal__title">写作</h3>
         <button type="button" class="btn-icon btn-icon--sm" id="btnSsWriteConfigCancel" aria-label="关闭">×</button>
       </div>
-      <div class="ss-modal-body" id="ssWriteConfig">
+      <div class="ss-modal-body ss-modal-body--form" id="ssWriteConfig">
         <div class="ss-write-config__modes" role="radiogroup" aria-label="写作模式">
           <label class="ss-write-mode"><input type="radio" name="ssWriteMode" value="chapter" checked /> 写本章</label>
           <label class="ss-write-mode"><input type="radio" name="ssWriteMode" value="next" /> 写完进下一章</label>
@@ -121,10 +121,10 @@
   </div>
 
   <!-- 分支树：居中弹窗 · 竖排图形树 -->
-  <div id="ssBranchTreeModal" class="app-confirm-overlay ss-write-modal" hidden role="presentation">
-    <div class="app-confirm-dialog ss-write-modal__dialog ss-branch-modal" role="dialog" aria-modal="true" aria-label="分支树">
+  <div id="ssBranchTreeModal" class="app-confirm-overlay ss-studio-modal" hidden role="presentation">
+    <div class="app-confirm-dialog ss-studio-modal__dialog ss-branch-modal" role="dialog" aria-modal="true" aria-label="分支树">
       <div class="ss-modal-head">
-        <h3 class="app-confirm-title">分支树</h3>
+        <h3 class="ss-studio-modal__title">分支树</h3>
         <button type="button" class="btn-icon btn-icon--sm" id="btnSsBranchTreeClose" aria-label="关闭">×</button>
       </div>
       <div class="ss-modal-body">
@@ -134,8 +134,8 @@
     </div>
   </div>
 
-  <div id="ssQaPopover" class="app-confirm-overlay ss-write-modal" hidden role="presentation">
-    <div class="app-confirm-dialog ss-write-modal__dialog" role="dialog" aria-modal="true" aria-label="质检">
+  <div id="ssQaPopover" class="app-confirm-overlay ss-studio-modal" hidden role="presentation">
+    <div class="app-confirm-dialog ss-studio-modal__dialog" role="dialog" aria-modal="true" aria-label="质检">
       <div class="ss-modal-head">
         <strong>质检</strong>
         <button type="button" class="btn-icon btn-icon--sm" data-ss-pop-close="ssQaPopover" aria-label="关闭">×</button>
@@ -147,8 +147,8 @@
     </div>
   </div>
 
-  <div id="ssTensionPopover" class="app-confirm-overlay ss-write-modal" hidden role="presentation">
-    <div class="app-confirm-dialog ss-write-modal__dialog" role="dialog" aria-modal="true" aria-label="张力曲线">
+  <div id="ssTensionPopover" class="app-confirm-overlay ss-studio-modal" hidden role="presentation">
+    <div class="app-confirm-dialog ss-studio-modal__dialog" role="dialog" aria-modal="true" aria-label="张力曲线">
       <div class="ss-modal-head">
         <strong>张力曲线</strong>
         <button type="button" class="btn-icon btn-icon--sm" data-ss-pop-close="ssTensionPopover" aria-label="关闭">×</button>
@@ -160,8 +160,8 @@
     </div>
   </div>
 
-  <div id="ssSummaryPopover" class="app-confirm-overlay ss-write-modal" hidden role="presentation">
-    <div class="app-confirm-dialog ss-write-modal__dialog" role="dialog" aria-modal="true" aria-label="摘要">
+  <div id="ssSummaryPopover" class="app-confirm-overlay ss-studio-modal" hidden role="presentation">
+    <div class="app-confirm-dialog ss-studio-modal__dialog" role="dialog" aria-modal="true" aria-label="摘要">
       <div class="ss-modal-head">
         <strong>本章摘要</strong>
         <button type="button" class="btn-icon btn-icon--sm" data-ss-pop-close="ssSummaryPopover" aria-label="关闭">×</button>
@@ -172,8 +172,8 @@
     </div>
   </div>
 
-  <div id="ssCheckpointPopover" class="app-confirm-overlay ss-write-modal" hidden role="presentation">
-    <div class="app-confirm-dialog ss-write-modal__dialog" role="dialog" aria-modal="true" aria-label="本章快照">
+  <div id="ssCheckpointPopover" class="app-confirm-overlay ss-studio-modal" hidden role="presentation">
+    <div class="app-confirm-dialog ss-studio-modal__dialog" role="dialog" aria-modal="true" aria-label="本章快照">
       <div class="ss-modal-head">
         <strong>本章快照</strong>
         <span class="ui-hint ui-hint--inline">最多 5</span>
@@ -186,8 +186,8 @@
     </div>
   </div>
 
-  <div id="ssLedgerPopover" class="app-confirm-overlay ss-write-modal" hidden role="presentation">
-    <div class="app-confirm-dialog ss-write-modal__dialog ss-ledger-modal" role="dialog" aria-modal="true" aria-label="伏笔账本">
+  <div id="ssLedgerPopover" class="app-confirm-overlay ss-studio-modal" hidden role="presentation">
+    <div class="app-confirm-dialog ss-studio-modal__dialog ss-ledger-modal" role="dialog" aria-modal="true" aria-label="伏笔账本">
       <div class="ss-modal-head">
         <strong>伏笔账本</strong>
         <span class="ui-hint ui-hint--inline">未收束优先注入下一章</span>
@@ -202,5 +202,5 @@
     </div>
   </div>
 
-  <div id="ssWriteStatus" class="ss-status"></div>
+  <div id="ssWriteStatus" class="ss-status" hidden aria-hidden="true"></div>
 </div>

@@ -141,13 +141,19 @@ export function renderGraph() {
 export function renderOutline() {
   var box = $('ssOutlineList');
   var tensionEl = $('ssOutlineTension');
-  var wizBox = $('ssWizardBox');
+  var branchTag = $('btnSsOutlineBranchTag');
   if (!box) return;
   if (!state.novel) {
     box.innerHTML = '<div class="ss-empty ui-empty-tip">请先打开一部小说</div>';
     if (tensionEl) tensionEl.hidden = true;
-    if (wizBox) wizBox.hidden = true;
+    if (branchTag) branchTag.textContent = '—';
+    hideCenteredWizard();
     return;
+  }
+  var br = getBranch(state.novel, state.novel.activeBranchId);
+  if (branchTag) {
+    branchTag.textContent = (state.novel.title || '未命名')
+      + ' · ' + ((br && br.name) || '主线');
   }
   renderWizardChrome();
   var items = getActiveOutline(state.novel);
@@ -185,12 +191,34 @@ export function renderOutline() {
   }
 }
 
+function hideCenteredWizard() {
+  var modal = $('ssWizardModal');
+  if (!modal) return;
+  modal.hidden = true;
+  if (modal._home && modal.parentNode !== modal._home) modal._home.appendChild(modal);
+}
+
+export function openWizardModal() {
+  var modal = $('ssWizardModal');
+  if (!modal) return;
+  if (modal.parentNode !== document.body) {
+    if (!modal._home) modal._home = modal.parentNode;
+    document.body.appendChild(modal);
+  }
+  modal.hidden = false;
+  renderWizardChrome();
+}
+
+export function closeWizardModal() {
+  hideCenteredWizard();
+}
+
 export function renderWizardChrome() {
   var wizBox = $('ssWizardBox');
+  var modal = $('ssWizardModal');
   if (!wizBox || !state.novel) return;
   var step = (state.novel.wizard && state.novel.wizard.step) || '';
-  wizBox.hidden = !step;
-  if (!step) return;
+  /* 有向导步骤时保持弹窗可开；关闭按钮只关 UI，不清除 wizard 状态 */
   wizBox.querySelectorAll('[data-wiz]').forEach(function(el) {
     var s = el.getAttribute('data-wiz');
     el.classList.toggle('is-active', s === step);
@@ -203,12 +231,16 @@ export function renderWizardChrome() {
   if (dirEl && state.novel.wizard && state.novel.wizard.direction && !dirEl.value) {
     dirEl.value = state.novel.wizard.direction;
   }
+  if (modal && !modal.hidden && !step) {
+    /* 跳过/完成后可自动关 */
+  }
 }
 export function renderRead() {
   var title = $('btnSsReadBranchTag') || $('ssReadTitle');
   var body = $('ssReadBody');
   var toc = $('ssReadToc');
   var modeSel = $('ssReadMode');
+  var modeBtn = $('btnSsReadMode');
   var pageInfo = $('ssReadPageInfo');
   if (!state.novel) {
     if (title) title.textContent = '—';
@@ -230,7 +262,18 @@ export function renderRead() {
   var idx = chapters.findIndex(function(c) { return c.id === rs.chapterId; });
   if (idx < 0) idx = 0;
   var ch = chapters[idx];
-  if (modeSel) modeSel.value = rs.mode || 'swipe';
+  var mode = rs.mode || 'swipe';
+  if (modeSel) modeSel.value = mode;
+  if (modeBtn) {
+    modeBtn.textContent = mode === 'page' ? '分页' : '滑动';
+  }
+  var modeList = $('ssReadModeList');
+  if (modeList) {
+    modeList.querySelectorAll('[data-ss-mode]').forEach(function(opt) {
+      opt.classList.toggle('is-active', opt.getAttribute('data-ss-mode') === mode);
+      opt.setAttribute('aria-selected', opt.getAttribute('data-ss-mode') === mode ? 'true' : 'false');
+    });
+  }
 
   if (toc) {
     toc.innerHTML = chapters.map(function(c, i) {
@@ -253,7 +296,6 @@ export function renderRead() {
     isSummary = true;
   }
 
-  var mode = rs.mode || 'swipe';
   if (mode === 'page' && text) {
     var pageSize = 900;
     var pages = [];

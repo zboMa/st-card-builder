@@ -98,6 +98,8 @@ export async function createNovel(opts) {
   if (opts.wizard) {
     try {
       if (window.__setAppView__) window.__setAppView__('story-outline');
+      var wiz = await import('./renderViews.mjs');
+      if (wiz.openWizardModal) wiz.openWizardModal();
     } catch (e) { /* ignore */ }
   }
 }

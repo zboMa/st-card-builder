@@ -1,8 +1,6 @@
 /**
- * 卡草稿权威存储：IndexedDB（整 map）+ 内存缓存
- * 启动 hydrate：IDB 优先，否则从 localStorage 迁入并清除 LS 大 JSON
+ * 卡草稿唯一权威：IndexedDB `cardDraftsV1` + 内存缓存
  */
-import { DRAFTS_KEY } from './card-builder/state.mjs';
 import { idbGetJson, idbSetJson } from './idbStore.mjs';
 
 export var IDB_DRAFTS_KEY = 'cardDraftsV1';
@@ -12,100 +10,103 @@ var hydrated = false;
 var persistChain = Promise.resolve();
 var lastPersistError = null;
 
-function readLsDrafts() {
+function emptyMap() {
+  return {};
+}
+
+function asMap(drafts) {
+  return drafts && typeof drafts === 'object' && !Array.isArray(drafts) ? drafts : emptyMap();
+}
+
+function snapshotMap(drafts) {
+  var map = asMap(drafts);
   try {
-    return JSON.parse(localStorage.getItem(DRAFTS_KEY) || '{}') || {};
+    return JSON.parse(JSON.stringify(map));
   } catch (e) {
-    return {};
+    return asMap(map);
   }
 }
 
-function writeLsDrafts(drafts) {
-  localStorage.setItem(DRAFTS_KEY, JSON.stringify(drafts || {}));
+function hasIdb() {
+  return typeof indexedDB !== 'undefined';
 }
 
-function clearLsDrafts() {
-  try { localStorage.removeItem(DRAFTS_KEY); } catch (e) { /* ignore */ }
-}
-
-/** 同步读取（hydrate 前回退 LS，供测试与早期调用） */
+/** 同步读取内存缓存；未 hydrate 时返回空对象（不落盘） */
 export function getDraftsMapSync() {
-  if (cache && typeof cache === 'object') return cache;
-  var ls = readLsDrafts();
-  cache = ls;
+  if (cache && typeof cache === 'object' && !Array.isArray(cache)) return cache;
+  cache = emptyMap();
   return cache;
 }
 
+export function isDraftsStoreHydrated() {
+  return !!hydrated;
+}
+
 /**
- * 启动时调用一次：IDB → 否则 LS 迁入 IDB
+ * 启动时调用一次：只从 IDB 加载（无 IDB 环境＝内存空表，供 Node 测试）
  * @returns {Promise<object>}
  */
 export async function hydrateDraftsStore() {
-  if (hydrated && cache) return cache;
+  if (hydrated) return getDraftsMapSync();
+
+  var pending = asMap(cache);
+
+  if (!hasIdb()) {
+    cache = pending;
+    hydrated = true;
+    return cache;
+  }
+
   var fromIdb = null;
   try {
     fromIdb = await idbGetJson(IDB_DRAFTS_KEY);
   } catch (e) {
+    lastPersistError = e;
     fromIdb = null;
   }
+
   if (fromIdb && typeof fromIdb === 'object' && !Array.isArray(fromIdb)) {
     cache = fromIdb;
-    clearLsDrafts();
-  } else {
-    var fromLs = readLsDrafts();
-    cache = fromLs && typeof fromLs === 'object' ? fromLs : {};
-    if (Object.keys(cache).length) {
-      try {
-        await idbSetJson(IDB_DRAFTS_KEY, cache);
-        clearLsDrafts();
-      } catch (e) {
-        /* IDB 不可用时保留 LS */
-        lastPersistError = e;
-      }
+  } else if (Object.keys(pending).length) {
+    // hydrate 前仅写了内存、IDB 尚无记录：落盘 pending
+    cache = pending;
+    try {
+      await idbSetJson(IDB_DRAFTS_KEY, snapshotMap(cache));
+    } catch (e) {
+      lastPersistError = e;
     }
+  } else {
+    cache = emptyMap();
   }
   hydrated = true;
   return cache;
 }
 
 /**
- * 同步写缓存并异步落盘 IDB（失败回退 LS）
- * Node/无 IDB 环境同步写 LS，保证测试与早期调用可见
- * @returns {{ ok: boolean, error?: Error }}
+ * 写内存；hydrate 后异步落盘 IDB。无 IDB 时仅内存（测试）。
+ * hydrate 前写内存但不写 IDB，避免空表冲掉库内数据。
+ * @returns {{ ok: boolean, deferred?: boolean, error?: Error }}
  */
 export function writeDraftsMapSync(drafts) {
-  cache = drafts && typeof drafts === 'object' ? drafts : {};
+  var snap = snapshotMap(drafts);
+  cache = snap;
   lastPersistError = null;
-  var snap;
-  try {
-    snap = JSON.parse(JSON.stringify(cache));
-  } catch (e) {
-    snap = cache;
+
+  if (!hasIdb()) {
+    hydrated = true;
+    return { ok: true };
   }
 
-  if (typeof indexedDB === 'undefined') {
-    try {
-      writeLsDrafts(snap);
-      return { ok: true };
-    } catch (e) {
-      lastPersistError = e;
-      return { ok: false, error: e };
-    }
+  if (!hydrated) {
+    return { ok: true, deferred: true };
   }
 
   persistChain = persistChain.then(function() {
     return idbSetJson(IDB_DRAFTS_KEY, snap).then(function() {
-      clearLsDrafts();
       return true;
     }).catch(function(err) {
       lastPersistError = err;
-      try {
-        writeLsDrafts(snap);
-        return true;
-      } catch (e2) {
-        lastPersistError = e2;
-        throw e2;
-      }
+      throw err;
     });
   }).catch(function(err) {
     lastPersistError = err;

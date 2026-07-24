@@ -51,36 +51,24 @@ export function $(id) {
   return document.getElementById(id);
 }
 
+import { showAppMessage, inferStatusLevel } from '../ui/appMessage.mjs';
+
 /**
  * @param {string} msg
- * @param {{ panel?: 'manage'|'graph'|'outline'|'write'|'read'|'all' }} [opts]
+ * @param {{ panel?: 'manage'|'graph'|'outline'|'write'|'read'|'all', level?: string }} [opts]
  */
 export function setStatus(msg, opts) {
   state.status = String(msg || '');
   var o = opts || {};
-  var panel = o.panel || 'all';
-  var map = {
-    manage: 'ssManageStatus',
-    graph: 'ssGraphStatus',
-    outline: 'ssOutlineStatus',
-    write: 'ssWriteStatus',
-    read: 'ssReadStatus',
-  };
-  var ids = panel === 'all'
-    ? Object.keys(map).map(function(k) { return map[k]; })
-    : [map[panel] || 'ssWriteStatus'];
-  ids.forEach(function(id) {
+  var level = o.level || inferStatusLevel(state.status);
+  if (state.status) showAppMessage(state.status, { level: level || undefined });
+  /* 面板底栏状态槽停用：仅清空，避免残留 */
+  ['ssManageStatus', 'ssGraphStatus', 'ssOutlineStatus', 'ssWriteStatus', 'ssReadStatus'].forEach(function(id) {
     var el = $(id);
     if (!el) return;
-    el.textContent = state.status;
-    if (id === 'ssManageStatus') {
-      if (state.status) {
-        el.hidden = false;
-        el.style.display = '';
-      } else {
-        el.hidden = true;
-      }
-    }
+    el.textContent = '';
+    el.hidden = true;
+    el.setAttribute('aria-hidden', 'true');
   });
 }
 

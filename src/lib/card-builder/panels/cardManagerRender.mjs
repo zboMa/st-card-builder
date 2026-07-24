@@ -6,7 +6,7 @@ import { buildExportChecklist } from '../exportChecklist.mjs';
 import { escapeHtml } from '../../utils.mjs';
 import { getCardShareMeta } from '../cardShareClient.mjs';
 import { getCardCloudMeta, resolveCardCloudStatus, resolveCardCloudQuickAction } from '../../sync/cardCloudMeta.mjs';
-import { buildDraftSnapshot, draftDisplayName, DRAFTS_KEY } from '../state.mjs';
+import { buildDraftSnapshot, draftDisplayName } from '../state.mjs';
 import { listCardVersions, ensureCardVersions, bumpCardDraftVersion, switchCardDraftVersion } from '../cardVersions.mjs';
 import { normalizeCharacterVersion } from '../cardRelease.mjs';
 import { engineTryAllowed, engineRefresh } from '../../actionEngine/helpers.mjs';

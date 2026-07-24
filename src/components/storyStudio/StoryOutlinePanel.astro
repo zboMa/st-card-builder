@@ -1,47 +1,54 @@
 ---
-/** 大纲：章节名点击编辑；分段/续写弹窗额外提示词；操作右上角 */
+/** 大纲：标题旁小说·分支 tag；操作单行；新书向导居中弹窗 */
 ---
 <div class="panel story-studio-panel" data-story-panel="outline">
   <div class="ss-panel-header">
     <div class="ss-panel-heading">
-      <h2>大纲</h2>
-      <p class="ss-tip ui-panel-lead">维护章节标题与摘要。点标题编辑；分段/续写会弹出额外提示词。张力曲线在列表上方。</p>
+      <div class="ss-panel-title-row">
+        <h2>大纲</h2>
+        <button type="button" id="btnSsOutlineBranchTag" class="ss-branch-tag" aria-haspopup="dialog" aria-expanded="false" title="查看并切换分支">—</button>
+      </div>
+      <p class="ss-tip ui-panel-lead">维护章节标题与摘要。点标题编辑；张力曲线在列表上方。</p>
     </div>
-    <div class="ss-panel-actions" aria-label="大纲操作">
-      <button type="button" id="btnSsOutlineGen" class="btn btn-ghost btn-inline">分段生成大纲</button>
-      <button type="button" id="btnSsOutlineContinue" class="btn btn-ghost btn-inline">续写大纲</button>
-      <button type="button" id="btnSsOutlineAdd" class="btn btn-ghost btn-inline">手动加章</button>
+    <div class="ss-panel-actions ss-panel-actions--nowrap" aria-label="大纲操作">
+      <button type="button" id="btnSsOutlineGen" class="btn btn-ghost btn-inline">分段大纲</button>
+      <button type="button" id="btnSsOutlineContinue" class="btn btn-ghost btn-inline">续写</button>
+      <button type="button" id="btnSsOutlineAdd" class="btn btn-ghost btn-inline">加章</button>
       <button type="button" id="btnSsOutlineSave" class="btn btn-ghost btn-inline">保存</button>
-      <button type="button" id="btnSsWizardStart" class="btn btn-ghost btn-inline">新书向导</button>
+      <button type="button" id="btnSsWizardStart" class="btn btn-ghost btn-inline" aria-haspopup="dialog">新书向导</button>
     </div>
-  </div>
-
-  <div id="ssWizardBox" class="ss-wizard" hidden>
-    <div class="ui-label-row">
-      <strong>新书向导</strong>
-      <span class="ui-hint ui-hint--inline">分步审批</span>
-    </div>
-    <ol class="ss-wizard-steps">
-      <li data-wiz="direction">① 确认方向</li>
-      <li data-wiz="outline">② 审批大纲</li>
-      <li data-wiz="ready">③ 开始写作</li>
-    </ol>
-    <div class="ss-toolbar">
-      <button type="button" id="btnSsWizardApproveDir" class="btn btn-ghost btn-inline">确认方向 → 生成大纲</button>
-      <button type="button" id="btnSsWizardApproveOl" class="btn btn-ghost btn-inline">批准大纲 → 可写</button>
-      <button type="button" id="btnSsWizardSkip" class="btn btn-ghost btn-inline">跳过向导</button>
-    </div>
-  </div>
-
-  <div class="form-group ss-outline-dir">
-    <div class="ui-label-row">
-      <label for="ssOutlineDirection">创作方向</label>
-      <span class="ui-hint ui-hint--inline">可选</span>
-    </div>
-    <textarea id="ssOutlineDirection" rows="2" placeholder="例如：都市异能，慢热复仇线，共 12 章左右"></textarea>
   </div>
 
   <div id="ssOutlineTension" class="ss-tension" hidden></div>
   <div id="ssOutlineList" class="ss-outline-list"></div>
-  <div id="ssOutlineStatus" class="ss-status"></div>
+  <div id="ssOutlineStatus" class="ss-status" hidden aria-hidden="true"></div>
+</div>
+
+<div id="ssWizardModal" class="app-confirm-overlay ss-studio-modal" hidden role="presentation">
+  <div class="app-confirm-dialog ss-studio-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="ssWizardTitle">
+    <div class="ss-modal-head">
+      <h3 id="ssWizardTitle" class="ss-studio-modal__title">新书向导</h3>
+      <button type="button" class="btn-icon btn-icon--sm" id="btnSsWizardClose" aria-label="关闭">×</button>
+    </div>
+    <div class="ss-modal-body ss-modal-body--form" id="ssWizardBox">
+      <p class="ui-hint ss-wizard-lead">分步审批 · 确认方向后生成大纲，批准后可写作</p>
+      <ol class="ss-wizard-steps">
+        <li data-wiz="direction">① 确认方向</li>
+        <li data-wiz="outline">② 审批大纲</li>
+        <li data-wiz="ready">③ 开始写作</li>
+      </ol>
+      <div class="form-group ss-outline-dir">
+        <div class="ui-label-row">
+          <label for="ssOutlineDirection">创作方向</label>
+          <span class="ui-hint ui-hint--inline">可选</span>
+        </div>
+        <textarea id="ssOutlineDirection" rows="3" placeholder="例如：都市异能，慢热复仇线，共 12 章左右"></textarea>
+      </div>
+      <div class="ss-toolbar ss-wizard-actions">
+        <button type="button" id="btnSsWizardApproveDir" class="btn btn-ai btn-inline">确认方向 → 生成大纲</button>
+        <button type="button" id="btnSsWizardApproveOl" class="btn btn-ghost btn-inline">批准大纲 → 可写</button>
+        <button type="button" id="btnSsWizardSkip" class="btn btn-ghost btn-inline">跳过向导</button>
+      </div>
+    </div>
+  </div>
 </div>

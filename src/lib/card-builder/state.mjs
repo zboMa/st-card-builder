@@ -3,7 +3,6 @@
  */
 import { normalizeCharTags } from '../charTags.mjs';
 
-export const DRAFTS_KEY = 'st_v3_builder_drafts';
 export const CURRENT_KEY = 'st_v3_builder_current_id';
 export const AI_KEY = 'st_v3_builder_ai_config';
 

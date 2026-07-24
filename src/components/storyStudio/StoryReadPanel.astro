@@ -1,5 +1,5 @@
 ---
-/** 在线阅读：书名·分支在标题旁；右上模式+书签+全屏一行 */
+/** 在线阅读：书名·分支在标题旁；模式自定义菜单；书签/全屏右上 */
 ---
 <div class="panel story-studio-panel" data-story-panel="read">
   <div class="ss-panel-header">
@@ -11,10 +11,17 @@
       <p class="ss-tip ui-panel-lead">一章一屏或分页。目录默认收起。</p>
     </div>
     <div class="ss-panel-actions ss-panel-actions--nowrap" aria-label="阅读操作">
-      <select id="ssReadMode" class="ss-text-select cs-native-skip" aria-label="阅读模式" title="阅读模式">
-        <option value="swipe">滑动</option>
-        <option value="page">分页</option>
-      </select>
+      <div class="ss-mode-menu" id="ssReadModeMenu">
+        <button type="button" class="ss-mode-menu__trigger" id="btnSsReadMode" aria-haspopup="listbox" aria-expanded="false">滑动</button>
+        <div class="ss-mode-menu__list" id="ssReadModeList" hidden role="listbox" aria-label="阅读模式">
+          <button type="button" class="ss-mode-menu__opt" role="option" data-ss-mode="swipe">滑动</button>
+          <button type="button" class="ss-mode-menu__opt" role="option" data-ss-mode="page">分页</button>
+        </div>
+        <select id="ssReadMode" class="cs-native-skip" hidden aria-hidden="true">
+          <option value="swipe">滑动</option>
+          <option value="page">分页</option>
+        </select>
+      </div>
       <button type="button" id="btnSsReadBookmark" class="btn btn-ghost btn-inline">书签</button>
       <button type="button" id="btnSsReadFullscreen" class="btn btn-ghost btn-inline">全屏</button>
     </div>
@@ -41,5 +48,5 @@
       </div>
     </div>
   </div>
-  <div id="ssReadStatus" class="ss-status"></div>
+  <div id="ssReadStatus" class="ss-status" hidden aria-hidden="true"></div>
 </div>
