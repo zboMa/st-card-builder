@@ -13,6 +13,7 @@ import {
   truncateToTokens,
   uiMessagesToModelHistory,
   prepareAssistantMessages,
+  prepareChatCompletionMessages,
   estimateAssistantContext,
   inputTokenBudget,
 } from '../src/lib/assistant/contextManager.mjs';
@@ -129,5 +130,34 @@ describe('contextManager prepare', function() {
     assert.ok(b.softAt > 0);
     assert.ok(b.hardAt > b.softAt);
     assert.equal(b.level, 'none');
+  });
+});
+
+describe('prepareChatCompletionMessages（试聊共用）', function() {
+  it('短对话不压缩', function() {
+    var prepared = prepareChatCompletionMessages([
+      { role: 'system', content: 'You are a character.' },
+      { role: 'user', content: '你好' },
+      { role: 'assistant', content: '你好呀' },
+    ]);
+    assert.equal(prepared.level, 'none');
+    assert.equal(prepared.messages.length, 3);
+    assert.ok(prepared.breakdown.total > 0);
+  });
+
+  it('超软阈值时压缩较早长消息', function() {
+    var fat = '剧情描述。'.repeat(500);
+    var msgs = [{ role: 'system', content: 'sys' }];
+    for (var i = 0; i < 10; i++) {
+      msgs.push({ role: i % 2 === 0 ? 'user' : 'assistant', content: fat });
+    }
+    var prepared = prepareChatCompletionMessages(msgs, {
+      limit: 8000,
+      reserveReply: 500,
+    });
+    assert.ok(prepared.level === 'soft' || prepared.level === 'hard');
+    assert.ok(prepared.breakdown.total <= prepared.breakdown.budget);
+    // 前缀 system 仍在
+    assert.equal(prepared.messages[0].role, 'system');
   });
 });

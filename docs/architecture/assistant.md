@@ -36,7 +36,8 @@
 - 总窗口 **200k** tokens；预留约 **8k** 给回复，输入预算 = 200k − 8k
 - **≥60%** 输入预算：启动压缩（旧工具结果缩预览、限制旧 thought）
 - **≥80%**：激进压缩（工具只留摘要、裁剪旧 RAG、必要时丢最旧消息）
-- **禁止**对单条工具结果做固定字符盲切（旧 `slice(0, 1200)` 已移除）；压缩只在 `prepareAssistantMessages` 发送时整体进行
+- **禁止**对单条工具结果做固定字符盲切（旧 `slice(0, 1200)` 已移除）；压缩只在 `prepareAssistantMessages` / `prepareChatCompletionMessages` 发送时整体进行
+- 试聊发送复用 `prepareChatCompletionMessages`（同一套预算；回复预留取 `max(max_tokens, 8k)`）
 - 调参入口：`CONTEXT_BUDGET`（`limit` / `softRatio` / `hardRatio` / `reserveReply`）
 
 ## 写入规则（摘要）

@@ -8,6 +8,11 @@ import {
   ST_PARITY_VERSION,
 } from './browserChat.mjs';
 import { engineTryAllowed } from '../actionEngine/helpers.mjs';
+import {
+  countTokens,
+  prepareChatCompletionMessages,
+  CONTEXT_BUDGET,
+} from '../assistant/contextManager.mjs';
 
 export function initChatPlayground() {
   var chatConversation = document.getElementById('chatConversation');
@@ -232,9 +237,13 @@ export function initChatPlayground() {
     });
   }
 
-  function estimateTokens(text) {
-    var cn = (text.match(/[\u4e00-\u9fff\u3040-\u30ff]/g) || []).length;
-    return Math.round(cn * 2 + (text.length - cn) * 0.4);
+  /** 发送前：tiktoken 计数 + 与助手同一套 200k/60%/80% 整体压缩 */
+  function prepareTrialMessagesForSend(rawMessages) {
+    var maxTk = parseInt(chatMaxTokens && chatMaxTokens.value, 10) || 2000;
+    var reserve = Math.max(maxTk, CONTEXT_BUDGET.reserveReply || 8192);
+    return prepareChatCompletionMessages(rawMessages || [], {
+      reserveReply: reserve,
+    });
   }
 
   
@@ -580,12 +589,21 @@ export function initChatPlayground() {
     }
 
     var built = buildTrialMessages();
-    var messages = built.messages;
+    var prepared = prepareTrialMessagesForSend(built.messages);
+    var messages = prepared.messages;
     updateWbTriggerDisplay(built.debug);
 
-    var totalText = messages.map(function(m) { return m.content; }).join('');
-    var tokens = estimateTokens(totalText);
-    chatTokenIndicator.textContent = '~' + tokens + ' tok';
+    var tokens = prepared.breakdown.total;
+    var level = prepared.level;
+    var levelTag = level === 'hard' ? ' · 激进压缩' : (level === 'soft' ? ' · 已压缩' : '');
+    if (chatTokenIndicator) {
+      chatTokenIndicator.textContent = tokens + ' tok' + levelTag;
+      chatTokenIndicator.title = 'tiktoken (cl100k_base) · 预算 '
+        + prepared.breakdown.budget
+        + ' · 软 ' + prepared.breakdown.softAt
+        + ' · 硬 ' + prepared.breakdown.hardAt
+        + ' · 档位 ' + level;
+    }
 
     if (chatShowPrompt.checked) {
       chatPromptDebug.style.display = 'block';
@@ -593,11 +611,15 @@ export function initChatPlayground() {
         return e.comment || e.id || '?';
       });
       chatPromptDebug.textContent = messages.map(function(m, i) {
-        return '--- [' + i + '] ' + m.role.toUpperCase() + ' (' + m.content.length + '字) ---\n' + m.content;
+        var tok = countTokens(m.content);
+        return '--- [' + i + '] ' + m.role.toUpperCase() + ' (' + tok + ' tok / ' + m.content.length + '字) ---\n' + m.content;
       }).join('\n\n')
         + '\n\n=== ST_PARITY_VERSION: ' + (built.parityVersion || ST_PARITY_VERSION)
         + ' | activated: ' + (activatedComments.length ? activatedComments.join(', ') : '(none)')
-        + ' | 消息数: ' + messages.length + ' | Token: ~' + tokens
+        + ' | 消息数: ' + messages.length
+        + ' | Token: ' + tokens + ' (tiktoken)'
+        + ' | 压缩档: ' + level
+        + ' | 预算: ' + prepared.breakdown.budget
         + ' | max_tokens: ' + (parseInt(chatMaxTokens.value) || 2000) + ' ===';
     }
 

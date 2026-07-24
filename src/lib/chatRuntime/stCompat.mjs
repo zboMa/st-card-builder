@@ -14,7 +14,7 @@ export var ST_PARITY_DIFFS = [
   '世界书递归仅轻量一轮（已激活 content 并入扫描缓冲后再扫 delayUntilRecursion=false 且未 prevent 的条目），非 ST 完整递归栈。',
   'group 仅保留同名组内 groupOverride 或最高 groupWeight 一条，未模拟 ST 的加权随机抽组。',
   '非 @D 插入槽简化为 before/after Char、EM、AN 文本块拼接，未接入 ST 完整 Prompt Manager 槽位图。',
-  'budgetChars 仅作扫描缓冲截断上限，未实现 ST 的 token budget / sticky / cooldown / timed effects。',
+  'budgetChars 仅作世界书扫描缓冲截断上限；发送上下文预算改由 contextManager（tiktoken 200k / 60% / 80%）整体压缩，未实现 ST sticky / cooldown / timed effects。',
   '正则管道覆盖 placement / markdownOnly / promptOnly / minDepth/maxDepth；未实现 substituteRegex 宏展开与 trimStrings 全链路。',
   'buildChatCompletionMessages 为实用组装顺序，非 ST 1.18 Prompt Manager 逐块等价。',
 ];

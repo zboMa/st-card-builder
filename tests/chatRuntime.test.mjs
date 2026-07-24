@@ -3,6 +3,9 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   ST_PARITY_VERSION,
   ST_PARITY_DIFFS,
@@ -23,10 +26,23 @@ import {
   applyDisplayRegex,
 } from '../src/lib/chatRuntime/index.mjs';
 
+var root = join(dirname(fileURLToPath(import.meta.url)), '..');
+
 describe('stCompat', function() {
   it('导出 ST 1.18.0 对标版本与差异说明', function() {
     assert.equal(ST_PARITY_VERSION, '1.18.0');
     assert.ok(Array.isArray(ST_PARITY_DIFFS) && ST_PARITY_DIFFS.length > 0);
+    assert.ok(ST_PARITY_DIFFS.some(function(d) { return /contextManager|tiktoken/.test(d); }));
+  });
+});
+
+describe('playground context wiring', function() {
+  it('试聊 boot 使用 contextManager 压缩与 tiktoken', function() {
+    var src = readFileSync(join(root, 'src/lib/chatRuntime/playgroundBoot.mjs'), 'utf8');
+    assert.match(src, /prepareChatCompletionMessages/);
+    assert.match(src, /contextManager\.mjs/);
+    assert.doesNotMatch(src, /cn \* 2/);
+    assert.doesNotMatch(src, /length - cn\) \* 0\.4/);
   });
 });
 

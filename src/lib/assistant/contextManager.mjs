@@ -362,3 +362,157 @@ export function estimateAssistantContext(opts) {
     level: compressionLevelForTotal(total),
   };
 }
+
+/**
+ * 拆分 Chat Completions：前缀连续 system 保留，其余为可压缩 body
+ * @param {{ role: string, content: string }[]} messages
+ */
+function splitChatPrefix(messages) {
+  var list = Array.isArray(messages) ? messages : [];
+  var prefix = [];
+  var body = [];
+  var i = 0;
+  while (i < list.length && list[i] && list[i].role === 'system') {
+    prefix.push({ role: 'system', content: String(list[i].content || '') });
+    i++;
+  }
+  for (; i < list.length; i++) {
+    if (!list[i]) continue;
+    body.push({
+      role: list[i].role || 'user',
+      content: String(list[i].content || ''),
+    });
+  }
+  return { prefix: prefix, body: body };
+}
+
+/**
+ * soft：压缩较早的长消息（按 token），保留近端完整
+ * @param {{ role: string, content: string }[]} body
+ * @param {number} keepRecent
+ */
+function compressChatBodySoft(body, keepRecent) {
+  var keep = keepRecent == null ? 6 : keepRecent;
+  var startFull = Math.max(0, body.length - keep);
+  return body.map(function(m, idx) {
+    if (idx >= startFull) return m;
+    var tok = countTokens(m.content);
+    if (tok <= 400) return m;
+    return {
+      role: m.role,
+      content: truncateToTokens(m.content, 400),
+    };
+  });
+}
+
+/**
+ * hard：只留近端若干条；更早的大幅截断
+ * @param {{ role: string, content: string }[]} body
+ */
+function compressChatBodyHard(body) {
+  var softed = compressChatBodySoft(body, 4);
+  var keep = 8;
+  var start = Math.max(0, softed.length - keep);
+  var head = softed.slice(0, start).map(function(m) {
+    return {
+      role: m.role,
+      content: truncateToTokens(m.content, 120),
+    };
+  });
+  return head.concat(softed.slice(start));
+}
+
+/**
+ * 丢弃最旧 body，尽量保留最后一条 user
+ * @param {{ role: string, content: string }[]} body
+ * @param {number} budget
+ */
+function dropChatBodyUntilFit(body, budget) {
+  var list = body.slice();
+  while (list.length > 1 && countMessagesTokens(list) > budget) {
+    var removeAt = 0;
+    if (list[0] && list[0].role === 'user' && list.length > 1) removeAt = 0;
+    // 若第一条是最后唯一 user 则删下一条
+    var lastUser = -1;
+    for (var i = list.length - 1; i >= 0; i--) {
+      if (list[i].role === 'user') { lastUser = i; break; }
+    }
+    if (removeAt === lastUser && list.length > 1) removeAt = 1;
+    list.splice(removeAt, 1);
+  }
+  if (list.length && countMessagesTokens(list) > budget) {
+    list = list.map(function(m) {
+      var room = Math.max(64, Math.floor(budget / Math.max(1, list.length)) - 4);
+      return { role: m.role, content: truncateToTokens(m.content, room) };
+    });
+  }
+  return list;
+}
+
+/**
+ * 试聊 / 任意 Chat Completions：发送前整体压缩（与助手同一套 200k / 60% / 80%）
+ * @param {{ role: string, content: string }[]} messages
+ * @param {{ limit?: number, reserveReply?: number, softRatio?: number, hardRatio?: number }} [opts]
+ * @returns {{
+ *   messages: { role: string, content: string }[],
+ *   level: 'none'|'soft'|'hard',
+ *   breakdown: { total: number, budget: number, softAt: number, hardAt: number, prefix: number, body: number },
+ * }}
+ */
+export function prepareChatCompletionMessages(messages, opts) {
+  opts = opts || {};
+  var limit = opts.limit != null ? Number(opts.limit) : CONTEXT_BUDGET.limit;
+  var reserve = opts.reserveReply != null ? Number(opts.reserveReply) : CONTEXT_BUDGET.reserveReply;
+  var softRatio = opts.softRatio != null ? Number(opts.softRatio) : CONTEXT_BUDGET.softRatio;
+  var hardRatio = opts.hardRatio != null ? Number(opts.hardRatio) : CONTEXT_BUDGET.hardRatio;
+  var budget = Math.max(1024, limit - Math.max(0, reserve || 0));
+  var softAt = Math.floor(budget * (softRatio || 0.6));
+  var hardAt = Math.floor(budget * (hardRatio || 0.8));
+
+  var split = splitChatPrefix(messages);
+  var prefix = split.prefix;
+  var body = split.body;
+  var prefixTokens = countMessagesTokens(prefix);
+  var bodyTokens = countMessagesTokens(body);
+  var total = prefixTokens + bodyTokens;
+
+  var level = 'none';
+  if (total >= hardAt) level = 'hard';
+  else if (total >= softAt) level = 'soft';
+
+  if (level === 'soft') body = compressChatBodySoft(body, 6);
+  if (level === 'hard') body = compressChatBodyHard(body);
+
+  bodyTokens = countMessagesTokens(body);
+  total = prefixTokens + bodyTokens;
+
+  if (total > hardAt || total > budget) {
+    level = 'hard';
+    var roomForBody = Math.max(256, budget - prefixTokens);
+    body = dropChatBodyUntilFit(body, roomForBody);
+    // 前缀过大：按条截断 system
+    if (prefixTokens > budget * 0.7) {
+      prefix = prefix.map(function(m) {
+        return { role: 'system', content: truncateToTokens(m.content, Math.floor((budget * 0.5) / Math.max(1, prefix.length))) };
+      });
+      prefixTokens = countMessagesTokens(prefix);
+      roomForBody = Math.max(256, budget - prefixTokens);
+      body = dropChatBodyUntilFit(body, roomForBody);
+    }
+    bodyTokens = countMessagesTokens(body);
+    total = prefixTokens + bodyTokens;
+  }
+
+  return {
+    messages: prefix.concat(body),
+    level: level,
+    breakdown: {
+      total: total,
+      budget: budget,
+      softAt: softAt,
+      hardAt: hardAt,
+      prefix: prefixTokens,
+      body: bodyTokens,
+    },
+  };
+}

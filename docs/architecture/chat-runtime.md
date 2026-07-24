@@ -25,11 +25,19 @@
 - **向量世界书**按 selective 降级处理。
 - 无全局 World Info 选择器、无 outlet、无自动化 ID / STScript。
 - 扫描缓冲未实现 ST 的角色名前缀 / `\x01` 说话人标记。
-- Token budget 按字符近似，非 ST tokenizer。
 - 卡字段 `personality` / `scenario` / `mes_example` 仅在 state 有值时注入。
 - 斜杠命令 placement、推理块完整链路未做。
+
+## 上下文预算（与助手共用）
+
+试聊发送走 `assistant/contextManager.prepareChatCompletionMessages`：
+
+- **tiktoken**（`js-tiktoken` / `cl100k_base`）计数，不再用「中文×2」启发式
+- 总窗 **200k**；回复预留取 `max(chatMaxTokens, 8k)`
+- **≥60%** 启动压缩；**≥80%** 激进压缩（压缩对话 body，保留前缀连续 system）
+- Token 指示与 Prompt 调试区显示真实 tok 与压缩档位
 
 ## 使用
 
 试聊配置抽屉可调 **扫描深度**、**用户名**。调试模式可查看组装后的 messages 与激活条目。  
-单测：`node --test tests/chatRuntime.test.mjs`
+单测：`node --test tests/chatRuntime.test.mjs`；上下文：`tests/contextManager.test.mjs`
