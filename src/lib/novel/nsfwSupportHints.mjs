@@ -45,6 +45,7 @@ import {
   STYLE_NSFW_SLICE,
   STYLE_ADULT_FALLBACK,
 } from './contextBudgets.mjs';
+import { truncateToTokens } from '../assistant/contextManager.mjs';
 import {
   WORLDFRAMES,
   WORLDFRAME_IDS,
@@ -85,14 +86,14 @@ export function extractStyleNsfwSection(styleText) {
   if (!t.trim()) return '';
   var m = t.match(/##\s*NSFW\s*文风指令([\s\S]*?)(?=\n##\s|$)/i);
   if (m && m[1] && m[1].trim()) {
-    return '\n【文风 NSFW 指令（人物描写须对齐）】\n' + m[1].trim().slice(0, STYLE_NSFW_SLICE);
+    return '\n【文风 NSFW 指令（人物描写须对齐）】\n' + truncateToTokens(m[1].trim(), STYLE_NSFW_SLICE);
   }
   var m2 = t.match(/##\s*NTL\s*文风指令([\s\S]*?)(?=\n##\s|$)/i);
   if (m2 && m2[1] && m2[1].trim()) {
-    return '\n【文风 NTL 指令（禁忌张力须对齐）】\n' + m2[1].trim().slice(0, STYLE_NSFW_SLICE);
+    return '\n【文风 NTL 指令（禁忌张力须对齐）】\n' + truncateToTokens(m2[1].trim(), STYLE_NSFW_SLICE);
   }
   if (/情欲|身体描写|敏感|NSFW|禁忌|NTL/i.test(t)) {
-    return '\n【文风片段（含成人向）】\n' + t.slice(0, STYLE_ADULT_FALLBACK);
+    return '\n【文风片段（含成人向）】\n' + truncateToTokens(t, STYLE_ADULT_FALLBACK);
   }
   return '';
 }

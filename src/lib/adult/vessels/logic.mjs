@@ -13,6 +13,7 @@ import {
 } from './frames/catalog.mjs';
 import { FLAVOR_VESSEL_OVERLAYS } from './overlays/flavor.mjs';
 import { NTL_VESSEL_OVERLAYS, NTL_OVERLAY_ALIASES } from './overlays/ntl.mjs';
+import { countTokens, truncateToTokens } from '../../assistant/contextManager.mjs';
 import { ADULT_CONSENT_BOUNDARY_SHORT } from '../shared/consentBoundary.mjs';
 
 function asList(v) {
@@ -337,7 +338,7 @@ export function buildVesselExpandUserPrompt(o) {
   parts.push('目标密度：去空白后≥' + (o.minChars || VESSEL_DEFAULT_MIN_CHARS) + '字');
   if (o.vesselHint) parts.push(String(o.vesselHint).trim());
   if (o.context) parts.push('【上下文】\n' + String(o.context).trim());
-  parts.push('【待加厚内容】\n' + String(o.text || '').trim().slice(0, bodyMax));
+  parts.push('【待加厚内容】\n' + truncateToTokens(String(o.text || '').trim(), bodyMax));
   return parts.join('\n\n');
 }
 
@@ -379,21 +380,22 @@ export function formatVesselCanonBlock(entities, opts) {
   var lines = ['## 世界观成人载体'];
   if (opts.worldframeLabel) lines.push('框架：' + opts.worldframeLabel);
   lines.push('人物描写与恶堕须与这些载体互动，禁止另起互不相关的道具体系。');
-  var used = lines.join('\n').length;
+  var used = countTokens(lines.join('\n'));
   list.forEach(function(e) {
     if (used >= budget) return;
     var a = (e.attrs && (e.type === 'nsfw' ? e.attrs : e.attrs.adult)) || {};
     var kind = a.vesselKind || a.kind || e.type;
     var line = '- [' + kind + '] ' + e.name
-      + (a.powerLogic ? '｜机制：' + String(a.powerLogic).slice(0, 180) : '')
-      + (a.costOrRisk ? '｜代价：' + String(a.costOrRisk).slice(0, 120) : '')
+      + (a.powerLogic ? '｜机制：' + truncateToTokens(String(a.powerLogic), 80) : '')
+      + (a.costOrRisk ? '｜代价：' + truncateToTokens(String(a.costOrRisk), 50) : '')
       + (asList(a.relatedPersons || a.relatedNames).length
         ? '｜人：' + asList(a.relatedPersons || a.relatedNames).slice(0, 6).join('、')
         : '')
-      + (e.content ? '\n  ' + String(e.content).replace(/\s+/g, ' ').slice(0, 280) : '');
-    if (used + line.length > budget) return;
+      + (e.content ? '\n  ' + truncateToTokens(String(e.content).replace(/\s+/g, ' '), 120) : '');
+    var lineTok = countTokens(line);
+    if (used + lineTok > budget) return;
     lines.push(line);
-    used += line.length;
+    used += lineTok;
   });
   if (lines.length < 3) return '';
   return lines.join('\n');

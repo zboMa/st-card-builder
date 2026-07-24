@@ -12,6 +12,7 @@ import {
   clampTagContextChars,
   DEFAULT_TAG_CONTEXT_CHARS,
 } from '../src/lib/charTags.mjs';
+import { countTokens } from '../src/lib/assistant/contextManager.mjs';
 
 describe('charTags helpers', function() {
   it('normalizeCharTags 去空、trim、保序去重', function() {
@@ -49,7 +50,7 @@ describe('charTags helpers', function() {
     assert.equal(clampTagContextChars(999999), 200000);
   });
 
-  it('buildTagGenContext 含设定/开场并按上限截断世界书', function() {
+  it('buildTagGenContext 含设定/开场并按 token 上限截断世界书', function() {
     var ctx = buildTagGenContext({
       description: '角色描述ABC',
       firstMes: '开场白XYZ',
@@ -58,10 +59,10 @@ describe('charTags helpers', function() {
         { comment: '条目1', content: '内容一'.repeat(20) },
         { comment: '条目2', content: '内容二'.repeat(20) },
       ],
-    }, 80);
+    }, 120);
     assert.match(ctx, /【角色设定】/);
     assert.match(ctx, /【开场白】/);
-    assert.ok(ctx.length <= 80);
+    assert.ok(countTokens(ctx) <= 120, 'got ' + countTokens(ctx));
     // 配置钳制仍默认 12k；build 可接受更小显式上限
     assert.equal(clampTagContextChars(80), 12000);
   });

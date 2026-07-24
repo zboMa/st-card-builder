@@ -2,6 +2,7 @@
  * 助手 / 分析用：把检索结果与实体摘要拼成注入块
  */
 import { RAG_ENTITY_BUDGET, FIELD_ENTITY_LINE } from '../contextBudgets.mjs';
+import { countTokens, truncateToTokens } from '../../assistant/contextManager.mjs';
 
 /**
  * @param {{ body?: string, snippets?: object[], mode?: string }} searchResult
@@ -25,10 +26,11 @@ export function buildRagInjectBlock(searchResult, entities, opts) {
     if (!e || used >= entBudget) return;
     var line = '- [' + (e.type || '?') + '] ' + (e.name || '')
       + (e.aliases && e.aliases.length ? '（' + e.aliases.slice(0, 5).join('/') + '）' : '')
-      + ': ' + String(e.summary || e.content || '').slice(0, FIELD_ENTITY_LINE);
-    if (used + line.length > entBudget) return;
+      + ': ' + truncateToTokens(String(e.summary || e.content || ''), FIELD_ENTITY_LINE);
+    var tok = countTokens(line);
+    if (used + tok > entBudget) return;
     lines.push(line);
-    used += line.length;
+    used += tok;
   });
   if (lines.length) {
     parts.push('【相关实体】\n' + lines.join('\n'));

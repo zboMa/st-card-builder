@@ -3,6 +3,7 @@
  * 增强块数据见 catalog.mjs
  */
 import { NSFW_FLAVOR_ENRICHMENT } from './catalog.mjs';
+import { truncateToTokens } from '../../../assistant/contextManager.mjs';
 
 export var NSFW_FLAVOR_DEFAULT_MIN_CHARS = 280;
 
@@ -237,7 +238,7 @@ export function buildFlavorExpandUserPrompt(opts) {
   if (o.flavorHint) parts.push(String(o.flavorHint).trim());
   var ctxMax = o.contextMax != null ? o.contextMax : 20000;
   var bodyMax = o.bodyMax != null ? o.bodyMax : 40000;
-  if (o.context) parts.push('【角色/条目上下文】\n' + String(o.context).trim().slice(0, ctxMax));
-  parts.push('【待加厚内容】\n' + String(o.text || '').trim().slice(0, bodyMax));
+  if (o.context) parts.push('【角色/条目上下文】\n' + truncateToTokens(String(o.context).trim(), ctxMax));
+  parts.push('【待加厚内容】\n' + truncateToTokens(String(o.text || '').trim(), bodyMax));
   return parts.join('\n\n');
 }

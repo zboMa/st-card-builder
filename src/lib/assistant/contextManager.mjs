@@ -22,17 +22,28 @@ export var CONTEXT_BUDGET = {
 };
 
 var _enc = null;
+/** 单段 encode 上限：js-tiktoken 纯 JS BPE 对长 CJK 近似 O(n²)，必须分块 */
+var ENCODE_CHUNK_CHARS = 240;
 
 function encoder() {
   if (!_enc) _enc = getEncoding('cl100k_base');
   return _enc;
 }
 
-/** @param {string|null|undefined} text */
+/**
+ * @param {string|null|undefined} text
+ */
 export function countTokens(text) {
   if (text == null || text === '') return 0;
   try {
-    return encoder().encode(String(text)).length;
+    var s = String(text);
+    var enc = encoder();
+    if (s.length <= ENCODE_CHUNK_CHARS) return enc.encode(s).length;
+    var total = 0;
+    for (var i = 0; i < s.length; i += ENCODE_CHUNK_CHARS) {
+      total += enc.encode(s.slice(i, i + ENCODE_CHUNK_CHARS)).length;
+    }
+    return total;
   } catch (e) {
     // 极端失败回退：偏保守
     return Math.ceil(String(text).length / 2);
@@ -222,21 +233,86 @@ function compressHard(history) {
 }
 
 /**
- * 按 token 上限截断文本（末尾加标记）
+ * 按 token 上限截断文本（保留开头，末尾加标记）
  * @param {string} text
  * @param {number} maxTokens
  */
 export function truncateToTokens(text, maxTokens) {
   var s = String(text == null ? '' : text);
-  var cap = Math.max(1, Number(maxTokens) || 1);
-  if (countTokens(s) <= cap) return s;
+  var cap = Math.max(0, Math.floor(Number(maxTokens) || 0));
+  if (!cap) return '';
+  if (!s) return '';
+  // 预切字符窗，避免对整章/长召回整段 BPE
+  var maxChars = Math.min(s.length, Math.max(cap * 4, cap + 64));
+  var head = s.length > maxChars ? s.slice(0, maxChars) : s;
+  if (countTokens(head) <= cap && head === s) return s;
   var enc = encoder();
-  var ids = enc.encode(s);
-  if (ids.length <= cap) return s;
-  var keep = Math.max(1, cap - 8);
-  var sliced = ids.slice(0, keep);
-  var out = enc.decode(sliced);
-  return out + '\n…(已按 token 截断)';
+  var ids = enc.encode(head);
+  if (ids.length <= cap && head === s) return s;
+  var marker = '\n…(已按 token 截断)';
+  var markerTok = enc.encode(marker).length;
+  var keep = Math.max(1, Math.min(ids.length, cap - markerTok));
+  if (keep >= ids.length && head === s && ids.length + markerTok <= cap) return s;
+  return enc.decode(ids.slice(0, keep)) + marker;
+}
+
+/**
+ * 按 token 上限截断文本（保留末尾，用于扫描缓冲等「近端优先」场景）
+ * @param {string} text
+ * @param {number} maxTokens
+ */
+export function truncateTailToTokens(text, maxTokens) {
+  var s = String(text == null ? '' : text);
+  var cap = Math.max(0, Math.floor(Number(maxTokens) || 0));
+  if (!cap) return '';
+  if (!s) return '';
+  var maxChars = Math.min(s.length, Math.max(cap * 4, cap + 64));
+  var tail = s.length > maxChars ? s.slice(s.length - maxChars) : s;
+  if (countTokens(tail) <= cap && tail === s) return s;
+  var enc = encoder();
+  var ids = enc.encode(tail);
+  if (ids.length <= cap && tail === s) return s;
+  return enc.decode(ids.slice(Math.max(0, ids.length - cap)));
+}
+
+/**
+ * 按 token 预算累积片段（可截断最后一条）
+ * @param {object[]} snippets
+ * @param {number} budgetTokens
+ * @param {{ getText?: (s: object) => string, minRemain?: number }} [opts]
+ * @returns {{ snippets: object[], totalTokens: number, truncated: boolean }}
+ */
+export function truncateSnippetsByTokenBudget(snippets, budgetTokens, opts) {
+  opts = opts || {};
+  var getText = opts.getText || function(s) { return String(s && s.text != null ? s.text : ''); };
+  var minRemain = opts.minRemain != null ? opts.minRemain : 24;
+  var cap = Math.max(1, Math.floor(Number(budgetTokens) || 0));
+  var out = [];
+  var total = 0;
+  var truncated = false;
+  (snippets || []).forEach(function(s) {
+    if (total >= cap) {
+      truncated = true;
+      return;
+    }
+    var text = getText(s);
+    if (!text) return;
+    var tok = countTokens(text);
+    if (total + tok <= cap) {
+      out.push(s);
+      total += tok;
+      return;
+    }
+    var remain = cap - total;
+    if (remain >= minRemain) {
+      var clipped = truncateToTokens(text, remain);
+      out.push(Object.assign({}, s, { text: clipped }));
+      total += countTokens(clipped);
+    }
+    truncated = true;
+  });
+  if (!truncated && out.length < (snippets || []).length) truncated = true;
+  return { snippets: out, totalTokens: total, truncated: truncated };
 }
 
 /**
@@ -514,5 +590,25 @@ export function prepareChatCompletionMessages(messages, opts) {
       prefix: prefixTokens,
       body: bodyTokens,
     },
+  };
+}
+
+/**
+ * 按 token 预算逐行追加（用于 prior/digest 拼装）
+ * @param {number} maxTokens
+ * @returns {{ tryAdd: (line: string) => boolean, used: () => number, remaining: () => number }}
+ */
+export function createTokenBudgetAccumulator(maxTokens) {
+  var cap = Math.max(0, Math.floor(Number(maxTokens) || 0));
+  var used = 0;
+  return {
+    tryAdd: function(line) {
+      var t = countTokens(line);
+      if (cap > 0 && used + t > cap) return false;
+      used += t;
+      return true;
+    },
+    used: function() { return used; },
+    remaining: function() { return Math.max(0, cap - used); },
   };
 }

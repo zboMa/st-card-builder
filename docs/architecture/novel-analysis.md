@@ -137,7 +137,7 @@ ntlMode: false,               // 全局 NTL 禁忌张力（与 NSFW 解耦，可
 analyzeIncludeAdult: false,   // 与 adultMode 同步（兼容旧字段）
 rag: {
   enabled: true,              // 助手问答启用小说 RAG
-  budget: 12000,              // 注入字数预算
+  budget: 12000,              // 注入 token 预算（tiktoken）
   indexStatus: 'idle'|'building'|'ready'|'error',
   indexUpdatedAt: '',
   chunkCount: 0,

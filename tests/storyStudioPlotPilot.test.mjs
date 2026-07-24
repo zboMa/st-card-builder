@@ -17,7 +17,7 @@ import {
   setActiveBranch,
   branchBrief,
 } from '../src/lib/storyStudio/branch.mjs';
-import { packChapterContext, truncateChars } from '../src/lib/storyStudio/tokenBudget.mjs';
+import { packChapterContext } from '../src/lib/storyStudio/tokenBudget.mjs';
 import {
   parseFeedForwardAiText,
   applyFeedForwardToChapter,
@@ -110,7 +110,6 @@ describe('storyStudio feed-forward & token', function() {
   });
 
   it('洋葱预算截断且含近章记忆', function() {
-    assert.equal(truncateChars('abcd', 3).length, 3);
     var packed = packChapterContext({
       graphBrief: '角色很多'.repeat(200),
       feedForwards: [
@@ -118,9 +117,15 @@ describe('storyStudio feed-forward & token', function() {
         { order: 0, title: '远', summary: '远摘要很长'.repeat(40), openThreads: ['b'], tension: 3 },
       ],
       prevContent: '上文'.repeat(3000),
-      budget: { totalChars: 2000, graphChars: 200, feedForwardRecentChars: 400, feedForwardOlderChars: 200, prevContentChars: 300 },
+      budget: {
+        totalTokens: 400,
+        graphTokens: 80,
+        feedForwardRecentTokens: 120,
+        feedForwardOlderTokens: 80,
+        prevContentTokens: 100,
+      },
     });
-    assert.ok(packed.usedChars <= 2000);
+    assert.ok(packed.usedTokens <= 400);
     assert.ok(packed.blocks.some(function(b) { return /近章记忆|远章压缩|人物/.test(b); }));
   });
 

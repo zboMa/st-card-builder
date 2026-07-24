@@ -6,6 +6,7 @@
  */
 
 import { normalizeWorldInfoEntries, SELECTIVE_LOGIC } from './normalize.mjs';
+import { truncateTailToTokens } from '../../assistant/contextManager.mjs';
 
 /**
  * 解析 key：明文子串（默认大小写不敏感）或 /regex/flags
@@ -168,6 +169,7 @@ function applyGroupFilter(activated) {
  *   entries: any[],
  *   history: { role?: string, content?: string }[],
  *   scanDepth?: number,
+ *   budgetTokens?: number,
  *   budgetChars?: number,
  *   rng?: () => number
  * }} opts
@@ -180,7 +182,10 @@ export function scanWorldInfo(opts) {
   var scanDepth = o.scanDepth == null ? 2 : Number(o.scanDepth);
   if (isNaN(scanDepth) || scanDepth < 0) scanDepth = 2;
   var rng = o.rng;
-  var budgetChars = o.budgetChars != null ? Number(o.budgetChars) : null;
+  // budgetTokens 优先；旧名 budgetChars 视为 token 数（兼容误传）
+  var budgetTokens = o.budgetTokens != null
+    ? Number(o.budgetTokens)
+    : (o.budgetChars != null ? Number(o.budgetChars) : null);
 
   // 从末尾取最近 N 条拼接；scanDepth=0 → 空缓冲（仅 constant / 递归路径）
   var bufferParts = [];
@@ -191,8 +196,8 @@ export function scanWorldInfo(opts) {
     }
   }
   var scanBuffer = bufferParts.join('\n');
-  if (budgetChars != null && !isNaN(budgetChars) && budgetChars >= 0 && scanBuffer.length > budgetChars) {
-    scanBuffer = scanBuffer.slice(scanBuffer.length - budgetChars);
+  if (budgetTokens != null && !isNaN(budgetTokens) && budgetTokens >= 0) {
+    scanBuffer = truncateTailToTokens(scanBuffer, budgetTokens);
   }
 
   var allowSelectiveScan = scanDepth > 0;
@@ -230,8 +235,8 @@ export function scanWorldInfo(opts) {
   if (activated.length) {
     var extra = activated.map(function(e) { return e.content || ''; }).join('\n');
     var recursionBuffer = scanBuffer + (extra ? '\n' + extra : '');
-    if (budgetChars != null && !isNaN(budgetChars) && budgetChars >= 0 && recursionBuffer.length > budgetChars) {
-      recursionBuffer = recursionBuffer.slice(recursionBuffer.length - budgetChars);
+    if (budgetTokens != null && !isNaN(budgetTokens) && budgetTokens >= 0) {
+      recursionBuffer = truncateTailToTokens(recursionBuffer, budgetTokens);
     }
     for (var j = 0; j < entries.length; j++) {
       var ent = entries[j];

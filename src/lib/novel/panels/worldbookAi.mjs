@@ -142,7 +142,7 @@ export function attachNovelWorldbookAi(ctx, panel) {
           + (entry.attrs ? '\n【现有 attrs】\n' + JSON.stringify(entry.attrs) : '')
           + buildContentModeFlags(state)
           + '\nContext: ' + (state.contextText || '')
-          + '\n召回字数: ' + recall.totalChars + (recall.truncated ? '（已抽样截断）' : '')
+          + '\n召回 tokens: ' + recall.totalChars + (recall.truncated ? '（已抽样截断）' : '')
           + '\n匹配词: ' + recall.terms.join('、')
           + '\n\n【原文片段】\n' + recall.body
           + '\n\n请输出 JSON（AdultMode 时含 attrs.adult；NtlMode 时可含 attrs.ntl；已选口味/禁忌时 content/attrs 须写透必写维度）。';
@@ -261,7 +261,7 @@ export function attachNovelWorldbookAi(ctx, panel) {
         projectEntitiesToLegacy(state);
         ctx.save();
         ctx.renderAll();
-        if (ctx.setStatus) ctx.setStatus('novelWbStatus', '「' + entry.name + '」扩展完成（召回 ' + recall.totalChars + ' 字）');
+        if (ctx.setStatus) ctx.setStatus('novelWbStatus', '「' + entry.name + '」扩展完成（召回 ' + recall.totalChars + ' tok）');
         return { index: index, name: entry.name, mode: mode, recallChars: recall.totalChars };
       });
     } catch (e) {

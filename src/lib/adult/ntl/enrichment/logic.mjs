@@ -3,6 +3,7 @@
  * 对标 nsfwFlavorEnrichment；与 NSFW 解耦，可单独开或叠加。
  */
 import { NTL_TABOO_ENRICHMENT } from './catalog.mjs';
+import { truncateToTokens } from '../../../assistant/contextManager.mjs';
 
 export { NTL_TABOO_ENRICHMENT };
 
@@ -215,8 +216,8 @@ export function buildNtlExpandUserPrompt(opts) {
   parts.push('【薄弱维度】' + (Array.isArray(o.weakDimensions) ? o.weakDimensions.join('、') : '信息密度不足'));
   parts.push('【目标最少字数】' + (o.minChars || NTL_TABOO_DEFAULT_MIN_CHARS));
   if (o.ntlHint) parts.push(String(o.ntlHint).trim());
-  if (o.context) parts.push('【角色/条目上下文】\n' + String(o.context).trim().slice(0, ctxMax));
-  parts.push('【待加厚内容】\n' + String(o.text || '').trim().slice(0, bodyMax));
+  if (o.context) parts.push('【角色/条目上下文】\n' + truncateToTokens(String(o.context).trim(), ctxMax));
+  parts.push('【待加厚内容】\n' + truncateToTokens(String(o.text || '').trim(), bodyMax));
   return parts.join('\n\n');
 }
 

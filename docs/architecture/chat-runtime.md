@@ -24,18 +24,18 @@
 - **非** Prompt Manager 逐块等价；续写 system 指令为构建器实用增强。
 - **向量世界书**按 selective 降级处理。
 - 无全局 World Info 选择器、无 outlet、无自动化 ID / STScript。
-- 扫描缓冲未实现 ST 的角色名前缀 / `\x01` 说话人标记。
+- 扫描缓冲：`budgetTokens`（tiktoken 截断近端）；旧名 `budgetChars` 视为 token 数兼容
 - 卡字段 `personality` / `scenario` / `mes_example` 仅在 state 有值时注入。
 - 斜杠命令 placement、推理块完整链路未做。
 
 ## 上下文预算（与助手共用）
 
-试聊发送走 `assistant/contextManager.prepareChatCompletionMessages`：
+试聊发送与世界书扫描缓冲、小说 RAG / prior 拼装统一走 `assistant/contextManager`（tiktoken `cl100k_base`）：
 
-- **tiktoken**（`js-tiktoken` / `cl100k_base`）计数，不再用「中文×2」启发式
 - 总窗 **200k**；回复预留取 `max(chatMaxTokens, 8k)`
-- **≥60%** 启动压缩；**≥80%** 激进压缩（压缩对话 body，保留前缀连续 system）
+- **≥60%** 启动压缩；**≥80%** 激进压缩
 - Token 指示与 Prompt 调试区显示真实 tok 与压缩档位
+- **禁止**再用字符数粗估 token / 字符盲切当 token 预算
 
 ## 使用
 

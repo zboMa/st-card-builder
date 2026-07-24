@@ -1,15 +1,16 @@
 /**
- * 上下文预算与字段截断常量（统一放宽）
+ * 上下文预算常量（单位：tiktoken tokens，非字符）
  * 成人联动 / 分析 prior / 扩写等：单次相关附加块合计建议 ≤ CONTEXT_HARD_CAP
+ * 截断与累计请用 assistant/contextManager（countTokens / truncateToTokens / createTokenBudgetAccumulator）
  */
 
-/** 硬顶：单次成人相关附加上下文（字） */
+/** 硬顶：单次成人相关附加上下文（tokens） */
 export var CONTEXT_HARD_CAP = 50000;
 
 /** 成人 Canon 主块默认预算 */
 export var ADULT_CANON_BUDGET = 40000;
 
-/** 旧 digest API 默认（已加厚） */
+/** 旧 digest API 默认 */
 export var ADULT_DIGEST_DEFAULT = 16000;
 
 /** 人物 NSFW 字段摘录 */

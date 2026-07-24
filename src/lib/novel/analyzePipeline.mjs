@@ -23,6 +23,7 @@ import {
   SKELETON_RELATIONS,
   ENTITY_SUMMARY_STORE,
 } from './contextBudgets.mjs';
+import { createTokenBudgetAccumulator, truncateToTokens } from '../assistant/contextManager.mjs';
 import {
   resolveProtagonistName,
   ensureProtagonistEntity,
@@ -260,27 +261,27 @@ export function listEntitiesNeedingEnrich(entities, strict, adultMode, ntlMode, 
 }
 
 /** 关系 prior（供骨架/关系步注入，吸收旧一体分析图谱摘要） */
-export function formatPriorRelationsRef(relations, entities, maxChars) {
+export function formatPriorRelationsRef(relations, entities, maxTokens) {
   var list = relations || [];
   if (!list.length) return '\n【已有关系】无';
   var idToName = {};
   (entities || []).forEach(function(e) {
     if (e && e.id) idToName[e.id] = e.name;
   });
-  var budget = maxChars || PRIOR_RELATIONS_BUDGET;
+  var budget = maxTokens || PRIOR_RELATIONS_BUDGET;
   var lines = ['【已有关系（可补 evidence / 更精确 rel；勿无意义重复）】共 ' + list.length];
-  var used = lines[0].length;
+  var acc = createTokenBudgetAccumulator(budget);
+  acc.tryAdd(lines[0]);
   list.slice(0, 200).forEach(function(r) {
     if (!r) return;
     var from = idToName[r.fromId] || r.from || r.fromId || '?';
     var to = idToName[r.toId] || r.to || r.toId || '?';
     var ev = Array.isArray(r.evidence) && r.evidence[0]
-      ? ' | ' + String(r.evidence[0]).slice(0, PRIOR_REL_EVIDENCE)
+      ? ' | ' + truncateToTokens(String(r.evidence[0]), PRIOR_REL_EVIDENCE)
       : '';
     var line = '- ' + from + ' -[' + (r.rel || 'related') + ']-> ' + to + ev;
-    if (used + line.length > budget) return;
+    if (!acc.tryAdd(line)) return;
     lines.push(line);
-    used += line.length;
   });
   return '\n' + lines.join('\n');
 }

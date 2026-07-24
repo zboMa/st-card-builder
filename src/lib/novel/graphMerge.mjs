@@ -11,6 +11,7 @@ import {
   PRIOR_WB_REF_PER,
   PRIOR_GRAPH_BUDGET,
 } from './contextBudgets.mjs';
+import { createTokenBudgetAccumulator, truncateToTokens } from '../assistant/contextManager.mjs';
 
 /** @returns {{ nodes: object[], edges: object[], updatedAt: string }} */
 export function emptyKnowledgeGraph() {
@@ -298,70 +299,71 @@ export function mergeGraphDelta(graph, delta) {
 }
 
 /** 提示词用：已有人物摘要 */
-export function formatPriorCharactersRef(characters, maxChars) {
+export function formatPriorCharactersRef(characters, maxTokens) {
   var list = characters || [];
   if (!list.length) return '';
-  var budget = maxChars || PRIOR_CHARS_BUDGET;
+  var budget = maxTokens || PRIOR_CHARS_BUDGET;
   var lines = [];
-  var used = 0;
+  var acc = createTokenBudgetAccumulator(budget);
   for (var i = 0; i < list.length; i++) {
     var c = list[i];
     var line = '- ' + c.name
       + ((c.aliases || []).length ? ' aliases=' + c.aliases.join('/') : '')
-      + (c.note ? ' · ' + String(c.note).slice(0, PRIOR_CHAR_NOTE) : '')
+      + (c.note ? ' · ' + truncateToTokens(String(c.note), PRIOR_CHAR_NOTE) : '')
       + (c.profile ? ' [已有完整档案]' : '');
-    if (used + line.length > budget) {
+    if (!acc.tryAdd(line)) {
       lines.push('- …另有 ' + (list.length - i) + ' 人已省略');
       break;
     }
     lines.push(line);
-    used += line.length;
   }
   return '\n【已有人物（可 upsert 合并/补全；勿无空壳重复）】\n' + lines.join('\n');
 }
 
 /** 提示词用：已有世界书摘要 */
-export function formatPriorWorldbookRef(wbEntries, maxChars) {
+export function formatPriorWorldbookRef(wbEntries, maxTokens) {
   var list = wbEntries || [];
   if (!list.length) return '';
-  var budget = maxChars || PRIOR_WB_REF_BUDGET;
+  var budget = maxTokens || PRIOR_WB_REF_BUDGET;
   var lines = [];
-  var used = 0;
+  var acc = createTokenBudgetAccumulator(budget);
   for (var i = 0; i < list.length; i++) {
     var e = list[i];
     var line = '- [' + (e.category || 'setting') + '] ' + e.name
       + ((e.keys || []).length ? ' keys=' + (e.keys || []).slice(0, 4).join('/') : '')
-      + ': ' + String(e.content || '').slice(0, PRIOR_WB_REF_PER);
-    if (used + line.length > budget) {
+      + ': ' + truncateToTokens(String(e.content || ''), PRIOR_WB_REF_PER);
+    if (!acc.tryAdd(line)) {
       lines.push('- …另有 ' + (list.length - i) + ' 条已省略');
       break;
     }
     lines.push(line);
-    used += line.length;
   }
   return '\n【已有世界书（可 upsert/merge；勿同名空壳）】\n' + lines.join('\n');
 }
 
 /** 提示词用：图谱摘要 */
-export function formatPriorGraphRef(graph, maxChars) {
+export function formatPriorGraphRef(graph, maxTokens) {
   var g = graph || emptyKnowledgeGraph();
   var nodes = g.nodes || [];
   var edges = g.edges || [];
   if (!nodes.length && !edges.length) return '';
-  var budget = maxChars || PRIOR_GRAPH_BUDGET;
+  var budget = maxTokens || PRIOR_GRAPH_BUDGET;
   var lines = ['节点 ' + nodes.length + ' · 边 ' + edges.length];
-  var used = lines[0].length;
+  var acc = createTokenBudgetAccumulator(budget);
+  acc.tryAdd(lines[0]);
+  var nodeCap = Math.floor(budget * 0.55);
+  var nodeAcc = createTokenBudgetAccumulator(nodeCap);
+  nodeAcc.tryAdd(lines[0]);
   nodes.slice(0, 80).forEach(function(n) {
     var line = 'N ' + n.id + ' (' + n.type + ') ' + n.label;
-    if (used + line.length > budget * 0.55) return;
+    if (!nodeAcc.tryAdd(line)) return;
+    if (!acc.tryAdd(line)) return;
     lines.push(line);
-    used += line.length;
   });
   edges.slice(0, 100).forEach(function(e) {
     var line = 'E ' + e.from + ' -[' + e.rel + ']-> ' + e.to;
-    if (used + line.length > budget) return;
+    if (!acc.tryAdd(line)) return;
     lines.push(line);
-    used += line.length;
   });
   return '\n【已有知识图谱（更新节点 attrs / 补边 evidence；id 稳定复用）】\n' + lines.join('\n');
 }

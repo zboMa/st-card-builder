@@ -5,6 +5,7 @@ import { keywordSearchChapters } from './keywordSearch.mjs';
 import { vectorSearchChunks } from './vectorSearch.mjs';
 import { fetchEmbeddings } from './embedClient.mjs';
 import { loadRagIndex } from './store.mjs';
+import { truncateSnippetsByTokenBudget } from '../../assistant/contextManager.mjs';
 
 var RRF_K = 60;
 
@@ -29,29 +30,18 @@ export function rrfMerge(rankedLists, opts) {
   }).sort(function(a, b) { return b.rrf - a.rrf; });
 }
 
-/** 按预算截断片段列表 */
+/** 按 token 预算截断片段列表（tiktoken） */
 export function truncateByBudget(snippets, budget) {
-  // 显式传入 budget 时尊重调用方；未传则默认 12k，且下限 200
   var cap = budget != null ? Math.max(1, budget) : 12000;
   if (budget == null) cap = Math.max(200, cap);
-  var out = [];
-  var total = 0;
-  (snippets || []).forEach(function(s) {
-    var text = String(s.text || '');
-    if (!text) return;
-    if (total >= cap) return;
-    if (total + text.length > cap) {
-      var remain = cap - total;
-      if (remain > 80) {
-        out.push(Object.assign({}, s, { text: text.slice(0, remain) }));
-        total += remain;
-      }
-      return;
-    }
-    out.push(s);
-    total += text.length;
-  });
-  return { snippets: out, totalChars: total, truncated: total >= cap };
+  var cut = truncateSnippetsByTokenBudget(snippets, cap, { minRemain: 24 });
+  return {
+    snippets: cut.snippets,
+    totalTokens: cut.totalTokens,
+    /** @deprecated 兼容：数值为 token */
+    totalChars: cut.totalTokens,
+    truncated: cut.truncated,
+  };
 }
 
 /**

@@ -1,9 +1,10 @@
 /**
  * 人物 AI 扩展：仅按人名/别名匹配原文召回，禁止无过滤塞全书
- * 默认预算 30000 字；超预算按首现 / 共现密度 / 分散章节抽样
+ * 默认预算按 tiktoken；超预算按首现 / 共现密度 / 分散章节抽样
  */
+import { truncateSnippetsByTokenBudget } from '../assistant/contextManager.mjs';
 
-export var DEFAULT_EXPAND_BUDGET = 30000;
+export var DEFAULT_EXPAND_BUDGET = 12000;
 export var DEFAULT_WINDOW = 180;
 
 /**
@@ -80,15 +81,16 @@ export function findNameHits(chapters, name, aliases, windowChars) {
 }
 
 /**
- * 覆盖度抽样：保留首现章、高共现、分散章节，直到不超过预算
+ * 覆盖度抽样：保留首现章、高共现、分散章节，直到不超过 token 预算
  * @param {ReturnType<typeof findNameHits>} hits
- * @param {number} budget
+ * @param {number} budgetTokens
  */
-export function sampleHitsByCoverage(hits, budget) {
-  // 尊重调用方预算；仅保证下限避免 0
-  var cap = Math.max(200, budget || DEFAULT_EXPAND_BUDGET);
+export function sampleHitsByCoverage(hits, budgetTokens) {
+  var cap = budgetTokens == null || budgetTokens === ''
+    ? DEFAULT_EXPAND_BUDGET
+    : Math.max(1, Math.floor(Number(budgetTokens) || DEFAULT_EXPAND_BUDGET));
   var list = (hits || []).slice();
-  if (!list.length) return { snippets: [], totalChars: 0, truncated: false, hitCount: 0 };
+  if (!list.length) return { snippets: [], totalTokens: 0, totalChars: 0, truncated: false, hitCount: 0 };
 
   // 按章节统计共现
   var byChapter = {};
@@ -126,35 +128,22 @@ export function sampleHitsByCoverage(hits, budget) {
   }
 
   var picked = [];
-  var total = 0;
   var used = {};
-  var full = false;
-  for (var i = 0; i < roundRobin.length && !full; i++) {
+  for (var i = 0; i < roundRobin.length; i++) {
     var h = roundRobin[i];
     var key = h.chapterId + ':' + h.start;
     if (used[key]) continue;
-    var len = h.text.length;
-    if (total >= cap) break;
-    if (total + len > cap) {
-      // 截断以贴预算；剩余过短则结束
-      var remain = cap - total;
-      if (remain > 120) {
-        used[key] = true;
-        picked.push(Object.assign({}, h, { text: h.text.slice(0, remain) }));
-        total += remain;
-      }
-      full = true;
-      break;
-    }
     used[key] = true;
     picked.push(h);
-    total += len;
   }
 
+  var cut = truncateSnippetsByTokenBudget(picked, cap, { minRemain: 40 });
   return {
-    snippets: picked,
-    totalChars: total,
-    truncated: total >= cap || picked.length < list.length,
+    snippets: cut.snippets,
+    totalTokens: cut.totalTokens,
+    /** @deprecated 兼容：数值为 token */
+    totalChars: cut.totalTokens,
+    truncated: cut.truncated || cut.snippets.length < list.length,
     hitCount: list.length,
   };
 }

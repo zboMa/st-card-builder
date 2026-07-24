@@ -15,6 +15,7 @@ import {
   ADULT_CANON_BUDGET,
 } from '../nsfwSupport.mjs';
 import { parseJsonLoose } from '../../utils.mjs';
+import { countTokens, truncateToTokens } from '../../assistant/contextManager.mjs';
 
 /**
  * @param {object} ctx — 小说工坊上下文（由 shared/context.mjs 创建，含 $、save、busyFlags 等）
@@ -137,10 +138,15 @@ export function registerStyle(ctx) {
         var sample = [];
         var budget = Math.max(4000, state.styleChunkSize || 16000);
         var step = Math.max(1, Math.floor(chapters.length / 6));
-        var sliceLen = Math.min(4000, Math.floor(budget / 4) || 2000);
-        for (var i = 0; i < chapters.length && sample.join('').length < budget; i += step) {
+        var sliceTok = Math.min(1500, Math.floor(budget / 4) || 800);
+        var used = 0;
+        for (var i = 0; i < chapters.length && used < budget; i += step) {
           if (task.signal && task.signal.aborted) throw new DOMException('已取消', 'AbortError');
-          sample.push('【' + chapters[i].title + '】\n' + chapters[i].text.slice(0, sliceLen));
+          var chunk = '【' + chapters[i].title + '】\n' + truncateToTokens(chapters[i].text, sliceTok);
+          var tok = countTokens(chunk);
+          if (used + tok > budget && sample.length) break;
+          sample.push(chunk);
+          used += tok;
         }
         var head = ctx.promptText(
           'novelStyleDistill',

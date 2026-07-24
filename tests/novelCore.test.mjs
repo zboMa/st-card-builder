@@ -269,8 +269,8 @@ describe('novel chapters', function() {
 });
 
 describe('novel recall', function() {
-  it('默认预算 30000', function() {
-    assert.equal(DEFAULT_EXPAND_BUDGET, 30000);
+  it('默认预算 12000 tokens', function() {
+    assert.equal(DEFAULT_EXPAND_BUDGET, 12000);
   });
 
   it('仅匹配人名别名，不吞全书', function() {
@@ -284,8 +284,8 @@ describe('novel recall', function() {
     var hits = findNameHits(chapters, '小龙女', ['姑姑']);
     assert.ok(hits.length >= 2);
     assert.ok(hits.every(function(h) { return h.text.indexOf('没有目标') < 0 || h.chapterId === '1' || h.chapterId === '3'; }));
-    var payload = buildRecallPayload(chapters, '小龙女', ['姑姑'], 500, 20);
-    assert.ok(payload.totalChars <= 500);
+    var payload = buildRecallPayload(chapters, '小龙女', ['姑姑'], 80, 20);
+    assert.ok(payload.totalChars <= 80);
     assert.ok(payload.body.indexOf('小龙女') >= 0 || payload.body.indexOf('姑姑') >= 0);
     assert.ok(payload.body.indexOf(chapters[1].text) < 0);
   });
@@ -297,8 +297,8 @@ describe('novel recall', function() {
       chapters.push({ id: String(i), title: '章' + i, text: long + '旁白' + i, enabled: true });
     }
     var hits = findNameHits(chapters, '小龙女', [], 50);
-    var sampled = sampleHitsByCoverage(hits, 800);
-    assert.ok(sampled.totalChars <= 800);
+    var sampled = sampleHitsByCoverage(hits, 120);
+    assert.ok(sampled.totalChars <= 120);
     assert.ok(sampled.truncated);
     assert.ok(sampled.snippets.length >= 1);
   });

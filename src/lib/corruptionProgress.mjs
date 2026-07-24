@@ -8,6 +8,7 @@ import {
   CORRUPTION_WB_CHARS,
   CORRUPTION_BRIEF_CHARS,
 } from './novel/contextBudgets.mjs';
+import { truncateToTokens } from './assistant/contextManager.mjs';
 
 export var CORRUPTION_RULES_COMMENT = '恶堕进度总则';
 export var CORRUPTION_ARCHIVE_PREFIX = '恶堕档案·';
@@ -330,14 +331,14 @@ export function buildArchiveUserPrompt(opts) {
   if (o.identity) parts.push('身份：' + String(o.identity).trim());
   if (o.worldbookContent) {
     parts.push('【该角色世界书人物设定——必须据此写恶堕，禁止写成另一人或主角】\n'
-      + String(o.worldbookContent).trim().slice(0, CORRUPTION_WB_CHARS));
+      + truncateToTokens(String(o.worldbookContent).trim(), CORRUPTION_WB_CHARS));
   } else {
     parts.push('【警告】未提供该角色世界书正文，请仍按角色名写出丰满分期，但勿编造与已知卡面冲突的设定。');
   }
-  if (o.customBrief) parts.push('弧光补充：\n' + String(o.customBrief).trim().slice(0, CORRUPTION_BRIEF_CHARS));
+  if (o.customBrief) parts.push('弧光补充：\n' + truncateToTokens(String(o.customBrief).trim(), CORRUPTION_BRIEF_CHARS));
   if (o.extraNotes) {
     parts.push('附加设定（须融入各阶段补完，禁止忽略）：\n'
-      + String(o.extraNotes).trim().slice(0, CORRUPTION_BRIEF_CHARS));
+      + truncateToTokens(String(o.extraNotes).trim(), CORRUPTION_BRIEF_CHARS));
   }
   if (o.nsfwFlavorHint) parts.push(String(o.nsfwFlavorHint).trim());
   if (o.ntlHint) parts.push(String(o.ntlHint).trim());

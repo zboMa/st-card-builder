@@ -22,6 +22,7 @@ import {
   DEFAULT_CORRUPTION_PRESET,
 } from '../../corruptionProgress.mjs';
 import { CORRUPTION_EXPAND_WB } from '../../novel/contextBudgets.mjs';
+import { truncateToTokens } from '../../assistant/contextManager.mjs';
 import {
   isPersonWorldbookComment,
   personNameFromWorldbookComment,
@@ -996,7 +997,7 @@ export function attachAdultConfigPanel(ctx, s, panel) {
                     role: 'user',
                     content: '薄弱阶段：' + richness.weakStages.join('、')
                       + '\n目标每阶段≥' + CORRUPTION_MIN_CHARS_PER_STAGE + '字，全文≥' + minTotal + '字。\n\n'
-                      + '【该角色世界书】\n' + worldbookContent.slice(0, CORRUPTION_EXPAND_WB)
+                      + '【该角色世界书】\n' + truncateToTokens(worldbookContent, CORRUPTION_EXPAND_WB)
                       + (siblingHint ? '\n' + siblingHint : '')
                       + '\n\n【待加厚正文】\n' + content,
                   },

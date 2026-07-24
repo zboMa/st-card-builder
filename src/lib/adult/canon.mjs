@@ -18,6 +18,7 @@ import {
   STYLE_ADULT_FALLBACK,
   clampBudget,
 } from '../novel/contextBudgets.mjs';
+import { countTokens, truncateToTokens } from '../assistant/contextManager.mjs';
 import { formatVesselCanonBlock } from './vessels/worldVessels.mjs';
 
 var ADULT_SIDE_TYPES = { item: 1, location: 1, lore: 1, faction: 1 };
@@ -29,15 +30,18 @@ function isPlaceholderText(s) {
   return false;
 }
 
+/** 字段摘录：按 tiktoken 截断 */
 function take(s, n) {
   var t = String(s == null ? '' : s).trim();
   if (!t) return '';
-  if (t.length <= n) return t;
-  return t.slice(0, n) + '…';
+  var cap = Math.max(0, Math.floor(Number(n) || 0));
+  if (!cap) return '';
+  if (countTokens(t) <= cap) return t;
+  return truncateToTokens(t, cap);
 }
 
-function compactLen(s) {
-  return String(s || '').replace(/\s+/g, '').length;
+function tokLen(s) {
+  return countTokens(s);
 }
 
 function asList(v) {
@@ -56,7 +60,7 @@ export function formatCorruptionArchiveDigests(worldbookEntries, opts) {
   var per = Math.max(400, Math.floor(Number(opts.perArchive) || CORRUPTION_SIBLING_PER));
   var prefix = '恶堕档案·';
   var lines = ['【已有恶堕档案（气质/阶段须对齐，禁止互相矛盾）】'];
-  var used = lines[0].length;
+  var used = tokLen(lines[0]);
   (Array.isArray(worldbookEntries) ? worldbookEntries : []).forEach(function(e) {
     if (!e) return;
     var comment = String(e.comment || '').trim();
@@ -71,9 +75,10 @@ export function formatCorruptionArchiveDigests(worldbookEntries, opts) {
     var line = '- ' + name
       + (stages.length ? ' | 阶段:' + stages.slice(0, 9).join('/') : '')
       + '\n  ' + excerpt;
-    if (used + line.length > budget) return;
+    var lineTok = tokLen(line);
+    if (used + lineTok > budget) return;
     lines.push(line);
-    used += line.length;
+    used += lineTok;
   });
   if (lines.length < 2) return '';
   return '\n' + lines.join('\n');
@@ -170,7 +175,7 @@ export function buildAdultCanonDigest(opts) {
   parts.push('\n【成人 Canon·已生成内容联动】');
   parts.push('以下为卡内已有成人相关事实。新生成内容必须与之对齐并写出互动关系；冲突时保留已确认的 Limits / 权力结构 / 恶堕阶段气质，禁止另起互不相关的禁忌体系。');
 
-  var used = compactLen(parts.join('\n'));
+  var used = tokLen(parts.join('\n'));
   var remain = function() { return budget - used; };
 
   var persons = (opts.entities || []).filter(function(e) {
@@ -184,25 +189,27 @@ export function buildAdultCanonDigest(opts) {
 
   var personBudget = Math.floor(budget * 0.55);
   var personParts = ['## 人物成人层'];
-  var pUsed = personParts[0].length;
+  var pUsed = tokLen(personParts[0]);
   persons.forEach(function(ent) {
     if (pUsed >= personBudget || remain() < 200) return;
     var block = formatPersonCanonBlock(ent, FIELD_PERSON_NSFW, FIELD_PERSON_NTL);
     if (!block) return;
-    if (pUsed + block.length + 2 > personBudget) {
+    var blockTok = tokLen(block);
+    if (pUsed + blockTok + 2 > personBudget) {
       block = take(block, Math.max(200, personBudget - pUsed - 10));
+      blockTok = tokLen(block);
     }
     personParts.push(block);
-    pUsed += block.length + 2;
+    pUsed += blockTok + 2;
   });
   if (personParts.length > 1) {
     parts.push(personParts.join('\n'));
-    used = compactLen(parts.join('\n'));
+    used = tokLen(parts.join('\n'));
   }
 
   var nsfwEntBudget = Math.floor(budget * 0.12);
   var nsfwLines = ['## NSFW 世界设定'];
-  var nUsed = nsfwLines[0].length;
+  var nUsed = tokLen(nsfwLines[0]);
   (opts.entities || []).filter(function(e) { return e && e.type === 'nsfw'; }).forEach(function(e) {
     if (nUsed >= nsfwEntBudget || remain() < 100) return;
     var a = e.attrs || {};
@@ -211,16 +218,16 @@ export function buildAdultCanonDigest(opts) {
       + (e.content ? '\n  ' + take(e.content, 600) : '')
       + (asList(a.limits).length ? '\n  禁：' + asList(a.limits).slice(0, LIST_LIMITS).join('、') : '');
     nsfwLines.push(line);
-    nUsed += line.length;
+    nUsed += tokLen(line);
   });
   if (nsfwLines.length > 1) {
     parts.push(nsfwLines.join('\n'));
-    used = compactLen(parts.join('\n'));
+    used = tokLen(parts.join('\n'));
   }
 
   var sideBudget = Math.floor(budget * 0.1);
   var sideLines = ['## 条目成人向用法'];
-  var sUsed = sideLines[0].length;
+  var sUsed = tokLen(sideLines[0]);
   (opts.entities || []).filter(function(e) {
     return e && ADULT_SIDE_TYPES[e.type] && e.attrs && e.attrs.adult;
   }).forEach(function(e) {
@@ -232,11 +239,11 @@ export function buildAdultCanonDigest(opts) {
       + (asList(a.limits).length ? ' | 禁：' + asList(a.limits).slice(0, 8).join('、') : '')
       + (asList(a.relatedPersons).length ? ' | 相关：' + asList(a.relatedPersons).slice(0, 8).join('、') : '');
     sideLines.push(line);
-    sUsed += line.length;
+    sUsed += tokLen(line);
   });
   if (sideLines.length > 1) {
     parts.push(sideLines.join('\n'));
-    used = compactLen(parts.join('\n'));
+    used = tokLen(parts.join('\n'));
   }
 
   if (includeVessels && remain() > 400) {
@@ -246,7 +253,7 @@ export function buildAdultCanonDigest(opts) {
     });
     if (vesselBlock) {
       parts.push(vesselBlock);
-      used = compactLen(parts.join('\n'));
+      used = tokLen(parts.join('\n'));
     }
   }
 
@@ -257,14 +264,14 @@ export function buildAdultCanonDigest(opts) {
     });
     if (corr) {
       parts.push(corr.trim());
-      used = compactLen(parts.join('\n'));
+      used = tokLen(parts.join('\n'));
     }
   }
 
   var wbBudget = Math.floor(budget * 0.15);
   if (remain() > 300 && Array.isArray(opts.worldbookEntries)) {
     var wbLines = ['## 世界书人物条摘录'];
-    var wUsed = wbLines[0].length;
+    var wUsed = tokLen(wbLines[0]);
     opts.worldbookEntries.forEach(function(e) {
       if (!e || wUsed >= wbBudget || remain() < 100) return;
       var comment = String(e.comment || '');
@@ -273,18 +280,18 @@ export function buildAdultCanonDigest(opts) {
       if (!name || excludeSet[name]) return;
       var line = '- ' + name + '\n  ' + take(e.content, 900);
       wbLines.push(line);
-      wUsed += line.length;
+      wUsed += tokLen(line);
     });
     if (wbLines.length > 1) {
       parts.push(wbLines.join('\n'));
-      used = compactLen(parts.join('\n'));
+      used = tokLen(parts.join('\n'));
     }
   }
 
   if (includeStyle && opts.styleText && remain() > 200) {
     var stylePart = extractStyleSlice(opts.styleText);
     if (stylePart) {
-      if (compactLen(stylePart) > remain()) stylePart = take(stylePart, remain() - 20);
+      if (tokLen(stylePart) > remain()) stylePart = take(stylePart, remain() - 20);
       parts.push(stylePart.trim());
     }
   }
@@ -292,6 +299,6 @@ export function buildAdultCanonDigest(opts) {
   parts.push('【联动硬约束】新内容须与上列 Limits/NTL/恶堕气质/世界观载体可对读；写出与他人及法器/异能/场所等载体的互动，禁止孤立设定或错位道具体系。');
 
   var out = parts.join('\n');
-  if (compactLen(out) > budget) out = take(out, budget);
+  if (tokLen(out) > budget) out = take(out, budget);
   return out;
 }

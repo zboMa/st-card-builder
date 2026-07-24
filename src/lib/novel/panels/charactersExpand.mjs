@@ -167,7 +167,7 @@ export function attachNovelCharactersExpand(ctx, panel) {
           + '\n别名: ' + (ch.aliases || []).join('、')
           + buildContentModeFlags(state)
           + '\nContext: ' + (state.contextText || '')
-          + '\n召回字数: ' + recall.totalChars + (recall.truncated ? '（已抽样截断）' : '')
+          + '\n召回 tokens: ' + recall.totalChars + (recall.truncated ? '（已抽样截断）' : '')
           + '\n匹配词: ' + recall.terms.join('、')
           + '\n\n【原文片段】\n' + recall.body
           + '\n\n请输出附录1完整 JSON，字段须含: Chinese name, Nickname, age, gender, identity, key_events, relationships, turning_points, appearance{hair,eyes,build,识别特征}, personality{core_traits}, persona_layers{surface,social,intimate,under_stress,secret_self}, tension_pairs[{trait_a,trait_b,resolution}], core_desire, values_and_drives, hidden_motives, goals, weakness, likes, dislikes, skills, speech_style, NSFW_information（含 body/erogenous_zones/sexual_personality/contrast/xp_kinks/sensitive_triggers/inner_erotic_thoughts/Sex_related_traits/Kinks/Limits/desire_palette/sexual_psychology/situational_modulation/aftercare）。'
@@ -276,7 +276,7 @@ export function attachNovelCharactersExpand(ctx, panel) {
         if (options.openEditor !== false && !options.silent) panel.openProfileEditor(ch.id);
         ctx.setStatus(
           'novelCharStatus',
-          '「' + ch.name + '」扩展完成（召回 ' + recall.totalChars + ' 字 / ' + recall.snippetCount + ' 片段）' + flavorThinTip
+          '「' + ch.name + '」扩展完成（召回 ' + recall.totalChars + ' tok / ' + recall.snippetCount + ' 片段）' + flavorThinTip
         );
         return { id: ch.id, name: ch.name, mode: mode, recallChars: recall.totalChars, flavorThin: !!flavorThinTip };
       });

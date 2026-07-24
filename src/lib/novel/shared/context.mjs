@@ -128,7 +128,7 @@ export function createNovelAppContext(sm, opts) {
       if (!bodyEl) return Promise.resolve(true);
       if (titleEl) titleEl.textContent = iopts.title || 'AI 扩展确认';
       if (metaEl) {
-        metaEl.textContent = '将使用原文约 ' + (iopts.totalChars || 0) + ' 字'
+        metaEl.textContent = '将使用原文约 ' + (iopts.totalChars || 0) + ' tok'
           + (iopts.snippetCount != null ? '（' + iopts.snippetCount + ' 片段）' : '')
           + (iopts.truncated ? ' · 已按预算抽样' : '')
           + (iopts.terms && iopts.terms.length ? ' · 匹配词：' + iopts.terms.join('、') : '');

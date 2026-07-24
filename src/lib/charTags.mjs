@@ -1,8 +1,9 @@
 /**
  * 角色卡 tags 工具：对齐 ST chara_card_v3 的 tags / data.tags
  */
+import { countTokens, truncateToTokens } from './assistant/contextManager.mjs';
 
-/** 标签 AI 生成时上下文默认字数上限（约 12k） */
+/** 标签 AI 生成时上下文默认 token 上限（约 12k；历史名 *Chars 兼容） */
 export const DEFAULT_TAG_CONTEXT_CHARS = 12000;
 
 /** 规范化标签：trim、去空、保序去重 */
@@ -32,7 +33,7 @@ export function tagsFromCardJson(json) {
   return [];
 }
 
-/** 钳制标签生成上下文字数（过小回退默认，过大封顶） */
+/** 钳制标签生成上下文 token（过小回退默认，过大封顶） */
 export function clampTagContextChars(n) {
   var v = parseInt(n, 10);
   if (isNaN(v) || v < 1000) return DEFAULT_TAG_CONTEXT_CHARS;
@@ -41,14 +42,13 @@ export function clampTagContextChars(n) {
 }
 
 /**
- * 组装标签 AI 上下文：角色设定 + 开场白 + 世界书（按字数上限截断）
+ * 组装标签 AI 上下文：角色设定 + 开场白 + 世界书（按 token 上限截断）
  * @param {{ description?: string, firstMes?: string, altGreetings?: string[], worldbookEntries?: { comment?: string, content?: string }[] }} input
- * @param {number} [maxChars]
+ * @param {number} [maxTokens] 历史参数名 maxChars，单位为 tiktoken tokens
  */
-export function buildTagGenContext(input, maxChars) {
+export function buildTagGenContext(input, maxTokens) {
   var src = input || {};
-  // 显式上限优先；非法则回退默认（配置钳制见 clampTagContextChars）
-  var limit = parseInt(maxChars, 10);
+  var limit = parseInt(maxTokens, 10);
   if (isNaN(limit) || limit < 1) limit = DEFAULT_TAG_CONTEXT_CHARS;
   if (limit > 200000) limit = 200000;
   var sections = [];
@@ -62,7 +62,8 @@ export function buildTagGenContext(input, maxChars) {
   if (altText) sections.push('【备选开场】\n' + altText);
 
   var head = sections.join('\n\n');
-  var budget = Math.max(0, limit - (head ? head.length + 2 : 0) - 20);
+  var headTok = countTokens(head);
+  var budget = Math.max(0, limit - headTok - 8);
   var wbParts = [];
   var used = 0;
   var entries = Array.isArray(src.worldbookEntries) ? src.worldbookEntries : [];
@@ -71,19 +72,20 @@ export function buildTagGenContext(input, maxChars) {
     if (budget <= 0) break;
     var e = entries[i] || {};
     var block = '[标题:' + String(e.comment || '') + ']\n' + String(e.content || '');
-    if (used + block.length > budget) {
+    var blockTok = countTokens(block);
+    if (used + blockTok > budget) {
       var remain = budget - used;
-      if (remain > 40) wbParts.push(block.slice(0, remain) + '…');
+      if (remain > 24) wbParts.push(truncateToTokens(block, remain));
       break;
     }
     wbParts.push(block);
-    used += block.length + 2;
+    used += blockTok + 2;
   }
 
   if (wbParts.length) {
     head = (head ? head + '\n\n' : '') + '【世界书（截断）】\n' + wbParts.join('\n\n');
   }
-  if (head.length > limit) return head.slice(0, limit);
+  if (countTokens(head) > limit) return truncateToTokens(head, limit);
   return head;
 }
 

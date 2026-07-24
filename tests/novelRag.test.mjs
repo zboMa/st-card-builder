@@ -92,9 +92,13 @@ describe('novel RAG', function() {
       [{ id: 'b', text: 'B' }, { id: 'c', text: 'C' }],
     ]);
     assert.ok(merged[0].id === 'b' || merged[0].rrf > 0);
-    var cut = truncateByBudget([{ text: 'x'.repeat(100) }, { text: 'y'.repeat(100) }], 150);
-    assert.ok(cut.totalChars <= 150, 'budget truncate got ' + cut.totalChars);
+    var cut = truncateByBudget(
+      [{ text: '角色设定描写段落。'.repeat(80) }, { text: '另一段剧情描写。'.repeat(80) }],
+      40,
+    );
+    assert.ok(cut.totalTokens <= 40, 'budget truncate got ' + cut.totalTokens);
     assert.ok(cut.snippets.length >= 1);
+    assert.ok(cut.truncated);
   });
 
   it('searchPassages 实体二次检索：匹配 query 的实体才 boost，无匹配时不应固定回退', async function() {

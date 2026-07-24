@@ -4,6 +4,7 @@
 import { uid, escapeHtml, parseJsonLoose, normalizeNameList } from '../utils.mjs';
 import { applyTemplate } from '../promptStore.mjs';
 import { SETUP_ENTITY_SUMMARY } from './contextBudgets.mjs';
+import { truncateToTokens } from '../assistant/contextManager.mjs';
 import { buildSetupCorpus } from './chapters.mjs';
 import { DEFAULT_EXPAND_BUDGET } from './recall.mjs';
 import { findEntityMatch } from './entityStore.mjs';
@@ -177,7 +178,7 @@ export function attachNovelBootSetup(ctx, deps) {
         if (meta) meta.textContent = (corpus.source === 'rag' ? 'RAG 召回 ' : '范围截取 ') + corpus.charCount + ' 字 · ' + (corpus.chapterCount || 0) + (corpus.entity ? ' 章 · 实体 ' + corpus.entity.name : ' 章');
         if (prev) prev.textContent = corpus.text;
         var head = promptText('novelCharSetup', '你是 SillyTavern 角色卡写手。仅根据提供的小说原文，为指定角色生成角色设定。只输出 JSON：{ charName, wbName, charDesc, creatorNotes }');
-        var user = head + '\n角色名称: ' + charName + (corpus.entity ? '\n实体摘要: ' + String(corpus.entity.summary || '').slice(0, SETUP_ENTITY_SUMMARY) : '') + '\nContext: ' + (state.contextText || '无') + '\n\n【原文】\n' + corpus.text;
+        var user = head + '\n角色名称: ' + charName + (corpus.entity ? '\n实体摘要: ' + truncateToTokens(String(corpus.entity.summary || ''), SETUP_ENTITY_SUMMARY) : '') + '\nContext: ' + (state.contextText || '无') + '\n\n【原文】\n' + corpus.text;
         var text = await callAI(user, null, task.signal);
         var data = parseJsonLoose(text);
         var fields = { charName: String(data.charName || charName).trim() || charName, wbName: String(data.wbName || '').trim(), charDesc: String(data.charDesc || '').trim(), creatorNotes: String(data.creatorNotes || '').trim() };
@@ -226,7 +227,7 @@ export function attachNovelBootSetup(ctx, deps) {
         if (prev) prev.textContent = corpus.text;
         var headTpl = promptText('novelGreetingsGen', '你是 SillyTavern 开场白写手。只输出 JSON：{ "firstMes":"...", "altGreetings":[...] }，altGreetings 长度必须刚好为 {{altCount}}。');
         var head = applyTemplate(headTpl, { altCount: altCount });
-        var user = head + '\n角色名称: ' + charName + (corpus.entity ? '\n实体摘要: ' + String(corpus.entity.summary || '').slice(0, SETUP_ENTITY_SUMMARY) : '') + '\n开场白总数: ' + total + '（主开场 1 + 备选 ' + altCount + '）' + '\nContext: ' + (state.contextText || '无') + '\n\n【原文】\n' + corpus.text;
+        var user = head + '\n角色名称: ' + charName + (corpus.entity ? '\n实体摘要: ' + truncateToTokens(String(corpus.entity.summary || ''), SETUP_ENTITY_SUMMARY) : '') + '\n开场白总数: ' + total + '（主开场 1 + 备选 ' + altCount + '）' + '\nContext: ' + (state.contextText || '无') + '\n\n【原文】\n' + corpus.text;
         var text = await callAI(user, null, task.signal);
         var data = parseJsonLoose(text);
         var firstMes = String(data.firstMes || data.first_mes || '').trim();

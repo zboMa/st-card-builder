@@ -22,6 +22,7 @@ import {
   PRIOR_ENTITIES_SUMMARY,
   ENTITY_SUMMARY_STORE,
 } from './contextBudgets.mjs';
+import { createTokenBudgetAccumulator, truncateToTokens } from '../assistant/contextManager.mjs';
 import { isProtagonistEntity, resolveProtagonistName, matchesProtagonist } from './protagonist.mjs';
 
 export var ENTITY_TYPES = ['person', 'faction', 'location', 'item', 'event', 'lore', 'nsfw'];
@@ -492,17 +493,17 @@ export function countEntitiesByType(entities) {
 }
 
 /** 格式化已有实体参考（分析提示用） */
-export function formatPriorEntitiesRef(entities, maxChars) {
-  var budget = maxChars || PRIOR_ENTITIES_BUDGET;
+export function formatPriorEntitiesRef(entities, maxTokens) {
+  var budget = maxTokens || PRIOR_ENTITIES_BUDGET;
   var lines = ['【已有实体（同名/别名须合并 upsert，勿重复空壳）】'];
-  var used = lines[0].length;
+  var acc = createTokenBudgetAccumulator(budget);
+  acc.tryAdd(lines[0]);
   (entities || []).slice(0, 400).forEach(function(e) {
     var line = '- [' + e.type + '] ' + e.name
       + (e.aliases && e.aliases.length ? ' aka ' + e.aliases.slice(0, 6).join('/') : '')
-      + (e.summary ? ' | ' + String(e.summary).slice(0, PRIOR_ENTITIES_SUMMARY) : '');
-    if (used + line.length > budget) return;
+      + (e.summary ? ' | ' + truncateToTokens(String(e.summary), PRIOR_ENTITIES_SUMMARY) : '');
+    if (!acc.tryAdd(line)) return;
     lines.push(line);
-    used += line.length;
   });
   return '\n' + lines.join('\n');
 }
