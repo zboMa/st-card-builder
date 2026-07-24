@@ -1,9 +1,8 @@
 /**
- * 制卡主侧状态机 — localStorage 草稿持久化
- * 仿照 novel/stateMachine.mjs 模式，但后端为 localStorage
+ * 制卡主侧状态机 — 草稿持久化（IndexedDB 权威 + 内存缓存同步 API）
+ * 仿照 novel/stateMachine.mjs；CURRENT_KEY 仍在 localStorage
  */
 import {
-  DRAFTS_KEY,
   CURRENT_KEY,
   genId,
   buildDraftSnapshot,
@@ -13,19 +12,37 @@ import {
 } from './state.mjs';
 import { deepCopy } from '../utils.mjs';
 import { attachContentRevToDraft } from '../sync/contentRev.mjs';
+import {
+  getDraftsMapSync,
+  writeDraftsMapSync,
+  flushDraftsPersist,
+} from '../draftsStore.mjs';
 
 var DEBOUNCE_MS = 500;
+
+function tipSaveFailed(opts) {
+  if (opts && opts.reason === 'avatar') {
+    return '草稿元数据保存失败；头像已尝试写入 IndexedDB，请刷新后重试。';
+  }
+  return '草稿保存失败。请稍后重试；若仍失败可删掉不用的旧卡再试。';
+}
+
+function showSaveTip(msg) {
+  try {
+    if (typeof window !== 'undefined' && typeof window.__setStatus__ === 'function') {
+      window.__setStatus__(msg);
+      return;
+    }
+  } catch (e) { /* ignore */ }
+  if (typeof console !== 'undefined') console.warn('[stateMachine]', msg);
+}
 
 export function createCardStateMachine(state) {
   var saveTimer = null;
   var listeners = [];
 
   function getAllDrafts() {
-    try {
-      return JSON.parse(localStorage.getItem(DRAFTS_KEY)) || {};
-    } catch (e) {
-      return {};
-    }
+    return getDraftsMapSync() || {};
   }
 
   function getDraft(id) {
@@ -48,7 +65,8 @@ export function createCardStateMachine(state) {
     dr[state.draftId] = attachContentRevToDraft(buildDraftSnapshot(state));
     var saved = false;
     try {
-      localStorage.setItem(DRAFTS_KEY, JSON.stringify(dr));
+      var wrote = writeDraftsMapSync(dr);
+      if (!wrote || wrote.ok === false) throw new Error('drafts_persist_rejected');
       localStorage.setItem(CURRENT_KEY, state.draftId);
       saved = true;
       try {
@@ -57,10 +75,7 @@ export function createCardStateMachine(state) {
         }
       } catch (ePrefs) { /* ignore */ }
     } catch (e) {
-      var tip = opts.reason === 'avatar'
-        ? '草稿元数据保存失败；头像已尝试写入 IndexedDB，请刷新后重试。'
-        : '草稿保存失败（内容可能过大），请减少世界书条目或启用 IndexedDB。';
-      if (typeof alert !== 'undefined') alert(tip);
+      showSaveTip(tipSaveFailed(opts));
       console.warn('[stateMachine] save failed', e);
     }
     // 本地落盘即权威；卡包上云仅在卡管理「同步上云」或账户页 flush outbox 时进行
@@ -79,6 +94,10 @@ export function createCardStateMachine(state) {
     clearTimeout(saveTimer);
     var result = saveDraft();
     notifyListeners(result);
+    flushDraftsPersist().catch(function(err) {
+      console.warn('[stateMachine] flush IDB failed', err);
+      showSaveTip(tipSaveFailed({}));
+    });
     return result;
   }
 
@@ -207,7 +226,7 @@ export function createCardStateMachine(state) {
     var dr = getAllDrafts();
     if (!dr[id]) return { ok: false, error: '卡不存在' };
     delete dr[id];
-    localStorage.setItem(DRAFTS_KEY, JSON.stringify(dr));
+    writeDraftsMapSync(dr);
     if (id === state.draftId) {
       var ks = Object.keys(dr);
       if (ks.length > 0) {
@@ -230,7 +249,7 @@ export function createCardStateMachine(state) {
     copy.avatarInIdb = !!(src.avatarInIdb || src.avatarBase64);
     if (copy.avatarInIdb) copy.avatarBase64 = '';
     dr[newId] = attachContentRevToDraft(copy);
-    localStorage.setItem(DRAFTS_KEY, JSON.stringify(dr));
+    writeDraftsMapSync(dr);
     loadDraftIntoState(newId);
     return newId;
   }
@@ -244,7 +263,7 @@ export function createCardStateMachine(state) {
     d.charName = next;
     d.updatedAt = stampDraftUpdatedAt();
     dr[id] = attachContentRevToDraft(d);
-    localStorage.setItem(DRAFTS_KEY, JSON.stringify(dr));
+    writeDraftsMapSync(dr);
     if (id === state.draftId) {
       state.charName = next;
       state.updatedAt = d.updatedAt;
@@ -266,12 +285,13 @@ export function createCardStateMachine(state) {
       }
     });
     try {
-      localStorage.setItem(DRAFTS_KEY, JSON.stringify(next));
+      writeDraftsMapSync(next);
       var result = { saved: true, drafts: next, id: state.draftId };
       if (opts.notify !== false) notifyListeners(result);
       return Object.assign({ ok: true }, result);
     } catch (e) {
       console.warn('[stateMachine] writeDraftsMap failed', e);
+      showSaveTip(tipSaveFailed({}));
       return { ok: false, drafts: next };
     }
   }

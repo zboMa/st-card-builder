@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createDefaultCardState } from '../src/lib/card-builder/state.mjs';
 import { createCardStateMachine } from '../src/lib/card-builder/stateMachine.mjs';
 import { createCardBuilderContext } from '../src/lib/card-builder/shared/context.mjs';
+import { getDraftsMapSync, resetDraftsStoreForTests } from '../src/lib/draftsStore.mjs';
 
 describe('card-builder stateMachine exposes state', function() {
   it('sm.state 与 createDefaultCardState 为同一引用', function() {
@@ -34,6 +35,7 @@ describe('card-builder stateMachine exposes state', function() {
       setItem: function(k, v) { map[k] = String(v); },
       removeItem: function(k) { delete map[k]; },
     };
+    resetDraftsStoreForTests();
     try {
       var state = createDefaultCardState();
       state.draftId = 'draft_test';
@@ -50,9 +52,11 @@ describe('card-builder stateMachine exposes state', function() {
       var changed = sm.saveDraft();
       assert.notEqual(changed.unchanged, true);
       assert.ok(changed.saved);
-      var stored = JSON.parse(map['st_v3_builder_drafts']);
+      var stored = getDraftsMapSync();
       assert.equal(stored.draft_test.charName, '测试改');
+      assert.equal(JSON.parse(map['st_v3_builder_drafts']).draft_test.charName, '测试改');
     } finally {
+      resetDraftsStoreForTests();
       globalThis.localStorage = prevStorage;
     }
   });

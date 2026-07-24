@@ -36,7 +36,7 @@ import {
   import { buildSyncCenterSnapshot } from './syncCenter.mjs';
   import { fetchCloudQuota, quotaUsageHtml, invalidateQuotaCache } from './quotaClient.mjs';
   import { fetchCloudExport, fetchAuthTokens, revokeAuthToken } from './cloudApi.mjs';
-  import { DRAFTS_KEY } from '../card-builder/state.mjs';
+  import { getDraftsMapSync } from '../draftsStore.mjs';
 
 export function initAccountSyncPanel() {
   window.__scheduleUserPrefsCloudPush__ = scheduleUserPrefsCloudPush;
@@ -262,7 +262,7 @@ export function initAccountSyncPanel() {
 
   function readLocalDraftsForSyncCenter() {
     try {
-      return JSON.parse(localStorage.getItem(DRAFTS_KEY) || '{}') || {};
+      return getDraftsMapSync() || {};
     } catch (e) {
       return {};
     }

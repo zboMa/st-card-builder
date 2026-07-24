@@ -24,15 +24,22 @@ import {
 import { pushChapterCheckpoint } from './checkpoint.mjs';
 import { mergeForeshadowsIntoLedger, ledgerBrief } from './plotLedger.mjs';
 import { resolveBranchLedger, branchBrief, getBranch } from './branch.mjs';
-import { getActiveChapters, getActiveOutline } from './state.mjs';
+import { getActiveChapters, getActiveOutline, getLiveChapterById } from './state.mjs';
 
 export var WRITE_STEPS = ['plan', 'draft', 'feed', 'qa'];
+export var WRITE_STEP_LABELS = {
+  plan: '策划',
+  draft: '起草',
+  feed: '记忆',
+  qa: '质检',
+};
 
 /**
  * @param {object} deps
  * @param {function} deps.callAI
  * @param {function} deps.promptText
  * @param {function} [deps.onStep]
+ * @param {function} [deps.onDelta] 流式正文增量 (fullText, chapter)
  * @param {AbortSignal} [deps.signal]
  * @param {object} novel
  * @param {number} chapterIndex 可见章节下标
@@ -45,11 +52,24 @@ export async function runChapterWritePipeline(deps, novel, chapterIndex, opts) {
   var chapters = getActiveChapters(n);
   var outline = getActiveOutline(n);
   var idx = Math.max(0, Number(chapterIndex) || 0);
-  var ch = chapters[idx];
-  if (!ch) throw new Error('章节不存在');
+  var viewCh = chapters[idx];
+  if (!viewCh) throw new Error('章节不存在');
+  // 始终回绑 novel.chapters 活对象，防止视图层误返回克隆
+  var ch = getLiveChapterById(n, viewCh.id) || viewCh;
 
   function step(name) {
-    if (typeof d.onStep === 'function') d.onStep(name);
+    if (typeof d.onStep === 'function') d.onStep(name, { chapter: ch, index: idx });
+  }
+
+  function streamOpts() {
+    if (typeof d.onDelta !== 'function') return undefined;
+    return {
+      stream: true,
+      onDelta: function(text) {
+        ch.content = text;
+        d.onDelta(text, ch);
+      },
+    };
   }
 
   var ws = n.writeSettings || {};
@@ -57,7 +77,8 @@ export async function runChapterWritePipeline(deps, novel, chapterIndex, opts) {
   var runQa = o.skipQa ? false : (ws.runQuality !== false);
   var branch = getBranch(n, n.activeBranchId);
   var ledgerItems = resolveBranchLedger(n, n.activeBranchId);
-  var prev = idx > 0 ? chapters[idx - 1] : null;
+  var prevView = idx > 0 ? chapters[idx - 1] : null;
+  var prev = prevView ? (getLiveChapterById(n, prevView.id) || prevView) : null;
   var feeds = collectFeedForwardsBefore(chapters, idx);
 
   if (o.rewriteOnly) {
@@ -74,7 +95,7 @@ export async function runChapterWritePipeline(deps, novel, chapterIndex, opts) {
       'storyChapterRewrite',
       '你是长篇小说改写编辑。按要求修正正文。' + CHILD_SAFETY_RULE
     );
-    ch.content = await d.callAI(rewriteUser, rewriteSys, d.signal);
+    ch.content = await d.callAI(rewriteUser, rewriteSys, d.signal, streamOpts());
   } else if (!o.skipDraft) {
     step('plan');
     if (String(ch.content || '').trim()) pushChapterCheckpoint(ch, '重写前');
@@ -95,7 +116,7 @@ export async function runChapterWritePipeline(deps, novel, chapterIndex, opts) {
       feedForwards: feeds,
       branchHint: branchBrief(n, n.activeBranchId),
     });
-    ch.content = await d.callAI(user, system, d.signal);
+    ch.content = await d.callAI(user, system, d.signal, streamOpts());
   }
 
   if (runFeed && String(ch.content || '').trim()) {

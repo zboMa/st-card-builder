@@ -15,7 +15,8 @@ import {
   saveActiveNovelId,
 } from './idb.mjs';
 import { normalizeCharacterVersion } from './version.mjs';
-import { DRAFTS_KEY, CURRENT_KEY } from '../card-builder/state.mjs';
+import { CURRENT_KEY } from '../card-builder/state.mjs';
+import { getDraftsMapSync } from '../draftsStore.mjs';
 
 export var state = {
   cardId: '',
@@ -29,18 +30,46 @@ export var ui = {
   ssBranchTreeOpen: false,
   ssBranchExpandedId: '',
   ssReadTocOpen: false,
+  ssWriteTocOpen: false,
+  writeForceEdit: false,
   ssBranchPopoverDocHandler: null,
+  ssLedgerOpen: false,
+  ssLedgerPopoverDocHandler: null,
+  ssWriteToolPop: '',
+  ssWriteToolPopHandler: null,
+  ssMoreMenuOpen: false,
   /** 写作台当前选中的章节 id（切章前用来把 DOM 写回旧章） */
   writeChapterId: '',
+  /** AI 写作会话进行中：禁止用空 textarea 覆盖刚流出的正文 */
+  writeBusy: false,
+  /** 当前写作会话展示：{ step, batchIndex, batchTotal, modeLabel } */
+  writeSession: null,
+  writeConfigOpen: false,
 };
 
 export function $(id) {
   return document.getElementById(id);
 }
 
-export function setStatus(msg) {
+/**
+ * @param {string} msg
+ * @param {{ panel?: 'manage'|'graph'|'outline'|'write'|'read'|'all' }} [opts]
+ */
+export function setStatus(msg, opts) {
   state.status = String(msg || '');
-  ['ssManageStatus', 'ssGraphStatus', 'ssOutlineStatus', 'ssWriteStatus', 'ssReadStatus'].forEach(function(id) {
+  var o = opts || {};
+  var panel = o.panel || 'all';
+  var map = {
+    manage: 'ssManageStatus',
+    graph: 'ssGraphStatus',
+    outline: 'ssOutlineStatus',
+    write: 'ssWriteStatus',
+    read: 'ssReadStatus',
+  };
+  var ids = panel === 'all'
+    ? Object.keys(map).map(function(k) { return map[k]; })
+    : [map[panel] || 'ssWriteStatus'];
+  ids.forEach(function(id) {
     var el = $(id);
     if (!el) return;
     el.textContent = state.status;
@@ -87,7 +116,14 @@ export function promptText(id, fallback) {
   return fallback || '';
 }
 
-export async function callAI(userContent, systemExtra, signal) {
+/**
+ * @param {string} userContent
+ * @param {string} [systemExtra]
+ * @param {AbortSignal} [signal]
+ * @param {{ stream?: boolean, onDelta?: (text: string) => void }} [opts]
+ */
+export async function callAI(userContent, systemExtra, signal, opts) {
+  var o = opts || {};
   var apiUrlEl = $('apiUrl');
   var apiKeyEl = $('apiKey');
   var modelEl = $('modelSelect');
@@ -95,23 +131,76 @@ export async function callAI(userContent, systemExtra, signal) {
   var messages = [];
   if (systemExtra) messages.push({ role: 'system', content: systemExtra });
   messages.push({ role: 'user', content: userContent });
+  var wantStream = !!o.stream && typeof o.onDelta === 'function';
+  var body = { model: modelEl.value, messages: messages, temperature: 0.7 };
+  if (wantStream) body.stream = true;
   var res = await fetch(String(apiUrlEl.value).replace(/\/$/, '') + '/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Authorization: 'Bearer ' + (apiKeyEl ? apiKeyEl.value.trim() : ''),
     },
-    body: JSON.stringify({ model: modelEl.value, messages: messages, temperature: 0.7 }),
+    body: JSON.stringify(body),
     signal: signal,
   });
   if (!res.ok) throw new Error(res.status === 429 ? '429 限流' : 'HTTP ' + res.status);
-  var data = await res.json();
-  var text = data.choices && data.choices[0] && data.choices[0].message
-    ? data.choices[0].message.content
-    : '';
-  text = String(text || '').trim();
-  if (!text) throw new Error('模型返回空内容');
-  return text;
+
+  if (!wantStream) {
+    var data = await res.json();
+    var text = data.choices && data.choices[0] && data.choices[0].message
+      ? data.choices[0].message.content
+      : '';
+    text = String(text || '').trim();
+    if (!text) throw new Error('模型返回空内容');
+    return text;
+  }
+
+  var ct = String(res.headers.get('content-type') || '');
+  if (ct.indexOf('text/event-stream') === -1 && ct.indexOf('stream') === -1) {
+    var json = await res.json();
+    var plain = json.choices && json.choices[0] && json.choices[0].message
+      ? json.choices[0].message.content
+      : '';
+    plain = String(plain || '').trim();
+    if (!plain) throw new Error('模型返回空内容');
+    o.onDelta(plain);
+    return plain;
+  }
+
+  var reader = res.body.getReader();
+  var decoder = new TextDecoder('utf-8');
+  var fullText = '';
+  var buffer = '';
+  while (true) {
+    var result = await reader.read();
+    if (result.done) break;
+    buffer += decoder.decode(result.value, { stream: true });
+    while (true) {
+      var nl = buffer.indexOf('\n');
+      if (nl === -1) break;
+      var line = buffer.substring(0, nl).trim();
+      buffer = buffer.substring(nl + 1);
+      if (!line || line === 'data: [DONE]' || line.indexOf('data: ') !== 0) continue;
+      try {
+        var chunk = JSON.parse(line.substring(6));
+        var delta = chunk.choices && chunk.choices[0] && chunk.choices[0].delta;
+        if (delta && delta.content) {
+          fullText += delta.content;
+          o.onDelta(fullText);
+        }
+      } catch (e) { /* ignore malformed sse */ }
+    }
+  }
+  fullText = String(fullText || '').trim();
+  if (!fullText) throw new Error('模型返回空内容');
+  o.onDelta(fullText);
+  return fullText;
+}
+
+export function taskSetProgress(task, progress, text) {
+  var center = window.__aiTaskCenter__;
+  if (!task || !task.id || !center || typeof center.setProgress !== 'function') return;
+  try { center.setProgress(task.id, progress, text); } catch (e) { /* ignore */ }
 }
 
 export function runTracked(meta, fn) {
@@ -134,7 +223,7 @@ export function getCharacterVersion() {
   } catch (e) { /* ignore */ }
   try {
     var id = localStorage.getItem(CURRENT_KEY);
-    var drafts = JSON.parse(localStorage.getItem(DRAFTS_KEY) || '{}') || {};
+    var drafts = getDraftsMapSync() || {};
     var d = id && drafts[id];
     if (d && d.characterVersion) return normalizeCharacterVersion(d.characterVersion);
   } catch (e2) { /* ignore */ }

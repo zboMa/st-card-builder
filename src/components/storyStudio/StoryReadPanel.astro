@@ -1,22 +1,20 @@
 ---
-/** 在线阅读：操作右上角；目录默认隐藏，浮动出现 */
+/** 在线阅读：书名·分支在标题旁；右上模式+书签+全屏一行 */
 ---
 <div class="panel story-studio-panel" data-story-panel="read">
   <div class="ss-panel-header">
     <div class="ss-panel-heading">
-      <h2>在线阅读</h2>
-      <p class="ss-tip ui-panel-lead">一章一屏或分页。目录默认收起，点「目录」浮动打开。</p>
+      <div class="ss-panel-title-row">
+        <h2>在线阅读</h2>
+        <button type="button" id="btnSsReadBranchTag" class="ss-branch-tag" aria-haspopup="dialog" aria-expanded="false" title="查看并切换分支">—</button>
+      </div>
+      <p class="ss-tip ui-panel-lead">一章一屏或分页。目录默认收起。</p>
     </div>
-    <div class="ss-panel-actions" aria-label="阅读操作">
-      <strong id="ssReadTitle" class="ss-read-title-chip">—</strong>
-      <button type="button" id="btnSsReadToc" class="btn btn-ghost btn-inline" aria-expanded="false" aria-controls="ssReadAside">目录</button>
-      <label class="ss-read-mode-label">
-        模式
-        <select id="ssReadMode">
-          <option value="swipe">滑动（一章一屏）</option>
-          <option value="page">分页</option>
-        </select>
-      </label>
+    <div class="ss-panel-actions ss-panel-actions--nowrap" aria-label="阅读操作">
+      <select id="ssReadMode" class="ss-text-select cs-native-skip" aria-label="阅读模式" title="阅读模式">
+        <option value="swipe">滑动</option>
+        <option value="page">分页</option>
+      </select>
       <button type="button" id="btnSsReadBookmark" class="btn btn-ghost btn-inline">书签</button>
       <button type="button" id="btnSsReadFullscreen" class="btn btn-ghost btn-inline">全屏</button>
     </div>
@@ -28,16 +26,17 @@
         <strong>目录 / 书签</strong>
         <button type="button" class="btn-icon btn-icon--sm" id="btnSsReadTocClose" aria-label="关闭目录">×</button>
       </div>
-      <div class="ss-card-head" style="padding:8px 0;border:none;"><strong>目录</strong></div>
+      <div class="ss-toc-section-label">目录</div>
       <div id="ssReadToc" class="ss-toc"></div>
-      <div class="ss-card-head" style="padding:12px 0 6px;border:none;"><strong>书签</strong></div>
+      <div class="ss-toc-section-label">书签</div>
       <div id="ssReadBookmarks"></div>
     </aside>
     <div id="ssReadStage" class="ss-read-stage">
       <div id="ssReadBody" class="ss-read-body"></div>
-      <div class="ss-read-nav">
+      <div class="ss-read-nav" aria-label="章节导航">
+        <button type="button" id="btnSsReadToc" class="btn btn-ghost btn-inline" aria-expanded="false" aria-controls="ssReadAside">目录</button>
         <button type="button" id="btnSsReadPrev" class="btn btn-ghost btn-inline">上一章/页</button>
-        <span id="ssReadPageInfo" class="ss-muted"></span>
+        <span id="ssReadPageInfo" class="ss-muted ss-chap-meta-text"></span>
         <button type="button" id="btnSsReadNext" class="btn btn-ghost btn-inline">下一章/页</button>
       </div>
     </div>

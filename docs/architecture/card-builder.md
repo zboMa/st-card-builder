@@ -16,7 +16,8 @@
 | `fieldValidation.mjs` | 字段字典与 JSON 校验 |
 | `bootAiConfig.mjs` | AI 配置持久化与 `window.__*` 桥 |
 | `state.mjs` | 状态工厂、`buildCardJSONFromDraft`、标签/WB 工具 |
-| `stateMachine.mjs` | localStorage 草稿 CRUD + debounce |
+| `stateMachine.mjs` | 草稿 CRUD + debounce（落盘经 `draftsStore` → IndexedDB） |
+| `../draftsStore.mjs` | 卡草稿 IDB 权威 + LS 迁入 |
 | `shared/context.mjs` | `$`、save、callAI、runTracked、确认框 |
 | `panels/cardManager.mjs` | 卡列表 boot（`registerCardManager`） |
 | `panels/cardManagerShared.mjs` | 共享 state/工具、筛选、封面缩略图 |
@@ -51,8 +52,8 @@
 
 ## 本地草稿保存触发矩阵
 
-> 落盘目标：`localStorage` `st_v3_builder_drafts`；核心 API：`stateMachine.saveDraft()`。  
-> **内容未变**时不刷新 `updatedAt`、不写 LS（`draftContentEqual`，见 `state.mjs`）。  
+> 落盘目标：IndexedDB `cardDraftsV1`（内存缓存同步读写；启动时自 `st_v3_builder_drafts` 迁入）；核心 API：`stateMachine.saveDraft()` / `draftsStore`。  
+> **内容未变**时不刷新 `updatedAt`、不写盘（`draftContentEqual`，见 `state.mjs`）。  
 > 真实落盘时写入 `contentRev`（正文 CRC，见 `sync/contentRev.mjs`），云 dirty 主判据。
 
 ### 底层入口

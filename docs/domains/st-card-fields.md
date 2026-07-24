@@ -28,7 +28,8 @@
 
 | Key | 用途 |
 |---|---|
-| `st_v3_builder_drafts` | 草稿箱 |
+| `st_v3_builder_drafts` | （遗留）迁入 IndexedDB `cardDraftsV1` 后清除 |
+| IndexedDB `cardDraftsV1` | 卡草稿权威（整 map） |
 | `st_v3_builder_current_id` | 当前卡 |
 | `st_v3_builder_ai_config` | AI / 成人相关配置 |
 | `st_v3_builder_prompts` | 提示词覆写 |

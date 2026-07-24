@@ -2,7 +2,8 @@
  * 卡片管理：Crud（拆自 cardManager）
  */
 
-import { genId, DRAFTS_KEY, buildCardJSONFromDraft, normalizeTags, draftDisplayName } from '../state.mjs';
+import { genId, buildCardJSONFromDraft, normalizeTags, draftDisplayName } from '../state.mjs';
+import { writeDraftsMapSync } from '../../draftsStore.mjs';
 import { deepCopy } from '../../utils.mjs';
 import { engineAssert, engineTryAllowed, engineRefresh } from '../../actionEngine/helpers.mjs';
 
@@ -19,7 +20,7 @@ export function attachCardManagerCrud(ctx, s, panel) {
     d.avatarBase64 = '';
     dr[id] = d;
     try { ctx.sm.patchDraftRecord(id, { avatarInIdb: true, avatarBase64: '' }, { notify: false }); } catch (e) {
-      try { localStorage.setItem(DRAFTS_KEY, JSON.stringify(dr)); } catch (e2) { console.warn('Saving drafts to localStorage failed', e2); }
+      try { writeDraftsMapSync(dr); } catch (e2) { console.warn('Saving drafts failed', e2); }
     }
     return true;
   }

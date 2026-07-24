@@ -3,6 +3,7 @@
  */
 import { createDefaultCardState } from './state.mjs';
 import { createCardStateMachine } from './stateMachine.mjs';
+import { hydrateDraftsStore } from '../draftsStore.mjs';
 import { createCardBuilderContext } from './shared/context.mjs';
 import { registerCardManager } from './panels/cardManager.mjs';
 import { registerCharacter } from './panels/character.mjs';
@@ -99,6 +100,11 @@ export function bootCardBuilder() {
   window.addEventListener('st-idb-ready', async function() {
     var ensureFn = window.__ensureIdbReady__ || function() { return Promise.resolve(); };
     await ensureFn();
+    try {
+      await hydrateDraftsStore();
+    } catch (eHydrate) {
+      console.warn('[cardBuilder] drafts hydrate failed', eHydrate);
+    }
     var lastId = localStorage.getItem('st_v3_builder_current_id');
     if (lastId && ctx.sm.getAllDrafts()[lastId]) {
       if (ctx.panels.cardManager && typeof ctx.panels.cardManager.loadDraft === 'function') {

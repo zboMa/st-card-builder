@@ -209,11 +209,20 @@ describe('storyStudio export branch label', function() {
 describe('storyStudio UI ids for plotpilot', function() {
   it('写作面板含分支/连写/账本入口', function() {
     const write = readFileSync(join(root, 'src/components/storyStudio/StoryWritePanel.astro'), 'utf8');
-    assert.match(write, /id="ssWriteBranchSelect"/);
+    assert.match(write, /id="btnSsBranchTag"/);
+    assert.match(write, /id="ssBranchTreeModal"/);
+    assert.match(write, /id="ssWriteConfigModal"/);
+    assert.match(write, /id="btnSsWriteToc"/);
+    assert.match(write, /id="ssWriteChapIndex"/);
+    assert.match(write, /id="btnSsChapPrev"/);
+    assert.match(write, /id="ssWriteChapterTitleBtn"/);
+    assert.match(write, /id="btnSsChapNext"/);
     assert.match(write, /id="btnSsForkBranch"/);
-    assert.match(write, /id="btnSsWriteBatch"/);
+    assert.match(write, /id="btnSsWriteStart"/);
+    assert.match(write, /id="btnSsLedgerOpen"/);
     assert.match(write, /id="ssWriteLedger"/);
-    assert.match(write, /id="btnSsWriteRewrite"/);
+    assert.match(write, /value="rewrite"/);
+    assert.match(write, /value="batch"/);
     const manage = readFileSync(join(root, 'src/components/storyStudio/StoryManagePanel.astro'), 'utf8');
     assert.match(manage, /id="btnSsNewNovelWizard"/);
     const outline = readFileSync(join(root, 'src/components/storyStudio/StoryOutlinePanel.astro'), 'utf8');

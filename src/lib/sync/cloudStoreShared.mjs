@@ -13,8 +13,8 @@ import {
   idbAvatarFullKey,
   idbAvatarThumbKey,
 } from '../idbStore.mjs';
+import { getDraftsMapSync, writeDraftsMapSync } from '../draftsStore.mjs';
 
-var DRAFTS_KEY = 'st_v3_builder_drafts';
 var cloudEnabled = false;
 var lastCloudAt = null;
 var lastCloudError = null;
@@ -53,15 +53,11 @@ export function getCloudStatus() {
 }
 
 export function readDrafts() {
-  try {
-    return JSON.parse(localStorage.getItem(DRAFTS_KEY) || '{}') || {};
-  } catch (e) {
-    return {};
-  }
+  return getDraftsMapSync() || {};
 }
 
 export function writeDrafts(drafts) {
-  localStorage.setItem(DRAFTS_KEY, JSON.stringify(drafts || {}));
+  writeDraftsMapSync(drafts || {});
 }
 
 export function blobToBase64(blob) {

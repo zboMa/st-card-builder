@@ -25,9 +25,10 @@
 | `browserApp.mjs` | boot、`bindEvents`、`window.__storyStudio__` |
 | `shared.mjs` | 共享 `state` / `ui`、持久化、AI 调用、DOM 工具 |
 | `renderViews.mjs` | 五视图渲染（manage / graph / outline / write / read） |
-| `writeBranchUi.mjs` | 写作页、分支树浮层 |
+| `writeBranchUi.mjs` | 写作页、分支树浮层、流式正文 |
 | `manageActions.mjs` | CRUD、增版、发布、分享、导出 |
 | `writeActions.mjs` | 图谱/大纲收集、大纲生成、写章/连写、开分支 |
+| `writeSession.mjs` | 统一写作模式会话 |
 
 ## 版本模型（卡 / 小说一致）
 
@@ -41,10 +42,17 @@
 ## 视图约定（UI）
 
 - 各面板 **操作按钮在右上角**（`.ss-panel-actions`）
-- **图谱**：与小说分析相同的 G6 力导向可视化（`graphView.mjs` → `novel/graphViz.mjs`）；列表编辑收纳在折叠区
+- **图谱**：与小说分析相同的 G6 力导向可视化（`graphView.mjs` → `novel/graphViz.mjs`）；点击详情 / 右键菜单编辑
 - **大纲**：分段/续写先弹窗输入额外提示词；章节标题点击再编辑（非常驻输入框）
-- **写作**：主区正文；选项/账本/快照折叠；分支树点击弹出竖排浮层（节点展开小卡片看摘要，可再看全文）
+- **写作**：主 CTA「写作」统一开跑配置（写本章 / 进下一章 / 连写 N / 质检 / 改写）；正文区流式显示；步骤条 + 任务中心进度同源；分支/开分支收纳在「⋯」；摘要/快照/账本折叠
 - **阅读**：目录默认隐藏，点「目录」浮动出现
+
+## 写章数据契约（硬约束）
+
+- `normalizeNovel` **仅**用于加载 / 导入 / `persistNovel` 边界
+- `getActiveChapters` / `getActiveOutline` 返回 `novel` 上的**活引用**，禁止内部再 `normalizeNovel`
+- 写流水线按 chapter id 回绑 `novel.chapters` 后写 `content` / feed / quality / checkpoint
+- 生成中 `ui.writeBusy`：禁止用空 textarea 覆盖流式正文；取消只走任务中心
 
 ## 模块
 
@@ -52,14 +60,19 @@
 |---|---|
 | `state.mjs` / `idb.mjs` | 本地状态（含分支 / 伏笔账本 / 写设置） |
 | `branch.mjs` | 分支世界：开分支、解析可见章、发布裁剪、选项/结局 |
-| `graphView.mjs` / `graphSeed.mjs` | G6 可视化 + 卡面种子 |
+| `graphView.mjs` / `graphSeed.mjs` / `graphUi.mjs` | G6 可视化 + 卡面种子 + 弹窗编辑 |
 | `dialogs.mjs` | 自定义确认/输入/内容弹窗 |
 | `sharePlay.mjs` | 读者选线进度、分享稿复制为可编辑草稿 |
 | `version.mjs` | 版号 / **schema v2 树状 release** |
 | `tokenBudget.mjs` / `feedForward.mjs` / `plotLedger.mjs` / `quality.mjs` / `checkpoint.mjs` / `writePipeline.mjs` | 写章闭环 |
+| `writeSession.mjs` | 写作模式会话 / 配置面板 |
 | `novelVersions.mjs` | 草稿 / `versions[]`：切版、增版、发布 |
 | `shareClient.mjs` | 分享 API（latest + 钉版本） |
 | `exportTxt.mjs` | 导出（当前活动分支） |
+
+## 写章闭环
+
+章后 Feed-forward、洋葱 Token、伏笔账本、4 步进度（流式起草）、软质检/改写、连写 N 章、checkpoint、新书向导。`callAI` 支持 SSE `stream` + `onDelta`。
 
 ## 分支与发布
 
@@ -69,15 +82,13 @@
 - 读者选线进度：`sharePlay` 的 localStorage key 在钉版本时含版本号，避免与 latest 串进度（旧 token-only key 可读回退）
 - **复制到本地创作**：读者可将分享树复制为本机可编辑小说（清 share/发布字段）
 
-## 写章闭环
-
-章后 Feed-forward、洋葱 Token、伏笔账本、4 步进度、软质检/改写、连写 N 章、checkpoint、新书向导（见既有说明）。
-
 ## UI
 
 - 视图：`story-manage` / `story-graph` / `story-outline` / `story-write` / `story-read`
-- 写作页含**分支树**（切换 / 发布勾选 / 选项文案 / 标结局）
-- 工具栏 `btn-inline`
+- 写作/阅读：标题旁 **小说名 · 分支** tag（点开竖排分支树）；「写作」配置居中弹窗；正文下同款章导航；写作无正文时显示与阅读一致的摘要卡，点击进入编辑
+- 阅读右上：文字式模式 + 书签 + 全屏（单行）；目录侧栏保持浮动
+- 工具栏 `btn-inline`；同质操作不并排堆按钮
+- 写作相关弹窗挂到 `document.body`，避免被面板 `overflow` 裁切错位
 
 ## 分享
 

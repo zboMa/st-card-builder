@@ -6,7 +6,7 @@
 import { genStoryId, syncChaptersFromOutline, discardOutlineFrom, getActiveChapters, getActiveOutline } from './state.mjs';
 import { restoreChapterCheckpoint } from './checkpoint.mjs';
 import { createLedgerItem } from './plotLedger.mjs';
-import { setActiveBranch, getBranch, patchBranch, BRANCH_KIND_ENDING } from './branch.mjs';
+import { setActiveBranch, getBranch } from './branch.mjs';
 import { showSsConfirm, showSsPrompt } from './dialogs.mjs';
 import { relayoutStoryGraph } from './graphView.mjs';
 import {
@@ -27,9 +27,14 @@ import {
 import {
   closeBranchTreePopover,
   openBranchTreePopover,
+  closeLedgerPopover,
+  openLedgerPopover,
+  closeAllWriteToolPopovers,
+  openWriteToolPopover,
   renderBranchTree,
-  openBranchChapterModal,
   renderWrite,
+  setWriteTocOpen,
+  enterWriteContentEdit,
 } from './writeBranchUi.mjs';
 import {
   openNovel,
@@ -50,10 +55,15 @@ import {
   seedGraph,
   promptAndGenerateOutline,
   generateOutline,
-  writeChapter,
-  writeBatchChapters,
   forkCurrentChapterBranch,
 } from './writeActions.mjs';
+import {
+  onWritePrimaryClick,
+  runWriteSession,
+  saveWriteManually,
+  closeWriteConfig,
+  updateWriteModeUi,
+} from './writeSession.mjs';
 import {
   bindStoryGraphUi,
   openEditNodeDialog,
@@ -263,7 +273,6 @@ function bindEvents() {
     writeSel.addEventListener('change', function() {
       var nextId = String(writeSel.value || '');
       var prevId = String(ui.writeChapterId || '');
-      // change 时 value 已是新章：必须把表单写回旧章，否则像「切不过去」
       if (prevId && prevId !== nextId) {
         collectWriteFromDom({ chapterId: prevId });
       }
@@ -271,28 +280,69 @@ function bindEvents() {
       renderWrite();
     });
   }
-  var branchSel = $('ssWriteBranchSelect');
-  if (branchSel) {
-    branchSel.addEventListener('change', async function() {
-      if (!state.novel) return;
-      collectWriteFromDom();
-      collectLedgerFromDom();
-      try {
-        state.novel = setActiveBranch(state.novel, branchSel.value);
-        await persistNovel();
-        setStatus('已切换分支');
-        renderAll();
-      } catch (e) {
-        setStatus(e.message || String(e));
-      }
+
+  function goChapter(delta) {
+    if (!state.novel) return;
+    collectWriteFromDom();
+    var chapters = getActiveChapters(state.novel);
+    var curId = ui.writeChapterId || (writeSel && writeSel.value) || '';
+    var idx = chapters.findIndex(function(c) { return c.id === curId; });
+    var next = chapters[idx + delta];
+    if (!next) return;
+    if (writeSel) writeSel.value = next.id;
+    ui.writeChapterId = next.id;
+    ui.writeForceEdit = false;
+    renderWrite();
+  }
+  var btnChapPrev = $('btnSsChapPrev');
+  if (btnChapPrev) btnChapPrev.addEventListener('click', function() { goChapter(-1); });
+  var btnChapNext = $('btnSsChapNext');
+  if (btnChapNext) btnChapNext.addEventListener('click', function() { goChapter(1); });
+
+  var btnWriteToc = $('btnSsWriteToc');
+  if (btnWriteToc) {
+    btnWriteToc.addEventListener('click', function() {
+      setWriteTocOpen(!ui.ssWriteTocOpen);
     });
   }
+  var btnWriteTocClose = $('btnSsWriteTocClose');
+  if (btnWriteTocClose) {
+    btnWriteTocClose.addEventListener('click', function() { setWriteTocOpen(false); });
+  }
+  var writeTocBox = $('ssWriteToc');
+  if (writeTocBox) {
+    writeTocBox.addEventListener('click', function(ev) {
+      var btn = ev.target.closest('[data-ss-write-ch]');
+      if (!btn || !state.novel) return;
+      collectWriteFromDom();
+      var id = btn.getAttribute('data-ss-write-ch');
+      if (writeSel) writeSel.value = id;
+      ui.writeChapterId = id;
+      ui.writeForceEdit = false;
+      setWriteTocOpen(false);
+      renderWrite();
+    });
+  }
+
+  var emptyPreview = $('ssWriteEmptyPreview');
+  if (emptyPreview) {
+    emptyPreview.addEventListener('click', function() { enterWriteContentEdit(); });
+  }
+
   var btnFork = $('btnSsForkBranch');
   if (btnFork) btnFork.addEventListener('click', function() { forkCurrentChapterBranch(); });
 
-  var btnBrOpen = $('btnSsBranchTreeOpen');
-  if (btnBrOpen) {
-    btnBrOpen.addEventListener('click', function(ev) {
+  var btnBranchTag = $('btnSsBranchTag');
+  if (btnBranchTag) {
+    btnBranchTag.addEventListener('click', function(ev) {
+      ev.preventDefault();
+      if (ui.ssBranchTreeOpen) closeBranchTreePopover();
+      else openBranchTreePopover();
+    });
+  }
+  var btnReadBranchTag = $('btnSsReadBranchTag');
+  if (btnReadBranchTag) {
+    btnReadBranchTag.addEventListener('click', function(ev) {
       ev.preventDefault();
       if (ui.ssBranchTreeOpen) closeBranchTreePopover();
       else openBranchTreePopover();
@@ -300,6 +350,43 @@ function bindEvents() {
   }
   var btnBrClose = $('btnSsBranchTreeClose');
   if (btnBrClose) btnBrClose.addEventListener('click', function() { closeBranchTreePopover(); });
+  var branchModal = $('ssBranchTreeModal');
+  if (branchModal) {
+    branchModal.addEventListener('click', function(ev) {
+      if (ev.target === branchModal) closeBranchTreePopover();
+    });
+  }
+
+  var btnLedgerOpen = $('btnSsLedgerOpen');
+  if (btnLedgerOpen) {
+    btnLedgerOpen.addEventListener('click', async function(ev) {
+      ev.preventDefault();
+      if (ui.ssLedgerOpen) {
+        collectLedgerFromDom();
+        await persistNovel();
+        closeLedgerPopover();
+      } else {
+        openLedgerPopover();
+      }
+    });
+  }
+  var btnLedgerClose = $('btnSsLedgerClose');
+  if (btnLedgerClose) {
+    btnLedgerClose.addEventListener('click', async function() {
+      collectLedgerFromDom();
+      await persistNovel();
+      closeLedgerPopover();
+    });
+  }
+  var ledgerModal = $('ssLedgerPopover');
+  if (ledgerModal) {
+    ledgerModal.addEventListener('click', async function(ev) {
+      if (ev.target !== ledgerModal) return;
+      collectLedgerFromDom();
+      await persistNovel();
+      closeLedgerPopover();
+    });
+  }
 
   var titleChip = $('ssWriteChapterTitleBtn');
   if (titleChip) {
@@ -322,7 +409,6 @@ function bindEvents() {
       ch.title = next;
       var hidden = $('ssWriteChapterTitle');
       if (hidden) hidden.value = next;
-      titleChip.textContent = next;
       await persistNovel();
       renderWrite();
       renderOutline();
@@ -333,111 +419,99 @@ function bindEvents() {
   if (branchTree) {
     branchTree.addEventListener('click', async function(ev) {
       if (!state.novel) return;
-      var row = ev.target.closest('[data-branch-id]');
-      if (!row) return;
-      var id = row.getAttribute('data-branch-id');
-      if (ev.target.closest('[data-ss-br-expand]')) {
-        ui.ssBranchExpandedId = ui.ssBranchExpandedId === id ? '' : id;
-        renderBranchTree();
-        return;
-      }
-      if (ev.target.closest('[data-ss-br-open-ch]')) {
-        await openBranchChapterModal(id);
-        return;
-      }
-      if (ev.target.closest('[data-ss-br-switch]')) {
-        try {
-          state.novel = setActiveBranch(state.novel, id);
-          await persistNovel();
-          setStatus('已切换分支');
-          renderAll();
-        } catch (e) {
-          setStatus(e.message || String(e));
-        }
-        return;
-      }
-      if (ev.target.closest('[data-ss-br-edit]')) {
-        var br = getBranch(state.novel, id);
-        var label = await showSsPrompt({ title: '读者选项文案', message: '选线时显示', defaultValue: br.choiceLabel || br.name || '' });
-        if (label === null) return;
-        var teaser = await showSsPrompt({ title: '选项短提示', message: '可选', defaultValue: br.choiceTeaser || br.direction || '', select: false });
-        if (teaser === null) return;
-        var endingTitle = br.kind === BRANCH_KIND_ENDING
-          ? await showSsPrompt({ title: '结局标题', defaultValue: br.endingTitle || br.name || '' })
-          : br.endingTitle;
-        if (endingTitle === null) return;
-        state.novel = patchBranch(state.novel, id, {
-          choiceLabel: label,
-          choiceTeaser: teaser,
-          endingTitle: endingTitle,
-        });
+      var node = ev.target.closest('[data-ss-br-switch][data-branch-id]');
+      if (!node) return;
+      var id = node.getAttribute('data-branch-id');
+      collectWriteFromDom();
+      collectLedgerFromDom();
+      try {
+        state.novel = setActiveBranch(state.novel, id);
         await persistNovel();
-        renderBranchTree();
-        setStatus('已更新分支文案');
-        return;
+        closeBranchTreePopover();
+        setStatus('已切换分支', { panel: 'write' });
+        renderAll();
+      } catch (e) {
+        setStatus(e.message || String(e), { panel: 'write' });
       }
-      if (ev.target.closest('[data-ss-br-ending]')) {
-        var cur = getBranch(state.novel, id);
-        var nextKind = cur.kind === BRANCH_KIND_ENDING ? 'path' : BRANCH_KIND_ENDING;
-        var et = cur.endingTitle;
-        if (nextKind === BRANCH_KIND_ENDING && !et) {
-          et = (await showSsPrompt({ title: '结局标题', defaultValue: cur.choiceLabel || cur.name || '结局' })) || cur.name;
-        }
-        state.novel = patchBranch(state.novel, id, {
-          kind: nextKind,
-          endingTitle: nextKind === BRANCH_KIND_ENDING ? et : '',
-        });
-        await persistNovel();
-        renderBranchTree();
-        setStatus(nextKind === BRANCH_KIND_ENDING ? '已标为结局支' : '已取消结局标记');
-      }
-    });
-    branchTree.addEventListener('change', async function(ev) {
-      if (!state.novel) return;
-      var ready = ev.target.closest('[data-ss-br-ready]');
-      if (!ready) return;
-      var row = ready.closest('[data-branch-id]');
-      if (!row) return;
-      state.novel = patchBranch(state.novel, row.getAttribute('data-branch-id'), {
-        publishReady: !!ready.checked,
-      });
-      await persistNovel();
-      setStatus(ready.checked ? '已纳入发布' : '已移出发布');
     });
   }
 
-  var btnWrite = $('btnSsWriteChapter');
-  if (btnWrite) btnWrite.addEventListener('click', function() { writeChapter(false); });
-  var btnWriteNext = $('btnSsWriteAutoNext');
-  if (btnWriteNext) btnWriteNext.addEventListener('click', function() { writeChapter(true); });
-  var btnWriteBatch = $('btnSsWriteBatch');
-  if (btnWriteBatch) btnWriteBatch.addEventListener('click', function() { writeBatchChapters(); });
-  var btnWriteQa = $('btnSsWriteQa');
-  if (btnWriteQa) {
-    btnWriteQa.addEventListener('click', function() {
-      writeChapter(false, { skipDraft: true, skipFeed: true });
+  var btnWriteStart = $('btnSsWriteStart');
+  if (btnWriteStart) btnWriteStart.addEventListener('click', function() { onWritePrimaryClick(); });
+  var btnWriteRun = $('btnSsWriteRun');
+  if (btnWriteRun) btnWriteRun.addEventListener('click', function() { runWriteSession(); });
+  var btnWriteCancel = $('btnSsWriteConfigCancel');
+  if (btnWriteCancel) btnWriteCancel.addEventListener('click', function() { closeWriteConfig(); });
+  var writeCfgModal = $('ssWriteConfigModal');
+  if (writeCfgModal) {
+    writeCfgModal.addEventListener('click', function(ev) {
+      if (ev.target === writeCfgModal || ev.target.getAttribute('data-ss-write-cfg') === 'cancel') closeWriteConfig();
     });
   }
-  var btnWriteRewrite = $('btnSsWriteRewrite');
-  if (btnWriteRewrite) {
-    btnWriteRewrite.addEventListener('click', function() {
-      writeChapter(false, { rewriteOnly: true });
+  document.querySelectorAll('[data-ss-write-cfg="cancel"]').forEach(function(btn) {
+    btn.addEventListener('click', function() { closeWriteConfig(); });
+  });
+  document.querySelectorAll('input[name="ssWriteMode"]').forEach(function(radio) {
+    radio.addEventListener('change', function() { updateWriteModeUi(); });
+  });
+  var btnQaOpen = $('btnSsQaOpen');
+  if (btnQaOpen) {
+    btnQaOpen.addEventListener('click', function(ev) {
+      ev.preventDefault();
+      openWriteToolPopover('ssQaPopover', 'btnSsQaOpen');
     });
   }
+  var btnTensionOpen = $('btnSsTensionOpen');
+  if (btnTensionOpen) {
+    btnTensionOpen.addEventListener('click', function(ev) {
+      ev.preventDefault();
+      openWriteToolPopover('ssTensionPopover', 'btnSsTensionOpen');
+    });
+  }
+  var btnSummaryOpen = $('btnSsSummaryOpen');
+  if (btnSummaryOpen) {
+    btnSummaryOpen.addEventListener('click', function(ev) {
+      ev.preventDefault();
+      openWriteToolPopover('ssSummaryPopover', 'btnSsSummaryOpen');
+    });
+  }
+  var btnCheckpointOpen = $('btnSsCheckpointOpen');
+  if (btnCheckpointOpen) {
+    btnCheckpointOpen.addEventListener('click', function(ev) {
+      ev.preventDefault();
+      openWriteToolPopover('ssCheckpointPopover', 'btnSsCheckpointOpen');
+    });
+  }
+  document.querySelectorAll('[data-ss-pop-close]').forEach(function(btn) {
+    btn.addEventListener('click', async function() {
+      var id = btn.getAttribute('data-ss-pop-close');
+      if (id === 'ssSummaryPopover') {
+        collectWriteFromDom({ skipContent: true });
+        await persistNovel();
+      }
+      closeAllWriteToolPopovers();
+    });
+  });
+  ['ssQaPopover', 'ssTensionPopover', 'ssSummaryPopover', 'ssCheckpointPopover'].forEach(function(id) {
+    var el = $(id);
+    if (!el) return;
+    el.addEventListener('click', async function(ev) {
+      if (ev.target !== el) return;
+      if (id === 'ssSummaryPopover') {
+        collectWriteFromDom({ skipContent: true });
+        await persistNovel();
+      }
+      closeAllWriteToolPopovers();
+    });
+  });
   var btnWriteSave = $('btnSsWriteSave');
   if (btnWriteSave) {
-    btnWriteSave.addEventListener('click', async function() {
-      collectWriteFromDom();
-      collectLedgerFromDom();
-      await persistNovel();
-      setStatus('章节已保存');
-      renderRead();
-    });
+    btnWriteSave.addEventListener('click', function() { saveWriteManually(); });
   }
   var syncEl = $('ssWriteSyncMvu');
   if (syncEl) {
     syncEl.addEventListener('change', function() {
-      collectWriteFromDom();
+      collectWriteFromDom({ skipContent: true });
       renderWrite();
       persistNovel();
     });

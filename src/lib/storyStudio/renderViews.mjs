@@ -205,19 +205,22 @@ export function renderWizardChrome() {
   }
 }
 export function renderRead() {
-  var title = $('ssReadTitle');
+  var title = $('btnSsReadBranchTag') || $('ssReadTitle');
   var body = $('ssReadBody');
   var toc = $('ssReadToc');
   var modeSel = $('ssReadMode');
   var pageInfo = $('ssReadPageInfo');
   if (!state.novel) {
-    if (title) title.textContent = '未打开小说';
+    if (title) title.textContent = '—';
     if (body) body.innerHTML = '<div class="ss-empty ui-empty-tip">请先在「管理」打开一部小说</div>';
     if (toc) toc.innerHTML = '';
     return;
   }
   var br = getBranch(state.novel, state.novel.activeBranchId);
-  if (title) title.textContent = state.novel.title + (br && br.name ? ' · ' + br.name : '');
+  if (title) {
+    title.textContent = (state.novel.title || '未命名')
+      + (br && br.name ? ' · ' + br.name : '');
+  }
   var aside = $('ssReadAside');
   if (aside) aside.hidden = !ui.ssReadTocOpen;
   var tocBtn = $('btnSsReadToc');
@@ -247,7 +250,7 @@ export function renderRead() {
   var isSummary = false;
   if (!display) {
     display = String(ch.summary || '').trim() || '（本章暂无正文与摘要）';
-    isSummary = !!ch.summary;
+    isSummary = true;
   }
 
   var mode = rs.mode || 'swipe';
@@ -259,22 +262,26 @@ export function renderRead() {
     var pi = Math.min(Math.max(0, rs.pageIndex || 0), pages.length - 1);
     state.novel.readState.pageIndex = pi;
     display = pages[pi];
-    if (pageInfo) pageInfo.textContent = '第 ' + (idx + 1) + '/' + chapters.length + ' 章 · 页 '
-      + (pi + 1) + '/' + pages.length;
+    if (pageInfo) pageInfo.textContent = '第 ' + (idx + 1) + '/' + chapters.length + ' 章 · '
+      + (ch.title || '未命名')
+      + ' · 页 ' + (pi + 1) + '/' + pages.length;
     if (body) {
       body.innerHTML = '<div class="ss-read-page" data-page-mode="page">'
         + '<h3>' + escapeHtml(ch.title) + '</h3>'
-        + (isSummary ? '<p class="ss-read-summary-tag">摘要</p>' : '')
         + '<div class="ss-read-text">' + escapeHtml(display).replace(/\n/g, '<br/>') + '</div>'
         + '</div>';
     }
   } else {
-    if (pageInfo) pageInfo.textContent = '第 ' + (idx + 1) + '/' + chapters.length + ' 章';
+    if (pageInfo) pageInfo.textContent = '第 ' + (idx + 1) + '/' + chapters.length + ' 章 · '
+      + (ch.title || '未命名');
     if (body) {
+      var sumBlock = isSummary
+        ? ('<div class="ss-summary-card"><p class="ss-read-summary-tag">摘要（无正文）</p>'
+          + '<div class="ss-read-text">' + escapeHtml(display).replace(/\n/g, '<br/>') + '</div></div>')
+        : ('<div class="ss-read-text">' + escapeHtml(display).replace(/\n/g, '<br/>') + '</div>');
       body.innerHTML = '<div class="ss-read-page" data-page-mode="swipe">'
         + '<h3>' + escapeHtml(ch.title) + '</h3>'
-        + (isSummary ? '<p class="ss-read-summary-tag">摘要（无正文）</p>' : '')
-        + '<div class="ss-read-text">' + escapeHtml(display).replace(/\n/g, '<br/>') + '</div>'
+        + sumBlock
         + '</div>';
     }
   }

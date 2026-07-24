@@ -53,6 +53,30 @@ describe('storyStudio state', function() {
     assert.equal(n.readState.mode, 'swipe');
   });
 
+  it('getActiveChapters 返回活引用（写回不丢）', async function() {
+    const { getActiveChapters, getLiveChapterById } = await import('../src/lib/storyStudio/state.mjs');
+    const { runChapterWritePipeline } = await import('../src/lib/storyStudio/writePipeline.mjs');
+    var n = createEmptyNovel({ title: '活引用' });
+    var mainId = n.activeBranchId;
+    n.chapters = [
+      { id: 'c1', title: '一', summary: '', content: '', advancePrompt: '', order: 0, branchId: mainId },
+      { id: 'c2', title: '二', summary: '', content: '', advancePrompt: '', order: 1, branchId: mainId },
+    ];
+    var view = getActiveChapters(n);
+    assert.equal(view.length, 2);
+    view[0].content = '流式正文';
+    assert.equal(n.chapters[0].content, '流式正文');
+    var live = getLiveChapterById(n, 'c2');
+    live.content = '第二章';
+    assert.equal(n.chapters[1].content, '第二章');
+
+    await runChapterWritePipeline({
+      callAI: async function() { return 'PIPELINE_OK'; },
+      promptText: function(_id, fb) { return fb; },
+    }, n, 0, { skipFeed: true, skipQa: true });
+    assert.equal(n.chapters[0].content, 'PIPELINE_OK');
+  });
+
   it('discardOutlineFrom 裁剪大纲与章节', function() {
     var n = createEmptyNovel({ title: 'x' });
     n.outline = [
@@ -253,14 +277,49 @@ describe('storyStudio UI mount', function() {
     assert.doesNotMatch(write, /ss-current-novel-select/);
     assert.match(write, /id="ssWriteSyncMvu"/);
     assert.match(write, /写完同步变量与状态栏/);
-    assert.match(write, /id="btnSsWriteAutoNext"/);
+    assert.match(write, /id="btnSsWriteStart"/);
+    assert.match(write, /id="btnSsWriteRun"/);
+    assert.match(write, /name="ssWriteMode"/);
+    assert.match(write, /id="ssWriteConfigModal"/);
+    assert.match(write, /id="btnSsBranchTag"/);
+    assert.match(write, /id="ssBranchTreeModal"/);
+    assert.match(write, /id="btnSsWriteToc"/);
+    assert.match(write, /id="ssWriteChapIndex"/);
+    assert.match(write, /id="btnSsChapPrev"/);
+    assert.match(write, /id="ssWriteChapterTitleBtn"/);
+    assert.match(write, /id="btnSsChapNext"/);
+    assert.match(write, /class="ss-read-nav"/);
     assert.match(write, /id="btnSsForkBranch"/);
+    assert.match(write, /id="btnSsLedgerOpen"/);
+    assert.match(write, /id="ssLedgerPopover"/);
+    assert.match(write, /id="btnSsQaOpen"/);
+    assert.match(write, /id="btnSsTensionOpen"/);
+    assert.match(write, /id="btnSsSummaryOpen"/);
+    assert.match(write, /id="ssQaPopover"/);
+    assert.match(write, /id="ssSummaryPopover"/);
+    assert.match(write, /id="btnSsCheckpointOpen"/);
+    assert.match(write, /id="ssCheckpointPopover"/);
+    assert.match(write, /ss-write-config__advance/);
+    assert.doesNotMatch(write, /id="ssWriteCpFold"/);
+    assert.doesNotMatch(write, /id="ssWriteFeedbackFold"/);
+    assert.doesNotMatch(write, /id="ssWriteMetaFold"/);
     assert.match(write, /id="ssWriteLedger"/);
+    assert.doesNotMatch(write, /id="ssWriteLedgerFold"/);
     assert.match(write, /id="ssBranchTree"/);
+    assert.doesNotMatch(write, /id="btnSsWriteAutoNext"/);
+    assert.doesNotMatch(write, /id="btnSsWriteChapter"/);
+    const writeUi = readFileSync(join(root, 'src/lib/storyStudio/writeBranchUi.mjs'), 'utf8');
+    assert.match(writeUi, /ss-btree/);
+    assert.match(writeUi, /buildBranchForestHtml/);
     const read = readFileSync(join(root, 'src/components/storyStudio/StoryReadPanel.astro'), 'utf8');
     assert.doesNotMatch(read, /ss-current-novel-select/);
     assert.match(read, /id="btnSsReadFullscreen"/);
     assert.match(read, /id="ssReadMode"/);
+    assert.match(read, /ss-text-select/);
+    assert.match(read, /id="btnSsReadBranchTag"/);
+    assert.match(read, /id="ssReadPageInfo"/);
+    assert.match(read, /class="ss-read-nav"/);
+    assert.match(write, /id="ssWriteEmptyPreview"/);
     const index = readFileSync(join(root, 'src/pages/index.astro'), 'utf8');
     assert.match(index, /StoryStudioApp/);
     assert.match(index, /data-view="story-manage"/);

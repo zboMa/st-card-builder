@@ -2,6 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { createDefaultCardState } from '../src/lib/card-builder/state.mjs';
 import { createCardStateMachine } from '../src/lib/card-builder/stateMachine.mjs';
+import { resetDraftsStoreForTests } from '../src/lib/draftsStore.mjs';
 
 function mockStorage() {
   var map = {};
@@ -16,6 +17,7 @@ describe('stateMachine writeDraftsMap', function() {
   it('writeDraftsMap 与 patchDraftRecord', function() {
     var prev = globalThis.localStorage;
     globalThis.localStorage = mockStorage();
+    resetDraftsStoreForTests();
     try {
       var state = createDefaultCardState();
       state.draftId = 'd1';
@@ -32,6 +34,7 @@ describe('stateMachine writeDraftsMap', function() {
       assert.equal(w.ok, true);
       assert.equal(sm.getAllDrafts().d2.charName, 'C');
     } finally {
+      resetDraftsStoreForTests();
       globalThis.localStorage = prev;
     }
   });

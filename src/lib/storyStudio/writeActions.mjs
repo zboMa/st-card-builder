@@ -35,11 +35,13 @@ import {
   promptText,
   callAI,
   runTracked,
+  taskSetProgress,
   isAbort,
   persistNovel,
 } from './shared.mjs';
 import { renderAll, renderGraph, renderOutline, renderRead } from './renderViews.mjs';
-import { setWriteProgress, renderWrite } from './writeBranchUi.mjs';
+import { setWriteProgress, renderWrite, applyStreamContent, syncWriteSessionBar } from './writeBranchUi.mjs';
+import { WRITE_STEP_LABELS } from './writePipeline.mjs';
 import { engineBegin, engineEnd, engineTryAllowed } from '../actionEngine/helpers.mjs';
 
 export function collectGraphFromDom() {
@@ -106,7 +108,8 @@ export function collectWriteFromDom(opts) {
   var stopEl = $('ssWriteStopOnQa');
   if (titleEl) ch.title = titleEl.value;
   if (summaryEl) ch.summary = summaryEl.value;
-  if (contentEl) ch.content = contentEl.value;
+  // 生成中禁止用空/旧 textarea 覆盖流式正文
+  if (contentEl && !opts.skipContent && !ui.writeBusy) ch.content = contentEl.value;
   if (advEl) ch.advancePrompt = advEl.value;
   if (!state.novel.writeSettings) state.novel.writeSettings = {};
   if (syncEl) state.novel.writeSettings.syncMvuStatusBar = !!syncEl.checked;
@@ -274,42 +277,62 @@ export async function writeChapter(autoNext, opts) {
   opts = opts || {};
   if (!opts.skipActionGate && !engineTryAllowed('story.chapter.write').ok) return null;
   if (!state.novel) {
-    setStatus('请先打开小说');
+    setStatus('请先打开小说', { panel: 'write' });
     return null;
   }
   if (state.novel.wizard && state.novel.wizard.step && state.novel.wizard.step !== 'ready'
     && !state.novel.wizard.approvedOutline) {
-    setStatus('请先在大纲页完成向导审批（或跳过向导）');
+    setStatus('请先在大纲页完成向导审批（或跳过向导）', { panel: 'write' });
     return null;
   }
   collectWriteFromDom();
   collectLedgerFromDom();
   var sel = $('ssWriteChapterSelect');
   if (!sel || !sel.value) {
-    setStatus('没有可写章节，请先生成大纲');
+    setStatus('没有可写章节，请先生成大纲', { panel: 'write' });
     return null;
   }
   var chapters = getActiveChapters(state.novel);
   var idx = chapters.findIndex(function(c) { return c.id === sel.value; });
   if (idx < 0) return null;
-  var ch = chapters[idx];
+  var ch = state.novel.chapters.find(function(c) { return c.id === chapters[idx].id; }) || chapters[idx];
 
-  setStatus('正在撰写：' + ch.title);
+  setStatus('正在撰写：' + ch.title, { panel: 'write' });
   setWriteProgress('plan');
   if (!opts.skipScope) engineBegin('story.chapter.write');
+  ui.writeBusy = true;
+  var streamHint = $('ssWriteStreamHint');
+  if (streamHint) streamHint.hidden = false;
+  var contentEl = $('ssWriteChapterContent');
+  if (contentEl) contentEl.readOnly = true;
   try {
     var result = null;
     await runTracked({
       type: 'story_chapter',
       typeLabel: '小说创作·章文',
-      title: opts.rewriteOnly ? '改写章节' : '撰写章节',
+      title: opts.rewriteOnly ? '改写章节' : (opts.skipDraft ? '质检章节' : '撰写章节'),
       target: ch.title,
     }, async function(task) {
       result = await runChapterWritePipeline({
         callAI: callAI,
         promptText: promptText,
         signal: task.signal,
-        onStep: setWriteProgress,
+        onStep: function(stepName) {
+          setWriteProgress(stepName);
+          if (ui.writeSession) {
+            ui.writeSession.step = stepName;
+            syncWriteSessionBar();
+          }
+          var label = WRITE_STEP_LABELS[stepName] || stepName;
+          var batch = '';
+          if (ui.writeSession && ui.writeSession.batchTotal > 1) {
+            batch = ' · 第 ' + ui.writeSession.batchIndex + '/' + ui.writeSession.batchTotal + ' 章';
+          }
+          taskSetProgress(task, null, label + ' · ' + ch.title + batch);
+        },
+        onDelta: function(text) {
+          applyStreamContent(text);
+        },
       }, state.novel, idx, {
         skipDraft: !!opts.skipDraft,
         skipFeed: !!opts.skipFeed,
@@ -317,17 +340,18 @@ export async function writeChapter(autoNext, opts) {
         rewriteOnly: !!opts.rewriteOnly,
       });
 
+      var live = state.novel.chapters.find(function(c) { return c.id === ch.id; }) || ch;
       var wantSync = !!(state.novel.writeSettings && state.novel.writeSettings.syncMvuStatusBar);
       var syncResult = trySyncAfterChapter({
         enabled: wantSync,
         getExtension: window.__getCardExtension__,
         setExtension: window.__setCardExtension__,
-        chapterTitle: ch.title,
-        chapterSummary: ch.summary,
-        chapterContent: ch.content,
+        chapterTitle: live.title,
+        chapterSummary: live.summary,
+        chapterContent: live.content,
       });
       if (wantSync && syncResult.skipped && syncResult.reason === 'no_design') {
-        setStatus('章节已写完；同步未生效：' + (syncResult.warning || ''));
+        setStatus('章节已写完；同步未生效：' + (syncResult.warning || ''), { panel: 'write' });
       }
       await persistNovel();
     });
@@ -340,25 +364,30 @@ export async function writeChapter(autoNext, opts) {
       var nextChapters = getActiveChapters(state.novel);
       if (idx + 1 < nextChapters.length) {
         sel.value = nextChapters[idx + 1].id;
+        ui.writeChapterId = sel.value;
         renderWrite();
-        setStatus('本章完成' + (qaMsg ? '（' + qaMsg + '）' : '') + '，已切到下一章');
+        setStatus('本章完成' + (qaMsg ? '（' + qaMsg + '）' : '') + '，已切到下一章', { panel: 'write' });
       } else {
-        setStatus('章节撰写完成' + (qaMsg ? ' · ' + qaMsg : '') + '（已无下一章）');
+        setStatus('章节撰写完成' + (qaMsg ? ' · ' + qaMsg : '') + '（已无下一章）', { panel: 'write' });
         renderWrite();
         renderRead();
       }
     } else {
-      setStatus('章节撰写完成' + (qaMsg ? ' · ' + qaMsg : ''));
+      setStatus('章节撰写完成' + (qaMsg ? ' · ' + qaMsg : ''), { panel: 'write' });
       renderWrite();
       renderRead();
     }
     return result;
   } catch (err) {
     setWriteProgress(null);
-    if (isAbort(err)) setStatus('已取消');
-    else setStatus('撰写失败：' + (err.message || err));
+    if (isAbort(err)) setStatus('已取消', { panel: 'write' });
+    else setStatus('撰写失败：' + (err.message || err), { panel: 'write' });
     return null;
   } finally {
+    ui.writeBusy = false;
+    if (streamHint) streamHint.hidden = true;
+    if (contentEl) contentEl.readOnly = false;
+    syncWriteSessionBar();
     if (!opts.skipScope) engineEnd('story.chapter.write');
   }
 }
@@ -366,42 +395,43 @@ export async function writeChapter(autoNext, opts) {
 export async function writeBatchChapters() {
   if (!engineTryAllowed('story.chapter.batch').ok) return;
   if (!state.novel) {
-    setStatus('请先打开小说');
+    setStatus('请先打开小说', { panel: 'write' });
     return;
   }
   collectWriteFromDom();
   var n = Math.max(1, Math.min(20, (state.novel.writeSettings && state.novel.writeSettings.batchCount) || 3));
   var sel = $('ssWriteChapterSelect');
   if (!sel || !sel.value) {
-    setStatus('没有可写章节');
+    setStatus('没有可写章节', { panel: 'write' });
     return;
   }
   var stopOnFail = !!(state.novel.writeSettings && state.novel.writeSettings.stopOnQualityFail);
-  setStatus('连写 ' + n + ' 章…');
+  setStatus('连写 ' + n + ' 章…', { panel: 'write' });
   engineBegin('story.chapter.batch');
   try {
     for (var i = 0; i < n; i++) {
+      if (ui.writeSession) {
+        ui.writeSession.batchIndex = i + 1;
+        ui.writeSession.batchTotal = n;
+        syncWriteSessionBar();
+      }
       var chapters = getActiveChapters(state.novel);
       var idx = chapters.findIndex(function(c) { return c.id === sel.value; });
       if (idx < 0) break;
-      // 跳到下一空章或当前章
-      var targetIdx = idx;
-      while (targetIdx < chapters.length && String(chapters[targetIdx].content || '').trim() && i === 0 && targetIdx === idx) {
-        // 若当前已有正文，从下一空章开始
+      if (i === 0 && String(chapters[idx].content || '').trim()) {
         var nextEmpty = -1;
         for (var j = idx; j < chapters.length; j++) {
           if (!String(chapters[j].content || '').trim()) { nextEmpty = j; break; }
         }
         if (nextEmpty >= 0) {
           sel.value = chapters[nextEmpty].id;
-          targetIdx = nextEmpty;
+          ui.writeChapterId = sel.value;
         }
-        break;
       }
       var result = await writeChapter(true, { skipActionGate: true, skipScope: true });
       if (!result) break;
       if (stopOnFail && result.quality && !result.quality.ok) {
-        setStatus('质检未通过，已熔断连写（第 ' + (i + 1) + '/' + n + ' 章）');
+        setStatus('质检未通过，已熔断连写（第 ' + (i + 1) + '/' + n + ' 章）', { panel: 'write' });
         break;
       }
     }
