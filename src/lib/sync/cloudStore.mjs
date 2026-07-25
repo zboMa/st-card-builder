@@ -22,6 +22,7 @@ import {
   pullCloudCardIndexAndMerge,
   ensureCardBundleLocal,
 } from './cloudStoreCard.mjs';
+import { markCardCloudIndexReady } from './cardCloudIndex.mjs';
 
 export {
   onCloudEvent,
@@ -115,6 +116,7 @@ export async function runCloudReconcile(opts) {
     }
 
     var cards = await pullCloudCardIndexAndMerge();
+    markCardCloudIndexReady();
 
     if (opts.hydrateAll) {
       var drafts2 = readDrafts();

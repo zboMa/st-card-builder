@@ -10,7 +10,7 @@
 | 层 | 说明 |
 |---|---|
 | 前端 | `cloudApi.mjs` + `cloudStore.mjs`（barrel）+ `outbox.mjs`；本地权威仍为 LS/IDB |
-| 前端·拆分 | `cloudStoreShared.mjs`（状态/outbox 桥）· `cloudStoreCard.mjs`（卡包/头像/工坊）· `cloudStoreStory.mjs`（Story 独立）· `cloudStorePrefs.mjs`（偏好）；对外仍从 `cloudStore.mjs` import |
+| 前端·拆分 | `cloudStoreShared.mjs`（状态/outbox 桥）· `cloudStoreCard.mjs`（卡包/头像/工坊）· `cloudStoreStory.mjs`（Story 独立）· `cloudStorePrefs.mjs`（偏好）· `cardCloudIndex.mjs`（卡索引就绪门闩）；对外仍从 `cloudStore.mjs` / `sync/index.mjs` import |
 | API | `server/src/data/routes.mjs`：`/api/data/*`（Session / Bearer） |
 | 数据库 | CouchDB **一用户一库** `userdb-stcb-{userId}`，**仅服务端 Nano 读写** |
 
@@ -40,7 +40,7 @@ npm run dev            # Astro :4321，/api 代理到 8787
 |---|---|
 | **保存** | 始终先写本地；**不**自动推云（避免制作过程中频繁请求） |
 | **上云** | 卡管理「同步上云」：确认前 flush 当前卡本地编辑 → `PUT .../bundle`；失败入 outbox |
-| **列表** | 进入卡管理或「刷新云端列表」时 `GET /api/data/cards` 合并云+本地；正文懒加载 |
+| **列表** | boot 登录后与进入卡管理 /「刷新云端列表」时 `GET /api/data/cards` 合并云+本地；正文懒加载 |
 | **打开卡** | `GET .../bundle`：卡+头像+**小说工坊+RAG**（与卡一套）；卡管理时间旁云标：未上云 / 未同步 / 已同步 |
 | **写出的小说** | Story Studio 独立：`GET /stories/:cardId/catalog`、打开时拉单部；**不进**开卡 bundle |
 | **删除** | 本地确认弹窗；默认删绑卡套件；**可勾选**是否级联删 Story |
@@ -57,10 +57,19 @@ npm run dev            # Astro :4321，/api 代理到 8787
 | **改完要上云** | dirty（云标「上云未同步」） | 旧版 | 「同步上云」；云端较新时会警告 |
 | **多张待上云** | 多张 dirty | — | 卡管理 →「同步未上云」 |
 | **换机 / 另一台有新版本** | 旧 | 新 | 卡管理 →「从云端覆盖」（或先拉列表再覆盖） |
-| **只看云上有啥** | 可有 stub | 索引 | 进卡管理或账户「刷新云端列表」 |
+| **只看云上有啥** | 可有 stub | 索引 | boot 已登录会预拉；或进卡管理 / 账户「刷新云端列表」 |
 | **打开云端 stub 卡** | stub | 有正文 | 点开卡 → `GET .../bundle` 水合 |
 | **离线 / 未登录** | 全功能 | — | 不做云操作 |
 | **Story 写出的小说** | 独立 | 独立 API | 不进开卡 bundle；删卡可选是否删 Story |
+
+### 卡索引就绪门闩（防空卡竞态）
+
+登录态下，本地 hydrate 后会 `ensureCardCloudIndex()`（`cardCloudIndex.mjs`），状态：`idle | pending | ready | error | disabled`。
+
+- **pending** 且本地 drafts 为空：禁止 `saveDraft` 隐式 `genId` 落盘（角色页打字不抢建空卡）；显式「新建」仍可用
+- **ready** 后若本地仍无当前卡但有 stub：boot 会 load 第一张
+- **删光本地唯一卡**：先 force 拉索引；有云卡则切过去，确认无卡才 `createBlankDraft`
+- **合并不做孤儿修剪**：`pullCloudCardIndexAndMerge` 只按 id upsert stub，不因「像空卡」删除本地草稿
 
 云标三态：无 `localSyncedAt` / `syncedContentRev` 基线 → **未上云**；有基线且 `contentRev` ≠ `syncedContentRev` 或 `bundleTouch` ≠ `syncedBundleTouch` → **上云未同步**；否则 **已同步**（旧卡无 `contentRev` 时回退 `updatedAt` vs `localSyncedAt`）。  
 手动回归见 [`../ops/regression-checklist.md`](../ops/regression-checklist.md)。

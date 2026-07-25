@@ -65,6 +65,15 @@ export {
   cloudDeleteRemoteOnly,
 } from './cloudStore.mjs';
 export {
+  CARD_INDEX_STATUS,
+  getCardCloudIndexState,
+  shouldBlockImplicitCardCreate,
+  ensureCardCloudIndex,
+  resetCardCloudIndexForTests,
+  setCardCloudIndexStatusForTests,
+  markCardCloudIndexReady,
+} from './cardCloudIndex.mjs';
+export {
   CLOUD_STATUS,
   resolveCardCloudStatus,
   cloudStatusLabel,

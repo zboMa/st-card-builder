@@ -6,6 +6,8 @@
 
 `initCardBuilder()`（`browserApp.mjs` + `fieldValidation.mjs` / `bootAiConfig.mjs`）由 `index.astro` 调用，是卡侧**唯一**启动入口；并挂载主站 Action Engine。
 
+`st-idb-ready`：`hydrateDraftsStore` →（登录时）`ensureCardCloudIndex` → 恢复 `st_v3_builder_current_id` 或第一张 stub；索引 pending 且本地空时不隐式建卡。详见 [`../systems/cloud-sync.md`](../systems/cloud-sync.md)「卡索引就绪门闩」。
+
 切卡 / 删卡 / 复制 / 新建 / 导入 / 切版本在重任务进行中 **硬禁**（含 `__assistantCardApi__`）。详见 [`action-engine.md`](./action-engine.md)。
 
 ## 结构

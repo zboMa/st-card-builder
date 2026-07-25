@@ -17,6 +17,7 @@ import {
   writeDraftsMapSync,
   flushDraftsPersist,
 } from '../draftsStore.mjs';
+import { shouldBlockImplicitCardCreate } from '../sync/cardCloudIndex.mjs';
 
 var DEBOUNCE_MS = 500;
 
@@ -52,8 +53,14 @@ export function createCardStateMachine(state) {
 
   function saveDraft(opts) {
     opts = opts || {};
-    if (!state.draftId) state.draftId = genId();
     var dr = getAllDrafts();
+    // 云端索引未就绪且本地无卡时禁止隐式 genId，避免空卡与云端 stub 并存
+    if (!state.draftId) {
+      if (shouldBlockImplicitCardCreate(dr)) {
+        return { saved: false, deferred: true, reason: 'cloud_index_pending', drafts: dr, id: '' };
+      }
+      state.draftId = genId();
+    }
     var prev = dr[state.draftId];
     // 内容未变时不刷新 updatedAt（pagehide/flush 刷新页面时常见，否则会误判云 dirty）
     if (prev && draftContentEqual(prev, state)) {

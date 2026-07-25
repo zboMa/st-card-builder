@@ -105,13 +105,41 @@ export function bootCardBuilder() {
     } catch (eHydrate) {
       console.warn('[cardBuilder] drafts hydrate failed', eHydrate);
     }
-    var lastId = localStorage.getItem('st_v3_builder_current_id');
-    if (lastId && ctx.sm.getAllDrafts()[lastId]) {
-      if (ctx.panels.cardManager && typeof ctx.panels.cardManager.loadDraft === 'function') {
-        ctx.panels.cardManager.loadDraft(lastId);
-      } else {
-        ctx.sm.loadDraftIntoState(lastId);
+
+    // 云开时提前拉索引，避免角色页隐式建空卡与云端 stub 竞态
+    try {
+      var sync = await import('../sync/index.mjs');
+      if (sync.ensureCardCloudIndex) {
+        await sync.ensureCardCloudIndex();
       }
+    } catch (eIdx) {
+      console.warn('[cardBuilder] cloud card index', eIdx);
+    }
+
+    var drafts = ctx.sm.getAllDrafts() || {};
+    var lastId = localStorage.getItem('st_v3_builder_current_id');
+    var loadId = null;
+    if (lastId && drafts[lastId]) {
+      loadId = lastId;
+    } else if (!ctx.state.draftId || !drafts[ctx.state.draftId]) {
+      var keys = Object.keys(drafts);
+      if (keys.length > 0) loadId = keys[0];
+    }
+    if (loadId) {
+      if (ctx.panels.cardManager && typeof ctx.panels.cardManager.loadDraft === 'function') {
+        ctx.panels.cardManager.loadDraft(loadId);
+      } else {
+        ctx.sm.loadDraftIntoState(loadId);
+      }
+    } else if (!ctx.state.draftId) {
+      // 索引已就绪且本地仍空：冲掉 pending 期间的内存编辑（若有）为新卡
+      try {
+        if (ctx.sm && typeof ctx.sm.flushSave === 'function') {
+          var hasEdit = !!(ctx.state.charName || ctx.state.charDesc || ctx.state.firstMes
+            || ctx.state.creatorNotes || (ctx.state.worldbookEntries && ctx.state.worldbookEntries.length));
+          if (hasEdit) ctx.sm.flushSave();
+        }
+      } catch (eFlush) { /* ignore */ }
     }
     if (ctx.panels.cardManager && ctx.panels.cardManager.updateCardManagerUI) {
       ctx.panels.cardManager.updateCardManagerUI();

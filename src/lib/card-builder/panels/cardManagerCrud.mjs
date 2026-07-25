@@ -292,6 +292,18 @@ export function attachCardManagerCrud(ctx, s, panel) {
     if (id === currentId) {
       var drAfter = s.getAllDrafts();
       var ks = Object.keys(drAfter);
+      if (ks.length === 0) {
+        try {
+          var syncMod = await import('../../sync/index.mjs');
+          if (syncMod.ensureCardCloudIndex) {
+            await syncMod.ensureCardCloudIndex({ force: true });
+          }
+        } catch (eIdx) {
+          console.warn('[card-manager] cloud index after delete', eIdx);
+        }
+        drAfter = s.getAllDrafts();
+        ks = Object.keys(drAfter);
+      }
       if (ks.length > 0) {
         panel.loadDraft(ks[0]);
       } else {

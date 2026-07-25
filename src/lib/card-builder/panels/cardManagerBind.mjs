@@ -211,6 +211,9 @@ export function attachCardManagerBind(ctx, s, panel) {
     function refreshCardManagerCloudIndex() {
       if (cardMgrCloudPullPromise) return cardMgrCloudPullPromise;
       cardMgrCloudPullPromise = import('../../sync/index.mjs').then(function(sync) {
+        if (sync.ensureCardCloudIndex) {
+          return sync.ensureCardCloudIndex({ force: true });
+        }
         if (!sync.isCloudEnabled || !sync.isCloudEnabled()) return null;
         var pull = function() { return sync.pullCloudCardIndexAndMerge(); };
         if (sync.fetchSyncCredentials) {

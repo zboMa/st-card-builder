@@ -3,6 +3,11 @@
  * 注册为 ctx.panels.character；在 bind() 中挂载 DOM 事件与 window 桥接
  */
 import { genId, normalizeTags, generateCardJSON } from '../state.mjs';
+import {
+  shouldBlockImplicitCardCreate,
+  ensureCardCloudIndex,
+} from '../../sync/cardCloudIndex.mjs';
+import { getDraftsMapSync } from '../../draftsStore.mjs';
 export function registerCharacter(ctx) {
   var escapeHtml = ctx.escapeHtml;
   var charTagsList, charTagInput, btnAddCharTag, btnAiGenCharTags, charTagsAiTip;
@@ -43,10 +48,44 @@ export function registerCharacter(ctx) {
   }
 
   async function applyAvatarFromImage(img) {
-    if (!ctx.state.draftId) ctx.state.draftId = genId();
+    if (!ctx.state.draftId) {
+      var drafts0 = getDraftsMapSync() || {};
+      if (shouldBlockImplicitCardCreate(drafts0)) {
+        try {
+          await ensureCardCloudIndex();
+        } catch (eIdx) { /* ignore */ }
+        drafts0 = getDraftsMapSync() || {};
+        var keys0 = Object.keys(drafts0);
+        if (keys0.length > 0) {
+          var pick = keys0[0];
+          ctx.sm.loadDraftIntoState(pick);
+          if (drafts0[pick] && drafts0[pick]._cloudStub) {
+            try {
+              var syncAv = await import('../../sync/index.mjs');
+              if (syncAv.ensureCardBundleLocal) {
+                await syncAv.ensureCardBundleLocal(pick, { force: true });
+                ctx.sm.loadDraftIntoState(pick);
+              }
+            } catch (eBundle) { /* ignore */ }
+          }
+        }
+      }
+      if (!ctx.state.draftId) {
+        if (shouldBlockImplicitCardCreate(getDraftsMapSync() || {})) {
+          alert('云端列表加载中，请稍后再上传头像');
+          return;
+        }
+        ctx.state.draftId = genId();
+      }
+    }
     try {
       await ensureIdbReady();
       if (!window.__avatarIdb__) throw new Error('IndexedDB 不可用');
+    } catch (eReady) {
+      alert('头像保存失败：' + (eReady && eReady.message ? eReady.message : eReady));
+      return;
+    }
+    try {
       await window.__avatarIdb__.saveAvatarFromImage(ctx.state.draftId, img);
       ctx.state.avatarInIdb = true;
       ctx.state.avatarBase64 = '';
