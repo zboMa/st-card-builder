@@ -91,6 +91,9 @@ export function attachCardManagerCrud(ctx, s, panel) {
     var dr = s.getAllDrafts();
     if (!dr[id]) return;
 
+    // 先占住当前卡，避免拉 bundle 期间 draftId 为空触发隐式 genId 空卡
+    ctx.sm.loadDraftIntoState(id);
+
     // 云端占位卡或缺正文：拉取完整卡包（卡+头像+小说+创作）再打开
     if (dr[id]._cloudStub || !dr[id].charDesc) {
       try {
@@ -99,15 +102,16 @@ export function attachCardManagerCrud(ctx, s, panel) {
         if (!full) full = await sync.ensureCardLocal(id);
         if (full) {
           dr = s.getAllDrafts();
+          ctx.sm.loadDraftIntoState(id);
         }
       } catch (e) {
         console.warn('[cloud] ensureCardBundleLocal', e);
       }
     }
 
-    var loaded = ctx.sm.loadDraftIntoState(id);
-    if (!loaded) return;
+    dr = s.getAllDrafts();
     var d = dr[id];
+    if (!d) return;
 
     // Update DOM fields from state
     var setVal = function (elId, val) { var el = ctx.$(elId); if (el) el.value = val; };

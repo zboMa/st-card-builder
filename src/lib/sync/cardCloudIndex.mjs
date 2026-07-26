@@ -40,8 +40,10 @@ export function setCardCloudIndexStatusForTests(status, err) {
 }
 
 /**
- * 云开且索引未就绪、本地 drafts 为空时，禁止隐式 genId 落盘。
- * ready / error / disabled 均放行（失败不堵死离线制卡）；显式新建不走此门闩。
+ * 禁止隐式 genId 落盘的条件：
+ * - 索引 pending 且本地 drafts 为空（等云端列表）
+ * - 或本地已有卡但当前无 draftId（由 saveDraft 另行判断）
+ * ready / error / disabled 且本地空时放行隐式首卡；显式新建不走此门闩。
  */
 export function shouldBlockImplicitCardCreate(draftsMap) {
   var keys = Object.keys(draftsMap || {});

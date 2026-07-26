@@ -54,10 +54,17 @@ export function createCardStateMachine(state) {
   function saveDraft(opts) {
     opts = opts || {};
     var dr = getAllDrafts();
-    // 云端索引未就绪且本地无卡时禁止隐式 genId，避免空卡与云端 stub 并存
+    // 无当前卡时：索引 pending 且本地空 → 推迟；本地已有卡（含云 stub）→ 禁止隐式再建空卡
+    // 显式新建会先 createBlank() 赋 draftId，不走此分支
     if (!state.draftId) {
-      if (shouldBlockImplicitCardCreate(dr)) {
-        return { saved: false, deferred: true, reason: 'cloud_index_pending', drafts: dr, id: '' };
+      if (shouldBlockImplicitCardCreate(dr) || Object.keys(dr).length > 0) {
+        return {
+          saved: false,
+          deferred: true,
+          reason: Object.keys(dr).length > 0 ? 'no_current_draft' : 'cloud_index_pending',
+          drafts: dr,
+          id: '',
+        };
       }
       state.draftId = genId();
     }

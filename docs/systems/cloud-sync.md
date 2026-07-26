@@ -67,7 +67,8 @@ npm run dev            # Astro :4321，/api 代理到 8787
 登录态下，本地 hydrate 后会 `ensureCardCloudIndex()`（`cardCloudIndex.mjs`），状态：`idle | pending | ready | error | disabled`。
 
 - **pending** 且本地 drafts 为空：禁止 `saveDraft` 隐式 `genId` 落盘（角色页打字不抢建空卡）；显式「新建」仍可用
-- **ready** 后若本地仍无当前卡但有 stub：boot 会 load 第一张
+- **本地已有卡但 `draftId` 为空**（例如正在拉云端 bundle）：同样禁止隐式 `genId`；`loadDraft` 会先同步 `loadDraftIntoState` 占住当前卡
+- **ready** 后若有 stub/正文卡：boot 优先恢复非空当前卡（空本地孤儿不抢选中，但不删除）
 - **删光本地唯一卡**：先 force 拉索引；有云卡则切过去，确认无卡才 `createBlankDraft`
 - **合并不做孤儿修剪**：`pullCloudCardIndexAndMerge` 只按 id upsert stub，不因「像空卡」删除本地草稿
 

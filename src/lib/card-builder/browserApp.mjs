@@ -119,28 +119,36 @@ export function bootCardBuilder() {
     var drafts = ctx.sm.getAllDrafts() || {};
     var lastId = localStorage.getItem('st_v3_builder_current_id');
     var loadId = null;
-    if (lastId && drafts[lastId]) {
-      loadId = lastId;
-    } else if (!ctx.state.draftId || !drafts[ctx.state.draftId]) {
-      var keys = Object.keys(drafts);
-      if (keys.length > 0) loadId = keys[0];
+
+    function isEffectivelyEmptyDraft(d) {
+      if (!d || d._cloudStub) return false;
+      return !String(d.charName || '').trim()
+        && !String(d.charDesc || '').trim()
+        && !String(d.firstMes || '').trim()
+        && !String(d.creatorNotes || '').trim()
+        && !(Array.isArray(d.worldbookEntries) && d.worldbookEntries.length);
     }
+
+    function pickPreferredDraftId(map, preferId) {
+      var keys = Object.keys(map || {});
+      if (!keys.length) return null;
+      if (preferId && map[preferId] && !isEffectivelyEmptyDraft(map[preferId])) return preferId;
+      for (var i = 0; i < keys.length; i++) {
+        if (!isEffectivelyEmptyDraft(map[keys[i]])) return keys[i];
+      }
+      if (preferId && map[preferId]) return preferId;
+      return keys[0];
+    }
+
+    loadId = pickPreferredDraftId(drafts, lastId);
     if (loadId) {
+      // 同步占住 draftId，再异步拉 bundle / 填 DOM（避免中间窗口隐式建空卡）
+      ctx.sm.loadDraftIntoState(loadId);
       if (ctx.panels.cardManager && typeof ctx.panels.cardManager.loadDraft === 'function') {
         ctx.panels.cardManager.loadDraft(loadId);
-      } else {
-        ctx.sm.loadDraftIntoState(loadId);
       }
-    } else if (!ctx.state.draftId) {
-      // 索引已就绪且本地仍空：冲掉 pending 期间的内存编辑（若有）为新卡
-      try {
-        if (ctx.sm && typeof ctx.sm.flushSave === 'function') {
-          var hasEdit = !!(ctx.state.charName || ctx.state.charDesc || ctx.state.firstMes
-            || ctx.state.creatorNotes || (ctx.state.worldbookEntries && ctx.state.worldbookEntries.length));
-          if (hasEdit) ctx.sm.flushSave();
-        }
-      } catch (eFlush) { /* ignore */ }
     }
+    // 本地与云端皆空时不自动建卡；等用户显式新建或首次有意义编辑
     if (ctx.panels.cardManager && ctx.panels.cardManager.updateCardManagerUI) {
       ctx.panels.cardManager.updateCardManagerUI();
     }
