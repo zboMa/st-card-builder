@@ -82,8 +82,11 @@ const { title } = Astro.props;
       initThemePicker();
       window.__fxEnabled__ = function() { return isImmersiveFxEnabled(); };
       try {
-        var pageName = document.body && document.body.getAttribute('data-page') || (location.pathname || '/');
-        trackPageView(pageName);
+        var isAdminPage = document.documentElement && document.documentElement.classList.contains('admin-html');
+        if (!isAdminPage) {
+          var pageName = document.body && document.body.getAttribute('data-page') || (location.pathname || '/');
+          trackPageView(pageName);
+        }
       } catch (e) { /* ignore */ }
     </script>
   </body>

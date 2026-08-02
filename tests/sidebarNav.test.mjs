@@ -266,13 +266,13 @@ describe('sidebar navigation contract', function() {
     assert.match(wbAppSrc, /entry-title-btn/);
     assert.match(wbAppSrc, /truncatePreviewLine|entry-preview-line/);
     assert.doesNotMatch(wbAppSrc, /toggleEntryExpand|expandedEntries|data-toggle-index|entry-collapse-btn|entry-expand-hint/);
-    assert.match(wbAppSrc, /e\.stopPropagation\(\)/);
+    assert.match(wbAppSrc, /\.stopPropagation\(\)/);
     assert.match(wbAppSrc, /openWbModal\('wbModalSingle'\)/);
     assert.match(wbAppSrc, /openWbModal\('wbModalEdit'\)|openWbEditModal/);
     assert.match(wbAppSrc, /renderStrategyTag|wb-strategy-tag/);
     assert.match(wbAppSrc, /strategyLabelZh/);
     assert.match(wbAppSrc, /entry-icon-btn/);
-    assert.match(wbAppSrc, /btnWbEntryEdit_/);
+    assert.match(wbAppSrc, /data-wb-act="edit"/);
     // 列表不再挂行内保存按钮
     assert.doesNotMatch(wbAppSrc, /btn-save-inline/);
     assert.match(wb, /id="wbModalEdit"/);
