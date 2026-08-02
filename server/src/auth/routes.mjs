@@ -28,8 +28,19 @@ import {
   inviteCodeAccepted,
 } from './emailAuth.mjs';
 import { hashAccountPassword, verifyAccountPassword, assertPasswordShape } from './password.mjs';
+import { appendLoginLog } from '../audit/oplog.mjs';
+import { getValidInvite, consumeInvite } from '../admin/system.mjs';
+import { checkLock, recordFail, clearFails } from './lockout.mjs';
 
 export var authRouter = Router();
+
+function loginMeta(req, user) {
+  return {
+    who: user && (user.id || user.email) || null,
+    ip: req.ip,
+    ua: String(req.headers['user-agent'] || '').slice(0, 300),
+  };
+}
 
 function returnAllow() {
   return buildReturnToAllowlist(config);
@@ -132,6 +143,7 @@ authRouter.post('/dev-login', async function(req, res) {
     provider: 'dev',
     displayName: name,
   };
+  appendLoginLog(Object.assign(loginMeta(req, req.session.user), { ok: true, via: 'dev' }));
   try { await upsertUserRegistry(req.session.user); } catch (e) { console.warn('[auth] registry', e); }
   res.json({ ok: true, user: req.session.user });
 });
@@ -154,7 +166,18 @@ authRouter.post('/register', async function(req, res) {
     return authError(res, 400, e.code || 'invalid_email', e.messageZh || '请输入有效邮箱');
   }
   if (!inviteCodeAccepted(body.inviteCode, config.inviteCodes)) {
-    return authError(res, 403, 'invalid_invite', '邀请码无效');
+    var codeStr = String(body.inviteCode || '').trim();
+    var storedInvite = codeStr ? await getValidInvite(codeStr) : null;
+    if (!storedInvite) {
+      return authError(res, 403, 'invalid_invite', '邀请码无效');
+    }
+  } else {
+    var codeStr2 = String(body.inviteCode || '').trim();
+    var storedInvite2 = codeStr2 ? await getValidInvite(codeStr2) : null;
+    if (storedInvite2) {
+      // env 与库内同时有效时，优先消费库内（跟踪使用）
+      await consumeInvite(codeStr2, null);
+    }
   }
   var password;
   try {
@@ -167,7 +190,11 @@ authRouter.post('/register', async function(req, res) {
     var packed = await hashAccountPassword(password);
     var sessionUser = buildEmailSessionUser(email);
     await registerEmailUser(sessionUser, packed);
+    if (storedInvite) {
+      try { await consumeInvite(storedInvite.code, sessionUser.id); } catch (eConsume) { /* ignore */ }
+    }
     req.session.user = sessionUser;
+    appendLoginLog(Object.assign(loginMeta(req, sessionUser), { ok: true, via: 'email-register' }));
     res.json({ ok: true, user: sessionUser });
   } catch (e) {
     if (e && e.code === 'email_taken') {
@@ -192,6 +219,10 @@ authRouter.post('/login', async function(req, res) {
   } catch (e) {
     return authError(res, 400, e.code || 'invalid_email', e.messageZh || '请输入有效邮箱');
   }
+  var lock = await checkLock(email);
+  if (lock.locked) {
+    return authError(res, 429, 'account_locked', '尝试过多，请 ' + lock.remainingSec + ' 秒后再试');
+  }
   var password = String(body.password || '');
   if (!password) {
     return authError(res, 400, 'password_required', '请输入密码');
@@ -200,20 +231,27 @@ authRouter.post('/login', async function(req, res) {
   try {
     var authDoc = await getEmailAuthDoc(email);
     if (!authDoc || !authDoc.passwordHash) {
+      await recordFail(email);
+      appendLoginLog(Object.assign(loginMeta(req, { email: email }), { ok: false, via: 'email', reason: 'no_account' }));
       return authError(res, 401, 'invalid_credentials', '邮箱或密码错误');
     }
     var ok = await verifyAccountPassword(password, authDoc.passwordHash);
     if (!ok) {
+      await recordFail(email);
+      appendLoginLog(Object.assign(loginMeta(req, { email: email }), { ok: false, via: 'email', reason: 'bad_password' }));
       return authError(res, 401, 'invalid_credentials', '邮箱或密码错误');
     }
+    await clearFails(email);
     var reg = await getUserRegistry(authDoc.userId);
     if (reg && reg.disabled) {
+      appendLoginLog(Object.assign(loginMeta(req, { id: authDoc.userId }), { ok: false, via: 'email', reason: 'disabled' }));
       return authError(res, 403, 'account_disabled', '账号已被禁用');
     }
     var sessionUser = buildEmailSessionUser(email);
     if (reg && reg.displayName) sessionUser.displayName = reg.displayName;
     if (reg && reg.username) sessionUser.username = reg.username;
     req.session.user = sessionUser;
+    appendLoginLog(Object.assign(loginMeta(req, sessionUser), { ok: true, via: 'email' }));
     try { await upsertUserRegistry(sessionUser); } catch (e) { console.warn('[auth] registry', e); }
     res.json({ ok: true, user: sessionUser });
   } catch (e) {
@@ -281,6 +319,7 @@ authRouter.get('/discord/callback', async function(req, res) {
       discordId: me.id,
       avatar: me.avatar || null,
     };
+    appendLoginLog(Object.assign(loginMeta(req, req.session.user), { ok: true, via: 'discord' }));
     try { await upsertUserRegistry(req.session.user); } catch (e) { console.warn('[auth] registry', e); }
 
     if (oauthClient === 'st_plugin') {

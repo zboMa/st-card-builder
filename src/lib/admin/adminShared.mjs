@@ -54,6 +54,7 @@ function fmtTime(s) {
 var state = {
   role: null,
   user: null,
+  perms: [],
   view: 'dashboard',
   usersOffset: 0,
   sharesOffset: 0,
@@ -61,6 +62,15 @@ var state = {
   auditOffset: 0,
   pageSize: 30,
 };
+
+function isOps() {
+  return state.role === 'ops';
+}
+
+/** 是否拥有权限点（供动态按钮显隐 / disabled 用） */
+function hasPerm(perm) {
+  return Array.isArray(state.perms) && state.perms.indexOf(perm) >= 0;
+}
 
 async function api(path, opts) {
   var res = await apiFetch(path, opts || {});
@@ -97,9 +107,5 @@ function setStatus(msg) {
   if (el) el.textContent = msg || '';
 }
 
-function isOps() {
-  return state.role === 'ops';
-}
 
-
-export { state, api, $, escapeHtml, fmtBytes, fmtTime, setBanner, setStatus, isOps, apiEmailLogin };
+export { state, api, $, escapeHtml, fmtBytes, fmtTime, setBanner, setStatus, isOps, hasPerm, apiEmailLogin };

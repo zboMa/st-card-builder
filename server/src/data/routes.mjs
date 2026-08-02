@@ -32,6 +32,10 @@ import {
   listUserDocsByPrefix,
 } from './userDocs.mjs';
 import { getQuotaSnapshot, assertQuota } from '../quota/quotaService.mjs';
+import { upsertCardIndex, deleteCardIndex } from '../index/aggregate.mjs';
+import { isRemoved, filterCardsIndex } from '../admin/content.mjs';
+import { createFlag } from '../admin/moderation.mjs';
+import { appendEvent } from '../events.mjs';
 
 export var dataRouter = Router();
 
@@ -39,6 +43,12 @@ dataRouter.use(requireUserFlexible);
 
 function userIdOf(req) {
   return req.user && req.user.id;
+}
+
+function fireAndForget(promise) {
+  Promise.resolve(promise).catch(function(e) {
+    console.warn('[aggregate] hook', e && e.message || e);
+  });
 }
 
 function sendErr(res, e, fallbackStatus) {
@@ -76,8 +86,61 @@ function sendErr(res, e, fallbackStatus) {
   });
 }
 
-dataRouter.get('/status', async function(req, res) {
+/** 用户举报内容（卡 / 小说） */
+dataRouter.post('/report', async function(req, res) {
   try {
+    var body = req.body || {};
+    var targetType = String(body.targetType || '');
+    var cardId = String(body.cardId || '').trim();
+    if (!cardId || (targetType !== 'card' && targetType !== 'novel')) {
+      return res.status(400).json({ ok: false, error: 'invalid_report' });
+    }
+    var uid = userIdOf(req);
+    var novelId = '';
+    if (targetType === 'card') {
+      var cardDoc = await getUserDoc(uid, cardDocId(cardId));
+      if (!cardDoc) return res.status(404).json({ ok: false, error: 'not_found' });
+    } else {
+      novelId = String(body.novelId || '').trim();
+      if (!novelId) return res.status(400).json({ ok: false, error: 'invalid_report' });
+      var novelDoc = await getUserDoc(uid, storyNovelDocId(cardId, novelId));
+      if (!novelDoc) return res.status(404).json({ ok: false, error: 'not_found' });
+    }
+    var flag = await createFlag({
+      targetType: targetType,
+      targetUserId: uid,
+      cardId: cardId,
+      novelId: novelId,
+      reason: String(body.reason || ''),
+      reportedBy: uid,
+    });
+    res.json({ ok: true, flagId: flag._id });
+  } catch (e) {
+    sendErr(res, e);
+  }
+});
+
+/** 行为埋点：{ name, extra } */
+dataRouter.post('/event', async function(req, res) {
+  var body = req.body || {};
+  var name = String(body.name || '').slice(0, 80);
+  if (!name) return res.status(400).json({ ok: false, error: 'invalid_event' });
+  try {
+    var extra = body.extra && typeof body.extra === 'object'
+      ? JSON.stringify(body.extra).slice(0, 2000)
+      : String(body.extra || '').slice(0, 2000);
+    var doc = await appendEvent({
+      name: name,
+      uid: userIdOf(req),
+      extra: extra,
+    });
+    res.json({ ok: true, id: doc._id });
+  } catch (e) {
+    sendErr(res, e);
+  }
+});
+
+dataRouter.get('/status', async function(req, res) {  try {
     var uid = userIdOf(req);
     await ensureUserDbExists(uid);
     try { await upsertUserRegistry(req.user); } catch (e) { /* ignore */ }
@@ -179,7 +242,7 @@ dataRouter.get('/cards', async function(req, res) {
     var idx = await getCardIndexDoc(userIdOf(req));
     res.json({
       ok: true,
-      cards: idx.cards || [],
+      cards: filterCardsIndex(idx),
       updatedAt: idx.updatedAt || null,
       rev: idx._rev || null,
     });
@@ -192,6 +255,9 @@ dataRouter.get('/cards/:cardId', async function(req, res) {
   try {
     var doc = await getUserDoc(userIdOf(req), cardDocId(req.params.cardId));
     if (!doc) return res.status(404).json({ ok: false, error: 'not_found' });
+    if (isRemoved(doc)) {
+      return res.status(404).json({ ok: false, error: 'content_removed', message: '内容已被移除' });
+    }
     res.json({ ok: true, doc: doc, data: doc.data, rev: doc._rev, updatedAt: doc.updatedAt });
   } catch (e) {
     sendErr(res, e);
@@ -205,10 +271,15 @@ dataRouter.put('/cards/:cardId', async function(req, res) {
     if (!draft || typeof draft !== 'object') {
       return res.status(400).json({ ok: false, error: 'invalid_body', message: '需要卡片草稿对象' });
     }
+    var existing = await getUserDoc(userIdOf(req), cardDocId(req.params.cardId));
+    if (isRemoved(existing)) {
+      return res.status(410).json({ ok: false, error: 'content_removed', message: '内容已被移除，禁止修改' });
+    }
     var saved = await upsertCardDraft(userIdOf(req), req.params.cardId, draft, {
       baseRev: body.baseRev || body._rev,
       force: !!body.force,
     });
+    fireAndForget(upsertCardIndex(userIdOf(req), String(req.params.cardId)));
     res.json({ ok: true, cardId: String(req.params.cardId), rev: saved.rev, updatedAt: saved.updatedAt });
   } catch (e) {
     sendErr(res, e);
@@ -222,6 +293,9 @@ dataRouter.get('/cards/:cardId/bundle', async function(req, res) {
     if (!bundle || !bundle.card) {
       return res.status(404).json({ ok: false, error: 'not_found' });
     }
+    if (isRemoved(bundle.card)) {
+      return res.status(404).json({ ok: false, error: 'content_removed', message: '内容已被移除' });
+    }
     res.json({ ok: true, bundle: bundle });
   } catch (e) {
     sendErr(res, e);
@@ -232,9 +306,14 @@ dataRouter.put('/cards/:cardId/bundle', async function(req, res) {
   try {
     var body = req.body || {};
     var bundle = body.bundle || body;
+    var existing = await getUserDoc(userIdOf(req), cardDocId(req.params.cardId));
+    if (isRemoved(existing)) {
+      return res.status(410).json({ ok: false, error: 'content_removed', message: '内容已被移除，禁止修改' });
+    }
     var saved = await putCardBundle(userIdOf(req), req.params.cardId, bundle, {
       force: body.force !== false,
     });
+    fireAndForget(upsertCardIndex(userIdOf(req), String(req.params.cardId)));
     res.json(saved);
   } catch (e) {
     sendErr(res, e);
@@ -252,6 +331,7 @@ dataRouter.delete('/cards/:cardId', async function(req, res) {
     var out = await cascadeDeleteCard(userIdOf(req), req.params.cardId, {
       deleteStories: deleteStories,
     });
+    fireAndForget(deleteCardIndex(userIdOf(req), String(req.params.cardId)));
     res.json(out);
   } catch (e) {
     sendErr(res, e);
@@ -285,6 +365,12 @@ dataRouter.put('/doc', async function(req, res) {
       : Object.assign({}, body, { _id: docId });
     delete doc._rev;
     delete doc.id;
+    if (docId.indexOf('card/') === 0 || docId.indexOf('story/') === 0) {
+      var guarded = await getUserDoc(userIdOf(req), docId);
+      if (isRemoved(guarded)) {
+        return res.status(410).json({ ok: false, error: 'content_removed', message: '内容已被移除，禁止修改' });
+      }
+    }
     var saved = await putUserDoc(userIdOf(req), doc, {
       baseRev: body.baseRev,
       force: !!body.force,
@@ -503,6 +589,9 @@ dataRouter.get('/stories/:cardId/:novelId', async function(req, res) {
     }
     var doc = await getUserDoc(userIdOf(req), storyNovelDocId(cardId, novelId));
     if (!doc) return res.status(404).json({ ok: false, error: 'not_found' });
+    if (isRemoved(doc)) {
+      return res.status(404).json({ ok: false, error: 'content_removed', message: '内容已被移除' });
+    }
     res.json({ ok: true, doc: doc, data: doc.data });
   } catch (e) {
     sendErr(res, e);
@@ -561,6 +650,10 @@ dataRouter.put('/stories/:cardId/:novelId', async function(req, res) {
     var novelId = String(req.params.novelId || '').trim();
     var body = req.body || {};
     var data = body.data != null ? body.data : body;
+    var guarded = await getUserDoc(userIdOf(req), storyNovelDocId(cardId, novelId));
+    if (isRemoved(guarded)) {
+      return res.status(410).json({ ok: false, error: 'content_removed', message: '内容已被移除，禁止修改' });
+    }
     var saved = await putUserDoc(userIdOf(req), {
       _id: storyNovelDocId(cardId, novelId),
       type: 'story-novel',
@@ -569,6 +662,7 @@ dataRouter.put('/stories/:cardId/:novelId', async function(req, res) {
       data: data,
       updatedAt: new Date().toISOString(),
     }, { force: true });
+    fireAndForget(upsertCardIndex(userIdOf(req), cardId));
     res.json({ ok: true, rev: saved.rev });
   } catch (e) {
     sendErr(res, e);
@@ -622,6 +716,7 @@ dataRouter.delete('/stories/:cardId/:novelId', async function(req, res) {
         }
       }
     } catch (eList) { /* ignore */ }
+    fireAndForget(upsertCardIndex(userIdOf(req), cardId));
     res.json({ ok: true });
   } catch (e) {
     sendErr(res, e);

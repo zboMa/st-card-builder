@@ -13,6 +13,9 @@ import { shareRouter } from './share/routes.mjs';
 import { cardShareRouter } from './share/cardRoutes.mjs';
 import { adminRouter } from './admin/routes.mjs';
 import { attachRequestTiming } from './requestTiming.mjs';
+import { startScheduler } from './scheduler.mjs';
+import { seedRoles } from './auth/roles.mjs';
+import { seedMenus } from './admin/menus.mjs';
 
 var app = express();
 
@@ -74,4 +77,7 @@ app.listen(config.port, function() {
     + ' ADMIN_IDS=' + config.adminDiscordIds.length
     + ' CORS_ALLOW_ALL=' + corsAllowAll()
     + ' PUBLIC_ADMIN_URL=' + (config.publicAdminUrl || '(empty)'));
+  startScheduler();
+  seedRoles().catch(function(e) { console.warn('[roles] seed', e); });
+  seedMenus().catch(function(e) { console.warn('[menus] seed', e); });
 });

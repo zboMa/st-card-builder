@@ -75,11 +75,16 @@ const { title } = Astro.props;
       import { initThemePicker } from '../lib/theme/themePickerBoot.mjs';
       import { initThemeSceneFx } from '../lib/theme/themeSceneFxBoot.mjs';
       import { isImmersiveFxEnabled } from '../lib/theme/themeSceneTier.mjs';
+      import { trackPageView } from '../lib/track.mjs';
       initTheme();
       initThemeSceneFx();
       initLayoutChrome();
       initThemePicker();
       window.__fxEnabled__ = function() { return isImmersiveFxEnabled(); };
+      try {
+        var pageName = document.body && document.body.getAttribute('data-page') || (location.pathname || '/');
+        trackPageView(pageName);
+      } catch (e) { /* ignore */ }
     </script>
   </body>
 </html>

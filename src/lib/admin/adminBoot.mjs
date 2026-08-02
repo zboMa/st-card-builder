@@ -5,7 +5,7 @@ import { apiFetch, getPublicAppUrl, discordLoginUrl } from '../publicConfig.mjs'
 import {
   state, api, $, escapeHtml, setBanner, setStatus, isOps, apiEmailLogin,
 } from './adminShared.mjs';
-import { showView } from './adminViews.mjs';
+import { showView, renderAdminNav, loadCards, loadNovels, loadOpLog, loadLoginLog, loadParams, loadDicts, loadInvites, loadQuota, loadFiles } from './adminViews.mjs';
 import { bootAdminActionEngine } from '../actionEngine/bootAdmin.mjs';
 import { engineBegin, engineEnd, engineTryAllowed, engineRefresh } from '../actionEngine/helpers.mjs';
 
@@ -77,19 +77,21 @@ function showAdminWorkspace(st) {
   if (workspace) workspace.hidden = false;
   state.user = st.user;
   state.role = st.adminRole || 'ops';
+  state.perms = Array.isArray(st.perms) ? st.perms : [];
   if (line) {
     line.textContent = (st.user.displayName || st.user.username)
       + ' · ' + (state.role === 'readonly' ? '只读管理员' : '运维管理员');
   }
   document.body.classList.toggle('admin-readonly', state.role === 'readonly');
+  renderAdminNav();
+  engineRefresh();
   showView('dashboard');
 }
 
 function bindEvents() {
-  document.querySelectorAll('[data-admin-nav]').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      showView(btn.getAttribute('data-admin-nav'));
-    });
+  document.addEventListener('click', function(e) {
+    var btn = e.target.closest('[data-admin-nav]');
+    if (btn) showView(btn.getAttribute('data-admin-nav'));
   });
 
   var btnLogout = $('btnAdminLogout');
@@ -128,6 +130,19 @@ function bindEvents() {
     state.usersOffset = 0;
     loadUsers();
   });
+  $('btnAdminLoadCards') && $('btnAdminLoadCards').addEventListener('click', function() {
+    loadCards();
+  });
+  $('btnAdminLoadNovels') && $('btnAdminLoadNovels').addEventListener('click', function() {
+    loadNovels();
+  });
+  $('btnAdminLoadOpLog') && $('btnAdminLoadOpLog').addEventListener('click', loadOpLog);
+  $('btnAdminLoadLoginLog') && $('btnAdminLoadLoginLog').addEventListener('click', loadLoginLog);
+  $('btnAdminLoadParams') && $('btnAdminLoadParams').addEventListener('click', loadParams);
+  $('btnAdminLoadDicts') && $('btnAdminLoadDicts').addEventListener('click', loadDicts);
+  $('btnAdminLoadInvites') && $('btnAdminLoadInvites').addEventListener('click', loadInvites);
+  $('btnAdminLoadQuota') && $('btnAdminLoadQuota').addEventListener('click', loadQuota);
+  $('btnAdminLoadFiles') && $('btnAdminLoadFiles').addEventListener('click', loadFiles);
   $('btnAdminLoadShares') && $('btnAdminLoadShares').addEventListener('click', function() {
     state.sharesOffset = 0;
     loadShares();
@@ -310,6 +325,12 @@ export async function bootAdminApp() {
         showLogout: true,
       });
       return;
+    }
+    try {
+      var me = await api('/api/admin/me');
+      st.perms = Array.isArray(me && me.perms) ? me.perms : [];
+    } catch (eMe) {
+      st.perms = [];
     }
     showAdminWorkspace(st);
   } catch (e) {

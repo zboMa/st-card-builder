@@ -51,19 +51,12 @@ import Layout from '../layouts/Layout.astro';
       <div id="adminStatus" class="admin-status" aria-live="polite"></div>
 
       <div id="adminShell" class="admin-layout">
-        <nav class="admin-nav" aria-label="管理导航">
-          <button type="button" data-admin-nav="dashboard" class="is-active">仪表盘</button>
-          <button type="button" data-admin-nav="users">用户</button>
-          <button type="button" data-admin-nav="shares">分享</button>
-          <button type="button" data-admin-nav="tokens">插件 Token</button>
-          <button type="button" data-admin-nav="databases">Couch 库</button>
-          <button type="button" data-admin-nav="audit">审计</button>
-          <button type="button" data-admin-nav="system">系统</button>
-        </nav>
+        <nav class="admin-nav" aria-label="管理导航" id="adminNav"></nav>
 
         <div class="admin-main">
           <section class="admin-panel" data-admin-view="dashboard">
             <h2>仪表盘</h2>
+            <div id="adminTrendBox" class="admin-trend-box"></div>
             <div id="adminDashGrid" class="admin-stat-grid"></div>
             <h2>配置开关（只读）</h2>
             <div id="adminDashFlags" class="admin-flag-grid"></div>
@@ -82,7 +75,48 @@ import Layout from '../layouts/Layout.astro';
               </select>
               <button type="button" id="btnAdminLoadUsers" class="btn btn-sm btn-fetch">刷新</button>
             </div>
+            <div id="adminUserProfile"></div>
             <div id="adminUserTable"></div>
+          </section>
+
+          <section class="admin-panel" data-admin-view="cards" hidden>
+            <div class="admin-panel-head">
+              <h2>卡管理</h2>
+            </div>
+            <div class="admin-toolbar">
+              <input id="adminCardQ" type="search" placeholder="搜索卡名 / cardId / userId" />
+              <select id="adminCardNsfw">
+                <option value="all">全部 NSFW</option>
+                <option value="yes">NSFW</option>
+                <option value="no">非 NSFW</option>
+              </select>
+              <select id="adminCardStatus">
+                <option value="all">全部状态</option>
+                <option value="active">正常</option>
+                <option value="removed">已下架</option>
+              </select>
+              <input id="adminCardUser" type="search" placeholder="userId" style="max-width:170px" />
+              <button type="button" id="btnAdminLoadCards" class="btn btn-sm btn-fetch">刷新</button>
+            </div>
+            <div id="adminCardDetail"></div>
+            <div id="adminCardTable"></div>
+          </section>
+
+          <section class="admin-panel" data-admin-view="novels" hidden>
+            <div class="admin-panel-head">
+              <h2>小说管理</h2>
+            </div>
+            <div class="admin-toolbar">
+              <input id="adminNovelQ" type="search" placeholder="搜索标题 / novelId / cardId / userId" />
+              <select id="adminNovelStatus">
+                <option value="all">全部状态</option>
+                <option value="active">正常</option>
+                <option value="removed">已下架</option>
+              </select>
+              <input id="adminNovelUser" type="search" placeholder="userId" style="max-width:170px" />
+              <button type="button" id="btnAdminLoadNovels" class="btn btn-sm btn-fetch">刷新</button>
+            </div>
+            <div id="adminNovelTable"></div>
           </section>
 
           <section class="admin-panel" data-admin-view="shares" hidden>
@@ -156,12 +190,107 @@ import Layout from '../layouts/Layout.astro';
             <div id="adminAuditTable"></div>
           </section>
 
+          <section class="admin-panel" data-admin-view="moderation" hidden>
+            <div class="admin-panel-head">
+              <h2>审核与审批</h2>
+            </div>
+            <div id="adminModerationBody"></div>
+          </section>
+
           <section class="admin-panel" data-admin-view="system" hidden>
             <div class="admin-panel-head">
               <h2>系统与备份</h2>
               <button type="button" id="btnAdminBackup" class="btn btn-sm btn-primary admin-ops-only">执行逻辑备份</button>
             </div>
             <div id="adminSystemBody"></div>
+          </section>
+
+          <section class="admin-panel" data-admin-view="roles" hidden>
+            <div class="admin-panel-head">
+              <h2>角色管理</h2>
+            </div>
+            <div id="adminRoleTable"></div>
+          </section>
+
+          <section class="admin-panel" data-admin-view="menus" hidden>
+            <div class="admin-panel-head">
+              <h2>菜单管理</h2>
+            </div>
+            <div id="adminMenuTable"></div>
+          </section>
+
+          <section class="admin-panel" data-admin-view="oplog" hidden>
+            <div class="admin-panel-head">
+              <h2>操作日志</h2>
+              <button type="button" id="btnAdminLoadOpLog" class="btn btn-sm btn-fetch">刷新</button>
+            </div>
+            <div class="admin-toolbar">
+              <input id="adminOpLogWho" type="search" placeholder="操作者" />
+              <input id="adminOpLogAction" type="search" placeholder="动作关键字" />
+            </div>
+            <div id="adminOpLogTable"></div>
+          </section>
+
+          <section class="admin-panel" data-admin-view="loginlog" hidden>
+            <div class="admin-panel-head">
+              <h2>登录日志</h2>
+              <button type="button" id="btnAdminLoadLoginLog" class="btn btn-sm btn-fetch">刷新</button>
+            </div>
+            <div class="admin-toolbar">
+              <input id="adminLoginLogWho" type="search" placeholder="用户 / 邮箱" />
+            </div>
+            <div id="adminLoginLogTable"></div>
+          </section>
+
+          <section class="admin-panel" data-admin-view="params" hidden>
+            <div class="admin-panel-head">
+              <h2>参数管理</h2>
+              <button type="button" id="btnAdminLoadParams" class="btn btn-sm btn-fetch">刷新</button>
+            </div>
+            <div id="adminParamTable"></div>
+          </section>
+
+          <section class="admin-panel" data-admin-view="dicts" hidden>
+            <div class="admin-panel-head">
+              <h2>数据字典</h2>
+              <button type="button" id="btnAdminLoadDicts" class="btn btn-sm btn-fetch">刷新</button>
+            </div>
+            <div id="adminDictTable"></div>
+          </section>
+
+          <section class="admin-panel" data-admin-view="invites" hidden>
+            <div class="admin-panel-head">
+              <h2>邀请码</h2>
+              <button type="button" id="btnAdminLoadInvites" class="btn btn-sm btn-fetch">刷新</button>
+            </div>
+            <div class="admin-toolbar">
+              <input id="adminInviteNote" type="search" placeholder="备注" style="max-width:200px" />
+              <input id="adminInviteCount" type="number" value="1" style="max-width:70px" />
+              <button type="button" id="btnAdminGenInvites" class="btn btn-sm btn-primary">生成</button>
+            </div>
+            <div id="adminInviteTable"></div>
+          </section>
+
+          <section class="admin-panel" data-admin-view="quota" hidden>
+            <div class="admin-panel-head">
+              <h2>配额概览</h2>
+              <button type="button" id="btnAdminLoadQuota" class="btn btn-sm btn-fetch">刷新</button>
+            </div>
+            <div id="adminQuotaTiers"></div>
+            <div id="adminQuotaTable"></div>
+          </section>
+
+          <section class="admin-panel" data-admin-view="files" hidden>
+            <div class="admin-panel-head">
+              <h2>文件管理</h2>
+              <button type="button" id="btnAdminLoadFiles" class="btn btn-sm btn-fetch">刷新</button>
+            </div>
+            <div class="admin-toolbar">
+              <input id="adminFileName" type="search" placeholder="文件名" style="max-width:180px" />
+              <input id="adminFileData" type="file" />
+              <button type="button" id="btnAdminUploadFile" class="btn btn-sm btn-primary">上传</button>
+            </div>
+            <div id="adminFileTable"></div>
           </section>
         </div>
       </div>
