@@ -43,13 +43,14 @@ export const ASSISTANT_TOOLS = [
   { name: 'get_engine_options', kind: 'read', risk: 'none', summary: '读取 AI 引擎非密钥选项', argsHint: '{}' },
   { name: 'get_prompt_ids', kind: 'read', risk: 'none', summary: '提示词配置 id 列表（只读）', argsHint: '{}' },
   { name: 'get_adult_config', kind: 'read', risk: 'none', summary: '读取卡级「世界与限定」（世界观预设/框架/口味/表达层/NTL/恶堕）', argsHint: '{}' },
+  { name: 'get_adult_catalog', kind: 'read', risk: 'none', summary: '按需取「世界与限定」目录分组与 id/摘要（省 system token）', argsHint: '{ kinds?, groups?, query?, withSummary? }' },
   { name: 'novel_list_outputs', kind: 'read', risk: 'none', summary: '小说各模块产出摘要（人物/世界书/文风/实体）', argsHint: '{}' },
 
   // —— 写入（小改 auto / 大改 confirm）——
   { name: 'update_character_fields', kind: 'write', risk: 'auto', summary: '更新部分角色字段', argsHint: '{ fields:{charName?,wbName?,charDesc?,firstMes?,creatorNotes?,tags?,altGreetings?} }' },
   { name: 'replace_character_section', kind: 'write', risk: 'confirm', summary: '整段覆盖角色字段', argsHint: '{ field: charDesc|firstMes|creatorNotes|..., content }' },
   { name: 'expand_character_field', kind: 'generate', risk: 'confirm', summary: '按字段名重写/扩写角色字段', argsHint: '{ field: charDesc|creatorNotes|..., mode?, instruction? }' },
-  { name: 'set_adult_config', kind: 'write', risk: 'auto', summary: '更新卡级「世界与限定」（worldviewPresetItems/框架/口味/表达层/NTL/恶堕等）', argsHint: '{ worldviewPresetItems?, enabled?, flavorItems?, postureItems?, speechItems?, ntlEnabled?, ntlTabooTypes?, adultWorldframeForced?, corruptionEnabled?, ... }' },
+  { name: 'set_adult_config', kind: 'write', risk: 'confirm', summary: '更新卡级「世界与限定」（worldviewPresetItems/框架/口味/表达层/NTL/恶堕等）', argsHint: '{ worldviewPresetItems?, enabled?, flavorItems?, postureItems?, speechItems?, ntlEnabled?, ntlTabooTypes?, adultWorldframeForced?, corruptionEnabled?, ... }' },
   { name: 'create_worldbook_entry', kind: 'write', risk: 'auto', summary: '新建一条世界书', argsHint: '{ entry }' },
   { name: 'update_worldbook_entry', kind: 'write', risk: 'auto', summary: '更新一条世界书', argsHint: '{ target|{index|comment}, patch }' },
   { name: 'delete_worldbook_entry', kind: 'write', risk: 'confirm', summary: '删除世界书条目（含清空全部）', argsHint: '{ index|indices|target|{all:true} }' },
@@ -84,7 +85,7 @@ export const ASSISTANT_TOOLS = [
   { name: 'import_card', kind: 'write', risk: 'confirm', summary: '导入已解析角色卡 JSON（不代下载）', argsHint: '{ cardJson }' },
 
   // —— 小说 / MVU ——
-  { name: 'set_novel_source', kind: 'write', risk: 'auto', summary: '设置小说原始资料文本', argsHint: '{ text, context? }' },
+  { name: 'set_novel_source', kind: 'write', risk: 'confirm', summary: '设置小说原始资料文本', argsHint: '{ text, context? }' },
   { name: 'run_novel_extract_step', kind: 'generate', risk: 'confirm', summary: 'await 小说步骤（split/characters/worldbook/style）', argsHint: '{ mode }' },
   { name: 'novel_split_chapters', kind: 'generate', risk: 'confirm', summary: 'await 拆章并写回', argsHint: '{ mode? }' },
   { name: 'novel_extract_characters', kind: 'generate', risk: 'confirm', summary: 'await 人物扫描抽取', argsHint: '{}' },
@@ -95,8 +96,8 @@ export const ASSISTANT_TOOLS = [
   { name: 'patch_novel_entity', kind: 'write', risk: 'confirm', summary: '修改知识库实体字段', argsHint: '{ target|{id|name}, patch }' },
   { name: 'merge_novel_entities', kind: 'write', risk: 'confirm', summary: '合并两条实体', argsHint: '{ keep|{id|name}, drop|{id|name} }' },
   { name: 'sync_novel_entities', kind: 'write', risk: 'confirm', summary: '同步知识库实体到主世界书', argsHint: '{ types?, selected?, policy? }' },
-  { name: 'set_novel_adult_mode', kind: 'write', risk: 'auto', summary: '开关小说全局 NSFW（原始资料·全局配置；联动分析/世界书/文风）', argsHint: '{ enabled: boolean }' },
-  { name: 'set_novel_ntl_mode', kind: 'write', risk: 'auto', summary: '开关小说全局 NTL 禁忌张力层（与 NSFW 解耦，可叠加）', argsHint: '{ enabled: boolean }' },
+  { name: 'set_novel_adult_mode', kind: 'write', risk: 'confirm', summary: '开关小说全局 NSFW（原始资料·全局配置；联动分析/世界书/文风）', argsHint: '{ enabled: boolean }' },
+  { name: 'set_novel_ntl_mode', kind: 'write', risk: 'confirm', summary: '开关小说全局 NTL 禁忌张力层（与 NSFW 解耦，可叠加）', argsHint: '{ enabled: boolean }' },
   { name: 'draft_nsfw_statusbar', kind: 'read', risk: 'none', summary: '从人物 NSFW 生成状态栏变量草案（不写入）', argsHint: '{ name? }' },
   { name: 'generate_corruption_lore', kind: 'generate', risk: 'confirm', summary: '生成/更新恶堕进度总则与角色分期档案世界书', argsHint: '{ selectedNames?, preset?, customBrief?, templateOnly? }' },
   { name: 'novel_distill_style', kind: 'generate', risk: 'confirm', summary: 'await 文风蒸馏', argsHint: '{}' },

@@ -46,7 +46,7 @@ export function createBridge(ctx) {
     getBoundCardId: function() { return ctx.sm.getBoundCardId(); },
     getRagOptions: function() {
       return {
-        enabled: !state.rag || state.rag.enabled !== false,
+        enabled: !!(state.rag && state.rag.enabled === true),
         budget: (state.rag && state.rag.budget) || 12000,
         embedModel: (state.rag && state.rag.embedModel) || '',
       };

@@ -88,10 +88,10 @@ export function syncRagOptionsToAiPanel(ctx) {
   try {
     var enableEl = $('assistantNovelRagEnable');
     var budgetEl = $('assistantNovelRagBudget');
-    if (enableEl) enableEl.checked = state.rag.enabled !== false;
+    if (enableEl) enableEl.checked = state.rag.enabled === true;
     if (budgetEl) budgetEl.value = String(state.rag.budget || 12000);
     localStorage.setItem('st_v3_builder_novel_rag', JSON.stringify({
-      enabled: state.rag.enabled !== false,
+      enabled: state.rag.enabled === true,
       budget: state.rag.budget || 12000,
     }));
   } catch (e) { /* ignore */ }

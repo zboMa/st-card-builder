@@ -29,6 +29,7 @@ const TOOL_MIN_ARGS = {
   get_engine_options: {},
   get_prompt_ids: {},
   get_adult_config: {},
+  get_adult_catalog: {},
   novel_list_outputs: {},
   update_character_fields: { fields: { charName: '新名' } },
   replace_character_section: { field: 'charDesc', content: '新描述' },
@@ -239,6 +240,19 @@ function createFullMockBridge(seed) {
       return { enabled: true, corruptionEnabled: true, corruptionPreset: '5' };
     },
     setNsfwConfig: function() { return true; },
+    getAdultCatalog: function(a) {
+      var base = { flavors: [{ group: '情绪基调', items: [{ id: 'vanilla', label: '经典纯爱', summary: '纯爱向' }] }] };
+      if (a && a.withSummary === false) {
+        return {
+          available: true,
+          totalKinds: 1,
+          kinds: {
+            flavors: [{ group: '情绪基调', items: [{ id: 'vanilla', label: '经典纯爱' }] }],
+          },
+        };
+      }
+      return { available: true, totalKinds: 1, kinds: base };
+    },
     patchNovelChapters: function(opts) { return { action: opts.action, ok: true }; },
     mutateNovelCharacter: async function(opts) {
       var t = opts.target || opts;
@@ -390,8 +404,40 @@ describe('assistant tools execution audit', function() {
     assert.ok(!('target' in captured.patch));
   });
 
-  it('空参应失败的工具', async function() {
+  it('update_worldbook_entry 支持多索引补丁', async function() {
+    var bridge = createFullMockBridge({
+      worldbook: [
+        { comment: '甲', content: '一', keys: [], id: 'w1' },
+        { comment: '乙', content: '二', keys: [], id: 'w2' },
+        { comment: '丙', content: '三', keys: [], id: 'w3' },
+      ],
+    });
+    var ex = createToolExecutor(bridge);
+    var r = await ex.executeConfirmed('update_worldbook_entry', {
+      indices: [0, 2],
+      patch: { content: '改', keys: 'k1, k2' },
+    });
+    assert.equal(r.ok, true);
+    assert.deepEqual(r.data.indices, [0, 2]);
+    assert.equal(bridge.getWorldbook()[0].content, '改');
+    assert.equal(bridge.getWorldbook()[1].content, '二');
+    assert.equal(bridge.getWorldbook()[2].content, '改');
+    assert.deepEqual(bridge.getWorldbook()[0].keys, ['k1', 'k2']);
+  });
+
+  it('get_adult_catalog 返回分组目录并可去摘要', async function() {
     var bridge = createFullMockBridge();
+    var ex = createToolExecutor(bridge);
+    var r = await ex.executeConfirmed('get_adult_catalog', {});
+    assert.equal(r.ok, true);
+    assert.equal(r.data.available, true);
+    assert.equal(r.data.kinds.flavors[0].items[0].id, 'vanilla');
+    var r2 = await ex.executeConfirmed('get_adult_catalog', { withSummary: false });
+    assert.equal(r2.ok, true);
+    assert.ok(!('summary' in r2.data.kinds.flavors[0].items[0]));
+  });
+
+  it('空参应失败的工具', async function() {    var bridge = createFullMockBridge();
     var ex = createToolExecutor(bridge);
     for (var i = 0; i < ASSISTANT_TOOLS.length; i++) {
       var name = ASSISTANT_TOOLS[i].name;

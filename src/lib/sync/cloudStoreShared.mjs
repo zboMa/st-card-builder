@@ -141,6 +141,8 @@ export async function handleOutboxItem(item) {
       return api.putNovel(item.cardId, item.body && item.body.data);
     case 'putRag':
       return api.putRag(item.cardId, item.body && item.body.data);
+    case 'putAssistant':
+      return api.putAssistant(item.cardId, item.body && item.body.data);
     case 'putAvatar':
       return api.putAvatar(item.cardId, item.body.kind, item.body.data, item.body.contentType);
     case 'putStoryCatalog':

@@ -62,7 +62,7 @@ export function summarizeToolTrace(toolName, result, args) {
     return '读取角色字段';
   }
 
-  if (toolName === 'lint_card' || toolName === 'audit_worldbook') {
+  if (toolName === 'lint_for_sillytavern' || toolName === 'lint_card' || toolName === 'audit_worldbook') {
     var issues = Array.isArray(data.issues) ? data.issues.length : null;
     if (issues != null) return '诊断 ' + issues + ' 项问题';
   }

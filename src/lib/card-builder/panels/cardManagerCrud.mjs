@@ -283,6 +283,15 @@ export function attachCardManagerCrud(ctx, s, panel) {
     import('../../idbStore.mjs').then(function(idb) {
       return idb.idbDeleteJson('novelRagV1:card:' + id);
     }).catch(function() {});
+    // 助手会话 / 撤销快照随卡删除（本地）
+    try {
+      import('../../assistant/session.mjs').then(function(sess) {
+        try {
+          localStorage.removeItem(sess.assistantSessionKeyFor(id));
+          localStorage.removeItem(sess.assistantSnapshotKeyFor(id));
+        } catch (eS) { /* ignore */ }
+      }).catch(function() {});
+    } catch (eSess) { /* ignore */ }
     if (deleteStories) {
       import('../../storyStudio/idb.mjs').then(function(storyIdb) {
         return storyIdb.deleteAllStoriesForCard(id);

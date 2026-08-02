@@ -4,10 +4,12 @@
 import {
   buildCorruptionExportIssues,
   CORRUPTION_ARC_BRIEFS,
+  CORRUPTION_PRESETS,
+  DEFAULT_CORRUPTION_PRESET,
+  resolveStageNames,
 } from '../../corruptionProgress.mjs';
 import { buildAdultCanonDigest } from '../../adult/canon.mjs';
 import {
-  getWorldviewPreset,
   normalizeWorldviewPresetItems,
   primaryWorldviewPresetId,
 } from '../../presets/worldviews/index.mjs';
@@ -89,9 +91,11 @@ export function attachAdultConfigBind(ctx, s, panel) {
             return { id: String((it && it.id) || ''), note: String((it && it.note) || '') };
           }).filter(function(it) { return it.id; });
           ctx.state.ntlTabooTypes = ctx.state.ntlTabooItems.map(function(it) { return it.id; });
+          s.ensureNtlItemsOnState();
         } else if (cfg && Array.isArray(cfg.ntlTabooTypes)) {
           ctx.state.ntlTabooTypes = cfg.ntlTabooTypes.slice();
           ctx.state.ntlTabooItems = ctx.state.ntlTabooTypes.map(function(id) { return { id: id, note: '' }; });
+          s.ensureNtlItemsOnState();
         }
         if (cfg && (Array.isArray(cfg.worldviewPresetItems) || typeof cfg.worldviewPresetId === 'string')) {
           ctx.state.worldviewPresetItems = normalizeWorldviewPresetItems(
@@ -105,16 +109,32 @@ export function attachAdultConfigBind(ctx, s, panel) {
           ctx.state.adultWorldframeForced = cfg.adultWorldframeForced;
         }
         if (cfg && typeof cfg.corruptionEnabled === 'boolean') ctx.state.corruptionEnabled = cfg.corruptionEnabled;
-        if (cfg && typeof cfg.corruptionPreset === 'string') ctx.state.corruptionPreset = cfg.corruptionPreset;
-        if (cfg && typeof cfg.corruptionCustomBrief === 'string') ctx.state.corruptionCustomBrief = cfg.corruptionCustomBrief;
         if (cfg && typeof cfg.corruptionExtraNotes === 'string') ctx.state.corruptionExtraNotes = cfg.corruptionExtraNotes;
-        if (cfg && Array.isArray(cfg.corruptionStageNames)) ctx.state.corruptionStageNames = cfg.corruptionStageNames.slice();
         if (cfg && Array.isArray(cfg.corruptionSelectedNames)) ctx.state.corruptionSelectedNames = cfg.corruptionSelectedNames.slice();
+        if (cfg && (typeof cfg.corruptionPreset === 'string'
+          || typeof cfg.corruptionCustomBrief === 'string'
+          || Array.isArray(cfg.corruptionStageNames))) {
+          if (typeof cfg.corruptionPreset === 'string') {
+            ctx.state.corruptionPreset = cfg.corruptionPreset;
+            if (!CORRUPTION_PRESETS[ctx.state.corruptionPreset]) ctx.state.corruptionPreset = DEFAULT_CORRUPTION_PRESET;
+          }
+          if (typeof cfg.corruptionCustomBrief === 'string') ctx.state.corruptionCustomBrief = cfg.corruptionCustomBrief;
+          if (Array.isArray(cfg.corruptionStageNames)) ctx.state.corruptionStageNames = cfg.corruptionStageNames.slice();
+          ctx.state.corruptionStageNames = resolveStageNames(
+            ctx.state.corruptionPreset,
+            ctx.state.corruptionStageNames,
+            ctx.state.corruptionCustomBrief
+          );
+        }
         if (cfg && typeof cfg.corruptionDefaultFemaleOnly === 'boolean') {
           ctx.state.corruptionDefaultFemaleOnly = cfg.corruptionDefaultFemaleOnly;
         }
         if (cfg && typeof cfg.corruptionSyncStatusBar === 'boolean') {
           ctx.state.corruptionSyncStatusBar = cfg.corruptionSyncStatusBar;
+        }
+        // 恶堕是 NSFW 子功能：开启恶堕而 NSFW 关闭时自动补齐，避免不一致状态
+        if (ctx.state.corruptionEnabled && !ctx.state.nsfwEnabled) {
+          ctx.state.nsfwEnabled = true;
         }
         ctx.save();
         ctx.panels.adultConfig.renderNsfwBlock();
@@ -187,11 +207,8 @@ export function attachAdultConfigBind(ctx, s, panel) {
       var adultEl = document.getElementById('adultNsfwEnabled');
       var ntlEl = document.getElementById('adultNtlEnabled');
       var flavorList = document.getElementById('adultNsfwFlavorList');
-      var flavorPicker = document.getElementById('adultNsfwFlavorPicker');
       var postureList = document.getElementById('adultPostureList');
-      var posturePicker = document.getElementById('adultPosturePicker');
       var speechList = document.getElementById('adultSpeechList');
-      var speechPicker = document.getElementById('adultSpeechPicker');
       if (adultEl) adultEl.addEventListener('change', async function() {
         var on = !!adultEl.checked;
         if (!(await s.confirmAdultOp(on
@@ -210,13 +227,6 @@ export function attachAdultConfigBind(ctx, s, panel) {
         }
         ctx.panels.adultConfig.syncNsfwBlockFromUi();
       });
-      if (flavorPicker) {
-        flavorPicker.addEventListener('change', function() {
-          var id = flavorPicker.value || '';
-          if (!id) return;
-          ctx.panels.adultConfig.addFlavorItem(id);
-        });
-      }
       if (flavorList) {
         flavorList.addEventListener('click', async function(e) {
           var t = e.target && e.target.closest ? e.target.closest('[data-flavor-remove], [data-flavor-up], [data-flavor-down]') : null;
@@ -239,20 +249,6 @@ export function attachAdultConfigBind(ctx, s, panel) {
         flavorList.addEventListener('change', function(e) {
           if (!e.target || !e.target.matches('[data-flavor-note]')) return;
           ctx.panels.adultConfig.syncNsfwBlockFromUi();
-        });
-      }
-      if (posturePicker) {
-        posturePicker.addEventListener('change', function() {
-          var id = posturePicker.value || '';
-          if (!id) return;
-          ctx.panels.adultConfig.addExpressionItem('posture', id);
-        });
-      }
-      if (speechPicker) {
-        speechPicker.addEventListener('change', function() {
-          var id = speechPicker.value || '';
-          if (!id) return;
-          ctx.panels.adultConfig.addExpressionItem('speech', id);
         });
       }
       function bindExpressionList(listEl, kind) {
@@ -294,62 +290,25 @@ export function attachAdultConfigBind(ctx, s, panel) {
       bindExpressionList(postureList, 'posture');
       bindExpressionList(speechList, 'speech');
 
-      var wvPicker = document.getElementById('adultWorldviewPresetPicker');
       var wvList = document.getElementById('adultWorldviewPresetList');
-      if (wvPicker) {
-        wvPicker.addEventListener('change', function() {
-          var id = wvPicker.value || '';
-          if (!id) return;
-          ctx.panels.adultConfig.addWorldviewPresetItem(id);
-        });
-      }
       if (wvList) {
         wvList.addEventListener('click', async function(e) {
           var t = e.target;
           if (!t || !t.getAttribute) return;
-          var items = s.ensureWorldviewPresetItemsOnState().slice();
-          var changed = false;
           if (t.hasAttribute('data-wv-remove')) {
             var ri = parseInt(t.getAttribute('data-wv-remove'), 10);
-            if (!isNaN(ri) && ri >= 0 && ri < items.length) {
-              var rem = getWorldviewPreset(items[ri].id);
-              var remLab = (rem && rem.label) || items[ri].id;
-              if (!(await s.confirmAdultRemove({ kind: '世界观预设', label: remLab }))) return;
-              items.splice(ri, 1);
-              changed = true;
-            }
-          } else if (t.hasAttribute('data-wv-up')) {
-            var ui = parseInt(t.getAttribute('data-wv-up'), 10);
-            if (!isNaN(ui) && ui > 0) {
-              var tmpU = items[ui - 1];
-              items[ui - 1] = items[ui];
-              items[ui] = tmpU;
-              changed = true;
-            }
-          } else if (t.hasAttribute('data-wv-down')) {
-            var di = parseInt(t.getAttribute('data-wv-down'), 10);
-            if (!isNaN(di) && di < items.length - 1) {
-              var tmpD = items[di + 1];
-              items[di + 1] = items[di];
-              items[di] = tmpD;
-              changed = true;
-            }
+            if (!isNaN(ri)) await ctx.panels.adultConfig.removeWorldviewPresetItem(ri);
+            return;
           }
-          if (!changed) return;
-          ctx.state.worldviewPresetItems = items;
-          s.syncWorldframeFromPresets();
-          s.withAppScrollPreserved(function() {
-            ctx.panels.adultConfig.renderWorldviewPresetList();
-            ctx.panels.adultConfig.renderWorldframeRow();
-          });
-          ctx.save();
-          if (typeof window.__persistAiConfig__ === 'function') window.__persistAiConfig__();
-          window.dispatchEvent(new CustomEvent('nsfw-config-changed', {
-            detail: window.__getNsfwConfig__ ? window.__getNsfwConfig__() : {},
-          }));
-          window.dispatchEvent(new CustomEvent('worldview-presets-changed', {
-            detail: { items: items.slice() },
-          }));
+          if (t.hasAttribute('data-wv-up')) {
+            var ui = parseInt(t.getAttribute('data-wv-up'), 10);
+            if (!isNaN(ui)) ctx.panels.adultConfig.moveWorldviewPresetItem(ui, -1);
+            return;
+          }
+          if (t.hasAttribute('data-wv-down')) {
+            var di = parseInt(t.getAttribute('data-wv-down'), 10);
+            if (!isNaN(di)) ctx.panels.adultConfig.moveWorldviewPresetItem(di, 1);
+          }
         });
         wvList.addEventListener('change', function(e) {
           if (!e.target || !e.target.matches('[data-wv-note]')) return;
@@ -428,20 +387,23 @@ export function attachAdultConfigBind(ctx, s, panel) {
           var btn = e.target && e.target.closest ? e.target.closest('[data-ntl-remove]') : null;
           if (!btn) return;
           var idx = parseInt(btn.getAttribute('data-ntl-remove'), 10);
-          var items = ctx.panels.adultConfig.readNtlItemsFromUi();
-          if (isNaN(idx) || idx < 0 || idx >= items.length) return;
-          var remLab = s.labelNtl(items[idx].id);
-          if (!(await s.confirmAdultRemove({ kind: 'NTL', label: remLab }))) return;
-          items.splice(idx, 1);
-          ctx.state.ntlTabooItems = items;
-          ctx.state.ntlTabooTypes = items.map(function(it) { return it.id; });
-          s.withAppScrollPreserved(function() {
-            ctx.panels.adultConfig.syncNsfwBlockFromUi();
-          });
+          if (isNaN(idx)) return;
+          await ctx.panels.adultConfig.removeNtlItem(idx);
         });
         ntlList.addEventListener('change', function(e) {
           if (!e.target || !e.target.matches('[data-ntl-note]')) return;
           ctx.panels.adultConfig.syncNsfwBlockFromUi();
+        });
+      }
+
+      if (!ctx.panels.adultConfig._addBtnDocumentBound) {
+        ctx.panels.adultConfig._addBtnDocumentBound = true;
+        document.addEventListener('click', function(e) {
+          var btn = e.target && e.target.closest
+            ? e.target.closest('[data-adult-add]')
+            : null;
+          if (!btn) return;
+          ctx.panels.adultConfig.openAddModal(btn.getAttribute('data-adult-add') || '');
         });
       }
 
@@ -452,7 +414,6 @@ export function attachAdultConfigBind(ctx, s, panel) {
       var corrFemale = document.getElementById('adultCorruptionFemaleOnly');
       var corrSync = document.getElementById('adultCorruptionSyncSb');
       var corrRefresh = document.getElementById('btnRefreshCorruptionTargets');
-      var corrGen = document.getElementById('btnGenCorruptionLore');
       if (corrEnabled) corrEnabled.addEventListener('change', async function() {
         var on = !!corrEnabled.checked;
         if (!(await s.confirmAdultOp(on
@@ -507,19 +468,35 @@ export function attachAdultConfigBind(ctx, s, panel) {
         });
         ctx.panels.adultConfig.setCorruptionTip('已刷新角色列表', 'ok');
       });
-      if (corrGen) corrGen.addEventListener('click', async function() {
-        if (!(await s.confirmAdultOp({
-          title: '生成恶堕世界书条目？',
-          message: '可能覆盖已有同名条目。',
-        }))) return;
-        ctx.panels.adultConfig.runGenerateCorruptionLore();
-      });
       var corrTargets = document.getElementById('adultCorruptionTargets');
       if (corrTargets) {
         corrTargets.addEventListener('change', function(e) {
           if (!e.target || !e.target.matches('[data-corruption-target]')) return;
           ctx.state.corruptionSelectedNames = ctx.panels.adultConfig.readSelectedCorruptionNames();
           ctx.save();
+        });
+      }
+
+      // ---- 成人体系总纲（固化进卡） ----
+      var genDigest = document.getElementById('btnGenSystemDigest');
+      if (genDigest) {
+        genDigest.addEventListener('click', async function() {
+          if (!(await s.confirmAdultOp({
+            title: '生成/更新体系总纲？',
+            message: '将先写恶堕世界书（总则 + 勾选角色档案，需 AI；未启用/无目标/无 AI 时跳过），再写入/覆盖「[成人体系]」世界书条目（constant 常驻）。',
+          }))) return;
+          ctx.panels.adultConfig.generateSystemDigest();
+        });
+      }
+      var clearDigest = document.getElementById('btnClearSystemDigest');
+      if (clearDigest) {
+        clearDigest.addEventListener('click', async function() {
+          if (!(await s.confirmAdultOp({
+            title: '移除体系总纲？',
+            message: '将删除所有「[成人体系]」世界书条目。',
+            okText: '移除',
+          }))) return;
+          ctx.panels.adultConfig.removeSystemDigest();
         });
       }
 

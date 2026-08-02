@@ -17,7 +17,7 @@ import {
   isEntityEnriched,
 } from '../src/lib/novel/entityStore.mjs';
 import { applySkeletonResult } from '../src/lib/novel/analyzePipeline.mjs';
-import { createDefaultNovelState } from '../src/lib/novel/state.mjs';
+import { createDefaultNovelState, hydrateNovelState } from '../src/lib/novel/state.mjs';
 
 describe('novel RAG', function() {
   it('chunkChapters 按窗口切块并重叠', function() {
@@ -302,5 +302,13 @@ describe('novel entityStore', function() {
     assert.equal(p.name, '卡面主角');
     assert.equal(p.source, 'card');
     delete globalThis.window;
+  });
+
+  it('RAG 默认关闭；显式开启/关闭被保留', function() {
+    assert.equal(createDefaultNovelState().rag.enabled, false, '新桶默认关闭');
+    assert.equal(hydrateNovelState({}).rag.enabled, false, '无 rag 字段回退关闭');
+    assert.equal(hydrateNovelState({ rag: { enabled: true } }).rag.enabled, true, '显式 true 保留');
+    assert.equal(hydrateNovelState({ rag: { enabled: false } }).rag.enabled, false, '显式 false 保留');
+    assert.equal(hydrateNovelState({ rag: { budget: 5000 } }).rag.enabled, false, '旧桶缺 enabled 视为关闭');
   });
 });

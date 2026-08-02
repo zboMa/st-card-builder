@@ -5,6 +5,8 @@ import {
   cardDocId,
   avatarDocId,
   novelDocId,
+  ragDocId,
+  assistantDocId,
   storyNovelDocId,
   buildCardIndexFromDrafts,
   catalogNovelsList,
@@ -20,6 +22,8 @@ describe('data docIds', function() {
     assert.equal(cardDocId('abc'), 'card/abc');
     assert.equal(avatarDocId('abc', 'thumb'), 'avatar/abc/thumb');
     assert.equal(novelDocId('abc'), 'novel/abc');
+    assert.equal(ragDocId('abc'), 'rag/abc');
+    assert.equal(assistantDocId('abc'), 'assistant/abc');
     assert.equal(storyNovelDocId('c1', 'n1'), 'story/c1/n1');
   });
 

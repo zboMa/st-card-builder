@@ -280,10 +280,10 @@ export function createNovelAppContext(sm, opts) {
       try {
         var enableEl = $('assistantNovelRagEnable');
         var budgetEl = $('assistantNovelRagBudget');
-        if (enableEl) enableEl.checked = s.rag.enabled !== false;
+        if (enableEl) enableEl.checked = s.rag.enabled === true;
         if (budgetEl) budgetEl.value = String(s.rag.budget || 12000);
         localStorage.setItem('st_v3_builder_novel_rag', JSON.stringify({
-          enabled: s.rag.enabled !== false,
+          enabled: s.rag.enabled === true,
           budget: s.rag.budget || 12000,
         }));
       } catch (e) { /* ignore */ }

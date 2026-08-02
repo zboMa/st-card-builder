@@ -297,7 +297,7 @@ export function createAiEngineShared(ctx) {
       novelRag: window.__getNovelRagOptions__
         ? window.__getNovelRagOptions__()
         : (function() {
-            try { var v = JSON.parse(localStorage.getItem('st_v3_builder_novel_rag')); return v || { enabled: true, budget: 12000 }; } catch(e) { return { enabled: true, budget: 12000 }; }
+            try { var v = JSON.parse(localStorage.getItem('st_v3_builder_novel_rag')); return v || { enabled: false, budget: 12000 }; } catch(e) { return { enabled: false, budget: 12000 }; }
           })(),
       presetList: parsedPresetList,
       worldviewPresetId: getWorldviewPresetId(),

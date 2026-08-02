@@ -18,6 +18,12 @@ export var POSTURE_GROUPS = [
   { id: '着衣隔衣', label: '着衣隔衣' },
   { id: '具名体位', label: '具名体位' },
   { id: '多人动作', label: '多人动作' },
+  { id: '器械辅助', label: '器械辅助' },
+  { id: '人外交互姿势', label: '人外交互姿势' },
+  { id: '人类学姿势库', label: '人类学姿势库' },
+  { id: '多人组合细分', label: '多人组合细分' },
+  { id: '非标准空间', label: '非标准空间' },
+  { id: '精致挑逗', label: '精致挑逗' },
 ];
 
 export var SPEECH_GROUPS = [
@@ -37,4 +43,10 @@ export var SPEECH_GROUPS = [
   { id: '权力口吻', label: '权力口吻' },
   { id: '气质变体', label: '气质变体' },
   { id: '玩法联动', label: '玩法联动' },
+  { id: '文化语域', label: '文化语域' },
+  { id: '声线特质', label: '声线特质' },
+  { id: '情绪口吻', label: '情绪口吻' },
+  { id: '角色声线', label: '角色声线' },
+  { id: '双语半语', label: '双语半语' },
+  { id: '叫声风格', label: '叫声风格' },
 ];

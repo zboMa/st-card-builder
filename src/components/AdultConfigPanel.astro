@@ -5,13 +5,15 @@
  */
 ---
 <div class="panel area-adult-config">
-  <h2>世界与限定</h2>
-  <p class="ui-hint adult-config-lead">
-    卡级统一配置。<strong>世界观预设</strong>喂给 AI 引擎生成（角色 / 世界书 / 开场白）；
-    <strong>载体框架</strong>把口味与 NTL 物化为法器·异能·场所。
-    NSFW 段仅世界书管道读取，主角 Description / 开场白不注入。
-    条目旁只显示短摘要；完整写法在「提示词配置」目录 Tab。
-  </p>
+  <div class="adult-config-head">
+    <h2>世界与限定</h2>
+    <p class="ui-hint adult-config-lead">
+      卡级统一配置。<strong>世界观预设</strong>喂给 AI 引擎生成（角色 / 世界书 / 开场白）；
+      <strong>载体框架</strong>把口味与 NTL 物化为法器·异能·场所。
+      NSFW 段仅世界书管道读取，主角 Description / 开场白不注入。
+      条目旁只显示短摘要；完整写法在「提示词配置」目录 Tab。
+    </p>
+  </div>
 
   <div class="form-group char-nsfw-block">
     <!-- 1. 世界观预设（生成底盘） -->
@@ -20,11 +22,8 @@
         <span id="adultWvHeading" class="char-nsfw-sub">世界观预设</span>
         <span class="char-nsfw-subtitle">最多 3 项；首项为主底盘，其余为叠加层</span>
         <span id="adultWvCap" class="char-nsfw-subtitle"></span>
-      </div>
-      <div class="adult-dashed-add-row">
-        <select id="adultWorldviewPresetPicker" aria-label="添加世界观预设">
-          <option value="">选择要添加的预设…</option>
-        </select>
+        <span class="adult-add-spacer"></span>
+        <button type="button" class="btn btn-add adult-add-btn" data-adult-add="worldview">＋ 新增</button>
       </div>
       <div id="adultWorldviewPresetList" class="adult-dashed-list" aria-live="polite"></div>
       <p class="char-nsfw-subtitle" style="margin-top:4px;">
@@ -62,11 +61,8 @@
         <span id="adultFlavorHeading" class="char-nsfw-sub">口味</span>
         <span class="char-nsfw-subtitle">最多 5 个；首项为主调色盘</span>
         <span id="adultNsfwFlavorCap" class="char-nsfw-subtitle"></span>
-      </div>
-      <div class="adult-dashed-add-row">
-        <select id="adultNsfwFlavorPicker" aria-label="选择要添加的口味">
-          <option value="">选择口味…</option>
-        </select>
+        <span class="adult-add-spacer"></span>
+        <button type="button" class="btn btn-add adult-add-btn" data-adult-add="flavor">＋ 新增</button>
       </div>
       <div id="adultNsfwFlavorList" class="adult-dashed-list"></div>
     </section>
@@ -76,15 +72,12 @@
       <div class="char-nsfw-flavor-line" style="margin-bottom:6px;">
         <span id="adultPostureHeading" class="char-nsfw-sub">姿势语言</span>
         <span class="char-nsfw-subtitle">不占口味槽；可多选；禁止儿童性化</span>
+        <span class="adult-add-spacer"></span>
+        <button type="button" class="btn btn-add adult-add-btn" data-adult-add="posture">＋ 新增</button>
       </div>
       <p class="char-nsfw-subtitle adult-pref-tip" id="adultPosturePrefTip">
         tip：此处所选为卡的<strong>特别偏好</strong>设定，不代表仅可使用这些姿势；扮演时仍不限制其它体位/玩法。
       </p>
-      <div class="adult-dashed-add-row">
-        <select id="adultPosturePicker" aria-label="选择要添加的姿势语言">
-          <option value="">选择姿势语言…</option>
-        </select>
-      </div>
       <div id="adultPostureList" class="adult-dashed-list"></div>
     </section>
 
@@ -92,15 +85,12 @@
       <div class="char-nsfw-flavor-line" style="margin-bottom:6px;">
         <span id="adultSpeechHeading" class="char-nsfw-sub">情趣话风</span>
         <span class="char-nsfw-subtitle">不占口味槽；可多选；禁止儿童性化</span>
+        <span class="adult-add-spacer"></span>
+        <button type="button" class="btn btn-add adult-add-btn" data-adult-add="speech">＋ 新增</button>
       </div>
       <p class="char-nsfw-subtitle adult-pref-tip" id="adultSpeechPrefTip">
         tip：此处所选为卡的<strong>特别偏好</strong>设定，不代表仅可使用这些话风；扮演时仍不限制其它语气/口吻。
       </p>
-      <div class="adult-dashed-add-row">
-        <select id="adultSpeechPicker" aria-label="选择要添加的情趣话风">
-          <option value="">选择情趣话风…</option>
-        </select>
-      </div>
       <div id="adultSpeechList" class="adult-dashed-list"></div>
     </section>
 
@@ -113,11 +103,12 @@
           <span>启用</span>
         </label>
         <span class="char-nsfw-subtitle">权力/背德/越界/百破等；多选</span>
+        <span class="adult-add-spacer"></span>
+        <button type="button" class="btn btn-add adult-add-btn" data-adult-add="ntl">＋ 新增</button>
       </div>
       <div id="adultNtlTabooRow" style="display:none;margin-top:4px;">
-        <div id="adultNtlTabooTypes" class="adult-ntl-chips"></div>
-        <div id="adultNtlTabooList" class="adult-dashed-list" style="margin-top:8px;"></div>
-        <span class="char-nsfw-subtitle">点选芯片添加/取消；下方可为每项写补充要求</span>
+        <div id="adultNtlTabooList" class="adult-dashed-list"></div>
+        <span class="char-nsfw-subtitle">点右上「＋ 新增」添加禁忌方向；下方可为每项写补充要求</span>
       </div>
     </section>
 
@@ -128,7 +119,7 @@
           <input id="adultCorruptionEnabled" type="checkbox" />
           <span>恶堕进度</span>
         </label>
-        <span class="char-nsfw-subtitle">总则 1 条 + 每名世界书角色 1 条分期档案；状态栏「恶堕进度」变量选阶段</span>
+        <span class="char-nsfw-subtitle">总则 1 条 + 逐人分期档案；不勾选角色时生成「通用档案」，适用于所有/随机女角色</span>
       </div>
       <div id="adultCorruptionBody" style="display:none;">
         <div class="char-nsfw-flavor-line" style="margin-bottom:6px;">
@@ -168,21 +159,43 @@
           </div>
           <textarea id="adultCorruptionExtraNotes" rows="2" placeholder="可选：补完触发条件、关键人物、禁忌边界、阶段反差重点、口头禅或禁止事项……" style="width:100%;font-size:0.75rem;padding:6px 8px;border-radius:6px;border:1px solid var(--color-border);background:var(--color-surface);color:var(--color-text);resize:vertical;"></textarea>
         </div>
-        <div class="char-nsfw-subtitle" style="margin-bottom:4px;">生成对象（来自世界书/小说人物；主角自动排除；男角色默认不勾）</div>
+        <div class="char-nsfw-subtitle" style="margin-bottom:4px;">生成对象（来自世界书/小说人物；主角自动排除；男角色默认不勾；不勾选则生成「通用档案」适用于所有女角色）</div>
         <div id="adultCorruptionTargets" class="char-corruption-targets"></div>
         <div class="char-nsfw-flavor-line" style="margin-top:8px;gap:8px;">
           <button type="button" id="btnRefreshCorruptionTargets" class="btn btn-ghost adult-btn-compact">刷新角色列表</button>
-          <button type="button" id="btnGenCorruptionLore" class="btn btn-primary adult-btn-compact">生成/更新恶堕世界书</button>
           <span id="adultCorruptionTip" class="ui-status-tip" role="status" aria-live="polite"></span>
         </div>
       </div>
     </div>
 
     <span class="char-nsfw-subtitle" style="margin-top:8px;display:block;">口味/NTL 决定人物写法，并物化为世界观载体。均不进入主角 Description。</span>
+
+    <div class="char-nsfw-flavor-line" style="margin-top:10px;gap:8px;padding-top:10px;border-top:1px dashed var(--color-border);">
+      <span class="char-nsfw-sub" style="white-space:nowrap;">体系总纲</span>
+      <button type="button" id="btnGenSystemDigest" class="btn btn-primary adult-btn-compact">生成/更新体系总纲</button>
+      <button type="button" id="btnClearSystemDigest" class="btn btn-ghost adult-btn-compact">移除</button>
+      <span id="adultSystemDigestTip" class="ui-status-tip" role="status" aria-live="polite"></span>
+    </div>
+    <span class="char-nsfw-subtitle" style="margin-top:4px;display:block;">生成/更新时：先写恶堕世界书（总则 + 每名勾选角色分期档案，需 AI），再把选中体系编译为「[成人体系]」世界书条目（constant 常驻），配置摘要并入总则；导出卡即带。</span>
   </div>
 </div>
 
 <style is:global>
+  .area-adult-config {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  /* 面板标题 + 说明段固定，内容在其下滚动 */
+  .area-adult-config .adult-config-head {
+    position: sticky;
+    top: calc(-1 * var(--space-5));
+    z-index: 6;
+    margin: calc(-1 * var(--space-5)) calc(-1 * var(--space-5)) 0;
+    padding: var(--space-5) var(--space-5) 6px;
+    background: color-mix(in srgb, var(--color-glass, var(--color-surface)) 92%, var(--color-bg, #0a0d12) 8%);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
   .adult-worldframe-row {
     display: flex;
     flex-wrap: wrap;
@@ -308,13 +321,19 @@
     resize: vertical;
     min-height: 2.2em;
   }
-  .adult-dashed-add-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
+  .adult-add-spacer {
+    flex: 1 1 auto;
   }
-  .adult-dashed-add-row select,
+  .btn.adult-add-btn {
+    flex: 0 0 auto;
+    font-size: 0.7rem;
+    padding: 2px 8px;
+    white-space: nowrap;
+    box-shadow: none;
+  }
+  .btn.adult-add-btn:hover {
+    box-shadow: none;
+  }
   .adult-select-compact {
     flex: 1;
     min-width: 140px;
@@ -328,12 +347,6 @@
   .adult-btn-compact {
     font-size: 0.7rem !important;
     padding: 2px 8px !important;
-  }
-  .adult-ntl-chips {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    flex-wrap: wrap;
   }
   .char-nsfw-flavor-line {
     display: flex;
@@ -391,4 +404,179 @@
   /* 兼容旧 class：口味/NTL 列表渲染可复用虚线卡 */
   .adult-flavor-list { display: contents; }
   .adult-flavor-item { /* unused; list uses adult-dashed-item */ }
+
+  /* 世界与限定 · 新增条目弹窗 */
+  .app-confirm-overlay .adult-add-dialog {
+    width: min(760px, 100%);
+    display: flex;
+    flex-direction: column;
+    max-height: min(82vh, 660px);
+  }
+  .adult-add-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .adult-add-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 18px 10px;
+    flex: 0 0 auto;
+  }
+  .adult-add-head .app-confirm-title {
+    margin: 0;
+    white-space: nowrap;
+  }
+  .adult-add-subtitle {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.7rem;
+    color: var(--color-text-muted);
+    line-height: 1.4;
+  }
+  .adult-add-close {
+    flex: 0 0 auto;
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+    background: transparent;
+    color: var(--color-text-muted);
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .adult-add-close:hover {
+    color: var(--color-text);
+    border-color: var(--color-accent);
+  }
+  .adult-add-form {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 18px 4px;
+    flex: 0 0 auto;
+  }
+  .adult-add-form select {
+    font-size: 0.74rem;
+    padding: 5px 8px;
+    border-radius: 8px;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text);
+  }
+  .adult-add-group {
+    flex: 0 0 auto;
+    width: 148px;
+  }
+  .adult-add-item {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .adult-add-form .btn.adult-add-confirm {
+    flex: 0 0 auto;
+    font-size: 0.74rem;
+    padding: 5px 12px;
+    white-space: nowrap;
+    box-shadow: none;
+  }
+  .adult-add-form .btn.adult-add-confirm:hover {
+    box-shadow: none;
+  }
+  .adult-add-actions .btn.btn-ghost {
+    font-size: 0.74rem;
+    padding: 5px 12px;
+    box-shadow: none;
+  }
+  .adult-add-actions .btn.btn-ghost:hover {
+    box-shadow: none;
+  }
+  .adult-add-preview {
+    display: none;
+    margin: 8px 18px 0;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px dashed var(--color-border);
+    background: color-mix(in srgb, var(--color-surface) 72%, var(--color-accent, #8a7a5a) 8%);
+    font-size: 0.72rem;
+    color: var(--color-text-muted);
+    line-height: 1.5;
+  }
+  .adult-add-preview.show {
+    display: block;
+  }
+  .adult-add-preview-title {
+    font-weight: 700;
+    color: var(--color-text);
+    margin-bottom: 2px;
+  }
+  .adult-add-pv-content {
+    max-height: 200px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    margin-top: 4px;
+  }
+  .adult-add-pv-sum {
+    color: var(--color-text-secondary);
+    margin-bottom: 4px;
+    font-weight: 500;
+  }
+  .adult-add-pv-block {
+    margin-top: 6px;
+    padding-top: 5px;
+    border-top: 1px solid var(--color-border-subtle);
+  }
+  .adult-add-pv-label {
+    font-weight: 700;
+    font-size: 0.68rem;
+    color: var(--color-accent, #8a7a5a);
+    margin-bottom: 2px;
+  }
+  .adult-add-pv-text {
+    color: var(--color-text-muted);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .adult-add-note {
+    margin: 8px 18px 0;
+  }
+  .adult-add-note textarea {
+    width: 100%;
+    font-size: 0.7rem;
+    padding: 4px 8px;
+    border-radius: 6px;
+    border: 1px dashed var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text);
+    resize: vertical;
+    min-height: 2.2em;
+  }
+  .adult-add-selected-head {
+    margin: 12px 18px 6px;
+    padding-top: 10px;
+    border-top: 1px solid var(--color-border);
+    font-size: 0.74rem;
+    font-weight: 700;
+    color: var(--color-accent);
+  }
+  .adult-add-selected-list {
+    margin: 0 18px;
+    padding: 2px 2px 6px;
+  }
+  .adult-add-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 18px 16px;
+    flex: 0 0 auto;
+  }
+  .adult-add-msg {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.7rem;
+    color: var(--color-text-muted);
+    min-height: 1em;
+  }
 </style>

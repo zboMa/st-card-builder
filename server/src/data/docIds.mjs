@@ -26,6 +26,10 @@ export function ragDocId(cardId) {
   return 'rag/' + String(cardId || '').trim();
 }
 
+export function assistantDocId(cardId) {
+  return 'assistant/' + String(cardId || '').trim();
+}
+
 export function storyCatalogDocId(cardId) {
   return 'story/' + String(cardId || '').trim() + '/catalog';
 }

@@ -12,6 +12,7 @@ import { truncateToTokens } from './assistant/contextManager.mjs';
 
 export var CORRUPTION_RULES_COMMENT = '恶堕进度总则';
 export var CORRUPTION_ARCHIVE_PREFIX = '恶堕档案·';
+export var CORRUPTION_GENERAL_ARCHIVE_COMMENT = '恶堕档案·通用';
 export var CORRUPTION_STATUS_MODULE_ID = 'corruption_stage';
 export var CORRUPTION_STATUS_LABEL = '恶堕进度';
 export var DEFAULT_CORRUPTION_PRESET = '5';
@@ -62,6 +63,72 @@ export var CORRUPTION_ARC_BRIEFS = {
     label: '复仇者入局弧',
     brief:
       '带着明确仇怨入局者，在取证、结盟与以彼之道还施彼身的过程中，逐渐采用对方的手段：监视、要挟、公开羞辱与交易身体/名誉。阶段应写出：仇恨清单 → 第一次越界取证 → 手段同化 → 分不清报复与欲望 → 复仇完成后的空账与反噬。禁止儿童性化；证据链与法律/舆论代价必须可见。',
+  },
+  regal_usurp: {
+    id: 'regal_usurp',
+    label: '皇权夺嫡弧',
+    brief:
+      '身在权力中心的野心者，从「保全家」到「自己要坐那张椅子」：先是结党站队，再是用枕边人当棋子、用联姻换兵符，最后亲手把养育自己的长辈与并肩的兄弟推进清算名单。阶段应写出：站队自保 → 枕边权谋 → 手足相残 → 高处孤冷 → 座上无一人可信。禁止儿童性化；夺嫡的每一笔血都要有代价，宠幸与联姻同属权力账簿。',
+  },
+  savior_blackening: {
+    id: 'savior_blackening',
+    label: '救世主黑化弧',
+    brief:
+      '曾经救人于水火的光明象征，在「为了拯救更多人」的说辞里一步步松开底线：先默许小恶换大义，再亲手制造牺牲换取更大胜利，最终发现自己成了最初要打倒的那类人。阶段应写出：大义宣言 → 第一次默许牺牲 → 亲手制造取舍 → 信徒仍朝他下跪 → 觉醒或彻底沉沦。禁止儿童性化；黑化的每一步都要有可被追责的决策现场，被牺牲者要有姓名与回声。',
+  },
+  genius_fall: {
+    id: 'genius_fall',
+    label: '天才坠落弧',
+    brief:
+      '天赋异禀者把「只有我才懂」当作破例的通行证：先是蔑视规则，再是用才能交换特权与肉体，最后连自己都分不清被崇拜的是才能还是坠落本身。阶段应写出：恃才傲物 → 破例交易 → 才能换欢 → 捧杀反噬 → 光环熄灭后的寂静。禁止儿童性化；天才的破例每一次都要留下代价，被消耗的人与才气要同时记账。',
+  },
+  healer_corruption: {
+    id: 'healer_corruption',
+    label: '医者失守弧',
+    brief:
+      '握着他人生死与病灶秘密的照护者，从「我比你懂」的权威里长出越界的贪念：先滥用职业便利接近、再以治疗为名实施控制，最后把病痛与依赖变成捆住人的绳。阶段应写出：职业信任 → 滥用知情 → 治疗即控制 → 依赖成瘾 → 医籍与良心一起崩塌。禁止儿童性化；医者身份不得成为未成年越界的掩护，每笔越界都要有处方、档案与追责路径。',
+  },
+  loyalist_betrayal: {
+    id: 'loyalist_betrayal',
+    label: '忠诚者背叛弧',
+    brief:
+      '最忠诚的人背叛得最彻底：从「我替他挡刀」到「我想他死」，中间隔着一次未被回应的忠诚、一笔被吞的功劳、或一场目睹主人沉沦的幻灭。阶段应写出：忠心烙印 → 第一次幻灭 → 隐忍记账 → 递出背叛 → 换主后的自我清算。禁止儿童性化；背叛要有明确的账目与动机，忠诚与恨意同源才成立。',
+  },
+  gentle_darkening: {
+    id: 'gentle_darkening',
+    label: '温柔者黑化弧',
+    brief:
+      '一向温柔忍耐的人被逼到失守：从不断退让、替人兜底，到某天不再接住任何一次伤害——温柔的底线崩塌后，以同样的温柔手段施加掌控与报复。阶段应写出：无底线退让 → 隐忍记录 → 最后通牒被无视 → 温柔变刀 → 黑化后的宁静。禁止儿童性化；黑化的转折要有具体触发点，温柔变刀后仍要保留可回头的缝。',
+  },
+  capital_descent: {
+    id: 'capital_descent',
+    label: '资本染指弧',
+    brief:
+      '握有资源与账本的人，从「等价交换」滑向「一切皆可标价」：先收购产业，再收购人情、婚姻与身体，最后连自己的良知也上了拍卖台。阶段应写出：等价交易 → 人情入账 → 婚姻与身体进资产负债表 → 良知询价 → 破产或赎罪。禁止儿童性化；资本每一次染指都要有可审计的账目，被收购的人要有拒绝与赎回的可能。',
+  },
+  faith_collapse: {
+    id: 'faith_collapse',
+    label: '信仰崩塌弧',
+    brief:
+      '虔诚的信徒在「神为什么不回应」里一点点松动：先是把苦难解释成试炼，再是发现自己向神求的东西从别处得了来，最后把「信」从神身上搬到自己和欲望身上。阶段应写出：苦行守戒 → 第一次质疑神意 → 越界后无人罚 → 从虔诚滑向渎神式的放纵 → 信仰重塑或彻底背弃。禁止儿童性化，且禁止针对真实宗教群体的仇恨——崩塌的是虚构信仰系统，追责与救赎走教团戒律与自我清算文书。',
+  },
+  tech_geek_fall: {
+    id: 'tech_geek_fall',
+    label: '科技极客堕落弧',
+    brief:
+      '技术天才从「改进世界」滑向「用代码把人当变量」：先是优化流程，再是优化人——用算法挑选、驯化、操控亲密对象，把感情数据化，最后发现自己也成了数据的一部分。阶段应写出：技术理想 → 把人当变量 → 算法操控亲密 → 被人反制或自我怀疑 → 觉醒或彻底赛博式冷漠。禁止儿童性化；技术每一次越界都要有可审计的日志与留痕，被操控者要有查档与退出的端口。',
+  },
+  naive_seduced: {
+    id: 'naive_seduced',
+    label: '天真者诱堕弧',
+    brief:
+      '涉世未深但已明确的成年人，在「以为只是帮忙」「以为对方是好人」的错觉里一步步交出边界：先是信任，再是习惯了被安排，最后发现自己把决定权让渡得太远。阶段应写出：单纯信任 → 边界被一点点挪动 → 依赖成瘾 → 发现被利用 → 夺回或沉溺。禁幼是硬线：天真者必须是已完成世界观成年礼的成人，涉世未深是阅历层面而非年龄层面；诱导者的每一步越界都要有可指认的痕迹与追责路径。',
+  },
+  mighty_fall: {
+    id: 'mighty_fall',
+    label: '强者陨落弧',
+    brief:
+      '不可一世的强者在「让一次步也没什么」里慢慢滑坡：先是功绩被捧上神坛，再是开始用力量换服从、用威压换亲昵，最后发现自己只剩力量，身边全是因惧而留的人。阶段应写出：巅峰自负 → 力量换服从 → 威压成习惯 → 众叛亲离的孤高 → 陨落或自省。禁止儿童性化；强者每一次以力压人都要付出声望与人心的代价，被压者的恐惧与离开要可被看见。',
   },
 };
 
@@ -261,7 +328,47 @@ export function buildRulesContent(stageNames) {
   lines.push('变量合法取值：' + stages.join(' / '));
   lines.push('初始建议：' + stages[0]);
   lines.push('男角色默认不启用恶堕档案，除非世界书中存在对应「' + CORRUPTION_ARCHIVE_PREFIX + '」条目。');
+  lines.push('无专属档案的女角色（含剧情中随机登场/刷新出的新角色）：直接套用「' + CORRUPTION_GENERAL_ARCHIVE_COMMENT + '」按阶段演绎；阶段用「NPC.{角色名}.恶堕进度」变量记录并按名维护。');
   return lines.join('\n');
+}
+
+/**
+ * 通用恶堕档案：不绑定具体角色，适用于所有/随机女角色
+ * @param {string[]} stageNames
+ * @returns {{comment:string, content:string, keys:string[], strategy:string, position:number, order:number}}
+ */
+export function buildGeneralArchiveEntry(stageNames) {
+  return {
+    comment: CORRUPTION_GENERAL_ARCHIVE_COMMENT,
+    content: buildGeneralArchiveContent(stageNames),
+    keys: [],
+    strategy: 'constant',
+    position: 0,
+    depth: 4,
+    role: 0,
+    order: 100,
+    prob: 100,
+    enabled: true,
+  };
+}
+
+export function buildGeneralArchiveContent(stageNames) {
+  var stages = asTrimmedList(stageNames);
+  if (stages.length < CORRUPTION_STAGE_MIN) stages = CORRUPTION_PRESETS['5'].stages.slice();
+  var lines = [];
+  lines.push('【恶堕档案 · 通用】');
+  lines.push('适用于任何女角色——包括随机刷新、临时登场、没有专属档案的角色。');
+  lines.push('读取状态栏/MVU「NPC.{角色名}.恶堕进度」；仅采用与当前值对应的阶段，禁止混用其他阶段。');
+  lines.push('演绎时把下列「她」替换为该角色名，并结合其性格与处境展开。');
+  lines.push('');
+  stages.forEach(function(s) {
+    lines.push('## ' + s);
+    STAGE_SECTION_HINTS.forEach(function(h) {
+      lines.push('- ' + h + '：（按「' + s + '」阶段、结合该角色初始设定展开）');
+    });
+    lines.push('');
+  });
+  return lines.join('\n').trim() + '\n';
 }
 
 export function buildArchiveContentTemplate(charName, stageNames) {

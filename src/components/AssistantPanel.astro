@@ -12,19 +12,22 @@ import {
 } from '../lib/adult/expression/index.mjs';
 import { WORLDFRAMES } from '../lib/adult/vessels/index.mjs';
 import { WORLDVIEW_PRESETS } from '../lib/presets/worldviews/index.mjs';
-import { buildCatalogOverviewText } from '../lib/catalogSummaries.mjs';
+import { buildCatalogOverviewText, buildCatalogIndexText, buildAdultCatalogData } from '../lib/catalogSummaries.mjs';
 import ChatPlayground from './ChatPlayground.astro';
 
 const chipsJson = JSON.stringify(ASSISTANT_PRESET_CHIPS);
 const toolListText = formatToolsForPrompt(ASSISTANT_TOOLS);
-const catalogOverviewText = buildCatalogOverviewText({
+const catalogOpts = {
   flavors: NSFW_FLAVOR_PRESETS,
   postures: EROTIC_POSTURE_PRESETS,
   speeches: EROTIC_SPEECH_PRESETS,
   ntl: NTL_TABOO_TYPES,
   worldframes: WORLDFRAMES,
   worldviews: WORLDVIEW_PRESETS,
-});
+};
+const catalogOverviewText = buildCatalogOverviewText(catalogOpts);
+const catalogIndexText = buildCatalogIndexText(catalogOpts);
+const catalogDataJson = JSON.stringify(buildAdultCatalogData(catalogOpts));
 ---
 
 <!-- FAB 与面板并列挂到 shell；窄屏 position:fixed，桌面 FAB 隐藏、面板仍为右栏 -->
@@ -138,8 +141,14 @@ const catalogOverviewText = buildCatalogOverviewText({
   @import '../styles/assistant-panel.css';
 </style>
 
-<script define:vars={{ chipsJson, toolListText, catalogOverviewText }}>
-  window.__assistantBoot__ = { chipsJson: chipsJson, toolListText: toolListText, catalogOverviewText: catalogOverviewText };
+<script define:vars={{ chipsJson, toolListText, catalogOverviewText, catalogIndexText, catalogDataJson }}>
+  window.__assistantBoot__ = {
+    chipsJson: chipsJson,
+    toolListText: toolListText,
+    catalogOverviewText: catalogOverviewText,
+    catalogIndexText: catalogIndexText,
+    catalogDataJson: catalogDataJson,
+  };
 </script>
 <script>
   import { initAssistantPanel } from '../lib/assistant/panelBoot.mjs';

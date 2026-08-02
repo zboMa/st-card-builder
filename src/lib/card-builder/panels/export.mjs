@@ -67,6 +67,10 @@ export function registerExport(ctx) {
       if (ctx.panels.cardManager && ctx.panels.cardManager.saveCurrentDraft) {
         ctx.panels.cardManager.saveCurrentDraft();
       }
+      // 导出兜底：成人配置已启用但卡内无体系总纲时自动生成（宁缺勿动）
+      if (ctx.panels.adultConfig && typeof ctx.panels.adultConfig.ensureSystemDigestSilent === 'function') {
+        ctx.panels.adultConfig.ensureSystemDigestSilent();
+      }
       json = panel.generateFullJSON();
       name = ctx.state.charName || 'card';
     } else {
@@ -91,6 +95,9 @@ export function registerExport(ctx) {
     if (id === currentId) {
       if (ctx.panels.cardManager && ctx.panels.cardManager.saveCurrentDraft) {
         ctx.panels.cardManager.saveCurrentDraft();
+      }
+      if (ctx.panels.adultConfig && typeof ctx.panels.adultConfig.ensureSystemDigestSilent === 'function') {
+        ctx.panels.adultConfig.ensureSystemDigestSilent();
       }
       json = panel.generateFullJSON();
       name = ctx.state.charName || 'CharacterCard';
@@ -215,6 +222,12 @@ export function registerExport(ctx) {
       window.__altGreetings__ = [];
       ctx.state.altGreetings = [];
       if (window.__renderAltGreetings__) window.__renderAltGreetings__();
+    }
+
+    // R1 水合：卡携带的成人配置快照 → 覆盖本地并回填面板
+    var adultSnap = ctx.state.cardBuilderExtensions && ctx.state.cardBuilderExtensions['st-builder.adultConfig'];
+    if (adultSnap && typeof window.__setNsfwConfig__ === 'function') {
+      try { window.__setNsfwConfig__(adultSnap); } catch (e) { /* 忽略：面板未就绪时下次水合 */ }
     }
 
     if (ctx.panels.cardManager && ctx.panels.cardManager.saveCurrentDraft) {

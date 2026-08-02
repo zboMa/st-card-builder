@@ -13,6 +13,7 @@ import {
   avatarDocId,
   novelDocId,
   ragDocId,
+  assistantDocId,
   storyCatalogDocId,
   storyNovelDocId,
   storyActiveDocId,
@@ -222,6 +223,7 @@ export async function getCardBundle(userId, cardId) {
   var avatarThumb = await getUserDoc(userId, avatarDocId(id, 'thumb'));
   var novel = await getUserDoc(userId, novelDocId(id));
   var rag = await getUserDoc(userId, ragDocId(id));
+  var assistant = await getUserDoc(userId, assistantDocId(id));
   var releaseCurrent = await getUserDoc(userId, cardReleaseDocId(id));
 
   return {
@@ -233,6 +235,7 @@ export async function getCardBundle(userId, cardId) {
     },
     novel: novel,
     rag: rag,
+    assistant: assistant,
     cardRelease: releaseCurrent,
   };
 }
@@ -338,6 +341,18 @@ export async function putCardBundle(userId, cardId, bundle, opts) {
     });
   }
 
+  if (bundle.assistant != null) {
+    results.assistant = await putMaybe(bundle.assistant, function(d) {
+      return {
+        _id: assistantDocId(id),
+        type: 'assistant',
+        cardId: id,
+        data: d.data != null ? d.data : d,
+        updatedAt: d.updatedAt || new Date().toISOString(),
+      };
+    });
+  }
+
   // Story 写出的小说不进卡包；请走 /api/data/stories/*
 
   return { ok: true, cardId: id, results: results };
@@ -358,6 +373,7 @@ export async function cascadeDeleteCard(userId, cardId, opts) {
     avatarDocId(id, 'thumb'),
     novelDocId(id),
     ragDocId(id),
+    assistantDocId(id),
     cardReleaseDocId(id),
   ];
   // 历史钉版本 release/{ver}

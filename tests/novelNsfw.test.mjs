@@ -421,7 +421,7 @@ describe('novel nsfwSupport', function() {
   it('UI/桥接/助手工具接线：卡级 NSFW/NTL 在世界与限定', function() {
     const adultPanel = readFileSync(join(root, 'src/components/AdultConfigPanel.astro'), 'utf8');
     assert.match(adultPanel, /世界与限定/);
-    assert.match(adultPanel, /adultWorldviewPresetPicker/);
+    assert.match(adultPanel, /data-adult-add="worldview"/);
     assert.match(adultPanel, /adultNsfwEnabled/);
     assert.match(adultPanel, /adultNtlEnabled/);
     assert.match(adultPanel, /adultNsfwFlavor/);

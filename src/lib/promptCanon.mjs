@@ -223,8 +223,7 @@ export const DEFAULT_PROMPTS = {
     + '• order（0-999）：同深度时的优先级，数值越大越先处理。核心规则 order=900-1000，重要 order=500-800，普通 order=100-400，低优先 order=10-99\n'
     + '• prob（1-100）：常驻条目建议100%，普通触发条目80-100%，氛围/随机事件50-80%，彩蛋/稀有事件10-40%\n\n'
     + '【分类参考】：\n'
-    + '- 核心世界观/规则/系统/成人硬规则 → position=4, role=0, depth=1-2, order=900+, prob=100\n'
-    + '- 大世界观/时代背景/通用设定 → position=0 或 4, role=0, depth=2-5, order=500-900, prob=100\n'
+    + '- 核心世界观/规则/系统/成人硬规则 → position=4, role=0, depth=1-2, order=900+, prob=100\n'    + '- 大世界观/时代背景/通用设定 → position=0 或 4, role=0, depth=2-5, order=500-900, prob=100\n'
     + '- 主要角色/重要关系 → position=1 或 4, role=0, depth=2-3, order=600-800, prob=100\n'
     + '- 当前状态/剧情提醒/气氛要求 → position=5 或 6, order=300-700, prob=80-100\n'
     + '- 地点/组织/势力 → position=4, role=0, depth=3-5, order=300-500, prob=90-100\n'
@@ -232,6 +231,7 @@ export const DEFAULT_PROMPTS = {
     + '- 事件/剧情/任务 → position=4 或 5, role=0, depth=4-6, order=200-400, prob=70-90\n'
     + '- 格式/口吻示例 → position=2 或 3，但仅在内容像示例对话时使用\n'
     + '- 彩蛋/隐藏内容 → depth=8-15, order=10-50, prob=10-30\n\n'
+    + '【禁止改动】前缀为 [initvar]、[mvu_update]、[成人体系] 的条目与「恶堕进度总则」为系统受控条目，一律禁止输出任何调整建议（输入已排除；若仍出现请忽略）。\n\n'
     + '【输出格式】：JSON 数组，每个元素：\n'
     + '{ "index": 条目序号, "position": 0到6, "role": 0到2, "depth": 新深度, "order": 新顺序, "prob": 新概率, "reason": "一句话理由" }\n\n'
     + '仅输出 JSON 数组，不要其他文字。',
@@ -617,7 +617,8 @@ export const DEFAULT_PROMPTS = {
     '11. 【角色字段名】update/replace/expand 角色设定时只用：{{characterFieldHint}}；'
     + '作者注释必须写 creatorNotes，禁止 postHistoryInstructions（本应用无独立 Author\'s Note 字段）。\n',
     '12. 【世界与限定】卡级世界观预设/载体框架/NSFW/口味/姿势语言/情趣话风/NTL/恶堕用 get_adult_config / set_adult_config；'
-    + '选口味与 NTL 时只用下方概览中的 id；单条世界书「生成」属 confirm，直写 create/update 多为 auto。\n',
+    + '目录 id 以 {{catalogOverview}} 或 get_adult_catalog 返回为准；选口味与 NTL 只用合法 id，禁止编造。'
+    + '单条世界书「生成」属 confirm，直写 create/update 多为 auto。\n',
     '\n【可用工具】\n{{toolList}}\n',
     '\n{{catalogOverview}}\n',
     '\n【输出】\n',

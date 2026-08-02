@@ -5,6 +5,7 @@ import { getDefaultWBEntry, normalizeWBEntry, clampInt } from '../state.mjs';
 import { strategyLabelZh } from '../../utils.mjs';
 import { buildWorldviewHintFromItems } from '../../presets/worldviews/index.mjs';
 import { createVirtualList } from '../../ui/virtualList.mjs';
+import { SYSTEM_DIGEST_PREFIX } from '../../adult/systemDigest.mjs';
 
 /** 世界书行估算高度（TanStack estimateSize + measure） */
 export var WB_VL_ROW_HEIGHT = 72;
@@ -549,12 +550,14 @@ export function createWorldbookShared(ctx) {
     var metaLine = '\u4F4D\u7F6E: ' + (posMap[entry.position] || entry.position) + ' | \u987A\u5E8F: ' + entry.order + ' | \u6DF1\u5EA6: ' + entry.depth + ' | \u6982\u7387: ' + entry.prob + '%';
     var skBadge = isSk ? '<span class="wb-skel-badge">\u9AA8\u67B6</span>' : '';
     var strategyBadge = renderStrategyTag(entry.strategy);
+    var sysBadge = String(entry.comment || '').indexOf(SYSTEM_DIGEST_PREFIX) === 0
+      ? '<span class="wb-sys-badge">\u4F53\u7CFB</span>' : '';
     var aiTitle = isSk ? 'AI \u5C55\u5F00' : 'AI \u91CD\u5199';
     return '<div class="entry-item" data-wb-index="' + index + '" id="wbEntryItem_' + index + '">'
       + '<div class="entry-item-header">'
       + '<div class="entry-info">'
       + '<div class="entry-info-title-row"><button type="button" class="entry-title-btn" data-wb-act="edit" data-wb-index="' + index + '" title="\u7F16\u8F91\u6761\u76EE">' + safeComment + '</button>'
-      + strategyBadge + skBadge + '</div>'
+      + strategyBadge + skBadge + sysBadge + '</div>'
       + (previewLine ? '<p class="entry-preview-line">' + escapeHtml(previewLine) + '</p>' : '')
       + '<p class="entry-meta-line">' + escapeHtml(metaLine) + '</p>'
       + '</div>'

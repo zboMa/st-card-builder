@@ -42,6 +42,7 @@ export {
   cloudDownloadOverwrite,
   cloudSaveNovel,
   cloudSaveRag,
+  cloudSaveAssistant,
   cloudSaveAvatar,
   pullCloudCardIndexAndMerge,
   ensureCardBundleLocal,

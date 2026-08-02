@@ -16,6 +16,12 @@
 
 > 已移除：浏览器 Pouch 复制、`GET /api/sync/credentials`、浏览器直连 Couch Basic Auth。旧 `/api/sync/*` 返回 **410**。
 
+## 助手会话随卡
+
+- **按卡隔离**：AI 助手会话与撤销快照按 `draftId` 存储（`assistantSessionKeyFor` / `assistantSnapshotKeyFor`，无卡回退全局键）；切卡即切换对应会话。
+- **随卡上云**：`PUT /cards/:id/bundle` 携带 `assistant` 字段；`GET .../bundle` 水合时写回该卡会话键。旧全局会话在首次加载时一次性迁移到首张卡（标记 `st_v3_builder_assistant_session_migrated_v1`）。
+- **删卡**：本地与云端级联删除该卡 assistant 会话。
+
 ## 本地启动
 
 ```bash
@@ -24,8 +30,10 @@ npm run couch          # docker compose 起 CouchDB :5984
 npm install
 npm install --prefix server
 npm run server:dev     # :8787
-npm run dev            # Astro :4321，/api 代理到 8787
+npm run dev            # Astro :8826（127.0.0.1），/api 代理到 8787
 ```
+
+> dev 端口固定 `127.0.0.1:8826`（`astro.config.mjs` 顶层 `server`）：4321 落在 Windows 保留端口段（Hyper-V/WinNAT `4252–4351`），绑定会 `EACCES`。改端口仅影响本地 dev。
 
 打开侧栏 **配置 → 账户与云端**：
 
@@ -41,7 +49,7 @@ npm run dev            # Astro :4321，/api 代理到 8787
 | **保存** | 始终先写本地；**不**自动推云（避免制作过程中频繁请求） |
 | **上云** | 卡管理「同步上云」：确认前 flush 当前卡本地编辑 → `PUT .../bundle`；失败入 outbox |
 | **列表** | boot 登录后与进入卡管理 /「刷新云端列表」时 `GET /api/data/cards` 合并云+本地；正文懒加载 |
-| **打开卡** | `GET .../bundle`：卡+头像+**小说工坊+RAG**（与卡一套）；卡管理时间旁云标：未上云 / 未同步 / 已同步 |
+| **打开卡** | `GET .../bundle`：卡+头像+**小说工坊+RAG+助手会话**（与卡一套）；卡管理时间旁云标：未上云 / 未同步 / 已同步 |
 | **写出的小说** | Story Studio 独立：`GET /stories/:cardId/catalog`、打开时拉单部；**不进**开卡 bundle |
 | **删除** | 本地确认弹窗；默认删绑卡套件；**可勾选**是否级联删 Story |
 | **卡管理云操作** | 「⋯」：同步上云 · 从云端覆盖 · 删云端；工具栏「同步未上云」批量上云 |
@@ -81,7 +89,7 @@ npm run dev            # Astro :4321，/api 代理到 8787
 |---|---|---|
 | GET | `/api/data/status` | 云端就绪探测 |
 | GET/PUT | `/api/data/cards`、`/cards/:id` | 列表 / 单卡草稿 |
-| GET/PUT | `/api/data/cards/:id/bundle` | **卡包**（卡+头像+工坊+RAG；不含 Story） |
+| GET/PUT | `/api/data/cards/:id/bundle` | **卡包**（卡+头像+工坊+RAG+助手会话；不含 Story） |
 | DELETE | `/api/data/cards/:id?deleteStories=0\|1` | 删卡；`deleteStories=1` 才级联删写出的小说 |
 | GET/PUT | `/api/data/stories/:cardId/catalog` 等 | Story 独立存取 |
 

@@ -10,6 +10,7 @@ import {
   CORRUPTION_ARC_BRIEF_IDS,
   CORRUPTION_RULES_COMMENT,
   CORRUPTION_ARCHIVE_PREFIX,
+  CORRUPTION_GENERAL_ARCHIVE_COMMENT,
   CORRUPTION_STATUS_MODULE_ID,
   DEFAULT_CORRUPTION_PRESET,
   STAGE_SECTION_HINTS,
@@ -22,6 +23,8 @@ import {
   pickCorruptionTargets,
   buildRulesContent,
   buildArchiveContentTemplate,
+  buildGeneralArchiveEntry,
+  buildGeneralArchiveContent,
   buildArchiveUserPrompt,
   upsertWorldbookByComment,
   buildRulesWorldbookEntry,
@@ -139,6 +142,24 @@ describe('corruptionProgress', function() {
     assert.equal(found.archives.length, 1);
   });
 
+  it('通用档案：不绑名字、常驻、按阶段含通用演绎框架', function() {
+    var stages = CORRUPTION_PRESETS['5'].stages;
+    var gen = buildGeneralArchiveEntry(stages);
+    assert.equal(gen.comment, CORRUPTION_GENERAL_ARCHIVE_COMMENT);
+    assert.equal(gen.strategy, 'constant');
+    assert.equal(gen.position, 0);
+    assert.ok(gen.keys.length === 0);
+    var content = buildGeneralArchiveContent(stages);
+    stages.forEach(function(s) { assert.ok(content.indexOf('## ' + s) >= 0, 'missing stage ' + s); });
+    STAGE_SECTION_HINTS.forEach(function(h) {
+      assert.ok(content.indexOf('- ' + h) >= 0, 'missing section ' + h);
+    });
+    assert.ok(content.indexOf('NPC.{角色名}.恶堕进度') >= 0, '动态变量规则缺失');
+    assert.ok(content.indexOf('通用') >= 0);
+    // 总则须写明无专属档案角色套用通用档案
+    assert.ok(buildRulesContent(stages).indexOf(CORRUPTION_GENERAL_ARCHIVE_COMMENT) >= 0);
+  });
+
   it('export issues when enabled without lore', function() {
     var none = buildCorruptionExportIssues({ enabled: false });
     assert.equal(none.length, 0);
@@ -186,7 +207,8 @@ describe('corruptionProgress', function() {
   it('UI and assistant wiring present on adult-config module', function() {
     var panel = readFileSync(join(root, 'src/components/AdultConfigPanel.astro'), 'utf8');
     assert.match(panel, /adultCorruptionEnabled/);
-    assert.match(panel, /btnGenCorruptionLore/);
+    assert.match(panel, /btnGenSystemDigest/);
+    assert.doesNotMatch(panel, /btnGenCorruptionLore/);
     var adult = readAdultConfigPanelSources(root);
     assert.match(adult, /runGenerateCorruptionLore/);
     assert.match(adult, /findWorldbookPersonContext/);

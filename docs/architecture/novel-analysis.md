@@ -136,7 +136,7 @@ adultMode: false,             // 全局 NSFW（仅原始资料·全局配置；�
 ntlMode: false,               // 全局 NTL 禁忌张力（与 NSFW 解耦，可叠加）
 analyzeIncludeAdult: false,   // 与 adultMode 同步（兼容旧字段）
 rag: {
-  enabled: true,              // 助手问答启用小说 RAG
+  enabled: false,             // 助手问答启用小说 RAG（默认关闭，按需在 AI 配置开启）
   budget: 12000,              // 注入 token 预算（tiktoken）
   indexStatus: 'idle'|'building'|'ready'|'error',
   indexUpdatedAt: '',
@@ -239,7 +239,7 @@ query
 【使用规则】优先依据原文与实体；无命中须说明；改库用 patch 工具
 ```
 
-开关：`state.rag.enabled`；UI：AI 配置或助手区「小说 RAG」。
+开关：`state.rag.enabled`（**默认关闭**）；UI：AI 配置或助手区「小说 RAG」。助手写入类工具 `set_novel_adult_mode` / `set_novel_ntl_mode` 属大改，需用户确认。
 
 ---
 

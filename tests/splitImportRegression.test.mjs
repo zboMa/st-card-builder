@@ -56,6 +56,20 @@ describe('split import regression', function() {
     assert.match(src, /import \{ buildRagInjectBlock, pickRelatedEntities \} from '\.\/rag\/inject\.mjs'/);
   });
 
+  it('adultConfigBind 桥接写入做一致性归一', function() {
+    var src = readFileSync(join(root, 'src/lib/card-builder/panels/adultConfigBind.mjs'), 'utf8');
+    assert.match(src, /CORRUPTION_PRESETS\[ctx\.state\.corruptionPreset\]/);
+    assert.match(src, /resolveStageNames\(/);
+    assert.match(src, /ensureNtlItemsOnState\(\)/);
+    assert.match(src, /corruptionEnabled && !ctx\.state\.nsfwEnabled/);
+  });
+
+  it('persistAiConfig 兜底 RAG 默认关闭', function() {
+    var eng = readFileSync(join(root, 'src/lib/card-builder/panels/aiEngineShared.mjs'), 'utf8');
+    assert.match(eng, /enabled: false, budget: 12000/);
+    assert.doesNotMatch(eng, /enabled: true, budget: 12000/);
+  });
+
   it('设定/开场白事件只绑一次（避免确认生成跑两遍）', function() {
     var app = readFileSync(join(root, 'src/lib/novel/browserApp.mjs'), 'utf8');
     var boot = readFileSync(join(root, 'src/lib/novel/bootSetupGreetings.mjs'), 'utf8');

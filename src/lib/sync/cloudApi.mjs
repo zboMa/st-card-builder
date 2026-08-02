@@ -147,6 +147,10 @@ export function putRag(cardId, data) {
   return cloudPut('/api/data/rag/' + encodeURIComponent(cardId), { data: data });
 }
 
+export function putAssistant(cardId, data) {
+  return cloudPut('/api/data/assistants/' + encodeURIComponent(cardId), { data: data });
+}
+
 export function putAvatar(cardId, kind, data, contentType) {
   return cloudPut(
     '/api/data/avatars/' + encodeURIComponent(cardId) + '/' + (kind === 'thumb' ? 'thumb' : 'full'),

@@ -4,7 +4,13 @@
 
 import { createToolExecutor } from './executor.mjs';
 import { parseReactStep } from './reactParse.mjs';
-import { createAssistantSessionStore, createSnapshotStack } from './session.mjs';
+import {
+    createAssistantSessionStore,
+    createSnapshotStack,
+    assistantSessionKeyFor,
+    assistantSnapshotKeyFor,
+    migrateLegacyAssistantSession,
+  } from './session.mjs';
 import { ASSISTANT_PRESET_CHIPS } from './tools.mjs';
 import { normalizeCharacterFieldKey, normalizeCharacterPatch, CHARACTER_FIELD_HINT } from './characterFields.mjs';
 import {
@@ -21,6 +27,8 @@ import {
     buildAssistantContextSections,
   } from './tokenEstimate.mjs';
 import { prepareAssistantMessages } from './contextManager.mjs';
+import { isCatalogRelevantText } from '../catalogSummaries.mjs';
+import { renderAssistantMarkdown, escapeAssistantHtml } from './markdownRender.mjs';
 import {
     buildRagPreviewPayload,
     buildUserModelContent,
@@ -224,9 +232,11 @@ function initAssistantSheet() {
 }
 
 export function initAssistantPanelMain() {
-var boot = window.__assistantBoot__ || {};
+    var boot = window.__assistantBoot__ || {};
     var toolListText = boot.toolListText || '';
     var catalogOverviewText = boot.catalogOverviewText || '';
+    var catalogIndexText = boot.catalogIndexText || '';
+    var catalogDataJson = boot.catalogDataJson || '';
     var chips = ASSISTANT_PRESET_CHIPS;
     try {
       if (boot.chipsJson) chips = typeof boot.chipsJson === 'string' ? JSON.parse(boot.chipsJson) : boot.chipsJson;
@@ -261,8 +271,12 @@ var boot = window.__assistantBoot__ || {};
 
     if (!panel || !messagesEl || !inputEl) return;
 
-    var sessionStore = createAssistantSessionStore(window.localStorage);
-    var snapStack = createSnapshotStack(window.localStorage);
+    var sessionStore = createAssistantSessionStore(window.localStorage, function() {
+      return assistantSessionKeyFor(currentCardId());
+    });
+    var snapStack = createSnapshotStack(window.localStorage, function() {
+      return assistantSnapshotKeyFor(currentCardId());
+    });
     var uiMessages = [];
     var sessionRagInjected = new Set();
     var busy = false;
@@ -270,6 +284,11 @@ var boot = window.__assistantBoot__ || {};
     var pending = null;
     var ragPreviewBusy = false;
     var MAX_REACT_STEPS = 8;
+    var reactTask = null;      // 当前 react 运行的任务中心任务
+    var reactPaused = false;   // 大改等待用户确认中（暂停续接）
+    var reactResume = null;    // 确认后从哪一步续接
+    var catalogRelevant = false; // 本轮是否注入完整目录概览（方案 B 混合注入）
+    var catalogDataParsed = null; // get_adult_catalog 懒解析结果
 
     var ragSearchIconSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/><path d="M8 11h6M11 8v6"/></svg>';
 
@@ -532,7 +551,7 @@ var boot = window.__assistantBoot__ || {};
     function getNovelRagOptions() {
       return typeof window.__getNovelRagOptions__ === 'function'
         ? window.__getNovelRagOptions__()
-        : { enabled: true, budget: 12000 };
+        : { enabled: false, budget: 12000 };
     }
 
     async function resolveAssistantRag(userText, previewOnly) {
@@ -648,7 +667,12 @@ var boot = window.__assistantBoot__ || {};
         }
         var cls = 'assistant-msg assistant-msg--' + (m.role || 'assistant');
         if (m.error) cls += ' assistant-msg--error';
-        var node = el('div', cls, messageContentForDisplay(m));
+        var node = document.createElement('div');
+        node.className = cls;
+        // assistant 回复渲染 markdown（安全壳：HTML 转义 + 链接 scheme 过滤）；错误消息按纯文本转义展示
+        node.innerHTML = m.error
+          ? escapeAssistantHtml(messageContentForDisplay(m))
+          : renderAssistantMarkdown(messageContentForDisplay(m));
         messagesEl.appendChild(node);
       });
       if (pendingHintText) {
@@ -701,6 +725,19 @@ var boot = window.__assistantBoot__ || {};
       if (n && 'value' in n) n.value = v == null ? '' : String(v);
     }
 
+    /** 当前卡 draftId：优先制卡桥；无桥时回退 localStorage CURRENT_KEY */
+    function currentCardId() {
+      if (window.__getCurrentDraftId__ && typeof window.__getCurrentDraftId__ === 'function') {
+        var id = window.__getCurrentDraftId__();
+        if (id) return String(id);
+      }
+      try {
+        return String(window.localStorage.getItem('st_v3_builder_current_id') || '').trim();
+      } catch (e) {
+        return '';
+      }
+    }
+
     function getCharacter() {
       return {
         charName: val('charName'),
@@ -746,11 +783,20 @@ var boot = window.__assistantBoot__ || {};
           novel = window.__novelWorkshopBridge__.captureBucket();
         }
       } catch (e) {}
+      var nsfw = null;
+      try {
+        if (typeof window.__getNsfwConfig__ === 'function') nsfw = window.__getNsfwConfig__();
+      } catch (e) {}
       return {
         character: getCharacter(),
         worldbook: getWorldbook(),
         mvuDesign: window.__getCardExtension__ ? window.__getCardExtension__('zmer_mvu_design') : null,
         novel: novel,
+        nsfw: nsfw,
+        engine: {
+          skeletonCount: window.__getSkeletonCount__ ? window.__getSkeletonCount__() : null,
+          tagContextChars: window.__getTagContextChars__ ? window.__getTagContextChars__() : null,
+        },
         at: Date.now(),
       };
     }
@@ -761,6 +807,21 @@ var boot = window.__assistantBoot__ || {};
       if (Array.isArray(snap.worldbook)) setWorldbook(snap.worldbook);
       if (snap.mvuDesign !== undefined && window.__setCardExtension__) {
         window.__setCardExtension__('zmer_mvu_design', snap.mvuDesign);
+      }
+      // 撤销时恢复成人配置（set_adult_config 等确认级写入可被撤销）
+      if (snap.nsfw && typeof window.__setNsfwConfig__ === 'function') {
+        try { window.__setNsfwConfig__(snap.nsfw); } catch (e) { /* ignore */ }
+      }
+      if (snap.engine) {
+        if (snap.engine.skeletonCount != null && window.__setSkeletonCount__) {
+          try { window.__setSkeletonCount__(snap.engine.skeletonCount); } catch (e) {}
+        }
+        if (snap.engine.tagContextChars != null && window.__setTagContextChars__) {
+          try {
+            window.__setTagContextChars__(snap.engine.tagContextChars);
+            if (typeof window.__persistAiConfig__ === 'function') window.__persistAiConfig__();
+          } catch (e) {}
+        }
       }
       // 撤销时恢复小说桶
       if (snap.novel && window.__novelWorkshopBridge__ && window.__novelWorkshopBridge__.restoreBucket) {
@@ -842,6 +903,64 @@ var boot = window.__assistantBoot__ || {};
       if (!ps) return '';
       var text = ps.get(id);
       return vars ? ps.applyTemplate(text, vars) : text;
+    }
+
+    function parseCatalogData() {
+      if (catalogDataParsed) return catalogDataParsed;
+      if (!catalogDataJson) return null;
+      try {
+        catalogDataParsed = JSON.parse(catalogDataJson);
+      } catch (e) {
+        catalogDataParsed = null;
+      }
+      return catalogDataParsed;
+    }
+
+    /** get_adult_catalog 目录查询：按 kinds/groups/query 过滤 */
+    function queryAdultCatalog(a) {
+      a = a || {};
+      var data = parseCatalogData();
+      if (!data) return { available: false, note: '目录数据未就绪' };
+      var kinds = a.kinds ? (Array.isArray(a.kinds) ? a.kinds : [a.kinds]) : Object.keys(data);
+      var groupFilter = a.groups ? (Array.isArray(a.groups) ? a.groups : [a.groups]) : null;
+      var q = String(a.query || '').toLowerCase();
+      var withSummary = a.withSummary !== false;
+      var out = {};
+      kinds.forEach(function(kind) {
+        if (!data[kind]) return;
+        var list = data[kind];
+        var result;
+        if (Array.isArray(list)) {
+          result = list.filter(function(it) {
+            return !q
+              || String(it.label || '').toLowerCase().indexOf(q) >= 0
+              || String(it.id || '').toLowerCase().indexOf(q) >= 0;
+          });
+        } else {
+          result = list.map(function(g) {
+            if (groupFilter && groupFilter.indexOf(g.group) < 0) return null;
+            var items = g.items.filter(function(it) {
+              return !q
+                || String(it.label || '').toLowerCase().indexOf(q) >= 0
+                || String(it.id || '').toLowerCase().indexOf(q) >= 0;
+            });
+            if (!items.length) return null;
+            return { group: g.group, items: items };
+          }).filter(Boolean);
+        }
+        if (!result.length) return;
+        out[kind] = withSummary ? result : stripCatalogSummaries(result);
+      });
+      return { available: true, totalKinds: Object.keys(out).length, kinds: out };
+    }
+
+    function stripCatalogSummaries(list) {
+      if (Array.isArray(list) && list[0] && list[0].id != null) {
+        return list.map(function(it) { return { id: it.id, label: it.label }; });
+      }
+      return list.map(function(g) {
+        return { group: g.group, items: g.items.map(function(it) { return { id: it.id, label: it.label }; }) };
+      });
     }
 
     function localAudit() {
@@ -1183,6 +1302,9 @@ var boot = window.__assistantBoot__ || {};
         if (typeof window.__getNsfwConfig__ === 'function') return window.__getNsfwConfig__();
         return {};
       },
+      getAdultCatalog: function(args) {
+        return queryAdultCatalog(args);
+      },
       setAdultConfig: function(cfg) {
         if (typeof window.__setNsfwConfig__ !== 'function') throw new Error('成人配置桥接未就绪');
         window.__setNsfwConfig__(cfg || {});
@@ -1424,7 +1546,7 @@ var boot = window.__assistantBoot__ || {};
       if (result && result.ok) {
         try {
           window.dispatchEvent(new CustomEvent('assistant-change-summary', {
-            detail: { tool: toolName, cardId: bridge.getDraftId && bridge.getDraftId() },
+            detail: { tool: toolName, cardId: currentCardId() },
           }));
         } catch (eEv) { /* ignore */ }
       }
@@ -1432,13 +1554,17 @@ var boot = window.__assistantBoot__ || {};
     }
 
     function buildSystemPrompt(userExtra) {
+      // 方案 B 混合注入：目录相关时给完整概览（识别不退化），否则给紧凑索引省 token
+      var relevant = catalogRelevant;
+      if (!relevant && inputEl) relevant = isCatalogRelevantText(String(inputEl.value || ''));
+      var overview = relevant ? catalogOverviewText : catalogIndexText;
       var base = promptText('assistantSystem', {
         toolList: toolListText,
         characterFieldHint: CHARACTER_FIELD_HINT,
-        catalogOverview: catalogOverviewText,
+        catalogOverview: overview,
       }) || (
         '你是卡片构建助手。默认用自然语言中文回复用户；只有需要读卡/改卡时才输出一个 tool JSON。\n工具：\n' + toolListText
-        + (catalogOverviewText ? '\n\n' + catalogOverviewText : '')
+        + (overview ? '\n\n' + overview : '')
       );
       if (userExtra) base += '\n\n' + userExtra;
       return base;
@@ -1461,6 +1587,7 @@ var boot = window.__assistantBoot__ || {};
     }
 
     async function reactLoop(userText) {
+      if (busy) return;
       if (!engineTryAllowed('card.assistant.react').ok) return;
       abortFlag = false;
       busy = true;
@@ -1469,6 +1596,18 @@ var boot = window.__assistantBoot__ || {};
 
       pushUi({ role: 'user', content: userText, modelContent: userText });
 
+      // 方案 B：本轮或近期上下文命中目录关键词 → 当轮注入完整概览
+      catalogRelevant = isCatalogRelevantText(userText);
+      if (!catalogRelevant) {
+        var crStart = Math.max(0, uiMessages.length - 9);
+        for (var crIdx = uiMessages.length - 1; crIdx >= crStart; crIdx--) {
+          if (uiMessages[crIdx] && isCatalogRelevantText(String(uiMessages[crIdx].content || ''))) {
+            catalogRelevant = true;
+            break;
+          }
+        }
+      }
+
       var extra = '';
       if (/试聊|回流|反馈/.test(userText)) {
         extra = promptText('assistantChatFeedback') || '';
@@ -1476,7 +1615,7 @@ var boot = window.__assistantBoot__ || {};
       // 小说 RAG：检索原文 + 相关实体，绑定到本回合 user 消息（非 system extra）
       try {
         var ragOpt = getNovelRagOptions();
-        if (ragOpt.enabled !== false && window.__novelWorkshopBridge__ && window.__novelWorkshopBridge__.searchPassages) {
+        if (ragOpt.enabled === true && window.__novelWorkshopBridge__ && window.__novelWorkshopBridge__.searchPassages) {
           setPendingHint('正在检索小说原文…');
           var ragPayload = await resolveAssistantRag(userText, false);
           if (ragPayload) {
@@ -1493,28 +1632,53 @@ var boot = window.__assistantBoot__ || {};
         console.warn('[assistant] novel RAG inject failed', ragErr);
       }
 
+      await reactSteps(0, false, extra);
+    }
+
+    /**
+     * 分步执行 assistant ReAct：startStep>0 为确认大改后的续接（复用任务、不新建）。
+     * pendingConfirm 时暂停：任务保持 running、busy 保持 true，等用户确认后再续接。
+     */
+    async function reactSteps(startStep, isContinuation, extra) {
       var center = window.__aiTaskCenter__;
-      var reactTask = center ? center.create({
-        type: 'assistant_react',
-        title: 'AI 助手',
-        target: String(userText || '').slice(0, 40),
-      }) : null;
-      var reactSignal = reactTask && reactTask.signal;
+      if (isContinuation && reactTask && (reactTask.status === 'running' || reactTask.status === 'queued')) {
+        // 复用当前任务
+      } else {
+        var targetText = '';
+        for (var ti = uiMessages.length - 1; ti >= 0; ti--) {
+          if (uiMessages[ti].role === 'user') {
+            targetText = String(uiMessages[ti].content || '').slice(0, 40);
+            break;
+          }
+        }
+        reactTask = center ? center.create({
+          type: 'assistant_react',
+          title: 'AI 助手',
+          target: targetText,
+        }) : null;
+      }
+      var task = reactTask;
+      var reactSignal = task && task.signal;
+      var gotFinal = false;
 
       try {
-        for (var step = 0; step < MAX_REACT_STEPS; step++) {
+        for (var step = startStep; step < MAX_REACT_STEPS; step++) {
           if (abortFlag || (reactSignal && reactSignal.aborted)) {
             clearPendingHint();
             pushUi({ role: 'assistant', content: '已停止。' });
-            if (center && reactTask && reactTask.status !== 'cancelled') center.cancel(reactTask.id);
+            if (center && task && task.status !== 'cancelled') center.cancel(task.id);
             break;
           }
           var stepLabel = step === 0 ? '正在回复…' : ('继续处理（' + (step + 1) + '/' + MAX_REACT_STEPS + '）…');
-          if (center && reactTask) center.setProgress(reactTask.id, (step + 1) / MAX_REACT_STEPS, stepLabel);
+          if (center && task) center.setProgress(task.id, (step + 1) / MAX_REACT_STEPS, stepLabel);
           var stepHint = '';
           if (step > 0) {
             stepHint = promptText('assistantReactHint')
               || '根据工具结果继续：仍需工具则输出 tool JSON，否则用自然语言直接回复用户。';
+          }
+          if (step === MAX_REACT_STEPS - 1) {
+            stepHint = (stepHint ? stepHint + '\n' : '')
+              + '这是本轮最后一次工具调用机会：处理完请务必用自然语言总结当前进度与已应用内容，不要遗留未说明的工具意图。';
           }
           var prepared = prepareAssistantMessages({
             systemPrompt: buildSystemPrompt(extra),
@@ -1544,12 +1708,17 @@ var boot = window.__assistantBoot__ || {};
             var tr = await runTool(parsed.tool, parsed.args || {}, false);
             if (tr.pendingConfirm) {
               clearPendingHint();
-              break;
+              // 暂停等待确认；任务保持 running、busy 保持 true
+              reactPaused = true;
+              reactResume = function() { reactSteps(step + 1, true, extra); };
+              setStatus('等待确认大改…');
+              return;
             }
             continue;
           }
 
           if (parsed.type === 'final') {
+            gotFinal = true;
             clearPendingHint();
             var finalText = String(parsed.final != null ? parsed.final : '').trim()
               || String(raw || '').trim()
@@ -1564,31 +1733,45 @@ var boot = window.__assistantBoot__ || {};
           }
 
           // 无法解析则把原文当回复
+          gotFinal = true;
           clearPendingHint();
           pushUi({ role: 'assistant', content: raw || '（无输出）' });
           break;
         }
-        if (center && reactTask && reactTask.status === 'running') center.succeed(reactTask.id);
+        // 达到步数上限仍未收尾 → 提示可「继续」
+        if (step >= MAX_REACT_STEPS && !gotFinal) {
+          pushUi({
+            role: 'assistant',
+            content: '已达单轮工具调用上限（' + MAX_REACT_STEPS + ' 步）。如需继续处理，回复「继续」。',
+          });
+        }
+        if (center && task && task.status === 'running') center.succeed(task.id);
+        reactTask = null;
       } catch (err) {
         var aborted = (window.__isAiAbortError__ && window.__isAiAbortError__(err))
           || (err && err.name === 'AbortError')
           || abortFlag;
+        reactPaused = false;
+        reactResume = null;
         clearPendingHint();
         if (aborted) {
           pushUi({ role: 'assistant', content: '已停止。' });
-          if (center && reactTask && reactTask.status !== 'cancelled') center.cancel(reactTask.id);
+          if (center && task && task.status !== 'cancelled') center.cancel(task.id);
           setStatus('已停止');
         } else {
           // 运行期失败才写入对话；未配置已在发送前拦截
           pushUi({ role: 'assistant', content: '错误：' + (err && err.message ? err.message : String(err)), error: true });
           setStatus(err.message || '失败', true);
-          if (center && reactTask) center.fail(reactTask.id, err);
+          if (center && task) center.fail(task.id, err);
         }
+        reactTask = null;
       } finally {
-        clearPendingHint();
-        busy = false;
-        syncActionBtn();
-        setStatus('就绪');
+        if (!reactPaused) {
+          clearPendingHint();
+          busy = false;
+          syncActionBtn();
+          setStatus('就绪');
+        }
       }
     }
 
@@ -1685,6 +1868,21 @@ var boot = window.__assistantBoot__ || {};
       actionBtn.addEventListener('click', function() {
         if (busy) {
           abortFlag = true;
+          if (reactPaused) {
+            // 确认等待中停止：清空待确认并复位
+            showPending(null);
+            reactPaused = false;
+            reactResume = null;
+            var cp = window.__aiTaskCenter__;
+            if (cp && reactTask && reactTask.status !== 'cancelled') cp.cancel(reactTask.id);
+            reactTask = null;
+            clearPendingHint();
+            busy = false;
+            syncActionBtn();
+            setStatus('已停止');
+            pushUi({ role: 'assistant', content: '已停止。' });
+            return;
+          }
           setStatus('正在停止…');
           var center = window.__aiTaskCenter__;
           if (center) {
@@ -1732,31 +1930,83 @@ var boot = window.__assistantBoot__ || {};
       if (!pending) return;
       var p = pending;
       showPending(null);
-      var r = await runTool(p.tool, p.args, true);
-      if (!r.ok) {
+      var r = null;
+      try {
+        r = await runTool(p.tool, p.args, true);
+      } catch (errApply) {
+        pushUi({
+          role: 'assistant',
+          content: '应用失败：' + (errApply && errApply.message ? errApply.message : String(errApply)),
+          error: true,
+        });
+      }
+      if (r && !r.ok) {
         pushUi({
           role: 'assistant',
           content: '应用失败：' + (r.error || ''),
           error: true,
         });
       }
+      // 续接：确认后让模型继续总结 / 继续下一步工具调用
+      var resume = reactResume;
+      var wasPaused = reactPaused;
+      reactResume = null;
+      reactPaused = false;
+      if (resume && !abortFlag) {
+        setPendingHint('正在继续…');
+        resume();
+      } else if (wasPaused) {
+        clearPendingHint();
+        busy = false;
+        syncActionBtn();
+        setStatus('就绪');
+      }
     });
     rejectBtn.addEventListener('click', function() {
       showPending(null);
       pushUi({ role: 'assistant', content: '已拒绝本次大改。' });
+      if (reactPaused) {
+        reactPaused = false;
+        reactResume = null;
+        var centerR = window.__aiTaskCenter__;
+        if (centerR && reactTask && reactTask.status !== 'cancelled') centerR.cancel(reactTask.id);
+        reactTask = null;
+        clearPendingHint();
+        busy = false;
+        syncActionBtn();
+        setStatus('就绪');
+      }
     });
 
-    // 恢复会话
-    var saved = sessionStore.read();
-    if (saved.ragInjectedIds && saved.ragInjectedIds.length) {
-      sessionRagInjected = new Set(saved.ragInjectedIds);
-    }
-    if (saved.messages && saved.messages.length) {
-      uiMessages = saved.messages;
+    /** 从当前卡会话恢复 UI（卡片切换 / 初始恢复共用） */
+    function loadSessionIntoView() {
+      var saved = sessionStore.read();
+      if (saved.ragInjectedIds && saved.ragInjectedIds.length) {
+        sessionRagInjected = new Set(saved.ragInjectedIds);
+      } else {
+        sessionRagInjected = new Set();
+      }
+      uiMessages = Array.isArray(saved.messages) ? saved.messages.slice() : [];
+      showPending(null);
       renderMessages();
     }
+
+    // 恢复会话：旧全局会话一次性迁移到首张卡，再读当前卡会话
+    try {
+      migrateLegacyAssistantSession(window.localStorage, currentCardId());
+    } catch (eMig) { /* ignore */ }
+    loadSessionIntoView();
     setStatus('就绪');
     syncActionBtn();
+
+    // 切卡 → 重载该卡会话；进行中任务对切卡已硬禁，此处再兜底
+    window.addEventListener('card-draft-changed', function() {
+      if (busy) return;
+      try { migrateLegacyAssistantSession(window.localStorage, currentCardId()); } catch (eM) { /* ignore */ }
+      loadSessionIntoView();
+      setStatus('已切换到 ' + (currentCardId() ? '当前卡片会话' : '全局会话'));
+      setTimeout(function() { if (!busy) setStatus('就绪'); }, 1200);
+    });
 
     window.__assistantPanel__ = {
       send: function(text) {

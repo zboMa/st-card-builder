@@ -21,6 +21,7 @@ import {
   isCloudEnabled,
 } from './cloudStoreShared.mjs';
 import { attachContentRevToDraft, collectSyncBaseline } from './contentRev.mjs';
+import { assistantSessionKeyFor } from '../assistant/session.mjs';
 
 export async function buildLocalCardBundle(cardId) {
   var id = String(cardId || '').trim();
@@ -29,11 +30,17 @@ export async function buildLocalCardBundle(cardId) {
   var novelRec = await idbGetJson(idbNovelKey(id)).catch(function() { return null; });
   var ragRec = await idbGetJson('novelRagV1:card:' + id).catch(function() { return null; });
   var avatar = await readLocalAvatarParts(id);
+  var assistantRec = null;
+  try {
+    var raw = window.localStorage.getItem(assistantSessionKeyFor(id));
+    if (raw) assistantRec = JSON.parse(raw);
+  } catch (eA) { assistantRec = null; }
   return {
     card: draft,
     avatar: avatar,
     novel: novelRec,
     rag: ragRec,
+    assistant: assistantRec,
   };
 }
 
@@ -70,6 +77,16 @@ export async function hydrateCardBundleToLocal(bundle) {
   if (bundle.rag) {
     var ragData = bundle.rag.data != null ? bundle.rag.data : bundle.rag;
     await idbSetJson('novelRagV1:card:' + id, ragData);
+  }
+
+  // 助手会话随卡返回：写回该卡会话键（不影响当前 UI 正在编辑的会话）
+  if (bundle.assistant != null) {
+    try {
+      window.localStorage.setItem(
+        assistantSessionKeyFor(id),
+        JSON.stringify(bundle.assistant)
+      );
+    } catch (eA) { /* quota / privacy */ }
   }
 
   emit('bundle-hydrated', { cardId: id });
@@ -203,6 +220,19 @@ export async function cloudSaveRag(cardId, rag) {
     cardId: id,
     body: { data: data },
     dedupeKey: 'putRag:' + id,
+  });
+}
+
+export async function cloudSaveAssistant(cardId, session) {
+  var id = String(cardId || '').trim();
+  var data = session && (session.data != null ? session.data : session);
+  return withCloudOrOutbox('putAssistant', function() {
+    return api.putAssistant(id, data);
+  }, {
+    op: 'putAssistant',
+    cardId: id,
+    body: { data: data },
+    dedupeKey: 'putAssistant:' + id,
   });
 }
 

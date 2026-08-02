@@ -158,6 +158,9 @@ export function createExecutorExecute(bridge, snaps, helpers) {
       case 'get_adult_config':
         if (!bridge.getAdultConfig && !bridge.getNsfwConfig) return fail('成人配置桥接未就绪');
         return ok((bridge.getAdultConfig || bridge.getNsfwConfig)());
+      case 'get_adult_catalog':
+        if (!bridge.getAdultCatalog) return fail('成人目录桥接未就绪');
+        return ok(bridge.getAdultCatalog(a));
       case 'set_adult_config': {
         if (!bridge.setAdultConfig && !bridge.setNsfwConfig) return fail('成人配置桥接未就绪');
         maybeSnap();
@@ -238,14 +241,27 @@ export function createExecutorExecute(bridge, snaps, helpers) {
       }
       case 'update_worldbook_entry': {
         var wb2 = (bridge.getWorldbook() || []).slice();
-        var i2 = findWbIndex(wb2, a);
-        if (i2 < 0 || i2 >= wb2.length) return fail('条目未找到');
+        var targets = Array.isArray(a.indices) ? a.indices.slice() : [];
+        if (typeof a.index === 'number') targets.push(a.index);
+        var resolvedIdx = findWbIndex(wb2, a);
+        if (resolvedIdx >= 0) targets.push(resolvedIdx);
+        targets = targets.filter(function(n, pos, arr) {
+          return arr.indexOf(n) === pos && n >= 0 && n < wb2.length;
+        });
+        if (!targets.length) return fail('条目未找到');
         maybeSnap();
         var p = a.patch || {};
-        wb2[i2] = Object.assign({}, wb2[i2], p);
-        if (p.keys && !Array.isArray(p.keys)) wb2[i2].keys = String(p.keys).split(/[,，]/).map(function(s) { return s.trim(); }).filter(Boolean);
+        targets.forEach(function(ti) {
+          wb2[ti] = Object.assign({}, wb2[ti], p);
+          if (p.keys && !Array.isArray(p.keys)) {
+            wb2[ti].keys = String(p.keys).split(/[,，]/).map(function(s) { return s.trim(); }).filter(Boolean);
+          }
+        });
         bridge.setWorldbook(wb2);
-        return ok({ index: i2, entry: wb2[i2] });
+        return ok({
+          indices: targets,
+          entries: targets.map(function(ti) { return wb2[ti]; }),
+        });
       }
       case 'delete_worldbook_entry': {
         var wb3 = (bridge.getWorldbook() || []).slice();

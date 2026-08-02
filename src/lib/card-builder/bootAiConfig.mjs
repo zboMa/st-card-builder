@@ -82,6 +82,55 @@ export function attachBootAiConfig(ctx) {
         : (parseInt((document.getElementById('wbSkeletonCount') || {}).value, 10) || 10),
     }));
     ctx.updateAIDebugStatus();
+    syncCardAdultConfigSnapshot();
+  }
+
+  /** R1 水合：成人配置结构化快照随卡携带（cardBuilderExtensions → data.extensions） */
+  function syncCardAdultConfigSnapshot() {
+    if (!ctx.state) return;
+    if (!ctx.state.cardBuilderExtensions || typeof ctx.state.cardBuilderExtensions !== 'object') {
+      ctx.state.cardBuilderExtensions = {};
+    }
+    ctx.state.cardBuilderExtensions['st-builder.adultConfig'] = {
+      schemaVersion: 1,
+      nsfwEnabled: !!ctx.state.nsfwEnabled,
+      flavorItems: Array.isArray(ctx.state.nsfwFlavorItems)
+        ? ctx.state.nsfwFlavorItems.map(function(it) {
+            return { id: String((it && it.id) || ''), note: String((it && it.note) || '') };
+          }).filter(function(it) { return it.id; })
+        : (ctx.state.nsfwFlavor ? [{ id: ctx.state.nsfwFlavor, note: '' }] : []),
+      postureItems: Array.isArray(ctx.state.eroticPostureItems)
+        ? ctx.state.eroticPostureItems.map(function(it) {
+            return { id: String((it && it.id) || ''), note: String((it && it.note) || '') };
+          }).filter(function(it) { return it.id; })
+        : [],
+      speechItems: Array.isArray(ctx.state.eroticSpeechItems)
+        ? ctx.state.eroticSpeechItems.map(function(it) {
+            return { id: String((it && it.id) || ''), note: String((it && it.note) || '') };
+          }).filter(function(it) { return it.id; })
+        : [],
+      ntlEnabled: !!ctx.state.ntlEnabled,
+      ntlTabooItems: Array.isArray(ctx.state.ntlTabooItems)
+        ? ctx.state.ntlTabooItems.map(function(it) {
+            return { id: String((it && it.id) || ''), note: String((it && it.note) || '') };
+          }).filter(function(it) { return it.id; })
+        : (Array.isArray(ctx.state.ntlTabooTypes) ? ctx.state.ntlTabooTypes.map(function(id) { return { id: String(id), note: '' }; }) : []),
+      worldviewPresetItems: Array.isArray(ctx.state.worldviewPresetItems)
+        ? ctx.state.worldviewPresetItems.map(function(it) {
+            return { id: String((it && it.id) || ''), note: String((it && it.note) || '') };
+          }).filter(function(it) { return it.id; })
+        : [],
+      adultWorldframe: ctx.state.adultWorldframe || '',
+      adultWorldframeForced: ctx.state.adultWorldframeForced || '',
+      corruptionEnabled: !!ctx.state.corruptionEnabled,
+      corruptionPreset: ctx.state.corruptionPreset || '5',
+      corruptionCustomBrief: ctx.state.corruptionCustomBrief || '',
+      corruptionExtraNotes: ctx.state.corruptionExtraNotes || '',
+      corruptionStageNames: Array.isArray(ctx.state.corruptionStageNames) ? ctx.state.corruptionStageNames.slice() : [],
+      corruptionSelectedNames: Array.isArray(ctx.state.corruptionSelectedNames) ? ctx.state.corruptionSelectedNames.slice() : [],
+      corruptionDefaultFemaleOnly: ctx.state.corruptionDefaultFemaleOnly !== false,
+      corruptionSyncStatusBar: ctx.state.corruptionSyncStatusBar !== false,
+    };
   }
 
   function loadAIConfig() {
@@ -129,7 +178,7 @@ export function attachBootAiConfig(ctx) {
           localStorage.setItem('st_v3_builder_novel_rag', JSON.stringify(c.novelRag));
           var en = document.getElementById('assistantNovelRagEnable');
           var bu = document.getElementById('assistantNovelRagBudget');
-          if (en) en.checked = c.novelRag.enabled !== false;
+          if (en) en.checked = c.novelRag.enabled === true;
           if (bu && c.novelRag.budget) bu.value = String(c.novelRag.budget);
         }
       } catch (eRag) { /* ignore */ }
@@ -215,6 +264,9 @@ export function attachBootAiConfig(ctx) {
       console.warn('Loading AI config from storage failed', e);
     }
     ctx.updateAIDebugStatus();
+    if (window.__actionEngine__ && typeof window.__actionEngine__.refresh === 'function') {
+      window.__actionEngine__.refresh();
+    }
   }
 
   // AI Config：aiEngine.bind 已挂监听；此处再挂一份到统一 saveAIConfig（含 NSFW 等）
@@ -224,7 +276,12 @@ export function attachBootAiConfig(ctx) {
   var dbgEl = document.getElementById('aiDebugEnable');
   if (apiUrlEl) apiUrlEl.addEventListener('input', saveAIConfig);
   if (apiKeyEl) apiKeyEl.addEventListener('input', saveAIConfig);
-  if (modelSelEl) modelSelEl.addEventListener('change', saveAIConfig);
+  if (modelSelEl) modelSelEl.addEventListener('change', function() {
+    saveAIConfig();
+    if (window.__actionEngine__ && typeof window.__actionEngine__.refresh === 'function') {
+      window.__actionEngine__.refresh();
+    }
+  });
   if (dbgEl) dbgEl.addEventListener('change', function() {
     ctx.updateAIDebugStatus();
     saveAIConfig();

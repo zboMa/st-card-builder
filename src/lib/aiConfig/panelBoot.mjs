@@ -661,12 +661,12 @@ export function initAiConfigPanel() {
       if (embeddingApiKeyEl) embeddingApiKeyEl.value = localStorage.getItem(EMBED_KEY_LS_KEY) || '';
       if (embeddingModelEl) embeddingModelEl.value = localStorage.getItem(EMBED_LS_KEY) || '';
       var cfg = JSON.parse(localStorage.getItem(NOVEL_RAG_CFG_KEY) || '{}');
-      if (novelRagEnableEl) novelRagEnableEl.checked = cfg.enabled !== false;
+      if (novelRagEnableEl) novelRagEnableEl.checked = cfg.enabled === true;
       if (novelRagBudgetEl && cfg.budget) novelRagBudgetEl.value = String(cfg.budget);
     } catch (e) { /* ignore */ }
   }
   function persistNovelRagUi() {
-    var enabled = !(novelRagEnableEl && !novelRagEnableEl.checked);
+    var enabled = !!(novelRagEnableEl && novelRagEnableEl.checked);
     var budget = Math.max(2000, parseInt(novelRagBudgetEl && novelRagBudgetEl.value, 10) || 12000);
     try {
       if (embeddingApiUrlEl) localStorage.setItem(EMBED_URL_LS_KEY, String(embeddingApiUrlEl.value || '').trim());
@@ -701,7 +701,7 @@ export function initAiConfigPanel() {
     if (window.__novelWorkshopBridge__ && typeof window.__novelWorkshopBridge__.getRagOptions === 'function') {
       var o = window.__novelWorkshopBridge__.getRagOptions();
       return {
-        enabled: o.enabled !== false,
+        enabled: o.enabled === true,
         budget: Math.max(2000, Number(o.budget) || 12000),
         embedModel: embeddingModelEl ? String(embeddingModelEl.value || '').trim() : (o.embedModel || ''),
         embeddingApiUrl: embeddingApiUrlEl ? String(embeddingApiUrlEl.value || '').trim() : '',
@@ -710,7 +710,7 @@ export function initAiConfigPanel() {
     }
     var budget = Math.max(2000, parseInt(novelRagBudgetEl && novelRagBudgetEl.value, 10) || 12000);
     return {
-      enabled: !(novelRagEnableEl && !novelRagEnableEl.checked),
+      enabled: !!(novelRagEnableEl && novelRagEnableEl.checked),
       budget: budget,
       embedModel: embeddingModelEl ? String(embeddingModelEl.value || '').trim() : '',
       embeddingApiUrl: embeddingApiUrlEl ? String(embeddingApiUrlEl.value || '').trim() : '',

@@ -24,7 +24,7 @@ describe('nsfw flavor items', function() {
   it('含反差向预设，且最多 5 项', function() {
     assert.ok(NSFW_FLAVOR_PRESETS.contrast);
     assert.equal(NSFW_FLAVOR_PRESETS.contrast.label, '反差向');
-    assert.equal(NSFW_FLAVOR_PRESETS.contrast.group, '特殊风味');
+    assert.equal(NSFW_FLAVOR_PRESETS.contrast.group, '心理心智');
     assert.ok(NSFWFLAVOR_IDS.indexOf('contrast') >= 0);
     assert.equal(MAX_NSFW_FLAVOR_ITEMS, 5);
     assert.ok(NSFWFLAVOR_IDS.length >= 60, 'got ' + NSFWFLAVOR_IDS.length);

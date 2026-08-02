@@ -25,6 +25,9 @@ import {
 import {
   createAssistantSessionStore,
   createSnapshotStack,
+  assistantSessionKeyFor,
+  assistantSnapshotKeyFor,
+  migrateLegacyAssistantSession,
   ASSISTANT_SESSION_KEY,
 } from '../src/lib/assistant/session.mjs';
 import { DEFAULT_PROMPTS, PROMPT_META } from '../src/lib/promptStore.mjs';
@@ -340,6 +343,12 @@ describe('assistant risk', function() {
     assert.equal(classifyToolRisk('expand_worldbook_entry', { index: 0, mode: 'rewrite' }), 'confirm');
   });
 
+  it('成人/NTL 配置写入 → confirm', function() {
+    assert.equal(classifyToolRisk('set_adult_config', { enabled: true }), 'confirm');
+    assert.equal(classifyToolRisk('set_novel_adult_mode', { enabled: true }), 'confirm');
+    assert.equal(classifyToolRisk('set_novel_ntl_mode', { enabled: false }), 'confirm');
+  });
+
   it('buildChangePreview 含工具名', function() {
     var p = buildChangePreview('update_character_fields', { fields: { charName: 'A' } });
     assert.match(p, /update_character_fields/);
@@ -619,6 +628,53 @@ describe('assistant session', function() {
     store.clear();
     assert.equal(store.read().messages.length, 0);
   });
+
+  it('按卡隔离 key + 无卡回退全局', function() {
+    assert.equal(assistantSessionKeyFor('cardA'), 'st_v3_builder_assistant_session:cardA');
+    assert.equal(assistantSessionKeyFor(''), ASSISTANT_SESSION_KEY);
+    assert.equal(assistantSnapshotKeyFor('cardA'), 'st_v3_builder_assistant_snapshots:cardA');
+    assert.equal(assistantSnapshotKeyFor(null), 'st_v3_builder_assistant_snapshots');
+  });
+
+  it('resolver 读写各卡独立会话', function() {
+    var storage = memoryStorage();
+    var cur = '';
+    var store = createAssistantSessionStore(storage, function() { return assistantSessionKeyFor(cur); });
+    cur = 'cardA';
+    store.append({ role: 'user', content: 'A 的消息' });
+    cur = 'cardB';
+    store.append({ role: 'user', content: 'B 的消息' });
+    assert.equal(store.read().messages[0].content, 'B 的消息');
+    cur = 'cardA';
+    assert.equal(store.read().messages[0].content, 'A 的消息');
+    // 两卡互不串
+    assert.ok(storage.getItem('st_v3_builder_assistant_session:cardA'));
+    assert.ok(storage.getItem('st_v3_builder_assistant_session:cardB'));
+  });
+
+  it('旧全局会话一次性迁移到首张卡', function() {
+    var storage = memoryStorage();
+    storage.setItem(ASSISTANT_SESSION_KEY, JSON.stringify({ messages: [{ role: 'user', content: '旧会话' }], ragInjectedIds: ['k1'] }));
+    assert.equal(migrateLegacyAssistantSession(storage, 'cardA'), true);
+    var migrated = JSON.parse(storage.getItem('st_v3_builder_assistant_session:cardA'));
+    assert.equal(migrated.messages[0].content, '旧会话');
+    assert.deepEqual(migrated.ragInjectedIds, ['k1']);
+    // 二次迁移不生效（标记已置）
+    assert.equal(migrateLegacyAssistantSession(storage, 'cardB'), false);
+    assert.equal(storage.getItem('st_v3_builder_assistant_session:cardB'), null);
+  });
+
+  it('快照栈同样按卡隔离', function() {
+    var storage = memoryStorage();
+    var cur = 'cardA';
+    var stack = createSnapshotStack(storage, function() { return assistantSnapshotKeyFor(cur); });
+    stack.push({ character: { charName: 'A' } });
+    cur = 'cardB';
+    stack.push({ character: { charName: 'B' } });
+    assert.equal(stack.peek().character.charName, 'B');
+    cur = 'cardA';
+    assert.equal(stack.peek().character.charName, 'A');
+  });
 });
 
 describe('assistant tool trace summary', function() {
@@ -731,6 +787,20 @@ describe('assistant prompts & UI wiring', function() {
     assert.match(panel, /renderToolTraceNode/);
   });
 
+  it('确认大改后续接：暂停保持 busy，应用后继续；到步数上限有收尾提示；RAG 默认关', function() {
+    const panel = readAssistantPanelSources(root);
+    assert.match(panel, /reactPaused/);
+    assert.match(panel, /reactResume/);
+    assert.match(panel, /等待确认大改/);
+    assert.match(panel, /if \(tr\.pendingConfirm\)[\s\S]*?reactPaused = true/);
+    assert.match(panel, /applyBtn\.addEventListener[\s\S]*?resume/);
+    assert.match(panel, /已达单轮工具调用上限/);
+    assert.match(panel, /最后一次工具调用机会/);
+    assert.match(panel, /getNovelRagOptions[\s\S]*?enabled: false/);
+    // RAG 注入仅在显式开启时执行
+    assert.match(panel, /ragOpt\.enabled === true/);
+  });
+
   it('小说桥接真 await，禁止 started-only', function() {
     const novel = readNovelBrowserAppSources(root);
     assert.match(novel, /runScanCharacters/);
@@ -789,6 +859,11 @@ describe('assistant prompts & UI wiring', function() {
     assert.match(panel, /openRagPreviewForMessage/);
     assert.match(panel, /ragPreview/);
     assert.match(panel, /resolveAssistantRag/);
+    assert.match(panel, /assistant-change-summary/);
+    assert.match(panel, /currentCardId\(\)/);
+    assert.match(panel, /assistantSessionKeyFor/);
+    assert.match(panel, /card-draft-changed/);
+    assert.match(panel, /loadSessionIntoView/);
     assert.match(panel, /\.assistant-msg\s*\{[^}]*word-break:\s*normal/s);
     assert.match(panel, /\.assistant-msg-wrap--user\s*\{[^}]*width:\s*fit-content/s);
     assert.match(panel, /\.assistant-msg-wrap--user\s*\{[^}]*max-width:\s*85%/s);

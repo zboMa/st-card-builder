@@ -10,6 +10,7 @@ import {
   cardDocId,
   novelDocId,
   ragDocId,
+  assistantDocId,
   storyCatalogDocId,
   storyNovelDocId,
   storyActiveDocId,
@@ -420,6 +421,23 @@ dataRouter.put('/rag/:cardId', async function(req, res) {
     var saved = await putUserDoc(userIdOf(req), {
       _id: ragDocId(cardId),
       type: 'rag',
+      cardId: cardId,
+      data: body.data != null ? body.data : body,
+      updatedAt: body.updatedAt || new Date().toISOString(),
+    }, { force: true });
+    res.json({ ok: true, rev: saved.rev });
+  } catch (e) {
+    sendErr(res, e);
+  }
+});
+
+dataRouter.put('/assistants/:cardId', async function(req, res) {
+  try {
+    var body = req.body || {};
+    var cardId = String(req.params.cardId || '').trim();
+    var saved = await putUserDoc(userIdOf(req), {
+      _id: assistantDocId(cardId),
+      type: 'assistant',
       cardId: cardId,
       data: body.data != null ? body.data : body,
       updatedAt: body.updatedAt || new Date().toISOString(),

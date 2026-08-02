@@ -113,4 +113,22 @@ describe('nsfw flavor enrichment', function() {
     assert.match(pal, /必写维度/);
     assert.match(pal, /≥\d+字/);
   });
+
+  it('特殊口味安全约束：uniform_ritual 禁校服未成年性化；sacrilege 禁真实宗教仇恨', function() {
+    var u = NSFW_FLAVOR_PRESETS.uniform_ritual;
+    assert.ok(u, 'uniform_ritual 存在');
+    assert.match(u.description, /禁止校服|未成年性化/);
+    assert.ok(Array.isArray(u.avoid) && u.avoid.some(function(a) { return a.indexOf('校服未成年性化') >= 0; }),
+      'uniform_ritual avoid 须含校服未成年性化');
+    assert.ok(Array.isArray(u.avoid) && u.avoid.some(function(a) { return a.indexOf('儿童性化') >= 0; }),
+      'uniform_ritual avoid 须含儿童性化');
+
+    var s = NSFW_FLAVOR_PRESETS.sacrilege;
+    assert.ok(s, 'sacrilege 存在');
+    assert.match(s.description, /真实宗教|仇恨色情/);
+    assert.ok(Array.isArray(s.avoid) && s.avoid.some(function(a) { return a.indexOf('真实宗教') >= 0; }),
+      'sacrilege avoid 须含真实宗教');
+    assert.ok(Array.isArray(s.avoid) && s.avoid.some(function(a) { return a.indexOf('儿童性化') >= 0; }),
+      'sacrilege avoid 须含儿童性化');
+  });
 });

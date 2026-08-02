@@ -3,6 +3,7 @@
  */
 export var WORLDVIEW_GROUPS = [
   { id: 'oriental', label: '东方玄幻' },
+  { id: 'ancient_cn', label: '中国古代' },
   { id: 'modern', label: '现代向' },
   { id: 'fantasy', label: '奇幻异界' },
   { id: 'supernatural', label: '超自然族群' },
@@ -10,4 +11,6 @@ export var WORLDVIEW_GROUPS = [
   { id: 'catastrophe', label: '灾变异质' },
   { id: 'taboo_power', label: '权力禁忌' },
   { id: 'scenario_field', label: '猎艳与非常理场域' },
+  { id: 'historical', label: '历史架空' },
+  { id: 'economic', label: '政经金融' },
 ];

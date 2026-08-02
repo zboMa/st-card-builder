@@ -113,12 +113,24 @@ export function attachWorldbookBind(ctx, s, panel) {
         if (organizePreview) organizePreview.style.display = 'none';
         s.pendingOrganizeData = null;
 
-        var entrySummaries = ctx.state.worldbookEntries.map(function(e, i) {
-          return { index: i, title: e.comment || '\u672A\u547D\u540D', content_preview: (e.content || '').substring(0, 150), strategy: e.strategy, keys: (e.keys || []).join(', '), current_position: e.position, current_role: e.role, current_depth: e.depth, current_order: e.order, current_prob: e.prob };
+        var ORGANIZE_SKIP = ['[initvar]', '[mvu_update]', '[成人体系]', '恶堕进度总则'];
+        var organizeEntries = ctx.state.worldbookEntries.map(function(e, i) { return { e: e, i: i }; })
+          .filter(function(x) {
+            var c = String(x.e.comment || '');
+            return !ORGANIZE_SKIP.some(function(p) { return c.indexOf(p) === 0; });
+          });
+        if (!organizeEntries.length) {
+          s.setStatusBar(organizeStatus, '\u5F53\u524D\u5168\u90E8\u4E3A\u53D7\u63A7\u7CFB\u7EDF\u6761\u76EE\uFF0C\u65E0\u53EF\u6574\u7406\u53C2\u6570', 'var(--color-text-muted)');
+          btnAiOrganize.disabled = false;
+          btnAiOrganize.textContent = '\u4E00\u952E\u6574\u7406';
+          return;
+        }
+        var entrySummaries = organizeEntries.map(function(x) {
+          return { index: x.i, title: x.e.comment || '\u672A\u547D\u540D', content_preview: (x.e.content || '').substring(0, 150), strategy: x.e.strategy, keys: (x.e.keys || []).join(', '), current_position: x.e.position, current_role: x.e.role, current_depth: x.e.depth, current_order: x.e.order, current_prob: x.e.prob };
         });
 
         var sysPrompt = ctx.promptText('wbOrganize', '');
-        var userPrompt = '\u4EE5\u4E0B\u662F ' + ctx.state.worldbookEntries.length + ' \u6761\u4E16\u754C\u4E66\u6761\u76EE\uFF0C\u8BF7\u5206\u6790\u5E76\u4F18\u5316\u53C2\u6570\uFF1A\n\n' + JSON.stringify(entrySummaries, null, 2);
+        var userPrompt = '\u4EE5\u4E0B\u662F ' + organizeEntries.length + ' \u6761\u4E16\u754C\u4E66\u6761\u76EE\uFF08\u5DF2\u6392\u9664\u7CFB\u7EDF\u53D7\u63A7\u6761\u76EE\uFF09\uFF0C\u8BF7\u5206\u6790\u5E76\u4F18\u5316\u53C2\u6570\uFF1A\n\n' + JSON.stringify(entrySummaries, null, 2);
         var url = String(ctx.$('apiUrl').value).replace(/\/$/, '') + '/chat/completions';
         var key = ctx.val('apiKey');
         var model = ctx.val('modelSelect');
@@ -281,13 +293,20 @@ export function attachWorldbookBind(ctx, s, panel) {
         var key = ctx.val('apiKey');
         var model = ctx.val('modelSelect');
         if (!model) throw new Error('\u8BF7\u5148\u9009\u62E9 AI \u6A21\u578B');
-        var entrySummaries = ctx.state.worldbookEntries.map(function(e, i) {
+        var ORGANIZE_SKIP = ['[initvar]', '[mvu_update]', '[成人体系]', '恶堕进度总则'];
+        var organizeEntries = ctx.state.worldbookEntries.map(function(e, i) { return { e: e, i: i }; })
+          .filter(function(x) {
+            var c = String(x.e.comment || '');
+            return !ORGANIZE_SKIP.some(function(p) { return c.indexOf(p) === 0; });
+          });
+        if (!organizeEntries.length) throw new Error('\u5F53\u524D\u5168\u90E8\u4E3A\u53D7\u63A7\u7CFB\u7EDF\u6761\u76EE\uFF0C\u65E0\u53EF\u6574\u7406\u53C2\u6570');
+        var entrySummaries = organizeEntries.map(function(x) {
           return {
-            index: i, title: e.comment || '\u672A\u547D\u540D',
-            content_preview: (e.content || '').substring(0, 150),
-            strategy: e.strategy, keys: (e.keys || []).join(', '),
-            current_position: e.position, current_role: e.role,
-            current_depth: e.depth, current_order: e.order, current_prob: e.prob,
+            index: x.i, title: x.e.comment || '\u672A\u547D\u540D',
+            content_preview: (x.e.content || '').substring(0, 150),
+            strategy: x.e.strategy, keys: (x.e.keys || []).join(', '),
+            current_position: x.e.position, current_role: x.e.role,
+            current_depth: x.e.depth, current_order: x.e.order, current_prob: x.e.prob,
           };
         });
         var headers = { 'Content-Type': 'application/json' };
@@ -299,7 +318,7 @@ export function attachWorldbookBind(ctx, s, panel) {
           model: model,
           messages: [
             { role: 'system', content: ctx.promptText('wbOrganize', '') },
-            { role: 'user', content: '\u4EE5\u4E0B\u662F ' + ctx.state.worldbookEntries.length + ' \u6761\u4E16\u754C\u4E66\u6761\u76EE\uFF0C\u8BF7\u5206\u6790\u5E76\u4F18\u5316\u53C2\u6570\uFF1A\n\n' + JSON.stringify(entrySummaries, null, 2) },
+            { role: 'user', content: '\u4EE5\u4E0B\u662F ' + organizeEntries.length + ' \u6761\u4E16\u754C\u4E66\u6761\u76EE\uFF08\u5DF2\u6392\u9664\u7CFB\u7EDF\u53D7\u63A7\u6761\u76EE\uFF09\uFF0C\u8BF7\u5206\u6790\u5E76\u4F18\u5316\u53C2\u6570\uFF1A\n\n' + JSON.stringify(entrySummaries, null, 2) },
           ],
           temperature: 0.3,
           httpErrorPrefix: 'HTTP ',

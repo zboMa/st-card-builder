@@ -167,7 +167,7 @@ export function createDefaultNovelState() {
     /** 分析要抽取的类型（人物 + wbFocus 同类） */
     analyzeFocus: defaultAnalyzeFocus(),
     rag: {
-      enabled: true,
+      enabled: false,
       budget: 12000,
       indexStatus: 'idle',
       indexUpdatedAt: '',
@@ -237,7 +237,7 @@ export function hydrateNovelState(raw) {
   if (base.analyzeFocus.indexOf('person') < 0) base.analyzeFocus = ['person'].concat(base.analyzeFocus);
   if (!base.rag || typeof base.rag !== 'object') {
     base.rag = {
-      enabled: true,
+      enabled: false,
       budget: 12000,
       indexStatus: 'idle',
       indexUpdatedAt: '',
@@ -246,7 +246,7 @@ export function hydrateNovelState(raw) {
       sourceFingerprint: '',
     };
   } else {
-    base.rag.enabled = base.rag.enabled !== false;
+    base.rag.enabled = base.rag.enabled === true;
     base.rag.budget = Math.max(2000, Math.floor(Number(base.rag.budget) || 12000));
     base.rag.indexStatus = base.rag.indexStatus || 'idle';
     base.rag.chunkCount = Math.max(0, Math.floor(Number(base.rag.chunkCount) || 0));
