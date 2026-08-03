@@ -44,7 +44,7 @@ export async function ensureCloudQuota(action, ctx) {
 
   if (action === 'batch_upload') {
     var n = Number(ctx.count) || 0;
-    if (n > lim.batchUploadMax) {
+    if (Number.isFinite(lim.batchUploadMax) && n > lim.batchUploadMax) {
       return {
         ok: false,
         message: '单次批量上云最多 ' + lim.batchUploadMax + ' 张（当前 ' + n + ' 张）',
@@ -53,7 +53,9 @@ export async function ensureCloudQuota(action, ctx) {
     }
   }
 
-  if (action === 'create_share' && use.activeShares >= lim.activeShares) {
+  if (action === 'create_share'
+      && Number.isFinite(lim.activeShares)
+      && use.activeShares >= lim.activeShares) {
     return {
       ok: false,
       message: '活跃分享已达上限 ' + lim.activeShares + ' 个',
@@ -61,7 +63,9 @@ export async function ensureCloudQuota(action, ctx) {
     };
   }
 
-  if (action === 'upload_bundle' && ctx.isNewCard && use.cardsOnCloud >= lim.cardsOnCloud) {
+  if (action === 'upload_bundle' && ctx.isNewCard
+      && Number.isFinite(lim.cardsOnCloud)
+      && use.cardsOnCloud >= lim.cardsOnCloud) {
     return {
       ok: false,
       message: '云端卡数量已达上限 ' + lim.cardsOnCloud + ' 张',
