@@ -108,7 +108,7 @@ export function initCardManagerPanelImport() {
         showImportStatus('❌ 无法识别卡片格式，请确认是支持的角色卡文件', 'error');
         return;
       }
-      if (window.applyJSONFromEditor) window.applyJSONFromEditor(normalized);
+      if (window.applyJSONFromEditor) window.applyJSONFromEditor(normalized, { asNew: true });
       if (window.updatePreviewPanel) window.updatePreviewPanel(normalized);
       var charName = (normalized.data && normalized.data.name) || normalized.name || '未知角色';
       showImportStatus(

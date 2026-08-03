@@ -338,7 +338,7 @@ export function attachCardManagerBind(ctx, s, panel) {
         if (!gate.ok) throw new Error(gate.reason || '任务进行中，禁止导入');
         if (!cardJson || typeof cardJson !== 'object') throw new Error('需要已解析的 cardJson 对象');
         if (typeof window.applyJSONFromEditor !== 'function') throw new Error('导入桥接未就绪');
-        window.applyJSONFromEditor(cardJson);
+        window.applyJSONFromEditor(cardJson, { asNew: true });
         panel.saveCurrentDraft();
         panel.updateCardManagerUI();
         return { id: ctx.state.draftId, name: ctx.state.charName || '导入卡' };

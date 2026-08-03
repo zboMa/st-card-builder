@@ -151,8 +151,18 @@ export function registerExport(ctx) {
   };
 
   // ---- 从编辑器 JSON 导入卡片 ----
-  panel.applyJSONFromEditor = function (json) {
+  panel.applyJSONFromEditor = function (json, opts) {
     if (!json || !json.data) return;
+    opts = opts || {};
+
+    // 导入 = 新建草稿，不覆盖当前卡（预览面板行内编辑不传 asNew，保持原地编辑）
+    if (opts.asNew) {
+      if (ctx.panels.cardManager && typeof ctx.panels.cardManager.createBlankDraft === 'function') {
+        ctx.panels.cardManager.createBlankDraft({ jumpToCharacter: false });
+      } else {
+        ctx.sm.createBlank();
+      }
+    }
 
     ctx.state.cardBuilderExtensions = Object.assign({}, (json.data && json.data.extensions) || {});
 
