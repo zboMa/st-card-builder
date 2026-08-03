@@ -208,6 +208,7 @@ export function initStatusBarPanel() {
           renderPresets();
           renderModules();
           refreshPreview();
+          saveDesignExt();
         });
         presetGrid.appendChild(btn);
       });
@@ -245,6 +246,7 @@ export function initStatusBarPanel() {
           renderLayouts();
           syncCustomUi();
           refreshPreview();
+          saveDesignExt();
         });
         layoutGrid.appendChild(btn);
       });
@@ -385,22 +387,9 @@ export function initStatusBarPanel() {
 
     function saveDesignExt() {
       if (window.__setCardExtension__) {
+        state.stage = stage;
         window.__setCardExtension__(STATUS_BAR_EXT_KEY, normalizeDesign(state));
       }
-    }
-
-    function loadDesignExt() {
-      var raw = window.__getCardExtension__ ? window.__getCardExtension__(STATUS_BAR_EXT_KEY) : null;
-      if (!raw) return;
-      state = normalizeDesign(raw);
-      extraEl.value = state.extra || '';
-      nsfwEl.checked = !!state.nsfw;
-      if (femaleOnlyEl) femaleOnlyEl.checked = state.femaleOnly !== false;
-      if (customPromptEl) customPromptEl.value = state.customPrompt || '';
-      var radio = document.querySelector('input[name="sbCast"][value="' + state.castMode + '"]');
-      if (radio) radio.checked = true;
-      generatedOk = !!(state.paths && state.paths.length && state.snippetHtml);
-      btnInject.disabled = !generatedOk;
     }
 
     function extractJson(text) {
@@ -869,10 +858,43 @@ export function initStatusBarPanel() {
 
     document.getElementById('sbBtnRefreshPreview').addEventListener('click', refreshPreview);
 
-    loadDesignExt();
+    // 面板 boot 早于草稿水合（st-idb-ready 异步加载），初次可能读空显示默认；
+    // 完整应用扩展：state + 全量重渲染（预设/模块/排版/人物/预览），读到返回 true
+    function applyDesignToPanel() {
+      var raw = window.__getCardExtension__ ? window.__getCardExtension__(STATUS_BAR_EXT_KEY) : null;
+      if (!raw) return false;
+      state = normalizeDesign(raw);
+      // 先恢复人数模式，后续 readFormIntoState/getCastMode 才读到正确 radio
+      var radio = document.querySelector('input[name="sbCast"][value="' + state.castMode + '"]');
+      if (radio) radio.checked = true;
+      syncCastUi();
+      refreshPreview();
+      extraEl.value = state.extra || '';
+      nsfwEl.checked = !!state.nsfw;
+      if (femaleOnlyEl) femaleOnlyEl.checked = state.femaleOnly !== false;
+      if (customPromptEl) customPromptEl.value = state.customPrompt || '';
+      generatedOk = !!(state.paths && state.paths.length && state.snippetHtml);
+      btnInject.disabled = !generatedOk;
+      setStage(state.stage);
+      return true;
+    }
+
+    // 首次尽力读（此刻桥可能未挂 / 草稿未水合，读到空是预期的）
+    applyDesignToPanel();
     syncCastUi();
     setStage(1);
     refreshPreview();
+
+    // 水合完成后补读一次：loadDraft 完成时派发 card-builder-data-changed，
+    // 此刻 extensions 已进 ctx.state；读到即停，避免与后续保存互相打扰
+    window.addEventListener('card-builder-data-changed', function onReady() {
+      if (applyDesignToPanel()) window.removeEventListener('card-builder-data-changed', onReady);
+    });
+    // 切到状态栏视图时重读（防止草稿水合 / 其它视图改动扩展后切回来仍是默认）
+    window.addEventListener('app-view-changed', function (ev) {
+      var view = ev && ev.detail && ev.detail.view;
+      if (view === 'statusbar') applyDesignToPanel();
+    });
 
     // 配置状态持久化：任何 sb 控件变更（勾选/选择/输入）都写入卡扩展，
     // 刷新 / 切卡 / 换设备（随卡云同步）后不丢失当前配置

@@ -13,11 +13,13 @@ export function attachCardManagerExport(ctx, s, panel) {
     if (!id) return;
     var json;
     var name;
+    var version;
     var currentId = s.getCurrentDraftId();
     if (id === currentId) {
       panel.saveCurrentDraft();
       json = buildCardJSONFromDraft(ctx.state);
       name = ctx.state.charName || 'card';
+      version = ctx.state.characterVersion || json.data.character_version || '1.0';
     } else {
       var d = s.getAllDrafts()[id];
       if (!d) {
@@ -26,10 +28,11 @@ export function attachCardManagerExport(ctx, s, panel) {
       }
       json = buildCardJSONFromDraft(d);
       name = draftDisplayName(d) || 'card';
+      version = d.characterVersion || '1.0';
     }
     var a = document.createElement('a');
     a.href = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(json, null, 2));
-    a.download = name + '.json';
+    a.download = name + '_v' + version + '.json';
     a.click();
   };
 
@@ -38,11 +41,13 @@ export function attachCardManagerExport(ctx, s, panel) {
     var json;
     var avatar;
     var name;
+    var version;
     var currentId = s.getCurrentDraftId();
     if (id === currentId) {
       panel.saveCurrentDraft();
       json = buildCardJSONFromDraft(ctx.state);
       name = ctx.state.charName || 'CharacterCard';
+      version = ctx.state.characterVersion || json.data.character_version || '1.0';
       if (ctx.state.avatarInIdb) {
         await s.ensureIdbReady();
         avatar = window.__avatarIdb__
@@ -59,6 +64,7 @@ export function attachCardManagerExport(ctx, s, panel) {
       }
       json = buildCardJSONFromDraft(d);
       name = draftDisplayName(d) || 'CharacterCard';
+      version = d.characterVersion || '1.0';
       if (d.avatarInIdb) {
         await s.ensureIdbReady();
         avatar = window.__avatarIdb__
@@ -83,7 +89,7 @@ export function attachCardManagerExport(ctx, s, panel) {
       var blob = new Blob([fin], { type: 'image/png' });
       var a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = name + '.png';
+      a.download = name + '_v' + version + '.png';
       a.click();
       URL.revokeObjectURL(a.href);
     } catch (err) {

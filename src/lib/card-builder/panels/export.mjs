@@ -63,6 +63,7 @@ export function registerExport(ctx) {
     if (!id) return;
     var json;
     var name;
+    var version;
     var currentId = getCurrentDraftId();
     if (id === currentId) {
       if (ctx.panels.cardManager && ctx.panels.cardManager.saveCurrentDraft) {
@@ -74,15 +75,17 @@ export function registerExport(ctx) {
       }
       json = panel.generateFullJSON();
       name = ctx.state.charName || 'card';
+      version = ctx.state.characterVersion || json.data.character_version || '1.0';
     } else {
       var d = getAllDrafts()[id];
       if (!d) return alert('\u274C \u627E\u4E0D\u5230\u8BE5\u89D2\u8272\u5361');
       json = buildCardJSONFromDraft(d);
       name = draftDisplayName(d) || 'card';
+      version = d.characterVersion || '1.0';
     }
     var a = document.createElement('a');
     a.href = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(json, null, 2));
-    a.download = name + '.json';
+    a.download = name + '_v' + version + '.json';
     a.click();
   };
 
@@ -92,6 +95,7 @@ export function registerExport(ctx) {
     var json;
     var avatar;
     var name;
+    var version;
     var currentId = getCurrentDraftId();
     if (id === currentId) {
       if (ctx.panels.cardManager && ctx.panels.cardManager.saveCurrentDraft) {
@@ -102,6 +106,7 @@ export function registerExport(ctx) {
       }
       json = panel.generateFullJSON();
       name = ctx.state.charName || 'CharacterCard';
+      version = ctx.state.characterVersion || json.data.character_version || '1.0';
       if (ctx.state.avatarInIdb) {
         await ensureIdbReady();
         avatar = window.__avatarIdb__
@@ -115,6 +120,7 @@ export function registerExport(ctx) {
       if (!d) return alert('\u274C \u627E\u4E0D\u5230\u8BE5\u89D2\u8272\u5361');
       json = buildCardJSONFromDraft(d);
       name = draftDisplayName(d) || 'CharacterCard';
+      version = d.characterVersion || '1.0';
       if (d.avatarInIdb) {
         await ensureIdbReady();
         avatar = window.__avatarIdb__
@@ -136,7 +142,7 @@ export function registerExport(ctx) {
       var blob = new Blob([fin], { type: 'image/png' });
       var a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = name + '.png';
+      a.download = name + '_v' + version + '.png';
       a.click();
       URL.revokeObjectURL(a.href);
     } catch (err) {

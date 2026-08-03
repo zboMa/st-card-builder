@@ -336,6 +336,7 @@ export function normalizeDesign(partial) {
   );
   return {
     mode: p.mode === 'text' ? 'text' : 'mvu',
+    stage: Number(p.stage) >= 1 && Number(p.stage) <= 4 ? Number(p.stage) : 1,
     castMode: castMode,
     presetId: presetId,
     nsfw: nsfw,

@@ -31,6 +31,7 @@ npm run couch            # 本地 CouchDB
 
 ## 硬约束（不可违反）
 
+0. **先方案、后确认、再执行**：任何 edit/write/delete/rename 及有副作用命令前，必须先给方案（改哪些文件、怎么改、如何验证），并用 `question` 工具取得用户明确确认；未经确认不得动手。仅只读操作（阅读/查询/搜索/解释）无需确认。
 1. **UI**：行内操作用 `.btn-inline`；复用 `ui-patterns.css`；禁止另起一套 tip/搜索/大按钮。
 2. **作者注释字段** = `creatorNotes`（勿用 `postHistoryInstructions` 当独立字段）。
 3. **NSFW/NTL UI 入口** = 侧栏「成人配置」`AdultConfigPanel`（不是 CharacterPanel；小说原始资料无此 UI）。
