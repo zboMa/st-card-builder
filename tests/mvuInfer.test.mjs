@@ -61,10 +61,14 @@ describe('mvu inferFromCard', function() {
     assert.equal(aff.type, 'number');
     var corr = inferTypeForPath('角色.恶堕进度', '恶堕进度', {
       stageNames: ['未触碰', '动摇', '沉沦'],
-      sample: '未触碰',
+      sample: '0',
     });
-    assert.equal(corr.type, 'enum');
-    assert.deepEqual(corr.options, ['未触碰', '动摇', '沉沦']);
+    assert.equal(corr.type, 'number');
+    assert.equal(corr.min, 0);
+    assert.equal(corr.max, 100);
+    var intimacy = inferTypeForPath('角色.亲密度', '亲密度');
+    assert.equal(intimacy.type, 'number');
+    assert.equal(intimacy.max, 100);
     var consent = inferTypeForPath('角色.同意边界', '同意边界');
     assert.equal(consent.type, 'enum');
     assert.ok(consent.options.indexOf('停止') >= 0);
@@ -128,8 +132,9 @@ describe('mvu inferFromCard', function() {
     });
     assert.ok(corr, 'should infer corruption_stage');
     assert.equal(corr.name, CORRUPTION_STATUS_LABEL);
-    assert.equal(corr.type, 'enum');
-    assert.ok(Array.isArray(corr.options) && corr.options.length >= 2);
+    assert.equal(corr.type, 'number');
+    assert.equal(corr.min, 0);
+    assert.equal(corr.max, 100);
 
     var gap = corruptionProgressGap(card);
     assert.equal(gap.gap, true);

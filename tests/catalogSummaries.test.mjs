@@ -11,7 +11,7 @@ import {
 } from '../src/lib/adult/expression/index.mjs';
 import { WORLDVIEW_PRESETS } from '../src/lib/presets/worldviews/index.mjs';
 import { WORLDFRAMES, WORLDFRAME_IDS } from '../src/lib/adult/vessels/index.mjs';
-import { buildCatalogOverviewText, buildCatalogIndexText, buildAdultCatalogData, isCatalogRelevantText } from '../src/lib/catalogSummaries.mjs';
+import { buildCatalogOverviewText, buildCatalogIndexText, buildAdultCatalogData, buildCatalogBlocks, isCatalogRelevantText } from '../src/lib/catalogSummaries.mjs';
 
 function assertSummary(id, s) {
   assert.ok(s, id + ' missing summary');
@@ -126,6 +126,39 @@ describe('catalogSummaries', function() {
       worldviews: WORLDVIEW_PRESETS,
     });
     assert.ok(t.length * 8 < full.length, '索引应显著小于全量概览: idx=' + t.length + ' full=' + full.length);
+  });
+
+  it('buildCatalogBlocks 按 kind 拆分且与整体文本等价', function() {
+    var opts = {
+      flavors: NSFW_FLAVOR_PRESETS,
+      postures: EROTIC_POSTURE_PRESETS,
+      speeches: EROTIC_SPEECH_PRESETS,
+      ntl: NTL_TABOO_TYPES,
+      worldframes: WORLDFRAMES,
+      worldviews: WORLDVIEW_PRESETS,
+    };
+    var data = buildAdultCatalogData(opts);
+    var blocks = buildCatalogBlocks(data, 'overview');
+    assert.ok(blocks.length >= 6, '应覆盖全部 6 类，实为 ' + blocks.length);
+    var kinds = blocks.map(function(b) { return b.kind; });
+    ['flavors', 'postures', 'speeches', 'ntl', 'worldframes', 'worldviews'].forEach(function(k) {
+      assert.ok(kinds.indexOf(k) >= 0, '缺少 kind: ' + k);
+    });
+    // 每块含 count 与正文
+    blocks.forEach(function(b) {
+      assert.ok(b.count > 0, b.kind + ' count 应 > 0');
+      assert.ok(b.body.length > 0, b.kind + ' body 非空');
+    });
+    // 分块 join 与原全量文本等价（同格式）
+    var joined = ['【目录概览·仅作选配参考；改配置用 get/set_adult_config；长文写作指引在 enrichment，勿把概览当正文】']
+      .concat(blocks.map(function(b) { return b.body; })).join('\n');
+    assert.equal(joined, buildCatalogOverviewText(opts));
+
+    var idxBlocks = buildCatalogBlocks(data, 'index');
+    assert.ok(idxBlocks.length >= 6);
+    var idxJoined = ['【目录索引·选配参考】具体 id 与摘要用 get_adult_catalog 查询；勿凭印象编造 id。']
+      .concat(idxBlocks.map(function(b) { return b.body; })).join('\n');
+    assert.equal(idxJoined, buildCatalogIndexText(opts));
   });
 
   it('isCatalogRelevantText 命中目录关键词', function() {

@@ -22,6 +22,23 @@ import {
   CORRUPTION_PRESETS,
   DEFAULT_CORRUPTION_PRESET,
 } from '../../corruptionProgress.mjs';
+import {
+  resolveAffectionStageNames,
+  parseAffectionStageNamesFromAiText,
+  pickAffectionTargets,
+  buildRulesWorldbookEntry as buildAffectionRulesWorldbookEntry,
+  buildArchiveWorldbookEntry as buildAffectionArchiveWorldbookEntry,
+  buildArchiveSystemPrompt as buildAffectionArchiveSystemPrompt,
+  buildArchiveExpandSystemPrompt as buildAffectionArchiveExpandSystemPrompt,
+  buildArchiveUserPrompt as buildAffectionArchiveUserPrompt,
+  buildGeneralArchiveEntry as buildAffectionGeneralArchiveEntry,
+  ensureAffectionModuleInDesign,
+  AFFECTION_MIN_CHARS_PER_STAGE,
+  AFFECTION_PRESETS,
+  DEFAULT_AFFECTION_PRESET,
+  AFFECTION_STATUS_LABEL,
+  upsertWorldbookByComment as upsertWorldbookByComment2,
+} from '../../affectionProgress.mjs';
 import { CORRUPTION_EXPAND_WB } from '../../novel/contextBudgets.mjs';
 import { truncateToTokens } from '../../assistant/contextManager.mjs';
 import {
@@ -29,6 +46,7 @@ import {
   personNameFromWorldbookComment,
 } from '../../novel/sync.mjs';
 import { buildPlaceholderPaths, normalizeDesign } from '../../statusBar.mjs';
+import { enhanceSelectMini, syncEnhancedSelectLabel } from '../../ui/enhanceSelectMini.mjs';
 import { buildAdultCanonDigest, formatCorruptionArchiveDigests } from '../../adult/canon.mjs';
 import { NTL_GROUPS, NTL_GROUP_IDS } from '../../adult/ntl/groups.mjs';
 import {
@@ -38,6 +56,8 @@ import {
   isSystemDigestComment,
   mergeCorruptionConfigNote,
   stripCorruptionConfigNote,
+  mergeAffectionConfigNote,
+  stripAffectionConfigNote,
 } from '../../adult/systemDigest.mjs';
 import {
   listWorldviewPresetsByGroup,
@@ -76,7 +96,10 @@ export function attachAdultConfigPanel(ctx, s, panel) {
       }
       if (!ctx.state.adultWorldframeForced) s.syncWorldframeFromPresets();
       var forced = ctx.state.adultWorldframeForced || '';
-      if (select) select.value = forced;
+      if (select) {
+        select.value = forced;
+        syncEnhancedSelectLabel(select);
+      }
       var info = forced && data && data.worldframes[forced]
         ? { id: forced, label: data.worldframes[forced].label, confidence: 1, source: 'forced' }
         : (ctx.state.adultWorldframe && data && data.worldframes[ctx.state.adultWorldframe]
@@ -378,6 +401,7 @@ export function attachAdultConfigPanel(ctx, s, panel) {
       s.ensureNtlItemsOnState();
       if (ctx.state.ntlEnabled) ctx.panels.adultConfig.renderNtlList();
       ctx.panels.adultConfig.renderCorruptionBlock();
+      ctx.panels.adultConfig.renderAffectionBlock();
     },
 
     renderNtlList: function() {
@@ -410,7 +434,10 @@ export function attachAdultConfigPanel(ctx, s, panel) {
 
       if (enabledEl) enabledEl.checked = !!ctx.state.corruptionEnabled;
       if (body) body.style.display = ctx.state.corruptionEnabled ? 'block' : 'none';
-      if (presetEl) presetEl.value = ctx.state.corruptionPreset || DEFAULT_CORRUPTION_PRESET;
+      if (presetEl) {
+        presetEl.value = ctx.state.corruptionPreset || DEFAULT_CORRUPTION_PRESET;
+        syncEnhancedSelectLabel(presetEl);
+      }
       if (customRow) customRow.style.display = (ctx.state.corruptionPreset === 'custom') ? 'block' : 'none';
       if (briefEl && briefEl.value !== (ctx.state.corruptionCustomBrief || '')) {
         briefEl.value = ctx.state.corruptionCustomBrief || '';
@@ -634,6 +661,397 @@ export function attachAdultConfigPanel(ctx, s, panel) {
         window.__statusBarApi__.setDesign(next);
       }
       return { ok: true, castMode: names.length ? 'multi' : 'general', names: names.slice(), general: generalMode || !names.length };
+    },
+
+    setAffectionTip: function(text, kind) {
+      var tip = document.getElementById('adultAffectionTip');
+      if (!tip) return;
+      tip.textContent = text || '';
+      tip.className = 'ui-status-tip' + (kind === 'warn' ? ' is-warn' : (kind === 'ok' ? ' is-ok' : ''));
+    },
+
+    collectAffectionCandidates: function() {
+      var out = [];
+      var seen = Object.create(null);
+      var protagonist = String(ctx.state.charName || '').trim();
+
+      function pushCand(c) {
+        if (!c || !c.name) return;
+        var name = String(c.name).trim();
+        if (!name || seen[name]) return;
+        if (protagonist && name === protagonist) return;
+        seen[name] = true;
+        out.push({
+          name: name,
+          aliases: Array.isArray(c.aliases) ? c.aliases.slice() : [],
+          identity: c.identity || '',
+          worldbookContent: c.worldbookContent || '',
+          selected: c.selected !== false,
+        });
+      }
+
+      var wb = Array.isArray(ctx.state.worldbookEntries) ? ctx.state.worldbookEntries : [];
+      wb.forEach(function(e) {
+        if (!e || !isPersonWorldbookComment(e.comment)) return;
+        var name = personNameFromWorldbookComment(e.comment);
+        if (!name) return;
+        var ctxHit = findWorldbookPersonContext(wb, name);
+        pushCand({
+          name: name,
+          aliases: Array.isArray(e.keys) ? e.keys : [],
+          identity: '',
+          worldbookContent: (ctxHit && ctxHit.content) || e.content || '',
+          selected: true,
+        });
+      });
+
+      var bridge = window.__novelWorkshopBridge__;
+      if (bridge && typeof bridge.listEntities === 'function') {
+        var list = bridge.listEntities({ type: 'person' }) || [];
+        list.forEach(function(e) {
+          var identity = e.identity || e.summary || '';
+          var aliases = e.aliases || [];
+          if ((!identity) && typeof bridge.getEntity === 'function') {
+            var full = bridge.getEntity(e.id || e.name);
+            if (full) {
+              var profile = (full.attrs && full.attrs.profile) || full.profile || {};
+              if (!identity) identity = profile.identity || full.summary || '';
+              if (Array.isArray(full.aliases) && full.aliases.length) aliases = full.aliases;
+            }
+          }
+          var wbCtx = findWorldbookPersonContext(wb, e.name);
+          pushCand({
+            name: e.name,
+            aliases: aliases,
+            identity: identity,
+            worldbookContent: (wbCtx && wbCtx.content) || '',
+            selected: e.selected !== false,
+          });
+        });
+      }
+
+      return out;
+    },
+
+    renderAffectionTargets: function() {
+      var box = document.getElementById('adultAffectionTargets');
+      if (!box) return;
+      var selectedNames = Array.isArray(ctx.state.affectionSelectedNames)
+        ? ctx.state.affectionSelectedNames.slice()
+        : [];
+      var candidates = ctx.panels.adultConfig.collectAffectionCandidates();
+      var picks = pickAffectionTargets(candidates);
+      s.affectionTargetsCache = picks;
+      var selSet = Object.create(null);
+      selectedNames.forEach(function(n) { selSet[n] = true; });
+      var html = picks.map(function(c, i) {
+        return '<label><input type="checkbox" data-affection-target="' + i + '"'
+          + (c.selected || selSet[c.name] ? ' checked' : '') + ' /> '
+          + '<span>' + ctx.escapeHtml(c.name) + '</span></label>';
+      }).join('');
+      box.innerHTML = html || '<span class="char-nsfw-subtitle">暂无可用角色（来自世界书/小说人物）</span>';
+    },
+
+    readSelectedAffectionNames: function() {
+      var names = [];
+      document.querySelectorAll('#adultAffectionTargets [data-affection-target]').forEach(function(el) {
+        if (!el.checked) return;
+        var idx = parseInt(el.getAttribute('data-affection-target'), 10);
+        if (isNaN(idx) || !s.affectionTargetsCache[idx]) return;
+        names.push(s.affectionTargetsCache[idx].name);
+      });
+      return names;
+    },
+
+    renderAffectionBlock: function() {
+      var wrap = document.getElementById('adultAffectionBlock');
+      var enabledEl = document.getElementById('adultAffectionEnabled');
+      var body = document.getElementById('adultAffectionBody');
+      var presetEl = document.getElementById('adultAffectionPreset');
+      var customRow = document.getElementById('adultAffectionCustomRow');
+      var briefEl = document.getElementById('adultAffectionCustomBrief');
+      var extraEl = document.getElementById('adultAffectionExtraNotes');
+      var syncEl = document.getElementById('adultAffectionSyncSb');
+
+      if (wrap) wrap.style.display = ctx.state.nsfwEnabled ? 'block' : 'none';
+      if (!ctx.state.nsfwEnabled) return;
+
+      if (enabledEl) enabledEl.checked = !!ctx.state.affectionEnabled;
+      if (body) body.style.display = ctx.state.affectionEnabled ? 'block' : 'none';
+      if (presetEl) {
+        presetEl.value = ctx.state.affectionPreset || DEFAULT_AFFECTION_PRESET;
+        syncEnhancedSelectLabel(presetEl);
+      }
+      if (customRow) customRow.style.display = (ctx.state.affectionPreset === 'custom') ? 'block' : 'none';
+      if (briefEl && briefEl.value !== (ctx.state.affectionCustomBrief || '')) {
+        briefEl.value = ctx.state.affectionCustomBrief || '';
+      }
+      if (extraEl && extraEl.value !== (ctx.state.affectionExtraNotes || '')) {
+        extraEl.value = ctx.state.affectionExtraNotes || '';
+      }
+      if (syncEl) syncEl.checked = ctx.state.affectionSyncStatusBar !== false;
+      if (ctx.state.affectionEnabled) ctx.panels.adultConfig.renderAffectionTargets();
+    },
+
+    syncAffectionBlockFromUi: function(opts) {
+      opts = opts || {};
+      var enabledEl = document.getElementById('adultAffectionEnabled');
+      var presetEl = document.getElementById('adultAffectionPreset');
+      var briefEl = document.getElementById('adultAffectionCustomBrief');
+      var extraEl = document.getElementById('adultAffectionExtraNotes');
+      var syncEl = document.getElementById('adultAffectionSyncSb');
+
+      ctx.state.affectionEnabled = enabledEl ? !!enabledEl.checked : !!ctx.state.affectionEnabled;
+      ctx.state.affectionPreset = presetEl ? presetEl.value : (ctx.state.affectionPreset || '6');
+      if (!AFFECTION_PRESETS[ctx.state.affectionPreset]) ctx.state.affectionPreset = '6';
+      ctx.state.affectionCustomBrief = briefEl ? briefEl.value : (ctx.state.affectionCustomBrief || '');
+      ctx.state.affectionExtraNotes = extraEl ? extraEl.value : (ctx.state.affectionExtraNotes || '');
+      ctx.state.affectionSyncStatusBar = syncEl ? !!syncEl.checked : true;
+      if (document.getElementById('adultAffectionTargets')) {
+        ctx.state.affectionSelectedNames = ctx.panels.adultConfig.readSelectedAffectionNames();
+      }
+      ctx.state.affectionStageNames = resolveAffectionStageNames(
+        ctx.state.affectionPreset,
+        ctx.state.affectionStageNames,
+        ctx.state.affectionCustomBrief
+      );
+
+      if (!opts.skipRender) ctx.panels.adultConfig.renderAffectionBlock();
+      if (!opts.skipSave) ctx.save();
+      if (typeof window.__persistAiConfig__ === 'function') window.__persistAiConfig__();
+      if (!opts.silentEvent) {
+        window.dispatchEvent(new CustomEvent('nsfw-config-changed', {
+          detail: window.__getNsfwConfig__ ? window.__getNsfwConfig__() : {},
+        }));
+      }
+    },
+
+    syncAffectionStatusBar: function(stageNames, selectedNames, generalMode) {
+      if (!window.__statusBarApi__ || typeof window.__statusBarApi__.getDesign !== 'function') {
+        return { ok: false, reason: 'status_bar_api_missing' };
+      }
+      var cur = window.__statusBarApi__.getDesign() || {};
+      var names = Array.isArray(selectedNames) ? selectedNames.filter(Boolean) : [];
+      var next = ensureAffectionModuleInDesign(Object.assign({}, cur), stageNames);
+      if (names.length) {
+        next.castMode = 'multi';
+        next.characters = names.map(function(n) {
+          return { name: n, selected: true, aliases: [] };
+        });
+        next.mainName = names[0];
+        next = normalizeDesign(next);
+        next.paths = buildPlaceholderPaths(next);
+      } else {
+        next = normalizeDesign(next);
+      }
+      if (typeof window.__statusBarApi__.setDesign === 'function') {
+        window.__statusBarApi__.setDesign(next);
+      }
+      return { ok: true, castMode: names.length ? 'multi' : 'general', names: names.slice(), general: generalMode || !names.length };
+    },
+
+    runGenerateAffectionLore: async function(opts) {
+      opts = opts || {};
+      ctx.panels.adultConfig.syncAffectionBlockFromUi({ skipRender: true });
+      if (!ctx.state.affectionEnabled) {
+        ctx.panels.adultConfig.setAffectionTip('请先启用纯爱线', 'warn');
+        return { ok: false, error: 'affection_disabled' };
+      }
+      var selected = ctx.panels.adultConfig.readSelectedAffectionNames();
+      if (!selected.length && Array.isArray(opts.selectedNames)) selected = opts.selectedNames.slice();
+      var protagonist = String(ctx.state.charName || '').trim();
+      selected = selected.filter(function(n) { return n && n !== protagonist; });
+      var generalMode = !selected.length;
+      if (generalMode) {
+        ctx.panels.adultConfig.setAffectionTip('未勾选角色：将生成「亲密档案·通用」（适用于所有/随机角色）', null);
+      }
+      ctx.state.affectionSelectedNames = selected.slice();
+
+      var apiUrlEl = ctx.$('apiUrl');
+      var modelEl = ctx.$('modelSelect');
+      var apiKeyEl = ctx.$('apiKey');
+      var url = (apiUrlEl ? apiUrlEl.value : '').replace(/\/$/, '');
+      var model = modelEl ? modelEl.value : '';
+      var useAi = !!(url && model) && opts.templateOnly !== true;
+      if (!generalMode && !useAi) {
+        ctx.panels.adultConfig.setAffectionTip('逐人亲密档案需配置 AI 后方可生成（通用档案无需 AI）', 'warn');
+        return { ok: false, error: 'ai_required' };
+      }
+
+      var btn = document.getElementById('btnGenAffectionLore');
+      if (btn) btn.disabled = true;
+      ctx.panels.adultConfig.setAffectionTip('正在生成纯爱线世界书…', null);
+
+      try {
+        var result = await ctx.runTracked({
+          type: 'affection_lore_generate',
+          title: '纯爱线世界书',
+          target: selected.join('、').slice(0, 40),
+        }, async function(task) {
+          var stageNames = resolveAffectionStageNames(
+            ctx.state.affectionPreset,
+            ctx.state.affectionStageNames,
+            ctx.state.affectionCustomBrief
+          );
+          var headers = { 'Content-Type': 'application/json' };
+          var key = apiKeyEl ? apiKeyEl.value.trim() : '';
+          if (key) headers['Authorization'] = 'Bearer ' + key;
+
+          if (useAi && ctx.state.affectionPreset === 'custom') {
+            var stageResp = await ctx.fetchAIContent({
+              context: '亲密度档位表',
+              url: url + '/chat/completions',
+              headers: headers,
+              model: model,
+              messages: [
+                { role: 'system', content: '你是角色卡亲密关系档位设计师。根据用户对关系基调的描述，产出 3-8 个档位名。要求：档位名短（≤8字）、可递增、可写入状态栏枚举；不要解释。只输出 JSON：{ "stages": ["档位1", "档位2", ...] }' },
+                { role: 'user', content: '关系基调描述：\n' + (ctx.state.affectionCustomBrief || '') },
+              ],
+              temperature: 0.4,
+              httpErrorPrefix: '亲密度档位生成失败 HTTP ',
+              signal: task && task.signal,
+            });
+            var parsedStages = parseAffectionStageNamesFromAiText(stageResp.content);
+            if (parsedStages.length >= AFFECTION_STAGE_MIN) stageNames = parsedStages;
+          }
+
+          ctx.state.affectionStageNames = stageNames.slice();
+          var entries = Array.isArray(ctx.state.worldbookEntries) ? ctx.state.worldbookEntries.slice() : [];
+          entries = upsertWorldbookByComment2(entries, buildAffectionRulesWorldbookEntry(stageNames));
+          if (generalMode) {
+            entries = upsertWorldbookByComment2(entries, buildAffectionGeneralArchiveEntry(stageNames));
+          }
+
+          if (generalMode) {
+            ctx.state.worldbookEntries = entries;
+            ctx.save();
+            window.dispatchEvent(new CustomEvent('worldbook-changed'));
+            window.dispatchEvent(new CustomEvent('card-builder-data-changed'));
+            if (ctx.panels.worldbook && ctx.panels.worldbook.renderEntriesList) {
+              ctx.panels.worldbook.renderEntriesList();
+            }
+            var sbGen = { ok: false };
+            if (ctx.state.affectionSyncStatusBar !== false) {
+              sbGen = ctx.panels.adultConfig.syncAffectionStatusBar(stageNames, [], true);
+            }
+            if (typeof window.__persistAiConfig__ === 'function') window.__persistAiConfig__();
+            return {
+              ok: true,
+              stageNames: stageNames,
+              rulesComment: '亲密关系总则',
+              archiveCount: 0,
+              generalArchive: true,
+              selectedNames: [],
+              usedAi: false,
+              statusBar: sbGen,
+              minCharsPerStage: AFFECTION_MIN_CHARS_PER_STAGE,
+            };
+          }
+
+          var candMap = Object.create(null);
+          s.affectionTargetsCache.forEach(function(c) { candMap[c.name] = c; });
+          ctx.panels.adultConfig.collectAffectionCandidates().forEach(function(c) {
+            if (!candMap[c.name]) candMap[c.name] = c;
+          });
+          var minTotal = stageNames.length * AFFECTION_MIN_CHARS_PER_STAGE;
+
+          for (var i = 0; i < selected.length; i++) {
+            var name = selected[i];
+            var meta = candMap[name] || { name: name, aliases: [] };
+            var wbCtx = findWorldbookPersonContext(entries, name);
+            var worldbookContent = (meta.worldbookContent || (wbCtx && wbCtx.content) || '').trim();
+            if (!worldbookContent) {
+              throw new Error('「' + name + '」缺少世界书人物正文，请先完善该人物条目再生成亲密档案');
+            }
+            var userPrompt = buildAffectionArchiveUserPrompt({
+              charName: name,
+              stageNames: stageNames,
+              worldbookContent: worldbookContent,
+              identity: meta.identity || '',
+              customBrief: ctx.state.affectionCustomBrief,
+              extraNotes: ctx.state.affectionExtraNotes,
+            });
+            var aiResp = await ctx.fetchAIContent({
+              context: '亲密档案·' + name,
+              url: url + '/chat/completions',
+              headers: headers,
+              model: model,
+              messages: [
+                { role: 'system', content: ctx.promptText('affectionArchive', buildAffectionArchiveSystemPrompt()) },
+                { role: 'user', content: userPrompt },
+              ],
+              temperature: 0.75,
+              httpErrorPrefix: '亲密档案生成失败 HTTP ',
+              signal: task && task.signal,
+            });
+            var content = String(aiResp.content || '').trim();
+            var richness = evaluateArchiveRichness(content, stageNames);
+            if (!richness.ok) {
+              var expandResp = await ctx.fetchAIContent({
+                context: '亲密档案扩写·' + name,
+                url: url + '/chat/completions',
+                headers: headers,
+                model: model,
+                messages: [
+                  { role: 'system', content: ctx.promptText('affectionArchiveExpand', buildAffectionArchiveExpandSystemPrompt()) },
+                  {
+                    role: 'user',
+                    content: '薄弱阶段：' + richness.weakStages.join('、')
+                      + '\n目标每阶段≥' + AFFECTION_MIN_CHARS_PER_STAGE + '字，全文≥' + minTotal + '字。\n\n'
+                      + '【该角色世界书】\n' + truncateToTokens(worldbookContent, CORRUPTION_EXPAND_WB)
+                      + '\n\n【待加厚正文】\n' + content,
+                  },
+                ],
+                temperature: 0.7,
+                httpErrorPrefix: '亲密档案扩写失败 HTTP ',
+                signal: task && task.signal,
+              });
+              var expanded = String(expandResp.content || '').trim();
+              if (expanded.length > content.length) content = expanded;
+              richness = evaluateArchiveRichness(content, stageNames);
+            }
+            if (!richness.ok) {
+              throw new Error('「' + name + '」亲密档案仍偏薄（弱阶段：'
+                + richness.weakStages.join('、') + '），请重试或补充该人物世界书细节');
+            }
+            entries = upsertWorldbookByComment2(
+              entries,
+              buildAffectionArchiveWorldbookEntry(name, content, meta.aliases)
+            );
+          }
+
+          ctx.state.worldbookEntries = entries;
+          ctx.save();
+          window.dispatchEvent(new CustomEvent('worldbook-changed'));
+          window.dispatchEvent(new CustomEvent('card-builder-data-changed'));
+          if (ctx.panels.worldbook && ctx.panels.worldbook.renderEntriesList) {
+            ctx.panels.worldbook.renderEntriesList();
+          }
+          var sb = { ok: false };
+          if (ctx.state.affectionSyncStatusBar !== false) {
+            sb = ctx.panels.adultConfig.syncAffectionStatusBar(stageNames, selected);
+          }
+          if (typeof window.__persistAiConfig__ === 'function') window.__persistAiConfig__();
+          return {
+            ok: true,
+            stageNames: stageNames,
+            rulesComment: '亲密关系总则',
+            archiveCount: selected.length,
+            generalArchive: false,
+            selectedNames: selected.slice(),
+            usedAi: true,
+            statusBar: sb,
+            minCharsPerStage: AFFECTION_MIN_CHARS_PER_STAGE,
+          };
+        });
+        ctx.panels.adultConfig.setAffectionTip('纯爱线世界书生成完成', 'ok');
+        return result;
+      } catch (err) {
+        ctx.panels.adultConfig.setAffectionTip(err && err.message ? err.message : String(err), 'warn');
+        return { ok: false, error: err && err.message ? err.message : String(err) };
+      } finally {
+        if (btn) btn.disabled = false;
+      }
     },
 
     runGenerateCorruptionLore: async function(opts) {
@@ -913,6 +1331,16 @@ export function attachAdultConfigPanel(ctx, s, panel) {
       if (corr && corr.error === 'aborted') {
         return { ok: false, reason: 'corruption_aborted' };
       }
+      // 纯爱线对称：先写亲密世界书（总则 + 角色档案），再把配置摘要并入「亲密关系总则」
+      var aff = null;
+      try {
+        aff = await ctx.panels.adultConfig.runGenerateAffectionLore();
+      } catch (err) {
+        ctx.panels.adultConfig.setAffectionTip(String(err.message || err), 'err');
+      }
+      if (aff && aff.error === 'aborted') {
+        return { ok: false, reason: 'affection_aborted' };
+      }
       var cfg = window.__getNsfwConfig__ ? window.__getNsfwConfig__() : {};
       if (!hasMeaningfulSystemDigest(cfg)) {
         if (corr && corr.ok) {
@@ -932,6 +1360,7 @@ export function attachAdultConfigPanel(ctx, s, panel) {
         return { ok: false, reason: 'empty' };
       }
       entries = mergeCorruptionConfigNote(entries, cfg);
+      entries = mergeAffectionConfigNote(entries, cfg);
       ctx.state.worldbookEntries = upsertSystemDigestEntries(ctx.state.worldbookEntries || [], entries);
       ctx.save();
       if (ctx.panels.worldbook && ctx.panels.worldbook.renderEntriesList) {
@@ -942,13 +1371,15 @@ export function attachAdultConfigPanel(ctx, s, panel) {
       if (typeof window.__persistAiConfig__ === 'function') window.__persistAiConfig__();
       var tip = '已写入 ' + entries.length + ' 条体系总纲';
       if (corr && corr.ok) tip += '，并生成恶堕世界书（总则 + ' + corr.archiveCount + ' 条档案）';
+      if (aff && aff.ok) tip += '，并生成纯爱线世界书（总则 + ' + aff.archiveCount + ' 条档案）';
       tip += '（constant 常驻，position↑Char）';
       ctx.panels.adultConfig.setSystemDigestTip(tip, 'ok');
-      return { ok: true, count: entries.length, corruption: corr && corr.ok ? corr : null };
+      return { ok: true, count: entries.length, corruption: corr && corr.ok ? corr : null, affection: aff && aff.ok ? aff : null };
     },
 
     removeSystemDigest: function() {
       var stripped = stripCorruptionConfigNote(ctx.state.worldbookEntries || []);
+      stripped = stripAffectionConfigNote(stripped);
       ctx.state.worldbookEntries = stripped.filter(function(e) {
         return !isSystemDigestComment(e.comment);
       });
@@ -957,7 +1388,7 @@ export function attachAdultConfigPanel(ctx, s, panel) {
         ctx.panels.worldbook.renderEntriesList();
       }
       window.dispatchEvent(new CustomEvent('worldbook-changed'));
-      ctx.panels.adultConfig.setSystemDigestTip('已移除体系总纲条目（并撤出恶堕配置摘要）', 'ok');
+      ctx.panels.adultConfig.setSystemDigestTip('已移除体系总纲条目（并撤出恶堕/纯爱配置摘要）', 'ok');
       return { ok: true };
     },
 
@@ -972,6 +1403,7 @@ export function attachAdultConfigPanel(ctx, s, panel) {
       var entries = buildAdultSystemDigest(cfg);
       if (!entries.length) return { ok: false, reason: 'empty' };
       entries = mergeCorruptionConfigNote(entries, cfg);
+      entries = mergeAffectionConfigNote(entries, cfg);
       ctx.state.worldbookEntries = upsertSystemDigestEntries(ctx.state.worldbookEntries || [], entries);
       ctx.save();
       if (ctx.panels.worldbook && ctx.panels.worldbook.renderEntriesList) {
@@ -1341,6 +1773,7 @@ export function attachAdultConfigPanel(ctx, s, panel) {
           opts += '<option value="' + s.escapeHtml(g.id) + '">' + s.escapeHtml(g.label) + '</option>';
         });
         groupEl.innerHTML = opts;
+        enhanceSelectMini(groupEl, 'cs-w148');
       }
 
       function fillItems() {
@@ -1358,6 +1791,7 @@ export function attachAdultConfigPanel(ctx, s, panel) {
         }
         itemEl.innerHTML = opts;
         itemEl.value = '';
+        enhanceSelectMini(itemEl, 'cs-fill');
         previewEl.classList.remove('show');
         previewEl.innerHTML = '';
       }

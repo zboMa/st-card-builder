@@ -111,11 +111,16 @@ MVU 变量负责追踪运行中的状态，例如：
 
 ### 3.0 `AI 配置`（配置区）
 
-作用：横向三 Tab（默认进入 **API 配置**）：
+作用：横向 Tab（默认进入 **API 配置**）：
 
 - **API 配置**：API 地址 / Key、拉模型、联网搜索增强、Debug 开关
 - **酒馆预设**：导入酒馆原生预设并勾选注入（勾选列表 `max-height: 540px`）
 - **AI 引擎**：引擎相关选项；含 **标签生成上下文字数**（默认 12000 / 12k，供角色标签 AI 截断世界书等）
+- **生图**：生图服务商与参数配置（`aiConfig/imageConfig.mjs`，持久化 `st_v3_builder_image_config`，上云随 AI 密钥加密包）。服务商切换即切换配置面板：
+  - OpenAI 兼容系（OpenAI / 通义万相 / 智谱 CogView / 硅基流动 / Grok / nano banana / 火山豆包 Seedream / 自定义）：API 地址、密钥、模型（datalist 可手填）、尺寸（含自定义）、数量、质量
+  - Stability 官方 API：密钥、模型、尺寸、数量、步数、负面提示词
+  - ComfyUI（自建）：服务器地址、可选访问密钥、工作流 JSON（API 格式）、正/负/输出节点 id、默认正向提示词
+  - 仅保存配置；生成按钮 / 队列接入在后续版本提供
 
 仅拆布局；存盘字段语义不变（可新增 `tagContextChars`）。一键生成在「角色设定」右上角 **AI 引擎** 弹窗。
 
@@ -128,7 +133,7 @@ MVU 变量负责追踪运行中的状态，例如：
 - **描述体系**（`promptCanon.mjs`）：公共块统一驱动——内容维（身份/外貌/性格/关系/动机/钩子等）+ NSFW 维（人物/世界）+ 分步推断 + 输出契约 + 反空话；AdultMode 开关约束私密字段
 - 默认值与代码内置一致；覆盖项写入 `localStorage`（`st_v3_builder_prompts`）
 - 不改变动态拼接逻辑（角色信息、预设、搜索结果等仍按原流程注入）
-- AI 助手分组：`assistantSystem`（含 `{{toolList}}`）、`assistantReactHint`、`assistantChatFeedback`
+- AI 助手分组：`assistantSystem`（含 `{{toolList}}`、`{{catalogOverview}}`、`{{characterFieldHint}}`、`{{buildGuide}}`）、`assistantBuildGuide`（**建卡引导**：帮用户想清楚而非替用户想——先发散后收敛、维度清单仅作探测工具、查漏补缺、极简/快出豁免、创意补全一律标「提案」待确认，经 `{{buildGuide}}` 并入 system）、`assistantReactHint`、`assistantChatFeedback`
 
 ### 3.1 `AI 引擎`（角色设定弹窗）
 

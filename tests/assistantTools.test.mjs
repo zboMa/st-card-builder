@@ -74,6 +74,7 @@ const TOOL_MIN_ARGS = {
   set_adult_config: { enabled: true },
   draft_nsfw_statusbar: {},
   generate_corruption_lore: { templateOnly: true, selectedNames: ['测试'] },
+  generate_affection_lore: { templateOnly: true, selectedNames: ['测试'] },
   novel_distill_style: {},
   novel_patch_chapters: { action: 'enable', id: 'ch1' },
   novel_expand_character: { target: { name: '林月' } },
@@ -231,6 +232,15 @@ function createFullMockBridge(seed) {
       return {
         ok: true,
         stageNames: ['未触碰', '动摇', '越界', '沉沦', '彻底恶堕'],
+        archiveCount: (opts && opts.selectedNames && opts.selectedNames.length) || 1,
+        usedAi: false,
+        templateOnly: !!(opts && opts.templateOnly),
+      };
+    },
+    generateAffectionLore: async function(opts) {
+      return {
+        ok: true,
+        stageNames: ['陌生', '相识', '亲近', '信赖', '亲密', '灵魂伴侣'],
         archiveCount: (opts && opts.selectedNames && opts.selectedNames.length) || 1,
         usedAi: false,
         templateOnly: !!(opts && opts.templateOnly),

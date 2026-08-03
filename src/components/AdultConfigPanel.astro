@@ -115,9 +115,10 @@
     <!-- 7. 恶堕 -->
     <div id="adultCorruptionBlock" class="char-corruption-block" style="display:none;">
       <div class="char-nsfw-flavor-line" style="margin-bottom:6px;">
+        <span class="char-nsfw-sub">恶堕进度</span>
         <label class="novel-switch">
           <input id="adultCorruptionEnabled" type="checkbox" />
-          <span>恶堕进度</span>
+          <span>启用</span>
         </label>
         <span class="char-nsfw-subtitle">总则 1 条 + 逐人分期档案；不勾选角色时生成「通用档案」，适用于所有/随机女角色</span>
       </div>
@@ -164,6 +165,49 @@
         <div class="char-nsfw-flavor-line" style="margin-top:8px;gap:8px;">
           <button type="button" id="btnRefreshCorruptionTargets" class="btn btn-ghost adult-btn-compact">刷新角色列表</button>
           <span id="adultCorruptionTip" class="ui-status-tip" role="status" aria-live="polite"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 8. 纯爱线（亲密度） -->
+    <div id="adultAffectionBlock" class="char-corruption-block" style="display:none;">
+      <div class="char-nsfw-flavor-line" style="margin-bottom:6px;">
+        <span class="char-nsfw-sub">纯爱线 · 亲密度</span>
+        <label class="novel-switch">
+          <input id="adultAffectionEnabled" type="checkbox" />
+          <span>启用</span>
+        </label>
+        <span class="char-nsfw-subtitle">总则 1 条 + 逐人亲密档案（0-100 数值，可双向波动）；不勾选角色时生成「通用档案」</span>
+      </div>
+      <div id="adultAffectionBody" style="display:none;">
+        <div class="char-nsfw-flavor-line" style="margin-bottom:6px;">
+          <span class="char-nsfw-sub">档位</span>
+          <select id="adultAffectionPreset" class="adult-select-compact">
+            <option value="4">简洁 4 阶</option>
+            <option value="6" selected>标准 6 阶（默认）</option>
+            <option value="8">细腻 8 阶</option>
+            <option value="custom">自定义（描述生成）</option>
+          </select>
+          <label class="novel-switch" style="margin-left:4px;">
+            <input id="adultAffectionSyncSb" type="checkbox" checked />
+            <span class="char-nsfw-subtitle">同步状态栏模块</span>
+          </label>
+        </div>
+        <div id="adultAffectionCustomRow" style="display:none;margin-bottom:6px;">
+          <textarea id="adultAffectionCustomBrief" rows="2" placeholder="描述关系基调，例如：欢喜冤家，从针锋相对到互相托付……" style="width:100%;font-size:0.75rem;padding:6px 8px;border-radius:6px;border:1px solid var(--color-border);background:var(--color-surface);color:var(--color-text);resize:vertical;"></textarea>
+        </div>
+        <div id="adultAffectionExtraRow" style="margin-bottom:8px;">
+          <div class="char-nsfw-flavor-line" style="margin-bottom:4px;">
+            <span class="char-nsfw-sub">附加设定</span>
+            <span class="char-nsfw-subtitle">可选：写入生成提示以补完关系事件、禁忌边界、里程碑重点</span>
+          </div>
+          <textarea id="adultAffectionExtraNotes" rows="2" placeholder="可选：补完相处模式、专属暗号、告白时机、信任考验重点……" style="width:100%;font-size:0.75rem;padding:6px 8px;border-radius:6px;border:1px solid var(--color-border);background:var(--color-surface);color:var(--color-text);resize:vertical;"></textarea>
+        </div>
+        <div class="char-nsfw-subtitle" style="margin-bottom:4px;">生成对象（来自世界书/小说人物；主角自动排除；不勾选则生成「通用档案」适用于所有角色）</div>
+        <div id="adultAffectionTargets" class="char-corruption-targets"></div>
+        <div class="char-nsfw-flavor-line" style="margin-top:8px;gap:8px;">
+          <button type="button" id="btnRefreshAffectionTargets" class="btn btn-ghost adult-btn-compact">刷新角色列表</button>
+          <span id="adultAffectionTip" class="ui-status-tip" role="status" aria-live="polite"></span>
         </div>
       </div>
     </div>
@@ -335,10 +379,11 @@
     box-shadow: none;
   }
   .adult-select-compact {
-    flex: 1;
-    min-width: 140px;
-    font-size: 0.72rem;
-    padding: 3px 6px;
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 180px;
+    font-size: 0.7rem;
+    padding: 2px 6px;
     border-radius: 6px;
     border: 1px solid var(--color-border);
     background: var(--color-surface);

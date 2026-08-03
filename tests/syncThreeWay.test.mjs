@@ -47,6 +47,7 @@ describe('API 配置包', function() {
     localStorage.setItem(EMBED_KEY_LS_KEY, 'ek');
     localStorage.setItem(EMBED_MODEL_LS_KEY, 'text-embedding');
     localStorage.setItem(SEARCH_CONFIG_KEY, JSON.stringify({ enabled: true, apiKey: 'search-key' }));
+    localStorage.setItem('st_v3_builder_image_config', JSON.stringify({ provider: 'openai', apiKey: 'img-key' }));
     var pkg = collectLocalApiConfigPackage();
     assert.equal(pkg.v, 2);
     assert.equal(pkg.aiConfig.url, 'https://api.example');
@@ -55,9 +56,11 @@ describe('API 配置包', function() {
     assert.equal(pkg.aiConfig.embeddingApiKey, 'ek');
     assert.equal(pkg.aiConfig.embeddingModel, 'text-embedding');
     assert.equal(pkg.searchConfig.apiKey, 'search-key');
+    assert.equal(pkg.imageConfig.provider, 'openai');
+    assert.equal(pkg.imageConfig.apiKey, 'img-key');
   });
 
-  it('apply 回写主配置、旁路键与搜索；兼容旧整份 ai_config', function() {
+  it('apply 回写主配置、旁路键、搜索与生图；兼容旧整份 ai_config', function() {
     applyLocalApiConfigPackage({
       v: 2,
       aiConfig: {
@@ -69,6 +72,7 @@ describe('API 配置包', function() {
         novelRag: { enabled: false, budget: 1000 },
       },
       searchConfig: { enabled: false, engine: 'bing' },
+      imageConfig: { provider: 'comfyui', comfyServerUrl: 'http://127.0.0.1:8188', comfyApiKey: 'ck' },
     });
     assert.equal(JSON.parse(localStorage.getItem(AI_CONFIG_KEY)).key, 'k');
     assert.equal(localStorage.getItem(EMBED_URL_LS_KEY), 'eu');
@@ -76,6 +80,9 @@ describe('API 配置包', function() {
     assert.equal(localStorage.getItem(EMBED_MODEL_LS_KEY), 'em');
     assert.equal(JSON.parse(localStorage.getItem(NOVEL_RAG_CFG_KEY)).budget, 1000);
     assert.equal(JSON.parse(localStorage.getItem(SEARCH_CONFIG_KEY)).engine, 'bing');
+    var img = JSON.parse(localStorage.getItem('st_v3_builder_image_config'));
+    assert.equal(img.provider, 'comfyui');
+    assert.equal(img.comfyServerUrl, 'http://127.0.0.1:8188');
 
     applyLocalApiConfigPackage({ url: 'legacy', key: 'old' });
     assert.equal(JSON.parse(localStorage.getItem(AI_CONFIG_KEY)).key, 'old');

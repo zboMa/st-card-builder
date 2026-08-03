@@ -9,7 +9,8 @@ import {
   normalizeTags,
   tagsFromImportJson,
 } from '../state.mjs';
-import { crc32, createTextChunk } from '../../utils.mjs';
+import { crc32, createTextChunk, embedTextChunkIntoPng } from '../../utils.mjs';
+import { dataUrlToPngDataUrl } from '../../avatarIdb.mjs';
 
 export function registerExport(ctx) {
   var panel = {};
@@ -126,16 +127,12 @@ export function registerExport(ctx) {
     if (!avatar) return alert('\u274C \u8BE5\u5361\u5C1A\u672A\u4E0A\u4F20\u5934\u50CF\uFF0C\u65E0\u6CD5\u5BFC\u51FA PNG');
     try {
       var ch = createTextChunk('chara', JSON.stringify(json));
-      var raw = atob(avatar.split(',')[1]);
+      // 头像可能是 JPEG（avatarIdb 存 jpeg）：先转真 PNG，再按 IEND 定位嵌入
+      var pngDataUrl = await dataUrlToPngDataUrl(avatar);
+      var raw = atob(pngDataUrl.split(',')[1]);
       var bytes = new Uint8Array(raw.length);
       for (var i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
-      var io = bytes.length - 12;
-      var bef = bytes.slice(0, io);
-      var ie = bytes.slice(io);
-      var fin = new Uint8Array(bef.length + ch.length + ie.length);
-      fin.set(bef, 0);
-      fin.set(ch, bef.length);
-      fin.set(ie, bef.length + ch.length);
+      var fin = embedTextChunkIntoPng(bytes, ch);
       var blob = new Blob([fin], { type: 'image/png' });
       var a = document.createElement('a');
       a.href = URL.createObjectURL(blob);

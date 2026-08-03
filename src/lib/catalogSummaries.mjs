@@ -126,20 +126,86 @@ function kindLine(label, groups) {
   return '■ ' + label + '：' + parts.join('、') + ' ｜ 共 ' + groups.length + ' 组 ' + total + ' 条';
 }
 
+function countItems(groups) {
+  return (groups || []).reduce(function(n, g) { return n + (g.items ? g.items.length : 0); }, 0);
+}
+
+function overviewGroupBody(title, groups, withGroupTitle) {
+  var lines = ['■ ' + title];
+  (groups || []).forEach(function(g) {
+    if (withGroupTitle) lines.push('·' + g.group + '：');
+    (g.items || []).forEach(function(it) {
+      lines.push('  ' + it.id + ' · ' + it.label + ' — ' + it.summary);
+    });
+  });
+  return lines.join('\n');
+}
+
+function overviewFlatBody(title, items) {
+  var lines = ['■ ' + title];
+  (items || []).forEach(function(it) {
+    lines.push('  ' + it.id + ' · ' + it.label + ' — ' + it.summary);
+  });
+  return lines.join('\n');
+}
+
+/**
+ * 按类拆分目录文本块（上下文弹窗 catalog 子分区用）。
+ * 与 buildCatalogOverviewText / buildCatalogIndexText 同格式，逐类产出便于分开展示。
+ * @param {object} data buildAdultCatalogData 输出
+ * @param {'overview'|'index'} [mode]
+ * @returns {{ kind: string, label: string, count: number, body: string }[]}
+ */
+export function buildCatalogBlocks(data, mode) {
+  var isIndex = mode === 'index';
+  var blocks = [];
+  function add(kind, label, count, body) {
+    if (!body || !body.trim()) return;
+    blocks.push({ kind: kind, label: label, count: count || 0, body: body });
+  }
+  if (data) {
+    if (data.flavors && data.flavors.length) {
+      add('flavors', '口味 NSFW', countItems(data.flavors),
+        isIndex ? kindLine('口味 NSFW（多选最多5）', data.flavors)
+                : overviewGroupBody('口味 NSFW（按组；多选最多5，首项主调色盘）', data.flavors, true));
+    }
+    if (data.postures && data.postures.length) {
+      add('postures', '姿势语言', countItems(data.postures),
+        isIndex ? kindLine('姿势语言（不占口味槽）', data.postures)
+                : overviewGroupBody('姿势语言（表达层；不占口味槽，可多选）', data.postures, false));
+    }
+    if (data.speeches && data.speeches.length) {
+      add('speeches', '情趣话风', countItems(data.speeches),
+        isIndex ? kindLine('情趣话风（不占口味槽）', data.speeches)
+                : overviewGroupBody('情趣话风（表达层；不占口味槽，可多选）', data.speeches, false));
+    }
+    if (data.ntl && data.ntl.length) {
+      add('ntl', 'NTL 禁忌', countItems(data.ntl),
+        isIndex ? kindLine('NTL 禁忌（多选）', data.ntl)
+                : overviewGroupBody('NTL 禁忌（多选）', data.ntl, true));
+    }
+    if (data.worldframes && data.worldframes.length) {
+      add('worldframes', '世界观框架', data.worldframes.length,
+        isIndex ? '■ 世界观框架（载体物化）：' + data.worldframes.length + ' 种'
+                : overviewFlatBody('世界观框架（载体物化；成人配置手动/自动）', data.worldframes));
+    }
+    if (data.worldviews && data.worldviews.length) {
+      add('worldviews', '世界观预设', countItems(data.worldviews),
+        isIndex ? kindLine('世界观预设（多选最多3）', data.worldviews)
+                : overviewGroupBody('世界观预设（AI 引擎多选底盘）', data.worldviews, true));
+    }
+  }
+  return blocks;
+}
+
 /**
  * 紧凑目录索引（system 默认用；省 token）
  * @returns {string}
  */
 export function buildCatalogIndexText(opts) {
   var data = buildAdultCatalogData(opts);
-  var lines = [];
-  lines.push('【目录索引·选配参考】具体 id 与摘要用 get_adult_catalog 查询；勿凭印象编造 id。');
-  if (data.flavors && data.flavors.length) lines.push(kindLine('口味 NSFW（多选最多5）', data.flavors));
-  if (data.postures && data.postures.length) lines.push(kindLine('姿势语言（不占口味槽）', data.postures));
-  if (data.speeches && data.speeches.length) lines.push(kindLine('情趣话风（不占口味槽）', data.speeches));
-  if (data.ntl && data.ntl.length) lines.push(kindLine('NTL 禁忌（多选）', data.ntl));
-  if (data.worldframes && data.worldframes.length) lines.push('■ 世界观框架（载体物化）：' + data.worldframes.length + ' 种');
-  if (data.worldviews && data.worldviews.length) lines.push(kindLine('世界观预设（多选最多3）', data.worldviews));
+  var lines = ['【目录索引·选配参考】具体 id 与摘要用 get_adult_catalog 查询；勿凭印象编造 id。'];
+  buildCatalogBlocks(data, 'index').forEach(function(b) { lines.push(b.body); });
   return lines.join('\n');
 }
 
@@ -149,64 +215,8 @@ export function buildCatalogIndexText(opts) {
  */
 export function buildCatalogOverviewText(opts) {
   var data = buildAdultCatalogData(opts);
-  var lines = [];
-  lines.push('【目录概览·仅作选配参考；改配置用 get/set_adult_config；长文写作指引在 enrichment，勿把概览当正文】');
-
-  if (data.flavors && data.flavors.length) {
-    lines.push('■ 口味 NSFW（按组；多选最多5，首项主调色盘）');
-    data.flavors.forEach(function(g) {
-      lines.push('·' + g.group + '：');
-      g.items.forEach(function(it) {
-        lines.push('  ' + it.id + ' · ' + it.label + ' — ' + it.summary);
-      });
-    });
-  }
-
-  if (data.postures && data.postures.length) {
-    lines.push('■ 姿势语言（表达层；不占口味槽，可多选）');
-    data.postures.forEach(function(g) {
-      g.items.forEach(function(it) {
-        lines.push('  ' + it.id + ' · ' + it.label + ' — ' + it.summary);
-      });
-    });
-  }
-
-  if (data.speeches && data.speeches.length) {
-    lines.push('■ 情趣话风（表达层；不占口味槽，可多选）');
-    data.speeches.forEach(function(g) {
-      g.items.forEach(function(it) {
-        lines.push('  ' + it.id + ' · ' + it.label + ' — ' + it.summary);
-      });
-    });
-  }
-
-  if (data.ntl && data.ntl.length) {
-    lines.push('■ NTL 禁忌（多选）');
-    data.ntl.forEach(function(g) {
-      lines.push('·' + g.group + '：');
-      g.items.forEach(function(it) {
-        lines.push('  ' + it.id + ' · ' + it.label + ' — ' + it.summary);
-      });
-    });
-  }
-
-  if (data.worldframes && data.worldframes.length) {
-    lines.push('■ 世界观框架（载体物化；成人配置手动/自动）');
-    data.worldframes.forEach(function(w) {
-      lines.push('  ' + w.id + ' · ' + w.label + ' — ' + w.summary);
-    });
-  }
-
-  if (data.worldviews && data.worldviews.length) {
-    lines.push('■ 世界观预设（AI 引擎多选底盘）');
-    data.worldviews.forEach(function(g) {
-      lines.push('·' + g.group + '：');
-      g.items.forEach(function(it) {
-        lines.push('  ' + it.id + ' · ' + it.label + ' — ' + it.summary);
-      });
-    });
-  }
-
+  var lines = ['【目录概览·仅作选配参考；改配置用 get/set_adult_config；长文写作指引在 enrichment，勿把概览当正文】'];
+  buildCatalogBlocks(data, 'overview').forEach(function(b) { lines.push(b.body); });
   return lines.join('\n');
 }
 

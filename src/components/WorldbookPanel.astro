@@ -5,6 +5,7 @@ import WorldbookAuditor from './WorldbookAuditor.astro';
   <!-- 标题行右上：小号操作按钮；下方仅搜索 + 列表 -->
   <div class="wb-panel-head">
     <h2>世界书条目</h2>
+    <span id="wbTokenCount" class="tok-text wb-token-count" title="世界书总 token" aria-live="polite"></span>
     <div class="wb-head-actions">
       <button id="btnOpenWbAuditor" class="btn btn-wb-audit" type="button" title="世界书内容监测">监测</button>
       <button id="btnOpenWbAiSingle" class="btn btn-panel-tool wb-ai-open-btn" type="button" title="AI 单条生成">单条生成</button>
@@ -131,6 +132,11 @@ import WorldbookAuditor from './WorldbookAuditor.astro';
   .wb-panel-head h2 {
     margin: 0;
     flex-shrink: 0;
+  }
+  .wb-panel-head .wb-token-count {
+    font-size: 0.68rem;
+    flex-shrink: 0;
+    margin-right: auto;
   }
   .wb-head-actions {
     display: flex;

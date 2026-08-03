@@ -9,6 +9,24 @@ import {
   CORRUPTION_BRIEF_CHARS,
 } from './novel/contextBudgets.mjs';
 import { truncateToTokens } from './assistant/contextManager.mjs';
+import {
+  buildTrackRulesContent,
+  buildTrackArchiveContentTemplate,
+  valueToStageName,
+} from './progressTrack.mjs';
+
+/** 恶堕推进事件锚点表（写入总则，防凭空增长/速通） */
+export var CORRUPTION_ANCHOR_LINES = [
+  '【事件锚点表】推进必须对应剧情中可指认的事件，禁止无事件凭空上涨：',
+  '- 破窗：第一次跨越既有边界的行为（逾矩试探、越界接触）。',
+  '- 合理化：角色把越界自我说服成「试炼/帮忙/无妨」。',
+  '- 共犯：有第二人知晓或参与其越界。',
+  '- 污名：越界被第三视角确认或公开。',
+  '- 沉溺：主动寻求、主动隐瞒、为欲望做出取舍。',
+  '- 跨档重大事件：如公开献身、亲手加害、放弃最后退路（才允许跨档）。',
+].join('\n');
+
+export var CORRUPTION_BREAKTHROUGH_HINT = '进入下一档需发生的事件（重大事件之一），须写具体';
 
 export var CORRUPTION_RULES_COMMENT = '恶堕进度总则';
 export var CORRUPTION_ARCHIVE_PREFIX = '恶堕档案·';
@@ -314,22 +332,21 @@ export function pickCorruptionTargets(candidates, opts) {
 export function buildRulesContent(stageNames) {
   var stages = asTrimmedList(stageNames);
   if (stages.length < CORRUPTION_STAGE_MIN) stages = CORRUPTION_PRESETS['5'].stages.slice();
-  var lines = [];
-  lines.push('【恶堕进度总则】');
-  lines.push('本卡使用状态栏/MVU 变量「' + CORRUPTION_STATUS_LABEL + '」标记每位适用角色的当前阶段。');
-  lines.push('扮演时：只采用该角色「' + CORRUPTION_ARCHIVE_PREFIX + '」条目中与当前变量值对应的阶段内容，禁止混用其他阶段的性格/心理/反差。');
-  lines.push('推进原则：通常按下列阶梯渐进，勿无铺垫跳阶；若剧情需要加速，须在叙事中给出明确诱因与心理代价。');
-  lines.push('');
-  lines.push('阶段表（共 ' + stages.length + ' 阶）：');
-  stages.forEach(function(s, i) {
-    lines.push((i + 1) + '. ' + s);
+  var anchorNote = [
+    '通用档案：无专属档案的女角色（含剧情中随机登场/刷新出的新角色）直接套用「'
+      + CORRUPTION_GENERAL_ARCHIVE_COMMENT + '」按档位演绎；变量用「NPC.{角色名}.' + CORRUPTION_STATUS_LABEL + '」记录并按名维护。',
+    '男角色默认不启用恶堕档案，除非世界书中存在对应「' + CORRUPTION_ARCHIVE_PREFIX + '」条目。',
+  ].join('\n');
+  return buildTrackRulesContent({
+    title: CORRUPTION_RULES_COMMENT,
+    statusLabel: CORRUPTION_STATUS_LABEL,
+    archivePrefix: CORRUPTION_ARCHIVE_PREFIX,
+    stageNames: stages,
+    direction: 'ascend',
+    singleStepMax: 15,
+    anchorNote: anchorNote,
+    anchorLines: CORRUPTION_ANCHOR_LINES,
   });
-  lines.push('');
-  lines.push('变量合法取值：' + stages.join(' / '));
-  lines.push('初始建议：' + stages[0]);
-  lines.push('男角色默认不启用恶堕档案，除非世界书中存在对应「' + CORRUPTION_ARCHIVE_PREFIX + '」条目。');
-  lines.push('无专属档案的女角色（含剧情中随机登场/刷新出的新角色）：直接套用「' + CORRUPTION_GENERAL_ARCHIVE_COMMENT + '」按阶段演绎；阶段用「NPC.{角色名}.恶堕进度」变量记录并按名维护。');
-  return lines.join('\n');
 }
 
 /**
@@ -358,35 +375,29 @@ export function buildGeneralArchiveContent(stageNames) {
   var lines = [];
   lines.push('【恶堕档案 · 通用】');
   lines.push('适用于任何女角色——包括随机刷新、临时登场、没有专属档案的角色。');
-  lines.push('读取状态栏/MVU「NPC.{角色名}.恶堕进度」；仅采用与当前值对应的阶段，禁止混用其他阶段。');
+  lines.push('读取状态栏/MVU「NPC.{角色名}.' + CORRUPTION_STATUS_LABEL + '」（0-100 数值）；仅采用与当前档位对应的阶段，禁止混用其他阶段。');
   lines.push('演绎时把下列「她」替换为该角色名，并结合其性格与处境展开。');
   lines.push('');
   stages.forEach(function(s) {
     lines.push('## ' + s);
     STAGE_SECTION_HINTS.forEach(function(h) {
-      lines.push('- ' + h + '：（按「' + s + '」阶段、结合该角色初始设定展开）');
+      lines.push('- ' + h + '：（按「' + s + '」档位、结合该角色初始设定展开）');
     });
+    lines.push('- 突破条件：（进入下一档需发生的重大事件之一，须写具体）');
     lines.push('');
   });
   return lines.join('\n').trim() + '\n';
 }
 
 export function buildArchiveContentTemplate(charName, stageNames) {
-  var name = String(charName || '').trim() || '角色';
-  var stages = asTrimmedList(stageNames);
-  if (stages.length < CORRUPTION_STAGE_MIN) stages = CORRUPTION_PRESETS['5'].stages.slice();
-  var lines = [];
-  lines.push('【' + name + ' · 恶堕档案】');
-  lines.push('【读取状态栏/MVU「' + CORRUPTION_STATUS_LABEL + '」；仅采用与当前值对应的阶段，禁止混用其他阶段】');
-  lines.push('');
-  stages.forEach(function(stage) {
-    lines.push('## ' + stage);
-    STAGE_SECTION_HINTS.forEach(function(h) {
-      lines.push('- ' + h + '：（待填充）');
-    });
-    lines.push('');
+  return buildTrackArchiveContentTemplate({
+    charName: charName,
+    stageNames: stageNames,
+    statusLabel: CORRUPTION_STATUS_LABEL,
+    archiveTitle: '恶堕档案',
+    sectionHints: STAGE_SECTION_HINTS,
+    breakthroughHint: CORRUPTION_BREAKTHROUGH_HINT,
   });
-  return lines.join('\n').trim() + '\n';
 }
 
 export function buildCustomStagesSystemPrompt() {
@@ -413,7 +424,9 @@ export function buildArchiveSystemPrompt() {
     '每阶段必须写成可直接扮演的丰满段落，覆盖并写透：',
     '1) 心理状态与自我叙事 2) 性格/价值观如何偏移 3) 言行举止与反差细节（含口头禅或习惯动作）',
     '4) 对旧关系/亲密对象的态度变化 5) 欲望、边界与禁忌的松动 6) 扮演注意（本阶段可做/禁做）。',
-    '字数：每一阶段正文 ' + CORRUPTION_TARGET_CHARS_PER_STAGE.min + '-' + CORRUPTION_TARGET_CHARS_PER_STAGE.max + ' 字（不含标题）；禁止提纲、空话、（待填充）、一笔带过。',
+    '阶段读取方式：状态栏/MVU 变量「' + CORRUPTION_STATUS_LABEL + '」为 0-100 数值；每阶段开头注明该档数值区间（如 40-59），同档数值越高程度越深，但行为基调以本阶段为准。',
+    '每阶段末尾必须另写一段「突破条件」：进入下一档需发生的重大事件（事件锚点：破窗/合理化/共犯/污名/沉溺之一的具体化），防止无事件凭空推进。',
+    '字数：每一阶段正文（含突破条件）' + CORRUPTION_TARGET_CHARS_PER_STAGE.min + '-' + CORRUPTION_TARGET_CHARS_PER_STAGE.max + ' 字（不含标题）；禁止提纲、空话、（待填充）、一笔带过。',
     '相邻阶段必须可感知递进，禁止跳阶或阶段之间复制粘贴。',
     '只输出世界书正文（不要 JSON、不要前言后记）。',
   ].join('\n');
@@ -423,6 +436,7 @@ export function buildArchiveExpandSystemPrompt() {
   return [
     '你是角色卡世界书扩写编辑。下文恶堕档案过薄，请在保持阶段标题不变的前提下大幅加厚每一阶段。',
     '每阶段扩写到 ' + CORRUPTION_TARGET_CHARS_PER_STAGE.min + '-' + CORRUPTION_TARGET_CHARS_PER_STAGE.max + ' 字，补足心理、反差、口头禅、边界与可演细节。',
+    '保留并补实每阶段「突破条件」（进入下一档需发生的重大事件）。',
     '禁止删除阶段；禁止输出（待填充）；只输出完整正文。',
   ].join('\n');
 }
@@ -454,7 +468,8 @@ export function buildArchiveUserPrompt(opts) {
   parts.push('阶段表（须全部写出，## 标题与下列完全一致）：\n' + stages.map(function(s, i) {
     return (i + 1) + '. ' + s;
   }).join('\n'));
-  parts.push('正文开头须含：【读取状态栏/MVU「' + CORRUPTION_STATUS_LABEL + '」；仅采用与当前值对应的阶段，禁止混用其他阶段】');
+  parts.push('正文开头须含：【读取状态栏/MVU「' + CORRUPTION_STATUS_LABEL + '」数值（0-100）；仅采用与当前档位对应的阶段，禁止混用其他阶段】');
+  parts.push('每阶段须含「突破条件」段落：进入下一档需发生的重大事件（事件锚点：破窗/合理化/共犯/污名/沉溺的具体化），防止无事件凭空推进。');
   parts.push('须与已有人物成人层/其他恶堕档案气质可对读，禁止互相打架或孤立无互动。');
   return parts.join('\n\n');
 }
@@ -682,7 +697,7 @@ export function buildCorruptionExportIssues(input) {
  */
 export function ensureCorruptionModuleInDesign(design, stageNames, normalizeDesignFn) {
   var stages = asTrimmedList(stageNames);
-  var sample = stages[0] || '未触碰';
+  var sample = '0'; // 数值化：初始 0-100，档位由数值映射
   var d = design && typeof design === 'object' ? Object.assign({}, design) : {};
   d.nsfw = true;
   var flags = Object.assign({}, d.moduleFlags || {});
@@ -704,6 +719,5 @@ export function ensureCorruptionModuleInDesign(design, stageNames, normalizeDesi
 }
 
 export function getCorruptionStatusSample(stageNames) {
-  var stages = asTrimmedList(stageNames);
-  return stages[0] || '未触碰';
+  return '0';
 }

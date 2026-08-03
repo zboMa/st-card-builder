@@ -9,6 +9,8 @@ import {
   SYSTEM_DIGEST_ORDER,
   mergeCorruptionConfigNote,
   stripCorruptionConfigNote,
+  mergeAffectionConfigNote,
+  stripAffectionConfigNote,
 } from '../src/lib/adult/systemDigest.mjs';
 
 var fullCfg = {
@@ -198,4 +200,36 @@ test('stripCorruptionConfigNote：移除恶堕配置摘要（对称回退）', f
   assert.equal(stripped[0].content, rules[0].content);
   assert.ok(stripped[0].content.indexOf('【恶堕配置摘要】') < 0);
   assert.deepEqual(stripCorruptionConfigNote([{ comment: '普通', content: 'x' }]).length, 1);
+});
+
+test('mergeAffectionConfigNote：纯爱配置摘要并入亲密关系总则（幂等，不单独成条目）', function() {
+  var rules = [{ comment: '亲密关系总则', content: '【亲密关系总则】\n档位映射表：\n1. 陌生' }];
+  var affCfg = {
+    affectionEnabled: true,
+    affectionPreset: '6',
+    affectionStageNames: ['陌生', '相识', '亲近', '信赖', '亲密', '灵魂伴侣'],
+    affectionCustomBrief: '欢喜冤家',
+    affectionExtraNotes: '告白时机前不得越界',
+  };
+  var out = mergeAffectionConfigNote(rules, affCfg);
+  assert.ok(out[0].content.indexOf('【亲密度配置摘要】') >= 0);
+  assert.ok(out[0].content.indexOf('陌生 → 相识 → 亲近') >= 0);
+  assert.ok(out[0].content.indexOf('欢喜冤家') >= 0);
+  assert.equal(out.length, 1, '不新建条目');
+  var again = mergeAffectionConfigNote(out, affCfg);
+  assert.equal(again[0].content, out[0].content, '幂等：重复调用不叠加');
+  // 未启用纯爱 → 不产生摘要
+  assert.deepEqual(mergeAffectionConfigNote(rules, { affectionEnabled: false }), rules);
+  // 无亲密关系总则条目 → 宁缺勿动，不新建
+  assert.deepEqual(mergeAffectionConfigNote([{ comment: '普通', content: 'x' }], affCfg).length, 1);
+});
+
+test('stripAffectionConfigNote：移除纯爱配置摘要（对称回退）', function() {
+  var rules = [{ comment: '亲密关系总则', content: '【亲密关系总则】\n档位映射表：\n1. 陌生' }];
+  var affCfg = { affectionEnabled: true, affectionPreset: '6', affectionStageNames: ['陌生', '相识'] };
+  var merged = mergeAffectionConfigNote(rules, affCfg);
+  var stripped = stripAffectionConfigNote(merged);
+  assert.equal(stripped[0].content, rules[0].content);
+  assert.ok(stripped[0].content.indexOf('【亲密度配置摘要】') < 0);
+  assert.deepEqual(stripAffectionConfigNote([{ comment: '普通', content: 'x' }]).length, 1);
 });

@@ -62,7 +62,8 @@ export const STATUS_BAR_MODULES = Object.freeze([
   { id: 'affection', label: '亲密度/好感', cast: 'both', hint: '好感/亲密度数值' },
   { id: 'trust', label: '信任', cast: 'both', hint: '信任度' },
   { id: 'relation_stage', label: '关系阶段', cast: 'both', hint: '陌生/朋友/恋人等阶段' },
-  { id: 'corruption_stage', label: '恶堕进度', nsfw: true, cast: 'both', hint: '未触碰/动摇/越界/沉沦/彻底恶堕等阶段' },
+  { id: 'corruption_stage', label: '恶堕进度', nsfw: true, cast: 'both', hint: '0-100 数值，档位映射见世界书「恶堕进度总则」' },
+  { id: 'affection_stage', label: '亲密度', cast: 'both', hint: '0-100 数值，档位映射见世界书「亲密关系总则」' },
   { id: 'emotion', label: '情绪', cast: 'both', hint: '心情/张力' },
   { id: 'action', label: '行动', cast: 'both', hint: '当前行动/行为' },
   { id: 'location', label: '地点', cast: 'both', hint: '当前位置/场景' },
@@ -103,6 +104,8 @@ const MODS_NSFW_CORE = [
 ];
 /** 恶堕进度默认只进多人预设（绑世界书人物）；单人预设不挂主角「角色.恶堕进度」 */
 const MODS_CORRUPTION = ['corruption_stage'];
+/** 纯爱线（亲密度）模块：进恋爱/亲密向预设 */
+const MODS_AFFECTION = ['affection_stage'];
 /** 多人基础模块（无配角摘要） */
 const MODS_MULTI_BASE = ['time_weather', 'location', 'emotion', 'action', 'outfit', 'event_chips'];
 
@@ -111,7 +114,7 @@ export const STATUS_BAR_PRESETS = Object.freeze([
   // —— 单人 ——
   { id: 'single_daily', cast: 'single', label: '日常陪伴', hint: '时间地点+情绪着装', modules: MODS_DAILY },
   { id: 'single_rpg', cast: 'single', label: '冒险 RPG', hint: '属性物品任务记忆', modules: MODS_RPG },
-  { id: 'single_romance', cast: 'single', label: '恋爱向', hint: '好感信任关系阶段', modules: MODS_ROMANCE },
+  { id: 'single_romance', cast: 'single', label: '恋爱向', hint: '好感信任关系阶段', modules: MODS_ROMANCE.concat(MODS_AFFECTION) },
   { id: 'single_campus', cast: 'single', label: '校园日常', hint: '轻量校园追踪', modules: ['time_weather', 'location', 'emotion', 'action', 'outfit', 'items', 'affection', 'event_chips'] },
   { id: 'single_wuxia', cast: 'single', label: '武侠江湖', hint: '属性+物品+任务', modules: ['time_weather', 'location', 'attributes', 'action', 'outfit', 'items', 'quest', 'memory_summary', 'event_chips'] },
   { id: 'single_xianxia', cast: 'single', label: '仙侠修真', hint: '属性境界+记忆', modules: ['time_weather', 'location', 'attributes', 'action', 'outfit', 'items', 'quest', 'memory_summary', 'event_chips'] },
@@ -124,15 +127,15 @@ export const STATUS_BAR_PRESETS = Object.freeze([
   { id: 'single_mystery', cast: 'single', label: '悬疑推理', hint: '记忆线索+事件', modules: ['time_weather', 'location', 'emotion', 'action', 'memory_summary', 'quest', 'event_chips', 'items'] },
   { id: 'single_military', cast: 'single', label: '军事行动', hint: '属性任务地点', modules: ['time_weather', 'location', 'attributes', 'action', 'outfit', 'items', 'quest', 'event_chips'] },
   { id: 'single_lovecraft', cast: 'single', label: '克苏鲁', hint: '理智向属性+记忆', modules: ['time_weather', 'location', 'attributes', 'emotion', 'action', 'memory_summary', 'event_chips', 'quest'] },
-  { id: 'single_ntl', cast: 'single', label: 'NTL 亲密', nsfw: true, hint: '恋爱+内心身体', modules: MODS_ROMANCE.concat(['nsfw_thoughts', 'nsfw_breasts', 'nsfw_legs', 'nsfw_orgasm', 'nsfw_act_state']) },
-  { id: 'single_ntr', cast: 'single', label: 'NTR 张力', nsfw: true, hint: '关系张力+身体', modules: MODS_ROMANCE.concat(['nsfw_thoughts', 'nsfw_vagina', 'nsfw_breasts', 'nsfw_fluids', 'nsfw_act_state']) },
+  { id: 'single_ntl', cast: 'single', label: 'NTL 亲密', nsfw: true, hint: '恋爱+内心身体', modules: MODS_ROMANCE.concat(MODS_AFFECTION).concat(['nsfw_thoughts', 'nsfw_breasts', 'nsfw_legs', 'nsfw_orgasm', 'nsfw_act_state']) },
+  { id: 'single_ntr', cast: 'single', label: 'NTR 张力', nsfw: true, hint: '关系张力+身体', modules: MODS_ROMANCE.concat(MODS_AFFECTION).concat(['nsfw_thoughts', 'nsfw_vagina', 'nsfw_breasts', 'nsfw_fluids', 'nsfw_act_state']) },
   {
     id: 'single_nsfw', cast: 'single', label: '亲密 NSFW', nsfw: true, hint: '全身体模块',
-    modules: MODS_ROMANCE.concat(MODS_NSFW_CORE),
+    modules: MODS_ROMANCE.concat(MODS_AFFECTION).concat(MODS_NSFW_CORE),
   },
   // —— 多人（入选角色人人同套详字段）——
   { id: 'multi_party', cast: 'multi', label: '小队同行', hint: '全员同套+属性物品', modules: MODS_MULTI_BASE.concat(['attributes', 'items']) },
-  { id: 'multi_harem', cast: 'multi', label: '群像恋爱', hint: '好感信任关系阶段', modules: MODS_MULTI_BASE.concat(['affection', 'trust', 'relation_stage']) },
+  { id: 'multi_harem', cast: 'multi', label: '群像恋爱', hint: '好感信任关系阶段', modules: MODS_MULTI_BASE.concat(['affection', 'trust', 'relation_stage']).concat(MODS_AFFECTION) },
   { id: 'multi_wuxia', cast: 'multi', label: '武侠群侠', hint: '属性物品任务', modules: MODS_MULTI_BASE.concat(['attributes', 'items', 'quest', 'memory_summary']) },
   { id: 'multi_xianxia', cast: 'multi', label: '仙侠同门', hint: '属性境界任务', modules: MODS_MULTI_BASE.concat(['attributes', 'items', 'quest', 'memory_summary']) },
   { id: 'multi_apocalypse', cast: 'multi', label: '末日小队', hint: '生存资源任务', modules: MODS_MULTI_BASE.concat(['attributes', 'items', 'money', 'quest']) },
@@ -148,15 +151,15 @@ export const STATUS_BAR_PRESETS = Object.freeze([
   { id: 'multi_rpg', cast: 'multi', label: '多人冒险', hint: '属性物品任务', modules: MODS_MULTI_BASE.concat(['attributes', 'items', 'quest', 'memory_summary', 'money']) },
   {
     id: 'multi_ntl', cast: 'multi', label: 'NTL 群像', hint: '全员同套亲密模块', nsfw: true,
-    modules: MODS_MULTI_BASE.concat(['affection', 'trust', 'relation_stage', 'nsfw_thoughts', 'nsfw_breasts', 'nsfw_legs', 'nsfw_orgasm']).concat(MODS_CORRUPTION),
+    modules: MODS_MULTI_BASE.concat(['affection', 'trust', 'relation_stage', 'nsfw_thoughts', 'nsfw_breasts', 'nsfw_legs', 'nsfw_orgasm']).concat(MODS_CORRUPTION).concat(MODS_AFFECTION),
   },
   {
     id: 'multi_ntr', cast: 'multi', label: 'NTR 张力', hint: '关系张力+内心', nsfw: true,
-    modules: MODS_MULTI_BASE.concat(['affection', 'trust', 'relation_stage', 'nsfw_thoughts', 'nsfw_vagina', 'nsfw_breasts', 'nsfw_act_state']).concat(MODS_CORRUPTION),
+    modules: MODS_MULTI_BASE.concat(['affection', 'trust', 'relation_stage', 'nsfw_thoughts', 'nsfw_vagina', 'nsfw_breasts', 'nsfw_act_state']).concat(MODS_CORRUPTION).concat(MODS_AFFECTION),
   },
   {
     id: 'multi_nsfw', cast: 'multi', label: '群像 NSFW', hint: '主详+身体模块', nsfw: true,
-    modules: MODS_MULTI_BASE.concat(['affection', 'relation_stage']).concat(MODS_NSFW_CORE).concat(MODS_CORRUPTION),
+    modules: MODS_MULTI_BASE.concat(['affection', 'relation_stage']).concat(MODS_NSFW_CORE).concat(MODS_CORRUPTION).concat(MODS_AFFECTION),
   },
 ]);
 

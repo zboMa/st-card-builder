@@ -41,6 +41,13 @@ export function createDefaultCardState() {
     corruptionSelectedNames: [],
     corruptionDefaultFemaleOnly: true,
     corruptionSyncStatusBar: true,
+    affectionEnabled: false,
+    affectionPreset: '6',
+    affectionCustomBrief: '',
+    affectionExtraNotes: '',
+    affectionStageNames: [],
+    affectionSelectedNames: [],
+    affectionSyncStatusBar: true,
     /** ST data.character_version */
     characterVersion: '1.0',
     /** 正式版本列表（切版/增版/发布时写入；保存草稿不写） */
@@ -114,6 +121,13 @@ export function buildDraftSnapshot(state) {
     corruptionSelectedNames: Array.isArray(s.corruptionSelectedNames) ? s.corruptionSelectedNames.slice() : [],
     corruptionDefaultFemaleOnly: s.corruptionDefaultFemaleOnly !== false,
     corruptionSyncStatusBar: s.corruptionSyncStatusBar !== false,
+    affectionEnabled: !!s.affectionEnabled,
+    affectionPreset: s.affectionPreset || '6',
+    affectionCustomBrief: s.affectionCustomBrief || '',
+    affectionExtraNotes: s.affectionExtraNotes || '',
+    affectionStageNames: Array.isArray(s.affectionStageNames) ? s.affectionStageNames.slice() : [],
+    affectionSelectedNames: Array.isArray(s.affectionSelectedNames) ? s.affectionSelectedNames.slice() : [],
+    affectionSyncStatusBar: s.affectionSyncStatusBar !== false,
     characterVersion: String(s.characterVersion != null ? s.characterVersion : '1.0').trim() || '1.0',
     versions: Array.isArray(s.versions) ? s.versions : [],
     // 保留既有 updatedAt；真正落盘时由 stateMachine.saveDraft 刷新

@@ -149,22 +149,9 @@ export function bootCardBuilder() {
       }
     }
     // 本地与云端皆空时不自动建卡；等用户显式新建或首次有意义编辑
-    if (ctx.panels.cardManager && ctx.panels.cardManager.updateCardManagerUI) {
-      ctx.panels.cardManager.updateCardManagerUI();
-    }
+    // 管理页渲染交给 cardManagerBind 的 enterCardManagerView（进入视图时唯一一次渲染）
     if (ctx.panels.adultConfig && ctx.panels.adultConfig.renderNsfwBlock) {
       ctx.panels.adultConfig.renderNsfwBlock();
-    }
-  });
-
-  window.addEventListener('hashchange', function() {
-    if (ctx.panels.cardManager && ctx.panels.cardManager.updateCardManagerUI) {
-      ctx.panels.cardManager.updateCardManagerUI();
-    }
-  });
-  window.addEventListener('app-view-changed', function() {
-    if (ctx.panels.cardManager && ctx.panels.cardManager.updateCardManagerUI) {
-      ctx.panels.cardManager.updateCardManagerUI();
     }
   });
 

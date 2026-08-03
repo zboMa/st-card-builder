@@ -497,6 +497,38 @@ export function createExecutorExecute(bridge, snaps, helpers) {
         if (!lore || lore.ok === false) return fail((lore && lore.error) || '恶堕世界书生成失败');
         return ok(lore);
       }
+      case 'generate_affection_lore': {
+        var genAff = bridge.generateAffectionLore
+          || (typeof window !== 'undefined' ? window.__generateAffectionLore__ : null);
+        if (typeof genAff !== 'function') return fail('纯爱线生成桥接未就绪');
+        maybeSnap();
+        if (a.preset || a.customBrief != null || a.extraNotes != null || a.enabled != null) {
+          var nsfwSet = (typeof bridge.setNsfwConfig === 'function')
+            ? bridge.setNsfwConfig
+            : (typeof window !== 'undefined' ? window.__setNsfwConfig__ : null);
+          var nsfwGet = (typeof bridge.getNsfwConfig === 'function')
+            ? bridge.getNsfwConfig
+            : (typeof window !== 'undefined' ? window.__getNsfwConfig__ : null);
+          if (typeof nsfwSet === 'function') {
+            var curN = typeof nsfwGet === 'function' ? nsfwGet() : {};
+            nsfwSet({
+              affectionEnabled: a.enabled !== false,
+              affectionPreset: a.preset || curN.affectionPreset || '6',
+              affectionCustomBrief: a.customBrief != null ? String(a.customBrief) : (curN.affectionCustomBrief || ''),
+              affectionExtraNotes: a.extraNotes != null ? String(a.extraNotes) : (curN.affectionExtraNotes || ''),
+              affectionSelectedNames: Array.isArray(a.selectedNames)
+                ? a.selectedNames
+                : (curN.affectionSelectedNames || []),
+            });
+          }
+        }
+        var loreA = await genAff({
+          selectedNames: Array.isArray(a.selectedNames) ? a.selectedNames : undefined,
+          templateOnly: !!a.templateOnly,
+        });
+        if (!loreA || loreA.ok === false) return fail((loreA && loreA.error) || '纯爱世界书生成失败');
+        return ok(loreA);
+      }
       case 'novel_patch_chapters': {
         if (!bridge.patchNovelChapters) return fail('章节补丁桥接未就绪');
         if (!a.action) return fail('缺少 action');

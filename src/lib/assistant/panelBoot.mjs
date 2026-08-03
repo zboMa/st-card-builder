@@ -11,7 +11,7 @@ import {
     assistantSnapshotKeyFor,
     migrateLegacyAssistantSession,
   } from './session.mjs';
-import { ASSISTANT_PRESET_CHIPS } from './tools.mjs';
+import { ASSISTANT_PRESET_CHIPS, getToolByName } from './tools.mjs';
 import { normalizeCharacterFieldKey, normalizeCharacterPatch, CHARACTER_FIELD_HINT } from './characterFields.mjs';
 import {
     buildToolUiMessage,
@@ -27,7 +27,7 @@ import {
     buildAssistantContextSections,
   } from './tokenEstimate.mjs';
 import { prepareAssistantMessages } from './contextManager.mjs';
-import { isCatalogRelevantText } from '../catalogSummaries.mjs';
+import { isCatalogRelevantText, buildCatalogBlocks } from '../catalogSummaries.mjs';
 import { renderAssistantMarkdown, escapeAssistantHtml } from './markdownRender.mjs';
 import {
     buildRagPreviewPayload,
@@ -283,11 +283,12 @@ export function initAssistantPanelMain() {
     var abortFlag = false;
     var pending = null;
     var ragPreviewBusy = false;
-    var MAX_REACT_STEPS = 8;
+    var MAX_REACT_STEPS = 20;
     var reactTask = null;      // 当前 react 运行的任务中心任务
     var reactPaused = false;   // 大改等待用户确认中（暂停续接）
     var reactResume = null;    // 确认后从哪一步续接
     var catalogRelevant = false; // 本轮是否注入完整目录概览（方案 B 混合注入）
+    var catalogLocked = false;   // 本会话一旦注入过完整 overview 即锁定，不再降级 index（省缓存重写）；切卡/清空会话重置
     var catalogDataParsed = null; // get_adult_catalog 懒解析结果
 
     var ragSearchIconSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/><path d="M8 11h6M11 8v6"/></svg>';
@@ -356,8 +357,27 @@ export function initAssistantPanelMain() {
       return '';
     }
 
+    function fmtCacheTokens(n) {
+      var v = Number(n) || 0;
+      if (v >= 1000) return (v / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
+      return String(v);
+    }
+
+    function formatToolArgs(args) {      if (!args || typeof args !== 'object') return '';
+      var keys = Object.keys(args);
+      if (!keys.length) return '';
+      try {
+        var json = JSON.stringify(args, null, 2);
+        return json.length > 900 ? json.slice(0, 900) + '\n…(参数过长已截断)' : json;
+      } catch (e) {
+        return '';
+      }
+    }
+
     function renderToolTraceNode(m) {
       var toolName = m.toolName || parseToolNameFromLegacy(m.content) || 'tool';
+      var toolMeta = getToolByName(toolName);
+      var displayName = (toolMeta && toolMeta.title) || toolName;
       var risk = m.risk || parseRiskFromLegacy(m.content) || '?';
       var summaryText = toolMessageSummary(m);
       var detailText = m.detail || m.content || '';
@@ -373,7 +393,7 @@ export function initAssistantPanelMain() {
       head.className = 'assistant-tool-card__head';
 
       var headerRow = el('div', 'assistant-tool-card__header-row');
-      var nameEl = el('span', 'assistant-tool-card__name', toolName);
+      var nameEl = el('span', 'assistant-tool-card__name', displayName);
       var riskEl = el('span', 'assistant-tool-card__risk ' + riskBadgeClass(risk), risk);
       headerRow.appendChild(nameEl);
       headerRow.appendChild(riskEl);
@@ -384,6 +404,12 @@ export function initAssistantPanelMain() {
       head.appendChild(sumEl);
 
       var detail = el('div', 'assistant-tool-card__detail');
+      var argsText = formatToolArgs(m.toolArgs);
+      if (argsText) {
+        var argsPre = el('pre', 'assistant-tool-card__args');
+        argsPre.textContent = '执行参数: ' + argsText;
+        detail.appendChild(argsPre);
+      }
       var body = el('pre', 'assistant-tool-card__body');
       body.textContent = detailText;
       detail.appendChild(body);
@@ -436,20 +462,21 @@ export function initAssistantPanelMain() {
         .replace(/"/g, '&quot;');
     }
 
-    function latestRagBody() {
+    function latestRagInfo() {
       for (var i = uiMessages.length - 1; i >= 0; i--) {
         var m = uiMessages[i];
         if (m && m.role === 'user' && m.ragPreview && m.ragPreview.ragBody) {
-          return String(m.ragPreview.ragBody);
+          return { body: String(m.ragPreview.ragBody), index: i };
         }
       }
-      return '';
+      return { body: '', index: -1 };
     }
 
     function openContextModal() {
-      var systemPrompt = buildSystemPrompt('');
+      var systemRaw = promptText('assistantSystem')
+        || '你是 SillyTavern 卡片构建器的 AI 辅助助手。\n【可用工具】\n{{toolList}}\n\n{{catalogOverview}}\n\n{{characterFieldHint}}';
       var prepared = prepareAssistantMessages({
-        systemPrompt: systemPrompt,
+        systemPrompt: buildSystemPrompt(''),
         uiMessages: uiMessages,
         pendingInput: (inputEl && inputEl.value || '').trim(),
       });
@@ -457,16 +484,51 @@ export function initAssistantPanelMain() {
       var pending = (inputEl && inputEl.value || '').trim();
       var breakdown = prepared.breakdown;
       breakdown.level = prepared.level;
+      var relevant = catalogRelevant || (inputEl && isCatalogRelevantText(String(inputEl.value || '')));
+      var catalogData = parseCatalogData();
+      var catalogBlocks = catalogData
+        ? buildCatalogBlocks(catalogData, relevant ? 'overview' : 'index')
+        : [];
+      // 模板中 {{catalogOverview}} 出现次数 → 真实送模份数（applyTemplate 全量替换）
+      var catalogRepeat = Math.max(1, (String(systemRaw).match(/\{\{catalogOverview\}\}/g) || []).length);
+      var ragInfo = latestRagInfo();
+      var histCount = uiMessages.length;
+      var histNote = prepared.level === 'hard'
+        ? '激进压缩：仅保留最近若干轮；旧工具结果只留摘要、旧 user RAG 已剥离。'
+        : (prepared.level === 'soft'
+          ? '已启动压缩：旧工具结果按 token 截断，近端保留完整。'
+          : '未压缩。');
       var sections = buildAssistantContextSections({
-        systemPrompt: systemPrompt,
+        systemPrompt: systemRaw,
+        systemNote: '原始模板（未替换变量）：{{toolList}} / {{characterFieldHint}} / {{catalogOverview}} / {{buildGuide}} 由 tools / fields / catalog / guide 分区填充；送模时拼接。',
         toolList: toolListText,
-        catalogOverview: catalogOverviewText,
+        toolNote: '经变量 {{toolList}} 并入系统提示，此处独立展示便于审阅。',
+        catalogBlocks: catalogBlocks,
+        catalogRepeat: catalogRepeat,
+        catalogNote: catalogBlocks.length
+          ? (relevant
+            ? '完整概览（当前输入/近期上下文命中目录关键词时注入）'
+            : '紧凑索引（未命中关键词，省 token）')
+          : '',
         characterFieldHint: CHARACTER_FIELD_HINT,
+        fieldNote: '经变量 {{characterFieldHint}} 并入系统提示，此处独立展示便于审阅。',
+        buildGuide: promptText('assistantBuildGuide') || '',
+        guideNote: '经变量 {{buildGuide}} 并入系统提示，此处独立展示便于审阅；可在「提示词配置 → AI 助手」单独编辑。',
         historyMessages: history,
+        historyNote: histNote + '（原始 ' + histCount + ' 条 · 送模 ' + history.length + ' 条）',
         pendingInput: pending,
-        ragBody: latestRagBody(),
+        ragBody: ragInfo.body,
+        ragNote: ragInfo.index >= 0
+          ? '已绑定到历史第 ' + (ragInfo.index + 1) + ' 条 user 消息的送模内容（modelContent），非独立注入段。'
+          : '',
       });
       if (contextModalMeta) {
+        var cacheLine = '';
+        var lastCache = window.__aiLastPromptCacheUsage__;
+        if (lastCache && (lastCache.hit || lastCache.miss)) {
+          cacheLine = ' · 最近请求缓存命中 ' + fmtCacheTokens(lastCache.hit)
+            + ' / ' + fmtCacheTokens(lastCache.hit + lastCache.miss);
+        }
         contextModalMeta.textContent = formatAssistantContextLabel(breakdown.total)
           + ' · 系统 ' + breakdown.system
           + ' · 历史 ' + breakdown.history
@@ -474,6 +536,7 @@ export function initAssistantPanelMain() {
           + (prepared.level && prepared.level !== 'none'
             ? ' · ' + (prepared.level === 'hard' ? '激进压缩后' : '已启动压缩')
             : '')
+          + cacheLine
           + '（tiktoken）';
       }
       if (contextModalBody) {
@@ -500,11 +563,22 @@ export function initAssistantPanelMain() {
             }).join('');
           }
           contextModalBody.innerHTML = sections.map(function(sec, i) {
+            var childrenHtml = (sec.children && sec.children.length)
+              ? '<div class="assistant-context-section__scroll">' + sec.children.map(function(ch) {
+                  return '<div class="assistant-context-sub">'
+                    + '<div class="assistant-context-sub__head">'
+                    + '<span class="assistant-context-sub__title">' + escapeHtmlLite(ch.title) + '</span>'
+                    + '<span class="assistant-context-sub__tokens">≈ ' + ch.tokens + ' tok</span></div>'
+                    + '<pre class="assistant-context-sub__pre">' + escapeHtmlLite(ch.body) + '</pre>'
+                    + '</div>';
+                }).join('') + '</div>'
+              : '<pre class="assistant-context-section__pre">' + escapeHtmlLite(sec.body) + '</pre>';
             return '<section class="assistant-context-section' + (i === 0 ? ' is-active' : '')
               + '" data-section="' + escapeHtmlLite(sec.id) + '" role="tabpanel">'
               + '<div class="assistant-context-section__head"><span>' + escapeHtmlLite(sec.title) + '</span>'
               + '<span class="assistant-context-section__tokens">≈ ' + sec.tokens + ' tok</span></div>'
-              + '<pre class="assistant-context-section__pre">' + escapeHtmlLite(sec.body) + '</pre>'
+              + (sec.note ? '<p class="assistant-context-section__note">' + escapeHtmlLite(sec.note) + '</p>' : '')
+              + childrenHtml
               + '</section>';
           }).join('');
           if (tabsEl) {
@@ -1521,6 +1595,62 @@ export function initAssistantPanelMain() {
       peekSnapshot: function() { return snapStack.peek(); },
     });
 
+    function buildReactTaskDetail(messages) {
+      return (messages || []).map(function(m) {
+        return '[' + (m.role || 'msg') + ']\n' + String(m.content || '');
+      }).join('\n\n———\n\n');
+    }
+
+    function buildDialogBackground(maxLen) {      var parts = [];
+      var max = maxLen || 20000;
+      for (var i = uiMessages.length - 1; i >= 0 && parts.length < 10; i--) {
+        var m = uiMessages[i];
+        if (!m) continue;
+        if (m.role !== 'user' && m.role !== 'assistant') continue;
+        var text = m.role === 'user'
+          ? (m.modelContent || m.content || '')
+          : (m.displayContent || m.content || '');
+        text = String(text).trim();
+        if (!text) continue;
+        parts.unshift((m.role === 'user' ? '用户: ' : '助手: ') + text);
+      }
+      var joined = parts.join('\n');
+      return joined.length > max ? joined.slice(0, max) : joined;
+    }
+
+    function injectDialogBackground(args, toolName) {
+      if (!args || typeof args !== 'object') args = {};
+      var meta = getToolByName(toolName);
+      if (!meta || meta.kind !== 'generate') return args;
+      var bg = buildDialogBackground(20000);
+      if (!bg) return args;
+      var marker = '【用户对话背景】';
+      var targetKey = null;
+      ['instruction', 'direction', 'prompt'].forEach(function(k) {
+        if (targetKey == null && args[k] != null && String(args[k]).length) targetKey = k;
+      });
+      if (!targetKey) targetKey = 'instruction';
+      var cur = String(args[targetKey] || '');
+      if (cur.indexOf(marker) >= 0) return args; // 已注入过（确认后 apply 复用，防重复）
+      args[targetKey] = (cur ? cur + '\n\n' : '') + marker + '\n' + bg;
+      return args;
+    }
+
+    function stripDialogBackground(args) {
+      if (!args || typeof args !== 'object') return args;
+      var out = Object.assign({}, args);
+      ['instruction', 'direction', 'prompt'].forEach(function(k) {
+        if (typeof out[k] === 'string') {
+          var idx = out[k].indexOf('\n\n【用户对话背景】');
+          if (idx >= 0) {
+            out[k] = out[k].slice(0, idx).trim();
+            if (!out[k]) delete out[k];
+          }
+        }
+      });
+      return out;
+    }
+
     function showPending(p) {
       pending = p;
       if (!pendingBox) return;
@@ -1537,12 +1667,13 @@ export function initAssistantPanelMain() {
     }
 
     async function runTool(toolName, args, force) {
-      var result = await executor.invoke(toolName, args || {}, { forceApply: !!force });
+      var effectiveArgs = injectDialogBackground(args || {}, toolName);
+      var result = await executor.invoke(toolName, effectiveArgs, { forceApply: !!force });
       if (result.pendingConfirm) {
-        showPending({ tool: toolName, args: args || {}, preview: result.preview });
+        showPending({ tool: toolName, args: effectiveArgs, preview: result.preview });
         return result;
       }
-      pushUi(buildToolUiMessage(toolName, args || {}, result));
+      pushUi(buildToolUiMessage(toolName, stripDialogBackground(effectiveArgs), result));
       if (result && result.ok) {
         try {
           window.dispatchEvent(new CustomEvent('assistant-change-summary', {
@@ -1558,13 +1689,16 @@ export function initAssistantPanelMain() {
       var relevant = catalogRelevant;
       if (!relevant && inputEl) relevant = isCatalogRelevantText(String(inputEl.value || ''));
       var overview = relevant ? catalogOverviewText : catalogIndexText;
+      var guide = promptText('assistantBuildGuide') || '';
       var base = promptText('assistantSystem', {
         toolList: toolListText,
         characterFieldHint: CHARACTER_FIELD_HINT,
         catalogOverview: overview,
+        buildGuide: guide,
       }) || (
         '你是卡片构建助手。默认用自然语言中文回复用户；只有需要读卡/改卡时才输出一个 tool JSON。\n工具：\n' + toolListText
         + (overview ? '\n\n' + overview : '')
+        + (guide ? '\n\n【建卡引导】\n' + guide : '')
       );
       if (userExtra) base += '\n\n' + userExtra;
       return base;
@@ -1596,8 +1730,8 @@ export function initAssistantPanelMain() {
 
       pushUi({ role: 'user', content: userText, modelContent: userText });
 
-      // 方案 B：本轮或近期上下文命中目录关键词 → 当轮注入完整概览
-      catalogRelevant = isCatalogRelevantText(userText);
+      // 方案 B：目录形态会话内锁定——一旦注入过完整 overview 即保持，避免反复切换打断前缀缓存
+      catalogRelevant = catalogLocked || isCatalogRelevantText(userText);
       if (!catalogRelevant) {
         var crStart = Math.max(0, uiMessages.length - 9);
         for (var crIdx = uiMessages.length - 1; crIdx >= crStart; crIdx--) {
@@ -1607,6 +1741,7 @@ export function initAssistantPanelMain() {
           }
         }
       }
+      if (catalogRelevant) catalogLocked = true;
 
       var extra = '';
       if (/试聊|回流|反馈/.test(userText)) {
@@ -1689,6 +1824,7 @@ export function initAssistantPanelMain() {
           if (prepared.level === 'hard') stepLabel = '上下文较长，正在压缩…';
           setPendingHint(stepLabel);
           var messages = prepared.messages;
+          if (center && task && task.id) center.setDetail(task.id, buildReactTaskDetail(messages));
           var raw = await callChat(messages, 0.35, reactSignal);
           var parsed = parseReactStep(raw);
 
@@ -1911,6 +2047,7 @@ export function initAssistantPanelMain() {
     if (clearBtn) clearBtn.addEventListener('click', function() {
       uiMessages = [];
       sessionRagInjected = new Set();
+      catalogLocked = false; // 清空会话：目录形态锁定一并复位
       sessionStore.clear();
       showPending(null);
       renderMessages();
@@ -1980,6 +2117,7 @@ export function initAssistantPanelMain() {
 
     /** 从当前卡会话恢复 UI（卡片切换 / 初始恢复共用） */
     function loadSessionIntoView() {
+      catalogLocked = false; // 切卡/恢复会话 = 新起点，目录形态重新判定
       var saved = sessionStore.read();
       if (saved.ragInjectedIds && saved.ragInjectedIds.length) {
         sessionRagInjected = new Set(saved.ragInjectedIds);

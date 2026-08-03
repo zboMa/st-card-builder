@@ -18,6 +18,12 @@ import {
   CORRUPTION_MIN_CHARS_PER_STAGE,
   CORRUPTION_TARGET_CHARS_PER_STAGE,
 } from './corruptionProgress.mjs';
+import {
+  AFFECTION_PRESETS,
+  AFFECTION_SECTION_HINTS,
+  AFFECTION_MIN_CHARS_PER_STAGE,
+  AFFECTION_TARGET_CHARS_PER_STAGE,
+} from './affectionProgress.mjs';
 
 /** 扩展规范：下拉分段（与 docs/catalog-quality-standards.md 对齐） */
 export var CATALOG_STANDARD_SECTIONS = [
@@ -104,6 +110,7 @@ export var PROMPT_CATALOG_TAB_META = [
   { id: '__catalog_speech__', label: '情趣话风', section: 'speech' },
   { id: '__catalog_ntl__', label: 'NTL目录', section: 'ntl' },
   { id: '__catalog_corruption__', label: '恶堕目录', section: 'corruption' },
+  { id: '__catalog_affection__', label: '纯爱目录', section: 'affection' },
   { id: '__catalog_worldview__', label: '世界观', section: 'worldview' },
   { id: '__catalog_vessel_flavor__', label: '载体·口味', section: 'vesselFlavor' },
   { id: '__catalog_vessel_ntl__', label: '载体·NTL', section: 'vesselNtl' },
@@ -209,6 +216,36 @@ function corruptionItems() {
   });
 }
 
+function affectionItems() {
+  return ['4', '6', '8'].map(function(id) {
+    var preset = AFFECTION_PRESETS[id];
+    return {
+      id: id,
+      label: '纯爱档位 · ' + (preset.label || id) + ' ' + id + ' 阶',
+      group: '纯爱档位预设',
+      description:
+        '档位表：' + (preset.stages || []).join(' / ')
+        + '\n\n每档正文目标 ' + AFFECTION_TARGET_CHARS_PER_STAGE.min
+        + '-' + AFFECTION_TARGET_CHARS_PER_STAGE.max
+        + ' 字；最低门禁 ' + AFFECTION_MIN_CHARS_PER_STAGE
+        + ' 字。亲密度 0-100 可双向波动；仅适用于成年角色，禁止儿童性化。',
+      writingGuide:
+        '档案正文需按 Markdown ## 标题完整写出全部档位，且标题必须与档位表完全一致。'
+        + '\n开头须声明读取状态栏/MVU「亲密度」0-100 数值；每档须写「突破条件」（进入下一档的里程碑事件：深谈/共历/告白/守护/信任考验/交托）。'
+        + '\n相邻档位要能感知递进，禁止跳档、模板段、待填充；亲密描写仅限明确成年角色。',
+      summary: (preset.stages || []).join(' / '),
+      mustCover: AFFECTION_SECTION_HINTS.slice(),
+      antiPatterns: [
+        '禁止儿童性化',
+        '禁止输出（待填充）',
+        '禁止档位之间复制粘贴',
+        '禁止跳档或跳过档位标题',
+        '禁止以肉体接触替代情感推进刷档',
+      ],
+    };
+  });
+}
+
 function worldviewItems() {
   var groupLabel = Object.create(null);
   (WORLDVIEW_GROUPS || []).forEach(function(g) {
@@ -261,6 +298,7 @@ export function buildPromptCatalogBrowser() {
   var speeches = speechItems();
   var ntl = ntlItems();
   var corruption = corruptionItems();
+  var affection = affectionItems();
   var wv = worldviewItems();
   var flavorLabel = Object.create(null);
   flavors.forEach(function(f) { flavorLabel[f.id] = f.label; });
@@ -316,6 +354,10 @@ export function buildPromptCatalogBrowser() {
       corruption: {
         hint: '恶堕阶段预设与档案写法门禁。只读；展示 3/5/7 阶、必写维度与字数预算。禁止儿童性化。',
         items: corruption,
+      },
+      affection: {
+        hint: '纯爱档位预设与亲密档案写法门禁。只读；展示 4/6/8 阶、里程碑突破条件与字数预算。禁止儿童性化。',
+        items: affection,
       },
       worldview: {
         hint: '世界观预设目录。只读。',

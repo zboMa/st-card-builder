@@ -42,6 +42,7 @@ import {
 export function createAdultConfigShared(ctx) {
   var escapeHtml = ctx.escapeHtml;
   var corruptionTargetsCache = [];
+  var affectionTargetsCache = [];
 
   function ensureWorldviewPresetItemsOnState() {
     ctx.state.worldviewPresetItems = normalizeWorldviewPresetItems(ctx.state.worldviewPresetItems || []);
@@ -295,6 +296,8 @@ export function createAdultConfigShared(ctx) {
     labelNtl: labelNtl,
     get corruptionTargetsCache() { return corruptionTargetsCache; },
     set corruptionTargetsCache(v) { corruptionTargetsCache = v; },
+    get affectionTargetsCache() { return affectionTargetsCache; },
+    set affectionTargetsCache(v) { affectionTargetsCache = v; },
     escapeHtml: escapeHtml,
   };
 }

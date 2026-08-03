@@ -80,6 +80,7 @@ export function createAiTaskCenter(options) {
         typeLabel: t.typeLabel,
         title: t.title,
         target: t.target,
+        detail: t.detail,
         status: t.status,
         progress: t.progress,
         progressText: t.progressText,
@@ -146,6 +147,7 @@ export function createAiTaskCenter(options) {
       typeLabel: AI_TASK_TYPES[type] || AI_TASK_TYPES.other,
       title: m.title || AI_TASK_TYPES[type] || 'AI 任务',
       target: m.target || '',
+      detail: m.detail != null ? String(m.detail) : '',
       status: TASK_STATUS.queued,
       progress: null,
       progressText: '',
@@ -182,6 +184,15 @@ export function createAiTaskCenter(options) {
       t.progress = Math.max(0, Math.min(1, Number(progress)));
     }
     if (text != null) t.progressText = String(text);
+    emit();
+    return true;
+  }
+
+  /** 更新任务详情（如已发出的 prompt / 请求消息），供详情弹窗展示 */
+  function setDetail(id, text) {
+    var t = tasks.get(id);
+    if (!t || !ACTIVE[t.status]) return false;
+    t.detail = text != null ? String(text) : '';
     emit();
     return true;
   }
@@ -277,6 +288,7 @@ export function createAiTaskCenter(options) {
     get: get,
     start: start,
     setProgress: setProgress,
+    setDetail: setDetail,
     succeed: succeed,
     fail: fail,
     cancel: cancel,

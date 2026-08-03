@@ -68,20 +68,29 @@ export function formatAssistantContextTitle(breakdown) {
 /**
  * 组装弹窗分区（纯数据，不含 HTML）。
  * @param {{
- *   systemPrompt?: string,
- *   catalogOverview?: string,
+ *   systemPrompt?: string,      // 原始 system 模板（未替换变量）
+ *   systemNote?: string,
  *   toolList?: string,
+ *   toolNote?: string,
+ *   catalogBlocks?: { kind: string, label: string, count: number, body: string }[], // 实际注入形态，按类拆分
+ *   catalogRepeat?: number,    // 模板中 {{catalogOverview}} 出现次数（默认 1）；>1 表示真实送模 N 份
+ *   catalogNote?: string,
  *   characterFieldHint?: string,
+ *   fieldNote?: string,
+ *   buildGuide?: string,      // 建卡引导（独立可编辑，经 {{buildGuide}} 并入 system）
+ *   guideNote?: string,
  *   historyMessages?: { role?: string, content?: string }[],
+ *   historyNote?: string,
  *   pendingInput?: string,
  *   ragBody?: string,
+ *   ragNote?: string,
  * }} opts
- * @returns {{ id: string, title: string, tokens: number, body: string }[]}
+ * @returns {{ id: string, title: string, tokens: number, body: string, note?: string, children?: { title: string, tokens: number, body: string }[] }[]}
  */
 export function buildAssistantContextSections(opts) {
   opts = opts || {};
   var sections = [];
-  function push(id, title, body) {
+  function push(id, title, body, note) {
     var text = String(body == null ? '' : body);
     if (!text.trim()) return;
     sections.push({
@@ -89,14 +98,40 @@ export function buildAssistantContextSections(opts) {
       title: title,
       tokens: countTokens(text),
       body: text,
+      note: note || '',
+    });
+  }
+  function pushChildren(id, title, children, note, totalBody, repeat) {
+    if (!children || !children.length) return;
+    var multi = Math.max(1, Number(repeat) || 1);
+    sections.push({
+      id: id,
+      title: title,
+      tokens: countTokens(totalBody || '') * multi,
+      body: totalBody || '',
+      note: note || '',
+      children: children,
     });
   }
 
-  var systemFull = String(opts.systemPrompt || '');
-  push('system', '系统提示（送模合成）', systemFull);
-  push('tools', '工具列表', opts.toolList || '');
-  push('catalog', '目录概览', opts.catalogOverview || '');
-  push('fields', '角色字段提示', opts.characterFieldHint || '');
+  push('system', '系统提示（原始模板）', opts.systemPrompt || '', opts.systemNote);
+  push('tools', '工具列表', opts.toolList || '', opts.toolNote);
+  if (opts.catalogBlocks && opts.catalogBlocks.length) {
+    var totalBody = opts.catalogBlocks.map(function(b) { return b.body; }).join('\n\n');
+    var repeat = Math.max(1, Number(opts.catalogRepeat) || 1);
+    var repeatNote = repeat > 1
+      ? '（注意：模板引用 {{catalogOverview}} ' + repeat + ' 次，真实送模为下方内容 ×' + repeat + '，分区 token 已按 ×' + repeat + ' 计）'
+      : '';
+    pushChildren('catalog', '目录注入', opts.catalogBlocks.map(function(b) {
+      return {
+        title: b.label + (b.count ? '（' + b.count + ' 条）' : ''),
+        tokens: countTokens(b.body),
+        body: b.body,
+      };
+    }), (opts.catalogNote || '') + repeatNote, totalBody, repeat);
+  }
+  push('fields', '角色字段提示', opts.characterFieldHint || '', opts.fieldNote);
+  push('guide', '建卡引导', opts.buildGuide || '', opts.guideNote);
 
   var hist = opts.historyMessages || [];
   if (hist.length) {
@@ -105,10 +140,10 @@ export function buildAssistantContextSections(opts) {
       var content = String(m && m.content || '');
       return '[' + (i + 1) + '] ' + role + '\n' + content;
     }).join('\n\n——\n\n');
-    push('history', '历史（最近 ' + hist.length + ' 条）', histBody);
+    push('history', '历史（最近 ' + hist.length + ' 条）', histBody, opts.historyNote);
   }
 
   push('pending', '待发送输入', opts.pendingInput || '');
-  push('rag', '本回合 RAG 注入', opts.ragBody || '');
+  push('rag', 'RAG 注入', opts.ragBody || '', opts.ragNote);
   return sections;
 }

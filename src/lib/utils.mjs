@@ -51,6 +51,48 @@ export function createTextChunk(kw, text) {
   return ch;
 }
 
+/** PNG 魔数：89 50 4E 47 0D 0A 1A 0A */
+var PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+
+export function isPngBytes(bytes) {
+  if (!bytes || bytes.length < PNG_SIGNATURE.length) return false;
+  for (var i = 0; i < PNG_SIGNATURE.length; i++) {
+    if (bytes[i] !== PNG_SIGNATURE[i]) return false;
+  }
+  return true;
+}
+
+/** 定位 IEND chunk 的起始偏移；非法 PNG / 无 IEND 返回 -1 */
+export function findPngIendOffset(bytes) {
+  if (!isPngBytes(bytes)) return -1;
+  var off = PNG_SIGNATURE.length;
+  while (off + 8 <= bytes.length) {
+    var len = ((bytes[off] & 0xff) << 24) | ((bytes[off + 1] & 0xff) << 16)
+      | ((bytes[off + 2] & 0xff) << 8) | (bytes[off + 3] & 0xff);
+    var type = String.fromCharCode(bytes[off + 4], bytes[off + 5], bytes[off + 6], bytes[off + 7]);
+    if (type === 'IEND') return off;
+    off += 12 + len;
+  }
+  return -1;
+}
+
+/**
+ * 把 text chunk 嵌入合法 PNG（插到 IEND 之前）。
+ * 底图必须是 PNG；JPEG 等会在校验处抛错，避免产出不可识别文件。
+ */
+export function embedTextChunkIntoPng(pngBytes, chunkBytes) {
+  if (!isPngBytes(pngBytes)) {
+    throw new Error('底图不是合法 PNG（头像需为 PNG 才能导出卡）');
+  }
+  var iend = findPngIendOffset(pngBytes);
+  if (iend < 0) throw new Error('PNG 缺少 IEND chunk');
+  var fin = new Uint8Array(pngBytes.length + chunkBytes.length);
+  fin.set(pngBytes.subarray(0, iend), 0);
+  fin.set(chunkBytes, iend);
+  fin.set(pngBytes.subarray(iend), iend + chunkBytes.length);
+  return fin;
+}
+
 export function strategyLabelZh(strategy) {
   if (strategy === 'constant') return '\u5E38\u9A7B';
   if (strategy === 'vectorized') return '\u5411\u91CF\u5316';

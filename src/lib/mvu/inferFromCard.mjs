@@ -15,6 +15,10 @@ import {
   normalizeCorruptionConfig,
   getCorruptionStatusSample,
 } from '../corruptionProgress.mjs';
+import {
+  AFFECTION_STATUS_LABEL,
+  normalizeAffectionConfig,
+} from '../affectionProgress.mjs';
 
 /** @typedef {'string'|'number'|'boolean'|'enum'|'array'|'object'} MvuVarType */
 
@@ -37,6 +41,7 @@ var CONSENT_OPTIONS = ['可继续', '需确认', '暂停', '停止'];
 var RELATION_OPTIONS = ['陌生', '熟人', '朋友', '暧昧', '恋人'];
 
 var FIELD_TYPE_HINTS = {
+  亲密度: { type: 'number', min: 0, max: 100, initial: 30 },
   好感度: { type: 'number', min: 0, max: 100, initial: 42 },
   好: { type: 'number', min: 0, max: 100, initial: 42 },
   信任: { type: 'number', min: 0, max: 100, initial: 30 },
@@ -45,7 +50,7 @@ var FIELD_TYPE_HINTS = {
   金钱: { type: 'number', min: 0, initial: 320 },
   快感: { type: 'number', min: 0, max: 100, initial: 0 },
   关系阶段: { type: 'enum', options: RELATION_OPTIONS, initial: '熟人' },
-  恶堕进度: { type: 'enum', options: null, initial: null },
+  恶堕进度: { type: 'number', min: 0, max: 100, initial: 0 },
   同意边界: { type: 'enum', options: CONSENT_OPTIONS, initial: '需确认' },
 };
 
@@ -90,6 +95,18 @@ export function normalizeCardLike(cardLike) {
     }
   );
 
+  var affection = normalizeAffectionConfig(
+    c.affection || {
+      enabled: adult.affectionEnabled,
+      preset: adult.affectionPreset,
+      customBrief: adult.affectionCustomBrief,
+      extraNotes: adult.affectionExtraNotes,
+      stageNames: adult.affectionStageNames,
+      selectedNames: adult.affectionSelectedNames,
+      syncStatusBar: adult.affectionSyncStatusBar,
+    }
+  );
+
   var name = String(
     c.name || c.charName || (c.data && c.data.name) || ''
   ).trim();
@@ -102,6 +119,7 @@ export function normalizeCardLike(cardLike) {
     mvuDesign: mvuDesign && typeof mvuDesign === 'object' ? mvuDesign : null,
     adult: adult && typeof adult === 'object' ? adult : {},
     corruption: corruption,
+    affection: affection,
   };
 }
 
@@ -182,15 +200,12 @@ export function inferTypeForPath(path, label, ctx) {
   var name = String(label || leaf);
   var hint = FIELD_TYPE_HINTS[name] || FIELD_TYPE_HINTS[leaf];
   if (leaf === CORRUPTION_STATUS_LABEL || name === CORRUPTION_STATUS_LABEL) {
-    var stages = (ctx && ctx.stageNames) || [];
-    var sample = (ctx && ctx.sample) || getCorruptionStatusSample(stages);
-    return {
-      type: 'enum',
-      options: stages.length ? stages.slice() : ['未触碰', '动摇', '越界', '沉沦', '彻底恶堕'],
-      initial: sample,
-      min: undefined,
-      max: undefined,
-    };
+    // 恶堕进度数值化：0-100，档位由数值映射到阶段表（不存枚举）
+    return { type: 'number', options: [], initial: 0, min: 0, max: 100 };
+  }
+  if (leaf === AFFECTION_STATUS_LABEL || name === AFFECTION_STATUS_LABEL) {
+    // 纯爱线亲密度：0-100 数值，档位映射见「亲密关系总则」
+    return { type: 'number', options: [], initial: 30, min: 0, max: 100 };
   }
   if (hint) {
     return {
@@ -210,7 +225,10 @@ export function inferTypeForPath(path, label, ctx) {
 function defaultUpdateHint(path, type) {
   var leaf = leafName(path);
   if (leaf === CORRUPTION_STATUS_LABEL) {
-    return '仅在剧情有明确诱因与心理代价时按阶段表递进；禁止跳阶与儿童性化';
+    return '0-100 单向递增；仅在剧情有事件锚点（破窗/合理化/共犯/污名/沉溺）与心理代价时按「恶堕进度总则」推进，禁止凭空上涨';
+  }
+  if (leaf === AFFECTION_STATUS_LABEL) {
+    return '0-100 可双向波动；升档需里程碑事件（深谈/共历/告白/守护/交托），降档需冲突/背叛/冷落，禁止凭空增减';
   }
   if (leaf === '同意边界') {
     return '对方明确表态、安全词或场景切换时更新；未确认前不得推进亲密情节';
@@ -234,6 +252,7 @@ function pathToModuleId(path) {
     信任: 'trust',
     关系阶段: 'relation_stage',
     恶堕进度: 'corruption_stage',
+    亲密度: 'affection_stage',
     情绪: 'emotion',
     行动: 'action',
     着装: 'outfit',
@@ -301,6 +320,10 @@ function resolveInferContext(n) {
   if (n.corruption.enabled) {
     moduleFlags.corruption_stage = true;
     nsfw = true;
+  }
+
+  if (n.affection.enabled) {
+    moduleFlags.affection_stage = true;
   }
 
   // 多人无勾选人物时：用恶堕选中名或世界书人物补齐

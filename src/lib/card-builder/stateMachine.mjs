@@ -191,6 +191,13 @@ export function createCardStateMachine(state) {
     state.corruptionSelectedNames = Array.isArray(d.corruptionSelectedNames) ? d.corruptionSelectedNames.slice() : [];
     state.corruptionDefaultFemaleOnly = d.corruptionDefaultFemaleOnly !== false;
     state.corruptionSyncStatusBar = d.corruptionSyncStatusBar !== false;
+    state.affectionEnabled = !!d.affectionEnabled;
+    state.affectionPreset = d.affectionPreset || '6';
+    state.affectionCustomBrief = d.affectionCustomBrief || '';
+    state.affectionExtraNotes = d.affectionExtraNotes || '';
+    state.affectionStageNames = Array.isArray(d.affectionStageNames) ? d.affectionStageNames.slice() : [];
+    state.affectionSelectedNames = Array.isArray(d.affectionSelectedNames) ? d.affectionSelectedNames.slice() : [];
+    state.affectionSyncStatusBar = d.affectionSyncStatusBar !== false;
     state.characterVersion = String(d.characterVersion != null ? d.characterVersion : '1.0').trim() || '1.0';
     state.versions = Array.isArray(d.versions) ? d.versions : [];
     state.updatedAt = d.updatedAt || '';
@@ -231,6 +238,13 @@ export function createCardStateMachine(state) {
     state.corruptionSelectedNames = [];
     state.corruptionDefaultFemaleOnly = true;
     state.corruptionSyncStatusBar = true;
+    state.affectionEnabled = false;
+    state.affectionPreset = '6';
+    state.affectionCustomBrief = '';
+    state.affectionExtraNotes = '';
+    state.affectionStageNames = [];
+    state.affectionSelectedNames = [];
+    state.affectionSyncStatusBar = true;
     state.characterVersion = '1.0';
     state.versions = [];
   }

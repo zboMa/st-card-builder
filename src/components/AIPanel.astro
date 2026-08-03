@@ -10,6 +10,7 @@ import AiEngineModal from './AiEngineModal.astro';
     <button type="button" class="ui-tabs__tab ai-config-tab is-active" role="tab" aria-selected="true" data-ai-config-tab="api">API 配置</button>
     <button type="button" class="ui-tabs__tab ai-config-tab" role="tab" aria-selected="false" data-ai-config-tab="preset">酒馆预设</button>
     <button type="button" class="ui-tabs__tab ai-config-tab" role="tab" aria-selected="false" data-ai-config-tab="engine">AI 引擎</button>
+    <button type="button" class="ui-tabs__tab ai-config-tab" role="tab" aria-selected="false" data-ai-config-tab="image">生图</button>
   </div>
 
   <!-- Tab：API 配置（接口 / 密钥 / 模型 / 搜索） -->
@@ -176,6 +177,183 @@ import AiEngineModal from './AiEngineModal.astro';
     </div>
     <p class="ai-config-field-hint">小说向量检索（Embedding 模型、RAG 开关）已移至「API 配置」Tab 的 <strong>Embedding / RAG 向量</strong> 区块。</p>
   </div>
+
+  <!-- Tab：生图（服务商配置；仅存储，调用入口后续） -->
+  <div class="ai-config-pane" role="tabpanel" data-ai-config-pane="image" hidden>
+    <div id="imgConfigBlock" class="img-config-block">
+      <p class="ai-config-field-hint img-config-intro">
+        配置生图服务商与参数（仅保存配置）。接入生成按钮 / 队列在后续版本提供。
+      </p>
+      <div class="form-group" style="margin-bottom:10px;">
+        <label for="imgProviderSelect">生图服务商</label>
+        <select id="imgProviderSelect" style="width:100%;">
+          <option value="openai">OpenAI（DALL·E / gpt-image）</option>
+          <option value="dashscope">通义万相（DashScope）</option>
+          <option value="zhipu">智谱 CogView</option>
+          <option value="siliconflow">硅基流动 SiliconFlow</option>
+          <option value="grok">Grok（xAI）</option>
+          <option value="nanobanana">nano banana</option>
+          <option value="ark">火山引擎 / 豆包 Seedream</option>
+          <option value="stability">Stability（官方 API）</option>
+          <option value="comfyui">ComfyUI（自建）</option>
+          <option value="custom">自定义（OpenAI 兼容）</option>
+        </select>
+        <p id="imgProviderHint" class="ai-config-field-hint"></p>
+      </div>
+
+      <!-- 兼容系（OpenAI 兼容 + Ark 共用面板） -->
+      <div id="imgCompatiblePanel">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%;margin-bottom:10px;">
+          <div class="form-group" style="margin-bottom:0;">
+            <label for="imgBaseUrl">API 接口地址</label>
+            <input type="text" id="imgBaseUrl" placeholder="https://..." style="width:100%;" />
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label for="imgApiKey">API 密钥</label>
+            <input type="password" id="imgApiKey" placeholder="sk-..." style="width:100%;" />
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:10px;">
+          <label for="imgModelInput">生图模型</label>
+          <input type="text" id="imgModelInput" list="imgModelList" placeholder="选择或输入模型名..." style="width:100%;" />
+          <datalist id="imgModelList"></datalist>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;width:100%;margin-bottom:10px;">
+          <div class="form-group" style="margin-bottom:0;">
+            <label for="imgSize">图片尺寸</label>
+            <select id="imgSize" style="width:100%;">
+              <option value="1024x1024">1:1 1024×1024</option>
+              <option value="832x1216">3:4 832×1216</option>
+              <option value="1216x832">4:3 1216×832</option>
+              <option value="768x1344">9:16 768×1344</option>
+              <option value="1344x768">16:9 1344×768</option>
+              <option value="512x512">小图 512×512</option>
+              <option value="custom">自定义尺寸</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label for="imgCount">数量</label>
+            <select id="imgCount" style="width:100%;">
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label for="imgQuality">质量</label>
+            <select id="imgQuality" style="width:100%;">
+              <option value="low">低</option>
+              <option value="medium" selected>中</option>
+              <option value="high">高</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:0;display:none;" id="imgSizeCustomWrap">
+          <label for="imgSizeCustom">自定义尺寸（宽x高，如 896x1344）</label>
+          <input type="text" id="imgSizeCustom" placeholder="896x1344" style="width:100%;" />
+        </div>
+      </div>
+
+      <!-- Stability 官方 API -->
+      <div id="imgStabPanel" style="display:none;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%;margin-bottom:10px;">
+          <div class="form-group" style="margin-bottom:0;">
+            <label for="imgStabApiKey">API 密钥</label>
+            <input type="password" id="imgStabApiKey" placeholder="sk-..." style="width:100%;" />
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label for="imgStabModel">生图模型</label>
+            <input type="text" id="imgStabModel" list="imgStabModelList" placeholder="stable-image-core" style="width:100%;" />
+            <datalist id="imgStabModelList"></datalist>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;width:100%;margin-bottom:10px;">
+          <div class="form-group" style="margin-bottom:0;">
+            <label for="imgStabSize">图片尺寸</label>
+            <select id="imgStabSize" style="width:100%;">
+              <option value="1024x1024">1:1 1024×1024</option>
+              <option value="832x1216">3:4 832×1216</option>
+              <option value="1216x832">4:3 1216×832</option>
+              <option value="768x1344">9:16 768×1344</option>
+              <option value="1344x768">16:9 1344×768</option>
+              <option value="512x512">小图 512×512</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label for="imgStabCount">数量</label>
+            <select id="imgStabCount" style="width:100%;">
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label for="imgStabSteps">步数</label>
+            <input type="number" id="imgStabSteps" value="30" min="1" max="150" style="width:100%;" />
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label for="imgStabNegative">负面提示词</label>
+          <input type="text" id="imgStabNegative" placeholder="nsfw, lowres, blurry..." style="width:100%;" />
+        </div>
+      </div>
+
+      <!-- ComfyUI 自建 -->
+      <div id="imgComfyPanel" style="display:none;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%;margin-bottom:10px;">
+          <div class="form-group" style="margin-bottom:0;">
+            <label for="imgComfyServerUrl">服务器地址</label>
+            <input type="text" id="imgComfyServerUrl" placeholder="http://127.0.0.1:8188" style="width:100%;" />
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label for="imgComfyApiKey">访问密钥（可选）</label>
+            <input type="password" id="imgComfyApiKey" placeholder="留空则无鉴权" style="width:100%;" />
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:10px;">
+          <label>工作流 JSON 文件</label>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <label class="btn btn-panel-tool" for="imgComfyUpload" style="margin:0;">上传 JSON</label>
+            <input type="file" id="imgComfyUpload" accept=".json,application/json" hidden />
+            <button type="button" id="imgComfyDetect" class="btn btn-panel-tool" style="margin:0;" title="解析当前工作流 JSON 文本并自动填入节点 id">自动识别节点</button>
+          </div>
+          <p class="ai-config-field-hint">上传 ComfyUI 导出的 workflow JSON（UI 或 API 格式均可）自动载入；或粘贴后点「自动识别节点」。</p>
+          <p id="imgComfyDetectHint" class="ai-config-field-hint" aria-live="polite"></p>
+        </div>
+        <div class="form-group" style="margin-bottom:10px;">
+          <label for="imgComfyWorkflow">工作流 JSON</label>
+          <textarea id="imgComfyWorkflow" rows="8" placeholder='粘贴 ComfyUI 导出的 workflow.json（API 格式，可在 ComfyUI 界面「Save (API Format)」导出）' style="width:100%;resize:vertical;font-family:ui-monospace,monospace;font-size:0.7rem;"></textarea>
+          <p class="ai-config-field-hint">提交时会把提示词节点文本替换为生成请求的提示词。请填对节点 id。</p>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%;margin-bottom:10px;">
+          <div class="form-group" style="margin-bottom:0;">
+            <label for="imgComfyWorkflowName">工作流名称（可选）</label>
+            <input type="text" id="imgComfyWorkflowName" placeholder="人物立绘 v1" style="width:100%;" />
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label for="imgComfyPromptNodeId">正向提示词节点 id</label>
+            <input type="text" id="imgComfyPromptNodeId" value="6" style="width:100%;" />
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%;margin-bottom:10px;">
+          <div class="form-group" style="margin-bottom:0;">
+            <label for="imgComfyNegativeNodeId">负面提示词节点 id</label>
+            <input type="text" id="imgComfyNegativeNodeId" value="7" style="width:100%;" />
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label for="imgComfyOutputNodeId">输出节点 id</label>
+            <input type="text" id="imgComfyOutputNodeId" value="9" style="width:100%;" />
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label for="imgComfyDefaultPrompt">默认正向提示词</label>
+          <input type="text" id="imgComfyDefaultPrompt" placeholder="1girl, portrait, detailed..." style="width:100%;" />
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <AiEngineModal />
@@ -198,6 +376,16 @@ import AiEngineModal from './AiEngineModal.astro';
     color: var(--color-text-muted);
     margin: 0 0 12px;
     line-height: 1.5;
+  }
+  /* 生图配置块：inset 卡片 */
+  .img-config-block {
+    background: var(--color-surface-inset);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-md);
+    padding: 14px;
+  }
+  .img-config-intro {
+    margin: 0 0 12px;
   }
   .ai-config-field-hint {
     font-size: 0.68rem;

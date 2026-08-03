@@ -108,12 +108,6 @@ export function attachAiEngineBind(ctx, s, panel) {
       s.syncEngineModeUi();
 
       // 单条世界书按钮由 worldbook.bind 独占（避免双绑定）
-
-      var btnAiGenCharTags = ctx.$('btnAiGenCharTags');
-      if (btnAiGenCharTags) {
-        btnAiGenCharTags.addEventListener('click', function() {
-          ctx.panels.aiEngine.runCharTagsGen();
-        });
-      }
+      // 角色标签 AI 生成由 character.mjs 独占绑定（避免双触发与按钮状态交错）
   };
 }

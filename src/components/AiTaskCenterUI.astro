@@ -20,6 +20,21 @@
   </div>
 </div>
 
+<!-- 任务详情弹窗 -->
+<div id="aiTaskDetailModal" class="ai-task-modal" hidden aria-hidden="true">
+  <div class="ai-task-modal-backdrop" data-ai-task-detail-close></div>
+  <div class="ai-task-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="aiTaskDetailTitle">
+    <div class="ai-task-modal-head">
+      <strong id="aiTaskDetailTitle">任务详情</strong>
+      <button type="button" class="ai-task-modal-x" data-ai-task-detail-close aria-label="关闭">×</button>
+    </div>
+    <div id="aiTaskDetailBody" class="ai-task-detail-body"></div>
+    <div class="ai-task-modal-actions">
+      <button type="button" class="btn ai-task-btn" data-ai-task-detail-close>关闭</button>
+    </div>
+  </div>
+</div>
+
 <style is:global>
   .app-title-row {
     display: flex;
@@ -139,6 +154,59 @@
     color: var(--color-text-secondary);
     font-weight: 600;
   }
+  button.ai-task-item-title {
+    text-align: left;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    color: var(--color-accent-hover);
+  }
+  button.ai-task-item-title:hover {
+    text-decoration: underline;
+  }
+  .ai-task-detail-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 16px;
+    min-height: 120px;
+  }
+  .ai-task-detail-field {
+    font-size: 12px;
+    color: var(--color-text-muted);
+    margin-bottom: 10px;
+    line-height: 1.6;
+    word-break: break-all;
+  }
+  .ai-task-detail-field b {
+    color: var(--color-text-secondary);
+    font-weight: 600;
+  }
+  .ai-task-detail-pre {
+    margin: 0;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    background: var(--color-surface-inset);
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: var(--color-text-secondary);
+    max-height: 46vh;
+    overflow-y: auto;
+  }
+  .ai-task-modal-x {
+    background: none;
+    border: none;
+    color: var(--color-text-muted);
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 2px;
+  }
+  .ai-task-modal-x:hover { color: var(--color-text); }
   .ai-task-item-meta {
     font-size: 11px;
     color: var(--color-text-muted);
@@ -272,7 +340,7 @@
         var err = t.error ? (' · ' + t.error) : '';
         var target = t.target ? (' · ' + t.target) : '';
         return '<div class="ai-task-item' + (t.status === 'running' ? ' is-running' : '') + '" data-task-id="' + t.id + '">'
-          + '<div class="ai-task-item-title">' + escapeHtml(t.title) + '</div>'
+          + '<button type="button" class="ai-task-item-title" data-ai-task-detail="' + t.id + '">' + escapeHtml(t.title) + '</button>'
           + '<div class="ai-task-item-status st-' + t.status + '">' + (STATUS_LABEL[t.status] || t.status) + '</div>'
           + '<div class="ai-task-item-meta">'
           + escapeHtml(t.typeLabel || t.type)
@@ -292,6 +360,51 @@
           center.cancel(btn.getAttribute('data-ai-task-stop'));
         });
       });
+      listEl.querySelectorAll('[data-ai-task-detail]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          openDetail(btn.getAttribute('data-ai-task-detail'));
+        });
+      });
+    }
+
+    function openDetail(id) {
+      var t = center.get(id);
+      var modal = $('aiTaskDetailModal');
+      if (!modal || !t) return;
+      if (!modal._aiTaskHome) modal._aiTaskHome = modal.parentNode;
+      document.body.appendChild(modal);
+      var titleEl = $('aiTaskDetailTitle');
+      if (titleEl) titleEl.textContent = t.title || '任务详情';
+      var bodyEl = $('aiTaskDetailBody');
+      if (!bodyEl) return;
+      var meta = [
+        ['类型', t.typeLabel || t.type],
+        ['状态', STATUS_LABEL[t.status] || t.status],
+        ['目标', t.target],
+        ['创建', fmtTime(t.createdAt)],
+        ['开始', fmtTime(t.startedAt)],
+        ['结束', fmtTime(t.endedAt)],
+        ['进度', t.progressText || (t.progress != null ? Math.round(t.progress * 100) + '%' : '')],
+        ['错误', t.error],
+      ].filter(function(r) { return r[1] != null && String(r[1]).length; }).map(function(r) {
+        return '<div class="ai-task-detail-field"><b>' + escapeHtml(r[0]) + '：</b>' + escapeHtml(r[1]) + '</div>';
+      }).join('');
+      var detailHtml = t.detail
+        ? '<pre class="ai-task-detail-pre">' + escapeHtml(t.detail) + '</pre>'
+        : '<div class="ai-task-empty">该任务未记录详情（暂无 prompt 信息）</div>';
+      bodyEl.innerHTML = meta + detailHtml;
+      modal.hidden = false;
+      modal.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeDetail() {
+      var modal = $('aiTaskDetailModal');
+      if (!modal) return;
+      modal.hidden = true;
+      modal.setAttribute('aria-hidden', 'true');
+      if (modal._aiTaskHome && modal.parentNode !== modal._aiTaskHome) {
+        modal._aiTaskHome.appendChild(modal);
+      }
     }
 
     function escapeHtml(s) {
@@ -331,10 +444,20 @@
         if (stopAll) stopAll.addEventListener('click', function() { center.cancelAllRunning(); });
         var clearDone = $('aiTaskClearDone');
         if (clearDone) clearDone.addEventListener('click', function() { center.clearFinished(); });
-        document.addEventListener('keydown', function(e) {
-          if (e.key === 'Escape' && modal && !modal.hidden) closeModal();
+      }
+      var detailModal = $('aiTaskDetailModal');
+      if (detailModal && !detailModal._bound) {
+        detailModal._bound = true;
+        detailModal.querySelectorAll('[data-ai-task-detail-close]').forEach(function(el) {
+          el.addEventListener('click', closeDetail);
         });
       }
+      document.addEventListener('keydown', function(e) {
+        if (e.key !== 'Escape') return;
+        var dm = $('aiTaskDetailModal');
+        if (dm && !dm.hidden) { closeDetail(); return; }
+        if (modal && !modal.hidden) closeModal();
+      });
     }
 
     center.subscribe(function(snap) {

@@ -8,7 +8,14 @@ import {
   DEFAULT_CORRUPTION_PRESET,
   resolveStageNames,
 } from '../../corruptionProgress.mjs';
+import {
+  buildAffectionExportIssues,
+  AFFECTION_PRESETS,
+  DEFAULT_AFFECTION_PRESET,
+  resolveAffectionStageNames,
+} from '../../affectionProgress.mjs';
 import { buildAdultCanonDigest } from '../../adult/canon.mjs';
+import { enhanceSelectMini, syncEnhancedSelectLabel } from '../../ui/enhanceSelectMini.mjs';
 import {
   normalizeWorldviewPresetItems,
   primaryWorldviewPresetId,
@@ -60,6 +67,13 @@ export function attachAdultConfigBind(ctx, s, panel) {
           corruptionSelectedNames: corr.selectedNames.slice(),
           corruptionDefaultFemaleOnly: corr.defaultFemaleOnly,
           corruptionSyncStatusBar: corr.syncStatusBar,
+          affectionEnabled: ctx.state.affectionEnabled,
+          affectionPreset: ctx.state.affectionPreset || '6',
+          affectionCustomBrief: ctx.state.affectionCustomBrief || '',
+          affectionExtraNotes: ctx.state.affectionExtraNotes || '',
+          affectionStageNames: Array.isArray(ctx.state.affectionStageNames) ? ctx.state.affectionStageNames.slice() : [],
+          affectionSelectedNames: Array.isArray(ctx.state.affectionSelectedNames) ? ctx.state.affectionSelectedNames.slice() : [],
+          affectionSyncStatusBar: ctx.state.affectionSyncStatusBar !== false,
         };
       };
       window.__setNsfwConfig__ = function(cfg) {
@@ -132,6 +146,27 @@ export function attachAdultConfigBind(ctx, s, panel) {
         if (cfg && typeof cfg.corruptionSyncStatusBar === 'boolean') {
           ctx.state.corruptionSyncStatusBar = cfg.corruptionSyncStatusBar;
         }
+        if (cfg && typeof cfg.affectionEnabled === 'boolean') ctx.state.affectionEnabled = cfg.affectionEnabled;
+        if (cfg && typeof cfg.affectionExtraNotes === 'string') ctx.state.affectionExtraNotes = cfg.affectionExtraNotes;
+        if (cfg && Array.isArray(cfg.affectionSelectedNames)) ctx.state.affectionSelectedNames = cfg.affectionSelectedNames.slice();
+        if (cfg && (typeof cfg.affectionPreset === 'string'
+          || typeof cfg.affectionCustomBrief === 'string'
+          || Array.isArray(cfg.affectionStageNames))) {
+          if (typeof cfg.affectionPreset === 'string') {
+            ctx.state.affectionPreset = cfg.affectionPreset;
+            if (!AFFECTION_PRESETS[ctx.state.affectionPreset]) ctx.state.affectionPreset = DEFAULT_AFFECTION_PRESET;
+          }
+          if (typeof cfg.affectionCustomBrief === 'string') ctx.state.affectionCustomBrief = cfg.affectionCustomBrief;
+          if (Array.isArray(cfg.affectionStageNames)) ctx.state.affectionStageNames = cfg.affectionStageNames.slice();
+          ctx.state.affectionStageNames = resolveAffectionStageNames(
+            ctx.state.affectionPreset,
+            ctx.state.affectionStageNames,
+            ctx.state.affectionCustomBrief
+          );
+        }
+        if (cfg && typeof cfg.affectionSyncStatusBar === 'boolean') {
+          ctx.state.affectionSyncStatusBar = cfg.affectionSyncStatusBar;
+        }
         // 恶堕是 NSFW 子功能：开启恶堕而 NSFW 关闭时自动补齐，避免不一致状态
         if (ctx.state.corruptionEnabled && !ctx.state.nsfwEnabled) {
           ctx.state.nsfwEnabled = true;
@@ -149,11 +184,21 @@ export function attachAdultConfigBind(ctx, s, panel) {
       window.__generateCorruptionLore__ = function(o) {
         return ctx.panels.adultConfig.runGenerateCorruptionLore(o || {});
       };
+      window.__generateAffectionLore__ = function(o) {
+        return ctx.panels.adultConfig.runGenerateAffectionLore(o || {});
+      };
       window.__getCorruptionExportIssues__ = function() {
         return buildCorruptionExportIssues({
           enabled: !!(ctx.state.nsfwEnabled && ctx.state.corruptionEnabled),
           worldbookEntries: ctx.state.worldbookEntries,
           selectedNames: ctx.state.corruptionSelectedNames,
+        });
+      };
+      window.__getAffectionExportIssues__ = function() {
+        return buildAffectionExportIssues({
+          enabled: !!ctx.state.affectionEnabled,
+          worldbookEntries: ctx.state.worldbookEntries,
+          selectedNames: ctx.state.affectionSelectedNames,
         });
       };
       // 兼容旧桥：世界书生成仍可读（含成人 Canon 联动）
@@ -324,6 +369,7 @@ export function attachAdultConfigBind(ctx, s, panel) {
 
       var wfRefresh = document.getElementById('btnAdultWorldframeRefresh');
       var wfSelect = document.getElementById('adultWorldframeSelect');
+      enhanceSelectMini(wfSelect);
       if (wfRefresh) {
         wfRefresh.addEventListener('click', async function() {
           if (!(await s.confirmAdultOp({
@@ -409,6 +455,7 @@ export function attachAdultConfigBind(ctx, s, panel) {
 
       var corrEnabled = document.getElementById('adultCorruptionEnabled');
       var corrPreset = document.getElementById('adultCorruptionPreset');
+      enhanceSelectMini(corrPreset);
       var corrBrief = document.getElementById('adultCorruptionCustomBrief');
       var corrExtra = document.getElementById('adultCorruptionExtraNotes');
       var corrFemale = document.getElementById('adultCorruptionFemaleOnly');
@@ -438,6 +485,7 @@ export function attachAdultConfigBind(ctx, s, panel) {
         ctx.panels.adultConfig.syncCorruptionBlockFromUi({ skipRender: true });
       });
       var corrArc = document.getElementById('adultCorruptionArcBrief');
+      enhanceSelectMini(corrArc);
       if (corrArc) {
         corrArc.addEventListener('change', function() {
           var id = corrArc.value || '';
@@ -446,7 +494,10 @@ export function attachAdultConfigBind(ctx, s, panel) {
             corrBrief.value = pack.brief || '';
             ctx.state.corruptionPreset = 'custom';
             var presetEl = document.getElementById('adultCorruptionPreset');
-            if (presetEl) presetEl.value = 'custom';
+            if (presetEl) {
+              presetEl.value = 'custom';
+              syncEnhancedSelectLabel(presetEl);
+            }
           }
           s.withAppScrollPreserved(function() {
             ctx.panels.adultConfig.syncCorruptionBlockFromUi();
@@ -473,6 +524,55 @@ export function attachAdultConfigBind(ctx, s, panel) {
         corrTargets.addEventListener('change', function(e) {
           if (!e.target || !e.target.matches('[data-corruption-target]')) return;
           ctx.state.corruptionSelectedNames = ctx.panels.adultConfig.readSelectedCorruptionNames();
+          ctx.save();
+        });
+      }
+
+      // ---- 纯爱线（亲密度） ----
+      var affEnabled = document.getElementById('adultAffectionEnabled');
+      var affPreset = document.getElementById('adultAffectionPreset');
+      enhanceSelectMini(affPreset);
+      var affBrief = document.getElementById('adultAffectionCustomBrief');
+      var affExtra = document.getElementById('adultAffectionExtraNotes');
+      var affSync = document.getElementById('adultAffectionSyncSb');
+      var affRefresh = document.getElementById('btnRefreshAffectionTargets');
+      if (affEnabled) affEnabled.addEventListener('change', async function() {
+        var on = !!affEnabled.checked;
+        if (!(await s.confirmAdultOp(on
+          ? '启用纯爱线（亲密度）？将显示档位与档案生成配置。'
+          : '关闭纯爱线？已生成内容仍保留在世界书中。'))) {
+          affEnabled.checked = !on;
+          return;
+        }
+        s.withAppScrollPreserved(function() {
+          ctx.panels.adultConfig.syncAffectionBlockFromUi();
+        });
+      });
+      if (affPreset) affPreset.addEventListener('change', function() {
+        s.withAppScrollPreserved(function() {
+          ctx.panels.adultConfig.syncAffectionBlockFromUi();
+        });
+      });
+      if (affBrief) affBrief.addEventListener('change', function() {
+        ctx.panels.adultConfig.syncAffectionBlockFromUi({ skipRender: true });
+      });
+      if (affExtra) affExtra.addEventListener('change', function() {
+        ctx.panels.adultConfig.syncAffectionBlockFromUi({ skipRender: true });
+      });
+      if (affSync) affSync.addEventListener('change', function() {
+        ctx.panels.adultConfig.syncAffectionBlockFromUi({ skipRender: true });
+      });
+      if (affRefresh) affRefresh.addEventListener('click', function() {
+        s.withAppScrollPreserved(function() {
+          ctx.panels.adultConfig.renderAffectionTargets();
+        });
+        ctx.panels.adultConfig.setAffectionTip('已刷新角色列表', 'ok');
+      });
+      var affTargets = document.getElementById('adultAffectionTargets');
+      if (affTargets) {
+        affTargets.addEventListener('change', function(e) {
+          if (!e.target || !e.target.matches('[data-affection-target]')) return;
+          ctx.state.affectionSelectedNames = ctx.panels.adultConfig.readSelectedAffectionNames();
           ctx.save();
         });
       }

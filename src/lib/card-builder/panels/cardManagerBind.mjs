@@ -6,6 +6,7 @@ import { buildExportChecklist } from '../exportChecklist.mjs';
 import { buildCardJSONFromDraft, draftDisplayName } from '../state.mjs';
 import { getCardShareMeta } from '../cardShareClient.mjs';
 import { engineTryAllowed } from '../../actionEngine/helpers.mjs';
+import { hydrateDraftsStore } from '../../draftsStore.mjs';
 
 /** @param {object} ctx @param {object} s @param {object} panel */
 export function attachCardManagerBind(ctx, s, panel) {
@@ -207,44 +208,34 @@ export function attachCardManagerBind(ctx, s, panel) {
       });
     }
 
-    var cardMgrCloudPullPromise = null;
-    function refreshCardManagerCloudIndex() {
-      if (cardMgrCloudPullPromise) return cardMgrCloudPullPromise;
-      cardMgrCloudPullPromise = import('../../sync/index.mjs').then(function(sync) {
-        if (sync.ensureCardCloudIndex) {
-          return sync.ensureCardCloudIndex({ force: true });
+    // 进入角色卡管理：唯一入口单流程。
+    // 数据在 boot 时已就绪（browserApp st-idb-ready 已 hydrate 本地 + 拉云端索引）：
+    // 这里只「等已有的加载完成 → 渲染一次」，绝不重复拉取。
+    var cardMgrEnterPromise = null;
+    panel.enterCardManagerView = function () {
+      if (cardMgrEnterPromise) return cardMgrEnterPromise;
+      cardMgrEnterPromise = (async function () {
+        try {
+          await s.ensureIdbReady();
+          await hydrateDraftsStore();
+          try {
+            var sync = await import('../../sync/index.mjs');
+            if (sync.ensureCardCloudIndex) await sync.ensureCardCloudIndex();
+          } catch (eIdx) {
+            console.warn('[card-manager] cloud index', eIdx);
+          }
+          if (s.getCurrentAppView() === 'card-manager') panel.updateCardManagerUI();
+        } finally {
+          cardMgrEnterPromise = null;
         }
-        if (!sync.isCloudEnabled || !sync.isCloudEnabled()) return null;
-        var pull = function() { return sync.pullCloudCardIndexAndMerge(); };
-        if (sync.fetchSyncCredentials) {
-          return sync.fetchSyncCredentials().catch(function() {}).then(pull);
-        }
-        return pull();
-      }).catch(function(e) {
-        console.warn('[card-manager] cloud index pull', e);
-        return null;
-      }).finally(function() {
-        cardMgrCloudPullPromise = null;
-      });
-      return cardMgrCloudPullPromise;
-    }
+      })();
+      return cardMgrEnterPromise;
+    };
 
-    function onCardManagerView() {
-      refreshCardManagerCloudIndex().finally(function() {
-        panel.updateCardManagerUI();
-      });
-    }
-
-    // Hash change / view switch → 拉云端索引后刷新列表（云+本地统一视图）
-    window.addEventListener('hashchange', function () {
-      if (s.getCurrentAppView() === 'card-manager') onCardManagerView();
-    });
+    // 进入管理页唯一信号源：app-view-changed（hashchange / 首屏初始视图已由 AppSidebar 收敛到它）
     window.addEventListener('app-view-changed', function (ev) {
       var view = ev && ev.detail && ev.detail.view;
-      if (view === 'card-manager') onCardManagerView();
-    });
-    window.addEventListener('st-idb-ready', function () {
-      if (s.getCurrentAppView() === 'card-manager') onCardManagerView();
+      if (view === 'card-manager') panel.enterCardManagerView();
     });
 
     // 关页 / 切后台：冲掉双路径 debounce，避免丢最后一次编辑

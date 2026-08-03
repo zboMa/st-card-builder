@@ -8,6 +8,7 @@ import {
   ensureCardCloudIndex,
 } from '../../sync/cardCloudIndex.mjs';
 import { getDraftsMapSync } from '../../draftsStore.mjs';
+import { countTokens, formatTokenCount } from '../../tokenStats.mjs';
 export function registerCharacter(ctx) {
   var escapeHtml = ctx.escapeHtml;
   var charTagsList, charTagInput, btnAddCharTag, btnAiGenCharTags, charTagsAiTip;
@@ -103,6 +104,18 @@ export function registerCharacter(ctx) {
 
   ctx.panels.character = {
 
+    /** AI 生图产物：dataUrl → 头像（复用上传保存链路） */
+    applyAvatarDataUrl: function(dataUrl) {
+      return new Promise(function(resolve, reject) {
+        var img = new Image();
+        img.onload = function() {
+          applyAvatarFromImage(img).then(resolve, reject);
+        };
+        img.onerror = function() { reject(new Error('图片加载失败')); };
+        img.src = dataUrl;
+      });
+    },
+
     renderCharTags: function() {
       if (!charTagsList) return;
       ctx.state.charTags = normalizeTags(ctx.state.charTags);
@@ -165,11 +178,39 @@ export function registerCharacter(ctx) {
 
 
       function onEditableFieldInput() {
+        scheduleCharacterTokens();
         if (ctx.panels.cardManager && ctx.panels.cardManager.debouncedUpdateAndSave) {
           ctx.panels.cardManager.debouncedUpdateAndSave();
         } else {
           ctx.save();
         }
+      }
+
+      var charTokTimer = null;
+      function refreshCharacterTokens() {
+        function setFieldTok(id, text) {
+          var el = ctx.$(id);
+          if (!el) return 0;
+          var n = countTokens(String(text == null ? '' : text));
+          el.textContent = formatTokenCount(n) + ' tok';
+          el.title = n + ' tokens';
+          return n;
+        }
+        var sum = 0;
+        sum += setFieldTok('charDescTok', (ctx.$('charDesc') || {}).value);
+        sum += setFieldTok('creatorNotesTok', (ctx.$('creatorNotes') || {}).value);
+        sum += countTokens((ctx.$('charName') || {}).value || '');
+        sum += countTokens((ctx.$('wbName') || {}).value || '');
+        sum += countTokens((ctx.state.charTags || []).join(' '));
+        var totalEl = ctx.$('charTokenCount');
+        if (totalEl) {
+          totalEl.textContent = formatTokenCount(sum) + ' tok';
+          totalEl.title = sum + ' tokens';
+        }
+      }
+      function scheduleCharacterTokens() {
+        if (charTokTimer) clearTimeout(charTokTimer);
+        charTokTimer = setTimeout(refreshCharacterTokens, 200);
       }
 
       // 字段输入 → 同步 DOM、debounce 存盘并刷新卡管理列表
@@ -311,8 +352,18 @@ export function registerCharacter(ctx) {
         });
       }
 
+      // 头像 AI 生图：弹窗点选后复用 applyAvatarDataUrl 保存
+      window.__characterApplyAvatarDataUrl__ = function(dataUrl) {
+        return ctx.panels.character.applyAvatarDataUrl(dataUrl);
+      };
+
       // 初始渲染
       ctx.panels.character.renderCharTags();
+      scheduleCharacterTokens();
+
+      // 切卡/切换面板时重算字段 token
+      window.addEventListener('card-draft-changed', scheduleCharacterTokens);
+      window.addEventListener('app-view-changed', scheduleCharacterTokens);
 
       // 预览更新监听：保存后更新预览面板
       ctx.sm.on(function() {

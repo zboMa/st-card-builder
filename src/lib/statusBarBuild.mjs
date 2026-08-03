@@ -426,7 +426,8 @@ export function buildPlaceholderPaths(opts) {
     if (flags.affection) push(prefix + '.好感度', '好感', group, '42', role);
     if (flags.trust) push(prefix + '.信任', '信任', group, '30', role);
     if (flags.relation_stage) push(prefix + '.关系阶段', '关系', group, '熟人', role);
-    if (flags.corruption_stage) push(prefix + '.恶堕进度', '恶堕进度', '亲密', '未触碰', role);
+    if (flags.corruption_stage) push(prefix + '.恶堕进度', '恶堕进度', '亲密', '0', role);
+    if (flags.affection_stage) push(prefix + '.亲密度', '亲密度', '亲密', '30', role);
     if (flags.attributes) {
       push(prefix + '.体力', '体力', '属性', '78', role);
       push(prefix + '.魔力', '魔力', '属性', '55', role);

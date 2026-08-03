@@ -5,6 +5,32 @@
 import { escapeHtml } from '../../utils.mjs';
 import { showConfirmDialog } from '../../ui/confirmDialog.mjs';
 
+/**
+ * 从各家 usage 中提取「prompt 前缀缓存命中」信息（仅读取，不做任何本地缓存）。
+ * - DeepSeek: prompt_cache_hit_tokens / prompt_cache_miss_tokens
+ * - OpenAI 系: prompt_tokens_details.cached_tokens
+ * - 其它兼容系: cached_tokens
+ * @param {object} [usage]
+ * @returns {{ hit: number, miss: number, hitRatio: number|null }}
+ */
+export function promptCacheUsageSummary(usage) {
+  if (!usage || typeof usage !== 'object') return { hit: 0, miss: 0, hitRatio: null };
+  var hit = 0;
+  var miss = Number(usage.prompt_cache_miss_tokens) || 0;
+  if (usage.prompt_cache_hit_tokens != null) {
+    hit = Number(usage.prompt_cache_hit_tokens) || 0;
+  } else if (usage.prompt_tokens_details && usage.prompt_tokens_details.cached_tokens != null) {
+    hit = Number(usage.prompt_tokens_details.cached_tokens) || 0;
+  } else if (usage.cached_tokens != null) {
+    hit = Number(usage.cached_tokens) || 0;
+  }
+  if (!hit && !miss && usage.prompt_tokens != null) {
+    miss = Number(usage.prompt_tokens) || 0;
+  }
+  var hitRatio = hit + miss > 0 ? hit / (hit + miss) : null;
+  return { hit: hit, miss: miss, hitRatio: hitRatio };
+}
+
 export function createCardBuilderContext(sm) {
   var $ = function(id) { return document.getElementById(id); };
   var val = function(id) { var el = $(id); return el ? String(el.value || '').trim() : ''; };
@@ -279,11 +305,26 @@ export function createCardBuilderContext(sm) {
         throw new Error('AI 接口返回了非 JSON 响应');
       }
       var content = (((data || {}).choices || [])[0] || {}).message ? (((data || {}).choices || [])[0].message.content || '') : '';
+      // prompt 前缀缓存命中（DeepSeek/OpenAI 系自动缓存；仅统计展示，不建本地缓存）
+      var cache = promptCacheUsageSummary(data && data.usage);
+      if (cache.hit || cache.miss) {
+        window.__aiLastPromptCacheUsage__ = { hit: cache.hit, miss: cache.miss, ts: Date.now() };
+        ctx.logAIDebug('prompt_cache', {
+          context: opts.context || 'unknown',
+          hitTokens: cache.hit,
+          missTokens: cache.miss,
+          hitRatio: cache.hitRatio != null ? Number((cache.hitRatio * 100).toFixed(1)) : null,
+          detail: cache.hitRatio != null
+            ? ('缓存命中 ' + cache.hit + ' tok（' + (cache.hitRatio * 100).toFixed(1) + '%），未命中 ' + cache.miss + ' tok')
+            : '接口未返回缓存命中字段',
+        });
+      }
       ctx.logAIDebug('response', {
         context: opts.context || 'unknown',
         apiResponsePreview: ctx.safeDebugSlice(responseText),
         contentPreview: ctx.safeDebugSlice(content),
         usage: data && data.usage ? data.usage : null,
+        promptCache: cache,
         finishReason: (((data || {}).choices || [])[0] || {}).finish_reason || null
       });
       return { data: data, content: content };

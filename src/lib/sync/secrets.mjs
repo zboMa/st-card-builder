@@ -10,6 +10,7 @@ import {
   decryptJsonWithPassphrase,
   isEncryptedSecretsDoc,
 } from './secretCrypto.mjs';
+import { IMAGE_CONFIG_KEY } from '../aiConfig/imageConfig.mjs';
 
 export var AI_CONFIG_KEY = 'st_v3_builder_ai_config';
 export var SEARCH_CONFIG_KEY = 'st_v3_builder_search_config';
@@ -42,12 +43,14 @@ export function collectLocalApiConfigPackage() {
   if (novelRag && !ai.novelRag) ai.novelRag = novelRag;
 
   var searchConfig = parseJson(localStorage.getItem(SEARCH_CONFIG_KEY), null);
+  var imageConfig = parseJson(localStorage.getItem(IMAGE_CONFIG_KEY), null);
 
   return {
     v: 2,
     type: 'ai-api-config-package',
     aiConfig: ai,
     searchConfig: searchConfig && typeof searchConfig === 'object' ? searchConfig : null,
+    imageConfig: imageConfig && typeof imageConfig === 'object' ? imageConfig : null,
   };
 }
 
@@ -79,7 +82,13 @@ export function applyLocalApiConfigPackage(pkg) {
   if (search) {
     localStorage.setItem(SEARCH_CONFIG_KEY, JSON.stringify(search));
   }
-  return { aiConfig: ai, searchConfig: search };
+  if (pkg.imageConfig && typeof pkg.imageConfig === 'object') {
+    localStorage.setItem(IMAGE_CONFIG_KEY, JSON.stringify(pkg.imageConfig));
+    if (typeof window !== 'undefined' && typeof window.__setImageConfig__ === 'function') {
+      try { window.__setImageConfig__(pkg.imageConfig); } catch (e) { /* ignore */ }
+    }
+  }
+  return { aiConfig: ai, searchConfig: search, imageConfig: pkg.imageConfig || null };
 }
 
 export async function getSyncSecretsPref() {
@@ -108,7 +117,11 @@ export async function saveEncryptedAiSecretsLocal(passphrase) {
     data.aiConfig.url || data.aiConfig.key || data.aiConfig.model
     || data.aiConfig.embeddingApiKey || data.aiConfig.embeddingApiUrl
   );
-  if (!hasAny && !data.searchConfig) throw new Error('no_ai_config');
+  var imgHasAny = data.imageConfig && (
+    data.imageConfig.apiKey || data.imageConfig.comfyServerUrl
+    || data.imageConfig.stabApiKey || data.imageConfig.comfyApiKey
+  );
+  if (!hasAny && !data.searchConfig && !imgHasAny) throw new Error('no_ai_config');
   var enc = await encryptJsonWithPassphrase(data, passphrase);
   try {
     localStorage.setItem('st_v3_ai_secrets_enc_cache', JSON.stringify({

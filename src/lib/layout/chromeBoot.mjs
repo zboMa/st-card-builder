@@ -155,6 +155,11 @@ export function initLayoutChrome() {
             o.classList.remove('cs-active');
           });
           if (!opts.length) { activeIdx = -1; return; }
+          // idx < 0 表示「无 active 光标」：不清除已滚动定位，仅置空
+          if (idx < 0) {
+            activeIdx = -1;
+            return;
+          }
           activeIdx = ((idx % opts.length) + opts.length) % opts.length;
           opts[activeIdx].classList.add('cs-active');
           if (opts[activeIdx].scrollIntoView) {
@@ -183,7 +188,8 @@ export function initLayoutChrome() {
           });
           var empty = listBox.querySelector('.cs-empty');
           if (empty) empty.hidden = any;
-          setActive(any ? 0 : -1);
+          // 打开/搜索后默认不高亮第一条，仅键盘 ↑↓ 导航时才出现 active 光标
+          setActive(-1);
         }
 
         buildOptions();

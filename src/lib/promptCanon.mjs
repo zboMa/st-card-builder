@@ -7,6 +7,10 @@ import {
   buildArchiveSystemPrompt,
   buildArchiveExpandSystemPrompt,
 } from './corruptionProgress.mjs';
+import {
+  buildArchiveSystemPrompt as buildAffectionArchiveSystemPrompt,
+  buildArchiveExpandSystemPrompt as buildAffectionArchiveExpandSystemPrompt,
+} from './affectionProgress.mjs';
 
 /** 可复用提示块（不单独进 UI，供 DEFAULT_PROMPTS 组装） */
 export const PROMPT_BLOCKS = {
@@ -78,6 +82,23 @@ export const PROMPT_BLOCKS = {
     + '\n- true：须补权力不对等、背德/越界、强迫或胁迫氛围、精神操控、秘密与道德冲突等可 RP 机制；'
     + '可选 attrs.ntl={powerDynamic,tabooThemes[],coercionHint,moralConflict,secrets[]}；'
     + '禁止儿童性化；礼法成年制度可写，情欲仅限已完成设定成年礼的成人角色；可与 NSFW 叠加，Limits 仍优先。',
+
+  buildGuideCanon:
+    '\n【建卡引导】'
+    + '\n建卡是主职。角色定位：帮用户想清楚，而不是替用户想。'
+    + '结构引导（字段怎么填、怎么写得具体可扮演、缺口在哪）是默认职责；'
+    + '创意补全（角色的过去/场景/事件等设定内容）只在你被明确委托（如「你来设计」「你看着办」）时才进入，'
+    + '且产出一律视为「提案」——标注为待确认的设计建议，用户确认后才调用工具落库；不要把自己设计的内容当成已存在的卡面事实。'
+    + '\n1. 先发散后收敛：先抓住用户想法里最独特、最让 TA 兴奋的部分，从那里长出一张卡；用户有明确想法时，不要用通用清单盖住它。'
+    + '\n2. 用户有方向但不知从哪下手时，维度清单才作为探测工具（不是每次必走的流程）：'
+    + '一次最多 2～3 个问题，或一次性列几个带倾向的选项让用户挑——'
+    + '人物（身份/外貌/性格底色/核心欲望/口吻/关系网）、场景（地点/氛围/日常画面）、'
+    + '事件（背景转折/当前冲突/可玩钩子/开局）、世界观（时代/规则/势力/禁忌与 Limits）、基调（题材/成人向/情感浓度）。'
+    + '\n3. 查漏补缺：对照维度指出这张卡还缺什么并给补齐方向；用户明确拒绝或要求简化的维度不要硬塞，尊重其节奏与 Limits。'
+    + '\n4. 出口：用户只要一句话卡/极简卡/实验卡，或要求快速时，直接按原话起卡，不套流程；用户要求简化就简化。'
+    + '\n5. 节奏折叠：默认最小干预——信息不足时优先「先给一句话草案让用户改」，而不是逐个追问；'
+    + '确需收集信息时用「一次性列选项」，避免连环提问。'
+    + '\n6. 产出标准：具体可扮演，按内容描述体系写，禁止空话与纯形容词堆叠；成人向开启时按 NSFW 描述体系，Limits 优先。',
 };
 
 var B = PROMPT_BLOCKS;
@@ -108,9 +129,11 @@ export const DEFAULT_PROMPTS = {
     B.contentCanon,
     B.antiSlop,
     '\n【开场白要求】'
+    + '\n- 视角：只写角色视角，禁止替用户说话/做动作/替用户心理；用户是待互动的对方，不是被编排的角色。'
     + '\n- firstMes≥150 字：场景、氛围、角色动作/心理/对白，直接可当 first_mes；'
     + '\n- altGreetings 固定 2 条，场景或氛围须有差异；勿重复骨架条目原文；'
-    + '\n- 用角色口吻推进，给用户可接话的钩子。',
+    + '\n- 结尾留白：以角色主动的动作、未竟的台词或待回应的悬念收尾，把话头抛给用户；'
+    + '不要在结尾写「用户…」的行为，不要替用户接话或替用户做选择。',
     '\n只输出 JSON：{ "firstMes":"主开场白", "altGreetings":["备选1","备选2"] }'
   ),
 
@@ -439,7 +462,8 @@ export const DEFAULT_PROMPTS = {
     B.contentCanon,
     B.antiSlop,
     B.adultGate,
-    '\n规则：每条开场白独立、可直接作为 first_mes；氛围/场景宜有差异；写动作/心理/对白与可接钩子；不要解释。',
+    '\n规则：每条开场白独立、可直接作为 first_mes；氛围/场景宜有差异；写动作/心理/对白与可接钩子；不要解释。'
+    + '\n视角与结尾：只写角色视角，禁止替用户说话/做动作/替用户心理；结尾以角色主动的动作、未竟的台词或悬念收尾，把话头抛给用户，勿以「用户…」的行为收尾。',
     '\nAdultMode 时可含暧昧张力，但须尊重角色 Limits，勿开局越界。',
     '\n只输出 JSON：{ "firstMes":"主开场白", "altGreetings":["备选1","备选2"] }',
     '\naltGreetings 长度必须刚好为 {{altCount}}。'
@@ -464,6 +488,10 @@ export const DEFAULT_PROMPTS = {
   corruptionArchive: buildArchiveSystemPrompt(),
 
   corruptionArchiveExpand: buildArchiveExpandSystemPrompt(),
+
+  affectionArchive: buildAffectionArchiveSystemPrompt(),
+
+  affectionArchiveExpand: buildAffectionArchiveExpandSystemPrompt(),
 
   statusBarPaths: join(
     '你是 SillyTavern 状态栏设计师。根据角色与配置，规划状态栏要展示的变量路径。\n',
@@ -617,8 +645,9 @@ export const DEFAULT_PROMPTS = {
     '11. 【角色字段名】update/replace/expand 角色设定时只用：{{characterFieldHint}}；'
     + '作者注释必须写 creatorNotes，禁止 postHistoryInstructions（本应用无独立 Author\'s Note 字段）。\n',
     '12. 【世界与限定】卡级世界观预设/载体框架/NSFW/口味/姿势语言/情趣话风/NTL/恶堕用 get_adult_config / set_adult_config；'
-    + '目录 id 以 {{catalogOverview}} 或 get_adult_catalog 返回为准；选口味与 NTL 只用合法 id，禁止编造。'
+    + '目录 id 以本提示下方注入的目录块或 get_adult_catalog 返回为准；选口味与 NTL 只用合法 id，禁止编造。'
     + '单条世界书「生成」属 confirm，直写 create/update 多为 auto。\n',
+    '\n{{buildGuide}}\n',
     '\n【可用工具】\n{{toolList}}\n',
     '\n{{catalogOverview}}\n',
     '\n【输出】\n',
@@ -633,6 +662,8 @@ export const DEFAULT_PROMPTS = {
     + '若用户要求改指定条目/人物/开场白，先确认定位再改。'
     + '补全内容时对齐内容/NSFW 描述体系。'
     + '配卡/生成倾向引导勿强制；用户已跳步则跟随其当前意图。',
+
+  assistantBuildGuide: PROMPT_BLOCKS.buildGuideCanon,
 
   assistantChatFeedback: join(
     '你正在根据试聊记录与卡面内容诊断问题。优先检查：人设是否被遵守、世界书是否触发、回复是否空洞、设定冲突、成人向是否越 Limits 或描写空泛。',

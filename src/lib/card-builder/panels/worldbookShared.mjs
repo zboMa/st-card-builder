@@ -6,6 +6,7 @@ import { strategyLabelZh } from '../../utils.mjs';
 import { buildWorldviewHintFromItems } from '../../presets/worldviews/index.mjs';
 import { createVirtualList } from '../../ui/virtualList.mjs';
 import { SYSTEM_DIGEST_PREFIX } from '../../adult/systemDigest.mjs';
+import { countTokens, formatTokenCount } from '../../tokenStats.mjs';
 
 /** 世界书行估算高度（TanStack estimateSize + measure） */
 export var WB_VL_ROW_HEIGHT = 72;
@@ -27,6 +28,9 @@ export function createWorldbookShared(ctx) {
   var KEYGEN_MAX_RETRY_ROUNDS = 3;
   var wbVl = null;
   var wbDelegated = false;
+
+  // token 估算缓存：挂原始条目引用（WeakMap），避免序列化污染；normalizeWBEntry 返回新对象不丢缓存
+  var wbTokCache = new WeakMap();
 
   function getWorldviewHintBlock() {
     var items = [];
@@ -541,13 +545,51 @@ export function createWorldbookShared(ctx) {
   // ============================================================
   //  核心渲染：条目列表（虚拟列表 + 事件委托）
   // ============================================================
+  function cachedEntryTokens(entry) {
+    if (!entry || typeof entry !== 'object') return 0;
+    var content = String((entry && entry.content) || '');
+    var sig = content.length + '|' + content.slice(0, 24);
+    var c = wbTokCache.get(entry);
+    if (c && c.sig === sig) return c.t;
+    var t = countTokens(content);
+    wbTokCache.set(entry, { sig: sig, t: t });
+    return t;
+  }
+
+  function refreshWbTokenCount() {
+    var el = ctx.$('wbTokenCount');
+    if (!el) return;
+    var list = ctx.state.worldbookEntries || [];
+    var n = list.length;
+    if (!n) {
+      el.textContent = '0 条 · 0 tok';
+      el.title = '0 tokens';
+      return;
+    }
+    el.textContent = '…';
+    var total = 0;
+    var i = 0;
+    (function step() {
+      var end = Math.min(i + 30, n);
+      for (; i < end; i++) {
+        total += cachedEntryTokens(list[i]);
+      }
+      if (i < n) { setTimeout(step, 0); return; }
+      el.textContent = n + ' 条 · ' + formatTokenCount(total) + ' tok';
+      el.title = total + ' tokens';
+    })();
+  }
+
   function renderWbEntryRow(entry, index) {
-    entry = normalizeWBEntry(entry);
+    var rawEntry = entry; // 原始引用：token 缓存挂这里（normalize 返回新对象）
+    var entry = normalizeWBEntry(rawEntry);
     var isSk = entry.content.length < 60 || String(entry.content || '').indexOf('\u5F85\u5C55\u5F00') >= 0;
     var posMap = ['\u89D2\u8272\u524D', '\u89D2\u8272\u540E', '\u793A\u4F8B\u524D', '\u793A\u4F8B\u540E', '\u6309\u6DF1\u5EA6', '\u6CE8\u91CA\u524D', '\u6CE8\u91CA\u540E'];
     var safeComment = escapeHtml(entry.comment || '\u672A\u547D\u540D');
     var previewLine = truncatePreviewLine(entry.content, 80);
     var metaLine = '\u4F4D\u7F6E: ' + (posMap[entry.position] || entry.position) + ' | \u987A\u5E8F: ' + entry.order + ' | \u6DF1\u5EA6: ' + entry.depth + ' | \u6982\u7387: ' + entry.prob + '%';
+    var entryTok = cachedEntryTokens(rawEntry);
+    if (entryTok != null) metaLine += ' | \u6B63\u6587 ' + entryTok + ' tok';
     var skBadge = isSk ? '<span class="wb-skel-badge">\u9AA8\u67B6</span>' : '';
     var strategyBadge = renderStrategyTag(entry.strategy);
     var sysBadge = String(entry.comment || '').indexOf(SYSTEM_DIGEST_PREFIX) === 0
@@ -680,6 +722,7 @@ export function createWorldbookShared(ctx) {
     }
 
     window.dispatchEvent(new CustomEvent('worldbook-changed'));
+    refreshWbTokenCount();
     var wbSearchInput = ctx.$('wbSearchInput');
     if (wbSearchInput && wbSearchInput.value) renderWbSearchResults(wbSearchInput.value);
   }

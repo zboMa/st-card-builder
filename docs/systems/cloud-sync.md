@@ -54,7 +54,7 @@ npm run dev            # Astro :8826（127.0.0.1），/api 代理到 8787
 | **删除** | 本地确认弹窗；默认删绑卡套件；**可勾选**是否级联删 Story |
 | **卡管理云操作** | 「⋯」：同步上云 · 从云端覆盖 · 删云端；工具栏「同步未上云」批量上云 |
 | **偏好** | `PUT /api/data/prefs/ui|prompts`（防抖） |
-| **AI 密钥** | `PUT/GET/DELETE /api/data/secrets/ai-config`（客户端口令加密，服务端只存密文） |
+| **AI 密钥** | `PUT/GET/DELETE /api/data/secrets/ai-config`（客户端口令加密，服务端只存密文；包内含 AI 主配置、Embedding、搜索、生图 `imageConfig`） |
 
 ## 用户场景（怎么做）
 

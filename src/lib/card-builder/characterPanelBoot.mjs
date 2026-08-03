@@ -6,8 +6,10 @@ import {
     bumpCharacterVersionMajor,
     bumpCharacterVersionMinor,
   } from './cardRelease.mjs';
+import { initAvatarImageGen } from '../imageGen/avatarModal.mjs';
 
 export function initCharacterPanel() {
+  initAvatarImageGen();
   var versionBaseline = '1.0';
 
   function versionEl() {

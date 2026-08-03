@@ -874,6 +874,15 @@ export function initStatusBarPanel() {
     setStage(1);
     refreshPreview();
 
+    // 配置状态持久化：任何 sb 控件变更（勾选/选择/输入）都写入卡扩展，
+    // 刷新 / 切卡 / 换设备（随卡云同步）后不丢失当前配置
+    var sbPanelHost = document.getElementById('statusbarPanel');
+    if (sbPanelHost) {
+      sbPanelHost.addEventListener('change', function() {
+        saveDesignExt();
+      });
+    }
+
     window.__statusBarApi__ = {
       getDesign: function() { return normalizeDesign(state); },
       setDesign: function(d) {

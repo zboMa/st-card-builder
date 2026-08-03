@@ -2,7 +2,10 @@
 /** 开场白模块：主开场 first_mes + 备选 alternate_greetings（从角色设定迁出，字段语义不变） */
 ---
 <div class="panel area-greetings">
-  <h2>开场白</h2>
+  <div class="greetings-head">
+    <h2>开场白</h2>
+    <span id="greetingsTokenCount" class="tok-text" title="开场白总 token" aria-live="polite"></span>
+  </div>
   <p class="greetings-tip ui-panel-lead">对应 SillyTavern 的 <code>first_mes</code> 与 <code>alternate_greetings</code>，导出语义与原先一致。</p>
   <p id="greetingsFlavorTip" class="greetings-flavor-tip" hidden></p>
 
@@ -10,6 +13,7 @@
   <div class="form-group">
     <div class="ui-label-row greetings-first-bar">
       <label for="firstMes">主开场白 (First Message)</label>
+      <span id="firstMesTok" class="tok-text" title="主开场白 token" aria-live="polite"></span>
       <button type="button" id="btnPreviewFirstMes" class="btn-alt-action btn-expand-preview" title="预览" aria-label="预览主开场白"><svg class="icon-expand-corners" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button>
     </div>
     <textarea id="firstMes" style="min-height: 160px;" placeholder="角色的开场白（首次对话发送的第一条消息）..."></textarea>
@@ -32,6 +36,30 @@
     color: var(--color-text-muted);
     margin: -4px 0 8px 0;
     line-height: 1.45;
+  }
+  .greetings-head {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+  /* Header 固定（同世界与限定 / 角色设定）：标题行毛玻璃吸顶 */
+  .area-greetings .greetings-head {
+    position: sticky;
+    top: calc(-1 * var(--space-5));
+    z-index: 6;
+    margin: calc(-1 * var(--space-5)) calc(-1 * var(--space-5)) 0;
+    padding: var(--space-5) var(--space-5) 6px;
+    background: color-mix(in srgb, var(--color-glass, var(--color-surface)) 92%, var(--color-bg, #0a0d12) 8%);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+  .greetings-head h2 {
+    margin: 0;
+  }
+  .greetings-head .tok-text {
+    font-size: 0.68rem;
   }
   .greetings-flavor-tip {
     font-size: 0.72rem;
@@ -128,9 +156,14 @@
     color: var(--color-accent);
     font-weight: 600;
   }
+  .alt-greeting-tok {
+    font-size: 0.62rem;
+    flex-shrink: 0;
+  }
   .alt-greeting-actions {
     display: flex;
     gap: 4px;
+    margin-left: auto;
   }
 
   .btn-alt-action {
@@ -229,8 +262,9 @@
   }
 </style>
 
-<script is:inline>
-(function() {
+<script>
+  import { countTokens, formatTokenCount } from '../lib/tokenStats.mjs';
+  (function() {
   var btnAdd = document.getElementById('btnAddGreeting');
   var listEl = document.getElementById('altGreetingsList');
   if (!btnAdd || !listEl) return;
@@ -251,6 +285,7 @@
       item.innerHTML =
         '<div class="alt-greeting-bar">' +
           '<span class="alt-greeting-label">开场白 #' + (i + 2) + '</span>' +
+          '<span class="alt-greeting-tok tok-text" data-idx="' + i + '" title="备选开场白 token"></span>' +
           '<div class="alt-greeting-actions">' +
             '<button type="button" class="btn-alt-action btn-expand-preview" data-action="preview" data-idx="' + i + '" title="预览" aria-label="预览开场白 #' + (i + 2) + '">' +
               '<svg class="icon-expand-corners" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
@@ -301,6 +336,8 @@
         notifyChange();
       });
     });
+
+    refreshGreetingTokens();
   }
 
   function openPreview(title, text) {
@@ -327,6 +364,31 @@
 
   function notifyChange() {
     if (window.triggerGlobalUpdate) window.triggerGlobalUpdate();
+    scheduleGreetingTokens();
+  }
+
+  var tokenRefreshTimer = null;
+  function formatTok(n) { return formatTokenCount(n) + ' tok'; }
+  function refreshGreetingTokens() {
+    var total = 0;
+    var firstEl = document.getElementById('firstMes');
+    var n1 = firstEl ? countTokens(firstEl.value || '') : 0;
+    total += n1;
+    var fTok = document.getElementById('firstMesTok');
+    if (fTok) { fTok.textContent = formatTok(n1); fTok.title = n1 + ' tokens'; }
+    var alts = window.__altGreetings__ || [];
+    alts.forEach(function(t, i) {
+      var n = countTokens(t || '');
+      total += n;
+      var el = listEl.querySelector('.alt-greeting-tok[data-idx="' + i + '"]');
+      if (el) { el.textContent = formatTok(n); el.title = n + ' tokens'; }
+    });
+    var totalEl = document.getElementById('greetingsTokenCount');
+    if (totalEl) { totalEl.textContent = formatTok(total); totalEl.title = total + ' tokens'; }
+  }
+  function scheduleGreetingTokens() {
+    if (tokenRefreshTimer) clearTimeout(tokenRefreshTimer);
+    tokenRefreshTimer = setTimeout(refreshGreetingTokens, 200);
   }
 
   function escapeHTML(str) {
@@ -350,8 +412,14 @@
 
   window.__renderAltGreetings__ = render;
   window.addEventListener('nsfw-config-changed', refreshFlavorTip);
-  window.addEventListener('app-view-changed', refreshFlavorTip);
+  window.addEventListener('app-view-changed', function() {
+    refreshFlavorTip();
+    scheduleGreetingTokens();
+  });
+  var firstMesEl = document.getElementById('firstMes');
+  if (firstMesEl) firstMesEl.addEventListener('input', scheduleGreetingTokens);
   refreshFlavorTip();
   render();
+  refreshGreetingTokens();
 })();
 </script>

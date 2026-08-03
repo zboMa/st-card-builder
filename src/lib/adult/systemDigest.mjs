@@ -17,6 +17,11 @@ import {
   DEFAULT_CORRUPTION_PRESET,
   CORRUPTION_RULES_COMMENT,
 } from '../corruptionProgress.mjs';
+import {
+  AFFECTION_PRESETS,
+  DEFAULT_AFFECTION_PRESET,
+  AFFECTION_RULES_COMMENT,
+} from '../affectionProgress.mjs';
 
 export var SYSTEM_DIGEST_PREFIX = '[成人体系]';
 
@@ -30,6 +35,8 @@ export var SYSTEM_DIGEST_ORDER = {
 };
 
 export var CORRUPTION_NOTE_HEADER = '【恶堕配置摘要】';
+
+export var AFFECTION_NOTE_HEADER = '【亲密度配置摘要】';
 
 var HEADER_NOTE = '由制卡工具「世界与限定」自动生成；配置改动后请重新生成，勿直接手改。';
 
@@ -196,6 +203,59 @@ export function stripCorruptionConfigNote(entries) {
   return list;
 }
 
+/** 纯爱配置摘要（并入「亲密关系总则」，不单独成条目） */
+function buildAffectionConfigNote(cfg) {
+  if (!cfg || !cfg.affectionEnabled) return '';
+  var preset = AFFECTION_PRESETS[cfg.affectionPreset]
+    ? AFFECTION_PRESETS[cfg.affectionPreset]
+    : AFFECTION_PRESETS[DEFAULT_AFFECTION_PRESET];
+  var lines = [AFFECTION_NOTE_HEADER];
+  lines.push('纯爱线已启用（亲密度 0-100，可双向波动，档位见下方映射）。');
+  lines.push('预设：' + clean((preset && preset.label) || cfg.affectionPreset || DEFAULT_AFFECTION_PRESET));
+  var stages = Array.isArray(cfg.affectionStageNames) ? cfg.affectionStageNames.filter(Boolean) : [];
+  if (stages.length) lines.push('档位：' + stages.join(' → '));
+  if (cfg.affectionCustomBrief) lines.push('关系基调：' + clean(cfg.affectionCustomBrief));
+  if (cfg.affectionExtraNotes) lines.push('配置备注：' + clean(cfg.affectionExtraNotes));
+  lines.push('完整档位正文见世界书「亲密档案·{角色名}」条目；主角不生成亲密档案。');
+  return lines.join('\n');
+}
+
+/**
+ * 把纯爱配置摘要并入既有「亲密关系总则」条目（幂等：已含摘要则不重复）
+ */
+export function mergeAffectionConfigNote(entries, cfg) {
+  var note = buildAffectionConfigNote(cfg);
+  if (!note) return entries;
+  var list = Array.isArray(entries) ? entries.slice() : [];
+  var found = -1;
+  for (var i = 0; i < list.length; i++) {
+    if (String(list[i].comment || '').trim() === AFFECTION_RULES_COMMENT) { found = i; break; }
+  }
+  if (found < 0) return list;
+  var cur = String(list[found].content || '');
+  if (cur.indexOf(AFFECTION_NOTE_HEADER) >= 0) return list;
+  list[found] = Object.assign({}, list[found], {
+    content: (cur.replace(/\n+$/, '') + '\n\n' + note).trim(),
+  });
+  return list;
+}
+
+/**
+ * 移除并入亲密关系总则的纯爱配置摘要（与 merge 对称）
+ */
+export function stripAffectionConfigNote(entries) {
+  var list = Array.isArray(entries) ? entries.slice() : [];
+  for (var i = 0; i < list.length; i++) {
+    if (String(list[i].comment || '').trim() !== AFFECTION_RULES_COMMENT) continue;
+    var cur = String(list[i].content || '');
+    var at = cur.indexOf(AFFECTION_NOTE_HEADER);
+    if (at < 0) continue;
+    var before = cur.slice(0, at).replace(/\n+$/, '');
+    list[i] = Object.assign({}, list[i], { content: before });
+  }
+  return list;
+}
+
 /**
  * 编译成人体系总纲条目（每条 constant，position=0，order 900 段）
  * @param {object} cfg 取自 __getNsfwConfig__() 的配置（结构见 adultConfigBind）
@@ -278,7 +338,8 @@ export function upsertSystemDigestEntries(entries, newEntries) {
     if (c.indexOf(SYSTEM_DIGEST_PREFIX) === 0
       || c.indexOf('[initvar]') === 0
       || c.indexOf('[mvu_update]') === 0
-      || c === '恶堕进度总则') {
+      || c === '恶堕进度总则'
+      || c === AFFECTION_RULES_COMMENT) {
       anchor = i;
       break;
     }

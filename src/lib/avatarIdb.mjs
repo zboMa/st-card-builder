@@ -91,6 +91,26 @@ export async function loadAvatarThumbObjectUrl(draftId) {
   return URL.createObjectURL(rec.blob);
 }
 
+/** 把任意图片 data URL 重编码为 PNG data URL（导出卡需要真 PNG 底图） */
+export function dataUrlToPngDataUrl(dataUrl) {
+  return new Promise(function(resolve, reject) {
+    var img = new Image();
+    img.onload = function() {
+      try {
+        var cv = document.createElement('canvas');
+        cv.width = img.naturalWidth || img.width;
+        cv.height = img.naturalHeight || img.height;
+        cv.getContext('2d').drawImage(img, 0, 0);
+        resolve(cv.toDataURL('image/png'));
+      } catch (e) {
+        reject(new Error('头像转 PNG 失败'));
+      }
+    };
+    img.onerror = function() { reject(new Error('头像图片无法解码')); };
+    img.src = dataUrl;
+  });
+}
+
 export async function copyAvatarDraft(fromDraftId, toDraftId) {
   if (!fromDraftId || !toDraftId || fromDraftId === toDraftId) return false;
   var okFull = await idbCopyBlob(idbAvatarFullKey(fromDraftId), idbAvatarFullKey(toDraftId));

@@ -634,7 +634,9 @@
 .panel-header h2,
 .ss-panel-heading h2,
 .admin-panel-head h2,
-.card-manager-heading h2 {
+.card-manager-heading h2,
+.adult-config-head > h2,
+.greetings-head > h2 {
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -645,7 +647,9 @@
 .panel-header h2::before,
 .ss-panel-heading h2::before,
 .admin-panel-head h2::before,
-.card-manager-heading h2::before {
+.card-manager-heading h2::before,
+.adult-config-head > h2::before,
+.greetings-head > h2::before {
   content: '';
   width: 3px;
   height: 1em;
@@ -700,6 +704,16 @@
   padding: 1px var(--space-2);
   border-radius: var(--radius-sm);
   border: 1px solid var(--color-accent-border);
+}
+
+/* —— 低调 token 文本（对齐 AI 助手「上下文 ≈ xk tokens」视觉；不抢眼） —— */
+.tok-text {
+  font-size: 0.62rem;
+  line-height: 1.2;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 /* —— 滑条 —— */
@@ -1205,4 +1219,55 @@
   .theme-gallery-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* —— 小号增强 select（chromeBoot enhanceSelect 的 cs-mini 变体） —— */
+.cs-wrap.cs-mini {
+  width: auto;
+  flex: 0 1 auto;
+  min-width: 140px;
+  max-width: 180px;
+  vertical-align: middle;
+}
+.cs-wrap.cs-mini.cs-w148 {
+  flex: 0 0 auto;
+  width: 148px;
+  min-width: 148px;
+  max-width: 148px;
+}
+.cs-wrap.cs-mini.cs-fill {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: none;
+  width: auto;
+}
+.cs-wrap.cs-mini .cs-trigger {
+  padding: 3px 8px;
+  font-size: 0.72rem;
+  border-radius: 6px;
+}
+.cs-wrap.cs-mini .cs-trigger .cs-arrow {
+  width: 10px;
+  height: 10px;
+  margin-left: 6px;
+}
+/* 下拉面板被 portal 到 body 后脱离 wrap，用独立标记 cs-mini-dd 保证小号样式仍生效 */
+.cs-mini-dd {
+  border-radius: 0 0 6px 6px;
+}
+.cs-mini-dd .cs-search {
+  padding: 3px 8px;
+  font-size: 0.7rem;
+}
+.cs-mini-dd .cs-group {
+  padding: 4px 9px 1px;
+  font-size: 0.64rem;
+}
+.cs-mini-dd .cs-option {
+  padding: 5px 9px;
+  font-size: 0.72rem;
+}
+.cs-mini-dd .cs-empty {
+  padding: 6px 9px;
+  font-size: 0.7rem;
 }

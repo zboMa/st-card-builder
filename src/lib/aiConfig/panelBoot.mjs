@@ -1,6 +1,7 @@
 /**
  * AI 配置面板 boot（从 AIPanel.astro 外提）
  */
+import { initImageConfig } from './imageConfig.mjs';
 
 export function initAiConfigPanel() {
   var apiUrl           = document.getElementById('apiUrl');
@@ -727,4 +728,6 @@ export function initAiConfigPanel() {
     executeSearch:   executeSearch,
     formatForPrompt: formatSearchResultsForPrompt,
   };
+
+  initImageConfig();
 }
