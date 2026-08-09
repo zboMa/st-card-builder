@@ -2,6 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildPublishGate, isCardCloudDirty } from '../src/lib/card-builder/publishGate.mjs';
 import { CLOUD_STATUS, markCardSynced, resolveCardCloudStatus } from '../src/lib/sync/cardCloudMeta.mjs';
+import { computeDraftContentRev } from '../src/lib/sync/contentRev.mjs';
 
 function mockStorage() {
   var map = {};
@@ -32,6 +33,15 @@ describe('publishGate', function() {
     var draft = { charName: 'X', contentRev: 'abc', updatedAt: '1' };
     markCardSynced('d1', '1', '1', { contentRev: 'zzz', bundleTouch: 0 });
     assert.equal(isCardCloudDirty(draft, 'd1'), true);
+    globalThis.localStorage = undefined;
+  });
+
+  it('无 contentRev 字段时与 synced 正文一致 → 非 dirty', function() {
+    globalThis.localStorage = mockStorage();
+    var body = { charName: 'P', charDesc: 'gate test body long enough', firstMes: 'x', worldbookEntries: [] };
+    var rev = computeDraftContentRev(body);
+    markCardSynced('d2', '1', '1', { contentRev: rev, bundleTouch: 0 });
+    assert.equal(isCardCloudDirty(body, 'd2'), false);
     globalThis.localStorage = undefined;
   });
 });

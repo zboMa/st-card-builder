@@ -1,17 +1,21 @@
 /**
- * 角色卡版本列表：唯一草稿 + versions[] 快照
- * - 保存：只写草稿（调用方 persist）
- * - 切版 / 增版 / 发布：才写入 versions[]
- * - 发布：把当前草稿写入 versions 并 published=true，然后草稿自动小版本 +1
- * - 已发布条目不可变；草稿若坐在已发号上，commit 前自动 fork 到空号
+ * 角色卡版本列表：工作稿 + cardVersionsV1 分库
+ * 切版 / 增版 / 发布 → commit；autosave 不写 versions
  */
-import { buildCardJSONFromDraft, buildDraftSnapshot } from './state.mjs';
+import { buildCardJSONFromDraft } from './state.mjs';
 import {
   normalizeCharacterVersion,
   parseCharacterVersion,
   bumpCharacterVersionMajor,
   bumpCharacterVersionMinor,
 } from './cardRelease.mjs';
+import { avatarRefForDraft } from './cardAvatarGallery.mjs';
+import {
+  loadCardVersionsStore,
+  saveCardVersionsStore,
+  computeVersionsManifestRev,
+} from './cardVersionsStore.mjs';
+import { buildVersionSnapshotEntry, computeVersionSnapshotRev } from './versionSnapshot.mjs';
 
 export function compareCharacterVersion(a, b) {
   var pa = parseCharacterVersion(a);
@@ -25,6 +29,19 @@ export function ensureCardVersions(draft) {
   if (!Array.isArray(d.versions)) d.versions = [];
   d.characterVersion = normalizeCharacterVersion(d.characterVersion);
   return d;
+}
+
+export async function hydrateDraftVersions(cardId, draft) {
+  ensureCardVersions(draft);
+  var store = await loadCardVersionsStore(cardId);
+  draft.versions = store.entries.slice();
+  return draft.versions;
+}
+
+export async function persistDraftVersions(cardId, draft) {
+  ensureCardVersions(draft);
+  await saveCardVersionsStore(cardId, { entries: draft.versions });
+  return computeVersionsManifestRev(draft.versions);
 }
 
 export function getMaxPublishedCharacterVersion(versions) {
@@ -59,7 +76,6 @@ function versionExists(draft, ver) {
   return !!findVersionEntry(draft, ver);
 }
 
-/** 找一个不与列表冲突、且 > maxPub 的空版号 */
 export function nextFreeCharacterVersion(draft, fromVer, which) {
   ensureCardVersions(draft);
   var maxPub = getMaxPublishedCharacterVersion(draft.versions);
@@ -85,26 +101,18 @@ export function nextFreeCharacterVersion(draft, fromVer, which) {
   return next;
 }
 
-/**
- * 从草稿打一份可进 versions 的快照（不含 versions 自身，避免嵌套膨胀）
- * 字段与 buildDraftSnapshot 对齐（altGreetings / NSFW / 正则等）
- */
 export function buildCardVersionSnapshot(draft) {
   var d = draft && typeof draft === 'object' ? draft : {};
-  var base = buildDraftSnapshot(d);
-  delete base.versions;
   var json = buildCardJSONFromDraft(d);
   var ver = normalizeCharacterVersion(
-    (json.data && json.data.character_version) || d.characterVersion || base.characterVersion
+    (json.data && json.data.character_version) || d.characterVersion || '1.0'
   );
   if (json.data) json.data.character_version = ver;
-  base.characterVersion = ver;
-  base.updatedAt = d.updatedAt || base.updatedAt || '';
   return {
     ver: ver,
     title: String((json.data && json.data.name) || json.name || d.charName || '未命名'),
     cardJson: json,
-    draft: base,
+    avatarRef: avatarRefForDraft(d.activeAvatarId),
   };
 }
 
@@ -120,23 +128,15 @@ function upsertVersionEntry(draft, snap, published) {
     }
   }
   var prev = idx >= 0 ? draft.versions[idx] : null;
-
-  // 已发布条目不可变
   if (prev && prev.published) {
     return { entry: prev, wrote: false };
   }
-
-  var entry = {
-    ver: ver,
-    title: snap.title,
+  var entry = buildVersionSnapshotEntry(snap, {
     published: published === true ? true : (published === false ? false : !!(prev && prev.published)),
-    publishedAt: null,
+    publishedAt: published === true ? Date.now() : (prev && prev.publishedAt),
     updatedAt: now,
-    snapshot: snap,
-  };
-  if (entry.published) {
-    entry.publishedAt = Date.now();
-  }
+  });
+  if (entry.published && !entry.publishedAt) entry.publishedAt = Date.now();
   if (idx >= 0) draft.versions[idx] = entry;
   else draft.versions.push(entry);
   draft.versions.sort(function(a, b) {
@@ -145,9 +145,6 @@ function upsertVersionEntry(draft, snap, published) {
   return { entry: entry, wrote: true };
 }
 
-/**
- * 若当前草稿版号已占用且为已发，先 fork 到空号再写入（避免污染已发历史）
- */
 function ensureWritableDraftVersion(draft, opts) {
   opts = opts || {};
   ensureCardVersions(draft);
@@ -158,7 +155,6 @@ function ensureWritableDraftVersion(draft, opts) {
   }
 }
 
-/** 把当前草稿写入 versions[draft.characterVersion] */
 export function commitCardDraftToVersions(draft, opts) {
   opts = opts || {};
   ensureCardVersions(draft);
@@ -167,7 +163,6 @@ export function commitCardDraftToVersions(draft, opts) {
   }
   var snap = buildCardVersionSnapshot(draft);
   snap.ver = normalizeCharacterVersion(draft.characterVersion);
-  if (snap.draft) snap.draft.characterVersion = snap.ver;
   if (snap.cardJson && snap.cardJson.data) {
     snap.cardJson.data.character_version = snap.ver;
   }
@@ -175,10 +170,6 @@ export function commitCardDraftToVersions(draft, opts) {
   return up.entry;
 }
 
-/**
- * 增版：先把当前草稿写入 versions，再把草稿版号 +1（须 > 最大已发）
- * @param {'major'|'minor'} [which]
- */
 export function bumpCardDraftVersion(draft, which) {
   ensureCardVersions(draft);
   commitCardDraftToVersions(draft, {});
@@ -188,32 +179,10 @@ export function bumpCardDraftVersion(draft, which) {
   return { ok: true, ver: next };
 }
 
-export function applyCardVersionSnapshot(draft, snap) {
-  if (!draft || !snap) return draft;
-  var src = snap.draft && typeof snap.draft === 'object' ? snap.draft : snap;
-  var fields = [
-    'charName', 'wbName', 'charDesc', 'charTags', 'firstMes', 'altGreetings',
-    'worldbookEntries', 'regexScripts', 'tavernHelperScripts', 'cardBuilderExtensions',
-    'creatorNotes', 'avatarInIdb', 'avatarBase64', 'characterVersion',
-    'nsfwEnabled', 'nsfwFlavor', 'nsfwFlavorItems',
-    'eroticPostureItems', 'eroticSpeechItems',
-    'ntlEnabled', 'ntlTabooTypes', 'ntlTabooItems',
-    'worldviewPresetItems', 'adultWorldframe', 'adultWorldframeForced',
-    'corruptionEnabled', 'corruptionPreset', 'corruptionCustomBrief',
-    'corruptionExtraNotes', 'corruptionStageNames', 'corruptionSelectedNames',
-    'corruptionDefaultFemaleOnly', 'corruptionSyncStatusBar',
-  ];
-  fields.forEach(function(k) {
-    if (src[k] !== undefined) draft[k] = src[k];
-  });
-
-  // 兼容旧错误字段名
-  if (src.altGreetings == null && Array.isArray(src.alternateGreetings)) {
-    draft.altGreetings = src.alternateGreetings.slice();
-  }
-
-  if (snap.cardJson && snap.cardJson.data) {
-    var data = snap.cardJson.data;
+export function applyCardVersionEntry(draft, entry) {
+  if (!draft || !entry) return draft;
+  var data = entry.cardJson && entry.cardJson.data ? entry.cardJson.data : null;
+  if (data) {
     if (data.name != null) draft.charName = data.name;
     if (data.description != null) draft.charDesc = data.description;
     if (data.first_mes != null) draft.firstMes = data.first_mes;
@@ -226,31 +195,58 @@ export function applyCardVersionSnapshot(draft, snap) {
     if (data.character_book && data.character_book.name) {
       draft.wbName = data.character_book.name;
     }
+    draft.worldbookEntries = rebuildWbFromCardJson(entry.cardJson);
+    if (data.extensions && typeof data.extensions === 'object') {
+      var ext = data.extensions;
+      draft.cardBuilderExtensions = Object.assign({}, ext);
+      if (Array.isArray(ext.regex_scripts)) draft.regexScripts = ext.regex_scripts.slice();
+      else draft.regexScripts = [];
+      if (ext.tavern_helper && Array.isArray(ext.tavern_helper.scripts)) {
+        draft.tavernHelperScripts = ext.tavern_helper.scripts.slice();
+      } else {
+        draft.tavernHelperScripts = [];
+      }
+    }
+  }
+  if (entry.avatarRef && entry.avatarRef.avatarId) {
+    draft.activeAvatarId = String(entry.avatarRef.avatarId);
   }
   return draft;
 }
 
-/**
- * 切到历史版本：先提交当前草稿到 versions，再加载目标快照到草稿
- */
+function rebuildWbFromCardJson(cardJson) {
+  var fe = cardJson.data && cardJson.data.character_book && cardJson.data.character_book.entries;
+  if (!Array.isArray(fe)) return [];
+  return fe.map(function(e, i) {
+    return {
+      comment: e.comment,
+      content: e.content,
+      keys: e.keys || [],
+      strategy: e.constant ? 'constant' : (e.selective ? 'selective' : 'selective'),
+      enabled: e.enabled !== false,
+      order: e.insertion_order || 100,
+      position: e.extensions && e.extensions.position != null ? e.extensions.position : 0,
+      depth: e.extensions && e.extensions.depth != null ? e.extensions.depth : 4,
+      role: e.extensions && e.extensions.role != null ? e.extensions.role : 0,
+      prob: e.extensions && e.extensions.probability != null ? e.extensions.probability : 100,
+    };
+  });
+}
+
 export function switchCardDraftVersion(draft, targetVer) {
   ensureCardVersions(draft);
   var target = normalizeCharacterVersion(targetVer);
   var entry = findVersionEntry(draft, target);
-  if (!entry || !entry.snapshot) {
+  if (!entry || !entry.cardJson) {
     return { ok: false, error: 'version_not_found' };
   }
   commitCardDraftToVersions(draft, {});
-  applyCardVersionSnapshot(draft, entry.snapshot);
+  applyCardVersionEntry(draft, entry);
   draft.characterVersion = target;
   draft.updatedAt = new Date().toLocaleTimeString('zh-CN', { hour12: false });
   return { ok: true, ver: target, entry: entry };
 }
 
-/**
- * 发布：确保版号 > 最大已发（否则抬升），写入 versions 并 published，
- * 然后草稿自动小版本 +1（仅草稿，不写 versions）
- */
 export function publishCardDraft(draft) {
   ensureCardVersions(draft);
   var maxPub = getMaxPublishedCharacterVersion(draft.versions);
@@ -262,7 +258,6 @@ export function publishCardDraft(draft) {
       publishVer = bumpCharacterVersionMinor(publishVer);
     }
   }
-  // 若同号未发条目存在可覆盖；若已发则继续抬号
   var guard = 0;
   while (guard++ < 50) {
     var slot = findVersionEntry(draft, publishVer);
@@ -273,13 +268,10 @@ export function publishCardDraft(draft) {
   var entry = null;
   var guardPub = 0;
   while (guardPub++ < 50) {
-    var up = (function() {
-      var snap = buildCardVersionSnapshot(draft);
-      snap.ver = normalizeCharacterVersion(draft.characterVersion);
-      if (snap.draft) snap.draft.characterVersion = snap.ver;
-      if (snap.cardJson && snap.cardJson.data) snap.cardJson.data.character_version = snap.ver;
-      return upsertVersionEntry(draft, snap, true);
-    })();
+    var snap = buildCardVersionSnapshot(draft);
+    snap.ver = normalizeCharacterVersion(draft.characterVersion);
+    if (snap.cardJson && snap.cardJson.data) snap.cardJson.data.character_version = snap.ver;
+    var up = upsertVersionEntry(draft, snap, true);
     if (up.wrote) {
       entry = up.entry;
       publishVer = entry.ver;
@@ -288,9 +280,7 @@ export function publishCardDraft(draft) {
     publishVer = bumpCharacterVersionMinor(publishVer);
     draft.characterVersion = publishVer;
   }
-  if (!entry) {
-    return { ok: false, error: 'publish_failed' };
-  }
+  if (!entry) return { ok: false, error: 'publish_failed' };
   var publishedVer = publishVer;
   var draftVer = nextFreeCharacterVersion(draft, publishedVer, 'minor');
   draft.characterVersion = draftVer;
@@ -300,7 +290,7 @@ export function publishCardDraft(draft) {
     publishedVer: publishedVer,
     draftVer: draftVer,
     entry: entry,
-    cardJson: entry.snapshot && entry.snapshot.cardJson,
+    cardJson: entry.cardJson,
     title: entry.title,
   };
 }
@@ -311,3 +301,15 @@ export function listCardVersions(draft) {
     return compareCharacterVersion(b.ver, a.ver);
   });
 }
+
+/** 已发布版本引用的 avatarId（删除卡面门禁） */
+export function publishedAvatarIds(draft) {
+  var ids = [];
+  (draft.versions || []).forEach(function(v) {
+    if (!v || !v.published || !v.avatarRef || !v.avatarRef.avatarId) return;
+    ids.push(String(v.avatarRef.avatarId));
+  });
+  return ids;
+}
+
+export { computeVersionSnapshotRev };

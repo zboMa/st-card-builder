@@ -72,7 +72,7 @@ export function bootCardBuilder() {
       charDesc: ctx.state.charDesc,
       firstMes: ctx.state.firstMes || (document.getElementById('firstMes') || {}).value || '',
       creatorNotes: ctx.state.creatorNotes,
-      hasAvatar: !!(ctx.state.avatarInIdb || ctx.state.avatarBase64),
+      hasAvatar: !!String(ctx.state.activeAvatarId || '').trim(),
       worldbookCount: wb.length,
       worldbookNoKeys: noKeys,
       novelUnsyncedCount: countNovelUnsynced(),

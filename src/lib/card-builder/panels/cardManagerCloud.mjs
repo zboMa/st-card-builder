@@ -29,7 +29,7 @@ export function attachCardManagerCloud(ctx, s, panel) {
       updatedAt: draft.updatedAt || '',
       contentRev: draft.contentRev || computeDraftContentRev(draft),
       wbCount: Array.isArray(draft.worldbookEntries) ? draft.worldbookEntries.length : 0,
-      hasAvatar: !!(draft.avatarInIdb || draft.avatarBase64),
+      hasAvatar: !!String(draft.activeAvatarId || '').trim(),
     };
   }
 
@@ -68,7 +68,9 @@ export function attachCardManagerCloud(ctx, s, panel) {
       if (!id || (dr[id] && dr[id]._cloudStub)) return false;
       var meta = getCardCloudMeta(id);
       var status = resolveCardCloudStatus(dr[id], meta);
-      return status !== CLOUD_STATUS.CLOUD_SYNCED;
+      return status === CLOUD_STATUS.LOCAL_ONLY
+        || status === CLOUD_STATUS.DIRTY_LOCAL
+        || status === CLOUD_STATUS.DIRTY_BOTH;
     });
   }
 

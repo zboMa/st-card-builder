@@ -378,6 +378,14 @@ export function attachCardManagerBind(ctx, s, panel) {
       if (s.getCurrentAppView() === 'card-manager') panel.updateCardManagerUI();
     });
 
+    import('../../sync/cloudStore.mjs').then(function(cloudMod) {
+      if (!cloudMod.onCloudEvent) return;
+      cloudMod.onCloudEvent(function(ev) {
+        if (!ev || ev.type !== 'index-merged') return;
+        if (s.getCurrentAppView() === 'card-manager') panel.updateCardManagerUI();
+      });
+    }).catch(function() { /* ignore */ });
+
     window.addEventListener('card-local-saved', function() {
       import('../../sync/index.mjs').then(function(sync) {
         if (!sync.isCloudEnabled || !sync.isCloudEnabled()) return;

@@ -107,10 +107,10 @@ export function registerExport(ctx) {
       json = panel.generateFullJSON();
       name = ctx.state.charName || 'CharacterCard';
       version = ctx.state.characterVersion || json.data.character_version || '1.0';
-      if (ctx.state.avatarInIdb) {
+      if (ctx.state.activeAvatarId || ctx.state.avatarInIdb) {
         await ensureIdbReady();
         avatar = window.__avatarIdb__
-          ? await window.__avatarIdb__.loadAvatarFullDataUrl(id)
+          ? await window.__avatarIdb__.loadAvatarFullDataUrl(id, ctx.state.activeAvatarId)
           : '';
       } else {
         avatar = ctx.state.avatarBase64;
@@ -121,10 +121,10 @@ export function registerExport(ctx) {
       json = buildCardJSONFromDraft(d);
       name = draftDisplayName(d) || 'CharacterCard';
       version = d.characterVersion || '1.0';
-      if (d.avatarInIdb) {
+      if (d.activeAvatarId || d.avatarInIdb) {
         await ensureIdbReady();
         avatar = window.__avatarIdb__
-          ? await window.__avatarIdb__.loadAvatarFullDataUrl(id)
+          ? await window.__avatarIdb__.loadAvatarFullDataUrl(id, d.activeAvatarId)
           : '';
       } else {
         avatar = d.avatarBase64 || '';
@@ -288,18 +288,21 @@ export function registerExport(ctx) {
     try {
       await ensureIdbReady();
       if (!window.__avatarIdb__) throw new Error('IndexedDB \u4E0D\u53EF\u7528');
-      await window.__avatarIdb__.saveAvatarFromImage(currentId, img);
-      ctx.state.avatarInIdb = true;
-      ctx.state.avatarBase64 = '';
-      var url = await window.__avatarIdb__.loadAvatarFullDataUrl(currentId);
-      if (url) {
-        var avatarImg = ctx.$('avatarImg');
-        var avatarPlaceholder = ctx.$('avatarPlaceholder');
-        if (avatarImg) {
-          avatarImg.src = url;
-          avatarImg.style.display = 'block';
+      var avatarId = await window.__avatarIdb__.saveAvatarFromImage(currentId, img);
+      if (avatarId) ctx.state.activeAvatarId = avatarId;
+      if (ctx.panels.character && ctx.panels.character.refreshAvatarUi) {
+        await ctx.panels.character.refreshAvatarUi();
+      } else {
+        var url = await window.__avatarIdb__.loadAvatarFullDataUrl(currentId, ctx.state.activeAvatarId);
+        if (url) {
+          var avatarImg = ctx.$('avatarImg');
+          var avatarPlaceholder = ctx.$('avatarPlaceholder');
+          if (avatarImg) {
+            avatarImg.src = url;
+            avatarImg.style.display = 'block';
+          }
+          if (avatarPlaceholder) avatarPlaceholder.style.display = 'none';
         }
-        if (avatarPlaceholder) avatarPlaceholder.style.display = 'none';
       }
       if (ctx.panels.cardManager && ctx.panels.cardManager.saveCurrentDraft) {
         ctx.panels.cardManager.saveCurrentDraft({ reason: 'avatar' });

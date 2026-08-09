@@ -40,10 +40,10 @@ export function createCardManagerShared(ctx) {
     managerThumbUrls = [];
   }
 
-  function hydrateManagerCoverThumb(draftId, coverEl, placeholderEl) {
+  function hydrateManagerCoverThumb(draftId, coverEl, placeholderEl, avatarId) {
     ensureIdbReady().then(function () {
       if (!window.__avatarIdb__) return '';
-      return window.__avatarIdb__.loadAvatarThumbObjectUrl(draftId);
+      return window.__avatarIdb__.loadAvatarThumbObjectUrl(draftId, avatarId);
     }).then(function (url) {
       if (!url || !coverEl.isConnected) {
         if (url) URL.revokeObjectURL(url);

@@ -20,6 +20,14 @@ export function computeDraftContentRev(draft) {
   return crc32(bytes).toString(16).padStart(8, '0');
 }
 
+/** 云状态判定用：缺 contentRev 时按正文现算（与 IDB 落盘一致） */
+export function draftLocalContentRev(draft) {
+  if (!draft || typeof draft !== 'object') return '';
+  var rev = String(draft.contentRev || '').trim();
+  if (rev) return rev;
+  return computeDraftContentRev(draft);
+}
+
 /** 写入/合并 draft 时附带 contentRev */
 export function attachContentRevToDraft(draft) {
   if (!draft || typeof draft !== 'object') return draft;
@@ -48,5 +56,11 @@ export function collectSyncBaseline(draft, meta) {
   return {
     contentRev: (draft && draft.contentRev) || computeDraftContentRev(draft),
     bundleTouch: meta.bundleTouch != null ? meta.bundleTouch : 0,
+    avatarsManifestRev: meta.localAvatarsManifestRev != null
+      ? meta.localAvatarsManifestRev
+      : (meta.syncedAvatarsManifestRev != null ? meta.syncedAvatarsManifestRev : null),
+    versionsManifestRev: meta.localVersionsManifestRev != null
+      ? meta.localVersionsManifestRev
+      : (meta.syncedVersionsManifestRev != null ? meta.syncedVersionsManifestRev : null),
   };
 }

@@ -29,7 +29,8 @@ export async function buildLocalCardBundle(cardId) {
   var draft = drafts[id] || null;
   var novelRec = await idbGetJson(idbNovelKey(id)).catch(function() { return null; });
   var ragRec = await idbGetJson('novelRagV1:card:' + id).catch(function() { return null; });
-  var avatar = await readLocalAvatarParts(id);
+  var avatarMod = await import('../avatarIdb.mjs');
+  var avatar = await avatarMod.readActiveAvatarPartsForCloud(id, draft);
   var assistantRec = null;
   try {
     var raw = window.localStorage.getItem(assistantSessionKeyFor(id));
@@ -170,6 +171,18 @@ export async function cloudUploadOverwrite(cardId) {
   var bundle = await buildLocalCardBundle(id);
   if (!bundle.card) throw new Error('no_local_card');
   await api.putCardBundle(id, bundle);
+  try {
+    var avSync = await import('./cardAvatarSync.mjs');
+    await avSync.syncAvatarGalleryUpload(id);
+  } catch (eAv) {
+    console.warn('[cloud] avatar gallery upload', eAv);
+  }
+  try {
+    var verSync = await import('./cardVersionSync.mjs');
+    await verSync.syncVersionsUpload(id);
+  } catch (eVer) {
+    console.warn('[cloud] versions upload', eVer);
+  }
   var { markCardSynced, getCardCloudMeta } = await import('./cardCloudMeta.mjs');
   var localAt = bundle.card && bundle.card.updatedAt;
   var draft = bundle.card;
@@ -186,6 +199,18 @@ export async function cloudDownloadOverwrite(cardId) {
   var res = await api.fetchCardBundle(id);
   if (!res || !res.bundle || !res.bundle.card) throw new Error('not_found');
   await hydrateCardBundleToLocal(res.bundle);
+  try {
+    var avSync = await import('./cardAvatarSync.mjs');
+    await avSync.syncAvatarGalleryDownload(id);
+  } catch (eAv) {
+    console.warn('[cloud] avatar gallery download', eAv);
+  }
+  try {
+    var verSync = await import('./cardVersionSync.mjs');
+    await verSync.syncVersionsDownload(id);
+  } catch (eVer) {
+    console.warn('[cloud] versions download', eVer);
+  }
   var { markCardSynced, getCardCloudMeta } = await import('./cardCloudMeta.mjs');
   var cloudAt = res.bundle.card.updatedAt
     || (res.bundle.card.data && res.bundle.card.data.updatedAt)
@@ -274,7 +299,7 @@ export async function pullCloudCardIndexAndMerge() {
         draftId: meta.id,
         charName: meta.charName || '（云端）',
         updatedAt: meta.updatedAt || '',
-        avatarInIdb: !!meta.avatarInIdb,
+        avatarInIdb: !!(meta.avatarInIdb || meta.hasAvatar),
         _cloudStub: true,
       };
       changed = true;

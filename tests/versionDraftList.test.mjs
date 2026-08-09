@@ -9,7 +9,7 @@ import {
   listCardVersions,
   compareCharacterVersion,
   getMaxPublishedCharacterVersion,
-  applyCardVersionSnapshot,
+  applyCardVersionEntry,
 } from '../src/lib/card-builder/cardVersions.mjs';
 import {
   ensureNovelVersions,
@@ -55,8 +55,8 @@ describe('cardVersions', function() {
     assert.equal(d.versions.length, 1);
     assert.equal(d.versions[0].ver, '1.0');
     assert.equal(d.versions[0].published, false);
-    assert.equal(d.versions[0].snapshot.draft.charName, 'V1');
-    assert.deepEqual(d.versions[0].snapshot.draft.altGreetings, ['alt1']);
+    assert.equal(d.versions[0].cardJson.data.name, 'V1');
+    assert.deepEqual(d.versions[0].cardJson.data.alternate_greetings, ['alt1']);
   });
 
   it('发布写入 published 并自动增草稿版号', function() {
@@ -105,7 +105,7 @@ describe('cardVersions', function() {
     bumpCardDraftVersion(d, 'minor');
     var pubEntry = d.versions.find(function(v) { return v.ver === '1.0'; });
     assert.equal(pubEntry.published, true);
-    assert.equal(pubEntry.snapshot.draft.charName, 'Published');
+    assert.equal(pubEntry.cardJson.data.name, 'Published');
   });
 
   it('list 含未发版', function() {
@@ -116,12 +116,16 @@ describe('cardVersions', function() {
     assert.equal(list.some(function(v) { return !v.published; }), true);
   });
 
-  it('apply 兼容旧 alternateGreetings 字段名', function() {
+  it('apply 从 cardJson 恢复 alternate_greetings', function() {
     var d = blankCard();
-    applyCardVersionSnapshot(d, {
+    applyCardVersionEntry(d, {
       ver: '9.9',
-      alternateGreetings: ['legacy'],
-      charName: 'X',
+      cardJson: {
+        data: {
+          name: 'X',
+          alternate_greetings: ['legacy'],
+        },
+      },
     });
     assert.deepEqual(d.altGreetings, ['legacy']);
   });

@@ -9,10 +9,13 @@ import {
 } from '../../sync/cardCloudIndex.mjs';
 import { getDraftsMapSync } from '../../draftsStore.mjs';
 import { countTokens, formatTokenCount } from '../../tokenStats.mjs';
+import { createAvatarGalleryController } from './avatarGalleryPanel.mjs';
+import { MAX_AVATARS_PER_CARD } from '../cardAvatarGallery.mjs';
 export function registerCharacter(ctx) {
   var escapeHtml = ctx.escapeHtml;
   var charTagsList, charTagInput, btnAddCharTag, btnAiGenCharTags, charTagsAiTip;
   var charImageInput, avatarImg, avatarPlaceholder;
+  var avatarGallery = null;
 
   var managerThumbUrls = [];
 
@@ -28,10 +31,10 @@ export function registerCharacter(ctx) {
     managerThumbUrls = [];
   }
 
-  function hydrateManagerCoverThumb(draftId, coverEl, placeholderEl) {
+  function hydrateManagerCoverThumb(draftId, coverEl, placeholderEl, avatarId) {
     ensureIdbReady().then(function() {
       if (!window.__avatarIdb__) return '';
-      return window.__avatarIdb__.loadAvatarThumbObjectUrl(draftId);
+      return window.__avatarIdb__.loadAvatarThumbObjectUrl(draftId, avatarId);
     }).then(function(url) {
       if (!url || !coverEl.isConnected) {
         if (url) URL.revokeObjectURL(url);
@@ -87,17 +90,24 @@ export function registerCharacter(ctx) {
       return;
     }
     try {
-      await window.__avatarIdb__.saveAvatarFromImage(ctx.state.draftId, img);
-      ctx.state.avatarInIdb = true;
-      ctx.state.avatarBase64 = '';
-      var url = await window.__avatarIdb__.loadAvatarFullDataUrl(ctx.state.draftId);
-      if (url) {
-        avatarImg.src = url;
-        avatarImg.style.display = 'block';
-        avatarPlaceholder.style.display = 'none';
-      }
+      var avatarId = await window.__avatarIdb__.saveAvatarFromImage(ctx.state.draftId, img);
+      if (avatarId) ctx.state.activeAvatarId = avatarId;
       ctx.sm.saveDraft({ reason: 'avatar' });
+      if (avatarGallery) await avatarGallery.afterAvatarAdded(avatarId);
+      else {
+        var url = await window.__avatarIdb__.loadAvatarFullDataUrl(ctx.state.draftId, ctx.state.activeAvatarId);
+        if (url) {
+          avatarImg.src = url;
+          avatarImg.style.display = 'block';
+          avatarPlaceholder.style.display = 'none';
+        }
+      }
     } catch (e) {
+      if (e && e.message === 'avatar_gallery_full') {
+        if (avatarGallery) avatarGallery.setTip('已达上限 ' + MAX_AVATARS_PER_CARD + ' 张', 'warn');
+        else alert('卡面已满（最多 ' + MAX_AVATARS_PER_CARD + ' 张）');
+        return;
+      }
       alert('头像保存失败：' + (e && e.message ? e.message : e));
     }
   }
@@ -358,6 +368,8 @@ export function registerCharacter(ctx) {
       };
 
       // 初始渲染
+      avatarGallery = createAvatarGalleryController(ctx);
+      avatarGallery.bind();
       ctx.panels.character.renderCharTags();
       scheduleCharacterTokens();
 
@@ -384,5 +396,10 @@ export function registerCharacter(ctx) {
     hydrateManagerCoverThumb: hydrateManagerCoverThumb,
 
     revokeManagerThumbs: revokeManagerThumbs,
+
+    refreshAvatarUi: function() {
+      if (!avatarGallery) return Promise.resolve();
+      return avatarGallery.refreshAll();
+    },
   };
 }

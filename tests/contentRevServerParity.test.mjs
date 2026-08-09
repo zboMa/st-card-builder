@@ -13,8 +13,7 @@ describe('contentRev client/server parity', function() {
         nsfwEnabled: true,
         nsfwFlavorItems: [{ id: 'f1', note: 'n' }],
         ntlTabooTypes: ['t1'],
-        avatarInIdb: true,
-        avatarBase64: 'should-strip',
+        activeAvatarId: 'av1',
       },
       { charName: '', worldbookEntries: [{ comment: 'wb', content: 'c' }] },
     ];

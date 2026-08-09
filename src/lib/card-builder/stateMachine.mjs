@@ -135,8 +135,7 @@ export function createCardStateMachine(state) {
     state.regexScripts = d.regexScripts || [];
     state.tavernHelperScripts = Array.isArray(d.tavernHelperScripts) ? d.tavernHelperScripts : [];
     state.cardBuilderExtensions = Object.assign({}, d.cardBuilderExtensions || {});
-    state.avatarInIdb = !!d.avatarInIdb;
-    state.avatarBase64 = d.avatarBase64 || '';
+    state.activeAvatarId = String(d.activeAvatarId || '').trim();
     state.altGreetings = d.altGreetings || [];
     state.nsfwEnabled = !!d.nsfwEnabled;
     state.nsfwFlavor = d.nsfwFlavor || '';
@@ -216,8 +215,7 @@ export function createCardStateMachine(state) {
     state.regexScripts = [];
     state.tavernHelperScripts = [];
     state.cardBuilderExtensions = {};
-    state.avatarBase64 = '';
-    state.avatarInIdb = false;
+    state.activeAvatarId = '';
     state.altGreetings = [];
     state.nsfwEnabled = false;
     state.nsfwFlavor = '';
@@ -274,8 +272,7 @@ export function createCardStateMachine(state) {
     var copy = deepCopy(src);
     copy.charName = draftDisplayName(src) + ' 副本';
     copy.updatedAt = stampDraftUpdatedAt();
-    copy.avatarInIdb = !!(src.avatarInIdb || src.avatarBase64);
-    if (copy.avatarInIdb) copy.avatarBase64 = '';
+    if (src.activeAvatarId) copy.activeAvatarId = src.activeAvatarId;
     dr[newId] = attachContentRevToDraft(copy);
     writeDraftsMapSync(dr);
     loadDraftIntoState(newId);

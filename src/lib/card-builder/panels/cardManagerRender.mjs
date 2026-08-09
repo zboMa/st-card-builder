@@ -15,19 +15,26 @@ import { engineTryAllowed, engineRefresh } from '../../actionEngine/helpers.mjs'
 export function attachCardManagerRender(ctx, s, panel) {
   // ---- Actions HTML ----
   function cloudStatusIconHtml(status) {
-    var label = '未上云';
-    var cls = 'card-cloud-status is-local';
-    var svg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M7 18h10a4 4 0 0 0 .5-8 5.5 5.5 0 0 0-10.7-1.5A3.5 3.5 0 0 0 7 18z"/><path d="M9 12h6M12 9v6"/></svg>';
+    var cloudSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M7 18h10a4 4 0 0 0 .5-8 5.5 5.5 0 0 0-10.7-1.5A3.5 3.5 0 0 0 7 18z"/></svg>';
+    var checkSvg = cloudSvg.replace('</svg>', '<path d="M9.5 13.2l1.8 1.8 3.4-3.6"/></svg>');
+    var upSvg = cloudSvg.replace('</svg>', '<path d="M12 15V9"/><path d="M9.5 11.5 12 9l2.5 2.5"/></svg>');
+    var downSvg = cloudSvg.replace('</svg>', '<path d="M12 9v6"/><path d="M9.5 13.5 12 16l2.5-2.5"/></svg>');
     if (status === 'cloud_synced') {
-      label = '上云已同步';
-      cls = 'card-cloud-status is-synced';
-      svg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M7 18h10a4 4 0 0 0 .5-8 5.5 5.5 0 0 0-10.7-1.5A3.5 3.5 0 0 0 7 18z"/><path d="M9.5 13.2l1.8 1.8 3.4-3.6"/></svg>';
-    } else if (status === 'cloud_dirty') {
-      label = '上云未同步';
-      cls = 'card-cloud-status is-dirty';
-      svg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M7 18h10a4 4 0 0 0 .5-8 5.5 5.5 0 0 0-10.7-1.5A3.5 3.5 0 0 0 7 18z"/><path d="M12 10v3"/><path d="M12 15.5h.01"/></svg>';
+      return '<span class="card-cloud-status is-synced" title="上云已同步" aria-label="上云已同步">' + checkSvg + '</span>';
     }
-    return '<span class="' + cls + '" title="' + label + '" aria-label="' + label + '">' + svg + '</span>';
+    if (status === 'dirty_local') {
+      return '<span class="card-cloud-status is-dirty-local" title="本地有新改动" aria-label="本地有新改动">' + upSvg + '</span>';
+    }
+    if (status === 'dirty_remote') {
+      return '<span class="card-cloud-status is-dirty-remote" title="云端有更新" aria-label="云端有更新">' + downSvg + '</span>';
+    }
+    if (status === 'dirty_both') {
+      return '<span class="card-cloud-status-group" aria-label="本地与云端均有新改动">'
+        + '<span class="card-cloud-status is-dirty-local" title="本地有新改动">' + upSvg + '</span>'
+        + '<span class="card-cloud-status is-dirty-remote" title="云端有更新">' + downSvg + '</span>'
+        + '</span>';
+    }
+    return '<span class="card-cloud-status is-local" title="未上云" aria-label="未上云">' + cloudSvg.replace('</svg>', '<path d="M9 12h6M12 9v6"/></svg>') + '</span>';
   }
 
 
@@ -117,13 +124,17 @@ export function attachCardManagerRender(ctx, s, panel) {
     if (id === currentId) panel.saveCurrentDraft();
     var all = s.getAllDrafts();
     var d = id === currentId
-      ? Object.assign({}, buildDraftSnapshot(ctx.state), { draftId: id })
+      ? Object.assign({}, buildDraftSnapshot(ctx.state), { draftId: id, versions: ctx.state.versions || [] })
       : all[id];
     if (!d) return;
     ensureCardVersions(d);
     bumpCardDraftVersion(d, which === 'major' ? 'major' : 'minor');
     all[id] = d;
     ctx.sm.writeDraftsMap(all);
+    try {
+      var { persistDraftVersions } = await import('../cardVersions.mjs');
+      await persistDraftVersions(id, d);
+    } catch (eVer) { console.warn('[versions] persist', eVer); }
     if (id === currentId) {
       ctx.state.characterVersion = d.characterVersion;
       ctx.state.versions = d.versions;
@@ -149,7 +160,7 @@ export function attachCardManagerRender(ctx, s, panel) {
     if (id === currentId) panel.saveCurrentDraft();
     var all = s.getAllDrafts();
     var d = id === currentId
-      ? Object.assign({}, buildDraftSnapshot(ctx.state), { draftId: id })
+      ? Object.assign({}, buildDraftSnapshot(ctx.state), { draftId: id, versions: ctx.state.versions || [] })
       : all[id];
     if (!d) return;
     ensureCardVersions(d);
@@ -160,6 +171,10 @@ export function attachCardManagerRender(ctx, s, panel) {
     }
     all[id] = d;
     ctx.sm.writeDraftsMap(all);
+    try {
+      var { persistDraftVersions } = await import('../cardVersions.mjs');
+      await persistDraftVersions(id, d);
+    } catch (eVer) { console.warn('[versions] persist', eVer); }
     if (id === currentId) {
       panel.loadDraft(id);
     }
@@ -176,6 +191,7 @@ export function attachCardManagerRender(ctx, s, panel) {
         more: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="5" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="12" cy="19" r="1.2"/></svg>',
         delete: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><path d="M10 11v6M14 11v6"/><path d="M7 7l1 12a1 1 0 0 0 1 .9h6a1 1 0 0 0 1-.9l1-12"/></svg>',
         'cloud-upload': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 18h10a4 4 0 0 0 .5-8 5.5 5.5 0 0 0-10.7-1.5A3.5 3.5 0 0 0 7 18z"/><path d="M12 15V9"/><path d="M9.5 11.5 12 9l2.5 2.5"/></svg>',
+        'cloud-download': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 18h10a4 4 0 0 0 .5-8 5.5 5.5 0 0 0-10.7-1.5A3.5 3.5 0 0 0 7 18z"/><path d="M12 9v6"/><path d="M9.5 13.5 12 16l2.5-2.5"/></svg>',
       };
       return '<button type="button" class="' + cls + '" data-card-action="' + action + '" title="' + label + '" aria-label="' + label + '">'
         + (svgOverride || icons[action] || '') + '</button>';
@@ -400,12 +416,13 @@ export function attachCardManagerRender(ctx, s, panel) {
         coverImg.src = d.avatarBase64;
         coverImg.alt = '';
         cover.appendChild(coverImg);
-      } else if (d.avatarInIdb) {
+      } else if (d.activeAvatarId || d.avatarInIdb || (active && ctx.state.activeAvatarId)) {
         var loadingPh = document.createElement('span');
         loadingPh.className = 'card-manager-cover-placeholder';
         loadingPh.textContent = '…';
         cover.appendChild(loadingPh);
-        s.hydrateManagerCoverThumb(id, cover, loadingPh);
+        var thumbAvatarId = d.activeAvatarId || (active ? ctx.state.activeAvatarId : '');
+        s.hydrateManagerCoverThumb(id, cover, loadingPh, thumbAvatarId);
       } else {
         var ph = document.createElement('span');
         ph.className = 'card-manager-cover-placeholder';
@@ -472,7 +489,7 @@ export function attachCardManagerRender(ctx, s, panel) {
         charName: ctx.state.charName,
         charDesc: ctx.state.charDesc,
         firstMes: ctx.state.firstMes || (ctx.$('firstMes') || {}).value || '',
-        hasAvatar: !!(ctx.state.avatarInIdb || ctx.state.avatarBase64),
+        hasAvatar: !!String(ctx.state.activeAvatarId || '').trim(),
         worldbookCount: (ctx.state.worldbookEntries || []).length,
         worldbookNoKeys: (ctx.state.worldbookEntries || []).filter(function(e) {
           return e && e.enabled !== false && (!e.keys || !e.keys.length);

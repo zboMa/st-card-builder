@@ -11,6 +11,7 @@ import {
   CARD_CLOUD_META_KEY,
   mergeCloudIndexIntoMeta,
 } from '../src/lib/sync/cardCloudMeta.mjs';
+import { computeDraftContentRev } from '../src/lib/sync/contentRev.mjs';
 
 function mockStorage() {
   var map = {};
@@ -33,10 +34,10 @@ describe('cardCloudMeta', function() {
 
   it('三态判定', function() {
     assert.equal(resolveCardCloudStatus({ updatedAt: 'a' }, null), CLOUD_STATUS.LOCAL_ONLY);
-    assert.equal(resolveCardCloudStatus({ _cloudStub: true }, { onCloud: true }), CLOUD_STATUS.CLOUD_DIRTY);
+    assert.equal(resolveCardCloudStatus({ _cloudStub: true }, { onCloud: true }), CLOUD_STATUS.DIRTY_LOCAL);
     markCardSynced('c1', 't1', 't1');
     assert.equal(resolveCardCloudStatus({ updatedAt: 't1' }, getCardCloudMeta('c1')), CLOUD_STATUS.CLOUD_SYNCED);
-    assert.equal(resolveCardCloudStatus({ updatedAt: 't2' }, getCardCloudMeta('c1')), CLOUD_STATUS.CLOUD_DIRTY);
+    assert.equal(resolveCardCloudStatus({ updatedAt: 't2' }, getCardCloudMeta('c1')), CLOUD_STATUS.DIRTY_LOCAL);
   });
 
   it('contentRev 主判据：正文未变则 dirty 为 false', function() {
@@ -67,7 +68,7 @@ describe('cardCloudMeta', function() {
         cloudUpdatedAt: '2026-07-22T15:24:53.000Z',
       },
     }));
-    assert.equal(resolveCardCloudStatus({ updatedAt: '23:24:53' }, getCardCloudMeta('c2')), CLOUD_STATUS.CLOUD_DIRTY);
+    assert.equal(resolveCardCloudStatus({ updatedAt: '23:24:53' }, getCardCloudMeta('c2')), CLOUD_STATUS.DIRTY_LOCAL);
     markCardSynced('c2', '2026-07-22T15:24:53.000Z', '23:24:53', {
       contentRev: 'deadbeef',
       bundleTouch: 0,
@@ -96,7 +97,8 @@ describe('cardCloudMeta', function() {
 
   it('labels', function() {
     assert.match(cloudStatusLabel(CLOUD_STATUS.LOCAL_ONLY), /未上云/);
-    assert.match(cloudStatusLabel(CLOUD_STATUS.CLOUD_DIRTY), /未同步/);
+    assert.match(cloudStatusLabel(CLOUD_STATUS.DIRTY_LOCAL), /本地/);
+    assert.match(cloudStatusLabel(CLOUD_STATUS.DIRTY_REMOTE), /云端/);
     assert.match(cloudStatusLabel(CLOUD_STATUS.CLOUD_SYNCED), /已同步/);
   });
 
@@ -105,9 +107,13 @@ describe('cardCloudMeta', function() {
       action: 'cloud-upload',
       label: '同步上云',
     });
-    assert.deepEqual(resolveCardCloudQuickAction(CLOUD_STATUS.CLOUD_DIRTY), {
+    assert.deepEqual(resolveCardCloudQuickAction(CLOUD_STATUS.DIRTY_LOCAL), {
       action: 'cloud-upload',
       label: '同步上云',
+    });
+    assert.deepEqual(resolveCardCloudQuickAction(CLOUD_STATUS.DIRTY_REMOTE), {
+      action: 'cloud-download',
+      label: '从云端更新',
     });
     assert.equal(resolveCardCloudQuickAction(CLOUD_STATUS.CLOUD_SYNCED), null);
   });
@@ -122,6 +128,43 @@ describe('cardCloudMeta', function() {
     assert.notEqual(yMeta.onCloud, true);
     assert.equal(resolveCardCloudStatus({ updatedAt: '12:00:00' }, yMeta), CLOUD_STATUS.LOCAL_ONLY);
     assert.ok(localStorage.getItem(CARD_CLOUD_META_KEY));
+  });
+
+  it('缺 contentRev 的 snapshot 与 synced 正文一致时不 dirty', function() {
+    var body = {
+      charName: 'Snap',
+      charDesc: '足够长的描述用于稳定指纹',
+      firstMes: 'hi',
+      worldbookEntries: [],
+      updatedAt: '12:00:00',
+    };
+    var rev = computeDraftContentRev(body);
+    globalThis.localStorage.setItem(CARD_CLOUD_META_KEY, JSON.stringify({
+      snap1: {
+        cardId: 'snap1',
+        onCloud: true,
+        localSyncedAt: '12:00:00',
+        syncedContentRev: rev,
+        syncedBundleTouch: 0,
+        bundleTouch: 0,
+      },
+    }));
+    assert.equal(
+      resolveCardCloudStatus(body, getCardCloudMeta('snap1')),
+      CLOUD_STATUS.CLOUD_SYNCED
+    );
+  });
+
+  it('索引 cloudContentRev 新于 synced 基线 → dirty', function() {
+    markCardSynced('remote1', 't1', 't1', { contentRev: '11111111', bundleTouch: 0 });
+    mergeCloudIndexIntoMeta([{ id: 'remote1', updatedAt: 't2', contentRev: '22222222' }]);
+    var draft = { charName: 'A', charDesc: 'd', contentRev: '11111111', updatedAt: 't1' };
+    assert.equal(resolveCardCloudStatus(draft, getCardCloudMeta('remote1')), CLOUD_STATUS.DIRTY_REMOTE);
+  });
+
+  it('merge index 写入 cloudContentRev', function() {
+    mergeCloudIndexIntoMeta([{ id: 'idx1', updatedAt: '2026-01-01', contentRev: 'cafebabe' }]);
+    assert.equal(getCardCloudMeta('idx1').cloudContentRev, 'cafebabe');
   });
 
   it('同步基线对齐后，同 updatedAt 仍视为已同步', function() {

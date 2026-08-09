@@ -48,10 +48,10 @@ export function attachCardManagerExport(ctx, s, panel) {
       json = buildCardJSONFromDraft(ctx.state);
       name = ctx.state.charName || 'CharacterCard';
       version = ctx.state.characterVersion || json.data.character_version || '1.0';
-      if (ctx.state.avatarInIdb) {
+      if (ctx.state.activeAvatarId || ctx.state.avatarInIdb) {
         await s.ensureIdbReady();
         avatar = window.__avatarIdb__
-          ? await window.__avatarIdb__.loadAvatarFullDataUrl(id)
+          ? await window.__avatarIdb__.loadAvatarFullDataUrl(id, ctx.state.activeAvatarId)
           : '';
       } else {
         avatar = ctx.state.avatarBase64;
@@ -65,10 +65,10 @@ export function attachCardManagerExport(ctx, s, panel) {
       json = buildCardJSONFromDraft(d);
       name = draftDisplayName(d) || 'CharacterCard';
       version = d.characterVersion || '1.0';
-      if (d.avatarInIdb) {
+      if (d.activeAvatarId || d.avatarInIdb) {
         await s.ensureIdbReady();
         avatar = window.__avatarIdb__
-          ? await window.__avatarIdb__.loadAvatarFullDataUrl(id)
+          ? await window.__avatarIdb__.loadAvatarFullDataUrl(id, d.activeAvatarId)
           : '';
       } else {
         avatar = d.avatarBase64 || '';

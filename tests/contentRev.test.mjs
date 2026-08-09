@@ -43,7 +43,7 @@ describe('contentRev', function() {
     markCardSynced('b1', '12:00:00', '12:00:00', collectSyncBaseline(draft, null));
     assert.equal(resolveCardCloudStatus(draft, getCardCloudMeta('b1')), CLOUD_STATUS.CLOUD_SYNCED);
     bumpCardBundleTouch('b1');
-    assert.equal(resolveCardCloudStatus(draft, getCardCloudMeta('b1')), CLOUD_STATUS.CLOUD_DIRTY);
+    assert.equal(resolveCardCloudStatus(draft, getCardCloudMeta('b1')), CLOUD_STATUS.DIRTY_LOCAL);
     globalThis.localStorage = undefined;
   });
 

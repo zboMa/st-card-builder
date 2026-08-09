@@ -383,9 +383,23 @@
   .card-cloud-status.is-local {
     color: rgba(148, 163, 184, 0.95);
   }
-  .card-cloud-status.is-dirty {
+  .card-cloud-status.is-dirty-local {
     color: #fbbf24;
     background: rgba(245, 158, 11, 0.14);
+  }
+  .card-cloud-status.is-dirty-remote {
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.14);
+  }
+  .card-cloud-status-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    margin-left: 4px;
+    vertical-align: -0.15em;
+  }
+  .card-cloud-status-group .card-cloud-status {
+    margin-left: 0;
   }
   .card-cloud-status.is-synced {
     color: #34d399;

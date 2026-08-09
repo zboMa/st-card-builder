@@ -19,8 +19,7 @@ export function createDefaultCardState() {
     regexScripts: [],
     tavernHelperScripts: [],
     cardBuilderExtensions: {},
-    avatarBase64: '',
-    avatarInIdb: false,
+    activeAvatarId: '',
     altGreetings: [],
     nsfwEnabled: false,
     nsfwFlavor: '',
@@ -50,7 +49,7 @@ export function createDefaultCardState() {
     affectionSyncStatusBar: true,
     /** ST data.character_version */
     characterVersion: '1.0',
-    /** 正式版本列表（切版/增版/发布时写入；保存草稿不写） */
+    /** 运行时版本列表（持久化在 cardVersionsV1，不入 draft 快照） */
     versions: [],
     /** 本地更新标记（仅在真实保存时刷新；勿在快照读取时伪造） */
     updatedAt: '',
@@ -79,8 +78,7 @@ export function buildDraftSnapshot(state) {
     regexScripts: s.regexScripts || [],
     tavernHelperScripts: s.tavernHelperScripts || [],
     cardBuilderExtensions: Object.assign({}, s.cardBuilderExtensions || {}),
-    avatarInIdb: !!s.avatarInIdb,
-    avatarBase64: s.avatarInIdb ? '' : (s.avatarBase64 || ''),
+    activeAvatarId: String(s.activeAvatarId || '').trim(),
     altGreetings: s.altGreetings || [],
     nsfwEnabled: !!s.nsfwEnabled,
     nsfwFlavor: s.nsfwFlavor || '',
@@ -129,8 +127,6 @@ export function buildDraftSnapshot(state) {
     affectionSelectedNames: Array.isArray(s.affectionSelectedNames) ? s.affectionSelectedNames.slice() : [],
     affectionSyncStatusBar: s.affectionSyncStatusBar !== false,
     characterVersion: String(s.characterVersion != null ? s.characterVersion : '1.0').trim() || '1.0',
-    versions: Array.isArray(s.versions) ? s.versions : [],
-    // 保留既有 updatedAt；真正落盘时由 stateMachine.saveDraft 刷新
     updatedAt: s.updatedAt || '',
   };
 }

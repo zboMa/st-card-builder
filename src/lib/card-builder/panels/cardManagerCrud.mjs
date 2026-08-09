@@ -16,10 +16,14 @@ export function attachCardManagerCrud(ctx, s, panel) {
     if (!window.__avatarIdb__) return false;
     var ok = await window.__avatarIdb__.migrateAvatarBase64ToIdb(id, d.avatarBase64);
     if (!ok) return false;
-    d.avatarInIdb = true;
-    d.avatarBase64 = '';
+    var gallery = await import('../cardAvatarGallery.mjs');
+    var manifest = await gallery.loadAvatarManifest(id);
+    var primary = manifest.items.find(function(it) { return it.primary; }) || manifest.items[0];
+    var patch = { avatarBase64: '', avatarInIdb: false };
+    if (primary && primary.id) patch.activeAvatarId = primary.id;
+    d = Object.assign({}, d, patch);
     dr[id] = d;
-    try { ctx.sm.patchDraftRecord(id, { avatarInIdb: true, avatarBase64: '' }, { notify: false }); } catch (e) {
+    try { ctx.sm.patchDraftRecord(id, patch, { notify: false }); } catch (e) {
       try { writeDraftsMapSync(dr); } catch (e2) { console.warn('Saving drafts failed', e2); }
     }
     return true;
@@ -113,6 +117,14 @@ export function attachCardManagerCrud(ctx, s, panel) {
     var d = dr[id];
     if (!d) return;
 
+    try {
+      var verMod = await import('../cardVersions.mjs');
+      await verMod.hydrateDraftVersions(id, d);
+      if (id === s.getCurrentDraftId()) ctx.state.versions = d.versions.slice();
+    } catch (eHydrate) {
+      console.warn('[versions] hydrate', eHydrate);
+    }
+
     // Update DOM fields from state
     var setVal = function (elId, val) { var el = ctx.$(elId); if (el) el.value = val; };
     setVal('charName', ctx.state.charName);
@@ -147,17 +159,22 @@ export function attachCardManagerCrud(ctx, s, panel) {
       avatarImg.style.display = 'none';
       avatarPlaceholder.style.display = 'block';
     }
-    if (ctx.state.avatarBase64 && !ctx.state.avatarInIdb) {
+    if (ctx.state.avatarBase64 && !ctx.state.activeAvatarId) {
       var migrated = await migrateDraftAvatarToIdb(id, d, dr);
-      if (migrated) {
-        ctx.state.avatarInIdb = true;
-        ctx.state.avatarBase64 = '';
+      if (migrated && window.__avatarIdb__) {
+        var manifest = await import('../cardAvatarGallery.mjs').then(function(m) {
+          return m.loadAvatarManifest(id);
+        });
+        var primary = manifest && manifest.items && manifest.items.find(function(it) { return it.primary; });
+        if (primary) ctx.state.activeAvatarId = primary.id;
       }
     }
-    if (ctx.state.avatarInIdb) {
+    if (ctx.panels.character && ctx.panels.character.refreshAvatarUi) {
+      await ctx.panels.character.refreshAvatarUi();
+    } else if (ctx.state.activeAvatarId || d.avatarInIdb) {
       await s.ensureIdbReady();
       if (window.__avatarIdb__) {
-        var fullUrl = await window.__avatarIdb__.loadAvatarFullDataUrl(id);
+        var fullUrl = await window.__avatarIdb__.loadAvatarFullDataUrl(id, ctx.state.activeAvatarId);
         if (fullUrl && avatarImg) {
           avatarImg.src = fullUrl;
           avatarImg.style.display = 'block';

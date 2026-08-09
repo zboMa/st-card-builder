@@ -20,6 +20,7 @@ export default defineConfig({
           // target: 'http://127.0.0.1:8787',
           target: 'http://card-api.taojiu.love',
           changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/api/, ''),
         },
       },
     },

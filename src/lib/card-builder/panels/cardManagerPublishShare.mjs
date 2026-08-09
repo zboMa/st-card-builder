@@ -27,10 +27,10 @@ export function attachCardManagerPublishShare(ctx, s, panel) {
         panel.saveCurrentDraft();
         json = buildCardJSONFromDraft(ctx.state);
       }
-      if (ctx.state.avatarInIdb) {
-        await s.ensureIdbReady();
+      await s.ensureIdbReady();
+      if (ctx.state.activeAvatarId || ctx.state.avatarInIdb) {
         avatar = window.__avatarIdb__
-          ? await window.__avatarIdb__.loadAvatarFullDataUrl(id)
+          ? await window.__avatarIdb__.loadAvatarFullDataUrl(id, ctx.state.activeAvatarId)
           : '';
       } else {
         avatar = ctx.state.avatarBase64;
@@ -39,10 +39,10 @@ export function attachCardManagerPublishShare(ctx, s, panel) {
       var d = s.getAllDrafts()[id];
       if (!d) return null;
       if (!json) json = buildCardJSONFromDraft(d);
-      if (d.avatarInIdb) {
-        await s.ensureIdbReady();
+      await s.ensureIdbReady();
+      if (d.activeAvatarId || d.avatarInIdb) {
         avatar = window.__avatarIdb__
-          ? await window.__avatarIdb__.loadAvatarFullDataUrl(id)
+          ? await window.__avatarIdb__.loadAvatarFullDataUrl(id, d.activeAvatarId)
           : '';
       } else {
         avatar = d.avatarBase64 || '';
@@ -72,16 +72,16 @@ export function attachCardManagerPublishShare(ctx, s, panel) {
       s.setCardManagerStatus('找不到该角色卡', true);
       return;
     }
-    var d = id === currentId
-      ? Object.assign({}, buildDraftSnapshot(ctx.state), { draftId: id })
-      : Object.assign({}, stored, { draftId: id });
+    var d = Object.assign({}, all[id] || (id === currentId ? buildDraftSnapshot(ctx.state) : stored), {
+      draftId: id,
+    });
     ensureCardVersions(d);
 
     var gate = buildPublishGate({
       charName: d.charName,
       charDesc: d.charDesc,
       firstMes: d.firstMes,
-      hasAvatar: !!(d.avatarInIdb || d.avatarBase64),
+      hasAvatar: !!(d.activeAvatarId || d.avatarInIdb || d.avatarBase64),
       worldbookCount: (d.worldbookEntries || []).length,
       worldbookNoKeys: (d.worldbookEntries || []).filter(function(e) {
         return e && (!e.keys || !e.keys.length);
@@ -105,7 +105,8 @@ export function attachCardManagerPublishShare(ctx, s, panel) {
     if (!okPublish) return;
 
     var withPng = false;
-    if (d.avatarInIdb || d.avatarBase64 || (id === currentId && (ctx.state.avatarInIdb || ctx.state.avatarBase64))) {
+    if (d.activeAvatarId || d.avatarInIdb || d.avatarBase64
+      || (id === currentId && (ctx.state.activeAvatarId || ctx.state.avatarInIdb || ctx.state.avatarBase64))) {
       withPng = !!(await ctx.showConfirmDialog({
         icon: '🖼️',
         title: '同时上传 PNG？',
@@ -144,6 +145,10 @@ export function attachCardManagerPublishShare(ctx, s, panel) {
       // 云成功后再写本地
       all[id] = working;
       ctx.sm.writeDraftsMap(all);
+      try {
+        var { persistDraftVersions } = await import('../cardVersions.mjs');
+        await persistDraftVersions(id, working);
+      } catch (eVer) { console.warn('[versions] persist publish', eVer); }
       if (id === currentId) {
         ctx.state.characterVersion = working.characterVersion;
         ctx.state.versions = working.versions;

@@ -62,8 +62,10 @@ npm run dev            # Astro :18826（127.0.0.1），/api 代理到 8787
 |---|---|---|---|
 | **日常制作** | 编辑即 autosave 到 LS/IDB | 不推 | 无需点同步；Network 不应频繁 PUT bundle |
 | **首次上云** | 已有草稿 | 无 | 卡管理 →「同步上云」 |
-| **改完要上云** | dirty（云标「上云未同步」） | 旧版 | 「同步上云」；云端较新时会警告 |
-| **多张待上云** | 多张 dirty | — | 卡管理 →「同步未上云」 |
+| **改完要上云** | 本地有新改动（↑ 云标） | 旧版 | 「同步上云」 |
+| **云端他端已更新** | 旧 | 新（↓ 云标） | 「从云端更新 / 覆盖」 |
+| **双方都有新改动** | 新 | 新 | 列表显示 ↑+↓；先拉或先推需用户选择 |
+| **多张待上云** | 多张需上传 | — | 卡管理 →「同步未上云」（不含仅云端新） |
 | **换机 / 另一台有新版本** | 旧 | 新 | 卡管理 →「从云端覆盖」（或先拉列表再覆盖） |
 | **只看云上有啥** | 可有 stub | 索引 | boot 已登录会预拉；或进卡管理 / 账户「刷新云端列表」 |
 | **打开云端 stub 卡** | stub | 有正文 | 点开卡 → `GET .../bundle` 水合 |
@@ -80,7 +82,7 @@ npm run dev            # Astro :18826（127.0.0.1），/api 代理到 8787
 - **删光本地唯一卡**：先 force 拉索引；有云卡则切过去，确认无卡才 `createBlankDraft`
 - **合并不做孤儿修剪**：`pullCloudCardIndexAndMerge` 只按 id upsert stub，不因「像空卡」删除本地草稿
 
-云标三态：无 `localSyncedAt` / `syncedContentRev` 基线 → **未上云**；有基线且 `contentRev` ≠ `syncedContentRev` 或 `bundleTouch` ≠ `syncedBundleTouch` → **上云未同步**；否则 **已同步**（旧卡无 `contentRev` 时回退 `updatedAt` vs `localSyncedAt`）。  
+云标五态（卡管理封面 meta 行）：无 `localSyncedAt` / `syncedContentRev` 基线 → **未上云**；基线对齐 → **已同步**；仅本地新 → **本地有新改动**（↑）；仅索引/远端 manifest 新于基线 → **云端有更新**（↓）；双方分叉 → **↑+↓**。判据：`contentRev` + 索引 `cloudContentRev` + `localAvatarsManifestRev` / `cloudAvatarsManifestRev` + `localVersionsManifestRev` / `cloudVersionsManifestRev` + `bundleTouch`（工坊/RAG 等）。旧卡无 `contentRev` 时回退 `updatedAt` vs `localSyncedAt`。  
 手动回归见 [`../ops/regression-checklist.md`](../ops/regression-checklist.md)。
 
 ## 主要 API
@@ -113,9 +115,10 @@ npm run dev            # Astro :18826（127.0.0.1），/api 代理到 8787
 
 ### 角色卡分享
 
-- **版本列表** `versions[]`：切版 / 增版 / 发布时写入；**普通保存只写草稿**；**已发条目不可变**
+- **版本列表**：持久化在 IDB `cardVersionsV1:{cardId}`（不进工作稿 JSON）；切版 / 增版 / 发布时 commit；**autosave 不写 versions**；云端增量 doc `card/{id}/versions/manifest` + `…/snapshots/{ver}`
+- **卡面 gallery**：IDB `cardAvatarsV1:{cardId}` + 内容寻址 blob；工作稿只存 `activeAvatarId`；每卡最多 **20** 张，2048/512 JPEG；云端 `card/{id}/avatars/manifest` + `avatar/blobs/{hash}`；上/下拉与 bundle 并行（bundle 仍带当前 active 头像以兼容旧服务端）
 - **发布**：写入该版快照并 `published=true`，草稿自动升小版本；云成功后再落本地（失败回滚）；云端写 `card/{id}/release` + `card/{id}/release/{ver}`（删卡/删小说会清历史版）
-- **卡云标**：以 `contentRev`（正文 CRC）+ `bundleTouch`（工坊/头像/RAG）为主判据；`markCardSynced` 写入 `syncedContentRev` / `syncedBundleTouch`；旧数据回退 `localSyncedAt` vs `updatedAt`
+- **卡云标**：`resolveCardCloudStatus` + `markCardSynced`（含 manifest rev 基线）；`mergeCloudIndexIntoMeta` 可写入 `cloudContentRev` 与 manifest rev 字段；发布门禁与列表共用同一判定
 - **映射**：`stcb-public-shares` → `share/{token}`
 - **API**：`/api/share/cards/*`；info 含 latest + 各已发版 `versions/:ver/json|png`
 

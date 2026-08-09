@@ -23,11 +23,19 @@ import PreviewPanel from './PreviewPanel.astro';
           <img id="avatarImg" class="avatar-upload__img" style="display: none;" alt="avatar" />
         </div>
         <div class="avatar-upload__actions">
-          <label class="btn btn-panel-tool avatar-upload__file-btn" for="charImageInput" title="上传头像（将嵌入 PNG 卡片）">上传头像</label>
+          <label id="charAvatarUploadLabel" class="btn btn-panel-tool avatar-upload__file-btn" for="charImageInput" title="添加卡面（将嵌入 PNG 卡片）">添加卡面</label>
           <input type="file" id="charImageInput" accept="image/*" hidden />
           <button type="button" id="btnOpenAvatarImageGen" class="btn btn-ai-engine" title="用 AI 生图生成头像（需先在 AI 配置配置生图服务商）">AI 生成头像</button>
         </div>
-        <p class="avatar-upload__hint">将嵌入 PNG 卡片</p>
+        <p class="avatar-upload__hint">当前草稿使用的卡面会嵌入 PNG</p>
+        <div class="avatar-gallery" aria-labelledby="avatarGalleryHeading">
+          <div class="avatar-gallery__head">
+            <span id="avatarGalleryHeading" class="avatar-gallery__title">卡面列表</span>
+            <span id="avatarGalleryCount" class="avatar-gallery__count ui-hint ui-hint--inline">0/20</span>
+          </div>
+          <div id="avatarGalleryList" class="avatar-gallery__list" role="list"></div>
+          <p id="avatarGalleryTip" class="ui-hint avatar-gallery__tip" role="status" aria-live="polite"></p>
+        </div>
       </div>
     </div>
 
@@ -209,6 +217,135 @@ import PreviewPanel from './PreviewPanel.astro';
     color: var(--color-text-muted);
     margin: 0;
     text-align: center;
+  }
+  .avatar-upload__file-btn.is-disabled {
+    opacity: 0.45;
+    pointer-events: none;
+  }
+  .avatar-gallery {
+    margin-top: var(--space-2);
+    padding-top: var(--space-2);
+    border-top: 1px solid var(--color-border-subtle);
+  }
+  .avatar-gallery__head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-2);
+    margin-bottom: 6px;
+  }
+  .avatar-gallery__title {
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+  }
+  .avatar-gallery__count {
+    margin: 0;
+    font-size: 0.62rem;
+  }
+  .avatar-gallery__list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    max-height: 176px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+  }
+  .avatar-gallery__empty {
+    grid-column: 1 / -1;
+    margin: 0;
+    font-size: 0.62rem;
+    text-align: center;
+  }
+  .avatar-gallery__tile-wrap {
+    position: relative;
+  }
+  .avatar-gallery__tile {
+    display: block;
+    width: 100%;
+    aspect-ratio: 1;
+    padding: 0;
+    margin: 0;
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    cursor: pointer;
+    background: var(--color-surface-inset);
+    position: relative;
+    transition: border-color var(--dur-fast) var(--ease-out);
+  }
+  .avatar-gallery__tile:hover {
+    border-color: var(--color-border);
+  }
+  .avatar-gallery__tile.is-active {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-accent) 55%, transparent);
+  }
+  .avatar-gallery__tile img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .avatar-gallery__tile-ph {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    font-size: 0.65rem;
+    color: var(--color-text-muted);
+  }
+  .avatar-gallery__mark {
+    position: absolute;
+    left: 3px;
+    bottom: 3px;
+    font-size: 0.55rem;
+    font-weight: 600;
+    padding: 1px 4px;
+    border-radius: 3px;
+    line-height: 1.2;
+    background: color-mix(in srgb, var(--color-bg) 72%, transparent);
+    color: var(--color-text);
+  }
+  .avatar-gallery__mark.is-published {
+    left: auto;
+    right: 3px;
+    color: var(--color-accent-hover);
+  }
+  .avatar-gallery__mark.is-current {
+    color: var(--color-success);
+  }
+  .avatar-gallery__remove {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    z-index: 2;
+    min-width: 0;
+    width: 1.25rem;
+    height: 1.25rem;
+    padding: 0;
+    line-height: 1;
+    font-size: 0.85rem;
+    border-radius: var(--radius-sm);
+    background: color-mix(in srgb, var(--color-bg) 80%, transparent);
+    opacity: 0;
+    transition: opacity var(--dur-fast) var(--ease-out);
+  }
+  .avatar-gallery__tile-wrap:hover .avatar-gallery__remove,
+  .avatar-gallery__tile-wrap:focus-within .avatar-gallery__remove {
+    opacity: 1;
+  }
+  .avatar-gallery__tip {
+    margin: 6px 0 0;
+    font-size: 0.62rem;
+    min-height: 1em;
+  }
+  .avatar-gallery__tip.is-warn {
+    color: var(--color-warning, #fbbf24);
+  }
+  .avatar-gallery__tip.is-err {
+    color: var(--color-danger, #f87171);
   }
   .character-adult-hint {
     margin: 4px 0 0;

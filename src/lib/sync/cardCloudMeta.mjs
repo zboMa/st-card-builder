@@ -1,14 +1,19 @@
 /**
- * 角色卡云端状态元数据（本地）
- * 三种：local_only | cloud_dirty | cloud_synced
+ * 角色卡云端状态元数据（localStorage sidecar）
  */
+import { draftLocalContentRev } from './contentRev.mjs';
+
 export var CARD_CLOUD_META_KEY = 'st_v3_card_cloud_meta_v1';
 
 export var CLOUD_STATUS = {
   LOCAL_ONLY: 'local_only',
-  CLOUD_DIRTY: 'cloud_dirty',
   CLOUD_SYNCED: 'cloud_synced',
+  DIRTY_LOCAL: 'dirty_local',
+  DIRTY_REMOTE: 'dirty_remote',
+  DIRTY_BOTH: 'dirty_both',
 };
+
+export var CLOUD_DIRTY = CLOUD_STATUS.DIRTY_LOCAL;
 
 function readAll() {
   if (typeof localStorage === 'undefined') return {};
@@ -72,6 +77,13 @@ export function markCardLocalOnly(cardId) {
     cloudUpdatedAt: null,
     localSyncedAt: null,
     syncedContentRev: null,
+    cloudContentRev: null,
+    syncedAvatarsManifestRev: null,
+    cloudAvatarsManifestRev: null,
+    localAvatarsManifestRev: null,
+    syncedVersionsManifestRev: null,
+    cloudVersionsManifestRev: null,
+    localVersionsManifestRev: null,
     syncedBundleTouch: null,
     bundleTouch: null,
     lastSyncedAt: null,
@@ -86,86 +98,145 @@ export function markCardSynced(cardId, cloudUpdatedAt, localUpdatedAt, syncBasel
   var bundleTouch = syncBaseline.bundleTouch != null
     ? syncBaseline.bundleTouch
     : (prev.bundleTouch != null ? prev.bundleTouch : 0);
+  var syncedRev = syncBaseline.contentRev || null;
+  var avRev = syncBaseline.avatarsManifestRev != null
+    ? syncBaseline.avatarsManifestRev
+    : prev.localAvatarsManifestRev;
+  var verRev = syncBaseline.versionsManifestRev != null
+    ? syncBaseline.versionsManifestRev
+    : prev.localVersionsManifestRev;
   return setCardCloudMeta(cardId, {
     onCloud: true,
     cloudUpdatedAt: cloudUpdatedAt || localUpdatedAt || null,
     localSyncedAt: localUpdatedAt || cloudUpdatedAt || null,
-    syncedContentRev: syncBaseline.contentRev || null,
+    syncedContentRev: syncedRev,
+    cloudContentRev: syncedRev,
+    syncedAvatarsManifestRev: avRev,
+    cloudAvatarsManifestRev: avRev,
+    localAvatarsManifestRev: avRev,
+    syncedVersionsManifestRev: verRev,
+    cloudVersionsManifestRev: verRev,
+    localVersionsManifestRev: verRev,
     syncedBundleTouch: bundleTouch,
     lastSyncedAt: new Date().toISOString(),
-    // 成功同步后清掉挂起标记，否则会永远显示「未同步」
     pendingUpload: false,
     pendingDownload: false,
   });
 }
 
-/**
- * @param {object} draft 本地草稿
- * @param {object|null} meta
- * @returns {'local_only'|'cloud_dirty'|'cloud_synced'}
- *
- * 判定以 contentRev（正文指纹）+ bundleTouch（工坊/头像/RAG）为主；
- * 无基线时回退 localSyncedAt vs draft.updatedAt（兼容旧数据）。
- */
-export function resolveCardCloudStatus(draft, meta) {
-  if (draft && draft._cloudStub) return CLOUD_STATUS.CLOUD_DIRTY;
+function revLocalDirty(localRev, syncedRev) {
+  if (!syncedRev) return false;
+  return !!localRev && localRev !== syncedRev;
+}
+
+function revRemoteDirty(cloudRev, syncedRev, localRev) {
+  if (!syncedRev || !cloudRev) return false;
+  if (cloudRev === syncedRev) return false;
+  if (localRev && localRev !== syncedRev) return false;
+  return cloudRev !== syncedRev;
+}
+
+function revBothDirty(localRev, cloudRev, syncedRev) {
+  if (!syncedRev || !localRev || !cloudRev) return false;
+  return localRev !== syncedRev && cloudRev !== syncedRev && localRev !== cloudRev;
+}
+
+export function resolveCardCloudStatus(draft, meta, ctx) {
+  ctx = ctx || {};
+  if (draft && draft._cloudStub) return CLOUD_STATUS.DIRTY_LOCAL;
   if (!meta || !meta.onCloud) return CLOUD_STATUS.LOCAL_ONLY;
   var syncedLocal = String(meta.localSyncedAt || '');
-  // 从未 markCardSynced 成功：仅云端索引/onCloud 标记不算「已上云」
   if (!syncedLocal && !meta.syncedContentRev) return CLOUD_STATUS.LOCAL_ONLY;
-  if (meta.pendingUpload || meta.pendingDownload) return CLOUD_STATUS.CLOUD_DIRTY;
+  if (meta.pendingUpload) return CLOUD_STATUS.DIRTY_LOCAL;
+  if (meta.pendingDownload) return CLOUD_STATUS.DIRTY_REMOTE;
 
-  var hasRevBaseline = !!meta.syncedContentRev;
-  if (hasRevBaseline) {
-    var localRev = String((draft && draft.contentRev) || '');
-    if (!localRev || localRev !== String(meta.syncedContentRev)) return CLOUD_STATUS.CLOUD_DIRTY;
-  } else {
+  var localWork = draftLocalContentRev(draft);
+  var syncedWork = String(meta.syncedContentRev || '');
+  var cloudWork = String(meta.cloudContentRev || '').trim();
+
+  var localAv = String(ctx.avatarsManifestRev || meta.localAvatarsManifestRev || '');
+  var syncedAv = String(meta.syncedAvatarsManifestRev || '');
+  var cloudAv = String(meta.cloudAvatarsManifestRev || '');
+
+  var localVer = String(ctx.versionsManifestRev || meta.localVersionsManifestRev || '');
+  var syncedVer = String(meta.syncedVersionsManifestRev || '');
+  var cloudVer = String(meta.cloudVersionsManifestRev || '');
+
+  var hasLocal = [
+    revLocalDirty(localWork, syncedWork),
+    revLocalDirty(localAv, syncedAv),
+    revLocalDirty(localVer, syncedVer),
+    meta.syncedBundleTouch != null && meta.bundleTouch != null && meta.bundleTouch !== meta.syncedBundleTouch,
+  ].some(Boolean);
+
+  var hasRemote = [
+    revRemoteDirty(cloudWork, syncedWork, localWork),
+    revRemoteDirty(cloudAv, syncedAv, localAv),
+    revRemoteDirty(cloudVer, syncedVer, localVer),
+  ].some(Boolean);
+
+  var hasBoth = [
+    revBothDirty(localWork, cloudWork, syncedWork),
+    revBothDirty(localAv, cloudAv, syncedAv),
+    revBothDirty(localVer, cloudVer, syncedVer),
+  ].some(Boolean);
+
+  if (!meta.syncedContentRev) {
     var localAt = String((draft && draft.updatedAt) || '');
-    if (localAt && localAt !== syncedLocal) return CLOUD_STATUS.CLOUD_DIRTY;
+    if (localAt && localAt !== syncedLocal) hasLocal = true;
   }
 
-  if (meta.syncedBundleTouch != null && meta.bundleTouch != null
-    && meta.bundleTouch !== meta.syncedBundleTouch) {
-    return CLOUD_STATUS.CLOUD_DIRTY;
-  }
+  if (hasBoth || (hasLocal && hasRemote)) return CLOUD_STATUS.DIRTY_BOTH;
+  if (hasRemote) return CLOUD_STATUS.DIRTY_REMOTE;
+  if (hasLocal) return CLOUD_STATUS.DIRTY_LOCAL;
   return CLOUD_STATUS.CLOUD_SYNCED;
 }
 
 export function cloudStatusLabel(status) {
   if (status === CLOUD_STATUS.CLOUD_SYNCED) return '上云已同步';
-  if (status === CLOUD_STATUS.CLOUD_DIRTY) return '上云未同步';
+  if (status === CLOUD_STATUS.DIRTY_LOCAL) return '本地有新改动';
+  if (status === CLOUD_STATUS.DIRTY_REMOTE) return '云端有更新';
+  if (status === CLOUD_STATUS.DIRTY_BOTH) return '本地与云端均有新改动';
   return '未上云';
 }
 
-/**
- * 卡底栏「更多」左侧的云快捷操作（⋯ 菜单内云项不变）。
- * 已同步：不显示；未上云 / 未同步：同步上云。
- * @returns {{ action: string, label: string }|null}
- */
 export function resolveCardCloudQuickAction(status) {
   if (status === CLOUD_STATUS.CLOUD_SYNCED) return null;
+  if (status === CLOUD_STATUS.DIRTY_REMOTE || status === CLOUD_STATUS.DIRTY_BOTH) {
+    return { action: 'cloud-download', label: '从云端更新' };
+  }
   return { action: 'cloud-upload', label: '同步上云' };
 }
 
-/** 合并云端索引摘要到 meta（对齐后调用；不擅自置 onCloud，避免误报未同步） */
 export function mergeCloudIndexIntoMeta(cards) {
   var list = Array.isArray(cards) ? cards : [];
   var all = readAll();
-  var seen = Object.create(null);
   list.forEach(function(c) {
     if (!c || !c.id) return;
-    seen[c.id] = true;
     var prev = all[c.id] || {};
     all[c.id] = Object.assign({}, prev, {
       cardId: c.id,
       cloudUpdatedAt: c.updatedAt || prev.cloudUpdatedAt || null,
+      cloudContentRev: c.contentRev != null ? String(c.contentRev) : (prev.cloudContentRev || null),
+      cloudAvatarsManifestRev: c.avatarsManifestRev != null
+        ? String(c.avatarsManifestRev) : (prev.cloudAvatarsManifestRev || null),
+      cloudVersionsManifestRev: c.versionsManifestRev != null
+        ? String(c.versionsManifestRev) : (prev.cloudVersionsManifestRev || null),
       updatedAt: new Date().toISOString(),
     });
   });
   writeAll(all);
-  return Object.keys(seen).length;
+  return list.length;
 }
 
 export function readAllCardCloudMeta() {
   return readAll();
+}
+
+export function touchLocalManifestRevs(cardId, patch) {
+  return setCardCloudMeta(cardId, patch || {});
+}
+
+export function isCloudOutOfSync(status) {
+  return status !== CLOUD_STATUS.CLOUD_SYNCED && status !== CLOUD_STATUS.LOCAL_ONLY;
 }

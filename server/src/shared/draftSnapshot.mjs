@@ -30,8 +30,7 @@ export function buildDraftSnapshot(state) {
     regexScripts: s.regexScripts || [],
     tavernHelperScripts: s.tavernHelperScripts || [],
     cardBuilderExtensions: Object.assign({}, s.cardBuilderExtensions || {}),
-    avatarInIdb: !!s.avatarInIdb,
-    avatarBase64: s.avatarInIdb ? '' : (s.avatarBase64 || ''),
+    activeAvatarId: String(s.activeAvatarId || '').trim(),
     altGreetings: s.altGreetings || [],
     nsfwEnabled: !!s.nsfwEnabled,
     nsfwFlavor: s.nsfwFlavor || '',
@@ -80,7 +79,6 @@ export function buildDraftSnapshot(state) {
     affectionSelectedNames: Array.isArray(s.affectionSelectedNames) ? s.affectionSelectedNames.slice() : [],
     affectionSyncStatusBar: s.affectionSyncStatusBar !== false,
     characterVersion: String(s.characterVersion != null ? s.characterVersion : '1.0').trim() || '1.0',
-    versions: Array.isArray(s.versions) ? s.versions : [],
     updatedAt: s.updatedAt || '',
   };
 }
