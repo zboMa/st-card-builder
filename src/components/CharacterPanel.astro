@@ -3,18 +3,24 @@
 import PreviewPanel from './PreviewPanel.astro';
 ---
 <div class="panel area-character">
-  <div class="panel-header character-panel-head">
-    <h2>角色设定</h2>
-    <span id="charTokenCount" class="tok-text" title="角色设定字段总 token" aria-live="polite"></span>
-    <span class="ui-hint ui-hint--inline" style="margin-left:8px;">主角卡面 · 与世界书分管道</span>
-    <div class="panel-header__end">
-      <button type="button" id="btnOpenJsonPreview" class="btn btn-panel-tool" title="查看当前卡 JSON">JSON</button>
-      <button type="button" id="btnOpenAiEngine" class="btn btn-ai-engine" title="打开 AI 引擎">AI 引擎</button>
-      <span id="saveIndicator" class="panel-header__badge character-saved" style="display: none;">已保存</span>
+  <div class="character-config-head">
+    <div class="panel-header character-panel-head">
+      <h2>角色设定</h2>
+      <span id="charTokenCount" class="tok-text" title="角色设定字段总 token" aria-live="polite"></span>
+      <div class="panel-header__end">
+        <button type="button" id="btnOpenJsonPreview" class="btn btn-panel-tool" title="查看当前卡 JSON">JSON</button>
+        <button type="button" id="btnOpenAiEngine" class="btn btn-ai-engine" title="打开 AI 引擎">AI 引擎</button>
+        <span id="saveIndicator" class="panel-header__badge character-saved" style="display: none;">已保存</span>
+      </div>
     </div>
+    <p class="ui-hint character-config-lead">
+      本页只编辑<strong>主角</strong>卡面字段（名、描述、标签、版本等），不会写入世界书人物档案。
+      世界观预设、载体框架、口味、姿势语言、情趣话风、NTL、恶堕请到「世界与限定」配置——那些内容不进主角 Description。
+      <button type="button" id="btnGotoWorldLimitsFromCharacter" class="ai-engine-link-btn">去「世界与限定」配置</button>
+    </p>
   </div>
 
-  <!-- 头像 + 基础信息左右分栏 -->
+  <!-- 头像 + 基础信息：左栏头像；右栏字段 + 卡面条（紧跟标签，全宽破出） -->
   <div class="character-layout">
     <div class="character-layout__aside">
       <div class="avatar-upload avatar-upload--aside">
@@ -28,17 +34,10 @@ import PreviewPanel from './PreviewPanel.astro';
           <button type="button" id="btnOpenAvatarImageGen" class="btn btn-ai-engine" title="用 AI 生图生成头像（需先在 AI 配置配置生图服务商）">AI 生成头像</button>
         </div>
         <p class="avatar-upload__hint">当前草稿使用的卡面会嵌入 PNG</p>
-        <div class="avatar-gallery" aria-labelledby="avatarGalleryHeading">
-          <div class="avatar-gallery__head">
-            <span id="avatarGalleryHeading" class="avatar-gallery__title">卡面列表</span>
-            <span id="avatarGalleryCount" class="avatar-gallery__count ui-hint ui-hint--inline">0/20</span>
-          </div>
-          <div id="avatarGalleryList" class="avatar-gallery__list" role="list"></div>
-          <p id="avatarGalleryTip" class="ui-hint avatar-gallery__tip" role="status" aria-live="polite"></p>
-        </div>
       </div>
     </div>
 
+    <div class="character-layout__right">
     <div class="character-layout__main">
       <div class="grid-2">
         <div class="form-group">
@@ -78,18 +77,20 @@ import PreviewPanel from './PreviewPanel.astro';
             <button type="button" id="btnAiGenCharTags" class="btn btn-panel-tool btn-ai-tag">AI 生成</button>
           </div>
         </div>
-        <span id="charTagsAiTip" class="ui-status-tip char-tags-ai-tip" role="status" aria-live="polite"></span>
       </div>
+    </div>
+
+    <div class="avatar-gallery avatar-gallery--strip" aria-labelledby="avatarGalleryHeading">
+      <div class="avatar-gallery__head">
+        <span id="avatarGalleryHeading" class="avatar-gallery__title">卡面列表</span>
+        <span id="avatarGalleryCount" class="avatar-gallery__count ui-hint ui-hint--inline">0/20</span>
+      </div>
+      <div id="avatarGalleryList" class="avatar-gallery__list" role="list"></div>
+    </div>
     </div>
   </div>
 
-  <p class="ui-hint character-adult-hint">
-    本页只编辑<strong>主角</strong>卡面字段（名、描述、标签、版本等），不会写入世界书人物档案。
-    世界观预设、载体框架、口味、姿势语言、情趣话风、NTL、恶堕请到「世界与限定」配置——那些内容不进主角 Description。
-    <button type="button" id="btnGotoWorldLimitsFromCharacter" class="ai-engine-link-btn">去「世界与限定」配置</button>
-  </p>
-
-  <hr class="divider" />
+  <hr class="divider character-panel-divider" />
 
   <div class="form-group">
     <div class="ui-label-row">
@@ -98,8 +99,6 @@ import PreviewPanel from './PreviewPanel.astro';
     </div>
     <textarea id="charDesc" style="min-height: 130px;" placeholder="主角的外貌、性格、背景故事（请勿写入 NSFW / 恶堕分期）..."></textarea>
   </div>
-
-  <p class="ui-hint character-greetings-hint">主开场白与备选开场请到侧栏「开场白」模块编辑。</p>
 
   <hr class="divider" />
 
@@ -159,8 +158,8 @@ import PreviewPanel from './PreviewPanel.astro';
     gap: var(--space-2);
     flex-shrink: 0;
   }
-  /* Header 固定（同世界与限定）：面板内滚动，标题行毛玻璃吸顶 */
-  .area-character .character-panel-head {
+  /* 标题 + 说明段固定（同世界与限定）：面板内滚动，顶区毛玻璃吸顶 */
+  .area-character .character-config-head {
     position: sticky;
     top: calc(-1 * var(--space-5));
     z-index: 6;
@@ -170,15 +169,39 @@ import PreviewPanel from './PreviewPanel.astro';
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
   }
-  /* 头像 + 基础信息左右分栏：左窄栏（图片+操作），右栏信息 */
-  .character-layout {
-    display: grid;
-    grid-template-columns: 132px 1fr;
-    gap: var(--space-4);
-    align-items: start;
-    margin-bottom: var(--space-3);
+  .area-character .character-panel-head {
+    margin: 0;
+    padding: 0 0 4px;
   }
-  .character-layout__aside,
+  .character-config-lead {
+    margin: -4px 0 10px;
+    font-size: 0.78rem;
+    line-height: 1.5;
+  }
+  .character-config-lead .ai-engine-link-btn {
+    display: inline;
+    margin-left: 0.35em;
+    vertical-align: baseline;
+  }
+  /* 头像 + 右栏：左窄栏；右栏内字段与卡面条纵向紧排，卡面全宽破出至面板边 */
+  .character-layout {
+    --character-aside-w: 132px;
+    display: flex;
+    gap: var(--space-4);
+    align-items: flex-start;
+    margin-bottom: var(--space-2);
+  }
+  .character-layout__aside {
+    flex: 0 0 var(--character-aside-w);
+    min-width: 0;
+  }
+  .character-layout__right {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
   .character-layout__main {
     min-width: 0;
   }
@@ -223,16 +246,22 @@ import PreviewPanel from './PreviewPanel.astro';
     pointer-events: none;
   }
   .avatar-gallery {
-    margin-top: var(--space-2);
-    padding-top: var(--space-2);
+    width: 100%;
+    min-width: 0;
+  }
+  .avatar-gallery--strip {
+    margin: 4px 0 0;
+    padding: var(--space-2) 0 0;
     border-top: 1px solid var(--color-border-subtle);
+    width: calc(100% + var(--character-aside-w) + var(--space-4));
+    margin-left: calc(-1 * (var(--character-aside-w) + var(--space-4)));
   }
   .avatar-gallery__head {
     display: flex;
     align-items: baseline;
     justify-content: space-between;
     gap: var(--space-2);
-    margin-bottom: 6px;
+    margin-bottom: 4px;
   }
   .avatar-gallery__title {
     font-size: 0.68rem;
@@ -244,25 +273,34 @@ import PreviewPanel from './PreviewPanel.astro';
     font-size: 0.62rem;
   }
   .avatar-gallery__list {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 6px;
-    max-height: 176px;
-    overflow-y: auto;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    gap: 8px;
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 4px;
     scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
   }
   .avatar-gallery__empty {
-    grid-column: 1 / -1;
+    flex: 1 1 auto;
     margin: 0;
     font-size: 0.62rem;
     text-align: center;
+    padding: 12px 0;
   }
   .avatar-gallery__tile-wrap {
     position: relative;
+    flex: 0 0 auto;
+    width: 72px;
   }
   .avatar-gallery__tile {
     display: block;
-    width: 100%;
+    width: 72px;
+    height: 72px;
     aspect-ratio: 1;
     padding: 0;
     margin: 0;
@@ -337,24 +375,21 @@ import PreviewPanel from './PreviewPanel.astro';
     opacity: 1;
   }
   .avatar-gallery__tip {
-    margin: 6px 0 0;
+    margin: 4px 0 0;
     font-size: 0.62rem;
-    min-height: 1em;
+    min-height: 0;
+  }
+  .avatar-gallery__tip:empty {
+    display: none;
+  }
+  .area-character .character-panel-divider {
+    margin: 10px 0 12px;
   }
   .avatar-gallery__tip.is-warn {
     color: var(--color-warning, #fbbf24);
   }
   .avatar-gallery__tip.is-err {
     color: var(--color-danger, #f87171);
-  }
-  .character-adult-hint {
-    margin: 4px 0 0;
-    line-height: 1.45;
-  }
-  .character-adult-hint .ai-engine-link-btn {
-    display: inline;
-    margin-left: 0.35em;
-    vertical-align: baseline;
   }
   .character-version-row {
     display: flex;

@@ -51,7 +51,7 @@ export function $(id) {
   return document.getElementById(id);
 }
 
-import { showAppMessage, inferStatusLevel } from '../ui/appMessage.mjs';
+import { appFeedback, inferStatusLevel } from '../ui/appMessage.mjs';
 
 /**
  * @param {string} msg
@@ -61,7 +61,13 @@ export function setStatus(msg, opts) {
   state.status = String(msg || '');
   var o = opts || {};
   var level = o.level || inferStatusLevel(state.status);
-  if (state.status) showAppMessage(state.status, { level: level || undefined });
+  if (state.status) {
+    appFeedback(null, {
+      message: state.status,
+      level: level || inferStatusLevel(state.status) || 'info',
+      channel: 'auto',
+    });
+  }
   /* 面板底栏状态槽停用：仅清空，避免残留 */
   ['ssManageStatus', 'ssGraphStatus', 'ssOutlineStatus', 'ssWriteStatus', 'ssReadStatus'].forEach(function(id) {
     var el = $(id);

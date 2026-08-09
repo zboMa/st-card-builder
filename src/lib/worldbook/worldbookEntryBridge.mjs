@@ -47,6 +47,8 @@ export {
   AFFECTION_RULES_COMMENT,
   AFFECTION_ARCHIVE_PREFIX,
   AFFECTION_GENERAL_ARCHIVE_COMMENT,
+  getRegistryFixedSlot,
+  WB_OWNER,
 };
 
 export function newWorldbookEntryId() {
@@ -125,6 +127,12 @@ export function normalizeDraftEntry(raw) {
     if (raw.outlineLinks != null) out.outlineLinks = Array.isArray(raw.outlineLinks) ? raw.outlineLinks.slice() : [];
     if (raw.outlineBlurb != null) out.outlineBlurb = String(raw.outlineBlurb);
     if (!out.ownerSlot && out.owner === WB_OWNER.user) out.ownerSlot = out.id;
+    if (out.id === 'wb-mvu-varlist' || out.ownerSlot === 'mvu_varlist' || out.ownerSlot === 'varlist') {
+      out.kind = 'mvu_varlist';
+      out.owner = WB_OWNER.mvu;
+      out.ownerSlot = 'varlist';
+      if (!String(out.displayName || '').trim()) out.displayName = '变量列表';
+    }
     return out;
   }
   return fromStImportEntry({

@@ -60,7 +60,10 @@ export function registerSetup(ctx) {
 
   function setAiTip(id, msg) {
     var el = $(id);
-    if (el) el.textContent = msg || '';
+    if (el) el.textContent = '';
+    var text = String(msg || '').trim();
+    if (!text) return;
+    ctx.appFeedback({ message: text, level: 'warn', channel: 'notify', title: '无法继续' });
   }
 
   /** 填充实体人物下拉 */

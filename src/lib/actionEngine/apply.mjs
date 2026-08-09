@@ -1,6 +1,7 @@
 /**
  * 将 viewState 应用到 DOM
  */
+import { appFeedback } from '../ui/appMessage.mjs';
 
 /**
  * @param {HTMLElement} el
@@ -41,7 +42,10 @@ export function applyViewToEl(el, view, meta) {
 export function applyTip(tipId, msg) {
   if (typeof document === 'undefined' || !tipId) return;
   var el = document.getElementById(tipId);
-  if (el) el.textContent = msg || '';
+  if (el) el.textContent = '';
+  var text = String(msg || '').trim();
+  if (!text) return;
+  appFeedback(null, { message: text, level: 'warn', channel: 'notify', title: '无法继续' });
 }
 
 /**

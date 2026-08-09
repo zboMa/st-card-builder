@@ -532,7 +532,6 @@ describe('sidebar navigation contract', function() {
     const src = readCharacterPanelSources(root);
     assert.match(src, /id="btnAiGenCharTags"/);
     assert.match(src, /id="btnAddCharTag"/);
-    assert.match(src, /id="charTagsAiTip"/);
     // AI 生成在添加右侧
     const aiIdx = src.indexOf('btnAiGenCharTags');
     const addIdx = src.indexOf('btnAddCharTag');

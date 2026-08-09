@@ -2,6 +2,12 @@
  * 小说工坊共享上下文（ctx）
  * 所有 panel 通过 ctx 访问共享状态，不再依赖闭包变量。
  */
+import {
+  showAppMessage,
+  showAppNotification,
+  appFeedback,
+  feedbackFromKind,
+} from '../../ui/appMessage.mjs';
 
 export function createNovelAppContext(sm, opts) {
   var o = opts || {};
@@ -38,29 +44,15 @@ export function createNovelAppContext(sm, opts) {
         + '" title="' + title + '" aria-label="' + title + '" ' + attrs + '>' + icon + '</button>';
     },
 
-    /** 轻量提示（message toast） */
-    showAppMessage: function(message, options) {
-      var opts = options || {};
-      var text = String(message || '').trim();
-      if (!text || typeof document === 'undefined') return;
-      var host = document.getElementById('appToastHost');
-      if (!host) {
-        host = document.createElement('div');
-        host.id = 'appToastHost';
-        host.className = 'app-toast-host';
-        host.setAttribute('aria-live', 'polite');
-        document.body.appendChild(host);
-      }
-      var toast = document.createElement('div');
-      toast.className = 'app-toast' + (opts.level === 'error' ? ' is-error' : (opts.level === 'warn' ? ' is-warn' : ''));
-      toast.textContent = text;
-      host.appendChild(toast);
-      var ms = opts.duration != null ? opts.duration : 2600;
-      setTimeout(function() {
-        toast.classList.add('is-leaving');
-        setTimeout(function() { toast.remove(); }, 220);
-      }, ms);
+    appFeedback: function(opts) {
+      return appFeedback(ctx, opts);
     },
+    feedbackFromKind: function(text, kind, extra) {
+      return feedbackFromKind(ctx, text, kind, extra);
+    },
+
+    showAppMessage: showAppMessage,
+    showAppNotification: showAppNotification,
 
     /** 面板状态行：写入对应 DOM；空文案不占高度（见 .novel-status-text:empty） */
     setStatus: function(id, msg) {

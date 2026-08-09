@@ -8,27 +8,24 @@ import {
   MAX_AVATARS_PER_CARD,
 } from '../cardAvatarGallery.mjs';
 import { publishedAvatarIds } from '../cardVersions.mjs';
+import { feedbackFromKind } from '../../ui/appMessage.mjs';
 
 /** @param {object} ctx */
 export function createAvatarGalleryController(ctx) {
   var listEl = null;
   var countEl = null;
-  var tipEl = null;
   var thumbUrls = [];
+
+  function setTip(text, kind) {
+    if (!String(text || '').trim()) return;
+    feedbackFromKind(ctx, text, kind);
+  }
 
   function revokeThumbUrls() {
     thumbUrls.forEach(function(u) {
       try { URL.revokeObjectURL(u); } catch (e) { /* ignore */ }
     });
     thumbUrls = [];
-  }
-
-  function setTip(text, kind) {
-    if (!tipEl) return;
-    tipEl.textContent = text || '';
-    tipEl.classList.remove('is-warn', 'is-err');
-    if (kind === 'warn') tipEl.classList.add('is-warn');
-    if (kind === 'err') tipEl.classList.add('is-err');
   }
 
   async function refreshMainPreview() {
@@ -219,7 +216,6 @@ export function createAvatarGalleryController(ctx) {
   function bind() {
     listEl = ctx.$('avatarGalleryList');
     countEl = ctx.$('avatarGalleryCount');
-    tipEl = ctx.$('avatarGalleryTip');
     var uploadLabel = ctx.$('charAvatarUploadLabel');
 
     charImageInputDisabled = function(full) {

@@ -10,6 +10,9 @@ import {
   entryFamily,
   OUTLINE_TYPE_LABELS,
   outlineTypeFromKind,
+  normalizeOutlineType,
+  getRegistryFixedSlot,
+  WB_OWNER,
 } from './worldbookEntryBridge.mjs';
 
 export {
@@ -77,4 +80,40 @@ export function wbKindLabelForEntry(entry) {
   var k = String(entry.kind || '').trim();
   if (!k || k === 'user') return '';
   return wbKindLabel(k);
+}
+
+/** outline 分类键（CSS 修饰符） */
+export function wbOutlineTypeKey(entry) {
+  entry = entry || {};
+  var t = String(entry.outlineType || '').trim() || outlineTypeFromKind(entry.kind);
+  return normalizeOutlineType(t) || '';
+}
+
+export function wbTypeTagLabel(entry) {
+  entry = entry || {};
+  var key = wbOutlineTypeKey(entry);
+  if (key && OUTLINE_TYPE_LABELS[key]) return OUTLINE_TYPE_LABELS[key];
+  var fixed = getRegistryFixedSlot(entry.owner, entry.ownerSlot);
+  if (fixed && fixed.defaultDisplayName) return fixed.defaultDisplayName;
+  if (entry.id === 'wb-mvu-varlist' || String(entry.ownerSlot || '') === 'mvu_varlist') return '变量列表';
+  return wbKindLabelForEntry(entry);
+}
+
+export function wbTypeTagClass(entry) {
+  entry = entry || {};
+  var key = wbOutlineTypeKey(entry);
+  if (key) return 'wb-type-tag wb-type--' + key;
+  var k = String(entry.kind || '').trim();
+  if (k.indexOf('mvu_') === 0
+    || entry.id === 'wb-mvu-varlist'
+    || String(entry.ownerSlot || '') === 'mvu_varlist'
+    || String(entry.ownerSlot || '') === 'varlist') {
+    return 'wb-type-tag wb-type--mvu';
+  }
+  if (k.indexOf('novel_') === 0) return 'wb-type-tag wb-type--novel';
+  if (k.indexOf('adult_') === 0) return 'wb-type-tag wb-type--adult';
+  if (k === 'corruption_rules' || k === 'corruption_archive' || k === 'affection_rules' || k === 'affection_archive') {
+    return 'wb-type-tag wb-type--system-lore';
+  }
+  return '';
 }

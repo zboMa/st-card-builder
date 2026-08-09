@@ -11,9 +11,10 @@ import { getDraftsMapSync } from '../../draftsStore.mjs';
 import { countTokens, formatTokenCount } from '../../tokenStats.mjs';
 import { createAvatarGalleryController } from './avatarGalleryPanel.mjs';
 import { MAX_AVATARS_PER_CARD } from '../cardAvatarGallery.mjs';
+import { feedbackFromKind } from '../../ui/appMessage.mjs';
 export function registerCharacter(ctx) {
   var escapeHtml = ctx.escapeHtml;
-  var charTagsList, charTagInput, btnAddCharTag, btnAiGenCharTags, charTagsAiTip;
+  var charTagsList, charTagInput, btnAddCharTag, btnAiGenCharTags;
   var charImageInput, avatarImg, avatarPlaceholder;
   var avatarGallery = null;
 
@@ -162,10 +163,7 @@ export function registerCharacter(ctx) {
     },
 
     setCharTagsAiTip: function(text, kind) {
-      if (!charTagsAiTip) return;
-      charTagsAiTip.textContent = text || '';
-      charTagsAiTip.classList.remove('is-warn', 'is-ok', 'is-err');
-      if (kind) charTagsAiTip.classList.add('is-' + kind);
+      feedbackFromKind(ctx, text, kind);
     },
 
     bind: function() {
@@ -173,7 +171,6 @@ export function registerCharacter(ctx) {
       charTagInput = ctx.$('charTagInput');
       btnAddCharTag = ctx.$('btnAddCharTag');
       btnAiGenCharTags = ctx.$('btnAiGenCharTags');
-      charTagsAiTip = ctx.$('charTagsAiTip');
       charImageInput = ctx.$('charImageInput');
       avatarImg = ctx.$('avatarImg');
       avatarPlaceholder = ctx.$('avatarPlaceholder');
@@ -299,7 +296,6 @@ export function registerCharacter(ctx) {
           btnAiGenCharTags.disabled = true;
           var oldLabel = btnAiGenCharTags.textContent;
           btnAiGenCharTags.textContent = '生成中…';
-          ctx.panels.character.setCharTagsAiTip('正在生成标签…', null);
 
           try {
             await ctx.runTracked({
@@ -355,7 +351,11 @@ export function registerCharacter(ctx) {
           var reader = new FileReader();
           reader.onload = function(ev) {
             var img = new Image();
-            img.onload = function() { applyAvatarFromImage(img); };
+            img.onload = function() {
+              applyAvatarFromImage(img).finally(function() {
+                try { e.target.value = ''; } catch (err) { /* ignore */ }
+              });
+            };
             img.src = ev.target.result;
           };
           reader.readAsDataURL(file);

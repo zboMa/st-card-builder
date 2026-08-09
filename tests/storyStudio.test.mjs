@@ -327,7 +327,7 @@ describe('storyStudio UI mount', function() {
     assert.match(read, /class="ss-read-nav"/);
     assert.match(write, /id="ssWriteEmptyPreview"/);
     const shared = readFileSync(join(root, 'src/lib/storyStudio/shared.mjs'), 'utf8');
-    assert.match(shared, /showAppMessage/);
+    assert.match(shared, /appFeedback/);
     const msg = readFileSync(join(root, 'src/lib/ui/appMessage.mjs'), 'utf8');
     assert.match(msg, /export function showAppMessage/);
     const index = readFileSync(join(root, 'src/pages/index.astro'), 'utf8');

@@ -11,7 +11,7 @@ import {
   entryExportComment,
   getDefaultWBEntryV2,
   entryDisplayLabel,
-  normalizeAiJsonRow,
+  normalizeDraftEntry,
 } from '../src/lib/worldbook/worldbookEntryBridge.mjs';
 import { kindToFamily, entryFamily, isSystemEntry } from '../src/lib/worldbook/worldbookRegistry.mjs';
 
@@ -66,6 +66,20 @@ test('缺 owner 的 user 条不算体系', function() {
   assert.equal(isSystemEntry({ kind: 'user' }), false);
   assert.equal(isSystemEntry({ kind: 'user', owner: 'user' }), false);
   assert.equal(isSystemEntry({ kind: 'adult_flavor', owner: 'adult' }), true);
+});
+
+test('normalizeDraftEntry 修复 legacy 变量列表槽', function() {
+  var e = normalizeDraftEntry({
+    id: 'wb-mvu-varlist',
+    kind: 'user',
+    owner: 'user',
+    ownerSlot: 'mvu_varlist',
+    displayName: '变量列表',
+    content: 'tpl',
+  });
+  assert.equal(e.kind, 'mvu_varlist');
+  assert.equal(e.owner, 'mvu');
+  assert.equal(e.ownerSlot, 'varlist');
 });
 
 test('entryDisplayLabel 无标题时回退正文摘要', function() {

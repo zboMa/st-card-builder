@@ -4,6 +4,12 @@
  */
 import { escapeHtml } from '../../utils.mjs';
 import { showConfirmDialog } from '../../ui/confirmDialog.mjs';
+import {
+  showAppMessage,
+  showAppNotification,
+  appFeedback,
+  feedbackFromKind,
+} from '../../ui/appMessage.mjs';
 
 /**
  * 从各家 usage 中提取「prompt 前缀缓存命中」信息（仅读取，不做任何本地缓存）。
@@ -163,66 +169,19 @@ export function createCardBuilderContext(sm) {
       });
     },
 
-    /** 轻量提示（message toast），自动消失 */
-    showAppMessage: function(message, options) {
-      var opts = options || {};
-      var text = String(message || '').trim();
-      if (!text || typeof document === 'undefined') return;
-      var host = document.getElementById('appToastHost');
-      if (!host) {
-        host = document.createElement('div');
-        host.id = 'appToastHost';
-        host.className = 'app-toast-host';
-        host.setAttribute('aria-live', 'polite');
-        document.body.appendChild(host);
-      }
-      var toast = document.createElement('div');
-      toast.className = 'app-toast' + (opts.level === 'error' ? ' is-error' : (opts.level === 'warn' ? ' is-warn' : ''));
-      toast.textContent = text;
-      host.appendChild(toast);
-      var ms = opts.duration != null ? opts.duration : 2600;
-      setTimeout(function() {
-        toast.classList.add('is-leaving');
-        setTimeout(function() { toast.remove(); }, 220);
-      }, ms);
+    /** 统一反馈（toast / notification / inline） */
+    appFeedback: function(opts) {
+      return appFeedback(ctx, opts);
+    },
+    feedbackFromKind: function(text, kind, extra) {
+      return feedbackFromKind(ctx, text, kind, extra);
     },
 
+    /** 轻量提示（message toast），自动消失 */
+    showAppMessage: showAppMessage,
+
     /** 重要提示（notification），需手动关闭或较久后消失 */
-    showAppNotification: function(options) {
-      var opts = options || {};
-      var title = String(opts.title || '注意');
-      var message = String(opts.message || '').trim();
-      if (!message || typeof document === 'undefined') return;
-      var host = document.getElementById('appNotifyHost');
-      if (!host) {
-        host = document.createElement('div');
-        host.id = 'appNotifyHost';
-        host.className = 'app-notify-host';
-        host.setAttribute('aria-live', 'assertive');
-        document.body.appendChild(host);
-      }
-      var level = opts.level === 'error' ? 'error' : (opts.level === 'warn' ? 'warn' : 'info');
-      var card = document.createElement('div');
-      card.className = 'app-notify app-notify--' + level;
-      card.setAttribute('role', 'alert');
-      card.innerHTML =
-        '<div class="app-notify__body">' +
-          '<div class="app-notify__title">' + escapeHtml(title) + '</div>' +
-          '<div class="app-notify__message">' + escapeHtml(message) + '</div>' +
-        '</div>' +
-        '<button type="button" class="app-notify__close" aria-label="关闭">×</button>';
-      host.appendChild(card);
-      var closed = false;
-      function close() {
-        if (closed) return;
-        closed = true;
-        card.classList.add('is-leaving');
-        setTimeout(function() { card.remove(); }, 220);
-      }
-      card.querySelector('.app-notify__close').addEventListener('click', close);
-      var ms = opts.duration != null ? opts.duration : 8000;
-      if (ms > 0) setTimeout(close, ms);
-    },
+    showAppNotification: showAppNotification,
 
     callAI: async function(userContent, systemExtra, signal) {
       var apiUrlEl = $('apiUrl');

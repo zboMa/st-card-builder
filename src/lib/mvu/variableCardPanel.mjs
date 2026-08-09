@@ -10,6 +10,7 @@ import {
 import { STATUS_BAR_EXT_KEY } from '../statusBar.mjs';
 import { patchForRegistrySlot } from '../worldbook/worldbookEntryBridge.mjs';
 import { WB_OWNER } from '../worldbook/worldbookRegistry.mjs';
+import { appFeedback } from '../ui/appMessage.mjs';
 
 export function initVariableCardPanelCore() {
 /* ============================================================
@@ -942,7 +943,22 @@ export function initVariableCardPanelCore() {
   }
   function setStatus(t, c) {
     if (!statusEl) return;
-    statusEl.textContent = t;
+    var text = String(t || '').trim();
+    if (!text) {
+      statusEl.textContent = '';
+      return;
+    }
+    if (/^[🧬✅❌⚠️]/.test(text) || /正在|失败/.test(text)) {
+      statusEl.textContent = '';
+      if (/正在/.test(text)) {
+        appFeedback(null, { message: text, level: 'info', channel: 'notify', title: 'MVU' });
+        return;
+      }
+      var level = /❌|失败/.test(text) ? 'error' : (/⚠️|未检测/.test(text) ? 'warn' : 'success');
+      appFeedback(null, { message: text, level: level, channel: level === 'error' ? 'auto' : 'toast' });
+      return;
+    }
+    statusEl.textContent = text;
     statusEl.style.color = c || 'var(--color-text-muted)';
   }
 
@@ -1459,12 +1475,7 @@ export function initVariableCardPanelCore() {
 
   function mvuWorldbookEntriesFromCurrent() {
     var modules = runtimeModuleState();
-    var varlist = {
-      id: 'wb-mvu-varlist',
-      kind: 'user',
-      owner: WB_OWNER.user,
-      ownerSlot: 'mvu_varlist',
-      displayName: '变量列表',
+    var varlist = patchForRegistrySlot(WB_OWNER.mvu, 'varlist', {
       content: VARLIST_TPL,
       keys: [],
       strategy: 'constant',
@@ -1474,7 +1485,7 @@ export function initVariableCardPanelCore() {
       order: 950,
       prob: 100,
       enabled: modules.varlist,
-    };
+    });
     return [
       patchForRegistrySlot(WB_OWNER.mvu, 'initvar', {
         content: gen.initvar,

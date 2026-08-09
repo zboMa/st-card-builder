@@ -1,4 +1,5 @@
 import { generateCardJSON } from '../state.mjs';
+import { feedbackFromKind } from '../../ui/appMessage.mjs';
 import {
   normalizeCharTags,
   mergeCharTags,
@@ -168,11 +169,7 @@ export function createAiEngineShared(ctx) {
   }
 
   function setCharTagsAiTip(text, kind) {
-    var tipEl = ctx.$('charTagsAiTip');
-    if (!tipEl) return;
-    tipEl.textContent = text || '';
-    tipEl.classList.remove('is-warn', 'is-ok', 'is-err');
-    if (kind) tipEl.classList.add('is-' + kind);
+    feedbackFromKind(ctx, text, kind);
   }
 
   function sleep(ms) {

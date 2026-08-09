@@ -1,11 +1,11 @@
 import { engineTryAllowed } from '../actionEngine/helpers.mjs';
+import { appFeedback } from '../ui/appMessage.mjs';
 /**
  * 卡管理面板：JSON/PNG 导入 boot（从 CardManagerPanel.astro 外提）
  */
 
 export function initCardManagerPanelImport() {
   // 导入入口在本面板；导出 JSON/PNG 由 index 绑到各卡底部（导出该卡，不含小说）
-  var importStatusBar = document.getElementById('importStatusBar');
   var btnImportCard = document.getElementById('btnImportCard');
   var importCardInput = document.getElementById('importCardInput');
   if (!btnImportCard || !importCardInput) return;
@@ -165,19 +165,16 @@ export function initCardManagerPanelImport() {
   }
 
   function showImportStatus(msg, type) {
-    if (!importStatusBar) return;
-    var colors = {
-      info: { color: 'var(--color-accent-hover)', bg: 'rgba(56,189,248,0.08)', border: 'rgba(56,189,248,0.2)' },
-      success: { color: 'var(--color-success)', bg: 'rgba(16,185,129,0.08)', border: 'rgba(16,185,129,0.2)' },
-      error: { color: 'var(--color-danger)', bg: 'rgba(239,68,68,0.08)', border: 'rgba(239,68,68,0.2)' },
-    };
-    var c = colors[type] || colors.info;
-    importStatusBar.style.cssText =
-      'display:block;padding:8px 12px;font-size:0.78rem;border-radius:8px;margin-bottom:12px;' +
-      'color:' + c.color + ';background:' + c.bg + ';border-left:3px solid ' + c.border + ';';
-    importStatusBar.textContent = msg;
-    if (type === 'success') {
-      setTimeout(function() { importStatusBar.style.display = 'none'; }, 5000);
+    var text = String(msg || '').trim();
+    if (!text) return;
+    if (type === 'error') {
+      appFeedback(null, { message: text, level: 'error', important: true, title: '导入失败' });
+      return;
     }
+    if (type === 'info') {
+      appFeedback(null, { message: text, level: 'info', channel: 'notify', title: '正在导入' });
+      return;
+    }
+    appFeedback(null, { message: text, level: 'success', channel: 'toast' });
   }
 }

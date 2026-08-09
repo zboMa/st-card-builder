@@ -207,11 +207,8 @@ export function attachAdultConfigPanel(ctx, s, panel) {
     },
 
     setCorruptionTip: function(text, kind) {
-      var tip = document.getElementById('adultCorruptionTip');
-      if (!tip) return;
-      tip.textContent = text || '';
-      tip.classList.remove('is-warn', 'is-ok', 'is-err');
-      if (kind) tip.classList.add('is-' + kind);
+      if (!String(text || '').trim()) return;
+      ctx.feedbackFromKind(text, kind);
     },
 
     collectCorruptionCandidates: function() {
@@ -665,10 +662,8 @@ export function attachAdultConfigPanel(ctx, s, panel) {
     },
 
     setAffectionTip: function(text, kind) {
-      var tip = document.getElementById('adultAffectionTip');
-      if (!tip) return;
-      tip.textContent = text || '';
-      tip.className = 'ui-status-tip' + (kind === 'warn' ? ' is-warn' : (kind === 'ok' ? ' is-ok' : ''));
+      if (!String(text || '').trim()) return;
+      ctx.feedbackFromKind(text, kind);
     },
 
     collectAffectionCandidates: function() {
@@ -881,8 +876,6 @@ export function attachAdultConfigPanel(ctx, s, panel) {
 
       var btn = document.getElementById('btnGenAffectionLore');
       if (btn) btn.disabled = true;
-      ctx.panels.adultConfig.setAffectionTip('正在生成纯爱线世界书…', null);
-
       try {
         var result = await ctx.runTracked({
           type: 'affection_lore_generate',
@@ -1089,8 +1082,6 @@ export function attachAdultConfigPanel(ctx, s, panel) {
 
       var btn = document.getElementById('btnGenCorruptionLore');
       if (btn) btn.disabled = true;
-      ctx.panels.adultConfig.setCorruptionTip('正在生成丰满恶堕世界书…', null);
-
       try {
         var result = await ctx.runTracked({
           type: 'corruption_lore_generate',
@@ -1312,11 +1303,8 @@ export function attachAdultConfigPanel(ctx, s, panel) {
     /* ---------- 成人体系总纲（固化进卡，constant 常驻） ---------- */
 
     setSystemDigestTip: function(text, kind) {
-      var tip = document.getElementById('adultSystemDigestTip');
-      if (!tip) return;
-      tip.textContent = text || '';
-      tip.classList.remove('is-warn', 'is-ok', 'is-err');
-      if (kind) tip.classList.add('is-' + kind);
+      if (!String(text || '').trim()) return;
+      ctx.feedbackFromKind(text, kind);
     },
 
     generateSystemDigest: async function() {

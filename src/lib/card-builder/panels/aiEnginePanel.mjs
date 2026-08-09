@@ -875,8 +875,6 @@ export function attachAiEnginePanel(ctx, s, panel) {
       if (btnEl) btnEl.disabled = true;
       var oldLabel = btnEl ? btnEl.textContent : '';
       ctx.setBtnBusy(btnEl, true, '生成中…');
-      s.setCharTagsAiTip('正在生成标签…', null);
-
       try {
         await ctx.runTracked({
           type: 'char_tags_generate',

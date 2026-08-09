@@ -1108,9 +1108,25 @@
       .entry-info-title-row {
         display: flex;
         align-items: center;
-        gap: 6px;
+        justify-content: space-between;
+        gap: 8px;
         flex-wrap: wrap;
         min-width: 0;
+      }
+      .entry-title-group {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-width: 0;
+        flex: 1 1 auto;
+        max-width: 100%;
+      }
+      .entry-title-badges {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        flex-shrink: 0;
+        flex-wrap: wrap;
       }
       .entry-info-title-row h4 {
         overflow: hidden;
@@ -1136,8 +1152,9 @@
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
-        flex: 1;
+        flex: 0 1 auto;
         min-width: 0;
+        max-width: min(100%, 42ch);
       }
       .entry-info-title-row .entry-title-btn:hover {
         color: var(--color-accent-hover);
@@ -1188,6 +1205,72 @@
       .wb-strategy-tag.is-vectorized .wb-strategy-dot {
         background: var(--color-accent);
         box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.22);
+      }
+      .wb-type-tag {
+        font-size: 0.62rem;
+        font-weight: 500;
+        padding: 1px 7px;
+        border-radius: 99px;
+        border: 1px solid transparent;
+        flex-shrink: 0;
+        line-height: 1.35;
+        letter-spacing: 0.01em;
+      }
+      .wb-type--worldview {
+        background: rgba(139, 92, 246, 0.14);
+        color: #c4b5fd;
+        border-color: rgba(139, 92, 246, 0.32);
+      }
+      .wb-type--location {
+        background: rgba(45, 212, 191, 0.12);
+        color: #5eead4;
+        border-color: rgba(45, 212, 191, 0.28);
+      }
+      .wb-type--faction {
+        background: rgba(244, 63, 94, 0.12);
+        color: #fda4af;
+        border-color: rgba(244, 63, 94, 0.28);
+      }
+      .wb-type--person {
+        background: rgba(251, 191, 36, 0.12);
+        color: #fcd34d;
+        border-color: rgba(251, 191, 36, 0.3);
+      }
+      .wb-type--event {
+        background: rgba(249, 115, 22, 0.12);
+        color: #fdba74;
+        border-color: rgba(249, 115, 22, 0.28);
+      }
+      .wb-type--item {
+        background: rgba(52, 211, 153, 0.12);
+        color: #6ee7b7;
+        border-color: rgba(52, 211, 153, 0.28);
+      }
+      .wb-type--ability {
+        background: rgba(56, 189, 248, 0.12);
+        color: #7dd3fc;
+        border-color: rgba(56, 189, 248, 0.28);
+      }
+      .wb-type--other {
+        background: rgba(161, 161, 170, 0.12);
+        color: #d4d4d8;
+        border-color: rgba(161, 161, 170, 0.28);
+      }
+      .wb-type--novel {
+        background: rgba(167, 139, 250, 0.1);
+        color: #ddd6fe;
+        border-color: rgba(167, 139, 250, 0.25);
+      }
+      .wb-type--mvu {
+        background: rgba(34, 211, 238, 0.1);
+        color: #a5f3fc;
+        border-color: rgba(34, 211, 238, 0.25);
+      }
+      .wb-type--adult,
+      .wb-type--system-lore {
+        background: rgba(236, 72, 153, 0.1);
+        color: #f9a8d4;
+        border-color: rgba(236, 72, 153, 0.25);
       }
       .entry-meta-line {
         overflow: hidden;
@@ -1462,7 +1545,7 @@
       .divider {
         border: none;
         border-top: 1px dashed var(--color-surface);
-        margin: 20px 0;
+        margin: 12px 0;
       }
 
       /* ========== 动画辅助 ========== */

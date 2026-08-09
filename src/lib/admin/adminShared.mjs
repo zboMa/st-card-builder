@@ -8,6 +8,8 @@ import {
   getPublicAppUrl,
 } from '../publicConfig.mjs';
 
+import { appFeedback } from '../ui/appMessage.mjs';
+
 async function apiEmailLogin(payload) {
   var res = await apiFetch('/api/auth/login', {
     method: 'POST',
@@ -104,7 +106,10 @@ function setBanner(msg, kind) {
 
 function setStatus(msg) {
   var el = $('adminStatus');
-  if (el) el.textContent = msg || '';
+  if (el) el.textContent = '';
+  var text = String(msg || '').trim();
+  if (!text) return;
+  appFeedback(null, { message: text, level: 'info', channel: 'toast' });
 }
 
 

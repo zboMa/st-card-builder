@@ -34,6 +34,7 @@ function regFamily(kind, family) {
 regFamily('mvu_initvar', 'mvu');
 regFamily('mvu_update_rules', 'mvu');
 regFamily('mvu_update_format', 'mvu');
+regFamily('mvu_varlist', 'mvu');
 regFamily('adult_worldview', 'adult_digest');
 regFamily('adult_vessel', 'adult_digest');
 regFamily('adult_flavor', 'adult_digest');
@@ -108,6 +109,16 @@ export var REGISTRY_FIXED_SLOTS = [
     ownerSlot: 'update_format',
     defaultDisplayName: '变量输出格式',
     stComment: '[mvu_update]变量输出格式',
+    titleEditable: false,
+    deletable: false,
+  },
+  {
+    id: 'wb-mvu-varlist',
+    kind: 'mvu_varlist',
+    owner: WB_OWNER.mvu,
+    ownerSlot: 'varlist',
+    defaultDisplayName: '变量列表',
+    stComment: '变量列表',
     titleEditable: false,
     deletable: false,
   },

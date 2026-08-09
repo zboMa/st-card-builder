@@ -13,6 +13,8 @@ import {
   wbEntryFamily,
   wbKindLabel,
   wbKindLabelForEntry,
+  wbTypeTagClass,
+  wbTypeTagLabel,
   wbFamilyLabel,
   wbEntryTitleReadOnly,
   isSystemEntry,
@@ -170,10 +172,6 @@ export function createWorldbookShared(ctx) {
     ], entry.role);
     var titleVal = escapeHtml(entry.displayName || wbEntryTitle(entry));
     var titleReadOnly = wbEntryTitleReadOnly(entry) ? ' readonly' : '';
-    var kindLabel = wbKindLabelForEntry(rawEntry);
-    var kindChip = kindLabel
-      ? '<span class="wb-kind-tag" title="' + escapeHtml(wbFamilyLabel(wbEntryFamily(entry))) + '">' + escapeHtml(kindLabel) + '</span>'
-      : '';
     return ''
       + '<div class="wb-inline-editor" id="' + editorId + '" data-editor-index="' + index + '">'
       +   '<div class="form-group">'
@@ -599,6 +597,13 @@ export function createWorldbookShared(ctx) {
     })();
   }
 
+  function renderWbTypeTag(rawEntry) {
+    var cls = wbTypeTagClass(rawEntry);
+    var label = wbTypeTagLabel(rawEntry);
+    if (!cls || !label) return '';
+    return '<span class="' + cls + '">' + escapeHtml(label) + '</span>';
+  }
+
   function renderWbEntryRow(entry, index) {
     var rawEntry = entry; // 原始引用：token 缓存挂这里（normalize 返回新对象）
     var entry = normalizeWBEntry(rawEntry);
@@ -611,18 +616,20 @@ export function createWorldbookShared(ctx) {
     if (entryTok != null) metaLine += ' | \u6B63\u6587 ' + entryTok + ' tok';
     var skBadge = isSk ? '<span class="wb-skel-badge">\u9AA8\u67B6</span>' : '';
     var strategyBadge = renderStrategyTag(entry.strategy);
-    var kindLabel = wbKindLabelForEntry(rawEntry);
-    var kindChip = kindLabel
-      ? '<span class="wb-kind-tag">' + escapeHtml(kindLabel) + '</span>'
-      : '';
+    var typeTag = renderWbTypeTag(rawEntry);
     var sysBadge = isSystemEntry(rawEntry)
       ? '<span class="wb-sys-badge">\u4F53\u7CFB</span>' : '';
     var aiTitle = isSk ? 'AI \u5C55\u5F00' : 'AI \u91CD\u5199';
     return '<div class="entry-item" data-wb-index="' + index + '" id="wbEntryItem_' + index + '">'
       + '<div class="entry-item-header">'
       + '<div class="entry-info">'
-      + '<div class="entry-info-title-row"><button type="button" class="entry-title-btn" data-wb-act="edit" data-wb-index="' + index + '" title="\u7F16\u8F91\u6761\u76EE">' + safeComment + '</button>'
-      + strategyBadge + kindChip + skBadge + sysBadge + '</div>'
+      + '<div class="entry-info-title-row">'
+      + '<span class="entry-title-group">'
+      + '<button type="button" class="entry-title-btn" data-wb-act="edit" data-wb-index="' + index + '" title="\u7F16\u8F91\u6761\u76EE">' + safeComment + '</button>'
+      + typeTag
+      + '</span>'
+      + '<span class="entry-title-badges">' + strategyBadge + skBadge + sysBadge + '</span>'
+      + '</div>'
       + (previewLine ? '<p class="entry-preview-line">' + escapeHtml(previewLine) + '</p>' : '')
       + '<p class="entry-meta-line">' + escapeHtml(metaLine) + '</p>'
       + '</div>'
@@ -743,9 +750,7 @@ export function createWorldbookShared(ctx) {
       if (vlist) vlist.setItems([], { resetScroll: true });
       entriesList.innerHTML = '<div class="wb-entries-empty ui-empty-tip">\u6682\u65E0\u4E16\u754C\u4E66\u6761\u76EE\uFF0C\u70B9\u51FB\u53F3\u4E0A\u300C\u65B0\u5EFA\u300D\u6216\u300C\u5355\u6761\u751F\u6210\u300D</div>';
     } else if (vlist) {
-      vlist.setItems(wbEntries.map(function(entry, index) {
-        return { entry: entry, index: index };
-      }));
+      vlist.setItems(wbEntries);
     }
 
     window.dispatchEvent(new CustomEvent('worldbook-changed'));
@@ -820,7 +825,16 @@ export function createWorldbookShared(ctx) {
       var keysMatch = scopeKeys && keysText.toLowerCase().indexOf(q) !== -1;
       var contentMatch = scopeContent && content.toLowerCase().indexOf(q) !== -1;
       if (titleMatch || keysMatch || contentMatch) {
-        matches.push({ index: index, entry: entry, keysText: keysText, titleMatch: titleMatch, keysMatch: keysMatch, contentMatch: contentMatch });
+        matches.push({
+          index: index,
+          entry: entry,
+          rawEntry: rawEntry,
+          keysText: keysText,
+          titleText: titleText,
+          titleMatch: titleMatch,
+          keysMatch: keysMatch,
+          contentMatch: contentMatch,
+        });
       }
     });
 
@@ -843,11 +857,12 @@ export function createWorldbookShared(ctx) {
       else if (m.keysMatch) snippetSrc = m.keysText || '';
       else snippetSrc = entry.content || m.keysText || '';
       var snippet = buildWbHitSnippet(snippetSrc, q, trimmed.length);
-      var titleHtml = highlightMatch(titleText || '\u672A\u547D\u540D', trimmed);
+      var hitTitle = m.titleText || wbEntryTitle(m.rawEntry) || '';
+      var titleHtml = highlightMatch(hitTitle || '\u672A\u547D\u540D', trimmed);
       var snippetHtml = highlightMatch(snippet, trimmed);
       return '<div class="wb-search-hit" role="button" tabindex="0" data-jump-index="' + m.index + '" title="\u8DF3\u8F6C\u5E76\u5C55\u5F00\u8BE5\u6761\u76EE">' +
         '<div class="wb-search-hit-main">' +
-          '<span class="wb-search-hit-title" title="' + escapeHtml(titleText || '') + '">' + titleHtml + '</span>' +
+          '<span class="wb-search-hit-title" title="' + escapeHtml(hitTitle || '') + '">' + titleHtml + '</span>' +
           renderStrategyTag(entry.strategy) +
           '<span class="wb-search-hit-fields">' + fields.join(' \u00B7 ') + '</span>' +
         '</div>' +
@@ -874,7 +889,17 @@ export function createWorldbookShared(ctx) {
   function jumpToWbEntry(idx) {
     if (!Number.isFinite(idx) || idx < 0 || idx >= ctx.state.worldbookEntries.length) return;
     renderEntriesList();
-    if (wbVl) wbVl.scrollToIndex(idx);
+    if (wbVl) {
+      var vlItems = wbVl.getItems();
+      var vlPos = -1;
+      for (var vi = 0; vi < vlItems.length; vi++) {
+        if (vlItems[vi] && vlItems[vi].index === idx) {
+          vlPos = vi;
+          break;
+        }
+      }
+      if (vlPos >= 0) wbVl.scrollToIndex(vlPos);
+    }
     var targetDiv = document.getElementById('wbEntryItem_' + idx);
     if (targetDiv) {
       targetDiv.classList.add('is-search-focus');

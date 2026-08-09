@@ -1,6 +1,7 @@
 /**
  * 全局 AI 任务中心：统一登记、进度、AbortController 取消
  */
+import { notifyAiTaskStarted } from './ui/appMessage.mjs';
 
 /** @typedef {'queued'|'running'|'success'|'failed'|'cancelled'} TaskStatus */
 
@@ -256,12 +257,13 @@ export function createAiTaskCenter(options) {
   }
 
   /**
-   * 包装异步 AI：自动登记 / 成功 / 失败 / 取消
-   * @param {{ type?: string, title?: string, target?: string }} meta
-   * @param {(task: object) => Promise<any>} fn
-   */
+ * 包装异步 AI：自动登记 / 成功 / 失败 / 取消
+ * @param {{ type?: string, title?: string, target?: string }} meta
+ * @param {(task: object) => Promise<any>} fn
+ */
   async function run(meta, fn) {
     var task = create(Object.assign({}, meta, { autoStart: true }));
+    notifyAiTaskStarted(task);
     try {
       var result = await fn(task);
       if (task.status === 'cancelled') {

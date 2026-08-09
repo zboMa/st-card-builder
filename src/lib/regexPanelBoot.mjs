@@ -9,6 +9,7 @@ import {
   applyRegexScript,
   placementLabel,
 } from './regexScripts.mjs';
+import { appFeedback } from './ui/appMessage.mjs';
 
 export function initRegexPanel() {
   var listEl = document.getElementById('rxList');
@@ -74,16 +75,22 @@ export function initRegexPanel() {
   }
 
   function setStatus(msg, color) {
-    if (!statusEl) return;
-    statusEl.textContent = msg || '';
-    statusEl.style.color = color || 'var(--color-success)';
+    if (statusEl) statusEl.textContent = '';
+    var text = String(msg || '').trim();
+    if (!text) return;
+    var isErr = color && String(color).indexOf('danger') >= 0;
+    appFeedback(null, { message: text, level: isErr ? 'error' : 'success', channel: isErr ? 'auto' : 'toast' });
   }
 
   function setLiveHint(msg, isErr) {
-    if (!liveHintEl) return;
-    liveHintEl.textContent = msg || '';
-    liveHintEl.classList.toggle('is-ok', !isErr && !!msg);
-    liveHintEl.classList.toggle('is-err', !!isErr);
+    if (liveHintEl) {
+      liveHintEl.textContent = msg || '';
+      liveHintEl.classList.toggle('is-ok', !isErr && !!msg);
+      liveHintEl.classList.toggle('is-err', !!isErr);
+    }
+    var text = String(msg || '').trim();
+    if (!text || !isErr) return;
+    appFeedback(null, { message: text, level: 'warn', channel: 'toast' });
   }
 
   function escapeHtml(str) {

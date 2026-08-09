@@ -126,22 +126,12 @@ export function createCardManagerShared(ctx) {
 
   function setCardManagerStatus(msg, isError) {
     var text = String(msg || '').trim();
-    var bar = ctx.$('importStatusBar');
-    if (bar) {
-      bar.style.display = 'none';
-      bar.textContent = '';
-      bar.classList.remove('is-error');
-    }
     if (!text) return;
     if (isError) {
-      if (ctx.showAppNotification) {
-        ctx.showAppNotification({ title: '操作未完成', message: text, level: 'error' });
-      } else if (ctx.showAppMessage) {
-        ctx.showAppMessage(text, { level: 'error' });
-      }
+      ctx.appFeedback({ message: text, level: 'error', important: true, title: '操作未完成' });
       return;
     }
-    if (ctx.showAppMessage) ctx.showAppMessage(text);
+    ctx.appFeedback({ message: text, level: 'success', channel: 'toast' });
   }
 
   async function copyTextWithFallback(text, label) {

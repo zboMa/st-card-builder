@@ -2,6 +2,7 @@
  * 世界书审计面板 boot（从 WorldbookAuditor.astro 外提）
  */
 import { entryExportComment } from '../worldbook/worldbookEntryBridge.mjs';
+import { appFeedback } from '../ui/appMessage.mjs';
 
 export function initWorldbookAuditor() {
   
@@ -231,6 +232,7 @@ export function initWorldbookAuditor() {
     if (entries.length === 0) {
       auditStatus.textContent = '❌ 世界书为空，无法审计';
       auditStatus.style.color = '#ef4444';
+      appFeedback(null, { message: '世界书为空，无法审计', level: 'warn', channel: 'toast' });
       return;
     }
 
@@ -344,6 +346,12 @@ export function initWorldbookAuditor() {
       } else {
         auditStatus.textContent = '❌ 审计失败: ' + err.message;
         auditStatus.style.color = '#ef4444';
+        appFeedback(null, {
+          message: '审计失败: ' + err.message,
+          level: 'error',
+          important: true,
+          title: '世界书审计',
+        });
       }
     } finally {
       btnRunAudit.disabled = false;

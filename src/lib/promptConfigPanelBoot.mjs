@@ -7,6 +7,7 @@ import {
   openTextPreview,
   TEXT_PREVIEW_EXPAND_ICON
 } from './textPreviewModal.mjs';
+import { appFeedback } from './ui/appMessage.mjs';
 
 export function initPromptConfigPanel() {
   installTextPreviewGlobal();
@@ -34,9 +35,14 @@ export function initPromptConfigPanel() {
   }
 
   function setStatus(msg, ok) {
-    if (!statusEl) return;
-    statusEl.textContent = msg || '';
-    statusEl.style.color = ok ? 'var(--color-success)' : 'var(--color-danger)';
+    if (statusEl) statusEl.textContent = '';
+    var text = String(msg || '').trim();
+    if (!text) return;
+    appFeedback(null, {
+      message: text,
+      level: ok ? 'success' : 'error',
+      channel: ok ? 'toast' : 'auto',
+    });
   }
 
   function escapeHtml(s) {

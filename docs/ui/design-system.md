@@ -41,7 +41,7 @@ SillyTavern 卡片构建器壳层设计 token。状态栏 **30 套预览主题**
 | 面板导语 | 标题下一段说明 | `.ui-panel-lead` | ≈0.78rem muted；**一块即可**，勿堆第二段正文 |
 | 行内 tip | 跟在 label 后 | `.ui-hint.ui-hint--inline` | ≈0.66rem；**同行**，不换行成第二段 |
 | 强调 tip | 规则/禁忌说明 | `.adult-pref-tip` 或 `.ui-pref-tip` | 左色条 + 柔底 |
-| 状态 tip | 操作反馈 | `.ui-status-tip` | 表单下方；ok/warn/err 变色 |
+| 状态 tip | **仅 inline 白名单**（见下） | 绑控件/弹窗进度，非操作结果 |
 | 元信息 | 更新时间、发布态 | 覆盖层 / `.ui-meta` | ≈0.7rem muted |
 
 **禁止**：用正文字号写 tip；把 tip 单独撑成整行横条挡交互；在 label 下一行再放一段可缩短的 tip（能放同行就放同行）。
@@ -110,7 +110,25 @@ SillyTavern 卡片构建器壳层设计 token。状态栏 **30 套预览主题**
 3. 底栏仅操作：左图标组（复制 / 删除）、右「云快捷（按状态）+ 更多」⋯，**一行**；更多菜单挂 `document.body` + `position: fixed`，避免卡片 `overflow: hidden` 裁切。云快捷仅额外入口，⋯ 内云菜单项不变。
 4. 点名称 → 重命名；点封面其余区域 → 打开；不设独立重命名图标。
 5. 标签筛选浮层：竖排可滚动列表，挂 body（高 z-index），避免被卡片网格盖住。
-6. 操作反馈：普通提示用 **message toast**；重要/失败用 **notification**；禁止 `alert` / `confirm` / `prompt` 原生弹窗（角色卡管理走自定义对话框）。
+6. 操作反馈：**统一走 `appFeedback`**（SoT：`src/lib/ui/appMessage.mjs`）；禁止新增 `#*Tip` / 面板底栏写操作结果。普通成功/短警告 → **message toast**；失败/需阅读/长文/进行中（非 AI 任务）→ **notification**；**禁止** `alert` / `confirm` / `prompt`（角色卡管理走自定义对话框）。
+
+#### 操作反馈路由（强制）
+
+| 通道 | API | 何时用 |
+|------|-----|--------|
+| Toast | `ctx.showAppMessage` / `appFeedback({ channel:'toast' })` | 短句成功、轻量 warn |
+| Notification | `ctx.showAppNotification` / `appFeedback({ channel:'notify' })` | `level:'error'`、`important:true`、长文案、账户登录失败、进行中（导入/同步等） |
+| 任务中心 | `ctx.runTracked` / `__aiTaskCenter__` | 可取消 AI/长任务；**开始时** `notifyAiTaskStarted`（已实现于 `aiTaskCenter.run`）+ 列表进度 |
+| Inline 白名单 | `FEEDBACK_INLINE_IDS` | 仅上下文态：`syncStatusLine`、`vcStatus` 基线、`assistantStatusTip`、弹窗内 `aiStatus`/`imgGenStatus`/`auditStatus` 等 |
+
+**调用约定**
+
+- 制卡/小说：`ctx.appFeedback({ message, level, channel?, title? })` 或 `ctx.feedbackFromKind(text, 'ok'|'warn'|'err')`。
+- 无 ctx（boot 脚本）：`appFeedback(null, opts)`。
+- **`channel:'auto'`（默认）**：error/important → notify；正文 >120 字或含换行 → notify；否则 toast。
+- 同一操作 **禁止** toast + notification + inline 三响；进行中 **不要** 再写「正在…」内联 tip（AI 任务靠 notify + 任务中心）。
+
+实现与样式：`#appToastHost` / `#appNotifyHost`（`index.astro` 全局 CSS）。
 
 小说管理无封面时：标题可点重命名；操作行规则与上相同。
 

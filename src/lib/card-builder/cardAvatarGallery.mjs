@@ -15,7 +15,6 @@ import {
   AVATAR_THUMB_JPEG_QUALITY,
   drawImageToCanvas,
 } from '../avatarIdb.mjs';
-import { genId } from './state.mjs';
 import { crc32 } from '../utils.mjs';
 
 export var MAX_AVATARS_PER_CARD = 20;
@@ -55,6 +54,13 @@ async function sha256Hex(buffer) {
   return crc32(bytes).toString(16).padStart(8, '0');
 }
 
+function newAvatarGalleryId() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return 'av_' + crypto.randomUUID().replace(/-/g, '');
+  }
+  return 'av_' + String(Date.now()) + '_' + Math.random().toString(36).slice(2, 10);
+}
+
 function canvasToJpegBlob(canvas, quality) {
   return new Promise(function(resolve, reject) {
     canvas.toBlob(function(blob) {
@@ -70,6 +76,20 @@ export async function loadAvatarManifest(cardId) {
   var raw = await idbGetJson(manifestKey(id)).catch(function() { return null; });
   if (!raw || !Array.isArray(raw.items)) return emptyManifest();
   var items = raw.items.slice();
+  var seenIds = Object.create(null);
+  var repaired = false;
+  items = items.filter(function(it) { return it && it.id && it.hash; }).map(function(it) {
+    var copy = Object.assign({}, it);
+    if (seenIds[copy.id]) {
+      copy.id = newAvatarGalleryId();
+      repaired = true;
+    }
+    seenIds[copy.id] = true;
+    return copy;
+  });
+  if (repaired) {
+    await saveAvatarManifest(id, { schema: 1, items: items });
+  }
   return {
     schema: 1,
     items: items,
@@ -141,7 +161,7 @@ export async function addGalleryAvatarFromImage(cardId, img, opts) {
   var fullCanvas = drawImageToCanvas(img, AVATAR_FULL_MAX_DIM);
   var fullBlob = await canvasToJpegBlob(fullCanvas, AVATAR_FULL_JPEG_QUALITY);
   var hash = await ensureBlobPair(fullBlob);
-  var avatarId = 'av_' + genId().slice(0, 12);
+  var avatarId = newAvatarGalleryId();
   var isFirst = manifest.items.length === 0;
   manifest.items.push({
     id: avatarId,
@@ -187,27 +207,31 @@ export async function removeGalleryAvatar(cardId, avatarId, opts) {
 
 export async function loadAvatarThumbObjectUrl(cardId, avatarId) {
   var manifest = await loadAvatarManifest(cardId);
-  var item = findManifestItem(manifest, avatarId) || findManifestItem(manifest, getPrimaryAvatarId(manifest));
+  var aid = String(avatarId || '').trim();
+  var item = aid ? findManifestItem(manifest, aid) : null;
+  if (!item) item = findManifestItem(manifest, getPrimaryAvatarId(manifest));
   if (!item || !item.hash) return '';
-  var blob = await idbGetBlob(thumbKey(item.hash)).catch(function() { return null; });
-  if (!blob) {
-    blob = await idbGetBlob(blobKey(item.hash)).catch(function() { return null; });
+  var rec = await idbGetBlob(thumbKey(item.hash)).catch(function() { return null; });
+  if (!rec || !rec.blob) {
+    rec = await idbGetBlob(blobKey(item.hash)).catch(function() { return null; });
   }
-  if (!blob) return '';
-  return URL.createObjectURL(blob);
+  if (!rec || !rec.blob) return '';
+  return URL.createObjectURL(rec.blob);
 }
 
 export async function loadAvatarFullDataUrl(cardId, avatarId) {
   var manifest = await loadAvatarManifest(cardId);
-  var item = findManifestItem(manifest, avatarId) || findManifestItem(manifest, getPrimaryAvatarId(manifest));
+  var aid = String(avatarId || '').trim();
+  var item = aid ? findManifestItem(manifest, aid) : null;
+  if (!item) item = findManifestItem(manifest, getPrimaryAvatarId(manifest));
   if (!item || !item.hash) return '';
-  var blob = await idbGetBlob(blobKey(item.hash)).catch(function() { return null; });
-  if (!blob) return '';
+  var rec = await idbGetBlob(blobKey(item.hash)).catch(function() { return null; });
+  if (!rec || !rec.blob) return '';
   return new Promise(function(resolve, reject) {
     var r = new FileReader();
     r.onload = function() { resolve(String(r.result || '')); };
     r.onerror = function() { reject(r.error); };
-    r.readAsDataURL(blob);
+    r.readAsDataURL(rec.blob);
   });
 }
 

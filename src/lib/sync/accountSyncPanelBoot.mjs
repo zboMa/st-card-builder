@@ -1,6 +1,7 @@
 /**
  * 账户/云同步面板 boot（从 AccountSyncPanel.astro 外提）
  */
+import { appFeedback } from '../ui/appMessage.mjs';
 import {
     fetchAuthStatus,
     runSync,
@@ -109,8 +110,12 @@ export function initAccountSyncPanel() {
     setEmailAuthUi(st || {});
     setDiscordCta(st || {});
     if (tip) {
-      tip.textContent = tipText || '';
-      tip.classList.toggle('is-err', !!tipErr);
+      tip.textContent = '';
+      tip.classList.remove('is-err');
+    }
+    if (tipText) {
+      if (tipErr) appFeedback(null, { message: tipText, level: 'error', important: true, title: '无法连接' });
+      else appFeedback(null, { message: tipText, level: 'info', channel: 'toast' });
     }
     stopAutoSync();
     stopPanelCountdown();
@@ -147,18 +152,15 @@ export function initAccountSyncPanel() {
       setCloudEnabled(true);
       setUserPrefsSyncEnabled(true);
       pullUserPrefsFromCloud().then(function() {
-        var tip = document.getElementById('userPrefsSyncTip');
-        if (tip) {
-          tip.textContent = '用户配置已与云端对齐；本地修改将自动上传';
-          tip.classList.remove('is-err');
-        }
+        appFeedback(null, { message: '用户配置已与云端对齐；本地修改将自动上传', level: 'success', channel: 'toast' });
         pushUserPrefsToCloudNow().catch(function() {});
       }).catch(function(e) {
-        var tip = document.getElementById('userPrefsSyncTip');
-        if (tip) {
-          tip.textContent = '用户配置拉取失败：' + String(e && e.message || e);
-          tip.classList.add('is-err');
-        }
+        appFeedback(null, {
+          message: '用户配置拉取失败：' + String(e && e.message || e),
+          level: 'error',
+          important: true,
+          title: '用户配置',
+        });
       });
       applyAutoSyncPref().then(function(on) {
         syncAutoSyncToggle(on);
@@ -201,7 +203,6 @@ export function initAccountSyncPanel() {
       }
     } catch (e) {
       showLoggedOut({}, '暂时无法连接服务，请稍后重试。', true);
-      if (tip) tip.textContent = '暂时无法连接服务，请稍后重试。';
     }
   }
 
@@ -226,8 +227,8 @@ export function initAccountSyncPanel() {
       el.textContent = '对齐失败';
       el.classList.add('is-err');
       if (tip) {
-        tip.textContent = friendlySyncError(st.lastSyncError);
-        tip.classList.add('is-err');
+        tip.textContent = '';
+        tip.classList.remove('is-err');
       }
     } else if (st.lastSyncAt) {
       var extra = st.outboxSize ? (' · 待传 ' + st.outboxSize) : '';
@@ -325,8 +326,7 @@ export function initAccountSyncPanel() {
   }
 
   async function exportCloudDataJson() {
-    var tip = document.getElementById('exportDataTip');
-    if (tip) tip.textContent = '正在导出…';
+    appFeedback(null, { message: '正在导出…', level: 'info', channel: 'notify', title: '导出' });
     try {
       var data = await fetchCloudExport();
       var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -336,12 +336,14 @@ export function initAccountSyncPanel() {
       a.download = 'stcb-cloud-export-' + Date.now() + '.json';
       a.click();
       URL.revokeObjectURL(url);
-      if (tip) tip.textContent = '已下载 JSON 导出（不含 AI 密钥明文）';
+      appFeedback(null, { message: '已下载 JSON 导出（不含 AI 密钥明文）', level: 'success', channel: 'toast' });
     } catch (e) {
-      if (tip) {
-        tip.textContent = '导出失败：' + (e && e.message || e);
-        tip.classList.add('is-err');
-      }
+      appFeedback(null, {
+        message: '导出失败：' + (e && e.message || e),
+        level: 'error',
+        important: true,
+        title: '导出失败',
+      });
     }
   }
 
@@ -364,29 +366,47 @@ export function initAccountSyncPanel() {
   }
 
   async function doSync() {
-    var tip = document.getElementById('syncTip');
-    // 进行中只由 #syncStatusLine 显示「同步中…」，避免 tip 再写一遍
+    appFeedback(null, { message: '正在对齐云端…', level: 'info', channel: 'notify', title: '云同步' });
     try {
-      if (tip) {
-        tip.textContent = '';
-        tip.classList.remove('is-err');
-      }
       await runSync({ refreshCred: true, force: true, hydrateAll: true });
-      if (tip) tip.textContent = '云端列表已刷新';
+      appFeedback(null, { message: '云端列表已刷新', level: 'success', channel: 'toast' });
     } catch (e) {
-      if (tip) {
-        tip.textContent = friendlySyncError(e);
-        tip.classList.add('is-err');
-      }
+      appFeedback(null, {
+        message: friendlySyncError(e),
+        level: 'error',
+        important: true,
+        title: '云同步',
+      });
     }
     setSyncLine();
   }
 
   function setTip(msg, isErr) {
-    var tip = document.getElementById('authStatusTip');
-    if (!tip) return;
-    tip.textContent = msg || '';
-    tip.classList.toggle('is-err', !!isErr);
+    var text = String(msg || '').trim();
+    if (!text) return;
+    if (isErr) {
+      appFeedback(null, { message: text, level: 'error', important: true, title: '登录失败' });
+      return;
+    }
+    if (/中…|中\.\.\./.test(text)) {
+      appFeedback(null, { message: text, level: 'info', channel: 'notify', title: '请稍候' });
+      return;
+    }
+    appFeedback(null, { message: text, level: 'success', channel: 'toast' });
+  }
+
+  function secretsTip(msg, isErr) {
+    var text = String(msg || '').trim();
+    if (!text) return;
+    if (isErr) {
+      appFeedback(null, { message: text, level: 'error', important: true, title: 'AI 密钥同步' });
+      return;
+    }
+    if (/中…/.test(text)) {
+      appFeedback(null, { message: text, level: 'info', channel: 'notify', title: 'AI 密钥同步' });
+      return;
+    }
+    appFeedback(null, { message: text, level: 'success', channel: 'toast' });
   }
 
   document.querySelectorAll('[data-auth-tab]').forEach(function(btn) {
@@ -487,20 +507,14 @@ export function initAccountSyncPanel() {
       }
     } catch (err) {
       syncAutoSyncToggle(!on);
-      var tip = document.getElementById('syncTip');
-      if (tip) {
-        tip.textContent = '自动同步偏好保存失败';
-        tip.classList.add('is-err');
-      }
+      appFeedback(null, {
+        message: '自动同步偏好保存失败',
+        level: 'error',
+        important: true,
+        title: '云同步',
+      });
     }
   });
-
-  function secretsTip(msg, isErr) {
-    var el = document.getElementById('aiSecretsSyncTip');
-    if (!el) return;
-    el.textContent = msg || '';
-    el.classList.toggle('is-err', !!isErr);
-  }
 
   function readSecretsPassphrase() {
     var el = document.getElementById('aiSecretsPassphrase');
