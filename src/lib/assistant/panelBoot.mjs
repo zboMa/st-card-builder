@@ -13,6 +13,8 @@ import {
   } from './session.mjs';
 import { ASSISTANT_PRESET_CHIPS, getToolByName } from './tools.mjs';
 import { normalizeCharacterFieldKey, normalizeCharacterPatch, CHARACTER_FIELD_HINT } from './characterFields.mjs';
+import { fromAiJsonEntry, toAiJsonEntry, normalizeAiJsonRow, aiCommentFromRow } from '../worldbook/worldbookEntryBridge.mjs';
+import { getDefaultWBEntry } from '../card-builder/state.mjs';
 import {
     buildToolUiMessage,
     summarizePendingConfirm,
@@ -1071,7 +1073,10 @@ export function initAssistantPanelMain() {
         descriptionLen: String(c.charDesc || '').length,
         firstMesLen: String(c.firstMes || '').length,
         worldbookCount: wb.length,
-        sampleEntries: wb.slice(0, 5).map(function(e) { return e.comment; }),
+        sampleEntries: wb.slice(0, 5).map(function(e) {
+          var ai = toAiJsonEntry(e);
+          return { comment: ai.comment, type: ai.type || null };
+        }),
       };
       try {
         var rough = JSON.stringify({ data: { name: c.charName, description: c.charDesc, character_book: { entries: wb } } });
@@ -1290,7 +1295,15 @@ export function initAssistantPanelMain() {
         var feedback = bridge.getChatFeedback({});
         var char = getCharacter();
         var wb = getWorldbook().slice(0, 40).map(function(e, i) {
-          return { index: i, comment: e.comment, keys: e.keys, contentLen: String(e.content || '').length };
+          var ai = toAiJsonEntry(e);
+          return {
+            index: i,
+            comment: ai.comment,
+            type: ai.type || null,
+            kind: ai.kind || e.kind || null,
+            keys: e.keys,
+            contentLen: String(e.content || '').length,
+          };
         });
         var sys = promptText('assistantChatFeedback')
           || '根据试聊与卡面诊断问题，输出 JSON：{ issues:[], fixes:[{tool,args,reason}] }。fixes 须可被 apply_chat_feedback_fixes 执行。';
@@ -1426,7 +1439,7 @@ export function initAssistantPanelMain() {
         var sys = promptText('wbSkeleton', { batchSize: count })
           + '\n【角色】：' + c.charName + ' | ' + String(c.charDesc || '').slice(0, 300)
           + (direction ? '\n【方向】：' + direction : '')
-          + '\n【输出】：JSON数组 [{ "comment","content","keys","strategy" }, ...]';
+          + '\n【输出】：JSON数组 [{ "comment","type","content","keys","strategy" }, ...]';
         var content = await callChat([
           { role: 'system', content: sys },
           { role: 'user', content: '生成' + count + '条骨架' },
@@ -1436,20 +1449,22 @@ export function initAssistantPanelMain() {
           var m = content.match(/\[[\s\S]*\]/);
           if (m) arr = JSON.parse(m[0]);
         }
+        if (!Array.isArray(arr)) {
+          var wrapped = arr && typeof arr === 'object' ? arr : null;
+          if (wrapped && Array.isArray(wrapped.slots)) arr = wrapped.slots;
+          else if (wrapped && Array.isArray(wrapped.entries)) arr = wrapped.entries;
+        }
         if (!Array.isArray(arr)) throw new Error('骨架生成未返回数组');
         var next = existing.slice();
+        var added = 0;
         arr.forEach(function(sk) {
-          if (!sk || !sk.comment) return;
-          next.push({
-            comment: sk.comment,
-            content: sk.content || '(待展开)',
-            keys: Array.isArray(sk.keys) ? sk.keys : [],
-            strategy: sk.strategy || 'selective',
-            position: 4, depth: 4, role: 0, order: 100, prob: 100, enabled: true,
-          });
+          sk = normalizeAiJsonRow(sk);
+          if (!sk || !aiCommentFromRow(sk)) return;
+          next.push(fromAiJsonEntry(sk, getDefaultWBEntry()));
+          added++;
         });
         setWorldbook(next);
-        return { added: arr.length, total: next.length };
+        return { added: added, total: next.length };
       },
       generateWorldbookEntry: async function(opts) {
         if (!window.__assistantWbAi__) throw new Error('世界书 AI 桥接未就绪');
@@ -1496,9 +1511,9 @@ export function initAssistantPanelMain() {
         var c = getCharacter();
         var sys = promptText('wbRewrite')
           + '\n【角色】：' + c.charName
-          + '\n【原条目】：' + JSON.stringify(target)
+          + '\n【原条目】：' + JSON.stringify(toAiJsonEntry(target))
           + (opts.direction || opts.instruction ? '\n【方向】：' + (opts.instruction || opts.direction) : '')
-          + '\n【输出】：JSON对象 { comment, content, keys, strategy, position }';
+          + '\n【输出】：JSON对象 { comment, type(worldview|location|faction|person|event|item|ability|other 可选), content, keys, strategy, position }';
         var content = await callChat([
           { role: 'system', content: sys },
           { role: 'user', content: '请展开/重写该条目' },
@@ -1510,15 +1525,9 @@ export function initAssistantPanelMain() {
         }
         if (!entry) throw new Error('展开失败：无 JSON');
         var next = entries.slice();
-        next[idx] = Object.assign({}, target, {
-          comment: entry.comment || target.comment,
-          content: entry.content || target.content,
-          keys: Array.isArray(entry.keys) ? entry.keys : target.keys,
-          strategy: entry.strategy || target.strategy,
-          position: entry.position != null ? entry.position : target.position,
-        });
+        next[idx] = fromAiJsonEntry(entry, target);
         setWorldbook(next);
-        return { index: idx, comment: next[idx].comment };
+        return Object.assign({ index: idx }, toAiJsonEntry(next[idx]));
       },
       expandCharacterField: async function(opts) {
         opts = opts || {};

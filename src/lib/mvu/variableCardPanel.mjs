@@ -8,6 +8,8 @@ import {
     corruptionProgressGap,
   } from './inferFromCard.mjs';
 import { STATUS_BAR_EXT_KEY } from '../statusBar.mjs';
+import { patchForRegistrySlot } from '../worldbook/worldbookEntryBridge.mjs';
+import { WB_OWNER } from '../worldbook/worldbookRegistry.mjs';
 
 export function initVariableCardPanelCore() {
 /* ============================================================
@@ -1457,11 +1459,57 @@ export function initVariableCardPanelCore() {
 
   function mvuWorldbookEntriesFromCurrent() {
     var modules = runtimeModuleState();
+    var varlist = {
+      id: 'wb-mvu-varlist',
+      kind: 'user',
+      owner: WB_OWNER.user,
+      ownerSlot: 'mvu_varlist',
+      displayName: '变量列表',
+      content: VARLIST_TPL,
+      keys: [],
+      strategy: 'constant',
+      position: 4,
+      depth: 1,
+      role: 0,
+      order: 950,
+      prob: 100,
+      enabled: modules.varlist,
+    };
     return [
-      { comment:'[initvar]变量初始化勿开', content:gen.initvar, keys:[], strategy:'selective', position:0, depth:0, role:0, order:1000, prob:100, enabled:modules.initvar },
-      { comment:'变量列表', content:VARLIST_TPL, keys:[], strategy:'constant', position:4, depth:1, role:0, order:950, prob:100, enabled:modules.varlist },
-      { comment:'[mvu_update]变量更新规则', content:gen.updateRules, keys:[], strategy:'constant', position:4, depth:4, role:0, order:900, prob:100, enabled:modules.updateRules },
-      { comment:'[mvu_update]变量输出格式', content:FORMAT_TPL, keys:[], strategy:'constant', position:4, depth:0, role:0, order:890, prob:100, enabled:modules.outputFormat }
+      patchForRegistrySlot(WB_OWNER.mvu, 'initvar', {
+        content: gen.initvar,
+        keys: [],
+        strategy: 'selective',
+        position: 0,
+        depth: 0,
+        role: 0,
+        order: 1000,
+        prob: 100,
+        enabled: modules.initvar,
+      }),
+      varlist,
+      patchForRegistrySlot(WB_OWNER.mvu, 'update_rules', {
+        content: gen.updateRules,
+        keys: [],
+        strategy: 'constant',
+        position: 4,
+        depth: 4,
+        role: 0,
+        order: 900,
+        prob: 100,
+        enabled: modules.updateRules,
+      }),
+      patchForRegistrySlot(WB_OWNER.mvu, 'update_format', {
+        content: FORMAT_TPL,
+        keys: [],
+        strategy: 'constant',
+        position: 4,
+        depth: 0,
+        role: 0,
+        order: 890,
+        prob: 100,
+        enabled: modules.outputFormat,
+      }),
     ];
   }
 

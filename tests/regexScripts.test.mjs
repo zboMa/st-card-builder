@@ -106,12 +106,11 @@ describe('regex wiring', function() {
     assert.match(sidebar, sidebarViewPattern('regex'));
     assert.match(sidebar, /正则/);
     const sbIdx = sidebar.search(sidebarViewPattern('statusbar'));
-    const mvuIdx = sidebar.search(sidebarViewPattern('mvu'));
     const rxIdx = sidebar.search(sidebarViewPattern('regex'));
     const thIdx = sidebar.search(sidebarViewPattern('tavern-scripts'));
-    assert.ok(mvuIdx > sbIdx, 'mvu after statusbar');
-    assert.ok(rxIdx > mvuIdx, 'regex after mvu');
+    assert.ok(rxIdx > sbIdx, 'regex after statusbar');
     assert.ok(thIdx > rxIdx, 'tavern-scripts after regex');
+    assert.equal(sidebar.search(sidebarViewPattern('mvu')), -1, 'mvu not in sidebar menu');
 
     const index = readFileSync(join(root, 'src/pages/index.astro'), 'utf8');
     assert.match(index, /RegexPanel/);

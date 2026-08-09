@@ -1,6 +1,8 @@
 /**
  * 世界书面板：Bind + 助手桥（拆自 worldbook）
  */
+import { wbEntryTitle, wbOrganizeSkipEntry } from '../../worldbook/worldbookUi.mjs';
+import { toAiJsonEntry } from '../../worldbook/worldbookEntryBridge.mjs';
 
 /** @param {object} ctx @param {object} s @param {object} panel */
 export function attachWorldbookBind(ctx, s, panel) {
@@ -41,6 +43,12 @@ export function attachWorldbookBind(ctx, s, panel) {
         s.renderWbSearchResults(si ? si.value : '');
       });
     });
+    var wbFamilyFilter = ctx.$('wbFamilyFilter');
+    if (wbFamilyFilter) {
+      wbFamilyFilter.addEventListener('change', function() {
+        s.setWbFamilyFilter(wbFamilyFilter.value);
+      });
+    }
 
     if (s.btnCreateEntry) s.btnCreateEntry.addEventListener('click', s.toggleCreateEntryForm);
 
@@ -113,11 +121,9 @@ export function attachWorldbookBind(ctx, s, panel) {
         if (organizePreview) organizePreview.style.display = 'none';
         s.pendingOrganizeData = null;
 
-        var ORGANIZE_SKIP = ['[initvar]', '[mvu_update]', '[成人体系]', '恶堕进度总则'];
         var organizeEntries = ctx.state.worldbookEntries.map(function(e, i) { return { e: e, i: i }; })
           .filter(function(x) {
-            var c = String(x.e.comment || '');
-            return !ORGANIZE_SKIP.some(function(p) { return c.indexOf(p) === 0; });
+            return !wbOrganizeSkipEntry(x.e);
           });
         if (!organizeEntries.length) {
           s.setStatusBar(organizeStatus, '\u5F53\u524D\u5168\u90E8\u4E3A\u53D7\u63A7\u7CFB\u7EDF\u6761\u76EE\uFF0C\u65E0\u53EF\u6574\u7406\u53C2\u6570', 'var(--color-text-muted)');
@@ -126,7 +132,7 @@ export function attachWorldbookBind(ctx, s, panel) {
           return;
         }
         var entrySummaries = organizeEntries.map(function(x) {
-          return { index: x.i, title: x.e.comment || '\u672A\u547D\u540D', content_preview: (x.e.content || '').substring(0, 150), strategy: x.e.strategy, keys: (x.e.keys || []).join(', '), current_position: x.e.position, current_role: x.e.role, current_depth: x.e.depth, current_order: x.e.order, current_prob: x.e.prob };
+          return { index: x.i, title: wbEntryTitle(x.e) || '\u672A\u547D\u540D', content_preview: (x.e.content || '').substring(0, 150), strategy: x.e.strategy, keys: (x.e.keys || []).join(', '), current_position: x.e.position, current_role: x.e.role, current_depth: x.e.depth, current_order: x.e.order, current_prob: x.e.prob };
         });
 
         var sysPrompt = ctx.promptText('wbOrganize', '');
@@ -220,7 +226,7 @@ export function attachWorldbookBind(ctx, s, panel) {
               updated += batchResult.updated;
               if (batchResult.missing && batchResult.missing.length > 0) {
                 unresolved = unresolved.concat(batchResult.missing.map(function(item) {
-                  return item.entry.comment || ('#' + item.index);
+                  return wbEntryTitle(item.entry) || ('#' + item.index);
                 }));
               }
             }
@@ -267,7 +273,12 @@ export function attachWorldbookBind(ctx, s, panel) {
         return {
           added: ctx.state.worldbookEntries.length - before,
           total: ctx.state.worldbookEntries.length,
-          entry: last ? { comment: last.comment, contentLen: String(last.content || '').length } : null,
+          entry: last
+            ? Object.assign(
+              { contentLen: String(last.content || '').length },
+              toAiJsonEntry(last),
+            )
+            : null,
         };
       },
 
@@ -283,7 +294,10 @@ export function attachWorldbookBind(ctx, s, panel) {
         var fakeBtn = { textContent: '', disabled: false };
         await s.aiRewriteEntry(idx, instruction, fakeBtn);
         var e = ctx.state.worldbookEntries[idx];
-        return { index: idx, comment: e.comment, contentLen: String(e.content || '').length, mode: mode };
+        return Object.assign(
+          { index: idx, contentLen: String(e.content || '').length, mode: mode },
+          toAiJsonEntry(e),
+        );
       },
 
       organize: async function(opts) {
@@ -293,16 +307,14 @@ export function attachWorldbookBind(ctx, s, panel) {
         var key = ctx.val('apiKey');
         var model = ctx.val('modelSelect');
         if (!model) throw new Error('\u8BF7\u5148\u9009\u62E9 AI \u6A21\u578B');
-        var ORGANIZE_SKIP = ['[initvar]', '[mvu_update]', '[成人体系]', '恶堕进度总则'];
         var organizeEntries = ctx.state.worldbookEntries.map(function(e, i) { return { e: e, i: i }; })
           .filter(function(x) {
-            var c = String(x.e.comment || '');
-            return !ORGANIZE_SKIP.some(function(p) { return c.indexOf(p) === 0; });
+            return !wbOrganizeSkipEntry(x.e);
           });
         if (!organizeEntries.length) throw new Error('\u5F53\u524D\u5168\u90E8\u4E3A\u53D7\u63A7\u7CFB\u7EDF\u6761\u76EE\uFF0C\u65E0\u53EF\u6574\u7406\u53C2\u6570');
         var entrySummaries = organizeEntries.map(function(x) {
           return {
-            index: x.i, title: x.e.comment || '\u672A\u547D\u540D',
+            index: x.i, title: wbEntryTitle(x.e) || '\u672A\u547D\u540D',
             content_preview: (x.e.content || '').substring(0, 150),
             strategy: x.e.strategy, keys: (x.e.keys || []).join(', '),
             current_position: x.e.position, current_role: x.e.role,
@@ -331,7 +343,7 @@ export function attachWorldbookBind(ctx, s, panel) {
         var preview = suggestions.map(function(s) {
           var e = ctx.state.worldbookEntries[s.index] || {};
           return {
-            index: s.index, title: e.comment || '',
+            index: s.index, title: wbEntryTitle(e) || '',
             position: s.position, role: s.role, depth: s.depth, order: s.order, prob: s.prob,
             reason: s.reason || '',
           };

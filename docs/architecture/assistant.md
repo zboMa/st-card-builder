@@ -60,6 +60,12 @@
 - **目录概览混合注入（方案 B）**：system 默认只带**紧凑索引**（`buildCatalogIndexText`，约 1k tokens，仅组名+条数）；当**本轮或近 9 条上下文命中目录关键词**（`catalogSummaries.isCatalogRelevantText`：世界观/口味/姿势/话风/NTL/禁忌/恶堕/NSFW/成人/框架/推荐搭配/配卡等）时当轮追加**完整概览**（全量 id+摘要）以保持识别不退化；未命中则模型用 `get_adult_catalog` 按需取全量（懒解析 `boot.catalogDataJson`，支持 `kinds/groups/query/withSummary`）。目录分组均为中文标签；NTL/世界观按 `NTL_GROUPS` / `WORLDVIEW_GROUPS` 映射
 - **全项目约定**：凡「送模上下文预算 / 截断 / token 指示」一律走 `contextManager`（tiktoken）；禁止 `length/2`、`chars×2`、固定字符盲切冒充 token。字数 UI（如拆章 `charLimit`）仍可按字符，但不得当作 token 预算。
 
+## 世界书工具（V2）
+
+- 助手侧 JSON：**`comment`（标题）+ 可选 `type`**（与 `worldbookRegistry.OUTLINE_TYPES` / 引擎骨架一致）；`get_worldbook_list` / `get_worldbook_entry` / create·update 返回值均为该形态（含 `kind` 供调试）。
+- 落盘经 `fromAiJsonEntry`：`type` → `outline_*` + `owner: user`；无 `type` → `kind: user`。禁止用 `comment` 合并键 upsert 多条。
+- 分类与侧栏 family 以 `entryFamily(entry)` 为准；详见 [`../domains/st-card-fields.md`](../domains/st-card-fields.md)。
+
 ## 写入规则（摘要）
 
 - 自动：单字段微调、单条世界书增改（`update_worldbook_entry` 支持 `indices` 多索引批量，>1 条升 confirm）  

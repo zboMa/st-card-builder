@@ -1,30 +1,17 @@
 /**
  * AI 引擎生成管线：模式、大纲类型、配额与上下文拼装
  */
+import {
+  buildEngineOutlinePatch,
+  normalizeDraftEntry,
+  entryExportComment,
+} from '../worldbook/worldbookEntryBridge.mjs';
+import { OUTLINE_TYPES, OUTLINE_TYPE_LABELS } from '../worldbook/worldbookRegistry.mjs';
+
+export { OUTLINE_TYPES, OUTLINE_TYPE_LABELS };
+
 export var ENGINE_GEN_MODE_FULL = 'full';
 export var ENGINE_GEN_MODE_SKELETON = 'skeleton';
-
-export var OUTLINE_TYPES = [
-  'worldview',
-  'location',
-  'faction',
-  'person',
-  'event',
-  'item',
-  'ability',
-  'other',
-];
-
-export var OUTLINE_TYPE_LABELS = {
-  worldview: '世界观/规则',
-  location: '地点',
-  faction: '势力',
-  person: '人物',
-  event: '事件',
-  item: '物品',
-  ability: '能力',
-  other: '其他',
-};
 
 /** 默认类型配额（合计 13；可被总条数缩放） */
 export var DEFAULT_OUTLINE_QUOTA = {
@@ -148,13 +135,12 @@ export function normalizeOutlineSlots(rawList, expectedCount) {
 }
 
 export function slotToWorldbookEntry(slot, orderBase) {
-  var typeLabel = OUTLINE_TYPE_LABELS[slot.type] || slot.type;
-  var comment = slot.comment;
-  if (comment.indexOf('[') !== 0 && slot.type === 'person') {
-    comment = '[小说人物] ' + comment.replace(/^\[.*?\]\s*/, '');
+  var displayName = String(slot.comment || '').trim();
+  if (displayName.indexOf('[') !== 0 && slot.type === 'person') {
+    displayName = '[小说人物] ' + displayName.replace(/^\[.*?\]\s*/, '');
   }
-  return {
-    comment: comment,
+  var slotId = slot._slotId || ('outline-' + String(slot.type || 'other') + '-' + (slot._i != null ? slot._i : displayName));
+  var patch = buildEngineOutlinePatch(slotId, slot.type, displayName, {
     content: slot.blurb || '（待展开）',
     keys: (slot.keys || []).slice(),
     strategy: slot.strategy || 'selective',
@@ -166,7 +152,8 @@ export function slotToWorldbookEntry(slot, orderBase) {
     outlineType: slot.type,
     outlineLinks: (slot.links || []).slice(),
     outlineBlurb: slot.blurb || '',
-  };
+  });
+  return normalizeDraftEntry(patch);
 }
 
 export function formatOutlineRef(slots) {
@@ -189,7 +176,7 @@ export function formatEnrichedEntriesRef(entries, opts) {
   }).slice(-max);
   if (!list.length) return '';
   var lines = list.map(function(e) {
-    return '- ' + e.comment + '：' + String(e.content || '').replace(/\s+/g, ' ').slice(0, sliceLen);
+    return '- ' + entryExportComment(e) + '：' + String(e.content || '').replace(/\s+/g, ' ').slice(0, sliceLen);
   });
   return '\n【已丰满世界书摘要（须与之互洽，可引用，勿矛盾）】\n' + lines.join('\n');
 }
@@ -205,6 +192,6 @@ export function buildCrossLinkDigest(entries) {
   var list = (entries || []).filter(function(e) { return e && !isSkeletonEntry(e); });
   if (list.length < 2) return '';
   return list.map(function(e) {
-    return e.comment + '↔' + (Array.isArray(e.outlineLinks) ? e.outlineLinks.join('/') : '');
+    return entryExportComment(e) + '↔' + (Array.isArray(e.outlineLinks) ? e.outlineLinks.join('/') : '');
   }).join('；');
 }

@@ -27,6 +27,14 @@ import {
   ENGINE_GEN_MODE_SKELETON,
   OUTLINE_TYPE_LABELS,
 } from '../enginePipeline.mjs';
+import {
+  fromAiJsonEntry,
+  findEntryIndexByExportComment,
+  entryExportComment,
+  normalizeAiJsonRow,
+  aiCommentFromRow,
+} from '../../worldbook/worldbookEntryBridge.mjs';
+import { getDefaultWBEntry } from '../state.mjs';
 
 /** @param {object} ctx @param {object} s @param {object} panel */
 export function attachAiEnginePanel(ctx, s, panel) {
@@ -413,7 +421,7 @@ export function attachAiEnginePanel(ctx, s, panel) {
             if (aiCenter && engineTask) aiCenter.setProgress(engineTask.id, currentStep / totalSteps, '骨架批次 ' + batchIndex);
             if (hacker) { hacker.setPhase('\ud83e\uddb4 骨架批次 ' + batchIndex); hacker.setProgress(currentStep, totalSteps); }
             if (statusEl) statusEl.textContent = '\u23f3 骨架... ' + ctx.state.worldbookEntries.length + '/' + slotCount;
-            var existingTitles = ctx.state.worldbookEntries.map(function(e) { return e.comment; }).join('、');
+            var existingTitles = ctx.state.worldbookEntries.map(function(e) { return entryExportComment(e); }).join('、');
             var skSys = ctx.promptText('wbSkeleton', { batchSize: batchSize })
               + charRef
               + '\n【角色】：' + ctx.state.charName + ' | ' + String(ctx.state.charDesc || '').substring(0, 300)
@@ -422,7 +430,7 @@ export function attachAiEnginePanel(ctx, s, panel) {
               + (presetsStr ? '\n【文风】：' + presetsStr.substring(0, 200) : '')
               + (wvWbHint || '')
               + searchInjection
-              + '\n【输出】：JSON数组 [{ "comment":"标题", "content":"一句话", "keys":["词"], "strategy":"selective" }, ...]';
+              + '\n【输出】：JSON数组 [{ "comment":"标题", "type":"location|...", "content":"一句话", "keys":["词"], "strategy":"selective" }, ...]';
             try {
               var aiResp2 = await ctx.fetchAIContent({
                 context: '世界书骨架/批次' + batchIndex,
@@ -434,14 +442,9 @@ export function attachAiEnginePanel(ctx, s, panel) {
               try { skeletons = ctx.extractJsonArray(aiResp2.content, '骨架' + batchIndex); }
               catch (pe) { skeletons = [ctx.extractJsonObj(aiResp2.content, '骨架fb')]; }
               skeletons.forEach(function(sk) {
-                if (!sk || !sk.comment) return;
-                ctx.state.worldbookEntries.push({
-                  comment: sk.comment || '未命名',
-                  content: sk.content || '(待展开)',
-                  keys: Array.isArray(sk.keys) ? sk.keys : [],
-                  strategy: sk.strategy || 'selective',
-                  position: 4, depth: 4, role: 0, order: 100, prob: 100,
-                });
+                sk = normalizeAiJsonRow(sk);
+                if (!sk || !aiCommentFromRow(sk)) return;
+                ctx.state.worldbookEntries.push(fromAiJsonEntry(sk, getDefaultWBEntry()));
               });
               ctx.renderAll();
               ctx.save();
@@ -516,13 +519,15 @@ export function attachAiEnginePanel(ctx, s, panel) {
           o.statusEl.style.color = '#38bdf8';
         }
 
-        var entryIdx = -1;
-        for (var j = 0; j < ctx.state.worldbookEntries.length; j++) {
-          if (ctx.state.worldbookEntries[j].comment === slotToWorldbookEntry(slot, 0).comment
-            || ctx.state.worldbookEntries[j].comment === slot.comment
-            || (ctx.state.worldbookEntries[j].outlineBlurb === slot.blurb && isSkeletonEntry(ctx.state.worldbookEntries[j]))) {
-            entryIdx = j;
-            break;
+        var seedEntry = slotToWorldbookEntry(slot, 100 + i);
+        var entryIdx = findEntryIndexByExportComment(ctx.state.worldbookEntries, entryExportComment(seedEntry));
+        if (entryIdx < 0) {
+          for (var j = 0; j < ctx.state.worldbookEntries.length; j++) {
+            if (entryExportComment(ctx.state.worldbookEntries[j]) === slot.comment
+              || (ctx.state.worldbookEntries[j].outlineBlurb === slot.blurb && isSkeletonEntry(ctx.state.worldbookEntries[j]))) {
+              entryIdx = j;
+              break;
+            }
           }
         }
         if (entryIdx < 0) entryIdx = i;
@@ -555,15 +560,10 @@ export function attachAiEnginePanel(ctx, s, panel) {
               signal: o.engineSignal,
             });
             var ed = ctx.extractJsonObj(aiEn.content, '大纲丰满/' + slot.comment);
-            var target = ctx.state.worldbookEntries[entryIdx] || slotToWorldbookEntry(slot, 100 + i);
-            target.comment = ed.comment || target.comment || slot.comment;
-            target.content = ed.content || target.content;
-            target.keys = Array.isArray(ed.keys) ? ed.keys : (target.keys || slot.keys || []);
-            if (ed.strategy) target.strategy = ed.strategy;
-            if (ed.position != null) target.position = parseInt(ed.position, 10) || target.position;
-            target.outlineType = slot.type;
-            target.outlineLinks = (slot.links || []).slice();
-            ctx.state.worldbookEntries[entryIdx] = target;
+            var base = ctx.state.worldbookEntries[entryIdx] || slotToWorldbookEntry(slot, 100 + i);
+            ctx.state.worldbookEntries[entryIdx] = fromAiJsonEntry(ed, base);
+            ctx.state.worldbookEntries[entryIdx].outlineType = slot.type;
+            ctx.state.worldbookEntries[entryIdx].outlineLinks = (slot.links || []).slice();
             ctx.renderAll();
             ctx.save();
             ok = true;
@@ -601,8 +601,9 @@ export function attachAiEnginePanel(ctx, s, panel) {
         var patches = Array.isArray(crossObj && crossObj.patches) ? crossObj.patches : [];
         patches.forEach(function(p) {
           if (!p || !p.comment || !p.append) return;
-          var hit = ctx.state.worldbookEntries.find(function(e) { return e.comment === p.comment; });
-          if (!hit) return;
+          var hitIdx = findEntryIndexByExportComment(ctx.state.worldbookEntries, p.comment);
+          if (hitIdx < 0) return;
+          var hit = ctx.state.worldbookEntries[hitIdx];
           var append = String(p.append).trim();
           if (!append) return;
           if (String(hit.content || '').indexOf(append.slice(0, 24)) >= 0) return;
@@ -760,7 +761,7 @@ export function attachAiEnginePanel(ctx, s, panel) {
 
       var existingCtx = includeOthers
         ? ctx.state.worldbookEntries.map(function(e) {
-            return '[标题:' + e.comment + '] (策略:' + e.strategy + '): ' + e.content;
+            return '[标题:' + entryExportComment(e) + '] (策略:' + e.strategy + '): ' + e.content;
           }).join('\n-----\n')
         : '';
 
@@ -788,7 +789,7 @@ export function attachAiEnginePanel(ctx, s, panel) {
         + searchInjection
         + '\n【说明】人物类条目标题建议「[小说人物] 名字」；成人内容只写世界书，勿写主角卡面。'
         + '\n【冲突处理】若「用户额外要求」与「世界观预设」冲突，以用户额外要求为准。'
-        + '\n【输出】：1个JSON对象 { "comment": "标题", "content": "详细设定(至少100字)", "keys": ["触发词"], "strategy": "selective 或 constant", "position": 4 }';
+        + '\n【输出】：1个JSON对象 { "comment": "标题", "type": "worldview|location|...", "content": "详细设定(至少100字)", "keys": ["触发词"], "strategy": "selective 或 constant", "position": 4 }';
       var userPrompt  = customDirection ? '【方向·优先】：' + customDirection : '【自由发挥，拒绝重复；有世界观预设则紧贴预设语汇】';
       var headers     = { 'Content-Type': 'application/json' };
       if (key) headers['Authorization'] = 'Bearer ' + key;
@@ -804,17 +805,7 @@ export function attachAiEnginePanel(ctx, s, panel) {
         signal: signal,
       });
       var entry = ctx.extractJsonObj(aiResp.content, '世界书单条生成');
-      ctx.state.worldbookEntries.push({
-        comment: entry.comment || '拓展设定',
-        content: entry.content || '',
-        keys: Array.isArray(entry.keys) ? entry.keys : [],
-        strategy: entry.strategy || 'selective',
-        position: parseInt(entry.position) || 4,
-        depth: 4,
-        role: 0,
-        order: 100,
-        prob: 100,
-      });
+      ctx.state.worldbookEntries.push(fromAiJsonEntry(entry, getDefaultWBEntry()));
     },
 
     runSingleWbEntry: async function() {

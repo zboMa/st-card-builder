@@ -2,6 +2,14 @@
  * 制卡主侧状态工厂 — 纯 JS 层，不含 DOM/持久化
  */
 import { normalizeCharTags } from '../charTags.mjs';
+import {
+  getDefaultWBEntryV2,
+  normalizeDraftEntry,
+  toStExportEntry,
+  normalizeWorldbookEntriesForDraft,
+} from '../worldbook/worldbookEntryBridge.mjs';
+
+export { normalizeWorldbookEntriesForDraft };
 
 export const CURRENT_KEY = 'st_v3_builder_current_id';
 export const AI_KEY = 'st_v3_builder_ai_config';
@@ -167,17 +175,7 @@ export function tagsFromImportJson(json) {
 }
 
 export function getDefaultWBEntry() {
-  return {
-    comment: '',
-    content: '',
-    keys: [],
-    strategy: 'selective',
-    position: 4,
-    depth: 4,
-    role: 0,
-    order: 100,
-    prob: 100,
-  };
+  return getDefaultWBEntryV2();
 }
 
 export function clampInt(value, fallback, min, max) {
@@ -189,44 +187,33 @@ export function clampInt(value, fallback, min, max) {
 }
 
 export function normalizeWBEntry(entry) {
-  var base = getDefaultWBEntry();
-  entry = entry || {};
-  return {
-    comment: String(entry.comment || ''),
-    content: String(entry.content || ''),
-    keys: Array.isArray(entry.keys) ? entry.keys.filter(function(k) { return String(k || '').trim(); }) : [],
-    strategy: ['constant', 'selective', 'vectorized'].indexOf(entry.strategy) >= 0 ? entry.strategy : base.strategy,
-    position: clampInt(entry.position, base.position, 0, 6),
-    depth: clampInt(entry.depth, base.depth, 0, 999),
-    role: clampInt(entry.role, base.role, 0, 2),
-    order: clampInt(entry.order, base.order, 0, 999),
-    prob: clampInt(entry.prob, base.prob, 1, 100),
-  };
+  return normalizeDraftEntry(entry);
 }
 
 export function buildCardJSONFromDraft(d) {
   d = d || {};
   var entries = Array.isArray(d.worldbookEntries) ? d.worldbookEntries : [];
   var fe = entries.map(function(e, i) {
+    var st = toStExportEntry(e);
     return {
       id: i,
-      keys: e.keys || [],
+      keys: st.keys || [],
       secondary_keys: [],
-      comment: e.comment,
-      content: e.content,
-      constant: e.strategy === 'constant',
-      selective: e.strategy === 'selective' || e.strategy === 'vectorized',
-      insertion_order: e.order || 100,
-      enabled: e.enabled !== false,
+      comment: st.comment,
+      content: st.content,
+      constant: st.strategy === 'constant',
+      selective: st.strategy === 'selective' || st.strategy === 'vectorized',
+      insertion_order: st.order || 100,
+      enabled: st.enabled !== false,
       position: 'before_char',
       use_regex: false,
       extensions: {
-        position: e.position,
+        position: st.position,
         exclude_recursion: false,
         display_index: i,
-        probability: e.prob || 100,
+        probability: st.prob || 100,
         useProbability: true,
-        depth: e.depth || 4,
+        depth: st.depth || 4,
         selectiveLogic: 0,
         outlet_name: '',
         group: '',
@@ -234,8 +221,8 @@ export function buildCardJSONFromDraft(d) {
         group_weight: 100,
         prevent_recursion: false,
         delay_until_recursion: false,
-        role: e.role || 0,
-        vectorized: e.strategy === 'vectorized',
+        role: st.role || 0,
+        vectorized: st.strategy === 'vectorized',
       },
     };
   });

@@ -3,6 +3,7 @@
  */
 import { VALID_VIEWS } from './tools.mjs';
 import { resolveWorldbookIndex } from './executorResolve.mjs';
+import { entryExportComment } from '../worldbook/worldbookEntryBridge.mjs';
 
 export function createExecutorHelpers(bridge, snaps) {
   function ok(data, extra) {
@@ -30,12 +31,12 @@ export function createExecutorHelpers(bridge, snaps) {
     });
     var wb = bridge.getWorldbook() || [];
     wb.forEach(function(e, idx) {
-      var blob = ((e.comment || '') + '\n' + (e.content || '') + '\n' + (Array.isArray(e.keys) ? e.keys.join(',') : '')).toLowerCase();
+      var blob = (entryExportComment(e) + '\n' + (e.content || '') + '\n' + (Array.isArray(e.keys) ? e.keys.join(',') : '')).toLowerCase();
       if (blob.indexOf(q) >= 0) {
         hits.push({
           source: 'worldbook',
           index: idx,
-          comment: e.comment || '',
+          comment: entryExportComment(e) || '',
           snippet: String(e.content || '').slice(0, 160),
         });
       }

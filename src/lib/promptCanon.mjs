@@ -151,7 +151,8 @@ export const DEFAULT_PROMPTS = {
     '你是 SillyTavern 世界书骨架生成器。快速产出【{{batchSize}}条】简短但可扩展的骨架。',
     B.contentCanon,
     B.antiSlop,
-    '\n每条：comment(标题)、content(一句话 20～40 字，点明「是什么+为何重要」)、keys(1～3 个短触发词)、strategy("selective"或"constant")。',
+    '\n每条：comment(标题)、type(worldview|location|faction|person|event|item|ability|other)、content(一句话 20～40 字，点明「是什么+为何重要」)、keys(1～3 个短触发词)、strategy("selective"或"constant")。',
+    '\n【人物】type=person 时 comment 建议「[小说人物] 名字」或清晰人名。',
     '\n覆盖宜多样：世界观/势力/地点/规则/物品/关系钩子；常驻用 constant，其余 selective。',
     '\n只输出可被解析的 JSON（由调用方约定数组形态）。'
   ),
@@ -199,7 +200,9 @@ export const DEFAULT_PROMPTS = {
     B.outputCanon,
     '\n【content】至少 100 字，写清定义、规则、用法、与角色/剧情的关联，可直接指导 RP。',
     '\n【keys】2～6 个短触发词（正式名/简称/相关物）。',
-    '\n【strategy】重要常驻用 constant，其余 selective；position 默认 4 除非内容明显属世界观前缀。'
+    '\n【strategy】重要常驻用 constant，其余 selective；position 默认 4 除非内容明显属世界观前缀。',
+    '\n【type】与大纲相同：worldview|location|faction|person|event|item|ability|other（必填，便于分类）。',
+    '\n【人物】type=person 时 comment 建议「[小说人物] 名字」或清晰人名。'
   ),
 
   wbRewrite: join(
@@ -210,7 +213,7 @@ export const DEFAULT_PROMPTS = {
     B.antiSlop,
     '\n保留可靠事实；按用户要求或原文检索结果补全细节，使 content 饱满可指导 RP。',
     '\n若属成人/情欲设定：写清规则、敏感触发、禁忌边界、氛围与玩法。',
-    '\n输出完整 JSON 词条字段（comment/content/keys/strategy/position 等，与调用方要求一致）。'
+    '\n输出完整 JSON 词条字段（comment/type/content/keys/strategy/position 等，与调用方要求一致）。'
   ),
 
   wbTriggerKeys: join(
@@ -647,6 +650,10 @@ export const DEFAULT_PROMPTS = {
     '12. 【世界与限定】卡级世界观预设/载体框架/NSFW/口味/姿势语言/情趣话风/NTL/恶堕用 get_adult_config / set_adult_config；'
     + '目录 id 以本提示下方注入的目录块或 get_adult_catalog 返回为准；选口味与 NTL 只用合法 id，禁止编造。'
     + '单条世界书「生成」属 confirm，直写 create/update 多为 auto。\n',
+    '12b. 【世界书 V2】工具读写条目时用 AI 形字段：comment=标题（勿与 ST 内部 displayName 混用）；'
+    + '可选 type=worldview|location|faction|person|event|item|ability|other（与引擎骨架同一枚举）。'
+    + 'create/update 的 patch 只改目标条，禁止用 comment 当合并键批量覆盖多条；'
+    + '定位用 get_worldbook_list / get_worldbook_entry 的 index 或 titleMatch；系统 owner 条目勿改。\n',
     '\n{{buildGuide}}\n',
     '\n【可用工具】\n{{toolList}}\n',
     '\n{{catalogOverview}}\n',

@@ -9,6 +9,8 @@ import {
   normalizeCharacterPatch,
 } from './characterFields.mjs';
 import { resolveWorldbookIndex, normalizeTarget } from './executorResolve.mjs';
+import { fromAiJsonEntry, toAiJsonEntry, entryExportComment } from '../worldbook/worldbookEntryBridge.mjs';
+import { getDefaultWBEntry } from '../card-builder/state.mjs';
 
 export function createExecutorExecute(bridge, snaps, helpers) {
   var ok = helpers.ok;
@@ -40,10 +42,13 @@ export function createExecutorExecute(bridge, snaps, helpers) {
         var list = bridge.getWorldbook() || [];
         var q = String(a.query || '').trim().toLowerCase();
         var mapped = list.map(function(e, i) {
+          var ai = toAiJsonEntry(e);
           return {
             index: i,
-            id: e.uid || e.id || null,
-            comment: e.comment || '',
+            id: ai.id || e.uid || e.id || null,
+            comment: ai.comment || entryExportComment(e),
+            type: ai.type || null,
+            kind: ai.kind || e.kind || null,
             keys: e.keys || [],
             strategy: e.strategy || 'selective',
             enabled: e.enabled !== false,
@@ -52,7 +57,13 @@ export function createExecutorExecute(bridge, snaps, helpers) {
         });
         if (q) {
           mapped = mapped.filter(function(e) {
-            return (e.comment + ' ' + (e.keys || []).join(' ')).toLowerCase().indexOf(q) >= 0;
+            var hay = [
+              e.comment,
+              e.type || '',
+              e.kind || '',
+              (e.keys || []).join(' '),
+            ].join(' ').toLowerCase();
+            return hay.indexOf(q) >= 0;
           });
         }
         return ok({ count: mapped.length, entries: mapped });
@@ -61,7 +72,7 @@ export function createExecutorExecute(bridge, snaps, helpers) {
         var entries = bridge.getWorldbook() || [];
         var idx = findWbIndex(entries, a);
         if (idx < 0 || idx >= entries.length) return fail('条目未找到（请用 index / titleMatch / comment / id 定位）');
-        return ok({ index: idx, entry: entries[idx] });
+        return ok({ index: idx, entry: toAiJsonEntry(entries[idx]) });
       }
       case 'get_mvu_state':
         return ok(bridge.getMvu());
@@ -221,23 +232,17 @@ export function createExecutorExecute(bridge, snaps, helpers) {
             : (a.comment || a.content ? [a] : []));
         if (!toAdd.length) return fail('缺少 entry 或 entries');
         maybeSnap();
+        var startLen = wb.length;
         toAdd.forEach(function(entry) {
           if (!entry || typeof entry !== 'object') return;
-          wb.push({
-            comment: entry.comment || '未命名',
-            content: entry.content || '',
-            keys: Array.isArray(entry.keys) ? entry.keys : [],
-            strategy: entry.strategy || 'selective',
-            position: entry.position != null ? entry.position : 4,
-            depth: entry.depth != null ? entry.depth : 4,
-            role: entry.role != null ? entry.role : 0,
-            order: entry.order != null ? entry.order : 100,
-            prob: entry.prob != null ? entry.prob : 100,
-            enabled: entry.enabled !== false,
-          });
+          wb.push(fromAiJsonEntry(entry, getDefaultWBEntry()));
         });
         bridge.setWorldbook(wb);
-        return ok({ count: wb.length, added: toAdd.length });
+        var addedEntries = [];
+        for (var ai = startLen; ai < wb.length; ai++) {
+          addedEntries.push(Object.assign({ index: ai }, toAiJsonEntry(wb[ai])));
+        }
+        return ok({ count: wb.length, added: toAdd.length, entries: addedEntries });
       }
       case 'update_worldbook_entry': {
         var wb2 = (bridge.getWorldbook() || []).slice();
@@ -252,7 +257,8 @@ export function createExecutorExecute(bridge, snaps, helpers) {
         maybeSnap();
         var p = a.patch || {};
         targets.forEach(function(ti) {
-          wb2[ti] = Object.assign({}, wb2[ti], p);
+          var base = wb2[ti];
+          wb2[ti] = fromAiJsonEntry(p, base);
           if (p.keys && !Array.isArray(p.keys)) {
             wb2[ti].keys = String(p.keys).split(/[,，]/).map(function(s) { return s.trim(); }).filter(Boolean);
           }
@@ -260,7 +266,9 @@ export function createExecutorExecute(bridge, snaps, helpers) {
         bridge.setWorldbook(wb2);
         return ok({
           indices: targets,
-          entries: targets.map(function(ti) { return wb2[ti]; }),
+          entries: targets.map(function(ti) {
+            return Object.assign({ index: ti }, toAiJsonEntry(wb2[ti]));
+          }),
         });
       }
       case 'delete_worldbook_entry': {

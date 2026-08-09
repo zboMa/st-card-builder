@@ -1,6 +1,7 @@
 /**
  * 世界书审计面板 boot（从 WorldbookAuditor.astro 外提）
  */
+import { entryExportComment } from '../worldbook/worldbookEntryBridge.mjs';
 
 export function initWorldbookAuditor() {
   
@@ -75,7 +76,7 @@ export function initWorldbookAuditor() {
         var lk = k.toLowerCase().trim();
         if (!lk) return;
         if (!allKeys[lk]) allKeys[lk] = [];
-        allKeys[lk].push(e.comment || '条目' + idx);
+        allKeys[lk].push(entryExportComment(e) || '条目' + idx);
       });
     });
     var dupKeys = Object.keys(allKeys).filter(function(k) { return allKeys[k].length > 1; });
@@ -193,7 +194,7 @@ export function initWorldbookAuditor() {
 
   function detectDimensionCoverage(entries) {
     var allText = entries.map(function(e) {
-      return (e.comment || '') + ' ' + (e.content || '') + ' ' + (e.keys || []).join(' ');
+      return entryExportComment(e) + ' ' + (e.content || '') + ' ' + (e.keys || []).join(' ');
     }).join(' ').toLowerCase();
 
     var results = {};
@@ -248,7 +249,7 @@ export function initWorldbookAuditor() {
     auditReport.style.display = 'none';
 
     var wbSummary = entries.map(function(e, i) {
-      return '[' + i + '] 标题: ' + (e.comment || '未命名')
+      return '[' + i + '] 标题: ' + (entryExportComment(e) || '未命名')
         + ' | 策略: ' + (e.strategy || '?')
         + ' | 触发词: ' + ((e.keys || []).join(', ') || '无')
         + ' | 内容(' + (e.content || '').length + '字): ' + (e.content || '').substring(0, 150) + (((e.content || '').length > 150) ? '...' : '');

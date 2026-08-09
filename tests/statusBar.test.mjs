@@ -529,11 +529,10 @@ describe('statusBar wiring', function() {
     const sidebar = readFileSync(join(root, 'src/components/AppSidebar.astro'), 'utf8');
     assert.match(sidebar, sidebarViewPattern('statusbar'));
     assert.match(sidebar, /状态栏/);
-    const mvuIdx = sidebar.search(sidebarViewPattern('mvu'));
     const sbIdx = sidebar.search(sidebarViewPattern('statusbar'));
-    assert.ok(sbIdx < mvuIdx, 'statusbar should be above mvu');
+    assert.equal(sidebar.search(sidebarViewPattern('mvu')), -1, 'mvu not in sidebar menu');
     const rxIdx = sidebar.search(sidebarViewPattern('regex'));
-    assert.ok(rxIdx > mvuIdx, 'regex should be under mvu');
+    assert.ok(rxIdx > sbIdx, 'regex should be under statusbar');
 
     const index = readFileSync(join(root, 'src/pages/index.astro'), 'utf8');
     assert.match(index, /StatusBarPanel/);

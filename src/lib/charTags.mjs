@@ -2,6 +2,7 @@
  * 角色卡 tags 工具：对齐 ST chara_card_v3 的 tags / data.tags
  */
 import { countTokens, truncateToTokens } from './assistant/contextManager.mjs';
+import { entryExportComment, wbEntryTitle } from './worldbook/worldbookUi.mjs';
 
 /** 标签 AI 生成时上下文默认 token 上限（约 12k；历史名 *Chars 兼容） */
 export const DEFAULT_TAG_CONTEXT_CHARS = 12000;
@@ -71,7 +72,7 @@ export function buildTagGenContext(input, maxTokens) {
   for (var i = 0; i < entries.length; i++) {
     if (budget <= 0) break;
     var e = entries[i] || {};
-    var block = '[标题:' + String(e.comment || '') + ']\n' + String(e.content || '');
+    var block = '[标题:' + String(entryExportComment(e) || wbEntryTitle(e)) + ']\n' + String(e.content || '');
     var blockTok = countTokens(block);
     if (used + blockTok > budget) {
       var remain = budget - used;

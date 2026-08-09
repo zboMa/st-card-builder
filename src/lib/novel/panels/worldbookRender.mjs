@@ -7,7 +7,8 @@ import { applyDraftsToWorldbook } from '../sync.mjs';
 import { showConfirmDialog } from '../../ui/confirmDialog.mjs';
 import { createVirtualList } from '../../ui/virtualList.mjs';
 import { wbCategoryToEntityType } from './worldbookExtractUtil.mjs';
-import { ENTITY_SUMMARY_STORE } from '../contextBudgets.mjs';
+import { projectNovelWorldbookMeta } from '../../worldbook/novelEntityProjection.mjs';
+import { wbKindLabel } from '../../worldbook/worldbookUi.mjs';
 
 /** 与主卡世界书一致：估算行高 */
 var NOVEL_WB_VL_ROW_HEIGHT = 72;
@@ -299,13 +300,17 @@ export function attachNovelWorldbookRender(ctx, panel) {
     var enriched = ent ? isEntityEnriched(ent, !!state.strictQuality, getAdultMode(state)) : !needExpand;
     var previewLine = truncatePreviewLine(e.content, 80);
     var syncBadge = row.syncBadge;
+    var meta = projectNovelWorldbookMeta(e);
+    var kindChip = meta.kind
+      ? '<span class="wb-kind-tag">' + escapeHtml(wbKindLabel(meta.kind)) + '</span>'
+      : '';
     return '<div class="entry-item" data-wb-index="' + i + '">'
       + '<div class="entry-item-header">'
       + '<input type="checkbox" data-wb-act="sel" data-wb-index="' + i + '"' + (e.selected !== false ? ' checked' : '') + ' />'
       + '<div class="entry-info">'
       + '<div class="entry-info-title-row"><button type="button" class="novel-list-title" data-wb-act="edit" data-wb-index="' + i + '" title="编辑条目">'
-      + escapeHtml(e.name || e.comment || '未命名') + '</button>'
-      + strategyBadge + syncBadge(e.syncStatus)
+      + escapeHtml(e.name || meta.displayName || '未命名') + '</button>'
+      + kindChip + strategyBadge + syncBadge(e.syncStatus)
       + (enriched ? '' : ' <span class="novel-sync-badge unsynced">待丰满</span>')
       + '</div>'
       + (previewLine ? '<p class="entry-preview-line">' + escapeHtml(previewLine) + '</p>' : '')
@@ -463,7 +468,8 @@ export function attachNovelWorldbookRender(ctx, panel) {
     var rows = [];
     state.wbEntries.forEach(function(e, i) {
       if (es.novelWbTypeFilter && (e.category || '') !== es.novelWbTypeFilter) return;
-      var hay = ((e.name || '') + ' ' + (e.comment || '') + ' ' + (e.keys || []).join(' ')).toLowerCase();
+      var metaHay = projectNovelWorldbookMeta(e);
+      var hay = ((e.name || '') + ' ' + metaHay.displayName + ' ' + (e.keys || []).join(' ')).toLowerCase();
       if (q && hay.indexOf(q) < 0) {
         if (String(e.content || '').toLowerCase().indexOf(q) < 0) return;
       }

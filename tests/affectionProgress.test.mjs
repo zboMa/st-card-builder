@@ -26,6 +26,7 @@ import {
   getAffectionStatusSample,
   upsertWorldbookByComment,
 } from '../src/lib/affectionProgress.mjs';
+import { entryExportComment } from '../src/lib/worldbook/worldbookEntryBridge.mjs';
 import { buildTrackRulesContent, valueToStageName, valueToStageIndex } from '../src/lib/progressTrack.mjs';
 
 describe('affectionProgress', function() {
@@ -65,7 +66,7 @@ describe('affectionProgress', function() {
   it('rules 含 0-100 档位映射与事件锚点；strategy constant', function() {
     var stages = AFFECTION_PRESETS['6'].stages;
     var rules = buildRulesWorldbookEntry(stages);
-    assert.equal(rules.comment, AFFECTION_RULES_COMMENT);
+    assert.equal(entryExportComment(rules), AFFECTION_RULES_COMMENT);
     assert.equal(rules.strategy, 'constant');
     assert.match(rules.content, /亲密度/);
     assert.match(rules.content, /0-100/);
@@ -78,7 +79,7 @@ describe('affectionProgress', function() {
   it('通用档案：不绑名字、常驻、按档位含通用演绎框架与 NPC 变量说明', function() {
     var stages = AFFECTION_PRESETS['6'].stages;
     var gen = buildGeneralArchiveEntry(stages);
-    assert.equal(gen.comment, AFFECTION_GENERAL_ARCHIVE_COMMENT);
+    assert.equal(entryExportComment(gen), AFFECTION_GENERAL_ARCHIVE_COMMENT);
     assert.equal(gen.strategy, 'constant');
     var content = buildGeneralArchiveContent(stages);
     assert.ok(content.indexOf('NPC.{角色名}.' + AFFECTION_STATUS_LABEL) >= 0, '动态变量说明缺失');
@@ -93,7 +94,7 @@ describe('affectionProgress', function() {
     assert.match(tpl, /突破条件/);
     assert.match(tpl, /0-100/);
     var arch = buildArchiveWorldbookEntry('苏晚', tpl, ['晚晚']);
-    assert.equal(arch.comment, AFFECTION_ARCHIVE_PREFIX + '苏晚');
+    assert.equal(entryExportComment(arch), AFFECTION_ARCHIVE_PREFIX + '苏晚');
     assert.ok(arch.keys.indexOf('苏晚') >= 0);
   });
 

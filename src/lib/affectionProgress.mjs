@@ -17,6 +17,11 @@ import {
   valueToStageName,
 } from './progressTrack.mjs';
 import { upsertWorldbookByComment } from './corruptionProgress.mjs';
+import {
+  patchForRegistrySlot,
+  buildAffectionArchivePatch,
+} from './worldbook/worldbookEntryBridge.mjs';
+import { WB_OWNER } from './worldbook/worldbookRegistry.mjs';
 
 export var AFFECTION_RULES_COMMENT = '亲密关系总则';
 export var AFFECTION_ARCHIVE_PREFIX = '亲密档案·';
@@ -176,6 +181,18 @@ export function isAffectionRulesComment(comment) {
   return String(comment || '').trim() === AFFECTION_RULES_COMMENT;
 }
 
+export function isAffectionRulesEntry(entry) {
+  if (!entry) return false;
+  if (entry.kind === 'affection_rules') return true;
+  return isAffectionRulesComment(entry.comment || entry.displayName);
+}
+
+export function isAffectionArchiveEntryObj(entry) {
+  if (!entry) return false;
+  if (entry.kind === 'affection_archive' || entry.kind === 'affection_archive_general') return true;
+  return isAffectionArchiveComment(entry.comment || entry.displayName);
+}
+
 export function isAffectionArchiveComment(comment) {
   return String(comment || '').trim().indexOf(AFFECTION_ARCHIVE_PREFIX) === 0;
 }
@@ -222,8 +239,7 @@ export function buildRulesContent(stageNames) {
 }
 
 export function buildRulesWorldbookEntry(stageNames) {
-  return {
-    comment: AFFECTION_RULES_COMMENT,
+  return patchForRegistrySlot(WB_OWNER.affection, 'rules', {
     content: buildRulesContent(stageNames),
     keys: [],
     strategy: 'constant',
@@ -233,14 +249,13 @@ export function buildRulesWorldbookEntry(stageNames) {
     order: 10,
     prob: 100,
     enabled: true,
-  };
+  });
 }
 
 export function buildArchiveWorldbookEntry(charName, content, aliases) {
   var name = String(charName || '').trim() || '未命名';
   var keys = asTrimmedList([name].concat(aliases || []));
-  return {
-    comment: affectionArchiveComment(name),
+  return buildAffectionArchivePatch(name, {
     content: String(content || '').trim() || buildArchiveContentTemplate(name, AFFECTION_PRESETS['6'].stages),
     keys: keys,
     strategy: 'selective',
@@ -250,11 +265,11 @@ export function buildArchiveWorldbookEntry(charName, content, aliases) {
     order: 100,
     prob: 100,
     enabled: true,
-  };
+  });
 }
 
-export function buildGeneralArchiveEntry(stageNames) {  return {
-    comment: AFFECTION_GENERAL_ARCHIVE_COMMENT,
+export function buildGeneralArchiveEntry(stageNames) {
+  return patchForRegistrySlot(WB_OWNER.affection, 'general', {
     content: buildGeneralArchiveContent(stageNames),
     keys: [],
     strategy: 'constant',
@@ -264,7 +279,7 @@ export function buildGeneralArchiveEntry(stageNames) {  return {
     order: 100,
     prob: 100,
     enabled: true,
-  };
+  });
 }
 
 export function buildGeneralArchiveContent(stageNames) {
@@ -367,8 +382,8 @@ export function findAffectionEntries(entries) {
   var archives = [];
   list.forEach(function(e) {
     if (!e) return;
-    if (isAffectionRulesComment(e.comment)) rules = e;
-    else if (isAffectionArchiveComment(e.comment)) archives.push(e);
+    if (isAffectionRulesEntry(e)) rules = e;
+    else if (isAffectionArchiveEntryObj(e)) archives.push(e);
   });
   return { rules: rules, archives: archives };
 }
@@ -395,7 +410,7 @@ export function buildAffectionExportIssues(input) {
     selected.forEach(function(name) {
       var c = affectionArchiveComment(name);
       var hit = found.archives.some(function(a) {
-        return String(a.comment || '').trim() === c && String(a.content || '').trim();
+        return String(a.ownerSlot || '').trim() === name && String(a.content || '').trim();
       });
       if (!hit) {
         issues.push({

@@ -9,6 +9,7 @@ import {
   normalizeTags,
   tagsFromImportJson,
 } from '../state.mjs';
+import { fromStImportEntry } from '../../worldbook/worldbookEntryBridge.mjs';
 import { crc32, createTextChunk, embedTextChunkIntoPng } from '../../utils.mjs';
 import { dataUrlToPngDataUrl } from '../../avatarIdb.mjs';
 
@@ -194,7 +195,7 @@ export function registerExport(ctx) {
 
     if (json.data.character_book && json.data.character_book.entries) {
       ctx.state.worldbookEntries = json.data.character_book.entries.map(function (e) {
-        return {
+        return fromStImportEntry({
           comment: e.comment || '',
           content: e.content || '',
           keys: e.keys || [],
@@ -207,7 +208,7 @@ export function registerExport(ctx) {
           role: (e.extensions && e.extensions.role !== undefined) ? e.extensions.role : 0,
           order: e.insertion_order || 100,
           prob: (e.extensions && e.extensions.probability !== undefined) ? e.extensions.probability : 100,
-        };
+        });
       });
     } else {
       ctx.state.worldbookEntries = [];

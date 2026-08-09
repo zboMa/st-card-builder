@@ -5,6 +5,7 @@
 import { ST_PARITY_VERSION } from './stCompat.mjs';
 import { buildChatCompletionMessages } from './prompt/build.mjs';
 import { applyRegexPipeline, PLACEMENT_AI } from './regex/pipeline.mjs';
+import { toRuntimeEntry } from '../worldbook/worldbookEntryBridge.mjs';
 
 export { ST_PARITY_VERSION, PLACEMENT_AI };
 
@@ -48,6 +49,7 @@ export function buildTrialChatMessages(opts) {
     presetMessages = [];
   }
   if (!Array.isArray(worldbookEntries)) worldbookEntries = [];
+  worldbookEntries = worldbookEntries.map(function(e) { return toRuntimeEntry(e); });
   if (!Array.isArray(regexScripts)) regexScripts = [];
   if (!Array.isArray(presetMessages)) presetMessages = [];
 

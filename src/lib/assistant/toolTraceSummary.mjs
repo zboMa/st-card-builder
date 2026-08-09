@@ -1,6 +1,7 @@
 /**
  * 助手工具轨迹：折叠摘要与展开详情
  */
+import { entryDisplayLabel } from '../worldbook/worldbookEntryBridge.mjs';
 
 /** @type {Record<string, string>} */
 var PENDING_TOOL_LABELS = {
@@ -47,7 +48,8 @@ export function summarizeToolTrace(toolName, result, args) {
 
   if (toolName === 'get_worldbook_entry') {
     var entry = data.entry || {};
-    var title = entry.comment || entry.name || ('#' + (data.index != null ? data.index : '?'));
+    var title = entry.comment || entryDisplayLabel(entry) || entry.name
+      || ('#' + (data.index != null ? data.index : '?'));
     return '读取条目：' + title;
   }
 

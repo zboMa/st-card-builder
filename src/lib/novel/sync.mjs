@@ -5,7 +5,14 @@
 
 import { formatProfileYaml } from './schema.mjs';
 import { formatAdultAttrsForContent } from './nsfwSupport.mjs';
-
+import {
+  upsertWorldbookEntry,
+  buildNovelEntryPatch,
+  patchForRegistrySlot,
+  isNovelPersonEntry,
+  entryExportComment,
+} from '../worldbook/worldbookEntryBridge.mjs';
+import { WB_OWNER, novelKindFromEntityCategory } from '../worldbook/worldbookRegistry.mjs';
 export var SYNC_STATUSES = ['unsynced', 'synced', 'dirty'];
 export var CONFLICT_POLICIES = ['overwrite', 'merge', 'skip'];
 /** 文风同步到主世界书时的固定条目标题 */
@@ -20,11 +27,28 @@ export function isPersonWorldbookComment(comment) {
   return c.indexOf(PERSON_WB_COMMENT_PREFIX) === 0 || c.indexOf(PERSON_WB_COMMENT_PREFIX_ALT) === 0;
 }
 
+export function isPersonWorldbookEntry(entry) {
+  if (!entry) return false;
+  if (isNovelPersonEntry(entry)) return true;
+  if (entry.kind === 'outline_person' && String(entry.owner || '') === WB_OWNER.user) return true;
+  return isPersonWorldbookComment(entryExportComment(entry));
+}
 /** 从人物世界书 comment 解析显示名 */
 export function personNameFromWorldbookComment(comment) {
   var c = String(comment || '').trim();
   var m = c.match(/^\[(?:小说)?人物\]\s*(.+)$/);
   return m ? String(m[1] || '').trim() : '';
+}
+
+/** 从 V2 条目解析人物显示名（含 outline_person / 前缀 comment） */
+export function personNameFromWorldbookEntry(entry) {
+  if (!entry) return '';
+  var fromPrefix = personNameFromWorldbookComment(entryExportComment(entry));
+  if (fromPrefix) return fromPrefix;
+  if (entry.kind === 'outline_person' && String(entry.owner || '') === WB_OWNER.user) {
+    return String(entry.displayName || '').trim();
+  }
+  return '';
 }
 
 /** 主角 Description 是否疑似混入了成人/人物档案块 */
@@ -73,10 +97,53 @@ export function profileToCharacterFields(profile, name, policy, currentDesc, opt
   return { skipped: false, fields: fields };
 }
 
+function stFieldsFromDraft(d) {
+  return {
+    content: String(d.content || ''),
+    keys: Array.isArray(d.keys) ? d.keys.slice() : [],
+    strategy: d.strategy || (d.layer === 'blue' ? 'constant' : 'selective'),
+    position: d.position != null ? d.position : 4,
+    depth: d.depth != null ? d.depth : (d.layer === 'blue' ? 2 : 4),
+    role: d.role != null ? d.role : 0,
+    order: d.order != null ? d.order : 800,
+    prob: d.prob != null ? d.prob : 100,
+    enabled: d.enabled !== false,
+  };
+}
+
+function draftToNovelPatch(d) {
+  var name = String(d.name || '').trim() || '条目';
+  if (d.owner === WB_OWNER.novel && d.kind && d.ownerSlot != null) {
+    return Object.assign({ owner: WB_OWNER.novel }, d, stFieldsFromDraft(d));
+  }
+  var comment = String(d.comment || '').trim();
+  if (comment === STYLE_WB_COMMENT || d.category === 'style') {
+    return patchForRegistrySlot(WB_OWNER.novel, 'style', stFieldsFromDraft(d));
+  }
+  var cat = d.category || 'setting';
+  if (cat === 'character' || isPersonWorldbookComment(comment)) {
+    return buildNovelEntryPatch('novel_person', name, stFieldsFromDraft(d));
+  }
+  var kind = novelKindFromEntityCategory(cat, cat === 'event' ? 'event' : '');
+  return buildNovelEntryPatch(kind, name, stFieldsFromDraft(d));
+}
+
+function findNovelSlotIndex(wb, patch) {
+  var o = String(patch.owner || WB_OWNER.novel);
+  var slot = String(patch.ownerSlot || '');
+  var kind = String(patch.kind || '');
+  for (var i = 0; i < wb.length; i++) {
+    var e = wb[i];
+    if (!e) continue;
+    if (String(e.owner || '') === o && String(e.ownerSlot || '') === slot && String(e.kind || '') === kind) return i;
+  }
+  return -1;
+}
+
 /**
  * 将草稿条目写入世界书列表
  * @param {Array} currentWb
- * @param {Array} drafts { comment, content, keys, strategy?, layer? }
+ * @param {Array} drafts { comment, content, keys, strategy?, layer?, category?, name? }
  * @param {'overwrite'|'merge'|'skip'} policy
  */
 export function applyDraftsToWorldbook(currentWb, drafts, policy) {
@@ -88,23 +155,16 @@ export function applyDraftsToWorldbook(currentWb, drafts, policy) {
 
   (drafts || []).forEach(function(d) {
     if (!d) return;
-    var comment = String(d.comment || ('[小说]' + (d.name || '条目')));
-    var idx = wb.findIndex(function(e) { return String(e.comment || '') === comment; });
-    var entry = {
-      comment: comment,
-      content: String(d.content || ''),
-      keys: Array.isArray(d.keys) ? d.keys.slice() : [],
-      strategy: d.strategy || (d.layer === 'blue' ? 'constant' : 'selective'),
-      position: d.position != null ? d.position : 4,
-      depth: d.depth != null ? d.depth : (d.layer === 'blue' ? 2 : 4),
-      role: d.role != null ? d.role : 0,
-      order: d.order != null ? d.order : 800,
-      prob: d.prob != null ? d.prob : 100,
-      enabled: d.enabled !== false,
-    };
+    var patch = draftToNovelPatch(d);
+    if (!patch) return;
+    var idx = findNovelSlotIndex(wb, patch);
 
     if (idx < 0) {
-      wb.push(entry);
+      wb = upsertWorldbookEntry(wb, patch, {
+        owner: patch.owner,
+        ownerSlot: patch.ownerSlot,
+        id: patch.id,
+      });
       added++;
       return;
     }
@@ -113,22 +173,24 @@ export function applyDraftsToWorldbook(currentWb, drafts, policy) {
       return;
     }
     if (p === 'overwrite') {
-      wb[idx] = Object.assign({}, wb[idx], entry);
+      wb = upsertWorldbookEntry(wb, patch, {
+        owner: patch.owner,
+        ownerSlot: patch.ownerSlot,
+        id: wb[idx].id,
+      });
       updated++;
       return;
     }
-    // merge：有 provenance 的新内容优先；否则拼接/取更长；keys 去重
     var old = wb[idx];
     var keys = (old.keys || []).slice();
-    entry.keys.forEach(function(k) {
+    (patch.keys || []).forEach(function(k) {
       if (k && keys.indexOf(k) < 0) keys.push(k);
     });
     var oldContent = String(old.content || '');
-    var neuContent = String(entry.content || '');
+    var neuContent = String(patch.content || '');
     var content = oldContent;
     if (neuContent) {
       if (d.hasProvenance) {
-        // 溯源优先：新内容覆盖（除非旧更长且已包含新段）
         if (!oldContent || neuContent.length >= oldContent.length || oldContent.indexOf(neuContent) < 0) {
           content = neuContent.length >= oldContent.length
             ? neuContent
@@ -138,13 +200,16 @@ export function applyDraftsToWorldbook(currentWb, drafts, policy) {
         content = oldContent ? (oldContent + '\n\n' + neuContent) : neuContent;
       }
     }
-    wb[idx] = Object.assign({}, old, entry, { content: content, keys: keys });
+    wb = upsertWorldbookEntry(wb, Object.assign({}, patch, { content: content, keys: keys }), {
+      owner: patch.owner,
+      ownerSlot: patch.ownerSlot,
+      id: old.id,
+    });
     updated++;
   });
 
   return { entries: wb, added: added, updated: updated, skipped: skipped };
 }
-
 /** 人物档案 → 世界书条目草稿 */
 export function profileToWorldbookDraft(profile, name) {
   var yaml = formatProfileYaml(profile, name);

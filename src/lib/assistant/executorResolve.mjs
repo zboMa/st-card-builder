@@ -8,6 +8,14 @@ import {
   normalizeCharacterFieldKey,
   normalizeCharacterPatch,
 } from './characterFields.mjs';
+import { entryExportComment, entryDisplayLabel } from '../worldbook/worldbookEntryBridge.mjs';
+
+function wbTitleForMatch(entry) {
+  if (!entry) return '';
+  var label = String(entryDisplayLabel(entry) || '').trim();
+  if (label) return label;
+  return String(entry.displayName || entry.comment || entryExportComment(entry) || '').trim();
+}
 
 /**
  * 解析定向目标：支持 target 对象或扁平 index/id/comment/titleMatch/name
@@ -62,14 +70,14 @@ export function resolveWorldbookIndex(entries, args) {
   }
   if (t.comment) {
     for (var j = 0; j < list.length; j++) {
-      if ((list[j].comment || '') === t.comment) return j;
+      if (entryExportComment(list[j]) === t.comment || wbTitleForMatch(list[j]) === t.comment) return j;
     }
   }
   if (t.titleMatch) {
     var q = t.titleMatch.toLowerCase();
     var hits = [];
     for (var k = 0; k < list.length; k++) {
-      if (String(list[k].comment || '').toLowerCase().indexOf(q) >= 0) hits.push(k);
+      if (wbTitleForMatch(list[k]).toLowerCase().indexOf(q) >= 0) hits.push(k);
     }
     if (hits.length === 1) return hits[0];
     if (hits.length > 1) return hits[0]; // 多命中取第一条，调用方应提示
@@ -78,7 +86,7 @@ export function resolveWorldbookIndex(entries, args) {
   if (typeof args.index === 'number') return args.index;
   if (args.comment) {
     for (var m = 0; m < list.length; m++) {
-      if ((list[m].comment || '') === args.comment) return m;
+      if (entryExportComment(list[m]) === args.comment || wbTitleForMatch(list[m]) === args.comment) return m;
     }
   }
   return -1;

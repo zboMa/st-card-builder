@@ -36,7 +36,7 @@ function sidebarViewIndex(src, viewId) {
 
 /** 侧栏最终菜单 → data-view 映射（顺序即契约） */
 const EXPECTED_MENU = {
-  '角色卡制作': ['card-manager', 'adult-config', 'character', 'greetings', 'worldbook', 'statusbar', 'mvu', 'regex', 'tavern-scripts'],
+  '角色卡制作': ['card-manager', 'adult-config', 'character', 'greetings', 'worldbook', 'statusbar', 'regex', 'tavern-scripts'],
   '小说': [
     'novel-source',
     'novel-chapters',

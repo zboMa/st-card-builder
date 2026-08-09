@@ -26,6 +26,7 @@ import {
   isSkeletonEntry,
   OUTLINE_TYPE_LABELS,
 } from '../enginePipeline.mjs';
+import { entryExportComment } from '../../worldbook/worldbookEntryBridge.mjs';
 
 const AI_KEY = 'st_v3_builder_ai_config';
 const PENDING_OUTLINE_KEY = 'st_v3_ai_pending_outline';
@@ -373,7 +374,7 @@ export function createAiEngineShared(ctx) {
   function formatWbSkeletonRef(entries) {
     if (!entries || !entries.length) return '';
     var lines = entries.map(function(e) {
-      return '- ' + (e.comment || '未命名') + ': ' + String(e.content || '').substring(0, 100);
+      return '- ' + (entryExportComment(e) || '未命名') + ': ' + String(e.content || '').substring(0, 100);
     }).join('\n');
     return '\n【阶段2已生成世界书骨架参考（勿重复，可补充关联）】\n' + lines;
   }

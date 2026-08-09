@@ -9,6 +9,7 @@ import {
   stampDraftUpdatedAt,
   draftContentEqual,
   draftDisplayName,
+  normalizeWorldbookEntriesForDraft,
 } from './state.mjs';
 import { deepCopy } from '../utils.mjs';
 import { attachContentRevToDraft } from '../sync/contentRev.mjs';
@@ -131,7 +132,9 @@ export function createCardStateMachine(state) {
     state.firstMes = d.firstMes || '';
     state.creatorNotes = d.creatorNotes || '';
     state.charTags = d.charTags || d.tags || [];
-    state.worldbookEntries = d.worldbookEntries || [];
+    var wbLoad = normalizeWorldbookEntriesForDraft(d.worldbookEntries || []);
+    state.worldbookEntries = wbLoad.entries;
+    state.worldbookLegacyCleared = !!wbLoad.legacyCleared;
     state.regexScripts = d.regexScripts || [];
     state.tavernHelperScripts = Array.isArray(d.tavernHelperScripts) ? d.tavernHelperScripts : [];
     state.cardBuilderExtensions = Object.assign({}, d.cardBuilderExtensions || {});

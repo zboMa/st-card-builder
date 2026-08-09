@@ -42,9 +42,11 @@ import {
 import { CORRUPTION_EXPAND_WB } from '../../novel/contextBudgets.mjs';
 import { truncateToTokens } from '../../assistant/contextManager.mjs';
 import {
-  isPersonWorldbookComment,
+  isPersonWorldbookEntry,
   personNameFromWorldbookComment,
+  personNameFromWorldbookEntry,
 } from '../../novel/sync.mjs';
+import { isAdultDigestEntry, entryExportComment } from '../../worldbook/worldbookEntryBridge.mjs';
 import { buildPlaceholderPaths, normalizeDesign } from '../../statusBar.mjs';
 import { enhanceSelectMini, syncEnhancedSelectLabel } from '../../ui/enhanceSelectMini.mjs';
 import { buildAdultCanonDigest, formatCorruptionArchiveDigests } from '../../adult/canon.mjs';
@@ -53,7 +55,6 @@ import {
   buildAdultSystemDigest,
   hasMeaningfulSystemDigest,
   upsertSystemDigestEntries,
-  isSystemDigestComment,
   mergeCorruptionConfigNote,
   stripCorruptionConfigNote,
   mergeAffectionConfigNote,
@@ -238,8 +239,8 @@ export function attachAdultConfigPanel(ctx, s, panel) {
       var wb = Array.isArray(ctx.state.worldbookEntries) ? ctx.state.worldbookEntries : [];
       // 只认世界书人物条（[小说人物]/[人物]），与主角管道隔离
       wb.forEach(function(e) {
-        if (!e || !isPersonWorldbookComment(e.comment)) return;
-        var name = personNameFromWorldbookComment(e.comment);
+        if (!e || !isPersonWorldbookEntry(e)) return;
+        var name = personNameFromWorldbookEntry(e);
         if (!name) return;
         var ctxHit = findWorldbookPersonContext(wb, name);
         pushCand({
@@ -692,8 +693,8 @@ export function attachAdultConfigPanel(ctx, s, panel) {
 
       var wb = Array.isArray(ctx.state.worldbookEntries) ? ctx.state.worldbookEntries : [];
       wb.forEach(function(e) {
-        if (!e || !isPersonWorldbookComment(e.comment)) return;
-        var name = personNameFromWorldbookComment(e.comment);
+        if (!e || !isPersonWorldbookEntry(e)) return;
+        var name = personNameFromWorldbookEntry(e);
         if (!name) return;
         var ctxHit = findWorldbookPersonContext(wb, name);
         pushCand({
@@ -1381,7 +1382,7 @@ export function attachAdultConfigPanel(ctx, s, panel) {
       var stripped = stripCorruptionConfigNote(ctx.state.worldbookEntries || []);
       stripped = stripAffectionConfigNote(stripped);
       ctx.state.worldbookEntries = stripped.filter(function(e) {
-        return !isSystemDigestComment(e.comment);
+        return !isAdultDigestEntry(e);
       });
       ctx.save();
       if (ctx.panels.worldbook && ctx.panels.worldbook.renderEntriesList) {
@@ -1397,7 +1398,7 @@ export function attachAdultConfigPanel(ctx, s, panel) {
       var cfg = window.__getNsfwConfig__ ? window.__getNsfwConfig__() : {};
       if (!hasMeaningfulSystemDigest(cfg)) return { ok: false, reason: 'empty' };
       var hasAny = (ctx.state.worldbookEntries || []).some(function(e) {
-        return isSystemDigestComment(e.comment);
+        return isAdultDigestEntry(e);
       });
       if (hasAny) return { ok: true, skipped: 'exists' };
       var entries = buildAdultSystemDigest(cfg);

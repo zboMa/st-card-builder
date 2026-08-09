@@ -7,6 +7,18 @@ import { buildWorldviewHintFromItems } from '../../presets/worldviews/index.mjs'
 import { createVirtualList } from '../../ui/virtualList.mjs';
 import { SYSTEM_DIGEST_PREFIX } from '../../adult/systemDigest.mjs';
 import { countTokens, formatTokenCount } from '../../tokenStats.mjs';
+import {
+  wbEntryTitle,
+  wbEntrySearchHaystack,
+  wbEntryFamily,
+  wbKindLabel,
+  wbKindLabelForEntry,
+  wbFamilyLabel,
+  wbEntryTitleReadOnly,
+  isSystemEntry,
+  entryExportComment,
+} from '../../worldbook/worldbookUi.mjs';
+import { fromAiJsonEntry, normalizeDraftEntry } from '../../worldbook/worldbookEntryBridge.mjs';
 
 /** 世界书行估算高度（TanStack estimateSize + measure） */
 export var WB_VL_ROW_HEIGHT = 72;
@@ -26,8 +38,14 @@ export function createWorldbookShared(ctx) {
   var KEYGEN_BATCH_CHAR_LIMIT = 20000;
   var KEYGEN_BATCH_ITEM_LIMIT = 8;
   var KEYGEN_MAX_RETRY_ROUNDS = 3;
+  var wbFamilyFilter = 'all';
   var wbVl = null;
   var wbDelegated = false;
+
+  function entryPassesFamilyFilter(rawEntry) {
+    if (wbFamilyFilter === 'all') return true;
+    return wbEntryFamily(rawEntry) === wbFamilyFilter;
+  }
 
   // token 估算缓存：挂原始条目引用（WeakMap），避免序列化污染；normalizeWBEntry 返回新对象不丢缓存
   var wbTokCache = new WeakMap();
@@ -150,11 +168,17 @@ export function createWorldbookShared(ctx) {
       { value: '1', label: '\u7528\u6237' },
       { value: '2', label: '\u52A9\u624B' },
     ], entry.role);
+    var titleVal = escapeHtml(entry.displayName || wbEntryTitle(entry));
+    var titleReadOnly = wbEntryTitleReadOnly(entry) ? ' readonly' : '';
+    var kindLabel = wbKindLabelForEntry(rawEntry);
+    var kindChip = kindLabel
+      ? '<span class="wb-kind-tag" title="' + escapeHtml(wbFamilyLabel(wbEntryFamily(entry))) + '">' + escapeHtml(kindLabel) + '</span>'
+      : '';
     return ''
       + '<div class="wb-inline-editor" id="' + editorId + '" data-editor-index="' + index + '">'
       +   '<div class="form-group">'
       +     '<label>\u6761\u76EE\u6807\u9898</label>'
-      +     '<input type="text" data-field="comment" placeholder="\u4F8B\u5982\uFF1A===\u7279\u6B8A\u6B66\u5668===" value="' + escapeHtml(entry.comment) + '" />'
+      +     '<input type="text" data-field="displayName" placeholder="\u4F8B\u5982\uFF1A===\u7279\u6B8A\u6B66\u5668===" value="' + titleVal + '"' + titleReadOnly + ' />'
       +   '</div>'
       +   '<div class="form-group">'
       +     '<label>\u8BBE\u5B9A\u5185\u5BB9</label>'
@@ -204,10 +228,10 @@ export function createWorldbookShared(ctx) {
     return el ? el.value : '';
   }
 
-  function readInlineEditorEntry(root) {
+  function readInlineEditorEntry(root, existing) {
     var base = getDefaultWBEntry();
-    return {
-      comment: readInlineEditorValue(root, 'comment').trim(),
+    var patch = {
+      displayName: readInlineEditorValue(root, 'displayName').trim(),
       content: readInlineEditorValue(root, 'content').trim(),
       keys: readInlineEditorValue(root, 'keys').split(/[,，]/).map(function(k) { return k.trim(); }).filter(function(k) { return k; }),
       strategy: readInlineEditorValue(root, 'strategy') || base.strategy,
@@ -217,13 +241,17 @@ export function createWorldbookShared(ctx) {
       order: clampInt(readInlineEditorValue(root, 'order'), base.order, 0, 999),
       prob: clampInt(readInlineEditorValue(root, 'prob'), base.prob, 1, 100),
     };
+    if (existing && typeof existing === 'object') {
+      return normalizeWBEntry(Object.assign({}, existing, patch));
+    }
+    return normalizeWBEntry(Object.assign({}, base, patch));
   }
 
   function focusWbModalEditor() {
     setTimeout(function() {
       var body = ctx.$('wbModalEditBody');
       if (!body) return;
-      var target = body.querySelector('[data-field="comment"]');
+      var target = body.querySelector('[data-field="displayName"]');
       if (target) target.focus();
     }, 0);
   }
@@ -305,7 +333,8 @@ export function createWorldbookShared(ctx) {
   function saveInlineEntry(index) {
     var editorRoot = getInlineEditorRoot(index);
     if (!editorRoot) return;
-    var nextEntry = readInlineEditorEntry(editorRoot);
+    var existing = index >= 0 ? ctx.state.worldbookEntries[index] : null;
+    var nextEntry = readInlineEditorEntry(editorRoot, existing);
     if (!nextEntry.content.trim()) {
       showWbEditError('\u5185\u5BB9\u4E0D\u80FD\u4E3A\u7A7A');
       var contentEl = editorRoot.querySelector('[data-field="content"]');
@@ -430,7 +459,9 @@ export function createWorldbookShared(ctx) {
     var wbIncludeOtherEntries = ctx.$('wbIncludeOtherEntries');
     var includeOthers = !wbIncludeOtherEntries || wbIncludeOtherEntries.checked;
     var existingCtx = includeOthers
-      ? ctx.state.worldbookEntries.map(function(e) { return '[\u6807\u9898:' + e.comment + '] (\u7B56\u7565:' + e.strategy + '): ' + e.content; }).join('\n-----\n')
+      ? ctx.state.worldbookEntries.map(function(e) {
+        return '[\u6807\u9898:' + entryExportComment(e) + '] (\u7B56\u7565:' + e.strategy + '): ' + e.content;
+      }).join('\n-----\n')
       : '';
     var ctxStr = includeOthers
       ? (existingCtx ? '\n\u3010\u5DF2\u6709\u8BBE\u5B9A(\u4E0D\u53EF\u91CD\u590D)\u3011\uFF1A\n' + existingCtx : '\n\u3010\u5F53\u524D\u4E16\u754C\u4E66\u4E3A\u7A7A\u3011')
@@ -452,7 +483,7 @@ export function createWorldbookShared(ctx) {
       + (wvHint || '')
       + '\n【冲突处理】若「用户额外要求」与「世界观预设」冲突，以用户额外要求为准。'
       + searchInjection
-      + '\n\u3010\u8F93\u51FA\u3011\uFF1A1\u4E2AJSON\u5BF9\u8C61 { "comment": "\u6807\u9898", "content": "\u8BE6\u7EC6\u8BBE\u5B9A(\u81F3\u5C11100\u5B57)", "keys": ["\u89E6\u53D1\u8BCD"], "strategy": "selective \u6216 constant", "position": 4 }';
+      + '\n\u3010\u8F93\u51FA\u3011\uFF1A1\u4E2AJSON\u5BF9\u8C61 { "comment": "\u6807\u9898", "type": "worldview|location|...", "content": "\u8BE6\u7EC6\u8BBE\u5B9A(\u81F3\u5C11100\u5B57)", "keys": ["\u89E6\u53D1\u8BCD"], "strategy": "selective \u6216 constant", "position": 4 }';
     var userPrompt = customDirection ? '\u3010\u65B9\u5411\u00B7\u4F18\u5148\u3011\uFF1A' + customDirection : '\u3010\u81EA\u7531\u53D1\u6325\uFF0C\u62D2\u7EDD\u91CD\u590D\uFF1B\u6709\u4E16\u754C\u89C2\u9884\u8BBE\u5219\u7D27\u8D34\u8BED\u6C47\u3011';
     var headers = { 'Content-Type': 'application/json' };
     if (key) headers['Authorization'] = 'Bearer ' + key;
@@ -467,17 +498,7 @@ export function createWorldbookShared(ctx) {
       signal: signal,
     });
     var entry = ctx.extractJsonObj(aiResp.content, '\u4E16\u754C\u4E66\u5355\u6761\u751F\u6210');
-    ctx.state.worldbookEntries.push({
-      comment: entry.comment || '\u62D3\u5C55\u8BBE\u5B9A',
-      content: entry.content || '',
-      keys: Array.isArray(entry.keys) ? entry.keys : [],
-      strategy: entry.strategy || 'selective',
-      position: parseInt(entry.position) || 4,
-      depth: 4,
-      role: 0,
-      order: 100,
-      prob: 100,
-    });
+    ctx.state.worldbookEntries.push(fromAiJsonEntry(entry, getDefaultWBEntry()));
   }
 
   // ============================================================
@@ -500,18 +521,18 @@ export function createWorldbookShared(ctx) {
       await ctx.runTracked({
         type: taskType,
         title: isSkeleton ? '\u4E16\u754C\u4E66\u6269\u5199' : '\u4E16\u754C\u4E66\u91CD\u5199',
-        target: old.comment || ('#' + index),
+        target: wbEntryTitle(old) || ('#' + index),
       }, async function(task) {
         var presetsStr = getActivePresetsStr();
         var expandHint = isSkeleton ? '\n\n\u3010\u91CD\u8981\u3011\uFF1A\u539F\u6761\u76EE\u662F\u9AA8\u67B6\u6982\u8981\uFF0C\u8BF7\u5C55\u5F00\u4E3A\u5B8C\u6574\u8BE6\u7EC6\u7684\u4E16\u754C\u4E66\u8BBE\u5B9A\u8BCD\u6761\uFF08\u81F3\u5C11150\u5B57\uFF09\uFF0C\u4FDD\u7559\u65B9\u5411\u4F46\u5927\u5E45\u6269\u5145\u3002' : '';
         var searchInjection = '';
         if (window.__searchConfig__ && window.__searchConfig__.isEnabled()) {
-          var sq = old.comment + ' ' + (req || '');
+          var sq = entryExportComment(old) + ' ' + (req || '');
           var sr = await performSearchIfEnabled(sq);
           searchInjection = sr.searchText || '';
         }
         var wvHint = getWorldviewHintBlock();
-        var sys = ctx.promptText('wbRewrite', '') + '\n\u3010\u539F\u8BCD\u6761\u3011: \u6807\u9898: ' + old.comment + ' | \u7B56\u7565: ' + old.strategy + ' | \u89E6\u53D1\u8BCD: ' + old.keys.join(',') + '\n\u5185\u5BB9: ' + old.content + (presetsStr ? '\n\u3010\u6587\u98CE\u3011\uFF1A\n' + presetsStr : '') + expandHint + (wvHint || '') + '\n【冲突处理】若「用户额外要求」与「世界观预设」冲突，以用户额外要求为准。' + searchInjection + '\n\u3010\u4EFB\u52A1\u3011\uFF1A\u91CD\u5199\u3002\u8F93\u51FAJSON\uFF1A{ "comment": "\u6807\u9898", "content": "\u8BE6\u7EC6\u8BBE\u5B9A", "keys": ["\u89E6\u53D1\u8BCD"], "strategy": "selective \u6216 constant", "position": ' + old.position + ' }';
+        var sys = ctx.promptText('wbRewrite', '') + '\n\u3010\u539F\u8BCD\u6761\u3011: \u6807\u9898: ' + entryExportComment(old) + ' | \u7B56\u7565: ' + old.strategy + ' | \u89E6\u53D1\u8BCD: ' + old.keys.join(',') + '\n\u5185\u5BB9: ' + old.content + (presetsStr ? '\n\u3010\u6587\u98CE\u3011\uFF1A\n' + presetsStr : '') + expandHint + (wvHint || '') + '\n【冲突处理】若「用户额外要求」与「世界观预设」冲突，以用户额外要求为准。' + searchInjection + '\n\u3010\u4EFB\u52A1\u3011\uFF1A\u91CD\u5199\u3002\u8F93\u51FAJSON\uFF1A{ "comment": "\u6807\u9898", "type": "worldview|location|...", "content": "\u8BE6\u7EC6\u8BBE\u5B9A", "keys": ["\u89E6\u53D1\u8BCD"], "strategy": "selective \u6216 constant", "position": ' + old.position + ' }';
         var h = { 'Content-Type': 'application/json' };
         if (key) h['Authorization'] = 'Bearer ' + key;
         var aiResp = await ctx.fetchAIContent({
@@ -525,10 +546,8 @@ export function createWorldbookShared(ctx) {
           signal: task.signal,
         });
         var ed = ctx.extractJsonObj(aiResp.content, '\u4E16\u754C\u4E66\u91CD\u5199/\u7D22\u5F15' + index);
-        ctx.state.worldbookEntries[index].comment = ed.comment || old.comment;
-        ctx.state.worldbookEntries[index].content = ed.content || old.content;
-        if (ed.keys) ctx.state.worldbookEntries[index].keys = Array.isArray(ed.keys) ? ed.keys : [];
-        if (ed.strategy) ctx.state.worldbookEntries[index].strategy = ed.strategy;
+        var merged = fromAiJsonEntry(ed, old);
+        ctx.state.worldbookEntries[index] = merged;
         renderEntriesList();
         ctx.save();
       });
@@ -585,21 +604,25 @@ export function createWorldbookShared(ctx) {
     var entry = normalizeWBEntry(rawEntry);
     var isSk = entry.content.length < 60 || String(entry.content || '').indexOf('\u5F85\u5C55\u5F00') >= 0;
     var posMap = ['\u89D2\u8272\u524D', '\u89D2\u8272\u540E', '\u793A\u4F8B\u524D', '\u793A\u4F8B\u540E', '\u6309\u6DF1\u5EA6', '\u6CE8\u91CA\u524D', '\u6CE8\u91CA\u540E'];
-    var safeComment = escapeHtml(entry.comment || '\u672A\u547D\u540D');
+    var safeComment = escapeHtml(wbEntryTitle(rawEntry));
     var previewLine = truncatePreviewLine(entry.content, 80);
     var metaLine = '\u4F4D\u7F6E: ' + (posMap[entry.position] || entry.position) + ' | \u987A\u5E8F: ' + entry.order + ' | \u6DF1\u5EA6: ' + entry.depth + ' | \u6982\u7387: ' + entry.prob + '%';
     var entryTok = cachedEntryTokens(rawEntry);
     if (entryTok != null) metaLine += ' | \u6B63\u6587 ' + entryTok + ' tok';
     var skBadge = isSk ? '<span class="wb-skel-badge">\u9AA8\u67B6</span>' : '';
     var strategyBadge = renderStrategyTag(entry.strategy);
-    var sysBadge = String(entry.comment || '').indexOf(SYSTEM_DIGEST_PREFIX) === 0
+    var kindLabel = wbKindLabelForEntry(rawEntry);
+    var kindChip = kindLabel
+      ? '<span class="wb-kind-tag">' + escapeHtml(kindLabel) + '</span>'
+      : '';
+    var sysBadge = isSystemEntry(rawEntry)
       ? '<span class="wb-sys-badge">\u4F53\u7CFB</span>' : '';
     var aiTitle = isSk ? 'AI \u5C55\u5F00' : 'AI \u91CD\u5199';
     return '<div class="entry-item" data-wb-index="' + index + '" id="wbEntryItem_' + index + '">'
       + '<div class="entry-item-header">'
       + '<div class="entry-info">'
       + '<div class="entry-info-title-row"><button type="button" class="entry-title-btn" data-wb-act="edit" data-wb-index="' + index + '" title="\u7F16\u8F91\u6761\u76EE">' + safeComment + '</button>'
-      + strategyBadge + skBadge + sysBadge + '</div>'
+      + strategyBadge + kindChip + skBadge + sysBadge + '</div>'
       + (previewLine ? '<p class="entry-preview-line">' + escapeHtml(previewLine) + '</p>' : '')
       + '<p class="entry-meta-line">' + escapeHtml(metaLine) + '</p>'
       + '</div>'
@@ -709,7 +732,11 @@ export function createWorldbookShared(ctx) {
     entriesList.style.display = '';
     ensureWbDelegation();
     var vlist = ensureWbVirtualList();
-    var wbEntries = ctx.state.worldbookEntries || [];
+    var wbEntries = (ctx.state.worldbookEntries || []).map(function(entry, index) {
+      return { entry: entry, index: index };
+    }).filter(function(row) {
+      return entryPassesFamilyFilter(row.entry);
+    });
     updateCreateEntryButtonState();
 
     if (!wbEntries.length) {
@@ -784,11 +811,12 @@ export function createWorldbookShared(ctx) {
     }
     var matches = [];
     ctx.state.worldbookEntries.forEach(function(rawEntry, index) {
+      if (!entryPassesFamilyFilter(rawEntry)) return;
       var entry = normalizeWBEntry(rawEntry);
-      var comment = entry.comment || '';
+      var titleText = wbEntryTitle(rawEntry);
       var keysText = (entry.keys || []).join(', ');
       var content = entry.content || '';
-      var titleMatch = scopeTitle && comment.toLowerCase().indexOf(q) !== -1;
+      var titleMatch = scopeTitle && titleText.toLowerCase().indexOf(q) !== -1;
       var keysMatch = scopeKeys && keysText.toLowerCase().indexOf(q) !== -1;
       var contentMatch = scopeContent && content.toLowerCase().indexOf(q) !== -1;
       if (titleMatch || keysMatch || contentMatch) {
@@ -815,11 +843,11 @@ export function createWorldbookShared(ctx) {
       else if (m.keysMatch) snippetSrc = m.keysText || '';
       else snippetSrc = entry.content || m.keysText || '';
       var snippet = buildWbHitSnippet(snippetSrc, q, trimmed.length);
-      var titleHtml = highlightMatch(entry.comment || '\u672A\u547D\u540D', trimmed);
+      var titleHtml = highlightMatch(titleText || '\u672A\u547D\u540D', trimmed);
       var snippetHtml = highlightMatch(snippet, trimmed);
       return '<div class="wb-search-hit" role="button" tabindex="0" data-jump-index="' + m.index + '" title="\u8DF3\u8F6C\u5E76\u5C55\u5F00\u8BE5\u6761\u76EE">' +
         '<div class="wb-search-hit-main">' +
-          '<span class="wb-search-hit-title" title="' + escapeHtml(entry.comment || '') + '">' + titleHtml + '</span>' +
+          '<span class="wb-search-hit-title" title="' + escapeHtml(titleText || '') + '">' + titleHtml + '</span>' +
           renderStrategyTag(entry.strategy) +
           '<span class="wb-search-hit-fields">' + fields.join(' \u00B7 ') + '</span>' +
         '</div>' +
@@ -886,7 +914,7 @@ export function createWorldbookShared(ctx) {
     return batch.map(function(item) {
       return {
         index: item.index,
-        comment: item.entry.comment || '',
+        comment: entryExportComment(item.entry) || wbEntryTitle(item.entry) || '',
         current_keys: item.entry.keys || [],
         content_preview: (item.entry.content || '').trim().substring(0, 240),
       };
@@ -1089,7 +1117,7 @@ export function createWorldbookShared(ctx) {
       var newSlot = formatInsertSlot(s.position, s.role);
       var dC = e.depth !== s.depth, oC = e.order !== s.order, pC = e.prob !== s.prob;
       html += '<tr>';
-      html += '<td class="org-name-cell" title="' + (e.comment || '').replace(/"/g, '&quot;') + '">' + (e.comment || '\u672A\u547D\u540D') + '</td>';
+      html += '<td class="org-name-cell" title="' + escapeHtml(wbEntryTitle(e) || '').replace(/"/g, '&quot;') + '">' + escapeHtml(wbEntryTitle(e) || '\u672A\u547D\u540D') + '</td>';
       html += '<td class="org-value-cell">' + renderOrgValue(oldSlot, newSlot) + '</td>';
       html += '<td class="org-value-cell">' + (dC ? '<span class="org-old">' + e.depth + '</span><span class="org-changed">' + s.depth + '</span>' : e.depth) + '</td>';
       html += '<td class="org-value-cell">' + (oC ? '<span class="org-old">' + e.order + '</span><span class="org-changed">' + s.order + '</span>' : e.order) + '</td>';
@@ -1198,6 +1226,11 @@ export function createWorldbookShared(ctx) {
     formatInsertSlot: formatInsertSlot,
     renderOrgValue: renderOrgValue,
     renderOrganizePreview: renderOrganizePreview,
+    setWbFamilyFilter: function(v) {
+      wbFamilyFilter = String(v || 'all').trim() || 'all';
+      renderEntriesList();
+    },
+    getWbFamilyFilter: function() { return wbFamilyFilter; },
     get editingIndex() { return editingIndex; },
     set editingIndex(v) { editingIndex = v; },
     get isCreatingEntry() { return isCreatingEntry; },

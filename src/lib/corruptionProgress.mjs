@@ -14,6 +14,15 @@ import {
   buildTrackArchiveContentTemplate,
   valueToStageName,
 } from './progressTrack.mjs';
+import {
+  upsertWorldbookEntry,
+  patchForRegistrySlot,
+  buildCorruptionArchivePatch,
+  entryExportComment,
+  isNovelPersonEntry,
+  matchDynamicImportByComment,
+} from './worldbook/worldbookEntryBridge.mjs';
+import { WB_OWNER } from './worldbook/worldbookRegistry.mjs';
 
 /** 恶堕推进事件锚点表（写入总则，防凭空增长/速通） */
 export var CORRUPTION_ANCHOR_LINES = [
@@ -270,6 +279,18 @@ export function isCorruptionArchiveComment(comment) {
   return String(comment || '').trim().indexOf(CORRUPTION_ARCHIVE_PREFIX) === 0;
 }
 
+export function isCorruptionRulesEntry(entry) {
+  if (!entry) return false;
+  if (entry.kind === 'corruption_rules') return true;
+  return isCorruptionRulesComment(entry.comment || entry.displayName);
+}
+
+export function isCorruptionArchiveEntryObj(entry) {
+  if (!entry) return false;
+  if (entry.kind === 'corruption_archive' || entry.kind === 'corruption_archive_general') return true;
+  return isCorruptionArchiveComment(entry.comment || entry.displayName);
+}
+
 export function isFemaleGender(gender) {
   var g = String(gender == null ? '' : gender).trim().toLowerCase();
   if (!g || g === '未提及' || g === '原文未提及' || g === '（原文未提及）' || g === 'n/a') return false;
@@ -355,8 +376,7 @@ export function buildRulesContent(stageNames) {
  * @returns {{comment:string, content:string, keys:string[], strategy:string, position:number, order:number}}
  */
 export function buildGeneralArchiveEntry(stageNames) {
-  return {
-    comment: CORRUPTION_GENERAL_ARCHIVE_COMMENT,
+  return patchForRegistrySlot(WB_OWNER.corruption, 'general', {
     content: buildGeneralArchiveContent(stageNames),
     keys: [],
     strategy: 'constant',
@@ -366,7 +386,7 @@ export function buildGeneralArchiveEntry(stageNames) {
     order: 100,
     prob: 100,
     enabled: true,
-  };
+  });
 }
 
 export function buildGeneralArchiveContent(stageNames) {
@@ -488,12 +508,14 @@ export function findWorldbookPersonContext(entries, charName) {
   var best = null;
 
   function scoreEntry(e) {
-    if (!e || isCorruptionRulesComment(e.comment) || isCorruptionArchiveComment(e.comment)) return -1;
-    var comment = String(e.comment || '').trim();
+    if (!e || isCorruptionRulesEntry(e) || isCorruptionArchiveEntryObj(e)) return -1;
+    var comment = entryExportComment(e);
     var content = String(e.content || '').trim();
     if (!content) return -1;
-    // 优先人物条；非人物条大幅降权
-    var isPerson = comment.indexOf('[小说人物]') === 0 || comment.indexOf('[人物]') === 0;
+    var isPerson = isNovelPersonEntry(e)
+      || (e.kind === 'outline_person' && String(e.owner || '') === WB_OWNER.user)
+      || comment.indexOf('[小说人物]') === 0
+      || comment.indexOf('[人物]') === 0;
     var keys = Array.isArray(e.keys) ? e.keys.map(function(k) { return String(k || '').trim(); }) : [];
     var s = isPerson ? 20 : -5;
     if (comment === '[小说人物] ' + name || comment === '[人物] ' + name) s += 100;
@@ -509,7 +531,7 @@ export function findWorldbookPersonContext(entries, charName) {
     if (!best || sc > best._score) {
       best = {
         content: String(e.content || ''),
-        comment: String(e.comment || ''),
+        comment: entryExportComment(e),
         aliases: Array.isArray(e.keys) ? e.keys.slice() : [],
         _score: sc,
       };
@@ -565,40 +587,30 @@ export function evaluateArchiveRichness(content, stageNames) {
  * @returns {object[]} 新数组
  */
 export function upsertWorldbookByComment(entries, entry) {
-  var list = Array.isArray(entries) ? entries.slice() : [];
   var e = entry || {};
-  var comment = String(e.comment || '').trim();
-  if (!comment) return list;
-  var next = {
-    comment: comment,
-    content: String(e.content || ''),
-    keys: Array.isArray(e.keys) ? e.keys.slice() : [],
-    strategy: e.strategy === 'constant' || e.strategy === 'vectorized' ? e.strategy : 'selective',
-    position: e.position != null ? e.position : 4,
-    depth: e.depth != null ? e.depth : 4,
-    role: e.role != null ? e.role : 0,
-    order: e.order != null ? e.order : 100,
-    prob: e.prob != null ? e.prob : 100,
-    enabled: e.enabled !== false,
-  };
-  var idx = -1;
-  for (var i = 0; i < list.length; i++) {
-    if (list[i] && String(list[i].comment || '').trim() === comment) {
-      idx = i;
-      break;
-    }
+  if (e.owner && e.ownerSlot != null) {
+    return upsertWorldbookEntry(entries, e, { owner: e.owner, ownerSlot: e.ownerSlot, id: e.id });
   }
-  if (idx >= 0) {
-    list[idx] = Object.assign({}, list[idx], next);
-  } else {
-    list.push(next);
+  if (e.kind === 'corruption_rules') {
+    return upsertWorldbookEntry(entries, e, { owner: WB_OWNER.corruption, ownerSlot: 'rules', id: e.id });
   }
-  return list;
+  if (e.kind === 'corruption_archive' || e.kind === 'corruption_archive_general') {
+    return upsertWorldbookEntry(entries, e, { owner: WB_OWNER.corruption, ownerSlot: e.ownerSlot, id: e.id });
+  }
+  var dyn = matchDynamicImportByComment(e.comment || e.displayName);
+  if (dyn) {
+    return upsertWorldbookEntry(entries, e, { owner: dyn.owner, ownerSlot: dyn.ownerSlot });
+  }
+  var comment = String(e.comment || e.displayName || '').trim();
+  if (!comment) return Array.isArray(entries) ? entries.slice() : [];
+  return upsertWorldbookEntry(entries, Object.assign({}, e, { displayName: comment }), {
+    owner: WB_OWNER.user,
+    ownerSlot: e.id || comment,
+  });
 }
 
 export function buildRulesWorldbookEntry(stageNames) {
-  return {
-    comment: CORRUPTION_RULES_COMMENT,
+  return patchForRegistrySlot(WB_OWNER.corruption, 'rules', {
     content: buildRulesContent(stageNames),
     keys: [],
     strategy: 'constant',
@@ -608,14 +620,13 @@ export function buildRulesWorldbookEntry(stageNames) {
     order: 10,
     prob: 100,
     enabled: true,
-  };
+  });
 }
 
 export function buildArchiveWorldbookEntry(charName, content, aliases) {
   var name = String(charName || '').trim() || '未命名';
   var keys = asTrimmedList([name].concat(aliases || []));
-  return {
-    comment: archiveComment(name),
+  return buildCorruptionArchivePatch(name, {
     content: String(content || '').trim() || buildArchiveContentTemplate(name, CORRUPTION_PRESETS['5'].stages),
     keys: keys,
     strategy: 'selective',
@@ -625,7 +636,7 @@ export function buildArchiveWorldbookEntry(charName, content, aliases) {
     order: 100,
     prob: 100,
     enabled: true,
-  };
+  });
 }
 
 /**
@@ -638,8 +649,8 @@ export function findCorruptionEntries(entries) {
   var archives = [];
   list.forEach(function(e) {
     if (!e) return;
-    if (isCorruptionRulesComment(e.comment)) rules = e;
-    else if (isCorruptionArchiveComment(e.comment)) archives.push(e);
+    if (isCorruptionRulesEntry(e)) rules = e;
+    else if (isCorruptionArchiveEntryObj(e)) archives.push(e);
   });
   return { rules: rules, archives: archives };
 }
@@ -667,7 +678,7 @@ export function buildCorruptionExportIssues(input) {
     selected.forEach(function(name) {
       var c = archiveComment(name);
       var hit = found.archives.some(function(a) {
-        return String(a.comment || '').trim() === c && String(a.content || '').trim();
+        return String(a.ownerSlot || '').trim() === name && String(a.content || '').trim();
       });
       if (!hit) {
         issues.push({

@@ -435,6 +435,25 @@ describe('assistant tools execution audit', function() {
     assert.deepEqual(bridge.getWorldbook()[0].keys, ['k1', 'k2']);
   });
 
+  it('create/get_worldbook_entry 返回 AI 形 comment+type', async function() {
+    var bridge = createFullMockBridge({ worldbook: [] });
+    var ex = createToolExecutor(bridge);
+    var cr = await ex.executeConfirmed('create_worldbook_entry', {
+      entry: { comment: '北境', content: '苦寒之地', type: 'location', keys: ['北境'] },
+    });
+    assert.equal(cr.ok, true);
+    assert.equal(cr.data.added, 1);
+    assert.equal(cr.data.entries[0].comment, '北境');
+    assert.equal(cr.data.entries[0].type, 'location');
+    assert.equal(bridge.getWorldbook()[0].kind, 'outline_location');
+    assert.equal(bridge.getWorldbook()[0].owner, 'user');
+
+    var gr = await ex.executeConfirmed('get_worldbook_entry', { index: 0 });
+    assert.equal(gr.ok, true);
+    assert.equal(gr.data.entry.comment, '北境');
+    assert.equal(gr.data.entry.type, 'location');
+  });
+
   it('get_adult_catalog 返回分组目录并可去摘要', async function() {
     var bridge = createFullMockBridge();
     var ex = createToolExecutor(bridge);

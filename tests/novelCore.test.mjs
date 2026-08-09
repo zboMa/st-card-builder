@@ -48,6 +48,7 @@ import {
   styleToWorldbookDraft,
   STYLE_WB_COMMENT,
 } from '../src/lib/novel/sync.mjs';
+import { entryExportComment } from '../src/lib/worldbook/worldbookEntryBridge.mjs';
 import {
   createDefaultNovelState,
   hydrateNovelState,
@@ -345,14 +346,22 @@ describe('novel sync', function() {
   });
 
   it('同步 merge：有 provenance 的新内容优先', function() {
-    var old = { comment: '[小说event] 夜宴', content: '旧短', keys: ['夜宴'] };
+    var seed = applyDraftsToWorldbook([], [{
+      comment: '[小说event] 夜宴',
+      name: '夜宴',
+      category: 'event',
+      content: '旧短',
+      keys: ['夜宴'],
+    }], 'overwrite');
     var neu = {
       comment: '[小说event] 夜宴',
+      name: '夜宴',
+      category: 'event',
       content: '带溯源的更完整事件正文，应覆盖旧短内容。',
       keys: ['夜宴', '长安'],
       hasProvenance: true,
     };
-    var r = applyDraftsToWorldbook([old], [neu], 'merge');
+    var r = applyDraftsToWorldbook(seed.entries, [neu], 'merge');
     assert.equal(r.updated, 1);
     assert.match(r.entries[0].content, /带溯源/);
     assert.ok(r.entries[0].keys.indexOf('长安') >= 0);
@@ -393,7 +402,7 @@ describe('novel sync', function() {
     assert.equal(d.strategy, 'constant');
     var r1 = applyDraftsToWorldbook([], [d], 'overwrite');
     assert.equal(r1.added, 1);
-    assert.equal(r1.entries[0].comment, '文风');
+    assert.equal(entryExportComment(r1.entries[0]), '文风');
     var r2 = applyDraftsToWorldbook(r1.entries, [styleToWorldbookDraft('更新后的文风')], 'overwrite');
     assert.equal(r2.updated, 1);
     assert.equal(r2.entries.length, 1);

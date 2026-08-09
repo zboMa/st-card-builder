@@ -37,6 +37,7 @@ import {
   CORRUPTION_MIN_CHARS_PER_STAGE,
 } from '../src/lib/corruptionProgress.mjs';
 import { STATUS_BAR_MODULES, buildPlaceholderPaths } from '../src/lib/statusBar.mjs';
+import { entryExportComment, buildNovelEntryPatch, buildCorruptionArchivePatch } from '../src/lib/worldbook/worldbookEntryBridge.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -120,13 +121,13 @@ describe('corruptionProgress', function() {
   it('rules + archive worldbook upsert by comment', function() {
     var stages = CORRUPTION_PRESETS['5'].stages;
     var rules = buildRulesWorldbookEntry(stages);
-    assert.equal(rules.comment, CORRUPTION_RULES_COMMENT);
+    assert.equal(entryExportComment(rules), CORRUPTION_RULES_COMMENT);
     assert.equal(rules.strategy, 'constant');
     assert.match(rules.content, /未触碰/);
     assert.match(buildRulesContent(stages), /恶堕进度/);
 
     var arch = buildArchiveWorldbookEntry('林晚', buildArchiveContentTemplate('林晚', stages), ['晚晚']);
-    assert.equal(arch.comment, CORRUPTION_ARCHIVE_PREFIX + '林晚');
+    assert.equal(entryExportComment(arch), CORRUPTION_ARCHIVE_PREFIX + '林晚');
     assert.equal(arch.strategy, 'selective');
     assert.ok(arch.keys.indexOf('林晚') >= 0);
     assert.match(arch.content, /## 动摇/);
@@ -145,7 +146,7 @@ describe('corruptionProgress', function() {
   it('通用档案：不绑名字、常驻、按阶段含通用演绎框架', function() {
     var stages = CORRUPTION_PRESETS['5'].stages;
     var gen = buildGeneralArchiveEntry(stages);
-    assert.equal(gen.comment, CORRUPTION_GENERAL_ARCHIVE_COMMENT);
+    assert.equal(entryExportComment(gen), CORRUPTION_GENERAL_ARCHIVE_COMMENT);
     assert.equal(gen.strategy, 'constant');
     assert.equal(gen.position, 0);
     assert.ok(gen.keys.length === 0);
@@ -233,8 +234,8 @@ describe('corruptionProgress', function() {
     var fat = stages.map(function(s) { return '## ' + s + '\n' + fatBody; }).join('\n');
     assert.equal(evaluateArchiveRichness(fat, stages).ok, true);
     var hit = findWorldbookPersonContext([
-      { comment: '[小说人物] 林晚', content: '林晚是学妹', keys: ['林晚'] },
-      { comment: '恶堕档案·林晚', content: '勿用' },
+      buildNovelEntryPatch('novel_person', '林晚', { content: '林晚是学妹', keys: ['林晚'] }),
+      buildCorruptionArchivePatch('林晚', { content: '勿用' }),
     ], '林晚');
     assert.ok(hit);
     assert.match(hit.content, /学妹/);

@@ -52,8 +52,8 @@ export const ASSISTANT_TOOLS = [
   { name: 'replace_character_section', title: '覆盖角色字段', kind: 'write', risk: 'confirm', summary: '整段覆盖角色字段', argsHint: '{ field: charDesc|firstMes|creatorNotes|..., content }' },
   { name: 'expand_character_field', title: '重写/扩写角色字段', kind: 'generate', risk: 'confirm', summary: '按字段名重写/扩写角色字段', argsHint: '{ field: charDesc|creatorNotes|..., mode?, instruction? }' },
   { name: 'set_adult_config', title: '更新世界与限定', kind: 'write', risk: 'confirm', summary: '更新卡级「世界与限定」（worldviewPresetItems/框架/口味/表达层/NTL/恶堕等）', argsHint: '{ worldviewPresetItems?, enabled?, flavorItems?, postureItems?, speechItems?, ntlEnabled?, ntlTabooTypes?, adultWorldframeForced?, corruptionEnabled?, ... }' },
-  { name: 'create_worldbook_entry', title: '新建世界书', kind: 'write', risk: 'auto', summary: '新建一条世界书', argsHint: '{ entry }' },
-  { name: 'update_worldbook_entry', title: '更新世界书', kind: 'write', risk: 'auto', summary: '更新一条世界书', argsHint: '{ target|{index|comment}, patch }' },
+  { name: 'create_worldbook_entry', title: '新建世界书', kind: 'write', risk: 'auto', summary: '新建一条世界书', argsHint: '{ entry: { comment, content, type?, keys?, strategy? } }' },
+  { name: 'update_worldbook_entry', title: '更新世界书', kind: 'write', risk: 'auto', summary: '更新一条世界书', argsHint: '{ target|{index|comment}, patch: { comment?, type?, content?, keys? } }' },
   { name: 'delete_worldbook_entry', title: '删除世界书', kind: 'write', risk: 'confirm', summary: '删除世界书条目（含清空全部）', argsHint: '{ index|indices|target|{all:true} }' },
 
   // —— 开场白定向 ——

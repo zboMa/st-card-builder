@@ -27,6 +27,17 @@ import WorldbookAuditor from './WorldbookAuditor.astro';
         <label class="wb-scope-tag"><input type="checkbox" id="wbScopeTitle" checked /><span>标题</span></label>
         <label class="wb-scope-tag"><input type="checkbox" id="wbScopeKeys" checked /><span>触发词</span></label>
         <label class="wb-scope-tag"><input type="checkbox" id="wbScopeContent" checked /><span>内容</span></label>
+        <label class="wb-family-filter" for="wbFamilyFilter">分组</label>
+        <select id="wbFamilyFilter" class="wb-family-select" aria-label="按条目分组筛选">
+          <option value="all">全部</option>
+          <option value="user">用户</option>
+          <option value="novel">小说</option>
+          <option value="engine">AI 引擎</option>
+          <option value="mvu">MVU</option>
+          <option value="adult_digest">成人总纲</option>
+          <option value="corruption">恶堕</option>
+          <option value="affection">纯爱</option>
+        </select>
         <span id="wbSearchCount" class="wb-search-count"></span>
       </div>
       <div id="wbSearchResults" class="wb-search-results" style="display:none;"></div>
@@ -254,6 +265,20 @@ import WorldbookAuditor from './WorldbookAuditor.astro';
     font-size: 0.66rem;
     color: var(--color-text-muted);
     white-space: nowrap;
+  }
+  .wb-family-filter {
+    font-size: 0.68rem;
+    color: var(--color-text-muted);
+    margin: 0;
+  }
+  .wb-family-select {
+    font-size: 0.68rem;
+    padding: 2px 6px;
+    border-radius: 6px;
+    border: 1px solid rgba(71, 85, 105, 0.4);
+    background: rgba(30, 41, 59, 0.6);
+    color: var(--color-text-secondary);
+    max-width: 7rem;
   }
 
   /* 单列紧凑命中列表（非双列预览卡） */

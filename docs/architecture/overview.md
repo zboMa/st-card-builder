@@ -35,6 +35,7 @@
 ```
 src/lib/
 ├── card-builder/     制卡：state / stateMachine / panels / initCardBuilder
+├── worldbook/        世界书 V2：registry / entryBridge / UI 标签；草稿 truth 为 id+kind+owner+ownerSlot+displayName
 ├── novel/            小说工坊：分析管道、实体、RAG、面板
 ├── storyStudio/      小说创作：图谱/大纲/写作/分享
 ├── assistant/        右栏助手：tools / risk / react / executor* / contextManager / session

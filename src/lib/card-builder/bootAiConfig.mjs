@@ -4,6 +4,7 @@
 import { escapeHtml } from '../utils.mjs';
 import { buildExportChecklist } from './exportChecklist.mjs';
 import { countNovelUnsynced } from './fieldValidation.mjs';
+import { upsertWorldbookEntry, normalizeDraftEntry, entryExportComment } from '../worldbook/worldbookEntryBridge.mjs';
 
 export function attachBootAiConfig(ctx) {
   var AI_KEY = 'st_v3_builder_ai_config';
@@ -307,9 +308,18 @@ export function attachBootAiConfig(ctx) {
   window.__getCurrentDraftId__ = function() { return ctx.sm.getCurrentDraftId(); };
   window.__getWorldbookEntries__ = function() {
     return ctx.state.worldbookEntries.map(function(e, i) {
-      var out = {
+      if (e && String(e.kind || '').trim() && String(e.owner || '').trim()) {
+        var v2 = Object.assign({}, e);
+        if (!String(v2.displayName || '').trim()) {
+          var dn = entryExportComment(v2);
+          if (dn) v2.displayName = dn;
+        }
+        return v2;
+      }
+      var legacyComment = String(e.comment != null ? e.comment : e.displayName || '').trim();
+      return {
         id: e.id != null ? e.id : i,
-        comment: e.comment || '',
+        comment: legacyComment,
         content: e.content || '',
         keys: e.keys || [],
         strategy: e.strategy || 'selective',
@@ -320,27 +330,13 @@ export function attachBootAiConfig(ctx) {
         prob: e.prob != null ? e.prob : 100,
         enabled: e.enabled !== false,
       };
-      if (e.secondaryKeys != null) out.secondaryKeys = e.secondaryKeys;
-      if (e.secondary_keys != null) out.secondary_keys = e.secondary_keys;
-      if (e.selectiveLogic != null) out.selectiveLogic = e.selectiveLogic;
-      if (e.group != null) out.group = e.group;
-      if (e.groupWeight != null) out.groupWeight = e.groupWeight;
-      if (e.group_weight != null) out.group_weight = e.group_weight;
-      if (e.groupOverride != null) out.groupOverride = e.groupOverride;
-      if (e.group_override != null) out.group_override = e.group_override;
-      if (e.preventRecursion != null) out.preventRecursion = e.preventRecursion;
-      if (e.prevent_recursion != null) out.prevent_recursion = e.prevent_recursion;
-      if (e.delayUntilRecursion != null) out.delayUntilRecursion = e.delayUntilRecursion;
-      if (e.delay_until_recursion != null) out.delay_until_recursion = e.delay_until_recursion;
-      if (e.useProbability != null) out.useProbability = e.useProbability;
-      if (e.useRegex != null) out.useRegex = e.useRegex;
-      if (e.extensions) out.extensions = e.extensions;
-      return out;
     });
   };
   window.__setWorldbookEntries__ = function(entries) {
     if (!Array.isArray(entries)) return;
-    ctx.state.worldbookEntries = entries.slice();
+    ctx.state.worldbookEntries = entries.map(function(e) {
+      return normalizeDraftEntry(e || {});
+    });
     if (ctx.panels.worldbook && ctx.panels.worldbook.renderEntriesList) {
       ctx.panels.worldbook.renderEntriesList();
     }
@@ -366,14 +362,13 @@ export function attachBootAiConfig(ctx) {
   };
   window.__injectMvuEntries__ = function(entries, newRegexScripts) {
     if (!Array.isArray(entries)) return;
+    var list = Array.isArray(ctx.state.worldbookEntries) ? ctx.state.worldbookEntries.slice() : [];
     entries.forEach(function(entry) {
-      var idx = -1;
-      for (var i = 0; i < ctx.state.worldbookEntries.length; i++) {
-        if (ctx.state.worldbookEntries[i].comment === entry.comment) { idx = i; break; }
-      }
-      if (idx >= 0) ctx.state.worldbookEntries[idx] = entry;
-      else ctx.state.worldbookEntries.push(entry);
+      var e = (entry && entry.owner && entry.kind) ? entry : normalizeDraftEntry(entry || {});
+      var key = { id: e.id, owner: e.owner, ownerSlot: e.ownerSlot };
+      list = upsertWorldbookEntry(list, e, key);
     });
+    ctx.state.worldbookEntries = list;
     if (Array.isArray(newRegexScripts)) {
       newRegexScripts.forEach(function(rx) {
         var rxIdx = -1;
@@ -427,7 +422,7 @@ export function attachBootAiConfig(ctx) {
     var helperNames = Array.isArray(options.helperNames) ? options.helperNames : [];
     if (comments.length) {
       ctx.state.worldbookEntries = ctx.state.worldbookEntries.filter(function(entry) {
-        return comments.indexOf(entry && entry.comment) < 0;
+        return comments.indexOf(entry && entryExportComment(entry)) < 0;
       });
     }
     if (regexNames.length && Array.isArray(ctx.state.regexScripts)) {

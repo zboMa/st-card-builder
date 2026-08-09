@@ -22,6 +22,17 @@ import {
   DEFAULT_AFFECTION_PRESET,
   AFFECTION_RULES_COMMENT,
 } from '../affectionProgress.mjs';
+import {
+  patchForRegistrySlot,
+  getEntryByOwnerSlot,
+  isAdultDigestEntry,
+  isMvuSystemEntry,
+  isCorruptionRulesEntry,
+  isAffectionRulesEntry,
+  entryExportComment,
+  upsertWorldbookEntry,
+} from '../worldbook/worldbookEntryBridge.mjs';
+import { WB_OWNER } from '../worldbook/worldbookRegistry.mjs';
 
 export var SYSTEM_DIGEST_PREFIX = '[成人体系]';
 
@@ -56,10 +67,20 @@ function pick(map, id) {
   return map && id && map[id] ? map[id] : null;
 }
 
-function block(comment, order, lines) {
+var DIGEST_SLOT_BY_SUFFIX = {
+  世界观: 'worldview',
+  载体框架: 'vessel',
+  NSFW口味: 'flavor',
+  姿势语言: 'posture',
+  情趣话风: 'speech',
+  NTL禁忌: 'ntl',
+};
+
+function block(suffix, order, lines) {
   var arr = Array.isArray(lines) ? lines : [lines];
-  return {
-    comment: SYSTEM_DIGEST_PREFIX + comment,
+  var slot = DIGEST_SLOT_BY_SUFFIX[suffix];
+  if (!slot) return null;
+  return patchForRegistrySlot(WB_OWNER.adult, slot, {
     content: arr.join('\n'),
     keys: [],
     strategy: 'constant',
@@ -69,7 +90,7 @@ function block(comment, order, lines) {
     order: order,
     prob: 100,
     enabled: true,
-  };
+  });
 }
 
 function header(title) {
@@ -174,14 +195,12 @@ export function mergeCorruptionConfigNote(entries, cfg) {
   var note = buildCorruptionConfigNote(cfg);
   if (!note) return entries;
   var list = Array.isArray(entries) ? entries.slice() : [];
-  var found = -1;
-  for (var i = 0; i < list.length; i++) {
-    if (String(list[i].comment || '').trim() === CORRUPTION_RULES_COMMENT) { found = i; break; }
-  }
-  if (found < 0) return list;
-  var cur = String(list[found].content || '');
+  var found = getEntryByOwnerSlot(list, WB_OWNER.corruption, 'rules');
+  if (!found) return list;
+  var idx = list.indexOf(found);
+  var cur = String(list[idx].content || '');
   if (cur.indexOf(CORRUPTION_NOTE_HEADER) >= 0) return list;
-  list[found] = Object.assign({}, list[found], {
+  list[idx] = Object.assign({}, list[idx], {
     content: (cur.replace(/\n+$/, '') + '\n\n' + note).trim(),
   });
   return list;
@@ -193,7 +212,7 @@ export function mergeCorruptionConfigNote(entries, cfg) {
 export function stripCorruptionConfigNote(entries) {
   var list = Array.isArray(entries) ? entries.slice() : [];
   for (var i = 0; i < list.length; i++) {
-    if (String(list[i].comment || '').trim() !== CORRUPTION_RULES_COMMENT) continue;
+    if (!isCorruptionRulesEntry(list[i])) continue;
     var cur = String(list[i].content || '');
     var at = cur.indexOf(CORRUPTION_NOTE_HEADER);
     if (at < 0) continue;
@@ -227,14 +246,12 @@ export function mergeAffectionConfigNote(entries, cfg) {
   var note = buildAffectionConfigNote(cfg);
   if (!note) return entries;
   var list = Array.isArray(entries) ? entries.slice() : [];
-  var found = -1;
-  for (var i = 0; i < list.length; i++) {
-    if (String(list[i].comment || '').trim() === AFFECTION_RULES_COMMENT) { found = i; break; }
-  }
-  if (found < 0) return list;
-  var cur = String(list[found].content || '');
+  var rules = getEntryByOwnerSlot(list, WB_OWNER.affection, 'rules');
+  if (!rules) return list;
+  var idx = list.indexOf(rules);
+  var cur = String(list[idx].content || '');
   if (cur.indexOf(AFFECTION_NOTE_HEADER) >= 0) return list;
-  list[found] = Object.assign({}, list[found], {
+  list[idx] = Object.assign({}, list[idx], {
     content: (cur.replace(/\n+$/, '') + '\n\n' + note).trim(),
   });
   return list;
@@ -246,7 +263,7 @@ export function mergeAffectionConfigNote(entries, cfg) {
 export function stripAffectionConfigNote(entries) {
   var list = Array.isArray(entries) ? entries.slice() : [];
   for (var i = 0; i < list.length; i++) {
-    if (String(list[i].comment || '').trim() !== AFFECTION_RULES_COMMENT) continue;
+    if (!isAffectionRulesEntry(list[i])) continue;
     var cur = String(list[i].content || '');
     var at = cur.indexOf(AFFECTION_NOTE_HEADER);
     if (at < 0) continue;
@@ -324,56 +341,63 @@ export function isSystemDigestComment(comment) {
   return String(comment || '').indexOf(SYSTEM_DIGEST_PREFIX) === 0;
 }
 
+export function isSystemDigestEntry(entry) {
+  return isAdultDigestEntry(entry);
+}
+
+export function digestEntryComment(entry) {
+  return entryExportComment(entry);
+}
+
+function findSystemAnchorIndex(list) {
+  for (var i = 0; i < list.length; i++) {
+    var e = list[i];
+    if (!e) continue;
+    if (isAdultDigestEntry(e) || isMvuSystemEntry(e) || isCorruptionRulesEntry(e) || isAffectionRulesEntry(e)) {
+      return i;
+    }
+  }
+  return -1;
+}
+
 /**
- * upsert 体系总纲条目：已存在原地更新（保留位置）；新条目插入到系统条目锚点（[成人体系]/[initvar]/[mvu_update]/恶堕进度总则）之前，保持集中且靠前
+ * upsert 体系总纲条目：已存在原地更新（保留位置）；新条目插入到首个系统锚点之前
  * @returns {object[]} 新数组
  */
 export function upsertSystemDigestEntries(entries, newEntries) {
   var list = Array.isArray(entries) ? entries.slice() : [];
   if (!Array.isArray(newEntries) || !newEntries.length) return list;
 
-  var anchor = -1;
-  for (var i = 0; i < list.length; i++) {
-    var c = String(list[i].comment || '');
-    if (c.indexOf(SYSTEM_DIGEST_PREFIX) === 0
-      || c.indexOf('[initvar]') === 0
-      || c.indexOf('[mvu_update]') === 0
-      || c === '恶堕进度总则'
-      || c === AFFECTION_RULES_COMMENT) {
-      anchor = i;
-      break;
-    }
-  }
+  var anchor = findSystemAnchorIndex(list);
+  var pendingInsert = [];
 
-  var byComment = Object.create(null);
-  var newOnes = [];
   newEntries.forEach(function(ne) {
-    var comment = String(ne.comment || '').trim();
-    if (!comment) return;
-    byComment[comment] = ne;
-    var found = -1;
-    for (var j = 0; j < list.length; j++) {
-      if (String(list[j].comment || '').trim() === comment) { found = j; break; }
+    if (!ne || ne.owner !== WB_OWNER.adult) return;
+    var idx = -1;
+    for (var i = 0; i < list.length; i++) {
+      if (list[i]
+        && String(list[i].owner || '') === String(ne.owner)
+        && String(list[i].ownerSlot || '') === String(ne.ownerSlot)) {
+        idx = i;
+        break;
+      }
     }
-    if (found >= 0) {
-      list[found] = Object.assign({}, list[found], {
-        content: ne.content,
-        keys: Array.isArray(ne.keys) ? ne.keys.slice() : (list[found].keys || []),
-        strategy: ne.strategy || list[found].strategy || 'selective',
-        position: ne.position != null ? ne.position : list[found].position,
-        depth: ne.depth != null ? ne.depth : list[found].depth,
-        role: ne.role != null ? ne.role : list[found].role,
-        order: ne.order != null ? ne.order : list[found].order,
-        prob: ne.prob != null ? ne.prob : list[found].prob,
-        enabled: ne.enabled !== false,
-      });
+    if (idx >= 0) {
+      list[idx] = upsertWorldbookEntry([list[idx]], ne, {
+        owner: ne.owner,
+        ownerSlot: ne.ownerSlot,
+        id: ne.id,
+      })[0];
     } else {
-      newOnes.push(ne);
+      pendingInsert.push(ne);
     }
   });
 
-  if (!newOnes.length) return list;
-  newOnes.sort(function(a, b) { return (b.order || 0) - (a.order || 0); });
+  if (!pendingInsert.length) return list;
+  pendingInsert.sort(function(a, b) { return (b.order || 0) - (a.order || 0); });
   var at = anchor >= 0 ? anchor : 0;
-  return list.slice(0, at).concat(newOnes).concat(list.slice(at));
+  var normalized = pendingInsert.map(function(ne) {
+    return upsertWorldbookEntry([], ne, { owner: ne.owner, ownerSlot: ne.ownerSlot, id: ne.id })[0];
+  });
+  return list.slice(0, at).concat(normalized).concat(list.slice(at));
 }
