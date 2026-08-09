@@ -3,7 +3,7 @@ import { defineConfig } from 'astro/config';
 export default defineConfig({
   server: {
     host: '127.0.0.1',
-    port: 8826,
+    port: 18826,
   },
   vite: {
     define: {

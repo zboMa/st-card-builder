@@ -170,6 +170,8 @@ export const STATUS_BAR_MODES = Object.freeze([
 
 export const STATUS_BAR_SCRIPT_NAME = '[状态栏]前端展示';
 export const STATUS_BAR_REGEX_NAME = '[美化]状态栏展示';
+/** ST/MVU 社区约定：模型输出该占位符，由正则替换为 HTML 状态栏 */
+export const STATUS_BAR_PLACEHOLDER = '<StatusPlaceHolderImpl/>';
 export const STATUS_BAR_EXT_KEY = 'zmer_statusbar_design';
 
 /** 自定义排版（AI 生成 HTML/CSS，非 statusBarThemes 主题文件） */

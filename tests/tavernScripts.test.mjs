@@ -113,12 +113,15 @@ describe('tavernScripts wiring', function() {
     assert.match(panel, /addEventListener\('change'/);
   });
 
-  it('MVU/状态栏仍走 __setTavernHelperScript__ 注入', function() {
+  it('MVU 注入仍走 __setTavernHelperScript__；状态栏只写正则', function() {
     const mvu = readVariableCardPanelSources(root);
     assert.match(mvu, /__setTavernHelperScript__/);
     const sb = readStatusBarPanelSources(root);
-    assert.match(sb, /__setTavernHelperScript__/);
+    assert.match(sb, /__injectMvuEntries__/);
+    assert.match(sb, /buildStatusBarRegex/);
+    assert.doesNotMatch(sb, /__setTavernHelperScript__/);
     const lib = readStatusBarSources(root);
+    assert.doesNotMatch(lib, /buildTavernHelperScript/);
     assert.match(lib, /STATUS_BAR_SCRIPT_NAME/);
   });
 });

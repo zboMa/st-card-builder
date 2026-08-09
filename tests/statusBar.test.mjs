@@ -42,7 +42,6 @@ import {
   buildPreviewHtml,
   buildPlaceholderPaths,
   buildStatusBarSnippet,
-  buildTavernHelperScript,
   buildStatusBarRegex,
   normalizeDesign,
   CUSTOM_DESIGN_ID,
@@ -464,7 +463,7 @@ describe('statusBar core', function() {
     assert.equal(qin.length, 3); // emotion + affection + action
   });
 
-  it('snippet / 助手脚本 / 正则组装', function() {
+  it('snippet / 正则组装', function() {
     var snip = buildStatusBarSnippet({
       designId: 'form_sections',
       castMode: 'single',
@@ -474,12 +473,13 @@ describe('statusBar core', function() {
     assert.match(snip, /data-zb-path="角色\.好感度"/);
     assert.match(snip, /zb-style/);
     assert.match(snip, /data-zb-layout="form_sections"|data-zb-design="form_sections"/);
-    var code = buildTavernHelperScript({ snippetHtml: snip, mode: 'mvu' });
-    assert.match(code, /VARIABLE_UPDATE_ENDED|CHARACTER_MESSAGE_RENDERED/);
-    assert.match(code, /data-zb-path/);
-    var rx = buildStatusBarRegex({ snippetHtml: snip });
+    var rx = buildStatusBarRegex({ snippetHtml: snip, mode: 'mvu' });
     assert.equal(rx.scriptName, '[美化]状态栏展示');
-    assert.match(rx.findRegex, /StatusBar/);
+    assert.match(rx.findRegex, /StatusPlaceHolderImpl/);
+    assert.match(rx.replaceString, /```html/);
+    assert.match(rx.replaceString, /data-zb-path/);
+    var rxText = buildStatusBarRegex({ snippetHtml: snip, mode: 'text' });
+    assert.match(rxText.findRegex, /StatusBar/);
   });
 
   it('normalizeDesign 回落默认并 migrate 旧 layout/style', function() {
@@ -563,6 +563,10 @@ describe('statusBar wiring', function() {
     assert.match(panel, /designId|getDesignById/);
     assert.match(panel, /sbBtnGenerate/);
     assert.match(panel, /sbBtnInject/);
+    assert.match(panel, /__injectMvuEntries__/);
+    assert.match(panel, /buildStatusBarRegex/);
+    assert.doesNotMatch(panel, /buildTavernHelperScript/);
+    assert.doesNotMatch(panel, /__setTavernHelperScript__/);
     assert.match(panel, /statusbar_generate/);
     assert.match(panel, /statusbar_char_scan/);
     assert.match(panel, /__assistantMvuApi__/);

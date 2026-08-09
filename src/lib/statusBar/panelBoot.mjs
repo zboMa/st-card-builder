@@ -4,7 +4,6 @@
 import {
     STATUS_BAR_MODULES,
     STATUS_BAR_EXT_KEY,
-    STATUS_BAR_SCRIPT_NAME,
     STATUS_BAR_REGEX_NAME,
     STATUS_BAR_CHAR_SCAN_PROMPT,
     STATUS_BAR_MVU_DESIGN_PROMPT,
@@ -27,7 +26,6 @@ import {
     buildPlaceholderPaths,
     buildPreviewHtml,
     buildStatusBarSnippet,
-    buildTavernHelperScript,
     buildStatusBarRegex,
     normalizeDesign,
   } from '../statusBar.mjs';
@@ -353,7 +351,15 @@ export function initStatusBarPanel() {
         customBodyHtml: state.customBodyHtml,
       });
       if (previewFrame) previewFrame.srcdoc = html;
-      if (state.snippetHtml && snippetCode) snippetCode.textContent = state.helperScript || '';
+      if (state.snippetHtml && snippetCode) {
+        var rxPreview = buildStatusBarRegex({ snippetHtml: state.snippetHtml, mode: state.mode || 'mvu' });
+        snippetCode.textContent = JSON.stringify({
+          scriptName: rxPreview.scriptName,
+          findRegex: rxPreview.findRegex,
+          replaceString: String(rxPreview.replaceString || '').slice(0, 2400)
+            + (String(rxPreview.replaceString || '').length > 2400 ? '\n…（已截断，导出为完整 replaceString）' : ''),
+        }, null, 2);
+      }
       var design = getDesignMeta(designId, state.castMode);
       var hint = document.getElementById('sbPreviewHint');
       if (hint) {
@@ -379,8 +385,6 @@ export function initStatusBarPanel() {
       });
       state.mode = 'mvu';
       state.snippetHtml = snippet;
-      state.helperScript = buildTavernHelperScript({ snippetHtml: snippet, mode: 'mvu' });
-      if (snippetCode) snippetCode.textContent = state.helperScript;
       refreshPreview();
       return snippet;
     }
@@ -627,7 +631,7 @@ export function initStatusBarPanel() {
         '排版：' + layoutLabel,
         'NSFW：' + (state.nsfw ? '开' : '关'),
         '变量：' + ((design && design.variables && design.variables.length) || state.paths.length) + ' 个',
-        '展示脚本：' + STATUS_BAR_SCRIPT_NAME,
+        '正则：' + STATUS_BAR_REGEX_NAME,
       ];
       list.innerHTML = items.map(function(t) { return '<li>' + t + '</li>'; }).join('');
     }
@@ -638,11 +642,10 @@ export function initStatusBarPanel() {
         throw new Error('自定义排版尚未生成，请先点击「生成排版」');
       }
       rebuildArtifacts();
-      if (!window.__setTavernHelperScript__) throw new Error('无法写入酒馆助手脚本');
-      window.__setTavernHelperScript__(STATUS_BAR_SCRIPT_NAME, state.helperScript, true);
-      if (state.mode === 'text' && window.__injectMvuEntries__) {
-        window.__injectMvuEntries__([], [buildStatusBarRegex({ snippetHtml: state.snippetHtml })]);
-      }
+      if (!window.__injectMvuEntries__) throw new Error('无法写入正则脚本');
+      var mode = state.mode || 'mvu';
+      var rx = buildStatusBarRegex({ snippetHtml: state.snippetHtml, mode: mode });
+      window.__injectMvuEntries__([], [rx]);
       saveDesignExt();
       if (window.triggerGlobalUpdate) window.triggerGlobalUpdate();
     }
@@ -665,7 +668,6 @@ export function initStatusBarPanel() {
         state.styleId = state.designId;
         state.paths = [];
         state.snippetHtml = '';
-        state.helperScript = '';
         state.customCss = '';
         state.customBodyHtml = '';
         state.customPrompt = '';
@@ -850,7 +852,7 @@ export function initStatusBarPanel() {
       try {
         injectScripts();
         fillChecklist(null);
-        setStatus('sbStatus4', '已注入 ' + STATUS_BAR_SCRIPT_NAME, 'ok');
+        setStatus('sbStatus4', '已注入正则 ' + STATUS_BAR_REGEX_NAME, 'ok');
       } catch (err) {
         setStatus('sbStatus4', (err && err.message) || String(err), 'err');
       }

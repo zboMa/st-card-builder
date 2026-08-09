@@ -7,6 +7,7 @@ import {
   resolveModuleFlags,
   STATUS_BAR_REGEX_NAME,
   STATUS_BAR_SCRIPT_NAME,
+  STATUS_BAR_PLACEHOLDER,
   getDesignById,
   defaultDesignId,
   migrateDesignId,
@@ -219,92 +220,97 @@ export function buildStatusBarSnippet(opts) {
     + body + '</div>';
 }
 
-/**
- * 酒馆助手常规脚本：监听 MVU 更新并刷新 data-zb-path
- * @param {{ snippetHtml: string, mode: string }} opts
- */
-export function buildTavernHelperScript(opts) {
-  var snippet = String((opts && opts.snippetHtml) || '');
-  var mode = (opts && opts.mode) || 'mvu';
-  var lit = JSON.stringify(snippet);
+function buildStatusBarMvuRefreshScript() {
   return [
-    '/* 状态栏前端展示 — 由卡片构建器生成 */',
-    '(async function () {',
-    '  const SNIPPET = ' + lit + ';',
-    '  const MODE = ' + JSON.stringify(mode) + ';',
-    '  const ROOT_ID = "zb-status-host";',
-    '  function ensureHost() {',
-    '    let host = document.getElementById(ROOT_ID);',
-    '    if (!host) {',
-    '      host = document.createElement("div");',
-    '      host.id = ROOT_ID;',
-    '      host.style.cssText = "position:sticky;top:0;z-index:20;padding:8px;pointer-events:none;";',
-    '      const shebang = document.querySelector("#chat") || document.body;',
-    '      shebang.prepend(host);',
-    '    }',
-    '    host.innerHTML = SNIPPET;',
-    '    return host;',
-    '  }',
-    '  function readStat(path) {',
-    '    try {',
-    '      if (typeof Mvu !== "undefined" && Mvu.getMvuData) {',
-    '        const data = Mvu.getMvuData({ type: "message", message_id: "latest" }) || Mvu.getMvuData();',
-    '        const stat = (data && (data.stat_data || data.statData)) || data || {};',
-    '        return path.split(".").reduce((o, k) => (o == null ? o : o[k]), stat);',
+    '<script type="module">',
+    '(async function(){',
+    '  function readStat(path){',
+    '    try{',
+    '      if(typeof Mvu!=="undefined"&&Mvu.getMvuData){',
+    '        const data=Mvu.getMvuData({type:"message",message_id:"latest"})||Mvu.getMvuData();',
+    '        const stat=(data&&(data.stat_data||data.statData))||data||{};',
+    '        return String(path||"").split(".").reduce(function(o,k){return o==null?o:o[k];},stat);',
     '      }',
-    '    } catch (e) {}',
+    '    }catch(e){}',
     '    return undefined;',
     '  }',
-    '  function refresh() {',
-    '    const host = ensureHost();',
-    '    if (MODE !== "mvu") return;',
-    '    host.querySelectorAll("[data-zb-path]").forEach((el) => {',
-    '      const path = el.getAttribute("data-zb-path");',
-    '      const v = readStat(path);',
-    '      el.textContent = v == null || v === "" ? "—" : String(v);',
+    '  function refresh(root){',
+    '    if(!root)return;',
+    '    root.querySelectorAll("[data-zb-path]").forEach(function(el){',
+    '      var path=el.getAttribute("data-zb-path");',
+    '      var v=readStat(path);',
+    '      el.textContent=(v==null||v==="")?"—":String(v);',
     '    });',
     '  }',
-    '  ensureHost();',
-    '  refresh();',
-    '  try {',
-    '    if (typeof eventOn === "function" && typeof tavern_events !== "undefined") {',
-    '      eventOn(tavern_events.CHARACTER_MESSAGE_RENDERED, refresh);',
-    '      eventOn(tavern_events.USER_MESSAGE_RENDERED, refresh);',
+    '  async function boot(){',
+    '    if(typeof waitGlobalInitialized==="function"){try{await waitGlobalInitialized("Mvu");}catch(e){}}',
+    '    var root=document.querySelector(".zb-root")||document.body;',
+    '    refresh(root);',
+    '    if(typeof eventOn==="function"&&typeof Mvu!=="undefined"&&Mvu.events&&Mvu.events.VARIABLE_UPDATE_ENDED){',
+    '      eventOn(Mvu.events.VARIABLE_UPDATE_ENDED,function(){refresh(root);});',
     '    }',
-    '    if (typeof eventOn === "function" && typeof Mvu !== "undefined" && Mvu.events && Mvu.events.VARIABLE_UPDATE_ENDED) {',
-    '      eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, refresh);',
-    '    }',
-    '  } catch (e) {}',
+    '  }',
+    '  if(typeof errorCatched==="function")errorCatched(boot);else boot();',
     '})();',
-  ].join('\n');
+    '</script>',
+  ].join('');
 }
 
 /**
- * 纯文本模式：正则把 <StatusBar>...</StatusBar> 美化为 HTML
- * @param {{ snippetHtml: string }} opts
+ * MVU 正则替换用完整 HTML 文档（```html 围栏内）
+ * @param {string} snippetHtml
  */
-export function buildStatusBarRegex(opts) {
-  var snippet = String((opts && opts.snippetHtml) || '');
-  var replace = snippet
-    .replace(/\$/g, '$$')
-    .replace(/\[data-zb-tag="([^"]+)"\][\s\S]*?<\/span>/g, function(_, tag) {
-      return '[data-zb-tag="' + tag + '">$1</span>';
-    });
+export function buildStatusBarRegexHtmlDocument(snippetHtml) {
+  var snippet = String(snippetHtml || '').trim();
+  return '<!doctype html>\n<html lang="zh-CN">\n<head>\n<meta charset="utf-8">\n</head>\n<body>\n'
+    + snippet + '\n' + buildStatusBarMvuRefreshScript() + '\n</body>\n</html>';
+}
+
+export function formatStatusBarRegexReplace(doc) {
+  return '```html\n' + String(doc || '') + '\n```';
+}
+
+function baseStatusBarRegexFields(replaceString) {
   return {
     id: 'statusbar_display',
     scriptName: STATUS_BAR_REGEX_NAME,
-    findRegex: '<StatusBar>([\\s\\S]*?)</StatusBar>',
-    replaceString: replace || '<div class="zb-root">$1</div>',
+    replaceString: replaceString,
     trimStrings: [],
     placement: [2],
     disabled: false,
     markdownOnly: true,
     promptOnly: false,
     runOnEdit: true,
-    substituteRegex: false,
+    substituteRegex: 0,
     minDepth: null,
     maxDepth: null,
   };
+}
+
+/**
+ * MVU：匹配 <StatusPlaceHolderImpl/> → ```html 状态栏（与变量正则同级）
+ * 纯文本：匹配 <StatusBar>...</StatusBar>
+ * @param {{ snippetHtml: string, mode?: string }} opts
+ */
+export function buildStatusBarRegex(opts) {
+  opts = opts || {};
+  var snippet = String(opts.snippetHtml || '');
+  var mode = opts.mode || 'mvu';
+  if (mode === 'text') {
+    var replaceText = snippet
+      .replace(/\$/g, '$$')
+      .replace(/\[data-zb-tag="([^"]+)"\][\s\S]*?<\/span>/g, function(_, tag) {
+        return '[data-zb-tag="' + tag + '">$1</span>';
+      });
+    return Object.assign({}, baseStatusBarRegexFields(replaceText || '<div class="zb-root">$1</div>'), {
+      findRegex: '<StatusBar>([\\s\\S]*?)</StatusBar>',
+    });
+  }
+  var doc = buildStatusBarRegexHtmlDocument(snippet);
+  var replace = formatStatusBarRegexReplace(doc).replace(/\$/g, '$$');
+  return Object.assign({}, baseStatusBarRegexFields(replace), {
+    findRegex: STATUS_BAR_PLACEHOLDER.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'),
+  });
 }
 
 /**
@@ -355,7 +361,6 @@ export function normalizeDesign(partial) {
     customBodyHtml: String(p.customBodyHtml || ''),
     paths: Array.isArray(p.paths) ? p.paths.map(normalizePathItem).filter(function(x) { return x.path; }) : [],
     snippetHtml: String(p.snippetHtml || ''),
-    helperScript: String(p.helperScript || ''),
     updatedAt: p.updatedAt || new Date().toISOString(),
   };
 }
