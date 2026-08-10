@@ -20,8 +20,10 @@ import {
     defaultModuleFlags,
     resolveModuleFlags,
     describeEnabledModules,
+    describeForbiddenModules,
     describeFemaleOnlyRule,
     normalizeCastCharacter,
+    collectPersonCharactersFromWorldbook,
     pathsFromMvuDesign,
     buildPlaceholderPaths,
     buildPreviewHtml,
@@ -29,6 +31,12 @@ import {
     buildStatusBarRegex,
     normalizeDesign,
   } from '../statusBar.mjs';
+import {
+  isPersonWorldbookEntry,
+  personNameFromWorldbookEntry,
+} from '../novel/sync.mjs';
+import { openTextPreview } from '../textPreviewModal.mjs';
+import { composeStatusBarPromptPreview } from './statusBarPromptPreview.mjs';
 
 export function initStatusBarPanel() {
   (function() {
@@ -92,6 +100,7 @@ export function initStatusBarPanel() {
       var multi = state.castMode === 'multi';
       document.getElementById('sbSingleBox').hidden = multi;
       document.getElementById('sbMultiBox').hidden = !multi;
+      if (multi) loadCharactersFromWorldbookIntoState();
       var design = getDesignMeta(currentDesignId(), state.castMode);
       document.getElementById('sbPreviewHint').textContent = (multi ? '多人' : '单人')
         + '：' + design.label + (isCustomDesign(currentDesignId()) ? '（自定义）' : '（模块联动）');
@@ -157,11 +166,21 @@ export function initStatusBarPanel() {
       }).join('\n') || '（无）';
     }
 
+    function syncModuleFlagsFromDom() {
+      if (!moduleGrid) return;
+      if (!state.moduleFlags) state.moduleFlags = {};
+      moduleGrid.querySelectorAll('input[data-mod]').forEach(function(input) {
+        var id = input.getAttribute('data-mod');
+        if (id) state.moduleFlags[id] = !!input.checked;
+      });
+    }
+
     function readFormIntoState() {
       state.castMode = getCastMode();
       state.nsfw = !!(nsfwEl && nsfwEl.checked);
       state.femaleOnly = !(femaleOnlyEl && !femaleOnlyEl.checked);
       state.extra = (extraEl.value || '').trim();
+      syncModuleFlagsFromDom();
       // 视觉方案以 designId 为准（排版步点选；custom 单独存 HTML/CSS）
       if (!isCustomDesign(state.designId)) {
         var design = getDesignById(currentDesignId());
@@ -295,7 +314,7 @@ export function initStatusBarPanel() {
     function renderCharList() {
       charList.innerHTML = '';
       if (!state.characters.length) {
-        charList.innerHTML = '<div class="sb-tip">尚未识别人物，请点「AI 识别」。</div>';
+        charList.innerHTML = '<div class="sb-tip">世界书暂无人物条目（[人物]/[小说人物] 或 outline_person）。可点「AI 识别」补充。</div>';
       } else {
         state.characters.forEach(function(c, idx) {
           // label 包整卡：点击任意处切换勾选
@@ -323,7 +342,7 @@ export function initStatusBarPanel() {
       return state.characters.filter(function(c) { return c && c.selected !== false; });
     }
 
-    /** 设计态预览路径：始终按当前模块重算，避免 state.paths 缓存阻断联动 */
+    /** 设计态占位路径（按当前模块） */
     function previewPaths() {
       var flags = resolveModuleFlags(state.presetId, state.moduleFlags, state.nsfw);
       return buildPlaceholderPaths({
@@ -334,10 +353,15 @@ export function initStatusBarPanel() {
       });
     }
 
+    /** 预览与注入同源：已生成 MVU 后用 state.paths，否则占位 */
+    function pathsForPreview() {
+      if (generatedOk && state.paths && state.paths.length) return state.paths;
+      return previewPaths();
+    }
+
     function refreshPreview() {
       readFormIntoState();
-      // 勾选模块 / 点刷新：一律按开启模块重绘（不读生成缓存）
-      var paths = previewPaths();
+      var paths = pathsForPreview();
       var chars = collectSelectedCharacters();
       var designId = currentDesignId();
       var html = buildPreviewHtml({
@@ -363,8 +387,9 @@ export function initStatusBarPanel() {
       var design = getDesignMeta(designId, state.castMode);
       var hint = document.getElementById('sbPreviewHint');
       if (hint) {
+        var src = (generatedOk && state.paths && state.paths.length) ? ' · MVU 路径' : '';
         hint.textContent = (state.castMode === 'multi' ? '多人' : '单人')
-          + '：' + design.label + (isCustomDesign(designId) ? '（自定义）' : '（模块联动）');
+          + '：' + design.label + (isCustomDesign(designId) ? '（自定义）' : '（模块联动）') + src;
       }
     }
 
@@ -430,16 +455,44 @@ export function initStatusBarPanel() {
       var name = currentCharName();
       var desc = (document.getElementById('charDesc') || {}).value || '';
       var first = (document.getElementById('firstMes') || {}).value || '';
-      return '角色名：' + name + '\n描述：' + String(desc).slice(0, 1000)
-        + '\n开场白：' + String(first).slice(0, 400);
+      return '角色名：' + name + '\n描述：' + String(desc)
+        + '\n开场白：' + String(first);
     }
 
     function buildWbBlock() {
       var wb = window.__getWorldbookEntries__ ? window.__getWorldbookEntries__() : [];
-      return (wb || []).slice(0, 40).map(function(e, i) {
-        return (i + 1) + '. 「' + (e.comment || e.name || '?') + '」'
-          + String(e.content || '').slice(0, 120).replace(/\s+/g, ' ');
-      }).join('\n') || '（世界书为空）';
+      var persons = (wb || []).filter(function(e) { return isPersonWorldbookEntry(e); });
+      var slice = persons.length ? persons : (wb || []);
+      return slice.map(function(e, i) {
+        var title = personNameFromWorldbookEntry(e) || e.comment || e.name || '?';
+        return (i + 1) + '. 「' + title + '」\n' + String(e.content || '');
+      }).join('\n\n') || '（世界书为空）';
+    }
+
+    function loadCharactersFromWorldbookIntoState() {
+      var wb = window.__getWorldbookEntries__ ? window.__getWorldbookEntries__() : [];
+      var prevSel = Object.create(null);
+      (state.characters || []).forEach(function(c) {
+        if (c && c.name) prevSel[c.name] = c.selected;
+      });
+      var aiOnly = (state.characters || []).filter(function(c) {
+        return c && c.name && c.source !== 'worldbook';
+      });
+      state.characters = collectPersonCharactersFromWorldbook(wb, {
+        excludeName: currentCharName(),
+        merge: aiOnly,
+      });
+      state.characters.forEach(function(c) {
+        if (c && c.name && prevSel[c.name] !== undefined) c.selected = prevSel[c.name];
+      });
+      if (state.characters.length) {
+        if (!state.mainName || !state.characters.some(function(c) {
+          return c.name === state.mainName && c.selected !== false;
+        })) {
+          var firstSel = state.characters.find(function(c) { return c.selected !== false; });
+          state.mainName = (firstSel && firstSel.name) || state.characters[0].name;
+        }
+      }
     }
 
     async function runAiTask(type, title, userMsg, sysPrompt) {
@@ -494,7 +547,7 @@ export function initStatusBarPanel() {
       return state.characters;
     }
 
-    async function generateVariableDesign() {
+    function resolveMvuDesignPromptContext() {
       readFormIntoState();
       var chars = collectSelectedCharacters();
       if (state.castMode === 'multi' && !chars.length) throw new Error('请先勾选至少一名人物');
@@ -503,6 +556,7 @@ export function initStatusBarPanel() {
 
       var ps = window.__promptStore__;
       var tpl = (ps && ps.get('statusBarMvuDesign')) || STATUS_BAR_MVU_DESIGN_PROMPT;
+      var moduleOpts = { castMode: state.castMode, nsfwEnabled: state.nsfw };
       var vars = {
         charBlock: buildCharBlock(),
         castMode: state.castMode === 'multi' ? '多人' : '单人',
@@ -512,46 +566,26 @@ export function initStatusBarPanel() {
         layout: '待定',
         style: '待定',
         moduleBlock: describeEnabledModules(state.moduleFlags),
+        forbiddenModuleBlock: describeForbiddenModules(state.moduleFlags, moduleOpts),
         nsfw: state.nsfw ? '是' : '否',
         extra: state.extra || '无',
       };
-      var sys = ps ? ps.applyTemplate(tpl, vars) : applyTemplate(tpl, vars);
-
-      var data = await runAiTask(
-        'statusbar_generate',
-        '状态栏变量设计生成',
-        '请输出完整 MVU 变量设计 JSON（将覆盖当前设计）。',
-        sys
-      );
-
-      var design = {
-        summary: String(data.summary || '状态栏生成的变量设计').slice(0, 80),
-        variables: Array.isArray(data.variables) ? data.variables : [],
-        source: 'statusbar',
+      var userMessage = '请输出完整 MVU 变量设计 JSON（将覆盖当前设计）。仅包含开启模块对应 variables，禁止输出未开启/禁止模块中的路径。';
+      return {
+        ps: ps,
+        tpl: tpl,
+        vars: vars,
+        userMessage: userMessage,
+        metaLines: [
+          '预设：' + getPresetById(state.presetId).label,
+          '人数：' + (state.castMode === 'multi' ? '多人' : '单人'),
+          'NSFW：' + (state.nsfw ? '开' : '关'),
+        ],
       };
-      if (!design.variables.length) throw new Error('AI 未返回 variables');
-
-      if (!window.__assistantMvuApi__ || !window.__assistantMvuApi__.upsertVariables) {
-        throw new Error('MVU 注入 API 不可用');
-      }
-      window.__assistantMvuApi__.upsertVariables({ design: design, inject: true });
-
-      state.paths = pathsFromMvuDesign(design, { mainName: state.mainName, limit: 48 });
-      rebuildArtifacts();
-      saveDesignExt();
-      generatedOk = true;
-      btnInject.disabled = false;
-
-      var sum = document.getElementById('sbGenSummary');
-      sum.hidden = false;
-      sum.textContent = '已覆盖 MVU：' + design.variables.length + ' 个变量 — ' + design.summary;
-      fillChecklist(design);
-      return design;
     }
 
-    async function generateCustomLayout(isRegenerate) {
+    function resolveCustomLayoutPromptContext(isRegenerate) {
       readFormIntoState();
-      if (!state.paths.length) throw new Error('请先在「生成」步骤完成变量设计');
       var prompt = (customPromptEl && customPromptEl.value || state.customPrompt || '').trim();
       if (!prompt) throw new Error('请输入排版描述');
       state.customPrompt = prompt;
@@ -561,13 +595,14 @@ export function initStatusBarPanel() {
       state.customBaseDesignId = mode === 'base' ? baseId : '';
 
       var paths = state.paths.length ? state.paths : previewPaths();
+      if (!paths.length) throw new Error('请先在「生成」步骤完成变量设计');
       var chars = collectSelectedCharacters();
       var baseBlock = '';
       if (mode === 'base' && baseId && !isCustomDesign(baseId)) {
         var baseDesign = getDesignById(baseId);
-        var cssSample = designCss(baseId).slice(0, 3500);
+        var cssSample = designCss(baseId);
         baseBlock = '【基准主题】' + baseDesign.label + ' / ' + (baseDesign.blurb || '')
-          + '\n参考 CSS（节选）：\n' + cssSample + '\n';
+          + '\n参考 CSS：\n' + cssSample + '\n';
       } else {
         baseBlock = '【基准主题】无（从零描述生成）\n';
       }
@@ -592,15 +627,81 @@ export function initStatusBarPanel() {
         previousBlock: previousBlock,
         userPrompt: prompt,
       };
-      var sys = ps ? ps.applyTemplate(tpl, vars) : applyTemplate(tpl, vars);
-      var userMsg = isRegenerate
+      var userMessage = isRegenerate
         ? '请在当前排版基础上按新要求输出 JSON。'
         : '请输出自定义排版 JSON。';
+      return {
+        ps: ps,
+        tpl: tpl,
+        vars: vars,
+        userMessage: userMessage,
+        metaLines: [
+          '排版模式：' + (isCustomDesign(currentDesignId()) ? '自定义' : getDesignMeta(currentDesignId(), state.castMode).label),
+          '基准：' + (mode === 'base' && baseId ? getDesignById(baseId).label : '从零'),
+          '变量路径：' + paths.length + ' 条',
+        ],
+      };
+    }
+
+    function openStatusBarPromptPreview(ctx, dialogTitle, promptId, taskType) {
+      var applyFn = ctx.ps ? ctx.ps.applyTemplate.bind(ctx.ps) : applyTemplate;
+      var preview = composeStatusBarPromptPreview({
+        dialogTitle: dialogTitle,
+        promptId: promptId,
+        taskType: taskType,
+        metaLines: ctx.metaLines,
+        systemTpl: ctx.tpl,
+        vars: ctx.vars,
+        userMessage: ctx.userMessage,
+        applyTemplate: applyFn,
+      });
+      openTextPreview({ title: preview.title, text: preview.text });
+    }
+
+    async function generateVariableDesign() {
+      var ctx = resolveMvuDesignPromptContext();
+      var sys = ctx.ps ? ctx.ps.applyTemplate(ctx.tpl, ctx.vars) : applyTemplate(ctx.tpl, ctx.vars);
+
+      var data = await runAiTask(
+        'statusbar_generate',
+        '状态栏变量设计生成',
+        ctx.userMessage,
+        sys
+      );
+
+      var design = {
+        summary: String(data.summary || '状态栏生成的变量设计').slice(0, 80),
+        variables: Array.isArray(data.variables) ? data.variables : [],
+        source: 'statusbar',
+      };
+      if (!design.variables.length) throw new Error('AI 未返回 variables');
+
+      if (!window.__assistantMvuApi__ || !window.__assistantMvuApi__.upsertVariables) {
+        throw new Error('MVU 注入 API 不可用');
+      }
+      window.__assistantMvuApi__.upsertVariables({ design: design, inject: true });
+
+      state.paths = pathsFromMvuDesign(design, { mainName: state.mainName });
+      rebuildArtifacts();
+      saveDesignExt();
+      generatedOk = true;
+      btnInject.disabled = false;
+
+      var sum = document.getElementById('sbGenSummary');
+      sum.hidden = false;
+      sum.textContent = '已覆盖 MVU：' + design.variables.length + ' 个变量 — ' + design.summary;
+      fillChecklist(design);
+      return design;
+    }
+
+    async function generateCustomLayout(isRegenerate) {
+      var ctx = resolveCustomLayoutPromptContext(!!isRegenerate);
+      var sys = ctx.ps ? ctx.ps.applyTemplate(ctx.tpl, ctx.vars) : applyTemplate(ctx.tpl, ctx.vars);
 
       var data = await runAiTask(
         'statusbar_custom_layout',
         isRegenerate ? '状态栏自定义排版（迭代）' : '状态栏自定义排版',
-        userMsg,
+        ctx.userMessage,
         sys
       );
 
@@ -796,6 +897,36 @@ export function initStatusBarPanel() {
         btn.textContent = old;
       }
     });
+
+    var btnPreviewMvu = document.getElementById('sbBtnPreviewMvuPrompt');
+    if (btnPreviewMvu) {
+      btnPreviewMvu.addEventListener('click', function() {
+        try {
+          var ctxMvu = resolveMvuDesignPromptContext();
+          openStatusBarPromptPreview(ctxMvu, '状态栏 · 变量设计提示词', 'statusBarMvuDesign', 'statusbar_generate');
+        } catch (err) {
+          setStatus('sbStatus3', (err && err.message) || String(err), 'err');
+        }
+      });
+    }
+
+    var btnPreviewLayout = document.getElementById('sbBtnPreviewLayoutPrompt');
+    if (btnPreviewLayout) {
+      btnPreviewLayout.addEventListener('click', function() {
+        try {
+          var regen = !!(state.customBodyHtml && btnCustomRegenerate && !btnCustomRegenerate.hidden);
+          var ctxLayout = resolveCustomLayoutPromptContext(regen);
+          openStatusBarPromptPreview(
+            ctxLayout,
+            '状态栏 · 自定义排版提示词',
+            'statusBarCustomLayout',
+            regen ? 'statusbar_custom_layout (迭代)' : 'statusbar_custom_layout'
+          );
+        } catch (err) {
+          setStatus('sbStatus4', (err && err.message) || String(err), 'err');
+        }
+      });
+    }
 
     document.getElementById('sbBtnGenerate').addEventListener('click', async function() {
       var btn = document.getElementById('sbBtnGenerate');

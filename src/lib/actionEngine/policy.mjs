@@ -13,6 +13,16 @@ function deny(reason, extra) {
   }, extra || {});
 }
 
+/** 前置条件未满足：按钮保持可点，仅在点击时 toast（不 disabled / title） */
+function clickDeny(reason, extra) {
+  return Object.assign({
+    allowed: false,
+    enabled: true,
+    visible: true,
+    reason: reason || '不可用',
+  }, extra || {});
+}
+
 function allow(extra) {
   return Object.assign({
     allowed: true,
@@ -56,13 +66,13 @@ export function evaluateAction(def, snap) {
     return deny('备份未启用');
   }
   if (d.requiresAi && !s.aiConfigured) {
-    return deny('未配置 AI，请先到「AI 配置」选择模型');
+    return clickDeny('未配置 AI，请先到「AI 配置」选择模型');
   }
   if (d.requiresSource && !gates.hasSource) {
-    return deny((gates.reasons && gates.reasons[0]) || '请先导入原始资料');
+    return clickDeny((gates.reasons && gates.reasons[0]) || '请先导入原始资料');
   }
   if (d.requiresExtract && !gates.canExtract) {
-    return deny((gates.reasons && gates.reasons.join('；')) || '请先完成原始资料与拆章');
+    return clickDeny((gates.reasons && gates.reasons.join('；')) || '请先完成原始资料与拆章');
   }
 
   var myScope = actionScope(d, s);

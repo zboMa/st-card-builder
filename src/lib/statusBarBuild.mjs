@@ -15,12 +15,51 @@ import {
   renderDesignHtml,
 } from './statusBarCatalog.mjs';
 import { escHtml } from './statusBarThemes/index.mjs';
+import {
+  isPersonWorldbookEntry,
+  personNameFromWorldbookEntry,
+} from './novel/sync.mjs';
+
+export function collectPersonCharactersFromWorldbook(entries, opts) {
+  var o = opts || {};
+  var exclude = String(o.excludeName || '').trim();
+  var seen = Object.create(null);
+  var out = [];
+  (entries || []).forEach(function(e) {
+    if (!e || !isPersonWorldbookEntry(e)) return;
+    var name = personNameFromWorldbookEntry(e);
+    if (!name || seen[name]) return;
+    if (exclude && name === exclude) return;
+    seen[name] = true;
+    var identity = String(e.content || '').trim().split(/\n/)[0].slice(0, 120);
+    var c = normalizeCastCharacter({
+      name: name,
+      identity: identity,
+      aliases: Array.isArray(e.keys) ? e.keys : [],
+      selected: true,
+      source: 'worldbook',
+    });
+    if (c) out.push(c);
+  });
+  var merge = Array.isArray(o.merge) ? o.merge : [];
+  merge.forEach(function(raw) {
+    var c = normalizeCastCharacter(raw);
+    if (!c || !c.name || seen[c.name]) return;
+    seen[c.name] = true;
+    out.push(c);
+  });
+  return out;
+}
 
 export function pathsFromMvuDesign(design, opts) {
   var vars = design && Array.isArray(design.variables) ? design.variables : [];
-  var limit = (opts && opts.limit) || 48;
-  var mainName = opts && opts.mainName ? String(opts.mainName) : '';
-  return vars.slice(0, limit).map(function(v) {
+  var o = opts || {};
+  var slice = vars;
+  if (typeof o.limit === 'number' && o.limit > 0) {
+    slice = vars.slice(0, o.limit);
+  }
+  var mainName = o.mainName ? String(o.mainName) : '';
+  return slice.map(function(v) {
     var path = String((v && (v.path || v.name)) || '').trim();
     var parts = path.split('.');
     var role = '';
@@ -495,14 +534,15 @@ export const STATUS_BAR_MVU_DESIGN_PROMPT =
   + '默认高亮（可选）：{{mainName}}\n'
   + '入选人物：{{castList}}\n'
   + '视觉排版：{{design}}（变量先于排版生成，此处仅作参考）\n'
-  + '开启模块：\n{{moduleBlock}}\n'
+  + '开启模块（仅允许为这些项设计 variables）：\n{{moduleBlock}}\n'
+  + '禁止模块（不得出现下列路径或同义字段）：\n{{forbiddenModuleBlock}}\n'
   + 'NSFW：{{nsfw}}\n'
   + '额外要求：{{extra}}\n'
   + '\n【设计原则】\n'
-  + '1. 只为开启的模块生成对应变量；NSFW=否时禁止身体私密字段；禁止「配角摘要」类冗余路径。\n'
+  + '1. variables 只能覆盖「开启模块」；「禁止模块」中的路径一律不要输出；NSFW=否时禁止一切身体私密字段。\n'
   + '2. 单人：路径可用「角色.字段」或「世界.字段」。\n'
   + '3. 多人：世界/任务/事件各一份；入选名单中【每一个人】都必须用 NPC.姓名.字段 生成与开启模块一一对应的【完整同套】详字段；信息量人人相等，禁止只给主视角建详、禁止给其他人建精简/摘要块。\n'
-  + '4. 变量须可被剧情更新；单人约 16~40；多人随人数增加（每人同套模块字段）。\n'
+  + '4. 变量须可被剧情更新；数量随开启模块与人数增加，勿为未开启模块凑字段。\n'
   + '5. type 仅 string/number/boolean/enum/array/object；enum 必给 options。\n'
   + '6. check 为数组，说明更新条件。\n'
   + '\n【输出】仅 JSON：\n'

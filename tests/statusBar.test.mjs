@@ -34,6 +34,7 @@ import {
   resolveModuleFlags,
   migrateModuleFlags,
   describeEnabledModules,
+  describeForbiddenModules,
   describeFemaleOnlyRule,
   modulesByGroup,
   normalizePathItem,
@@ -266,6 +267,13 @@ describe('statusBar core', function() {
     var forced = resolveModuleFlags('single_daily', { nsfw_vagina: true }, false);
     assert.equal(forced.nsfw_vagina, false);
     assert.match(describeEnabledModules(nsfw), /小穴/);
+    var forbid = describeForbiddenModules(
+      resolveModuleFlags('single_daily', { affection: false, corruption_stage: false }, false),
+      { castMode: 'single', nsfwEnabled: false }
+    );
+    assert.match(forbid, /好感度|affection/);
+    assert.match(forbid, /恶堕/);
+    assert.match(forbid, /小穴|nsfw_vagina/);
     assert.equal(getPresetById('multi_party').cast, 'multi');
     assert.equal(getPresetById('single_wuxia').cast, 'single');
     assert.equal(getPresetById('multi_apocalypse').cast, 'multi');
@@ -572,13 +580,14 @@ describe('statusBar wiring', function() {
     assert.match(panel, /__aiTaskCenter__/);
     assert.match(panel, /完整视觉方案|一对一|模块联动/);
     assert.match(panel, /buildPlaceholderPaths/);
-    assert.match(panel, /previewPaths/);
-    assert.match(panel, /一律按开启模块重绘|previewPaths\(\)/);
+    assert.match(panel, /previewPaths|pathsForPreview/);
+    assert.match(panel, /pathsForPreview\(\)|generatedOk && state\.paths/);
     assert.match(panel, /state\.paths = \[\]/);
     assert.match(panel, /defaultDesignId\(state\.castMode\)/);
     assert.doesNotMatch(readFileSync(join(root, 'src/components/StatusBarPanel.astro'), 'utf8'), /配角摘要/);
     assert.match(panel, /sbFemaleOnly/);
-    assert.match(panel, /只识别女角色/);
+    assert.match(panel, /只识别女/);
+    assert.match(panel, /AI 识别/);
     assert.match(panel, /describeFemaleOnlyRule/);
     // 「只识别女」须为独立 checkbox，不得包进 button（否则无法勾选）
     {
@@ -742,7 +751,8 @@ describe('statusBar wiring', function() {
 
   it('文档同步状态栏一对一主题与女角识别', function() {
     const doc = readFileSync(join(root, 'docs/guides/card-writing-guide.md'), 'utf8');
-    assert.match(doc, /只识别女角色/);
+    assert.match(doc, /只识别女/);
+    assert.match(doc, /AI 识别.*提示词|仅影响.*AI 识别|仅作用于.*AI 识别/);
     assert.match(doc, /独立 checkbox|不在 AI 按钮内|独立勾选/);
     assert.match(doc, /紧凑网格短卡片|minmax\(160px/);
     assert.match(doc, /固定底栏|分段控件|工具行/);
@@ -755,7 +765,7 @@ describe('statusBar wiring', function() {
     assert.match(doc, /按人数严格过滤|单人只显示单人|人数过滤|按人数过滤/);
     assert.match(doc, /15 美学族|30 套|一主题一文件|暮褐|软监控/);
     assert.match(doc, /结构互异|拍立得|CRT|蜡封|人人同套|其他角色/);
-    assert.match(doc, /开启模块重绘|模块.*重绘|即时按开启模块/);
+    assert.match(doc, /开启模块重绘|模块.*重绘|占位路径|state\.paths/);
     assert.match(doc, /模块覆盖约定|orphanPaths|worldScopedPaths|无硬/);
     assert.match(doc, /人数.*预设.*生成.*排版|生成.*排版/);
     assert.doesNotMatch(doc, /人数\/预设\/排版\/样式生成/);

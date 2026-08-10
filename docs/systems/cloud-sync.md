@@ -38,6 +38,7 @@ npm run dev            # Astro :18826（127.0.0.1），/api 代理到 8787
 打开侧栏 **配置 → 账户与云端**：
 
 - 邮箱登录 / 邀请码注册；未登录可完整离线制卡
+- **Session 探测**：见 [`auth.md`](./auth.md)「浏览器 session 探测门闩」；无本地 hint 时不打 `/api/auth/status`，打开本页或 OAuth 回跳时会 `force` 探测一次
 - 「刷新云端列表」：flush 离线队列 → 拉云端索引（stub）；**不上传**本地卡包
 - 卡包上云：卡管理对单卡点「同步上云」；本地已有卡可用「从云端覆盖」
 - 点开某张云端卡：`GET /api/data/cards/:id/bundle` 灌回 LS+IDB 后正常编辑

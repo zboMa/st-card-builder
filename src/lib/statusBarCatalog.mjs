@@ -45,7 +45,7 @@ export const STATUS_BAR_STYLES = STATUS_BAR_LAYOUTS;
 
 export const STATUS_BAR_CAST_MODES = Object.freeze([
   { id: 'single', label: '单人', hint: '使用当前卡角色设定' },
-  { id: 'multi', label: '多人', hint: 'AI 识别世界书人物条目后勾选' },
+  { id: 'multi', label: '多人', hint: '世界书人物条目自动加载；AI 识别可补充' },
 ]);
 
 /** 旧模块 id → 新模块（normalizeDesign 迁移） */
@@ -321,6 +321,65 @@ export function describeEnabledModules(flags) {
     .filter(function(m) { return flags && flags[m.id]; })
     .map(function(m) { return m.label + (m.nsfw ? '(NSFW)' : '') + '：' + (m.hint || ''); })
     .join('\n') || '（无）';
+}
+
+/** 未开启模块 → 禁止生成的路径提示（供 MVU 设计提示词） */
+var MODULE_FORBIDDEN_PATH_HINT = Object.freeze({
+  time_weather: '世界.当前时间 / 世界.天气 / 世界.时间',
+  location: '世界.当前地点 / 世界.地点',
+  quest: '任务.当前 / 任务.*',
+  event_chips: '事件.标签 / 事件.*',
+  emotion: '*.情绪',
+  action: '*.行动',
+  outfit: '*.着装',
+  affection: '*.好感度 / *.好感',
+  trust: '*.信任',
+  relation_stage: '*.关系阶段',
+  corruption_stage: '*.恶堕进度 / *.恶堕',
+  affection_stage: '*.亲密度',
+  attributes: '*.体力 / *.魔力 / *.生命',
+  items: '*.物品',
+  money: '*.金钱',
+  memory_summary: '*.记忆',
+  nsfw_thoughts: '*.内心',
+  nsfw_breasts: '*.双乳',
+  nsfw_vagina: '*.小穴 / *.私处',
+  nsfw_legs: '*.美腿',
+  nsfw_feet: '*.美脚',
+  nsfw_anus: '*.屁穴',
+  nsfw_mouth: '*.口腔',
+  nsfw_erogenous: '*.敏感带 / *.敏感',
+  nsfw_orgasm: '*.快感 / *.高潮',
+  nsfw_fluids: '*.体液',
+  nsfw_exposure: '*.露出',
+  nsfw_training: '*.调教',
+  nsfw_experience: '*.性经验',
+  nsfw_act_state: '*.性行为',
+});
+
+/**
+ * @param {Record<string, boolean>} flags
+ * @param {{ castMode?: string, nsfwEnabled?: boolean }} [opts]
+ */
+export function describeForbiddenModules(flags, opts) {
+  var o = opts || {};
+  var castMode = o.castMode === 'multi' ? 'multi' : 'single';
+  var nsfwOn = !!o.nsfwEnabled;
+  var f = flags || {};
+  var lines = [];
+  STATUS_BAR_MODULES.forEach(function(m) {
+    if (m.cast === 'multi' && castMode !== 'multi') return;
+    if (m.cast === 'single' && castMode !== 'single') return;
+    var forcedOff = m.nsfw && !nsfwOn;
+    var off = forcedOff || !f[m.id];
+    if (!off) return;
+    var hint = MODULE_FORBIDDEN_PATH_HINT[m.id] || '';
+    var reason = forcedOff ? '（NSFW 总开关关闭）' : '（未勾选）';
+    lines.push('- ' + m.label + ' `' + m.id + '`' + reason
+      + (hint ? '：不得出现路径 ' + hint : ''));
+  });
+  lines.push('- 配角摘要 / 精简块 / 仅某人专用的额外亲密字段');
+  return lines.join('\n') || '（无）';
 }
 
 /**

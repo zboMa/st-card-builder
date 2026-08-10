@@ -48,7 +48,7 @@
             <!-- 工具行：左说明 | 中「只识别女」独立勾选 | 右「AI 识别」；flex+gap，禁 absolute 叠层 -->
             <div class="sb-tool-row sb-cast-toolbar">
               <span class="sb-tip-inline">勾选入选人物</span>
-              <label class="sb-check-inline" for="sbFemaleOnly" title="默认只识别女角色">
+              <label class="sb-check-inline" for="sbFemaleOnly" title="仅影响「AI 识别」提示词，不筛选世界书自动加载列表">
                 <input type="checkbox" id="sbFemaleOnly" checked />
                 <span>只识别女</span>
               </label>
@@ -105,6 +105,7 @@
           <div id="sbGenSummary" class="sb-hint" hidden></div>
           <div class="sb-tool-row">
             <span class="sb-tip-inline">生成变量设计（覆盖 MVU）</span>
+            <button type="button" class="btn btn-ghost btn-inline btn-expand-preview" id="sbBtnPreviewMvuPrompt" title="查看提示词组成" aria-label="查看提示词组成"><svg class="icon-expand-corners" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button>
             <button type="button" class="btn sb-tool-btn" id="sbBtnGenerate">生成并覆盖 MVU</button>
           </div>
           <ul class="sb-checklist" id="sbChecklist"></ul>
@@ -143,6 +144,7 @@
             </div>
             <div class="sb-tool-row">
               <span class="sb-tip-inline">基于已生成变量与 MVU 规则</span>
+              <button type="button" class="btn btn-ghost btn-inline btn-expand-preview" id="sbBtnPreviewLayoutPrompt" title="查看提示词组成" aria-label="查看提示词组成"><svg class="icon-expand-corners" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button>
               <button type="button" class="btn sb-tool-btn" id="sbBtnCustomGenerate">生成排版</button>
               <button type="button" class="btn sb-tool-btn" id="sbBtnCustomRegenerate" hidden>再次修改</button>
             </div>
