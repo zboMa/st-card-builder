@@ -39,8 +39,8 @@ engine.getSnapshot()
 - 任意占用当前 `card:*` 的写任务 / heavy / local_ai：**硬禁**切卡、删卡、复制、新建、导入、切版本/增版；工坊源文清空/重置/上传、章节破坏性批处理、图谱清空；助手 `__assistantCardApi__` 同名操作抛错。
 - 任意占用当前 `story:*`：**硬禁**创作侧打开/新建/删除/重命名/增版/切版本/发布；其它 story heavy 互斥。
 - **不**提供「取消后继续切换」；取消只走任务中心。
-- 未配置 AI / 小说管线未就绪：`requiresAi`、`requiresSource`、`requiresExtract` 为 **点击时 gate**（按钮可点，`allowed: false`；点击 toast），进页不 disabled/title/横幅。
-- 任务占用、运维权限等仍 **disabled** 由 evaluate 驱动。
+- 未配置 AI：`requiresAi` 操作 disabled + tip。
+- 工坊 `getPipelineGates`：无源文/未拆章 → extract 类 disabled；gate 横幅由 apply 驱动。
 
 ## 接入约定（硬约束）
 

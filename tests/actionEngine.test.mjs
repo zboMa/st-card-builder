@@ -87,15 +87,14 @@ test('story heavy blocks story lifecycle', function() {
   assert.equal(evaluateById('story.outline.generate', snap).enabled, false);
 });
 
-test('missing AI config: click-time gate (enabled, not allowed)', function() {
+test('missing AI config disables requiresAi actions', function() {
   var snap = baseSnap({ aiConfigured: false });
   var v = evaluateById('novel.char.scan', snap);
-  assert.equal(v.enabled, true);
-  assert.equal(v.allowed, false);
+  assert.equal(v.enabled, false);
   assert.match(v.reason, /AI/);
 });
 
-test('pipeline gates: click-time gate for extract without chapters', function() {
+test('pipeline gates block extract without chapters', function() {
   var snap = baseSnap({
     novelGates: {
       hasSource: true,
@@ -104,8 +103,7 @@ test('pipeline gates: click-time gate for extract without chapters', function() 
       reasons: ['请先在「拆章」生成并启用章节'],
     },
   });
-  assert.equal(evaluateById('novel.wb.extract', snap).enabled, true);
-  assert.equal(evaluateById('novel.wb.extract', snap).allowed, false);
+  assert.equal(evaluateById('novel.wb.extract', snap).enabled, false);
   assert.equal(evaluateById('lifecycle.novel.chapters.split', snap).enabled, true);
 });
 

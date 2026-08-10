@@ -22,22 +22,13 @@ import {
     describeEnabledModules,
     describeFemaleOnlyRule,
     normalizeCastCharacter,
-    collectPersonCharactersFromWorldbook,
     pathsFromMvuDesign,
     buildPlaceholderPaths,
-    alignCastPaths,
-    pruneStatusBarMvuDesign,
-    resolveStatusBarPaths,
-    formatCastPathMatrix,
     buildPreviewHtml,
     buildStatusBarSnippet,
     buildStatusBarRegex,
     normalizeDesign,
   } from '../statusBar.mjs';
-import {
-  isPersonWorldbookEntry,
-  personNameFromWorldbookEntry,
-} from '../novel/sync.mjs';
 
 export function initStatusBarPanel() {
   (function() {
@@ -101,7 +92,6 @@ export function initStatusBarPanel() {
       var multi = state.castMode === 'multi';
       document.getElementById('sbSingleBox').hidden = multi;
       document.getElementById('sbMultiBox').hidden = !multi;
-      if (multi) loadCharactersFromWorldbookIntoState();
       var design = getDesignMeta(currentDesignId(), state.castMode);
       document.getElementById('sbPreviewHint').textContent = (multi ? '多人' : '单人')
         + '：' + design.label + (isCustomDesign(currentDesignId()) ? '（自定义）' : '（模块联动）');
@@ -162,9 +152,6 @@ export function initStatusBarPanel() {
     }
 
     function describePathBlock(paths) {
-      if (state.castMode === 'multi') {
-        return formatCastPathMatrix(paths, collectSelectedCharacters(), state.moduleFlags);
-      }
       return (paths || []).map(function(p) {
         return '- ' + p.path + ' | ' + p.label + ' | sample:' + (p.sample || '—');
       }).join('\n') || '（无）';
@@ -308,7 +295,7 @@ export function initStatusBarPanel() {
     function renderCharList() {
       charList.innerHTML = '';
       if (!state.characters.length) {
-        charList.innerHTML = '<div class="sb-tip">世界书暂无人物条目（[人物]/[小说人物] 或 outline_person）。可点「AI 识别」补充。</div>';
+        charList.innerHTML = '<div class="sb-tip">尚未识别人物，请点「AI 识别」。</div>';
       } else {
         state.characters.forEach(function(c, idx) {
           // label 包整卡：点击任意处切换勾选
@@ -336,17 +323,15 @@ export function initStatusBarPanel() {
       return state.characters.filter(function(c) { return c && c.selected !== false; });
     }
 
-    /** 设计态/注入用路径：多人本地同套对齐，预览与 snippet 一致 */
-    function pathsForRender() {
-      return resolveStatusBarPaths(state, {
-        resolveModuleFlags: resolveModuleFlags,
-        buildPlaceholderPaths: buildPlaceholderPaths,
-      });
-    }
-
-    /** @deprecated 别名 */
+    /** 设计态预览路径：始终按当前模块重算，避免 state.paths 缓存阻断联动 */
     function previewPaths() {
-      return pathsForRender();
+      var flags = resolveModuleFlags(state.presetId, state.moduleFlags, state.nsfw);
+      return buildPlaceholderPaths({
+        castMode: state.castMode,
+        mainName: state.mainName || currentCharName() || '角色',
+        moduleFlags: flags,
+        characters: collectSelectedCharacters(),
+      });
     }
 
     function refreshPreview() {
@@ -385,13 +370,12 @@ export function initStatusBarPanel() {
 
     function rebuildArtifacts() {
       readFormIntoState();
-      var paths = pathsForRender();
-      state.paths = paths;
+      if (!state.paths.length) state.paths = previewPaths();
       var chars = collectSelectedCharacters();
       var snippet = buildStatusBarSnippet({
         designId: currentDesignId(),
         castMode: state.castMode,
-        paths: paths,
+        paths: state.paths,
         mode: 'mvu',
         characters: chars,
         mainName: state.mainName,
@@ -452,39 +436,10 @@ export function initStatusBarPanel() {
 
     function buildWbBlock() {
       var wb = window.__getWorldbookEntries__ ? window.__getWorldbookEntries__() : [];
-      var persons = (wb || []).filter(function(e) { return isPersonWorldbookEntry(e); });
-      var slice = persons.length ? persons : (wb || []).slice(0, 40);
-      return slice.map(function(e, i) {
-        var title = personNameFromWorldbookEntry(e) || e.comment || e.name || '?';
-        return (i + 1) + '. 「' + title + '」'
+      return (wb || []).slice(0, 40).map(function(e, i) {
+        return (i + 1) + '. 「' + (e.comment || e.name || '?') + '」'
           + String(e.content || '').slice(0, 120).replace(/\s+/g, ' ');
       }).join('\n') || '（世界书为空）';
-    }
-
-    function loadCharactersFromWorldbookIntoState() {
-      var wb = window.__getWorldbookEntries__ ? window.__getWorldbookEntries__() : [];
-      var prevSel = Object.create(null);
-      (state.characters || []).forEach(function(c) {
-        if (c && c.name) prevSel[c.name] = c.selected;
-      });
-      var aiOnly = (state.characters || []).filter(function(c) {
-        return c && c.name && c.source !== 'worldbook';
-      });
-      state.characters = collectPersonCharactersFromWorldbook(wb, {
-        excludeName: currentCharName(),
-        merge: aiOnly,
-      });
-      state.characters.forEach(function(c) {
-        if (c && c.name && prevSel[c.name] !== undefined) c.selected = prevSel[c.name];
-      });
-      if (state.characters.length) {
-        if (!state.mainName || !state.characters.some(function(c) {
-          return c.name === state.mainName && c.selected !== false;
-        })) {
-          var firstSel = state.characters.find(function(c) { return c.selected !== false; });
-          state.mainName = (firstSel && firstSel.name) || state.characters[0].name;
-        }
-      }
     }
 
     async function runAiTask(type, title, userMsg, sysPrompt) {
@@ -576,25 +531,12 @@ export function initStatusBarPanel() {
       };
       if (!design.variables.length) throw new Error('AI 未返回 variables');
 
-      design = pruneStatusBarMvuDesign(design, {
-        castMode: state.castMode,
-        characters: chars,
-        moduleFlags: state.moduleFlags,
-        mainName: state.mainName || currentCharName() || '主角',
-      });
-
       if (!window.__assistantMvuApi__ || !window.__assistantMvuApi__.upsertVariables) {
         throw new Error('MVU 注入 API 不可用');
       }
       window.__assistantMvuApi__.upsertVariables({ design: design, inject: true });
 
-      state.paths = pathsFromMvuDesign(design, { mainName: state.mainName });
-      state.paths = alignCastPaths(state.paths, {
-        castMode: state.castMode,
-        characters: chars,
-        moduleFlags: state.moduleFlags,
-        mainName: state.mainName || currentCharName() || '主角',
-      });
+      state.paths = pathsFromMvuDesign(design, { mainName: state.mainName, limit: 48 });
       rebuildArtifacts();
       saveDesignExt();
       generatedOk = true;
