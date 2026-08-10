@@ -4,7 +4,7 @@
 import { createRegistry } from './registry.mjs';
 import { buildSnapshot } from './snapshot.mjs';
 import { evaluateAction, evaluateById } from './policy.mjs';
-import { applyViewToEl, applyNovelGateBanners, applyTip } from './apply.mjs';
+import { applyViewToEl, applyNovelGateBanners } from './apply.mjs';
 import { getActionDef, ACTION_CATALOG } from './catalog.mjs';
 import { ActionDeniedError, scopeKey, TIER } from './types.mjs';
 
@@ -105,11 +105,6 @@ export function createActionEngine(options) {
         applyViewToEl(el, view);
       });
     });
-    // AI tip 条
-    var aiTip = s.aiConfigured ? '' : '未配置 AI，请先到「AI 配置」选择模型';
-    applyTip('novelSetupAiTip', aiTip);
-    applyTip('novelGreetAiTip', aiTip);
-
     listeners.forEach(function(fn) {
       try { fn(s); } catch (e) { console.warn('[actionEngine] listener', e); }
     });

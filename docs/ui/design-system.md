@@ -127,6 +127,8 @@ SillyTavern 卡片构建器壳层设计 token。状态栏 **30 套预览主题**
 - 无 ctx（boot 脚本）：`appFeedback(null, opts)`。
 - **`channel:'auto'`（默认）**：error/important → notify；正文 >120 字或含换行 → notify；否则 toast。
 - 同一操作 **禁止** toast + notification + inline 三响；进行中 **不要** 再写「正在…」内联 tip（AI 任务靠 notify + 任务中心）。
+- **前置门控（未配 AI、小说管线未就绪等）**：进页 **不** disabled / title / 横幅 / notify；按钮保持可点，仅在用户点击时由 Action Engine `engineTryAllowed` 等 **toast 一次**。
+- **云账户探测**：无本地登录标记时不请求 `/api/auth/status`；曾登录且探测失败时再 notify + 账户区 inline 文案。
 
 实现与样式：`#appToastHost` / `#appNotifyHost`（`index.astro` 全局 CSS）。
 

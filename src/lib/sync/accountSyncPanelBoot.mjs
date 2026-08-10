@@ -35,6 +35,7 @@ import {
     pushUserPrefsToCloudNow,
   } from './userPrefsMirror.mjs';
   import { buildSyncCenterSnapshot } from './syncCenter.mjs';
+  import { hasAuthSessionHint, setAuthSessionHint } from './authSessionHint.mjs';
   import { fetchCloudQuota, quotaUsageHtml, invalidateQuotaCache } from './quotaClient.mjs';
   import { fetchCloudExport, fetchAuthTokens, revokeAuthToken } from './cloudApi.mjs';
   import { getDraftsMapSync } from '../draftsStore.mjs';
@@ -94,7 +95,8 @@ export function initAccountSyncPanel() {
     }
   }
 
-  function showLoggedOut(st, tipText, tipErr) {
+  function showLoggedOut(st, tipText, options) {
+    var o = options || {};
     var gate = document.getElementById('accountLoginGate');
     var body = document.getElementById('accountSessionBody');
     var tip = document.getElementById('authStatusTip');
@@ -109,13 +111,19 @@ export function initAccountSyncPanel() {
     if (devBox) devBox.style.display = st && st.devLoginEnabled ? 'block' : 'none';
     setEmailAuthUi(st || {});
     setDiscordCta(st || {});
+    if (o.clearSessionHint) setAuthSessionHint(false);
     if (tip) {
-      tip.textContent = '';
-      tip.classList.remove('is-err');
+      tip.textContent = tipText || '';
+      tip.classList.toggle('is-err', !!o.err);
     }
-    if (tipText) {
-      if (tipErr) appFeedback(null, { message: tipText, level: 'error', important: true, title: '无法连接' });
-      else appFeedback(null, { message: tipText, level: 'info', channel: 'toast' });
+    if (tipText && o.notify) {
+      appFeedback(null, {
+        message: tipText,
+        level: o.err ? 'error' : 'info',
+        important: !!o.err,
+        title: o.err ? '无法连接' : undefined,
+        channel: o.err ? 'notify' : 'toast',
+      });
     }
     stopAutoSync();
     stopPanelCountdown();
@@ -149,6 +157,7 @@ export function initAccountSyncPanel() {
       }
     }
     if (!st.disabled) {
+      setAuthSessionHint(true);
       setCloudEnabled(true);
       setUserPrefsSyncEnabled(true);
       pullUserPrefsFromCloud().then(function() {
@@ -191,18 +200,29 @@ export function initAccountSyncPanel() {
     }
   }
 
-  async function refreshAuthUi() {
+  async function refreshAuthUi(options) {
+    var o = options || {};
+    if (!hasAuthSessionHint() && !o.force) {
+      showLoggedOut({}, '');
+      return;
+    }
     var tip = document.getElementById('authStatusTip');
     try {
       var st = await fetchAuthStatus();
       if (st.user) {
         showLoggedIn(st);
-        if (tip) tip.textContent = '';
+        if (tip) {
+          tip.textContent = '';
+          tip.classList.remove('is-err');
+        }
       } else {
-        showLoggedOut(st, '');
+        showLoggedOut(st, '', { clearSessionHint: true });
       }
     } catch (e) {
-      showLoggedOut({}, '暂时无法连接服务，请稍后重试。', true);
+      showLoggedOut({}, '暂时无法连接服务，请稍后重试。', {
+        err: true,
+        notify: o.notifyOnFailure !== false,
+      });
     }
   }
 
@@ -424,7 +444,7 @@ export function initAccountSyncPanel() {
       setTip('登录中…');
       await apiEmailLogin({ email: email, password: password });
       setTip('登录成功');
-      await refreshAuthUi();
+      await refreshAuthUi({ force: true, notifyOnFailure: true });
       await runSync({ refreshCred: true, force: true, hydrateAll: true }).catch(function() {});
       setSyncLine();
     } catch (err) {
@@ -441,7 +461,7 @@ export function initAccountSyncPanel() {
       setTip('注册中…');
       await apiEmailRegister({ email: email, password: password, inviteCode: inviteCode });
       setTip('注册成功');
-      await refreshAuthUi();
+      await refreshAuthUi({ force: true, notifyOnFailure: true });
       await runSync({ refreshCred: true, force: true, hydrateAll: true }).catch(function() {});
       setSyncLine();
     } catch (err) {
@@ -454,7 +474,7 @@ export function initAccountSyncPanel() {
     try {
       await apiDevLogin(name);
       setTip('调试登录成功');
-      await refreshAuthUi();
+      await refreshAuthUi({ force: true, notifyOnFailure: true });
       await runSync({ refreshCred: true, force: true, hydrateAll: true }).catch(function() {});
       setSyncLine();
     } catch (e) {
@@ -464,6 +484,7 @@ export function initAccountSyncPanel() {
 
   document.getElementById('btnAuthLogout')?.addEventListener('click', async function() {
     await apiLogout();
+    setAuthSessionHint(false);
     setCloudEnabled(false);
     stopAutoSync();
     syncAutoSyncToggle(false);
@@ -576,7 +597,7 @@ export function initAccountSyncPanel() {
       history.replaceState(null, '', '#account-sync');
       window.dispatchEvent(new Event('hashchange'));
     }
-    await refreshAuthUi();
+    await refreshAuthUi({ notifyOnFailure: hasAuthSessionHint() });
     setSyncLine();
   })();
 }

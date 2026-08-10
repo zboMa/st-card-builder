@@ -55,6 +55,7 @@ import {
   styleCss,
   designCss,
 } from '../src/lib/statusBar.mjs';
+import { collectPersonCharactersFromWorldbook } from '../src/lib/statusBarBuild.mjs';
 import {
   orphanPaths,
   worldScopedPaths,
@@ -81,6 +82,27 @@ const SAMPLE_PATHS = [
 ];
 
 describe('statusBar core', function() {
+  it('多人候选：collectPersonCharactersFromWorldbook 只收人物条、可排除主角并合并 AI', function() {
+    var wb = [
+      { comment: '[人物] 林雾', content: '主角同门\n细节', keys: ['林'], enabled: true },
+      { comment: '[地点] 咖啡馆', content: '场景', enabled: true },
+      { comment: '[人物] 苏晚', content: '师姐', keys: ['苏'], enabled: true },
+    ];
+    var list = collectPersonCharactersFromWorldbook(wb, { excludeName: '林雾' });
+    assert.equal(list.length, 1);
+    assert.equal(list[0].name, '苏晚');
+    assert.equal(list[0].source, 'worldbook');
+    assert.match(list[0].identity, /师姐/);
+
+    var merged = collectPersonCharactersFromWorldbook(wb, {
+      excludeName: '林雾',
+      merge: [{ name: '路人甲', identity: 'AI 补充', selected: true }],
+    });
+    assert.equal(merged.length, 2);
+    assert.ok(merged.some(function(c) { return c.name === '苏晚'; }));
+    assert.ok(merged.some(function(c) { return c.name === '路人甲'; }));
+  });
+
   it('自定义排版：layoutsForCast 含 custom；预览/片段/规范化', function() {
     assert.ok(layoutsForCast('single').some(function(l) { return l.id === CUSTOM_DESIGN_ID; }));
     assert.ok(layoutsForCast('multi').some(function(l) { return l.id === CUSTOM_DESIGN_ID; }));

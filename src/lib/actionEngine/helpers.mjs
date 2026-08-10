@@ -2,6 +2,7 @@
  * 面板侧便捷：取全局引擎 / begin·end / assert
  */
 import { ActionDeniedError } from './types.mjs';
+import { appFeedback } from '../ui/appMessage.mjs';
 
 export function getActionEngine() {
   if (typeof window === 'undefined') return null;
@@ -10,30 +11,7 @@ export function getActionEngine() {
 
 function toastDenied(reason) {
   if (typeof window === 'undefined' || !reason) return;
-  try {
-    if (window.__novelWorkshop__ && window.__novelWorkshop__.showToast) {
-      window.__novelWorkshop__.showToast({ message: reason, level: 'warn' });
-      return;
-    }
-  } catch (e) { /* ignore */ }
-  try {
-    var host = document.getElementById('appToastHost');
-    if (!host) {
-      host = document.createElement('div');
-      host.id = 'appToastHost';
-      host.className = 'app-toast-host';
-      host.setAttribute('aria-live', 'polite');
-      document.body.appendChild(host);
-    }
-    var toast = document.createElement('div');
-    toast.className = 'app-toast is-warn';
-    toast.textContent = reason;
-    host.appendChild(toast);
-    setTimeout(function() {
-      toast.classList.add('is-leaving');
-      setTimeout(function() { toast.remove(); }, 280);
-    }, 3200);
-  } catch (e2) { /* ignore */ }
+  appFeedback(null, { message: String(reason), level: 'warn', channel: 'toast' });
 }
 
 export function engineRefresh() {

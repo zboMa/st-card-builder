@@ -15,12 +15,80 @@ import {
   renderDesignHtml,
 } from './statusBarCatalog.mjs';
 import { escHtml } from './statusBarThemes/index.mjs';
+import {
+  isPersonWorldbookEntry,
+  personNameFromWorldbookEntry,
+} from './novel/sync.mjs';
+import {
+  CAST_NSFW_FIELD_ROWS,
+  castCharFieldSpecs,
+  globalStatusBarFieldSpecs,
+  npcPathFor,
+  alignCastPaths,
+  normalizeMultiCastMvuVariables,
+  normalizeSingleCastMvuVariables,
+  pruneStatusBarMvuDesign,
+  resolveStatusBarPaths,
+  formatCastPathMatrix,
+} from './statusBarCastAlign.mjs';
+
+export {
+  CAST_NSFW_FIELD_ROWS,
+  castCharFieldSpecs,
+  globalStatusBarFieldSpecs,
+  alignCastPaths,
+  normalizeMultiCastMvuVariables,
+  normalizeSingleCastMvuVariables,
+  pruneStatusBarMvuDesign,
+  resolveStatusBarPaths,
+  formatCastPathMatrix,
+} from './statusBarCastAlign.mjs';
+
+/**
+ * 从世界书人物类条目生成状态栏多人候选（与恶堕/纯爱人物列表同源规则）
+ * @param {object[]} entries
+ * @param {{ excludeName?: string, merge?: object[] }} [opts]
+ * @returns {import('./statusBarCatalog.mjs').CastCharacter[]}
+ */
+export function collectPersonCharactersFromWorldbook(entries, opts) {
+  var o = opts || {};
+  var exclude = String(o.excludeName || '').trim();
+  var seen = Object.create(null);
+  var out = [];
+  (entries || []).forEach(function(e) {
+    if (!e || !isPersonWorldbookEntry(e)) return;
+    var name = personNameFromWorldbookEntry(e);
+    if (!name || seen[name]) return;
+    if (exclude && name === exclude) return;
+    seen[name] = true;
+    var identity = String(e.content || '').trim().split(/\n/)[0].slice(0, 120);
+    var c = normalizeCastCharacter({
+      name: name,
+      identity: identity,
+      aliases: Array.isArray(e.keys) ? e.keys : [],
+      selected: true,
+      source: 'worldbook',
+    });
+    if (c) out.push(c);
+  });
+  var merge = Array.isArray(o.merge) ? o.merge : [];
+  merge.forEach(function(raw) {
+    var c = normalizeCastCharacter(raw);
+    if (!c || !c.name || seen[c.name]) return;
+    seen[c.name] = true;
+    out.push(c);
+  });
+  return out;
+}
 
 export function pathsFromMvuDesign(design, opts) {
   var vars = design && Array.isArray(design.variables) ? design.variables : [];
-  var limit = (opts && opts.limit) || 48;
-  var mainName = opts && opts.mainName ? String(opts.mainName) : '';
-  return vars.slice(0, limit).map(function(v) {
+  var o = opts || {};
+  var limit = o.limit;
+  var slice = vars;
+  if (typeof limit === 'number' && limit > 0) slice = vars.slice(0, limit);
+  var mainName = o.mainName ? String(o.mainName) : '';
+  return slice.map(function(v) {
     var path = String((v && (v.path || v.name)) || '').trim();
     var parts = path.split('.');
     var role = '';
@@ -376,22 +444,17 @@ export function buildPlaceholderPaths(opts) {
   var castMode = o.castMode === 'multi' ? 'multi' : 'single';
   var flags = o.moduleFlags || {};
   var main = String(o.mainName || '角色').trim() || '角色';
+  /** @type {import('./statusBarCatalog.mjs').PathItem[]} */
   var base = [];
 
   function push(path, label, group, sample, role) {
     base.push(normalizePathItem({ path: path, label: label, group: group, sample: sample, role: role || '' }));
   }
 
-  // 世界 / 任务 / 事件：全局一份
-  if (flags.time_weather) {
-    push('世界.当前时间', '时间', '世界', '08:30');
-    push('世界.天气', '天气', '世界', '晴');
-  }
-  if (flags.location) push('世界.当前地点', '地点', '世界', '咖啡馆');
-  if (flags.quest) push('任务.当前', '任务', '任务', '调查线索');
-  if (flags.event_chips) push('事件.标签', '事件', '事件', '同行');
+  globalStatusBarFieldSpecs(flags).forEach(function(g) {
+    push(g.suffix, g.label, g.group, g.sample, '');
+  });
 
-  // 入选角色名单：多人按勾选全员；单人仅主名
   var names = [];
   if (castMode === 'multi') {
     var chars = Array.isArray(o.characters) ? o.characters : [];
@@ -403,52 +466,23 @@ export function buildPlaceholderPaths(opts) {
     names = [main];
   }
 
-  var nsfwMap = [
-    ['nsfw_thoughts', '内心', '隐秘心声'],
-    ['nsfw_breasts', '双乳', '柔软'],
-    ['nsfw_vagina', '小穴', '湿润'],
-    ['nsfw_legs', '美腿', '修长'],
-    ['nsfw_feet', '美脚', '轻颤'],
-    ['nsfw_anus', '屁穴', '紧致'],
-    ['nsfw_mouth', '口腔', '微张'],
-    ['nsfw_erogenous', '敏感带', '发烫'],
-    ['nsfw_orgasm', '快感', '62'],
-    ['nsfw_fluids', '体液', '微量'],
-    ['nsfw_exposure', '露出', '低'],
-    ['nsfw_training', '调教', '无'],
-    ['nsfw_experience', '性经验', '摘要'],
-    ['nsfw_act_state', '性行为', '无'],
-  ];
+  var charSpecs = castCharFieldSpecs(flags);
 
-  /** 为单名角色写入与开启模块一一对应的同套字段 */
-  function pushCharFields(name) {
+  names.forEach(function(name) {
     var prefix = castMode === 'multi' ? ('NPC.' + name) : '角色';
-    var role = castMode === 'multi' ? name : name;
-    var group = castMode === 'multi' ? 'NPC' : '角色';
-
-    if (flags.emotion) push(prefix + '.情绪', '情绪', group, '平静', role);
-    if (flags.action) push(prefix + '.行动', '行动', group, '闲聊', role);
-    if (flags.outfit) push(prefix + '.着装', '着装', group, '便装', role);
-    if (flags.affection) push(prefix + '.好感度', '好感', group, '42', role);
-    if (flags.trust) push(prefix + '.信任', '信任', group, '30', role);
-    if (flags.relation_stage) push(prefix + '.关系阶段', '关系', group, '熟人', role);
-    if (flags.corruption_stage) push(prefix + '.恶堕进度', '恶堕进度', '亲密', '0', role);
-    if (flags.affection_stage) push(prefix + '.亲密度', '亲密度', '亲密', '30', role);
-    if (flags.attributes) {
-      push(prefix + '.体力', '体力', '属性', '78', role);
-      push(prefix + '.魔力', '魔力', '属性', '55', role);
-    }
-    if (flags.items) push(prefix + '.物品', '物品', group, '钥匙扣', role);
-    if (flags.money) push(prefix + '.金钱', '金钱', group, '320', role);
-    if (flags.memory_summary) push(prefix + '.记忆', '记忆', group, '初遇约定', role);
-
-    nsfwMap.forEach(function(row) {
-      if (!flags[row[0]]) return;
-      push(prefix + '.' + row[1], row[1], '亲密', row[2], role);
+    var role = name;
+    var groupDefault = castMode === 'multi' ? 'NPC' : '角色';
+    charSpecs.forEach(function(spec) {
+      var group = spec.group === 'NPC' ? groupDefault : spec.group;
+      push(
+        castMode === 'multi' ? npcPathFor(name, spec) : ('角色.' + spec.suffix),
+        spec.label,
+        group,
+        spec.sample,
+        castMode === 'multi' ? role : role
+      );
     });
-  }
-
-  names.forEach(pushCharFields);
+  });
 
   if (!base.length) {
     push('世界.当前时间', '时间', '世界', '08:30');
@@ -524,10 +558,11 @@ export const STATUS_BAR_CUSTOM_LAYOUT_PROMPT =
   + '【MVU 绑定规则】\n'
   + '1. 每个变量值用 <span class="zb-value" data-zb-path="完整路径">示例值</span> 绑定；示例值取自 path 的 sample。\n'
   + '2. 多人：每个 NPC 字段路径形如 NPC.姓名.字段；世界/任务/事件全局一份。\n'
-  + '3. CSS 类名建议 zb-custom- 前缀，避免污染全局；勿用外部 CDN。\n'
-  + '4. 禁止 <script>；禁止内联 onclick；结构须响应式（窄屏可读）。\n'
-  + '5. 若提供基准主题，可在其结构/气质上按用户要求改造，但须重写 CSS/HTML 输出。\n'
-  + '6. 若提供当前排版，在其基础上按新要求迭代修改。\n\n'
+  + '3. 多人排版：每名入选角色必须使用【完全相同】的 HTML 区块结构与 CSS 类；仅 data-zb-path 中的姓名段不同。禁止主视角详版、他人简版/摘要区。\n'
+  + '4. CSS 类名建议 zb-custom- 前缀，避免污染全局；勿用外部 CDN。\n'
+  + '5. 禁止 <script>；禁止内联 onclick；结构须响应式（窄屏可读）。\n'
+  + '6. 若提供基准主题，可在其结构/气质上按用户要求改造，但须重写 CSS/HTML 输出。\n'
+  + '7. 若提供当前排版，在其基础上按新要求迭代修改。\n\n'
   + '【输出】仅 JSON，不要解释：\n'
   + '{ "css": "/* 完整 CSS */", "bodyHtml": "<div class=\\"zb-custom-root\\">...</div>" }\n';
 

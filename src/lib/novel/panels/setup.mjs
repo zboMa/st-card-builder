@@ -58,14 +58,6 @@ export function registerSetup(ctx) {
     return !!(modelEl && modelEl.value);
   }
 
-  function setAiTip(id, msg) {
-    var el = $(id);
-    if (el) el.textContent = '';
-    var text = String(msg || '').trim();
-    if (!text) return;
-    ctx.appFeedback({ message: text, level: 'warn', channel: 'notify', title: '无法继续' });
-  }
-
   /** 填充实体人物下拉 */
   function fillPersonEntityPick(selectId, currentName) {
     var sel = $(selectId);
@@ -316,7 +308,11 @@ export function registerSetup(ctx) {
     var g = ctx.gates();
     if (!g.canExtract) throw new Error((g.reasons || []).join('\n') || '前置未完成');
     if (!isAiConfigured()) {
-      setAiTip('novelSetupAiTip', '未配置 AI，请先到「AI 配置」选择模型');
+      ctx.appFeedback({
+        message: '未配置 AI，请先到「AI 配置」选择模型',
+        level: 'warn',
+        channel: 'toast',
+      });
       throw new Error('未配置 AI 模型（请先到「AI 配置」）');
     }
     var charName = String(state.setupCharName || '').trim();
@@ -392,7 +388,11 @@ export function registerSetup(ctx) {
     var g = ctx.gates();
     if (!g.canExtract) throw new Error((g.reasons || []).join('\n') || '前置未完成');
     if (!isAiConfigured()) {
-      setAiTip('novelGreetAiTip', '未配置 AI，请先到「AI 配置」选择模型');
+      ctx.appFeedback({
+        message: '未配置 AI，请先到「AI 配置」选择模型',
+        level: 'warn',
+        channel: 'toast',
+      });
       throw new Error('未配置 AI 模型（请先到「AI 配置」）');
     }
     var charName = String(state.greetCharName || state.setupCharName || '').trim();
