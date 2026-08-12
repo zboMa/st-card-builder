@@ -114,6 +114,14 @@ export function createExecutorExecute(bridge, snaps, helpers) {
         return ok(bridge.lintCard());
       case 'get_chat_feedback':
         return ok(bridge.getChatFeedback(a));
+      case 'list_promotions': {
+        var draftId = bridge.getCurrentDraftId ? bridge.getCurrentDraftId() : '';
+        if (!draftId) return fail('无当前卡');
+        if (bridge.listPromotions) return ok(await bridge.listPromotions(a));
+        var mod = await import('../promotionLog.mjs');
+        var rows = await mod.listPromotions(draftId, { limit: a.limit });
+        return ok({ promotions: rows });
+      }
       case 'analyze_chat_feedback': {
         // 优先 LLM 结构化；失败回退本地启发式
         if (bridge.analyzeChatFeedback) {
@@ -156,6 +164,12 @@ export function createExecutorExecute(bridge, snaps, helpers) {
         if (VALID_VIEWS.indexOf(view) < 0) return fail('未知模块: ' + view + '，可选: ' + VALID_VIEWS.join(', '));
         bridge.openModule(view);
         return ok({ view: view });
+      }
+      case 'open_entity_graph': {
+        if (typeof globalThis !== 'undefined' && globalThis.dispatchEvent) {
+          globalThis.dispatchEvent(new CustomEvent('card-open-relation-graph'));
+        }
+        return ok({ opened: 'card-relation-graph', scope: a.scope || 'card' });
       }
       case 'list_cards':
         if (!bridge.listCards) return fail('多卡桥接未就绪');
@@ -597,6 +611,10 @@ export function createExecutorExecute(bridge, snaps, helpers) {
       }
       case 'apply_chat_feedback_fixes': {
         var fixes = Array.isArray(a.fixes) ? a.fixes : [];
+        var valMod = await import('./chatFeedbackValidate.mjs');
+        var check = valMod.validateChatFeedbackFixes(fixes);
+        var blocked = check.find(function(c) { return !c.ok; });
+        if (blocked) return fail(blocked.reason || 'fix 校验失败');
         maybeSnap();
         var applied = [];
         for (var fi2 = 0; fi2 < fixes.length; fi2++) {
@@ -606,6 +624,26 @@ export function createExecutorExecute(bridge, snaps, helpers) {
           if (!rn.ok) break;
         }
         return ok({ applied: applied });
+      }
+      case 'promote_chat_episode': {
+        if (!bridge.promoteChatEpisode) return fail('试聊归档桥接未就绪');
+        maybeSnap();
+        return ok(await bridge.promoteChatEpisode(a));
+      }
+      case 'seed_story_graph_from_card': {
+        if (!bridge.seedStoryGraphFromCard) return fail('Story 种子桥接未就绪');
+        maybeSnap();
+        return ok(await bridge.seedStoryGraphFromCard(a));
+      }
+      case 'promote_story_graph_to_card': {
+        if (!bridge.promoteStoryGraphToCard) return fail('Story→卡桥接未就绪');
+        maybeSnap();
+        return ok(await bridge.promoteStoryGraphToCard(a));
+      }
+      case 'seed_story_from_novel_entities': {
+        if (!bridge.seedStoryFromNovelEntities) return fail('工坊→Story桥接未就绪');
+        maybeSnap();
+        return ok(await bridge.seedStoryFromNovelEntities(a));
       }
       default:
         return fail('未知工具: ' + toolName);

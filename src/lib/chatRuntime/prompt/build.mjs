@@ -6,6 +6,9 @@ import { applyMacros } from '../macros.mjs';
 import { scanWorldInfo } from '../worldInfo/scan.mjs';
 import { injectWorldInfo, joinEntryContents, partitionActivated } from '../worldInfo/inject.mjs';
 import { applyRegexPipeline, applyRegexToMessages, PLACEMENT_WORLD } from '../regex/pipeline.mjs';
+import { collectWorldbookPersonNames } from '../../novel/sync.mjs';
+
+export { collectWorldbookPersonNames };
 
 /**
  * 解析 mes_example 为 few-shot 消息（粗分：<START> / {{user}}: / {{char}}:）
@@ -13,7 +16,7 @@ import { applyRegexPipeline, applyRegexToMessages, PLACEMENT_WORLD } from '../re
  * @param {{ charName: string, userName: string }} names
  * @returns {{ role: string, content: string }[]}
  */
-function parseMesExamples(raw, names) {
+function parseMesExamples(raw, names, extraSpeakers) {
   var text = applyMacros(String(raw || ''), names).trim();
   if (!text) return [];
   // 按 <START> 分段，忽略空段
@@ -21,9 +24,20 @@ function parseMesExamples(raw, names) {
   var msgs = [];
   var userRe = new RegExp('^' + escapeRe(names.userName) + '\\s*:', 'i');
   var charRe = new RegExp('^' + escapeRe(names.charName) + '\\s*:', 'i');
+  var speakerRes = (extraSpeakers || []).map(function(sp) {
+    return new RegExp('^' + escapeRe(sp) + '\\s*:', 'i');
+  });
   // 也识别字面 {{user}}: / {{char}}:（宏已展开后一般是名字）
   var genericUser = /^(?:\{\{user\}\}|User)\s*:/i;
   var genericChar = /^(?:\{\{char\}\}|Char(?:acter)?)\s*:/i;
+
+  function isAssistantLine(line) {
+    if (charRe.test(line) || genericChar.test(line)) return true;
+    for (var si = 0; si < speakerRes.length; si++) {
+      if (speakerRes[si].test(line)) return true;
+    }
+    return false;
+  }
 
   function pushLines(block) {
     var lines = block.split(/\n/);
@@ -42,7 +56,7 @@ function parseMesExamples(raw, names) {
         flush();
         curRole = 'user';
         curBuf = [line.replace(/^[^:]+:\s*/, '')];
-      } else if (charRe.test(line) || genericChar.test(line)) {
+      } else if (charRe.test(line) || genericChar.test(line) || isAssistantLine(line)) {
         flush();
         curRole = 'assistant';
         curBuf = [line.replace(/^[^:]+:\s*/, '')];
@@ -102,6 +116,7 @@ export function buildChatCompletionMessages(opts) {
   var presetMessages = Array.isArray(o.presetMessages) ? o.presetMessages : [];
   var scanDepth = o.scanDepth == null ? 2 : o.scanDepth;
   var rpCoreText = o.rpCoreText != null ? String(o.rpCoreText) : '';
+  var personSpeakers = collectWorldbookPersonNames(worldbookEntries);
   var rng = o.rng;
 
   // 1–2. scan
@@ -138,6 +153,11 @@ export function buildChatCompletionMessages(opts) {
   // afterChar 紧随角色块
   if (afterChar) systemParts.push(macro(afterChar));
 
+  systemParts.push(
+    '【群像 RP】{{char}} 是场景标识，不是唯一扮演对象；按角色描述中的场景契约调度 worldbook 中的 NPC，'
+    + '单条回复可含多名角色对白（Name: 前缀）。勿将 {{char}} 当作唯一角色名。'
+  );
+
   if (systemParts.length) {
     messages.push({ role: 'system', content: systemParts.join('\n\n') });
   }
@@ -159,7 +179,7 @@ export function buildChatCompletionMessages(opts) {
   var afterEM = joinEntryContents(slots.afterEM);
   if (beforeEM) messages.push({ role: 'system', content: macro(beforeEM) });
 
-  var fewshots = parseMesExamples(char.mesExample || '', names);
+  var fewshots = parseMesExamples(char.mesExample || '', names, personSpeakers);
   for (var fi = 0; fi < fewshots.length; fi++) messages.push(fewshots[fi]);
 
   if (afterEM) messages.push({ role: 'system', content: macro(afterEM) });
@@ -192,11 +212,13 @@ export function buildChatCompletionMessages(opts) {
   var other = joinEntryContents(slots.other);
   if (other) messages.push({ role: 'system', content: macro(other) });
 
-  // continue 指令
-  messages.push({
-    role: 'system',
-    content: 'Continue the chat as ' + charName + '.',
-  });
+  // continue 指令（§5.3 群像试聊）
+  var continueText = 'Continue the scene following the RP contract in the character description.\n'
+    + 'Speak for any relevant NPCs from the worldbook; do not collapse the scene into a single-character monologue unless the contract requires it.';
+  if (o.focusNpc) {
+    continueText += '\nGive extra narrative weight to ' + o.focusNpc + ' in this turn, without excluding other NPCs when they should react.';
+  }
+  messages.push({ role: 'system', content: continueText });
 
   // 5. USER/AI regex prompt ephemerality
   var msgRx = applyRegexToMessages(messages, regexScripts, 'prompt');

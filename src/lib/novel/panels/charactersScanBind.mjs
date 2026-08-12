@@ -389,6 +389,27 @@ export function attachNovelCharactersScanBind(ctx, panel) {
       }
     });
 
+    var btnOpenStory = ctx.$('btnOpenStoryFromWorkshop');
+    if (btnOpenStory) btnOpenStory.addEventListener('click', async function() {
+      try {
+        var draftId = typeof window.__getCurrentDraftId__ === 'function' ? window.__getCurrentDraftId__() : '';
+        if (!draftId) throw new Error('无当前卡');
+        var ents = (state.entities || []).filter(function(e) { return e && e.selected !== false; });
+        if (!ents.length) ents = (state.entities || []).slice();
+        if (!ents.length) throw new Error('没有可用实体');
+        var rels = state.relations || [];
+        var mod = await import('../../storyStudio/storyCardBridge.mjs');
+        var r = await mod.seedStoryFromNovelEntities(draftId, ents, rels, {
+          novelTitle: '来自工坊 · ' + new Date().toISOString().slice(0, 10),
+        });
+        if (!r.ok) throw new Error(r.error || '失败');
+        ctx.setStatus('novelCharStatus', '已开 Story：' + r.novelId + '（' + r.nodeCount + ' Ref 节点）');
+        if (window.__setAppView__) window.__setAppView__('story-studio');
+      } catch (e) {
+        alert(e.message || '开 Story 失败');
+      }
+    });
+
     var saveProfile = ctx.$('btnNovelProfileSave');
     if (saveProfile) saveProfile.addEventListener('click', function() {
       if (!ctx.editState.editingCharId) return;

@@ -336,6 +336,22 @@ export function deoverlapGraphNodes(graph, minDist) {
   return Promise.resolve();
 }
 
+function clipGraphLabel(raw, max) {
+  var s = String(raw || "").replace(/\s+/g, " ").trim();
+  var lim = max != null ? max : 4;
+  if (s.length <= lim) return s;
+  return s.slice(0, lim);
+}
+
+/** 圆内短标签：去掉前缀后取前几字 */
+export function graphLabelShort(raw, maxLen) {
+  var s = String(raw || "").trim();
+  s = s.replace(/^\[(?:小说)?人物\]\s*/, "");
+  s = s.replace(/^\[[^\]]+\]\s*/, "");
+  s = s.replace(/^(?:地理|功法|冲突|势力|物品|事件):\s*/, "");
+  return clipGraphLabel(s, maxLen != null ? maxLen : 4);
+}
+
 /** knowledgeGraph → G6 data */
 export function graphToG6Data(graph) {
   var g = graph || { nodes: [], edges: [] };
@@ -359,13 +375,18 @@ export function graphToG6Data(graph) {
     var fill = isP
       ? TYPE_COLOR.protagonist
       : TYPE_COLOR[type] || TYPE_COLOR.concept;
+    var fullLabel = attrs.fullLabel || n.label || n.id;
+    var shortLabel = n.shortLabel || graphLabelShort(fullLabel, 4);
     return {
       id: String(n.id),
       data: {
         label: n.label || n.id,
+        shortLabel: shortLabel,
         type: isP ? "protagonist" : type,
         role: isP ? "protagonist" : "",
-        attrs: attrs,
+        attrs: Object.assign({}, attrs, {
+          fullLabel: fullLabel,
+        }),
         degree: deg,
         nodeR: nodeR,
         isolate: !isP && deg === 0,
@@ -829,6 +850,8 @@ export function buildGraphLegendHtml() {
 export function mountOrUpdateGraph(container, graphData, existing, opts) {
   opts = opts || {};
   if (!container) return null;
+  var mode = String(opts.mode || 'workshop');
+  var readOnly = opts.readOnly === true || mode === 'card' || mode === 'story-ref';
   var highlightDegree = opts.highlightDegree;
   if (highlightDegree == null || !Number.isFinite(Number(highlightDegree)))
     highlightDegree = 2;
@@ -836,8 +859,11 @@ export function mountOrUpdateGraph(container, graphData, existing, opts) {
     0,
     Math.min(6, Math.floor(Number(highlightDegree))),
   );
+  var labelPlacement = opts.labelPlacement || "bottom";
+  var graphPadding =
+    labelPlacement === "bottom" ? [40, 44, 64, 44] : [40, 44, 48, 44];
 
-  // 旧实例若仍带 click-select，或层级变更，直接销毁重建（否则 inactive 透明度会粘住）
+  // 旧实例若仍带 click-select，或层级/标签位变更，直接销毁重建（否则 inactive 透明度会粘住）
   if (
     existing &&
     typeof existing.destroy === "function" &&
@@ -845,7 +871,8 @@ export function mountOrUpdateGraph(container, graphData, existing, opts) {
   ) {
     var needRebuild =
       existing.__novelSelectMode !== "custom" ||
-      existing.__novelHighlightDegree !== highlightDegree;
+      existing.__novelHighlightDegree !== highlightDegree ||
+      existing.__novelLabelPlacement !== labelPlacement;
     if (needRebuild) {
       try {
         existing.destroy();
@@ -886,6 +913,9 @@ export function mountOrUpdateGraph(container, graphData, existing, opts) {
     );
     existing.__novelHighlightDegree = highlightDegree;
     existing.__novelSelectMode = "custom";
+    existing.__novelGraphMode = mode;
+    existing.__novelGraphReadOnly = readOnly;
+    existing.__novelLabelPlacement = labelPlacement;
     layoutAndFit(existing);
     return existing;
   }
@@ -894,14 +924,11 @@ export function mountOrUpdateGraph(container, graphData, existing, opts) {
     container: container,
     data: data,
     autoFit: "view",
-    padding: [40, 44, 48, 44],
+    padding: graphPadding,
     theme: "dark",
-    behaviors: [
-      "drag-canvas",
-      "zoom-canvas",
-      "drag-element",
-      // 高亮由 bindSelectHandlers 自管；避免 click-select 的 unselectedState 清空后透明度粘住
-    ],
+    behaviors: readOnly
+      ? ["drag-canvas", "zoom-canvas"]
+      : ["drag-canvas", "zoom-canvas", "drag-element"],
     layout: FORCE_LAYOUT,
     node: {
       type: "circle",
@@ -925,11 +952,26 @@ export function mountOrUpdateGraph(container, graphData, existing, opts) {
         },
         opacity: 1,
         labelText: function (d) {
-          return (d.data && d.data.label) || d.id;
+          if (labelPlacement === "bottom") {
+            return (
+              (d.data && d.data.attrs && d.data.attrs.fullLabel) ||
+              (d.data && d.data.label) ||
+              d.id
+            );
+          }
+          return (
+            (d.data && d.data.shortLabel) ||
+            (d.data && d.data.label) ||
+            d.id
+          );
         },
-        labelPlacement: "center",
-        labelFill: "#ffffff",
+        labelPlacement: labelPlacement,
+        labelFill: function (d) {
+          if (labelPlacement === "bottom") return "rgba(226, 232, 240, 0.92)";
+          return "#ffffff";
+        },
         labelFontSize: function (d) {
+          if (labelPlacement === "bottom") return 10;
           var r = (d.data && d.data.nodeR) || NODE_R_MIN;
           if (r >= NODE_R_PROTAG) return 12;
           if (r >= 22) return 11;
@@ -938,10 +980,11 @@ export function mountOrUpdateGraph(container, graphData, existing, opts) {
         labelFontWeight: 600,
         labelFontFamily: "inherit",
         labelMaxWidth: function (d) {
+          if (labelPlacement === "bottom") return 128;
           return ((d.data && d.data.nodeR) || NODE_R_MIN) * 1.7;
         },
         labelWordWrap: true,
-        labelMaxLines: 2,
+        labelMaxLines: labelPlacement === "bottom" ? 3 : 2,
         shadowColor: "rgba(0,0,0,0.25)",
         shadowBlur: 6,
       },
@@ -1004,6 +1047,9 @@ export function mountOrUpdateGraph(container, graphData, existing, opts) {
   attachResizeRelayout(container, graph);
   graph.__novelHighlightDegree = highlightDegree;
   graph.__novelSelectMode = "custom";
+  graph.__novelGraphMode = mode;
+  graph.__novelGraphReadOnly = readOnly;
+  graph.__novelLabelPlacement = labelPlacement;
   graph
     .render()
     .then(function () {

@@ -42,6 +42,9 @@ import {
   pathsFromMvuDesign,
   buildPreviewHtml,
   buildPlaceholderPaths,
+  buildCastProfileBlock,
+  ensureCardProtagonistInCast,
+  describeMvuPathLayoutSpec,
   buildStatusBarSnippet,
   buildStatusBarRegex,
   normalizeDesign,
@@ -304,8 +307,55 @@ describe('statusBar core', function() {
     assert.match(describeFemaleOnlyRule(false), /性别不限/);
     assert.match(STATUS_BAR_CHAR_SCAN_PROMPT, /femaleOnlyRule/);
     assert.match(STATUS_BAR_MVU_DESIGN_PROMPT, /视觉排版：\{\{design\}\}/);
-    assert.match(STATUS_BAR_MVU_DESIGN_PROMPT, /配角摘要|完整同套|人人相等/);
-    assert.match(STATUS_BAR_MVU_DESIGN_PROMPT, /每一个人|人人/);
+    assert.match(STATUS_BAR_MVU_DESIGN_PROMPT, /\{\{pathLayoutSpec\}\}/);
+    assert.match(STATUS_BAR_MVU_DESIGN_PROMPT, /完整同套|人人/);
+    assert.match(STATUS_BAR_MVU_DESIGN_PROMPT, /每一个人|入选人物档案/);
+  });
+
+  it('ensureCardProtagonistInCast / buildCastProfileBlock / describeMvuPathLayoutSpec', function() {
+    var merged = ensureCardProtagonistInCast(
+      [{ name: '秦玥', selected: false, source: 'worldbook' }],
+      { name: '林雾', desc: '主角设定\n第二行' }
+    );
+    assert.equal(merged.length, 2);
+    assert.equal(merged[0].name, '林雾');
+    assert.equal(merged[0].selected, true);
+    assert.equal(merged[1].name, '秦玥');
+
+    merged[1].selected = true;
+    var wb = [{
+      comment: '[人物] 秦玥',
+      content: '世界书档案正文',
+      keys: [],
+    }];
+    var block = buildCastProfileBlock({
+      castMode: 'multi',
+      selected: merged,
+      card: { name: '林雾', desc: '卡侧描述', firstMes: '你好' },
+      worldbookEntries: wb,
+    });
+    assert.match(block, /【入选人物档案】/);
+    assert.match(block, /■ 林雾/);
+    assert.match(block, /■ 秦玥/);
+    assert.match(block, /描述：卡侧描述/);
+    assert.match(block, /开场白：你好/);
+    assert.match(block, /档案：世界书档案正文/);
+    assert.doesNotMatch(block, /主角|配角|当前卡主角|精简/);
+
+    var flags = defaultModuleFlags('multi_party', false);
+    var chars = [{ name: '林雾', selected: true }, { name: '秦玥', selected: true }];
+    var spec = describeMvuPathLayoutSpec({
+      castMode: 'multi',
+      mainName: '林雾',
+      moduleFlags: flags,
+      characters: chars,
+    });
+    assert.match(spec, /路径布局规格/);
+    assert.match(spec, /林雾/);
+    assert.match(spec, /秦玥/);
+    var linPaths = (spec.match(/NPC\.林雾\.[^、\s]+/g) || []).length;
+    var qinPaths = (spec.match(/NPC\.秦玥\.[^、\s]+/g) || []).length;
+    assert.ok(linPaths > 0 && linPaths === qinPaths, 'multi path examples symmetric');
   });
 
   it('normalizePathItem / pathsFromMvuDesign / castCharacter 勾选态', function() {
@@ -559,6 +609,11 @@ describe('statusBar wiring', function() {
     assert.match(panel, /data-sb-step="3"[^>]*>[\s\S]*?生成/);
     assert.match(panel, /data-sb-step="4"[^>]*>[\s\S]*?排版/);
     assert.match(panel, /sbCustomBox/);
+    assert.match(panel, /sbCustomBase/);
+    assert.doesNotMatch(readFileSync(join(root, 'src/components/StatusBarPanel.astro'), 'utf8'), /sbCustomMode/);
+    assert.match(panel, /buildCastProfileBlock/);
+    assert.match(panel, /ensureCardProtagonistInCast/);
+    assert.match(panel, /describeMvuPathLayoutSpec/);
     assert.match(panel, /sbBtnCustomGenerate/);
     assert.match(panel, /statusbar_custom_layout/);
     assert.match(panel, /STATUS_BAR_CUSTOM_LAYOUT_PROMPT/);

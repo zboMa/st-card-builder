@@ -51,6 +51,100 @@ export function collectPersonCharactersFromWorldbook(entries, opts) {
   return out;
 }
 
+/** @param {any[]} entries @param {string} name */
+export function findWorldbookPersonEntry(entries, name) {
+  var target = String(name || '').trim();
+  if (!target) return null;
+  for (var i = 0; i < (entries || []).length; i++) {
+    var e = entries[i];
+    if (!e || !isPersonWorldbookEntry(e)) continue;
+    if (personNameFromWorldbookEntry(e) === target) return e;
+  }
+  return null;
+}
+
+/**
+ * 多人：当前卡角色名始终在入选列表首位且 selected=true
+ * @param {import('./statusBarBuild.mjs').CastCharacter[]} characters
+ * @param {{ name?: string, desc?: string, firstMes?: string }} card
+ */
+export function ensureCardProtagonistInCast(characters, card) {
+  var list = Array.isArray(characters) ? characters.slice() : [];
+  var cardName = String((card && card.name) || '').trim();
+  if (!cardName) return list;
+  var identity = String((card && card.desc) || '').trim().split(/\n/)[0].slice(0, 120);
+  var idx = list.findIndex(function(c) { return c && c.name === cardName; });
+  if (idx >= 0) {
+    var cur = Object.assign({}, list[idx], { selected: true });
+    if (!cur.identity && identity) cur.identity = identity;
+    if (!cur.source) cur.source = 'card';
+    list.splice(idx, 1);
+    list.unshift(cur);
+    return list;
+  }
+  var added = normalizeCastCharacter({
+    name: cardName,
+    identity: identity || '（角色设定）',
+    selected: true,
+    source: 'card',
+  });
+  if (added) list.unshift(added);
+  return list;
+}
+
+/**
+ * MVU / 自定义排版：入选人物档案（平等格式，不分主配）
+ * @param {{ castMode?: string, selected?: import('./statusBarBuild.mjs').CastCharacter[], card?: { name?: string, desc?: string, firstMes?: string }, worldbookEntries?: any[] }} opts
+ */
+export function buildCastProfileBlock(opts) {
+  var o = opts || {};
+  var castMode = o.castMode === 'multi' ? 'multi' : 'single';
+  var card = o.card || {};
+  var cardName = String(card.name || '').trim();
+  var selected = Array.isArray(o.selected) ? o.selected.filter(function(c) {
+    return c && c.selected !== false && String(c.name || '').trim();
+  }) : [];
+  if (castMode === 'single' && cardName) {
+    selected = [normalizeCastCharacter({ name: cardName, selected: true })].filter(Boolean);
+  }
+  if (!selected.length) return '（暂无入选人物）';
+
+  var wbIndex = Object.create(null);
+  (o.worldbookEntries || []).forEach(function(e) {
+    if (!e || !isPersonWorldbookEntry(e)) return;
+    var n = personNameFromWorldbookEntry(e);
+    if (n && !wbIndex[n]) wbIndex[n] = e;
+  });
+
+  var lines = [
+    '【入选人物档案】',
+    '以下 ' + selected.length + ' 人为状态栏追踪对象；为每人生成相同 variables 字段集（path 仅姓名段不同，禁止因档案长短减字段）。',
+  ];
+
+  selected.forEach(function(c) {
+    var name = String(c.name || '').trim();
+    if (!name) return;
+    lines.push('');
+    lines.push('■ ' + name);
+    if (name === cardName && (card.desc || card.firstMes)) {
+      if (card.desc) lines.push('描述：' + String(card.desc));
+      if (card.firstMes) lines.push('开场白：' + String(card.firstMes));
+    } else {
+      var entry = wbIndex[name];
+      var content = entry ? String(entry.content || '').trim() : '';
+      if (content) {
+        lines.push('档案：' + content);
+      } else if (c.identity) {
+        lines.push('档案：' + String(c.identity));
+        lines.push('（无独立世界书人物条目；variables 字段仍须与同套 path 一致）');
+      } else {
+        lines.push('档案：（暂无正文；variables 字段仍须与同套 path 一致）');
+      }
+    }
+  });
+  return lines.join('\n');
+}
+
 export function pathsFromMvuDesign(design, opts) {
   var vars = design && Array.isArray(design.variables) ? design.variables : [];
   var o = opts || {};
@@ -499,6 +593,77 @@ export function buildPlaceholderPaths(opts) {
   return base;
 }
 
+/**
+ * MVU 设计提示词：与 buildPlaceholderPaths 同规则的 path 布局说明（非强制校验，供模型对齐）
+ * @param {{ castMode?: string, mainName?: string, moduleFlags?: Record<string, boolean>, characters?: import('./statusBarBuild.mjs').CastCharacter[] }} opts
+ * @returns {string}
+ */
+export function describeMvuPathLayoutSpec(opts) {
+  var o = opts || {};
+  var castMode = o.castMode === 'multi' ? 'multi' : 'single';
+  var main = String(o.mainName || '角色').trim() || '角色';
+  var chars = Array.isArray(o.characters) ? o.characters : [];
+  var names = castMode === 'multi'
+    ? chars.filter(function(c) { return c && c.selected !== false && String(c.name || '').trim(); })
+      .map(function(c) { return String(c.name).trim(); })
+    : [main];
+  if (castMode === 'multi' && !names.length) names = [main];
+
+  var paths = buildPlaceholderPaths({
+    castMode: castMode,
+    mainName: main,
+    moduleFlags: o.moduleFlags || {},
+    characters: castMode === 'multi' ? chars : [{ name: main, selected: true }],
+  });
+  if (!paths.length) return '（按开启模块生成 path；暂无占位）';
+
+  var globalPaths = paths.filter(function(p) { return !p.role; });
+  var lines = ['【路径布局规格】（与预览占位一致；variables 的 path 须按此展开）'];
+
+  if (castMode === 'single') {
+    lines.push('单人：全局字段用「世界.* / 任务.* / 事件.*」；角色字段用「角色.字段名」。');
+    if (globalPaths.length) {
+      lines.push('全局 path 示例：' + globalPaths.map(function(p) { return p.path; }).join('、'));
+    }
+    var rolePaths = paths.filter(function(p) { return p.role === main || (p.path || '').indexOf('角色.') === 0; });
+    if (rolePaths.length) {
+      lines.push('角色 path 示例：' + rolePaths.map(function(p) { return p.path; }).join('、'));
+    }
+    return lines.join('\n');
+  }
+
+  lines.push('多人：世界 / 任务 / 事件各一份（无 NPC 前缀）；每位【入选人物】各复制完整同套 NPC 字段，禁止主详配简。');
+  if (globalPaths.length) {
+    lines.push('全局（各 1 条）：' + globalPaths.map(function(p) { return p.path; }).join('、'));
+  }
+
+  var first = names[0];
+  var templatePaths = paths.filter(function(p) { return p.role === first; });
+  if (templatePaths.length) {
+    var suffixes = templatePaths.map(function(p) {
+      var parts = String(p.path || '').split('.');
+      return parts.length >= 3 ? parts.slice(2).join('.') : parts[parts.length - 1];
+    });
+    lines.push('每人须具备的字段后缀（共 ' + suffixes.length + ' 个，入选 ' + names.length + ' 人须人人齐全）：'
+      + suffixes.join('、'));
+    lines.push('path 模式：NPC.{姓名}.' + suffixes[0] + '（将 {姓名} 替换为入选名单中的每一个名字，不得遗漏）');
+  }
+
+  var exampleLines = [];
+  names.slice(0, Math.min(names.length, 4)).forEach(function(name) {
+    var list = paths.filter(function(p) { return p.role === name; }).map(function(p) { return p.path; });
+    if (list.length) exampleLines.push(name + ' → ' + list.join('、'));
+  });
+  if (exampleLines.length) {
+    lines.push('完整示例：\n' + exampleLines.join('\n'));
+  }
+  if (names.length > 4) {
+    lines.push('（另有 ' + (names.length - 4) + ' 人，须与上列同后缀集合完整复制）');
+  }
+  lines.push('输出前自检：除全局 path 外，每个入选姓名的 variables 条数相同、字段后缀集合一致。');
+  return lines.join('\n');
+}
+
 /** AI 路径规划（兼容旧调用） */
 export const STATUS_BAR_PATHS_PROMPT =
   '你是 SillyTavern 状态栏设计师。根据角色与配置，规划状态栏要展示的变量路径。\n'
@@ -531,20 +696,22 @@ export const STATUS_BAR_MVU_DESIGN_PROMPT =
   + '不要输出 zod/YAML/解释；本地会组装注入产物。\n\n'
   + '{{charBlock}}\n'
   + '人数模式：{{castMode}}\n'
-  + '默认高亮（可选）：{{mainName}}\n'
+  + '默认高亮（可选，仅影响排版展示）：{{mainName}}\n'
   + '入选人物：{{castList}}\n'
   + '视觉排版：{{design}}（变量先于排版生成，此处仅作参考）\n'
   + '开启模块（仅允许为这些项设计 variables）：\n{{moduleBlock}}\n'
   + '禁止模块（不得出现下列路径或同义字段）：\n{{forbiddenModuleBlock}}\n'
   + 'NSFW：{{nsfw}}\n'
-  + '额外要求：{{extra}}\n'
+  + '额外要求：{{extra}}\n\n'
+  + '{{pathLayoutSpec}}\n\n'
   + '\n【设计原则】\n'
   + '1. variables 只能覆盖「开启模块」；「禁止模块」中的路径一律不要输出；NSFW=否时禁止一切身体私密字段。\n'
-  + '2. 单人：路径可用「角色.字段」或「世界.字段」。\n'
-  + '3. 多人：世界/任务/事件各一份；入选名单中【每一个人】都必须用 NPC.姓名.字段 生成与开启模块一一对应的【完整同套】详字段；信息量人人相等，禁止只给主视角建详、禁止给其他人建精简/摘要块。\n'
+  + '2. 单人：路径可用「角色.字段」或「世界.字段」，须覆盖 path 布局规格中的示例集合。\n'
+  + '3. 多人：世界/任务/事件各一份；入选人物档案中【每一个人】都必须用 NPC.姓名.字段 生成与开启模块一一对应的【完整同套】详字段；信息量人人相等，禁止因默认高亮姓名而增减字段、禁止精简/摘要块；path 须严格按「路径布局规格」为每个姓名完整展开。\n'
   + '4. 变量须可被剧情更新；数量随开启模块与人数增加，勿为未开启模块凑字段。\n'
   + '5. type 仅 string/number/boolean/enum/array/object；enum 必给 options。\n'
   + '6. check 为数组，说明更新条件。\n'
+  + '7. 输出 JSON 前：多人模式下核对每位入选姓名的 path 数量与后缀集合是否一致；缺任一人的任一后缀须补全后再输出。\n'
   + '\n【输出】仅 JSON：\n'
   + '{ "summary":"摘要", "variables":[ { "path":"世界.当前时间", "type":"string", "default":"08:00", "description":"时间", "check":["推进时间时更新"] } ] }\n';
 

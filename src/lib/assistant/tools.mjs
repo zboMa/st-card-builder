@@ -39,7 +39,8 @@ export const ASSISTANT_TOOLS = [
   { name: 'get_novel_entity', title: '实体详情', kind: 'read', risk: 'none', summary: '单条知识库实体', argsHint: '{ target|{id|name|titleMatch} }' },
   { name: 'audit_worldbook', title: '世界书监测', kind: 'read', risk: 'none', summary: '世界书快速监测（本地规则）', argsHint: '{}' },
   { name: 'lint_for_sillytavern', title: 'ST 体检', kind: 'read', risk: 'none', summary: 'SillyTavern 常见问题检查', argsHint: '{}' },
-  { name: 'get_chat_feedback', title: '读取试聊反馈', kind: 'read', risk: 'none', summary: '读取试聊历史与暴露问题', argsHint: '{ maxMessages? }' },
+  { name: 'get_chat_feedback', title: '读取试聊反馈', kind: 'read', risk: 'none', summary: '读取试聊历史与暴露问题', argsHint: '{ messageIds?, maxMessages? }' },
+  { name: 'list_promotions', title: 'Promote 历史', kind: 'read', risk: 'none', summary: '读取近 N 条跨层 Promote 摘要', argsHint: '{ limit? }' },
   { name: 'list_cards', title: '卡片列表', kind: 'read', risk: 'none', summary: '多卡草稿列表（id/名/当前）', argsHint: '{}' },
   { name: 'get_engine_options', title: '读取引擎选项', kind: 'read', risk: 'none', summary: '读取 AI 引擎非密钥选项', argsHint: '{}' },
   { name: 'get_prompt_ids', title: '提示词配置列表', kind: 'read', risk: 'none', summary: '提示词配置 id 列表（只读）', argsHint: '{}' },
@@ -73,6 +74,7 @@ export const ASSISTANT_TOOLS = [
 
   // —— 导航 / 补丁 ——
   { name: 'open_module', title: '跳转模块', kind: 'nav', risk: 'none', summary: '跳转侧栏模块', argsHint: '{ view }' },
+  { name: 'open_entity_graph', title: '打开关系图谱', kind: 'nav', risk: 'none', summary: '打开卡 worldbook 关系一览（只读 G6）', argsHint: '{ scope?: "card" }' },
   { name: 'apply_patch_bundle', title: '应用补丁包', kind: 'write', risk: 'confirm', summary: '批量应用补丁包', argsHint: '{ ops, summary? }' },
   { name: 'undo_last_bundle', title: '撤销补丁', kind: 'write', risk: 'auto', summary: '撤销上一补丁包（含小说桶）', argsHint: '{}' },
   { name: 'suggest_fixes', title: '给出修复建议', kind: 'meta', risk: 'none', summary: '基于 lint/审计给出修复建议', argsHint: '{}' },
@@ -118,8 +120,12 @@ export const ASSISTANT_TOOLS = [
   { name: 'set_engine_options', title: '设置引擎选项', kind: 'write', risk: 'auto', summary: '设置骨架条数等非密钥引擎选项', argsHint: '{ skeletonCount?, tagContextChars? }' },
 
   // —— 试聊回流 ——
-  { name: 'analyze_chat_feedback', title: '分析试聊', kind: 'generate', risk: 'none', summary: 'LLM+卡内容分析试聊并产出结构化 fixes', argsHint: '{}' },
+  { name: 'analyze_chat_feedback', title: '分析试聊', kind: 'generate', risk: 'none', summary: 'LLM+卡内容分析试聊并产出结构化 fixes', argsHint: '{ messageIds? }' },
   { name: 'apply_chat_feedback_fixes', title: '应用试聊修改', kind: 'write', risk: 'confirm', summary: '确认后应用试聊建议修改', argsHint: '{ fixes }' },
+  { name: 'promote_chat_episode', title: '归档试聊到 Story', kind: 'write', risk: 'confirm', summary: '试聊 Episode Promote → 章草稿/plotLedger', argsHint: '{ novelId, messageIds?, chapterDraft?, plotLedger? }' },
+  { name: 'seed_story_graph_from_card', title: '卡种子→Story 图谱', kind: 'write', risk: 'confirm', summary: '从当前卡导入设定到 Story 图谱', argsHint: '{ novelId? }' },
+  { name: 'promote_story_graph_to_card', title: 'Story 图谱→卡', kind: 'write', risk: 'confirm', summary: 'Story Ref 节点同步到 worldbook', argsHint: '{ ids?, policy? }' },
+  { name: 'seed_story_from_novel_entities', title: '工坊开 Story', kind: 'write', risk: 'confirm', summary: '用工坊实体开新 Story', argsHint: '{ entityIds?, novelTitle? }' },
 ];
 
 /**

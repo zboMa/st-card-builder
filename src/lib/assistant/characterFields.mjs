@@ -50,8 +50,8 @@ export const CHARACTER_FIELD_ALIASES = {
 
 /** 注入助手系统提示的字段对照（单行） */
 export const CHARACTER_FIELD_HINT =
-  'charName=角色名；wbName=世界书名；charDesc=角色描述；firstMes=主开场白；'
-  + 'creatorNotes=作者注释（勿用 postHistoryInstructions/post_history_instructions）；'
+  'charName=场景标识（非唯一扮演对象）；wbName=世界书名；charDesc=场景契约（局面+RP 规则，非 NPC 传记）；'
+  + 'firstMes=场景开场；creatorNotes=作者注释（勿用 postHistoryInstructions）；'
   + 'tags=标签数组；altGreetings=备选开场白数组';
 
 /**

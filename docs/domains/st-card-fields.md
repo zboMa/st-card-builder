@@ -6,13 +6,25 @@
 
 | 规范名 | 含义 |
 |---|---|
-| `charName` | 角色名 |
+| `charName` | 角色名（ST `name`） |
 | `wbName` | 世界书名 |
-| `charDesc` | 角色描述 |
+| `charDesc` | 角色描述（ST `description`） |
 | `firstMes` | 主开场白 |
 | `creatorNotes` | **作者注释（Author's Note）** |
 | `tags` | 标签数组 |
 | `altGreetings` | 备选开场白数组 |
+
+### 多人卡原生语义（本项目 · ST 槽位不变）
+
+> 完整哲学：[`architecture/core-design-philosophy.md`](../architecture/core-design-philosophy.md) §2.1；写卡：[`guides/card-writing-guide.md`](../guides/card-writing-guide.md) §2.0。
+
+| 字段 | ST 常见理解 | **本项目默认** |
+|------|------------|--------------|
+| `charName` | 角色名 | **卡/场景标识** |
+| `charDesc` | 单一角色人设 | **场景帧 + RP 契约**；NPC 传记在 worldbook |
+| worldbook | 补充设定 | **卡司 + 世界 SoT**（含 `[小说人物]`） |
+
+助手 `characterFields.mjs` 字段名不变；**写入内容与引导**须符合上表。Promote（工坊/Story）**不**默认 patch `charName`/`charDesc`。
 
 别名映射与拒绝未知字段：见 `characterFields.mjs`（`normalizeCharacterFieldKey` / `normalizeCharacterPatch`）。
 

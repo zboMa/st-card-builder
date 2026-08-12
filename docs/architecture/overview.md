@@ -27,7 +27,7 @@
 
 - **无** Redux/Pinia：`window.__get*__` / `__set*__` + `CustomEvent`
 - 常用事件：`card-builder-data-changed`、`card-draft-changed`、`nsfw-config-changed`、`app-view-changed`
-- localStorage：草稿、AI 配置、提示词覆写、助手会话
+- localStorage：草稿、AI 配置、提示词覆写、助手会话、**试聊 transcript**（`st_v3_chat_playground_session:*`，**不上云**）
 - IndexedDB：`st-card-builder`（小说桶、头像 blob）；云端经 `/api/data` REST（可选登录）
 
 ## 模块地图（摘要）
@@ -46,7 +46,8 @@ src/lib/
 ├── statusBar/        状态栏面板 boot（`panelBoot.mjs`）
 ├── layout/           壳层 chrome + GSAP boot
 ├── aiConfig/         AI 配置面板 boot + AiEngineModal boot
-├── chatRuntime/      试聊与 ST 运行时对齐（含 `playgroundBoot.mjs`）
+├── chatRuntime/      试聊与 ST 运行时对齐（含 `playgroundBoot.mjs`；D15/D12 待：`episodeStore`）
+├── promotionLog.mjs  （D16 待建）跨层 Promote L0 append-only
 ├── mvu/              MVU 相关（`variableCardPanel.mjs` 变量节点 UI boot）
 ├── aiTaskCenter.mjs  全局 AI 任务队列
 ├── actionEngine/     全站操作注册 / 策略互斥 / apply
@@ -63,6 +64,7 @@ server/src/
 
 子系统深读：
 
+- **核心设计思想**（制卡 / 工坊 / 试聊 / 创作如何融合；**§9.1 PR 排期**）→ [`core-design-philosophy.md`](./core-design-philosophy.md)
 - 操作引擎 → [`action-engine.md`](./action-engine.md)
 - 卡侧 → [`card-builder.md`](./card-builder.md)
 - 小说工坊 → [`novel-workshop.md`](./novel-workshop.md)、[`novel-analysis.md`](./novel-analysis.md)

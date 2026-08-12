@@ -16,6 +16,7 @@
         <strong id="chatConfigDrawerTitle">试聊配置</strong>
         <button type="button" class="btn-icon chat-config-drawer__close" data-chat-config-close aria-label="关闭配置">×</button>
       </div>
+      <p class="ui-hint chat-scene-id-hint" style="margin:0 0 8px;padding:0 16px;font-size:0.78rem;">场景标识（charName）≠ 单人扮演；NPC 来自 worldbook</p>
       <div class="chat-config-drawer__ops">
         <span class="chat-indicator" id="chatWbIndicator" title="世界书触发状态">WB 0</span>
         <span class="chat-indicator" id="chatTokenIndicator" title="估算 Token 数">~0 tok</span>
@@ -25,6 +26,8 @@
         </label>
         <button id="btnChatReset" class="btn btn-sm btn-ghost btn-chat-ctrl" type="button">重置</button>
         <button id="btnChatRegenerate" class="btn btn-sm btn-ghost btn-chat-ctrl" type="button">重新生成</button>
+        <button id="btnChatSelect" class="btn btn-sm btn-ghost btn-chat-ctrl" type="button">选段…</button>
+        <button id="btnChatPromote" class="btn btn-sm btn-ghost btn-chat-ctrl" type="button">归档到 Story</button>
       </div>
       <div class="chat-controls">
         <div class="chat-settings-bar">
@@ -72,6 +75,14 @@
                 <span class="setting-label" title="替换 {{user}}">用户名</span>
                 <input type="text" id="chatUserName" class="token-number-input chat-user-name-input" value="User" title="用于 {{user}}" />
               </div>
+            </div>
+            <div class="chat-setting-item">
+              <div class="setting-label-row">
+                <span class="setting-label" title="仅影响 Continue/重新生成软提示">焦点 NPC</span>
+              </div>
+              <select id="chatFocusNpc" class="ui-select" style="width:100%;" aria-label="焦点 NPC">
+                <option value="">无焦点（默认）</option>
+              </select>
             </div>
           </div>
         </div>

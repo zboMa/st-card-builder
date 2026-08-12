@@ -1,6 +1,8 @@
 /**
  * 绑卡制作向导（轻量 tip，可关闭）
  */
+import { computeCardProgress } from './cardProgress.mjs';
+
 var DISMISS_KEY = 'st_v3_card_journey_dismiss_v1';
 
 function dismissedMap() {
@@ -30,35 +32,20 @@ export function isCardJourneyDismissed(cardId) {
 export async function detectCardJourneySteps(cardId, state, opts) {
   opts = opts || {};
   if (!cardId || isCardJourneyDismissed(cardId)) return [];
-  var steps = [];
-  var name = String((state && state.charName) || '').trim();
-  var wb = (state && state.worldbookEntries) || [];
-  if (!name) {
-    steps.push({ id: 'character', label: '补全角色设定', hash: 'character' });
-  }
-  if (!wb.length) {
-    steps.push({ id: 'worldbook', label: '添加世界书', hash: 'worldbook' });
-  }
-  if (!opts.novelTouched) {
-    steps.push({ id: 'novel', label: '绑定小说工坊', hash: 'novel-source' });
-  }
-  if (!opts.hasStory) {
-    steps.push({ id: 'story', label: '去 Story Studio 写作', hash: 'story-studio' });
-  }
-  steps.push({ id: 'publish', label: '导出检查 / 发布', hash: 'card-manager' });
-  return steps;
+  var progress = computeCardProgress(state, opts);
+  return (progress.suggestions || []).slice(0, 5).map(function(s) {
+    return { id: s.id, label: s.label, hash: s.hash || 'character' };
+  });
 }
 
 export function renderJourneyTipHtml(steps, cardId) {
   if (!steps || !steps.length) return '';
-  var links = steps.map(function(s) {
-    return '<button type="button" class="btn-inline card-journey-link" data-journey-hash="'
-      + s.hash + '">' + s.label + '</button>';
-  }).join(' · ');
-  return '<div class="account-session-tip card-journey-tip" data-card-id="' + cardId + '">'
-    + '制作路线：' + links
+  var first = steps[0];
+  return '<p class="ui-hint card-journey-tip" data-card-id="' + cardId + '">'
+    + '建议下一步：<button type="button" class="btn-inline card-journey-link" data-journey-hash="'
+    + first.hash + '">' + first.label + '</button>'
     + ' · <button type="button" class="btn-inline card-journey-dismiss">不再提示</button>'
-    + '</div>';
+    + '</p>';
 }
 
 export function bindCardJourneyTip(container, cardId) {

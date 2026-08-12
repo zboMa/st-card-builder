@@ -37,7 +37,7 @@ function sidebarViewIndex(src, viewId) {
 /** 侧栏最终菜单 → data-view 映射（顺序即契约） */
 const EXPECTED_MENU = {
   '角色卡制作': ['card-manager', 'adult-config', 'character', 'greetings', 'worldbook', 'statusbar', 'regex', 'tavern-scripts'],
-  '小说': [
+  '小说工坊': [
     'novel-source',
     'novel-chapters',
     'novel-analyze',
@@ -66,7 +66,7 @@ describe('sidebar navigation contract', function() {
     });
     assert.match(src, /data-view=\{item\.view\}/);
     assert.match(src, /角色卡制作/);
-    assert.match(src, /小说/);
+    assert.match(src, /小说工坊/);
     assert.match(src, /小说创作/);
     assert.doesNotMatch(src, /title:\s*'完成制作'/);
     assert.match(src, /配置/);
@@ -357,7 +357,7 @@ describe('sidebar navigation contract', function() {
   it('小说菜单顺序为 资料→拆章→分析→设定→开场白→人物列表→世界书条目→文风', function() {
     const src = readFileSync(join(root, 'src/components/AppSidebar.astro'), 'utf8');
     let last = -1;
-    EXPECTED_MENU['小说'].forEach(function(viewId) {
+    EXPECTED_MENU['小说工坊'].forEach(function(viewId) {
       const idx = sidebarViewIndex(src, viewId);
       assert.ok(idx > last, 'novel order broken at ' + viewId);
       last = idx;

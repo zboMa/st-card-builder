@@ -1,6 +1,6 @@
 # 小说工坊
 
-> SoT：本文（状态/面板）+ [`novel-analysis.md`](./novel-analysis.md)（分析管道设计）。
+> SoT：本文（状态/面板）+ [`novel-analysis.md`](./novel-analysis.md)（分析管道设计）。侧栏分组名 **小说工坊**，与 **小说创作**（Story Studio）并列；代码目录 `src/lib/novel/`。
 
 ## Boot
 

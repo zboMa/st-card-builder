@@ -4,12 +4,14 @@
  */
 import { createWorldbookShared } from './worldbookShared.mjs';
 import { attachWorldbookBind } from './worldbookBind.mjs';
+import { bindWorldbookRelationGraphButton } from './wbRelationGraph.mjs';
 
 export function registerWorldbook(ctx) {
   var panel = {};
   var s = createWorldbookShared(ctx);
   s.bindPanel(panel);
   attachWorldbookBind(ctx, s, panel);
+  bindWorldbookRelationGraphButton(ctx);
   ctx.panels.worldbook = {
     renderEntriesList: s.renderEntriesList,
     renderSearchResults: s.renderWbSearchResults,

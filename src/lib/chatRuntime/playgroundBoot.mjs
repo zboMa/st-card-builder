@@ -13,6 +13,18 @@ import {
   prepareChatCompletionMessages,
   CONTEXT_BUDGET,
 } from '../assistant/contextManager.mjs';
+import {
+  loadChatSession,
+  saveChatSession,
+  genChatMessageId,
+  emptyChatSession,
+  resolveSessionMessages,
+  CHAT_ANALYZE_DEFAULT,
+} from './chatSession.mjs';
+import { openChatSelectionModal, openChatPromoteModal } from './chatModals.mjs';
+import { promoteChatEpisodeToStory } from './chatPromote.mjs';
+import { showConfirmDialog } from '../ui/confirmDialog.mjs';
+import { collectWorldbookPersonNames } from '../novel/sync.mjs';
 
 export function initChatPlayground() {
   var chatConversation = document.getElementById('chatConversation');
@@ -37,6 +49,7 @@ export function initChatPlayground() {
   var chatWbTriggerList = document.getElementById('chatWbTriggerList');
   var chatScanDepth = document.getElementById('chatScanDepth');
   var chatUserName = document.getElementById('chatUserName');
+  var chatFocusNpc = document.getElementById('chatFocusNpc');
 
   function setChatConfigOpen(open) {
     if (!chatConfigDrawer || !btnChatConfig) return;
@@ -81,6 +94,88 @@ export function initChatPlayground() {
   var chatHistory = [];
   var chatStarted = false;
   var chatBusy = false;
+  var chatSession = emptyChatSession();
+
+  function getDraftId() {
+    if (typeof window.__getCurrentDraftId__ === 'function') {
+      var id = window.__getCurrentDraftId__();
+      if (id) return String(id);
+    }
+    try {
+      return String(localStorage.getItem('st_v3_builder_current_id') || '').trim();
+    } catch (e) {
+      return '';
+    }
+  }
+
+  function notifyChatSessionChanged() {
+    try {
+      window.dispatchEvent(new CustomEvent('chat-playground-session-changed', {
+        detail: { draftId: getDraftId(), updatedAt: chatSession.updatedAt },
+      }));
+    } catch (e) { /* ignore */ }
+  }
+
+  function persistChatSession() {
+    var draftId = getDraftId();
+    if (!draftId) return;
+    chatSession.messages = chatHistory.map(function(m) {
+      return {
+        id: m.id,
+        role: m.role,
+        content: m.content,
+        at: m.at || 0,
+      };
+    });
+    chatSession.updatedAt = Date.now();
+    saveChatSession(draftId, chatSession);
+    notifyChatSessionChanged();
+  }
+
+  function loadSessionForCurrentCard() {
+    var draftId = getDraftId();
+    if (!draftId) {
+      chatSession = emptyChatSession();
+      chatHistory = [];
+      return;
+    }
+    chatSession = loadChatSession(draftId);
+    chatHistory = (chatSession.messages || []).map(function(m) {
+      return { id: m.id, role: m.role, content: m.content, at: m.at };
+    });
+  }
+
+  function pushChatMessage(role, content) {
+    chatHistory.push({
+      id: genChatMessageId(),
+      role: role,
+      content: content,
+      at: Date.now(),
+    });
+    persistChatSession();
+  }
+
+  function getMvuSnapshot() {
+    try {
+      if (window.__getMvuRuntimeSnapshot__) return window.__getMvuRuntimeSnapshot__();
+      if (window.__getStatusBarRuntime__) return window.__getStatusBarRuntime__();
+    } catch (e) { /* ignore */ }
+    return null;
+  }
+
+  loadSessionForCurrentCard();
+  refreshFocusNpcOptions();
+  if (chatFocusNpc) {
+    chatFocusNpc.addEventListener('change', function() {
+      chatSession.focusNpc = getFocusNpc();
+      persistChatSession();
+    });
+  }
+  window.addEventListener('card-draft-changed', function() {
+    loadSessionForCurrentCard();
+    refreshFocusNpcOptions();
+  });
+  window.addEventListener('worldbook-changed', refreshFocusNpcOptions);
 
   
   
@@ -183,6 +278,26 @@ export function initChatPlayground() {
     return v || 'User';
   }
 
+  function refreshFocusNpcOptions() {
+    if (!chatFocusNpc) return;
+    var prev = chatSession.focusNpc || '';
+    var names = collectWorldbookPersonNames(getWorldbookEntries());
+    var html = '<option value="">无焦点（默认）</option>';
+    names.forEach(function(n) {
+      html += '<option value="' + n.replace(/"/g, '&quot;') + '"' + (n === prev ? ' selected' : '') + '>' + n + '</option>';
+    });
+    chatFocusNpc.innerHTML = html;
+    if (prev && names.indexOf(prev) < 0) {
+      chatSession.focusNpc = '';
+      persistChatSession();
+    }
+  }
+
+  function getFocusNpc() {
+    if (chatFocusNpc && chatFocusNpc.value) return String(chatFocusNpc.value);
+    return chatSession.focusNpc || '';
+  }
+
   function getRpCoreText(char) {
     var name = (char && char.name) || 'Character';
     if (window.__promptStore__ && typeof window.__promptStore__.applyTemplate === 'function') {
@@ -194,11 +309,10 @@ export function initChatPlayground() {
       } catch (e) { /* fall through */ }
     }
     return (
-      'Write ' + name + '\'s next reply in a fictional roleplay chat between ' + name + ' and {{user}}.\n'
-      + 'Write 1 reply only in internet RP style, italicize actions, and avoid quotation marks. '
-      + 'Use markdown. Be proactive, creative, and drive the plot and conversation forward. '
-      + 'Write at least 1 paragraph, up to 4. Always stay in character and avoid repetition.\n'
-      + 'IMPORTANT: 每次回复至少写3-5段，包含详细的动作描写、心理活动、环境描述和对话。不要只回复一句话。'
+      'Continue the fictional roleplay scene following the RP contract in the character description.\n'
+      + 'Speak for any relevant NPCs from the worldbook; do not collapse into a single-character monologue.\n'
+      + 'Write in internet RP style with markdown; italicize actions; be proactive and drive the scene.\n'
+      + '【中文】每次回复 3～5 段，含动作、心理、环境与对白；{{char}} 是场景标识，不是唯一角色。\n'
     );
   }
 
@@ -234,6 +348,7 @@ export function initChatPlayground() {
       scanDepth: getScanDepth(),
       userName: getUserName(),
       rpCoreText: getRpCoreText(char),
+      focusNpc: getFocusNpc(),
     });
   }
 
@@ -584,7 +699,7 @@ export function initChatPlayground() {
     var userLabel = getUserName();
 
     if (userText) {
-      chatHistory.push({ role: 'user', content: userText });
+      pushChatMessage('user', userText);
       renderMessage('user', userLabel, userText);
     }
 
@@ -650,7 +765,7 @@ export function initChatPlayground() {
       if (aiText) {
         var clean = aiText.replace(/\n\n⚠️ \[.*?\]/g, '');
         // history：prompt 侧（未做 display/markdownOnly 替换），供后续扫描
-        chatHistory.push({ role: 'assistant', content: clean });
+        pushChatMessage('assistant', clean);
         var displayText = applyDisplayRegex(clean, getRegexScripts());
         updateLastMessage(msgDiv, displayText, true);
         var afterBuilt = buildTrialMessages();
@@ -684,12 +799,13 @@ export function initChatPlayground() {
     }
     chatStarted = true;
     chatHistory = [];
+    chatSession = emptyChatSession();
     chatMessages.innerHTML = '';
     btnChatStart.style.display = 'none';
     chatInputRow.style.display = 'block';
 
     var fm = char.firstMes || '（' + char.name + '出现在你面前）';
-    chatHistory.push({ role: 'assistant', content: fm });
+    pushChatMessage('assistant', fm);
     var displayFm = applyDisplayRegex(fm, getRegexScripts());
     renderMessage('assistant', char.name, displayFm);
     var startBuilt = buildTrialMessages();
@@ -708,10 +824,20 @@ export function initChatPlayground() {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); btnChatSend.click(); }
   });
 
-  btnChatReset.addEventListener('click', function() {
+  btnChatReset.addEventListener('click', async function() {
     if (chatBusy) return;
+    var ok = await showConfirmDialog({
+      icon: '🔄',
+      title: '重置试聊？',
+      message: '将清空试聊记录与选段，且不可恢复。',
+      okText: '重置',
+      danger: true,
+    });
+    if (!ok) return;
     chatHistory = [];
+    chatSession = emptyChatSession();
     chatStarted = false;
+    persistChatSession();
     btnChatStart.style.display = 'block';
     chatInputRow.style.display = 'none';
     chatWbTriggerBar.style.display = 'none';
@@ -726,22 +852,91 @@ export function initChatPlayground() {
     if (chatBusy || chatHistory.length === 0) return;
     if (chatHistory[chatHistory.length - 1].role === 'assistant') {
       chatHistory.pop();
+      persistChatSession();
       var last = chatMessages.querySelector('.chat-msg:last-child');
       if (last) last.remove();
     }
     await chat(null);
   });
 
+  async function runChatSelectionFlow() {
+    var ids = await openChatSelectionModal({
+      messages: chatHistory,
+      selectionIds: (chatSession.selection && chatSession.selection.messageIds) || [],
+    });
+    if (!ids || !ids.length) return null;
+    chatSession.selection = { messageIds: ids, updatedAt: Date.now() };
+    persistChatSession();
+    return ids;
+  }
+
+  async function runChatPromoteFlow() {
+    var draftId = getDraftId();
+    if (!draftId || !chatHistory.length) return;
+    var messageIds = (chatSession.selection && chatSession.selection.messageIds) || [];
+    if (!messageIds.length) {
+      messageIds = await runChatSelectionFlow();
+      if (!messageIds || !messageIds.length) return;
+    }
+    var form = await openChatPromoteModal({ draftId: draftId, messageIds: messageIds });
+    if (!form) return;
+    var char = getCurrentCharData();
+    var result = await promoteChatEpisodeToStory({
+      draftId: draftId,
+      novelId: form.novelId,
+      messageIds: form.messageIds,
+      allMessages: chatHistory,
+      userName: getUserName(),
+      sceneName: char.name || '场景',
+      chapterDraft: form.chapterDraft,
+      plotLedger: form.plotLedger,
+      mvuSnapshot: form.plotLedger && form.plotLedger.includeMvu ? getMvuSnapshot() : null,
+    });
+    if (result && result.ok && window.__appFeedback__) {
+      window.__appFeedback__('试聊已归档到 Story', 'success');
+    } else if (result && result.error && window.__appFeedback__) {
+      window.__appFeedback__(result.error, 'error');
+    }
+  }
+
+  var btnChatSelect = document.getElementById('btnChatSelect');
+  if (btnChatSelect) {
+    btnChatSelect.addEventListener('click', function() { runChatSelectionFlow(); });
+  }
+  var btnChatPromote = document.getElementById('btnChatPromote');
+  if (btnChatPromote) {
+    btnChatPromote.addEventListener('click', function() { runChatPromoteFlow(); });
+  }
+
   // 右栏助手：试聊回流只读桥接
   window.__getChatPlaygroundState__ = function(opts) {
-    var max = (opts && opts.maxMessages) || 40;
+    var o = opts || {};
+    var max = o.maxMessages || 40;
+    var ids = Array.isArray(o.messageIds) ? o.messageIds : null;
+    var list = ids && ids.length
+      ? resolveSessionMessages(chatSession, ids)
+      : chatHistory.slice(-max);
+    if (!ids && o.analyzeDefault !== false && !(chatSession.selection && chatSession.selection.messageIds.length)) {
+      list = chatHistory.slice(-CHAT_ANALYZE_DEFAULT);
+    } else if (!ids && chatSession.selection && chatSession.selection.messageIds.length) {
+      list = resolveSessionMessages(chatSession, chatSession.selection.messageIds);
+    }
     return {
       started: chatStarted,
       busy: chatBusy,
       messageCount: chatHistory.length,
-      messages: chatHistory.slice(-max).map(function(m) {
-        return { role: m.role, content: String(m.content || '').slice(0, 2000) };
+      selectionCount: (chatSession.selection && chatSession.selection.messageIds) ? chatSession.selection.messageIds.length : 0,
+      analyzeScope: list.length,
+      messages: list.map(function(m) {
+        return {
+          id: m.id,
+          role: m.role,
+          content: String(m.content || '').slice(0, 2000),
+        };
       }),
     };
   };
+  window.__getChatMvuSnapshot__ = getMvuSnapshot;
+  window.__openChatSelectionModal__ = runChatSelectionFlow;
+  window.__promoteChatEpisode__ = runChatPromoteFlow;
 }

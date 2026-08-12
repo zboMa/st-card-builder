@@ -62,6 +62,7 @@ export function buildTrialChatMessages(opts) {
     scanDepth: o.scanDepth,
     userName: o.userName,
     rpCoreText: o.rpCoreText != null ? String(o.rpCoreText) : '',
+    focusNpc: o.focusNpc != null ? String(o.focusNpc) : '',
   });
 
   return {

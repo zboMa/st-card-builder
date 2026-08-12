@@ -44,6 +44,8 @@ import {
 import { inferMvuCandidatesFromCard, corruptionProgressGap } from '../mvu/inferFromCard.mjs';
 import { STATUS_BAR_EXT_KEY } from '../statusBar.mjs';
 import { engineTryAllowed } from '../actionEngine/helpers.mjs';
+import { buildLocationBlock } from './locationBlock.mjs';
+import { computeCardProgress } from '../card-builder/cardProgress.mjs';
 
 export function initAssistantPanelShellMode() {
 function initAssistantModeSwitch() {
@@ -1089,6 +1091,7 @@ export function initAssistantPanelMain() {
     }
 
     var bridge = {
+      getCurrentDraftId: currentCardId,
       getCharacter: getCharacter,
       setCharacter: setCharacter,
       getWorldbook: getWorldbook,
@@ -1291,8 +1294,89 @@ export function initAssistantPanelMain() {
         if (window.__getChatPlaygroundState__) return window.__getChatPlaygroundState__(opts || {});
         return { messages: [], started: false, note: '试聊面板未暴露状态' };
       },
-      analyzeChatFeedback: async function() {
-        var feedback = bridge.getChatFeedback({});
+      listPromotions: async function(opts) {
+        var mod = await import('../promotionLog.mjs');
+        var rows = await mod.listPromotions(currentCardId(), opts || {});
+        return { promotions: rows };
+      },
+      promoteChatEpisode: async function(args) {
+        var a = args || {};
+        var draftId = currentCardId();
+        if (!draftId) throw new Error('无当前卡');
+        if (window.__promoteChatEpisode__) {
+          await window.__promoteChatEpisode__();
+          return { ok: true, via: 'ui' };
+        }
+        var fb = bridge.getChatFeedback({ messageIds: a.messageIds });
+        var mod = await import('../chatRuntime/chatPromote.mjs');
+        return mod.promoteChatEpisodeToStory({
+          draftId: draftId,
+          novelId: a.novelId,
+          messageIds: a.messageIds || (fb.messages || []).map(function(m) { return m.id; }),
+          allMessages: fb.messages || [],
+          userName: a.userName || '用户',
+          sceneName: a.sceneName || getCharacter().charName || '场景',
+          chapterDraft: a.chapterDraft,
+          plotLedger: a.plotLedger,
+          mvuSnapshot: a.mvuSnapshot,
+        });
+      },
+      seedStoryGraphFromCard: async function(args) {
+        var a = args || {};
+        var draftId = currentCardId();
+        if (!draftId) throw new Error('无当前卡');
+        var mod = await import('../storyStudio/storyCardBridge.mjs');
+        return mod.seedStoryGraphFromCard(draftId, a.novelId, {
+          charName: getCharacter().charName,
+          charDesc: getCharacter().charDesc,
+          worldbookEntries: getWorldbook(),
+        });
+      },
+      promoteStoryGraphToCard: async function(args) {
+        var a = args || {};
+        var draftId = currentCardId();
+        if (!draftId) throw new Error('无当前卡');
+        var novelId = a.novelId;
+        if (!novelId) {
+          var idb = await import('../storyStudio/idb.mjs');
+          novelId = await idb.loadActiveNovelId(draftId);
+        }
+        if (!novelId) throw new Error('缺少 novelId');
+        var mod = await import('../storyStudio/storyCardBridge.mjs');
+        return mod.promoteStoryGraphToCard(draftId, novelId, {
+          ids: a.ids,
+          policy: a.policy,
+          getWorldbook: getWorldbook,
+          setWorldbook: setWorldbook,
+        });
+      },
+      seedStoryFromNovelEntities: async function(args) {
+        var a = args || {};
+        var draftId = currentCardId();
+        if (!draftId) throw new Error('无当前卡');
+        if (!window.__novelWorkshopBridge__ || !window.__novelWorkshopBridge__.listEntities) {
+          throw new Error('小说工坊未就绪');
+        }
+        var ents = window.__novelWorkshopBridge__.listEntities(a) || [];
+        if (a.entityIds && a.entityIds.length) {
+          var want = {};
+          a.entityIds.forEach(function(id) { want[String(id)] = true; });
+          ents = ents.filter(function(e) { return e && want[e.id]; });
+        }
+        var rels = window.__novelWorkshopBridge__.listRelations
+          ? (window.__novelWorkshopBridge__.listRelations() || [])
+          : [];
+        var mod = await import('../storyStudio/storyCardBridge.mjs');
+        return mod.seedStoryFromNovelEntities(draftId, ents, rels, {
+          novelTitle: a.novelTitle,
+        });
+      },
+      analyzeChatFeedback: async function(opts) {
+        var o = opts || {};
+        var feedback = bridge.getChatFeedback({
+          messageIds: o.messageIds,
+          maxMessages: o.maxMessages,
+        });
         var char = getCharacter();
         var wb = getWorldbook().slice(0, 40).map(function(e, i) {
           var ai = toAiJsonEntry(e);
@@ -1315,7 +1399,9 @@ export function initAssistantPanelMain() {
             altCount: (char.altGreetings || []).length,
           },
           worldbook: wb,
-          chat: (feedback.messages || []).slice(-16),
+          chat: feedback.messages || [],
+          analyzeScope: (feedback.messages || []).length,
+          selectionCount: feedback.selectionCount || 0,
         });
         var raw = await callChat([
           { role: 'system', content: sys + '\n只输出一个 JSON 对象。' },
@@ -1699,6 +1785,19 @@ export function initAssistantPanelMain() {
       if (!relevant && inputEl) relevant = isCatalogRelevantText(String(inputEl.value || ''));
       var overview = relevant ? catalogOverviewText : catalogIndexText;
       var guide = promptText('assistantBuildGuide') || '';
+      var viewId = String((location.hash || '').replace(/^#/, '') || 'character');
+      var cardProgress = computeCardProgress({
+        draftId: currentCardId(),
+        charName: val('charName'),
+        charDesc: val('charDesc'),
+        worldbookEntries: getWorldbook(),
+      }, {});
+      var locationBlock = buildLocationBlock({
+        viewId: viewId,
+        draftId: currentCardId(),
+        charName: val('charName'),
+        cardProgress: cardProgress,
+      });
       var base = promptText('assistantSystem', {
         toolList: toolListText,
         characterFieldHint: CHARACTER_FIELD_HINT,
@@ -1709,6 +1808,9 @@ export function initAssistantPanelMain() {
         + (overview ? '\n\n' + overview : '')
         + (guide ? '\n\n【建卡引导】\n' + guide : '')
       );
+      base += '\n\n' + locationBlock;
+      var locRules = promptText('assistantLocationRules') || '';
+      if (locRules) base += '\n\n' + locRules;
       if (userExtra) base += '\n\n' + userExtra;
       return base;
     }

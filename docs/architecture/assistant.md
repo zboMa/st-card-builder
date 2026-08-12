@@ -1,14 +1,66 @@
 # AI 助手
 
-> SoT：本文 + `src/lib/assistant/*`。字段写入规则见 [`../domains/st-card-fields.md`](../domains/st-card-fields.md)。
+> SoT：本文 + `src/lib/assistant/*`。字段写入规则见 [`../domains/st-card-fields.md`](../domains/st-card-fields.md)。设计哲学见 [`core-design-philosophy.md`](./core-design-philosophy.md) **§6.5、§6.3.6–§6.3.8.1**。
 
 ## 位置
 
 右栏 `AssistantPanel.astro`（DOM/样式壳）+ `src/lib/assistant/panelBoot.mjs`（ReAct 循环、工具执行、会话）；与卡/世界书/MVU/小说/导出共用状态。
 
+## 设计哲学：多人卡原生（须遵守）
+
+SoT 论述见 [`core-design-philosophy.md`](./core-design-philosophy.md) **§2.1**；写卡指南 **§2.0**。助手与 AI 引擎须默认：
+
+| 原则 | 助手行为 |
+|------|----------|
+| 卡 = 场景 + 卡司 + 世界 | 建卡引导（`assistantBuildGuide`）优先 worldbook 承载 NPC，charDesc 写局面/规则 |
+| 无「卡即唯一扮演者」 | **禁止**建议把多 NPC 小传 merge 进 `charDesc`；人物用 `create/update_worldbook_entry` |
+| Promote 边界 | `sync_novel_entities` / Story→卡 只写 worldbook；不改 charName/charDesc（除非用户明确改角色设定） |
+| 单人 = 退化 | 卡司 N=1 时描述可略详，仍推荐世界书存详情 |
+| **卡进度** | 「缺什么 / 下一步」读 **§6.1 `cardProgress`**；**metric 只叙述数量，不要求达标人数** |
+
+`{{characterFieldHint}}` / `{{buildGuide}}` / 进度相关注入须与上表一致（**代码对齐见 §11 D3、D10**）。
+
+## 全局助手（§6.5 · 须遵守）
+
+**不绑定侧栏 view**；**不**按 view 切 persona 或硬过滤工具。
+
+| 机制 | 说明 |
+|------|------|
+| 工具 | 全量 `ASSISTANT_TOOLS` + `risk.mjs` |
+| **`{{locationBlock}}`** | 侧栏 view、当前卡、可选 Story novel、试聊条数/选段数；**不**默认灌 transcript |
+| 倾向 | 意图对应当前页 → 优先相关工具；跨模块允许 |
+| 防改错 | **target 不清 → 只读定位 + 问用户**；Story 页改卡 **不要求**强制口播提醒 |
+| 试聊 Tab | **游玩**；改卡只在 **助手 Tab**（含试聊回流 §6.3.6） |
+
+**送模顺序**：`assistantSystem` → `locationBlock`（§6.5.5）→ `buildGuide`（+ 可选 cardProgress）→ `toolList` → `catalogOverview`。
+
+**location 规则**（`promptCanon.assistantLocationRules`，D13）：当前页优先；跨模块允许；target 不清先问；Story 页改卡不强制口播。
+
+**试聊回流**：§6.3.6–§6.3.7；fixes 允许/禁止表；apply 前 executor 校验。
+
+**试聊归档 Story**：§6.3.8–§6.3.8.1 `promote_chat_episode`；写 Story 章草稿（`sourceMeta`）/ `plotLedger`（`LEDGER_STATUSES` + 可选 `mvuSnapshot`）；append **D16** Promotion L0；与回流 **分线**（不写卡）；共用选段弹窗。Story 字段见 [`story-studio.md`](./story-studio.md)。
+
+**Story↔卡 / 工坊→Story 桥**（§6.2.2 · D17，待实现）：`promote_story_graph_to_card`、`seed_story_graph_from_card`、`seed_story_from_novel_entities` — 均 confirm + L0 + `sourceRef`（D16）。
+
+**Promotion 历史**（§3.8.1 · D16）：`list_promotions` 只读；**不提供**回滚。
+
+**实现差距**：D13；D10；D15；D12；**D16**（L0 + sourceRef）；**D17**（三向桥）；PR 顺序见 core-design **§9.1**。
+
+## 试聊 vs 试聊回流
+
+| | 试聊 Tab | 试聊回流（助手） |
+|---|----------|------------------|
+| 作用 | RP 验卡 | 读 transcript → 诊断 → **用户择 fixes** → 改卡 |
+| 存储 | `st_v3_chat_playground_session:{draftId}` **仅本地** | session + `get_chat_feedback` / `analyze_chat_feedback` |
+| 选段 | **弹窗**（一行一段，单行预览）；结果跨 Tab 保留 | analyze 传 `messageIds` |
+| 应用 | — | 对话指定编号 → `apply_chat_feedback_fixes`（分项 confirm） |
+| 禁止 | — | 本局剧情/MVU 终值进卡；与 Story 归档（D12）分线 |
+
+用户也可 **不用回流**，直接口述让助手改卡。
+
 ## 流水线
 
-1. 用户输入 → 系统提示（含工具说明、字段 hint）  
+1. 用户输入 → 系统提示（含工具说明、字段 hint、locationBlock）  
 2. 模型默认**自然语言**回复；仅需操作卡面时输出 tool JSON → `reactParse.mjs`（只用于执行）  
 3. `risk.mjs` 分级 → `executor.mjs` 执行工具  
 4. 小改自动应用；大改预览确认；`session.mjs` 存会话与撤销快照（**按卡隔离**，切卡重载对应会话；随卡 bundle 上云）
@@ -43,9 +95,10 @@
 
 ## 会话存储（按卡）
 
-- 会话 `st_v3_builder_assistant_session:{draftId}`、快照 `st_v3_builder_assistant_snapshots:{draftId}`；无卡回退全局键。
+- 助手：`st_v3_builder_assistant_session:{draftId}`、快照 `st_v3_builder_assistant_snapshots:{draftId}`；无卡回退全局键。
+- 试聊（D15）：`st_v3_chat_playground_session:{draftId}` — **仅 localStorage，不上云**。
 - 切卡（`card-draft-changed`）重载对应会话；任务进行中对切卡已硬禁（Action Engine），监听再做 `busy` 兜底。
-- 云 bundle `assistant` 字段随卡上云/水合；删卡本地+云端级联清理。详见 [`../systems/cloud-sync.md`](../systems/cloud-sync.md)。
+- 云 bundle `assistant` 字段随卡上云/水合；**不含**试聊 transcript。详见 [`../systems/cloud-sync.md`](../systems/cloud-sync.md)。
 
 ## 上下文预算
 
@@ -86,3 +139,4 @@
 
 - 卡侧桥接：[`card-builder.md`](./card-builder.md)
 - 小说桥接：[`novel-workshop.md`](./novel-workshop.md)
+- 试聊 runtime：[`chat-runtime.md`](./chat-runtime.md)

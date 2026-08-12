@@ -1120,7 +1120,7 @@ describe('graphMerge + graphViz', function() {
       graphNodeId,
       applyUnifiedShardResult,
     } = await import('../src/lib/novel/graphMerge.mjs');
-    const { graphToG6Data, seedNodePositions, filterKnowledgeGraphByTypes } = await import('../src/lib/novel/graphViz.mjs');
+    const { graphToG6Data, seedNodePositions, filterKnowledgeGraphByTypes, graphLabelShort } = await import('../src/lib/novel/graphViz.mjs');
     const { formatPriorRelationsRef, buildSkeletonPriorBlock } = await import('../src/lib/novel/analyzePipeline.mjs');
 
     assert.equal(graphNodeId('person', '秦月'), 'person:秦月');
@@ -1154,6 +1154,14 @@ describe('graphMerge + graphViz', function() {
     assert.equal(personsOnly.nodes.length, 1);
     assert.equal(personsOnly.edges.length, 0);
     assert.ok(data.nodes[0].data.label);
+    assert.equal(graphLabelShort('[师妹] 苏灵儿'), '苏灵儿'.slice(0, 4));
+    assert.equal(
+      graphToG6Data({
+        nodes: [{ id: 'n1', label: '[师妹] 苏灵儿', type: 'person' }],
+        edges: [],
+      }).nodes[0].data.attrs.fullLabel,
+      '[师妹] 苏灵儿',
+    );
     // 孤立点预散开：外环坐标应与有边节点不同
     data.nodes.push({
       id: 'concept:孤岛',

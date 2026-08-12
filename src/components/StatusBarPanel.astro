@@ -124,18 +124,8 @@
           <p class="sb-tip">每套 = 完整视觉方案；按人数过滤。选「自定义」可按描述 AI 生成排版。</p>
           <div id="sbLayoutGrid" class="sb-layout-grid"></div>
           <div id="sbCustomBox" class="sb-custom-box" hidden>
-            <div class="sb-seg sb-custom-mode" role="radiogroup" aria-label="自定义模式">
-              <label class="sb-seg-item">
-                <input type="radio" name="sbCustomMode" value="base" checked />
-                <span>基于现有主题</span>
-              </label>
-              <label class="sb-seg-item">
-                <input type="radio" name="sbCustomMode" value="scratch" />
-                <span>从零描述</span>
-              </label>
-            </div>
             <div id="sbCustomBaseRow" class="sb-field sb-field-tight">
-              <label class="sb-label" for="sbCustomBase">基准主题</label>
+              <label class="sb-label" for="sbCustomBase">基准主题 <span class="sb-label-opt">（留空则从零描述，不参考现有 CSS）</span></label>
               <select id="sbCustomBase"></select>
             </div>
             <div class="sb-field sb-field-tight">
@@ -443,7 +433,7 @@
     border-radius: var(--radius-md);
     background: oklch(72% 0.08 305 / 0.06);
   }
-  .sb-custom-mode { margin-bottom: var(--space-2); }
+  .statusbar-panel .sb-label-opt { font-weight: 400; opacity: 0.72; font-size: 0.92em; }
 
   .sb-module-grid {
     display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 4px;

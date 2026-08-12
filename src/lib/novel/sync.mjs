@@ -13,6 +13,7 @@ import {
   entryExportComment,
 } from '../worldbook/worldbookEntryBridge.mjs';
 import { WB_OWNER, novelKindFromEntityCategory } from '../worldbook/worldbookRegistry.mjs';
+import { mergeProjectionOntoEntry, projectionMetaForPromote } from '../projectionMeta.mjs';
 export var SYNC_STATUSES = ['unsynced', 'synced', 'dirty'];
 export var CONFLICT_POLICIES = ['overwrite', 'merge', 'skip'];
 /** 文风同步到主世界书时的固定条目标题 */
@@ -33,6 +34,22 @@ export function isPersonWorldbookEntry(entry) {
   if (entry.kind === 'outline_person' && String(entry.owner || '') === WB_OWNER.user) return true;
   return isPersonWorldbookComment(entryExportComment(entry));
 }
+
+/** 群像试聊：worldbook 人物名 + keys（§5.3.2） */
+export function collectWorldbookPersonNames(entries) {
+  var names = [];
+  (entries || []).forEach(function(e) {
+    if (!e || !isPersonWorldbookEntry(e)) return;
+    var n = personNameFromWorldbookEntry(e);
+    if (n && names.indexOf(n) < 0) names.push(n);
+    (e.keys || []).forEach(function(k) {
+      var key = String(k || '').trim();
+      if (key && names.indexOf(key) < 0) names.push(key);
+    });
+  });
+  return names;
+}
+
 /** 从人物世界书 comment 解析显示名 */
 export function personNameFromWorldbookComment(comment) {
   var c = String(comment || '').trim();
@@ -160,7 +177,9 @@ export function applyDraftsToWorldbook(currentWb, drafts, policy) {
     var idx = findNovelSlotIndex(wb, patch);
 
     if (idx < 0) {
-      wb = upsertWorldbookEntry(wb, patch, {
+      var newPatch = Object.assign({}, patch);
+      if (d.sourceRef) mergeProjectionOntoEntry(newPatch, projectionMetaForPromote(d.sourceRef));
+      wb = upsertWorldbookEntry(wb, newPatch, {
         owner: patch.owner,
         ownerSlot: patch.ownerSlot,
         id: patch.id,
@@ -173,7 +192,9 @@ export function applyDraftsToWorldbook(currentWb, drafts, policy) {
       return;
     }
     if (p === 'overwrite') {
-      wb = upsertWorldbookEntry(wb, patch, {
+      var overwritePatch = Object.assign({}, patch);
+      if (d.sourceRef) mergeProjectionOntoEntry(overwritePatch, projectionMetaForPromote(d.sourceRef));
+      wb = upsertWorldbookEntry(wb, overwritePatch, {
         owner: patch.owner,
         ownerSlot: patch.ownerSlot,
         id: wb[idx].id,
@@ -182,6 +203,7 @@ export function applyDraftsToWorldbook(currentWb, drafts, policy) {
       return;
     }
     var old = wb[idx];
+    var entryId = old.id;
     var keys = (old.keys || []).slice();
     (patch.keys || []).forEach(function(k) {
       if (k && keys.indexOf(k) < 0) keys.push(k);
@@ -203,8 +225,13 @@ export function applyDraftsToWorldbook(currentWb, drafts, policy) {
     wb = upsertWorldbookEntry(wb, Object.assign({}, patch, { content: content, keys: keys }), {
       owner: patch.owner,
       ownerSlot: patch.ownerSlot,
-      id: old.id,
+      id: entryId,
     });
+    var ni = wb.findIndex(function(e) { return e && e.id === entryId; });
+    if (ni >= 0) {
+      wb[ni].projectionDirty = true;
+      if (!wb[ni].linkStatus) wb[ni].linkStatus = old.linkStatus || 'linked';
+    }
     updated++;
   });
 
@@ -270,6 +297,7 @@ export function entityPersonToWorldbookDraft(e) {
   if (e.attrs && e.attrs.profile) {
     var d = profileToWorldbookDraft(e.attrs.profile, e.name);
     d.hasProvenance = hasProv;
+    if (e.id) d.sourceRef = { type: 'entity', id: String(e.id) };
     return d;
   }
   var body = String(e.content || e.summary || '').trim();
@@ -285,6 +313,7 @@ export function entityPersonToWorldbookDraft(e) {
       : [e.name].concat(e.aliases || []).slice(0, 12),
     strategy: 'selective',
     hasProvenance: hasProv,
+    sourceRef: e.id ? { type: 'entity', id: String(e.id) } : undefined,
   };
 }
 

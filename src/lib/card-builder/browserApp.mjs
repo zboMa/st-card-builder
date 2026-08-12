@@ -17,6 +17,7 @@ import { attachBootAiConfig } from './bootAiConfig.mjs';
 import { bootMainActionEngine } from '../actionEngine/bootMain.mjs';
 import { engineRefresh } from '../actionEngine/helpers.mjs';
 import { installTextPreviewGlobal } from '../textPreviewModal.mjs';
+import { installCardJourneyRefresh } from './cardJourneyBoot.mjs';
 
 /**
  * 启动制卡主侧（须在 DOM 就绪后调用）
@@ -96,6 +97,7 @@ export function bootCardBuilder() {
 
   loadAIConfig();
   engineRefresh();
+  installCardJourneyRefresh(ctx);
 
   window.addEventListener('st-idb-ready', async function() {
     var ensureFn = window.__ensureIdbReady__ || function() { return Promise.resolve(); };

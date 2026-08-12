@@ -49,6 +49,7 @@ const TOOL_MIN_ARGS = {
   expand_worldbook_entry: { target: { index: 0 } },
   fix_from_lint: { apply: false },
   open_module: { view: 'worldbook' },
+  open_entity_graph: {},
   apply_patch_bundle: { ops: [{ op: 'get_character_fields', args: {} }] },
   undo_last_bundle: {},
   suggest_fixes: {},
@@ -88,7 +89,12 @@ const TOOL_MIN_ARGS = {
   patch_mvu_node: { path: 'stat.hp', patch: { label: '生命' } },
   set_engine_options: { skeletonCount: 8 },
   analyze_chat_feedback: {},
-  apply_chat_feedback_fixes: { fixes: [{ tool: 'get_character_fields', args: {} }] },
+  apply_chat_feedback_fixes: { fixes: [{ tool: 'update_character_fields', args: { fields: { charDesc: '试聊反馈补句' } } }] },
+  list_promotions: {},
+  promote_chat_episode: { novelId: 'novel_test', messageIds: ['m1'] },
+  seed_story_graph_from_card: {},
+  promote_story_graph_to_card: { novelId: 'novel_test' },
+  seed_story_from_novel_entities: {},
 };
 
 /** 空参应明确失败（非 read/none 类误操作） */
@@ -295,8 +301,14 @@ function createFullMockBridge(seed) {
       return { ok: true, issues: [] };
     },
     getChatFeedback: function() {
-      return { messages: [{ role: 'user', content: 'hi' }], started: true };
+      return { messages: [{ id: 'm1', role: 'user', content: 'hi' }], started: true };
     },
+    getCurrentDraftId: function() { return 'draft_a'; },
+    listPromotions: async function() { return { promotions: [] }; },
+    promoteChatEpisode: async function() { return { ok: true, episodeId: 'ep1' }; },
+    seedStoryGraphFromCard: async function() { return { ok: true, novelId: 'novel_test', nodeCount: 2 }; },
+    promoteStoryGraphToCard: async function() { return { ok: true, added: 1, updated: 0 }; },
+    seedStoryFromNovelEntities: async function() { return { ok: true, novelId: 'novel_new', nodeCount: 2 }; },
     analyzeChatFeedback: async function() {
       return { source: 'llm', issues: [], fixes: [] };
     },

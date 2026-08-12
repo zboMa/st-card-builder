@@ -17,7 +17,7 @@
 - 独立「角色卡管理」模块：预览卡片网格（默认 4 列，窄屏自适应；封面/卡名/更新时间/当前标记）、新建/切换/删除/复制/重命名；右上角新建+导入；**每张卡底部**可导出该卡 JSON/PNG（ST 格式，不含小说工坊）；浏览器本地保存。头像高清图（长边 ≤2048px）与封面缩略图（≤512px）存 **IndexedDB**，草稿 JSON 仅存 `avatarInIdb` 标记；小说工坊大文本同样走 IndexedDB 分桶。
 - 「角色设定」支持角色标签（紧凑 chip +「AI 生成」/ 输入 / 添加）；对接 ST `tags` / `data.tags`；AI 生成合并进现有标签，上下文按「AI 配置 → AI 引擎」字数上限截断（默认 12k）。
 - 「世界书条目」：标题行右上小号横排（单条生成 / 智能整理 / 补全触发词 / 新建）；下方仅搜索筛选 + 条目列表；搜索结果为单列紧凑命中行（整行可点跳转展开）；AI 配置为真弹窗；列表为折叠预览（标题 + 常驻/可选彩色 tag + 右侧图标操作），点编辑/新建走居中弹窗。
-- 小说工坊：原始资料 → 拆章 → 角色设定/开场白 → **小说分析**（RAG + 实体抽取 + G6 关系图谱）→ **人物列表 / 世界书条目**（结果展示，扫描/抽取为降级）→ 文风蒸馏；助手问答可混合检索原文注入。详见 [`docs/architecture/novel-analysis.md`](docs/architecture/novel-analysis.md)。
+- 侧栏 **小说工坊**（与 **小说创作** 对应）：原始资料 → 拆章 → 角色设定/开场白 → **小说分析**（RAG + 实体抽取 + G6 关系图谱）→ **人物列表 / 世界书条目**（结果展示，扫描/抽取为降级）→ 文风蒸馏；助手问答可混合检索原文注入。详见 [`docs/architecture/novel-analysis.md`](docs/architecture/novel-analysis.md)。
 - **成人配置**（侧栏）：NSFW / NTL / 恶堕唯一 UI 入口；规则见 [`docs/domains/nsfw-ntl.md`](docs/domains/nsfw-ntl.md)。
 - **账户与同步**：邮箱邀请码登录（可关 Discord UI）；云同步与密钥口令加密；见 [`docs/systems/auth.md`](docs/systems/auth.md)、[`docs/systems/cloud-sync.md`](docs/systems/cloud-sync.md)。
 

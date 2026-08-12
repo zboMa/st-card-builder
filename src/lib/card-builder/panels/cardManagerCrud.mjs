@@ -317,6 +317,15 @@ export function attachCardManagerCrud(ctx, s, panel) {
     import('../../sync/cascade.mjs').then(function(mod) {
       return mod.cascadeDeleteCardDocs(id, s.getAllDrafts(), { deleteStories: deleteStories });
     }).catch(function(e) { console.warn('[cloud] cascade delete', e); });
+    import('../../promotionLog.mjs').then(function(mod) {
+      return mod.deletePromotionLogForCard(id);
+    }).catch(function(e) { console.warn('[promotionLog] cascade delete', e); });
+    import('../../chatRuntime/episodeStore.mjs').then(function(mod) {
+      return mod.deleteEpisodesForCard(id);
+    }).catch(function(e) { console.warn('[chatEpisode] cascade delete', e); });
+    import('../../chatRuntime/chatSession.mjs').then(function(mod) {
+      mod.deleteChatSession(id);
+    }).catch(function(e) { console.warn('[chatSession] cascade delete', e); });
 
     // Navigate: if deleted was current, load next or create blank
     if (id === currentId) {

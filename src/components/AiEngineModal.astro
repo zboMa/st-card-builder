@@ -24,17 +24,17 @@
       <div class="ai-engine-section">
         <div class="ai-engine-section__label">阶段提示词</div>
         <div class="form-group ai-engine-stage">
-          <label class="ai-stage-label ai-stage-label--char" for="aiPrompt">[1] 角色设定</label>
-          <textarea id="aiPrompt" placeholder="例如：额外要求——她是底层黑客，性格冷淡但护短..." rows="2"></textarea>
+          <label class="ai-stage-label ai-stage-label--char" for="aiPrompt">[1] 场景契约</label>
+          <textarea id="aiPrompt" placeholder="例如：雨夜酒馆群像 RP；叙事视角、多 NPC 调度约定、禁止 OOC…" rows="2"></textarea>
         </div>
         <div class="form-group ai-engine-stage">
-          <label class="ai-stage-label ai-stage-label--wb" for="wbPrompt">[2] 世界书方向</label>
-          <p class="ai-engine-field-hint ai-engine-field-hint--tight">写清本轮世界书的<strong>工作重心</strong>（人物 / 地点 / 势力 / 器物…）与<strong>自定义侧重</strong>；与上方世界观预设叠加，冲突时以本框为准。</p>
-          <textarea id="wbPrompt" placeholder="例如：优先写人物关系网与两处关键场所；自定义：少写宏大史诗，多写可触发的日常器物与规矩。" rows="2"></textarea>
+          <label class="ai-stage-label ai-stage-label--wb" for="wbPrompt">[2] 卡司骨架（worldbook）</label>
+          <p class="ai-engine-field-hint ai-engine-field-hint--tight">写清本轮 worldbook 的工作重心：人物 / 地点 / 势力…（NPC 传记进 worldbook，不进 charDesc）。</p>
+          <textarea id="wbPrompt" placeholder="例如：优先写 3 名 NPC 与两处关键场所；自定义：少写宏大史诗，多写可触发的日常器物与规矩。" rows="2"></textarea>
         </div>
         <div class="form-group ai-engine-stage">
-          <label class="ai-stage-label ai-stage-label--greeting" for="greetingPrompt">[3] 开场白</label>
-          <textarea id="greetingPrompt" placeholder="例如：雨夜巷口初遇，用第二人称、带环境描写与角色小动作..." rows="2"></textarea>
+          <label class="ai-stage-label ai-stage-label--greeting" for="greetingPrompt">[3] 场景开场</label>
+          <textarea id="greetingPrompt" placeholder="例如：雨夜巷口初遇，可多角色、环境、局面共用…" rows="2"></textarea>
           <p class="ai-engine-field-hint">留空则按角色与世界书自动构思。</p>
         </div>
       </div>

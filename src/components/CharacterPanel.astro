@@ -14,8 +14,8 @@ import PreviewPanel from './PreviewPanel.astro';
       </div>
     </div>
     <p class="ui-hint character-config-lead">
-      本页只编辑<strong>主角</strong>卡面字段（名、描述、标签、版本等），不会写入世界书人物档案。
-      世界观预设、载体框架、口味、姿势语言、情趣话风、NTL、恶堕请到「世界与限定」配置——那些内容不进主角 Description。
+      本页编辑<strong>场景标识 + 场景契约</strong>（`charName` / `charDesc`）及开场；<strong>NPC 人设写世界书</strong>，勿把全体人物传记堆进描述。
+      世界观预设、口味、NTL 等请到「世界与限定」。
       <button type="button" id="btnGotoWorldLimitsFromCharacter" class="ai-engine-link-btn">去「世界与限定」配置</button>
     </p>
   </div>
@@ -41,8 +41,8 @@ import PreviewPanel from './PreviewPanel.astro';
     <div class="character-layout__main">
       <div class="grid-2">
         <div class="form-group">
-          <label>角色名 (Name)</label>
-          <input type="text" id="charName" placeholder="角色名称" />
+          <label>场景标识 (charName)</label>
+          <input type="text" id="charName" placeholder="作品名 / 地点 / 群像名（非唯一 AI 扮演对象）" />
         </div>
         <div class="form-group">
           <label>世界书名 (Worldbook)</label>
@@ -94,10 +94,10 @@ import PreviewPanel from './PreviewPanel.astro';
 
   <div class="form-group">
     <div class="ui-label-row">
-      <label>角色描述 (Description)</label>
-      <span id="charDescTok" class="tok-text" title="角色描述 token" aria-live="polite"></span>
+      <label>场景契约 (charDesc)</label>
+      <span id="charDescTok" class="tok-text" title="场景契约 token" aria-live="polite"></span>
     </div>
-    <textarea id="charDesc" style="min-height: 130px;" placeholder="主角的外貌、性格、背景故事（请勿写入 NSFW / 恶堕分期）..."></textarea>
+    <textarea id="charDesc" style="min-height: 130px;" placeholder="局面、叙事视角、多 NPC 调度约定、禁止 OOC；NPC 传记写 worldbook，勿堆在此处…"></textarea>
   </div>
 
   <hr class="divider" />

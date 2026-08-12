@@ -22,6 +22,9 @@ import {
     describeEnabledModules,
     describeForbiddenModules,
     describeFemaleOnlyRule,
+    describeMvuPathLayoutSpec,
+    ensureCardProtagonistInCast,
+    buildCastProfileBlock,
     normalizeCastCharacter,
     collectPersonCharactersFromWorldbook,
     pathsFromMvuDesign,
@@ -129,16 +132,10 @@ export function initStatusBarPanel() {
       refreshPreview();
     }
 
-    function getCustomMode() {
-      var checked = document.querySelector('input[name="sbCustomMode"]:checked');
-      return checked && checked.value === 'scratch' ? 'scratch' : 'base';
-    }
-
     function syncCustomUi() {
       if (!customBox) return;
       var isCustom = isCustomDesign(currentDesignId());
       customBox.hidden = !isCustom;
-      if (customBaseRow) customBaseRow.hidden = getCustomMode() !== 'base';
       if (customPromptEl && state.customPrompt) customPromptEl.value = state.customPrompt;
       if (btnCustomRegenerate) {
         btnCustomRegenerate.hidden = !(isCustom && state.customBodyHtml);
@@ -148,8 +145,13 @@ export function initStatusBarPanel() {
 
     function populateCustomBaseSelect() {
       if (!customBaseSel) return;
-      var cur = state.customBaseDesignId || defaultDesignId(state.castMode);
+      var cur = state.customBaseDesignId != null ? String(state.customBaseDesignId) : '';
       customBaseSel.innerHTML = '';
+      var emptyOpt = document.createElement('option');
+      emptyOpt.value = '';
+      emptyOpt.textContent = '不参考（从零描述）';
+      if (!cur) emptyOpt.selected = true;
+      customBaseSel.appendChild(emptyOpt);
       layoutsForCast(state.castMode).forEach(function(l) {
         if (isCustomDesign(l.id)) return;
         var opt = document.createElement('option');
@@ -197,9 +199,10 @@ export function initStatusBarPanel() {
       if (state.castMode === 'single') {
         state.mainName = currentCharName();
         state.characters = state.mainName
-          ? [normalizeCastCharacter({ name: state.mainName, identity: '当前卡主角', selected: true })]
+          ? [normalizeCastCharacter({ name: state.mainName, selected: true })]
           : [];
       } else {
+        ensureMultiCastIncludesCard();
         state.mainName = (mainSel.value || '').trim() || state.mainName;
       }
       state.moduleFlags = resolveModuleFlags(state.presetId, state.moduleFlags, state.nsfw);
@@ -321,13 +324,16 @@ export function initStatusBarPanel() {
           var card = document.createElement('label');
           card.className = 'sb-char-card';
           var checked = c.selected !== false;
+          var isCardRole = c.name === currentCharName();
           var idText = c.identity ? String(c.identity) : '';
-          card.innerHTML = '<input type="checkbox" data-ci="' + idx + '"' + (checked ? ' checked' : '') + ' />'
+          card.innerHTML = '<input type="checkbox" data-ci="' + idx + '"' + (checked ? ' checked' : '')
+            + (isCardRole ? ' disabled' : '') + ' />'
             + '<span class="sb-char-card-body"><strong>' + escHtml(c.name) + '</strong>'
             + (idText
               ? '<small title="' + escHtml(idText) + '">' + escHtml(idText) + '</small>'
               : '')
             + '</span>';
+          if (isCardRole) card.title = '当前卡角色，始终在入选列表';
           charList.appendChild(card);
         });
       }
@@ -337,9 +343,41 @@ export function initStatusBarPanel() {
     function collectSelectedCharacters() {
       if (state.castMode === 'single') {
         var n = currentCharName();
-        return n ? [normalizeCastCharacter({ name: n, identity: '当前卡主角', selected: true })] : [];
+        return n ? [normalizeCastCharacter({ name: n, selected: true })] : [];
       }
+      ensureMultiCastIncludesCard();
       return state.characters.filter(function(c) { return c && c.selected !== false; });
+    }
+
+    function getCardProfile() {
+      return {
+        name: currentCharName(),
+        desc: (document.getElementById('charDesc') || {}).value || '',
+        firstMes: (document.getElementById('firstMes') || {}).value || '',
+      };
+    }
+
+    function getWorldbookEntries() {
+      return window.__getWorldbookEntries__ ? window.__getWorldbookEntries__() : [];
+    }
+
+    function buildCastBlockForPrompt(selected) {
+      return buildCastProfileBlock({
+        castMode: state.castMode,
+        selected: selected,
+        card: getCardProfile(),
+        worldbookEntries: getWorldbookEntries(),
+      });
+    }
+
+    function ensureMultiCastIncludesCard() {
+      if (state.castMode !== 'multi') return;
+      var card = getCardProfile();
+      if (!card.name) return;
+      state.characters = ensureCardProtagonistInCast(state.characters, card);
+      if (!state.mainName || !state.characters.some(function(c) { return c.name === state.mainName; })) {
+        state.mainName = card.name;
+      }
     }
 
     /** 设计态占位路径（按当前模块） */
@@ -451,14 +489,6 @@ export function initStatusBarPanel() {
       });
     }
 
-    function buildCharBlock() {
-      var name = currentCharName();
-      var desc = (document.getElementById('charDesc') || {}).value || '';
-      var first = (document.getElementById('firstMes') || {}).value || '';
-      return '角色名：' + name + '\n描述：' + String(desc)
-        + '\n开场白：' + String(first);
-    }
-
     function buildWbBlock() {
       var wb = window.__getWorldbookEntries__ ? window.__getWorldbookEntries__() : [];
       var persons = (wb || []).filter(function(e) { return isPersonWorldbookEntry(e); });
@@ -493,6 +523,7 @@ export function initStatusBarPanel() {
           state.mainName = (firstSel && firstSel.name) || state.characters[0].name;
         }
       }
+      ensureMultiCastIncludesCard();
     }
 
     async function runAiTask(type, title, userMsg, sysPrompt) {
@@ -542,6 +573,7 @@ export function initStatusBarPanel() {
       if (!state.mainName || !state.characters.some(function(c) { return c.name === state.mainName && c.selected !== false; })) {
         state.mainName = state.characters[0].name;
       }
+      ensureMultiCastIncludesCard();
       renderCharList();
       saveDesignExt();
       return state.characters;
@@ -557,11 +589,18 @@ export function initStatusBarPanel() {
       var ps = window.__promptStore__;
       var tpl = (ps && ps.get('statusBarMvuDesign')) || STATUS_BAR_MVU_DESIGN_PROMPT;
       var moduleOpts = { castMode: state.castMode, nsfwEnabled: state.nsfw };
+      var pathLayoutSpec = describeMvuPathLayoutSpec({
+        castMode: state.castMode,
+        mainName: state.mainName || currentCharName() || '主角',
+        moduleFlags: state.moduleFlags,
+        characters: chars,
+      });
       var vars = {
-        charBlock: buildCharBlock(),
+        charBlock: buildCastBlockForPrompt(chars),
         castMode: state.castMode === 'multi' ? '多人' : '单人',
         mainName: state.mainName || currentCharName() || '主角',
-        castList: chars.map(function(c) { return c.name + (c.identity ? '(' + c.identity + ')' : ''); }).join('、') || '（仅主角）',
+        castList: chars.map(function(c) { return c.name + (c.identity ? '(' + c.identity + ')' : ''); }).join('、')
+          + (state.castMode === 'multi' ? '（与入选人物档案一一对应；variables 须人人同套）' : ''),
         design: '待定（下一步选择排版）',
         layout: '待定',
         style: '待定',
@@ -569,8 +608,12 @@ export function initStatusBarPanel() {
         forbiddenModuleBlock: describeForbiddenModules(state.moduleFlags, moduleOpts),
         nsfw: state.nsfw ? '是' : '否',
         extra: state.extra || '无',
+        pathLayoutSpec: pathLayoutSpec,
       };
-      var userMessage = '请输出完整 MVU 变量设计 JSON（将覆盖当前设计）。仅包含开启模块对应 variables，禁止输出未开启/禁止模块中的路径。';
+      var userMessage = state.castMode === 'multi'
+        ? '请输出完整 MVU 变量设计 JSON（将覆盖当前设计）。仅包含开启模块对应 variables；禁止未开启/禁止模块路径。'
+          + '入选 ' + chars.length + ' 人须人人同套：除世界/任务/事件外，每位 NPC 的 path 后缀集合必须与「路径布局规格」一致、条数相同。'
+        : '请输出完整 MVU 变量设计 JSON（将覆盖当前设计）。仅包含开启模块对应 variables，禁止输出未开启/禁止模块中的路径；path 须覆盖路径布局规格。';
       return {
         ps: ps,
         tpl: tpl,
@@ -590,15 +633,14 @@ export function initStatusBarPanel() {
       if (!prompt) throw new Error('请输入排版描述');
       state.customPrompt = prompt;
 
-      var mode = getCustomMode();
-      var baseId = (customBaseSel && customBaseSel.value) || defaultDesignId(state.castMode);
-      state.customBaseDesignId = mode === 'base' ? baseId : '';
+      var baseId = String((customBaseSel && customBaseSel.value) || '').trim();
+      state.customBaseDesignId = baseId;
 
       var paths = state.paths.length ? state.paths : previewPaths();
       if (!paths.length) throw new Error('请先在「生成」步骤完成变量设计');
       var chars = collectSelectedCharacters();
       var baseBlock = '';
-      if (mode === 'base' && baseId && !isCustomDesign(baseId)) {
+      if (baseId && !isCustomDesign(baseId)) {
         var baseDesign = getDesignById(baseId);
         var cssSample = designCss(baseId);
         baseBlock = '【基准主题】' + baseDesign.label + ' / ' + (baseDesign.blurb || '')
@@ -616,7 +658,7 @@ export function initStatusBarPanel() {
       var ps = window.__promptStore__;
       var tpl = (ps && ps.get('statusBarCustomLayout')) || STATUS_BAR_CUSTOM_LAYOUT_PROMPT;
       var vars = {
-        charBlock: buildCharBlock(),
+        charBlock: buildCastBlockForPrompt(chars),
         castMode: state.castMode === 'multi' ? '多人' : '单人',
         mainName: state.mainName || currentCharName() || '主角',
         castList: chars.map(function(c) { return c.name; }).join('、') || '（仅主角）',
@@ -637,7 +679,7 @@ export function initStatusBarPanel() {
         userMessage: userMessage,
         metaLines: [
           '排版模式：' + (isCustomDesign(currentDesignId()) ? '自定义' : getDesignMeta(currentDesignId(), state.castMode).label),
-          '基准：' + (mode === 'base' && baseId ? getDesignById(baseId).label : '从零'),
+          '基准：' + (baseId ? getDesignById(baseId).label : '从零'),
           '变量路径：' + paths.length + ' 条',
         ],
       };
@@ -810,6 +852,11 @@ export function initStatusBarPanel() {
       var inp = e.target;
       if (!inp || !inp.hasAttribute('data-ci')) return;
       var c = state.characters[Number(inp.getAttribute('data-ci'))];
+      if (c && c.name === currentCharName()) {
+        inp.checked = true;
+        c.selected = true;
+        return;
+      }
       if (c) c.selected = !!inp.checked;
       syncMainSelect();
       saveDesignExt();
@@ -859,14 +906,9 @@ export function initStatusBarPanel() {
     });
     document.getElementById('sbBtnBack4').addEventListener('click', function() { setStage(3); });
 
-    document.querySelectorAll('input[name="sbCustomMode"]').forEach(function(r) {
-      r.addEventListener('change', function() {
-        syncCustomUi();
-      });
-    });
     if (customBaseSel) {
       customBaseSel.addEventListener('change', function() {
-        state.customBaseDesignId = customBaseSel.value;
+        state.customBaseDesignId = String(customBaseSel.value || '').trim();
         saveDesignExt();
       });
     }
