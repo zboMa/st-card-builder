@@ -10,7 +10,7 @@ export function createLedgerItem(partial) {
   var p = partial || {};
   var status = String(p.status || 'open');
   if (LEDGER_STATUSES.indexOf(status) < 0) status = 'open';
-  return {
+  var item = {
     id: p.id || genStoryId('pl'),
     title: String(p.title != null ? p.title : '未命名伏笔'),
     note: String(p.note != null ? p.note : ''),
@@ -21,6 +21,9 @@ export function createLedgerItem(partial) {
     createdAt: typeof p.createdAt === 'number' ? p.createdAt : Date.now(),
     updatedAt: typeof p.updatedAt === 'number' ? p.updatedAt : Date.now(),
   };
+  if (p.mvuSnapshot && typeof p.mvuSnapshot === 'object') item.mvuSnapshot = p.mvuSnapshot;
+  if (p.source && typeof p.source === 'object') item.source = p.source;
+  return item;
 }
 
 export function normalizeLedgerItem(raw) {

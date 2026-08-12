@@ -14,6 +14,7 @@ import {
   loadActiveNovelId,
   saveActiveNovelId,
 } from './idb.mjs';
+import { markChapterDirty, ensureChapterBodyLoaded, hydrateAllChapterBodies } from './storyStorage.mjs';
 import { normalizeCharacterVersion } from './version.mjs';
 import { CURRENT_KEY } from '../card-builder/state.mjs';
 import { getDraftsMapSync } from '../draftsStore.mjs';
@@ -242,12 +243,30 @@ export async function persistNovel() {
   var cardId = getCardId();
   state.novel.cardId = cardId;
   state.novel.updatedAt = Date.now();
+  (state.novel.chapters || []).forEach(function(ch) {
+    if (ch && ch.__bodyLoaded) markChapterDirty(state.novel, ch.id);
+  });
   state.novel = normalizeNovel(state.novel);
   await saveNovel(cardId, state.novel.id, state.novel);
   state.catalog = upsertCatalogEntry(state.catalog, state.novel);
   await saveCatalog(cardId, state.catalog);
   await saveActiveNovelId(cardId, state.novel.id);
   await mirrorStoryDocs(cardId, state.novel, state.catalog);
+}
+
+/** 切章 / 开写前加载章 Body（千章 lazy） */
+export async function ensureWriteChapterReady(chapterId) {
+  if (!state.novel || !chapterId) return;
+  var cardId = getCardId();
+  state.novel.cardId = cardId;
+  await ensureChapterBodyLoaded(cardId, state.novel, chapterId);
+}
+
+/** 导出 / 发布 / 增版前灌满全部章 Body */
+export async function hydrateNovelForSnapshot(novel) {
+  if (!novel) return novel;
+  var cardId = getCardId();
+  return hydrateAllChapterBodies(cardId, novel);
 }
 
 export async function reloadCatalog() {

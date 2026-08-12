@@ -32,10 +32,11 @@
 
 ## 版本模型（卡 / 小说一致）
 
-- **唯一草稿** + **`versions[]` 正式列表**（每版快照 + `published`；**已发条目不可变**）
+- **唯一草稿** + **`versions[]` 已发列表**（每版快照 + `published`；**已发条目不可变**）
 - **保存**：只写草稿，不写 `versions`；`updatedAt` 仅在真实落盘时刷新
 - **切版 / 增版 / 发布**：才把当前草稿写入 `versions`（若草稿坐在已发号上会先 fork）
 - **发布**：标记已发布，草稿自动再升一版；升版号须 **> 全局最大已发号**；云失败则回滚本地
+- **话术（草案）**：产品三阶段见 [`core-design-philosophy.md`](./core-design-philosophy.md) **§6.6 讨论稿**（议题 9 未决）
 - **分享**：`latest` 固定链对接最新已发；另有带版本号链接；读者进度按 token+版本隔离
 - 实现：`cardVersions.mjs` / `novelVersions.mjs`（开发期无旧数据兼容负担）
 
@@ -54,11 +55,94 @@
 - 写流水线按 chapter id 回绑 `novel.chapters` 后写 `content` / feed / quality / checkpoint
 - 生成中 `ui.writeBusy`：禁止用空 textarea 覆盖流式正文；取消只走任务中心
 
+## 试聊归档写入（D12 · 须与 §6.3.8 一致）
+
+试聊 Episode Promote **只写 Story 草稿**，不写卡 worldbook。完整 UX / 键名 / 工具见 [`core-design-philosophy.md`](./core-design-philosophy.md) **§6.3.8**。
+
+### 章节 `sourceMeta`（可选溯源）
+
+`createEmptyChapter` / `normalizeChapter` 须 **透传** 下列可选字段（旧数据无则忽略）：
+
+```js
+// novel.chapters[] 项
+sourceMeta?: {
+  kind: 'chat_episode',
+  episodeId: string,
+  messageIds: string[],
+  promotedAt: number,
+  mode: 'verbatim' | 'polish'
+}
+```
+
+| 规则 | 说明 |
+|------|------|
+| 分支 | append 到 **`novel.activeBranchId`** 可见章 |
+| order | 活动分支 `max(order) + 1` |
+| title | Promote 弹窗；默认 `试聊归档 · {date}` |
+| summary | `transcriptDigest` ≤200 字；否则正文前 120 字 |
+| content | §6.3.8.1 verbatim 或 polish 产物 |
+| feedForward / quality | **不跑**写章流水线；保持默认空 |
+| release | **不** bump；**不**改已发布章 |
+
+### 伏笔账本扩展（试聊归档）
+
+`plotLedger.mjs` 的 `LEDGER_STATUSES` 不变：`open` | `planted` | `paid` | `dropped`。
+
+Promote 弹窗 **只用上述四值**（默认 `open`）；**禁止** UI 出现文档外的 status。
+
+`createLedgerItem` / `normalizeLedgerItem` 须透传（D12 PR）：
+
+```js
+mvuSnapshot?: object,
+source?: { kind: 'chat_episode', episodeId: string, messageIds: string[] }
+```
+
+| 同次 Promote | status | plantedChapterId |
+|--------------|--------|------------------|
+| 仅 ledger | `open` | 空 |
+| 章草稿 + ledger | `planted` | 新建章 `id` |
+
+- `mvuSnapshot` = Promote 时刻试聊 runtime 快照；**不**写入 `note`、**不回写**卡 MVU。  
+- `branchId` = `novel.activeBranchId`。
+
+### verbatim 正文
+
+格式函数与示例块见 core-design **§6.3.8.1**（`formatChatTranscriptVerbatim`）。  
+建议实现：`src/lib/chatRuntime/transcriptFormat.mjs`；单测 `tests/chatPromote.test.mjs`。
+
+### IDB 与 catalog
+
+- novel 数据：`storyStudioV1:card:{cardId}:{novelId}`（现有）  
+- Episode 列表：`chatEpisodeV1:card:{cardId}`（D12；`cardId` 与制卡 `draftId` 同指）  
+- Promotion L0：`promotionLogV1:card:{cardId}`（D12；append-only，cap 200；**不上云**）  
+- Promote 后 `persistNovel(cardId, novelId, novel)`；catalog `updatedAt` 随草稿刷新
+
+### 规模与分片（千章 · 顶层设计）
+
+> **SoT**：[`story-scale.md`](./story-scale.md)（自上而下：Spine / Body / Memory 分层 + L1 访问契约）。  
+> **已实现（本地 + 云）**：Phase A–E — `storyStorage.mjs`（`storageSchema: 2` Manifest + `:ch:{id}` Body 分片、v1 迁移、版本分片）、`storyOutlineContext.mjs`（有界大纲续写）、`storyExportStream.mjs`（流式导出）、`storyArcMemory.mjs`（卷/弧摘要）、大纲/阅读/写作目录 virtualList（>40 条）、云 API manifest + 分章 `GET/PUT`。
+
+| 概念 | 说明 |
+|------|------|
+| **Spine** | Manifest：`outline`、章 stub、分支/release 元数据 |
+| **Body** | 按章分片键 `:ch:{chapterId}` 存正文与 feed/quality |
+| **Memory** | 卷/弧摘要、大纲检索索引（`volumes[]` / `arcSummaries[]` 字段已预留；自动生成待做） |
+| **L1 契约** | `loadNovel` / `saveNovel` → `storyStorage`；>80 章 lazy Body + 切章 `ensureChapterBodyLoaded` |
+
+| 模块 | 路径 |
+|------|------|
+| L1 存储 | `storyStorage.mjs` |
+| 有界大纲 | `storyOutlineContext.mjs` |
+| 键名 | `idb.mjs` → `storyChapterKey` |
+
+落地前权宜：人工按卷拆多部 novel（每部 ≤150 章）— 见 `story-scale.md` §10，**非**架构方案。
+
 ## 模块
 
 | 文件 | 职责 |
 |---|---|
-| `state.mjs` / `idb.mjs` | 本地状态（含分支 / 伏笔账本 / 写设置） |
+| `state.mjs` / `idb.mjs` / `storyStorage.mjs` | 本地状态 + **v2 分片存储**（Manifest/Body） |
+| `storyOutlineContext.mjs` | 有界大纲续写 prompt 组装 |
 | `branch.mjs` | 分支世界：开分支、解析可见章、发布裁剪、选项/结局 |
 | `graphView.mjs` / `graphSeed.mjs` / `graphUi.mjs` | G6 可视化 + 卡面种子 + 弹窗编辑 |
 | `dialogs.mjs` | 自定义确认/输入/内容弹窗 |

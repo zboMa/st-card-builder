@@ -12,6 +12,7 @@ import {
   RELEASE_SCHEMA_V2,
 } from './version.mjs';
 import { ensureBranches } from './branch.mjs';
+import { chapterToStub, chapterContentHash } from './storyStorage.mjs';
 
 export function parseDisplayVersion(display) {
   var s = String(display || '').trim();
@@ -71,6 +72,10 @@ export function buildNovelVersionSnapshot(novel, characterVersion) {
     novelVersion: novel.novelVersion,
     filterReady: false,
   });
+  var chapterHashes = {};
+  (novel.chapters || []).forEach(function(c) {
+    if (c && c.id) chapterHashes[c.id] = chapterContentHash(c.content);
+  });
   return {
     ver: payload.displayVersion,
     displayVersion: payload.displayVersion,
@@ -78,7 +83,9 @@ export function buildNovelVersionSnapshot(novel, characterVersion) {
     novelVersion: payload.novelVersion,
     title: payload.title,
     release: payload,
-    // 完整工作稿子集，切回可继续编辑
+    storageSchema: 2,
+    chapterHashes: chapterHashes,
+    // 完整工作稿子集：章仅 stub，正文在版本分片键
     working: {
       title: novel.title,
       novelVersion: novel.novelVersion,
@@ -86,11 +93,13 @@ export function buildNovelVersionSnapshot(novel, characterVersion) {
       wizard: novel.wizard ? Object.assign({}, novel.wizard) : null,
       graph: novel.graph,
       outline: Array.isArray(novel.outline) ? novel.outline.map(function(o) { return Object.assign({}, o); }) : [],
-      chapters: Array.isArray(novel.chapters) ? novel.chapters.map(function(c) { return Object.assign({}, c); }) : [],
+      chapters: Array.isArray(novel.chapters) ? novel.chapters.map(function(c) { return chapterToStub(c); }) : [],
       branches: Array.isArray(novel.branches) ? novel.branches.map(function(b) { return Object.assign({}, b); }) : [],
       activeBranchId: novel.activeBranchId,
-      ledger: Array.isArray(novel.ledger) ? novel.ledger.map(function(x) { return Object.assign({}, x); }) : [],
+      plotLedger: Array.isArray(novel.plotLedger) ? novel.plotLedger.map(function(x) { return Object.assign({}, x); }) : [],
       writeSettings: novel.writeSettings ? Object.assign({}, novel.writeSettings) : null,
+      volumes: Array.isArray(novel.volumes) ? novel.volumes.slice() : [],
+      arcSummaries: Array.isArray(novel.arcSummaries) ? novel.arcSummaries.slice() : [],
     },
   };
 }
@@ -194,8 +203,11 @@ export function applyNovelVersionSnapshot(novel, snap) {
   if (w.chapters) novel.chapters = w.chapters;
   if (w.branches) novel.branches = w.branches;
   if (w.activeBranchId) novel.activeBranchId = w.activeBranchId;
-  if (w.ledger) novel.ledger = w.ledger;
+  if (w.plotLedger) novel.plotLedger = w.plotLedger;
+  else if (w.ledger) novel.plotLedger = w.ledger;
   if (w.writeSettings) novel.writeSettings = w.writeSettings;
+  if (w.volumes) novel.volumes = w.volumes;
+  if (w.arcSummaries) novel.arcSummaries = w.arcSummaries;
   // 若 working 缺失，从 release 回填可见内容
   if ((!w.chapters || !w.chapters.length) && snap.release) {
     var r = snap.release;

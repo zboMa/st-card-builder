@@ -854,6 +854,41 @@
   .ss-ledger-modal {
     width: min(560px, calc(100vw - 32px));
   }
+  .wb-relation-modal .wb-relation-modal__dialog {
+    width: min(640px, calc(100vw - 32px));
+    max-height: min(88vh, 760px);
+  }
+  .wb-relation-modal .wb-relation-modal__body {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 0 16px 14px;
+    max-height: min(72vh, 620px);
+    overflow: auto;
+  }
+  .wb-relation-modal .wb-relation-modal__lead {
+    margin: 0;
+    font-size: 0.76rem;
+    line-height: 1.55;
+    color: var(--color-text-muted);
+  }
+  .wb-relation-modal .wb-relation-graph-wrap {
+    flex: 0 0 auto;
+    min-height: 0;
+    margin: 0;
+  }
+  .wb-relation-modal .wb-relation-graph-cy {
+    min-height: 280px;
+    height: min(46vh, 360px);
+  }
+  .wb-relation-modal .wb-relation-graph-footer {
+    flex-shrink: 0;
+    margin: 0;
+  }
+  .wb-relation-modal .ss-graph-detail {
+    height: 4.6em;
+    max-height: 4.6em;
+  }
   .ss-wizard-lead {
     margin: 0;
   }

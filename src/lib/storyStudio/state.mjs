@@ -29,7 +29,7 @@ export function createEmptyFeedForward() {
 export function createEmptyChapter(partial) {
   var p = partial || {};
   var ff = p.feedForward && typeof p.feedForward === 'object' ? p.feedForward : null;
-  return {
+  var out = {
     id: p.id || genStoryId('ch'),
     title: String(p.title != null ? p.title : '未命名章节'),
     summary: String(p.summary != null ? p.summary : ''),
@@ -46,6 +46,18 @@ export function createEmptyChapter(partial) {
     quality: p.quality && typeof p.quality === 'object' ? p.quality : null,
     checkpoints: Array.isArray(p.checkpoints) ? p.checkpoints.slice(0, 5) : [],
   };
+  if (p.sourceMeta && typeof p.sourceMeta === 'object') {
+    out.sourceMeta = {
+      kind: String(p.sourceMeta.kind || ''),
+      episodeId: String(p.sourceMeta.episodeId || ''),
+      messageIds: Array.isArray(p.sourceMeta.messageIds) ? p.sourceMeta.messageIds.map(String) : [],
+      promotedAt: typeof p.sourceMeta.promotedAt === 'number' ? p.sourceMeta.promotedAt : Date.now(),
+      mode: p.sourceMeta.mode === 'polish' ? 'polish' : 'verbatim',
+    };
+  }
+  if (p.__bodyLoaded) out.__bodyLoaded = true;
+  if (typeof p.contentLen === 'number') out.contentLen = p.contentLen;
+  return out;
 }
 
 export function createEmptyNovel(partial) {
@@ -101,6 +113,11 @@ export function createEmptyNovel(partial) {
     },
     /** 正式版本列表（切版/增版/发布写入；普通保存不写） */
     versions: [],
+    /** 规模分层契约 · 见 story-scale.md */
+    storageSchema: 0,
+    meta: { chapterCount: 0, outlineCount: 0, contentRev: 0 },
+    volumes: [],
+    arcSummaries: [],
   };
 }
 
@@ -113,6 +130,7 @@ function normalizeNode(raw, idx) {
     type: type,
     name: String(n.name != null ? n.name : ('节点' + (idx + 1))),
     note: String(n.note != null ? n.note : ''),
+    role: n.role === 'protagonist' ? 'protagonist' : '',
   };
 }
 
@@ -150,6 +168,9 @@ function normalizeChapter(raw, idx, defaultBranchId) {
     feedForward: c.feedForward,
     quality: c.quality,
     checkpoints: c.checkpoints,
+    sourceMeta: c.sourceMeta,
+    __bodyLoaded: c.__bodyLoaded,
+    contentLen: c.contentLen,
   });
 }
 
@@ -221,6 +242,16 @@ export function normalizeNovel(raw) {
       approvedOutline: !!(raw.wizard && raw.wizard.approvedOutline),
     },
     versions: Array.isArray(raw.versions) ? raw.versions.slice() : [],
+    storageSchema: typeof raw.storageSchema === 'number' ? raw.storageSchema : 0,
+    meta: raw.meta && typeof raw.meta === 'object'
+      ? {
+        chapterCount: typeof raw.meta.chapterCount === 'number' ? raw.meta.chapterCount : 0,
+        outlineCount: typeof raw.meta.outlineCount === 'number' ? raw.meta.outlineCount : 0,
+        contentRev: typeof raw.meta.contentRev === 'number' ? raw.meta.contentRev : 0,
+      }
+      : { chapterCount: 0, outlineCount: 0, contentRev: 0 },
+    volumes: Array.isArray(raw.volumes) ? raw.volumes.slice() : [],
+    arcSummaries: Array.isArray(raw.arcSummaries) ? raw.arcSummaries.slice() : [],
   };
 
   ensureBranches(n);

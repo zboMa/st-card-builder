@@ -3,8 +3,26 @@
  */
 import * as api from './cloudApi.mjs';
 import { idbSetJson } from '../idbStore.mjs';
+import { storyChapterKey } from '../storyStudio/idb.mjs';
+import { buildCloudSyncPack } from '../storyStudio/storyStorage.mjs';
 import { catalogNovelsList } from './docIds.mjs';
 import { withCloudOrOutbox, isCloudEnabled } from './cloudStoreShared.mjs';
+
+async function uploadStoryChapterShards(cardId, novelId, chapters) {
+  var list = Array.isArray(chapters) ? chapters : [];
+  for (var i = 0; i < list.length; i++) {
+    var item = list[i];
+    if (!item || !item.id || !item.body) continue;
+    await withCloudOrOutbox('putStoryChapter', function() {
+      return api.putStoryChapter(cardId, novelId, item.id, item.body);
+    }, {
+      op: 'putStoryChapter',
+      cardId: cardId,
+      body: { novelId: novelId, chapterId: item.id, data: item.body },
+      dedupeKey: 'putStoryChapter:' + cardId + ':' + novelId + ':' + item.id,
+    });
+  }
+}
 
 export async function cloudSaveStoryCatalog(cardId, catalog) {
   var id = String(cardId || '').trim();
@@ -22,14 +40,16 @@ export async function cloudSaveStoryCatalog(cardId, catalog) {
 export async function cloudSaveStoryNovel(cardId, novel) {
   var id = String(cardId || '').trim();
   if (!novel || !novel.id) return;
-  return withCloudOrOutbox('putStoryNovel', function() {
-    return api.putStoryNovel(id, novel);
+  var pack = buildCloudSyncPack(novel);
+  await withCloudOrOutbox('putStoryNovel', function() {
+    return api.putStoryNovel(id, pack.manifest);
   }, {
     op: 'putStoryNovel',
     cardId: id,
-    body: { data: novel },
+    body: { data: pack.manifest },
     dedupeKey: 'putStoryNovel:' + id + ':' + novel.id,
   });
+  await uploadStoryChapterShards(id, novel.id, pack.chapters);
 }
 
 export async function cloudSaveStoryActive(cardId, novelId) {
@@ -94,6 +114,21 @@ export async function pullStoryNovelToLocal(cardId, novelId) {
   var res = await api.getStoryNovel(id, nid);
   var data = res && (res.data != null ? res.data : null);
   if (!data) return null;
-  await idbSetJson('storyStudioV1:card:' + id + ':' + nid, data);
+  var mod = await import('../storyStudio/storyStorage.mjs');
+  await mod.saveNovelDocument(id, nid, data);
+  return mod.loadNovelDocument(id, nid);
+}
+
+/** 拉单章 Body 并写入本地分片 */
+export async function pullStoryChapterToLocal(cardId, novelId, chapterId) {
+  var id = String(cardId || '').trim();
+  var nid = String(novelId || '').trim();
+  var chId = String(chapterId || '').trim();
+  if (!id || !nid || !chId || !isCloudEnabled()) return null;
+  var res = await api.getStoryChapter(id, nid, chId);
+  var data = res && (res.data != null ? res.data : null);
+  if (!data) return null;
+  var key = storyChapterKey(id, nid, chId);
+  if (key) await idbSetJson(key, data);
   return data;
 }

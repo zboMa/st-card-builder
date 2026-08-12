@@ -13,6 +13,7 @@ import {
   assistantDocId,
   storyCatalogDocId,
   storyNovelDocId,
+  storyChapterDocId,
   storyActiveDocId,
   storyReleaseDocId,
   storyReleaseVersionDocId,
@@ -580,6 +581,25 @@ dataRouter.get('/stories/:cardId/active', async function(req, res) {
   }
 });
 
+dataRouter.get('/stories/:cardId/:novelId/chapters/:chapterId', async function(req, res) {
+  try {
+    var cardId = String(req.params.cardId || '').trim();
+    var novelId = String(req.params.novelId || '').trim();
+    var chapterId = String(req.params.chapterId || '').trim();
+    if (novelId === 'catalog' || novelId === 'active') {
+      return res.status(404).json({ ok: false, error: 'not_found' });
+    }
+    var doc = await getUserDoc(userIdOf(req), storyChapterDocId(cardId, novelId, chapterId));
+    if (!doc) return res.status(404).json({ ok: false, error: 'not_found' });
+    if (isRemoved(doc)) {
+      return res.status(404).json({ ok: false, error: 'content_removed', message: '内容已被移除' });
+    }
+    res.json({ ok: true, doc: doc, data: doc.data });
+  } catch (e) {
+    sendErr(res, e);
+  }
+});
+
 dataRouter.get('/stories/:cardId/:novelId', async function(req, res) {
   try {
     var cardId = String(req.params.cardId || '').trim();
@@ -638,6 +658,33 @@ dataRouter.put('/stories/:cardId/active', async function(req, res) {
       data: body.data != null ? body.data : { novelId: body.novelId || '', updatedAt: Date.now() },
       updatedAt: new Date().toISOString(),
     }, { force: true });
+    res.json({ ok: true, rev: saved.rev });
+  } catch (e) {
+    sendErr(res, e);
+  }
+});
+
+dataRouter.put('/stories/:cardId/:novelId/chapters/:chapterId', async function(req, res) {
+  try {
+    var cardId = String(req.params.cardId || '').trim();
+    var novelId = String(req.params.novelId || '').trim();
+    var chapterId = String(req.params.chapterId || '').trim();
+    var body = req.body || {};
+    var data = body.data != null ? body.data : body;
+    var manifest = await getUserDoc(userIdOf(req), storyNovelDocId(cardId, novelId));
+    if (isRemoved(manifest)) {
+      return res.status(410).json({ ok: false, error: 'content_removed', message: '内容已被移除，禁止修改' });
+    }
+    var saved = await putUserDoc(userIdOf(req), {
+      _id: storyChapterDocId(cardId, novelId, chapterId),
+      type: 'story-chapter',
+      cardId: cardId,
+      novelId: novelId,
+      chapterId: chapterId,
+      data: data,
+      updatedAt: new Date().toISOString(),
+    }, { force: true });
+    fireAndForget(upsertCardIndex(userIdOf(req), cardId));
     res.json({ ok: true, rev: saved.rev });
   } catch (e) {
     sendErr(res, e);
@@ -706,6 +753,15 @@ dataRouter.delete('/stories/:cardId/:novelId', async function(req, res) {
     var uid = userIdOf(req);
     await deleteUserDoc(uid, storyNovelDocId(cardId, novelId), { force: true });
     await deleteUserDoc(uid, storyReleaseDocId(cardId, novelId), { force: true });
+    try {
+      var chRows = await listUserDocsByPrefix(uid, storyNovelDocId(cardId, novelId) + '/ch/');
+      for (var ci = 0; ci < (chRows || []).length; ci++) {
+        var chId = chRows[ci] && (chRows[ci].id || chRows[ci]._id);
+        if (chId) {
+          try { await deleteUserDoc(uid, chId, { force: true }); } catch (eCh) { /* ignore */ }
+        }
+      }
+    } catch (eChList) { /* ignore */ }
     // 钉版本 release/{ver}
     try {
       var rows = await listUserDocsByPrefix(uid, storyReleaseDocId(cardId, novelId) + '/');

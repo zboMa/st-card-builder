@@ -8,6 +8,21 @@ import {
   idbDeleteJson,
 } from '../idbStore.mjs';
 
+export async function loadNovel(cardId, novelId) {
+  var mod = await import('./storyStorage.mjs');
+  return mod.loadNovelDocument(cardId, novelId);
+}
+
+export async function saveNovel(cardId, novelId, data) {
+  var mod = await import('./storyStorage.mjs');
+  return mod.saveNovelDocument(cardId, novelId, data);
+}
+
+export async function deleteNovel(cardId, novelId) {
+  var mod = await import('./storyStorage.mjs');
+  return mod.deleteNovelStorage(cardId, novelId);
+}
+
 export var STORY_STUDIO_PREFIX = 'storyStudioV1';
 
 /** 单部小说：storyStudioV1:card:{cardId}:{novelId} */
@@ -16,6 +31,21 @@ export function storyNovelKey(cardId, novelId) {
   var n = String(novelId || '').trim();
   if (!c || !n) return '';
   return STORY_STUDIO_PREFIX + ':card:' + c + ':' + n;
+}
+
+/** 章正文分片：storyStudioV1:card:{cardId}:{novelId}:ch:{chapterId} */
+export function storyChapterKey(cardId, novelId, chapterId) {
+  var base = storyNovelKey(cardId, novelId);
+  var ch = String(chapterId || '').trim();
+  if (!base || !ch) return '';
+  return base + ':ch:' + ch;
+}
+
+/** v1 迁移备份 */
+export function storyNovelBackupKey(cardId, novelId) {
+  var base = storyNovelKey(cardId, novelId);
+  if (!base) return '';
+  return base + ':backup:v1';
 }
 
 /** 某卡的小说目录：storyStudioV1:catalog:card:{cardId} */
@@ -43,26 +73,6 @@ export async function saveCatalog(cardId, list) {
   var key = storyCatalogKey(cardId);
   if (!key) return false;
   await idbSetJson(key, Array.isArray(list) ? list : []);
-  return true;
-}
-
-export async function loadNovel(cardId, novelId) {
-  var key = storyNovelKey(cardId, novelId);
-  if (!key) return null;
-  return idbGetJson(key);
-}
-
-export async function saveNovel(cardId, novelId, data) {
-  var key = storyNovelKey(cardId, novelId);
-  if (!key) return false;
-  await idbSetJson(key, data);
-  return true;
-}
-
-export async function deleteNovel(cardId, novelId) {
-  var key = storyNovelKey(cardId, novelId);
-  if (!key) return false;
-  await idbDeleteJson(key);
   return true;
 }
 

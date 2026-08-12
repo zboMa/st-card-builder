@@ -36,6 +36,14 @@ export function storyNovelDocId(cardId, novelId) {
   return 'story/' + String(cardId || '').trim() + '/' + String(novelId || '').trim();
 }
 
+/** 章 Body 分片：story/{cardId}/{novelId}/ch/{chapterId} */
+export function storyChapterDocId(cardId, novelId, chapterId) {
+  var base = storyNovelDocId(cardId, novelId);
+  var ch = encodeURIComponent(String(chapterId || '').trim());
+  if (!base || !ch) return '';
+  return base + '/ch/' + ch;
+}
+
 export function storyActiveDocId(cardId) {
   return 'story/' + String(cardId || '').trim() + '/active';
 }

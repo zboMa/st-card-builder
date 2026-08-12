@@ -8,6 +8,7 @@ import {
   ragDocId,
   assistantDocId,
   storyNovelDocId,
+  storyChapterDocId,
   buildCardIndexFromDrafts,
   catalogNovelsList,
 } from '../src/data/docIds.mjs';
@@ -25,6 +26,7 @@ describe('data docIds', function() {
     assert.equal(ragDocId('abc'), 'rag/abc');
     assert.equal(assistantDocId('abc'), 'assistant/abc');
     assert.equal(storyNovelDocId('c1', 'n1'), 'story/c1/n1');
+    assert.equal(storyChapterDocId('c1', 'n1', 'ch_x'), 'story/c1/n1/ch/ch_x');
   });
 
   it('buildCardIndexFromDrafts', function() {

@@ -61,6 +61,14 @@ function findNode(id) {
   }) || null;
 }
 
+function isRefNode(node) {
+  return !!(node && node.entityRef);
+}
+
+function refNodeById(id) {
+  return isRefNode(findNode(id));
+}
+
 function findEdgeByEndpoints(from, to, label) {
   if (!state.novel || !state.novel.graph) return null;
   var f = String(from || '');
@@ -106,17 +114,33 @@ export function formatStoryGraphDetail(payload) {
     var storyType = attrs.storyType || STORY_TYPE_FROM_KG[payload.type] || 'other';
     var typeZh = TYPE_ZH[storyType] || TYPE_ZH[payload.type] || payload.type || '';
     var note = attrs.note ? String(attrs.note) : '';
-    return '<strong>' + escapeHtml(payload.label || payload.id) + '</strong>'
-      + ' <span class="novel-graph-type">' + escapeHtml(typeZh) + '</span>'
-      + (note
-        ? '<ul class="novel-graph-attr-list"><li><span>备注</span> ' + escapeHtml(note) + '</li></ul>'
-        : '')
-      + '<div class="ss-graph-detail-actions">'
-      + '<button type="button" class="btn btn-ghost btn-inline" data-ss-graph-act="edit-node" data-id="'
-      + escapeHtml(payload.id) + '">编辑</button>'
-      + '<button type="button" class="btn btn-ghost btn-inline" data-ss-graph-act="add-edge-from" data-id="'
-      + escapeHtml(payload.id) + '">加关系</button>'
-      + '</div>';
+    var entityRef = attrs.entityRef || (findNode(payload.id) && findNode(payload.id).entityRef);
+    var isRef = !!entityRef;
+    var html = '<strong>' + escapeHtml(payload.label || payload.id) + '</strong>'
+      + ' <span class="novel-graph-type">' + escapeHtml(typeZh) + '</span>';
+    if (isRef) {
+      html += ' <span class="novel-graph-type">Ref·只读</span>';
+      html += '<ul class="novel-graph-attr-list"><li><span>工坊实体</span> '
+        + escapeHtml(String(entityRef)) + '（展示拉工坊最新，勿在此改正文）</li></ul>';
+    }
+    if (note) {
+      html += '<ul class="novel-graph-attr-list"><li><span>叙事备注</span> ' + escapeHtml(note) + '</li></ul>';
+    }
+    if (!isRef) {
+      html += '<div class="ss-graph-detail-actions">'
+        + '<button type="button" class="btn btn-ghost btn-inline" data-ss-graph-act="edit-node" data-id="'
+        + escapeHtml(payload.id) + '">编辑</button>'
+        + '<button type="button" class="btn btn-ghost btn-inline" data-ss-graph-act="add-edge-from" data-id="'
+        + escapeHtml(payload.id) + '">加关系</button>'
+        + '</div>';
+    } else {
+      html += '<div class="ss-graph-detail-actions">'
+        + '<button type="button" class="btn btn-ghost btn-inline" data-ss-graph-act="edit-ref-note" data-id="'
+        + escapeHtml(payload.id) + '">编辑叙事备注</button>'
+        + '<button type="button" class="btn btn-ghost btn-inline" data-ss-graph-act="goto-workshop">去工坊</button>'
+        + '</div>';
+    }
+    return html;
   }
   var ev = (payload.evidence || []).slice(0, 3).map(function(x) {
     return escapeHtml(String(x));
@@ -133,11 +157,39 @@ export function formatStoryGraphDetail(payload) {
     + '</div>';
 }
 
+function openEditRefNoteDialog(node) {
+  if (!node) return Promise.resolve(false);
+  return showSsModal({
+    title: '编辑叙事备注（Ref 节点）',
+    bodyHtml:
+      '<p class="ui-hint" style="font-size:0.82rem;">实体「' + escapeHtml(node.name || '') + '」正文在工坊；此处仅改 Story 叙事注释。</p>'
+      + '<div class="form-group">'
+      + '<label for="ssGraphRefNote">叙事备注</label>'
+      + '<textarea id="ssGraphRefNote" rows="4" placeholder="情节定位、伏笔…">'
+      + escapeHtml(node.note || '') + '</textarea></div>',
+    footerHtml:
+      '<button type="button" class="app-confirm-btn" data-ss-dlg="cancel">取消</button>'
+      + '<button type="button" class="app-confirm-btn primary" data-ss-dlg="ok">保存</button>',
+    onMount: function(overlay, close) {
+      overlay.querySelector('[data-ss-dlg="cancel"]').addEventListener('click', close);
+      overlay.querySelector('[data-ss-dlg="ok"]').addEventListener('click', async function() {
+        var noteEl = overlay.querySelector('#ssGraphRefNote');
+        node.note = noteEl ? String(noteEl.value || '') : '';
+        close();
+        await saveAndRender('已更新叙事备注');
+      });
+    },
+  });
+}
+
 export function openEditNodeDialog(nodeOrId) {
   if (!state.novel) return Promise.resolve(false);
   var node = typeof nodeOrId === 'object' && nodeOrId
     ? nodeOrId
     : findNode(nodeOrId);
+  if (isRefNode(node)) {
+    return openEditRefNoteDialog(node);
+  }
   var isNew = !node;
   var draft = node
     ? { id: node.id, type: node.type || 'character', name: node.name || '', note: node.note || '' }
@@ -373,22 +425,38 @@ export function openStoryGraphCtxMenu(payload) {
       },
     });
   } else {
-    items.push({
-      id: 'edit',
-      label: '编辑节点',
-      run: function() { openEditNodeDialog(payload.id); },
-    });
-    items.push({
-      id: 'add-edge',
-      label: '从此添加关系',
-      run: function() { openEditEdgeDialog({ from: payload.id }); },
-    });
-    items.push({
-      id: 'del',
-      label: '删除节点',
-      danger: true,
-      run: function() { deleteStoryGraphNode(payload.id); },
-    });
+    var ref = refNodeById(payload.id);
+    if (ref) {
+      items.push({
+        id: 'edit-note',
+        label: '编辑叙事备注',
+        run: function() { openEditRefNoteDialog(findNode(payload.id)); },
+      });
+      items.push({
+        id: 'workshop',
+        label: '去工坊编辑源',
+        run: function() {
+          window.__setAppView__ && window.__setAppView__('novel-source');
+        },
+      });
+    } else {
+      items.push({
+        id: 'edit',
+        label: '编辑节点',
+        run: function() { openEditNodeDialog(payload.id); },
+      });
+      items.push({
+        id: 'add-edge',
+        label: '从此添加关系',
+        run: function() { openEditEdgeDialog({ from: payload.id }); },
+      });
+      items.push({
+        id: 'del',
+        label: '删除节点',
+        danger: true,
+        run: function() { deleteStoryGraphNode(payload.id); },
+      });
+    }
   }
   menu.innerHTML = items.map(function(it) {
     return '<button type="button" role="menuitem" data-graph-act="' + escapeHtml(it.id) + '"'
@@ -437,6 +505,10 @@ export function bindStoryGraphUi() {
       if (!btn) return;
       var act = btn.getAttribute('data-ss-graph-act');
       if (act === 'edit-node') openEditNodeDialog(btn.getAttribute('data-id'));
+      else if (act === 'edit-ref-note') openEditRefNoteDialog(findNode(btn.getAttribute('data-id')));
+      else if (act === 'goto-workshop') {
+        if (window.__setAppView__) window.__setAppView__('novel-source');
+      }
       else if (act === 'add-edge-from') openEditEdgeDialog({ from: btn.getAttribute('data-id') });
       else if (act === 'edit-edge') {
         openEditEdgeDialog({

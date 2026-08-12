@@ -15,6 +15,11 @@ import { tensionCurveFromChapters } from './quality.mjs';
 import { WRITE_STEPS, WRITE_STEP_LABELS } from './writePipeline.mjs';
 import { showSsPrompt, showSsModal } from './dialogs.mjs';
 import { state, ui, $, setStatus, escapeHtml } from './shared.mjs';
+import { createVirtualList } from '../ui/virtualList.mjs';
+
+var writeTocVl = null;
+var WRITE_TOC_VL_THRESHOLD = 40;
+var WRITE_TOC_VL_ROW = 40;
 
 var LEDGER_STATUS_LABELS = {
   open: '未收束',
@@ -356,18 +361,27 @@ export function renderWrite() {
   if (curId && !chapters.some(function(c) { return c.id === curId; })) {
     curId = (chapters[0] && chapters[0].id) || '';
   }
+  var chIdx = chapters.findIndex(function(c) { return c.id === curId; });
   if (sel) {
-    sel.innerHTML = chapters.map(function(c, i) {
-      return '<option value="' + escapeHtml(c.id) + '"'
-        + (c.id === curId ? ' selected' : '') + '>'
-        + (i + 1) + '. ' + escapeHtml(c.title || '未命名')
-        + (c.content ? '' : '（空）')
-        + '</option>';
-    }).join('') || '<option value="">无章节（请先做大纲）</option>';
-    curId = sel.value;
+    if (chapters.length > WRITE_TOC_VL_THRESHOLD) {
+      var curCh = chapters.find(function(c) { return c.id === curId; });
+      sel.innerHTML = '<option value="' + escapeHtml(curId) + '" selected>'
+        + (chIdx >= 0 ? chIdx + 1 : 1) + '. ' + escapeHtml((curCh && curCh.title) || '未命名')
+        + '（共 ' + chapters.length + ' 章 · 用目录切换）</option>';
+      curId = sel.value;
+    } else {
+      sel.innerHTML = chapters.map(function(c, i) {
+        return '<option value="' + escapeHtml(c.id) + '"'
+          + (c.id === curId ? ' selected' : '') + '>'
+          + (i + 1) + '. ' + escapeHtml(c.title || '未命名')
+          + (c.content ? '' : '（空）')
+          + '</option>';
+      }).join('') || '<option value="">无章节（请先做大纲）</option>';
+      curId = sel.value;
+    }
   }
   ui.writeChapterId = curId;
-  var chIdx = chapters.findIndex(function(c) { return c.id === curId; });
+  chIdx = chapters.findIndex(function(c) { return c.id === curId; });
   if (prevBtn) prevBtn.disabled = chIdx <= 0;
   if (nextBtn) nextBtn.disabled = chIdx < 0 || chIdx >= chapters.length - 1;
   if (chapIndex) {
@@ -381,10 +395,36 @@ export function renderWrite() {
   if (titleBtn) titleBtn.textContent = ch ? (ch.title || '未命名') : '未命名';
 
   if (writeToc) {
-    writeToc.innerHTML = chapters.map(function(c, i) {
-      return '<button type="button" class="ss-toc-item' + (c.id === curId ? ' is-active' : '') + '" data-ss-write-ch="'
-        + escapeHtml(c.id) + '">' + (i + 1) + '. ' + escapeHtml(c.title || '未命名') + '</button>';
-    }).join('') || '<div class="ss-empty ui-empty-tip">暂无章节</div>';
+    if (chapters.length > WRITE_TOC_VL_THRESHOLD) {
+      if (!writeTocVl || writeTocVl._el !== writeToc) {
+        if (writeTocVl) writeTocVl.destroy();
+        writeTocVl = createVirtualList({
+          viewport: writeToc,
+          rowHeight: WRITE_TOC_VL_ROW,
+          overscan: 10,
+          gap: 4,
+          renderRow: function(c, i) {
+            return '<button type="button" class="ss-toc-item' + (c.id === curId ? ' is-active' : '')
+              + '" data-ss-write-ch="' + escapeHtml(c.id) + '">' + (i + 1) + '. '
+              + escapeHtml(c.title || '未命名') + '</button>';
+          },
+          emptyHtml: '<div class="ss-empty ui-empty-tip">暂无章节</div>',
+        });
+        writeTocVl._el = writeToc;
+        writeTocVl.mount();
+      }
+      writeTocVl.setItems(chapters);
+    } else {
+      if (writeTocVl && writeTocVl._el === writeToc) {
+        writeTocVl.destroy();
+        writeTocVl = null;
+      }
+      writeToc.classList.remove('is-vl');
+      writeToc.innerHTML = chapters.map(function(c, i) {
+        return '<button type="button" class="ss-toc-item' + (c.id === curId ? ' is-active' : '') + '" data-ss-write-ch="'
+          + escapeHtml(c.id) + '">' + (i + 1) + '. ' + escapeHtml(c.title || '未命名') + '</button>';
+      }).join('') || '<div class="ss-empty ui-empty-tip">暂无章节</div>';
+    }
   }
   if (summaryEl) {
     var sum = ch ? ch.summary : '';

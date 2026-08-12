@@ -32,6 +32,7 @@ import {
   apiDeleteNovelShare,
   buildLocalShareUrl,
 } from './shareClient.mjs';
+import { saveVersionChapterShards, hydrateVersionWorking } from './storyStorage.mjs';
 import { validatePublishReady } from './branch.mjs';
 import { showSsConfirm, showSsPrompt } from './dialogs.mjs';
 import {
@@ -43,6 +44,10 @@ import {
   persistNovel,
   loadNovelOrPull,
   escapeHtml,
+  hydrateNovelForSnapshot,
+  callAI,
+  promptText,
+  runTracked,
 } from './shared.mjs';
 import { renderAll } from './renderViews.mjs';
 import { engineTryAllowed, engineRefresh } from '../actionEngine/helpers.mjs';
@@ -174,9 +179,11 @@ export async function bumpNovel(novelId) {
     return;
   }
   var novel = normalizeNovel(raw);
+  await hydrateNovelForSnapshot(novel);
   ensureNovelVersions(novel);
   var charVer = getCharacterVersion();
   var r = bumpNovelDraftVersion(novel, charVer);
+  await saveVersionChapterShards(cardId, novelId, r.ver, novel);
   await saveNovel(cardId, novelId, novel);
   state.catalog = upsertCatalogEntry(state.catalog, novel);
   await saveCatalog(cardId, state.catalog);
@@ -195,6 +202,7 @@ export async function publishNovel(novelId) {
     return;
   }
   var novel = normalizeNovel(raw);
+  await hydrateNovelForSnapshot(novel);
   ensureNovelVersions(novel);
   var check = validatePublishReady(novel);
   if (!check.ok) {
@@ -225,6 +233,7 @@ export async function publishNovel(novelId) {
     setStatus('发布失败：无法写入版本列表');
     return;
   }
+  await saveVersionChapterShards(cardId, novelId, pub.publishedVer, working);
   // 用已发布快照的 release（filterReady）再写一份对外
   var release = pub.release;
   if (release && validatePublishReady) {
@@ -279,6 +288,7 @@ export async function switchNovelVersion(novelId, targetVer) {
     setStatus('切换失败：' + (sw.error || ''));
     return;
   }
+  await hydrateVersionWorking(cardId, novelId, targetVer, novel);
   await saveNovel(cardId, novelId, novel);
   state.catalog = upsertCatalogEntry(state.catalog, novel);
   await saveCatalog(cardId, state.catalog);
@@ -511,6 +521,8 @@ export async function exportNovel(novelId) {
     setStatus('导出失败');
     return;
   }
-  downloadNovelTxt(normalizeNovel(raw));
+  var novel = normalizeNovel(raw);
+  await hydrateNovelForSnapshot(novel);
+  await downloadNovelTxt(novel, cardId);
   setStatus('已导出 TXT');
 }

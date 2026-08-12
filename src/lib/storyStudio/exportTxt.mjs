@@ -4,6 +4,8 @@
 
 import { normalizeNovel, getActiveChapters, getActiveOutline } from './state.mjs';
 import { getBranch } from './branch.mjs';
+import { EAGER_BODY_LIMIT } from './storyStorage.mjs';
+import { novelToTxtStream } from './storyExportStream.mjs';
 
 /**
  * @param {object} novel
@@ -69,11 +71,16 @@ export function novelTxtFilename(novel) {
 
 /**
  * 浏览器下载 TXT（Node 测试可跳过）
- * @returns {{ filename: string, text: string }|null}
+ * 大书走流式组装，避免单次 mega string 峰值过高
+ * @returns {Promise<{ filename: string, text: string }|null>}
  */
-export function downloadNovelTxt(novel) {
-  var text = novelToTxt(novel);
+export async function downloadNovelTxt(novel, cardId) {
   var filename = novelTxtFilename(novel);
+  var n = normalizeNovel(novel);
+  var useStream = (n.chapters || []).length > EAGER_BODY_LIMIT;
+  var text = useStream
+    ? await novelToTxtStream(String(cardId || n.cardId || ''), n)
+    : novelToTxt(n);
   if (typeof document === 'undefined' || typeof Blob === 'undefined') {
     return { filename: filename, text: text };
   }

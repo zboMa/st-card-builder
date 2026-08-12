@@ -7,13 +7,43 @@ import { buildDisplayVersion } from './version.mjs';
 import { getBranch } from './branch.mjs';
 import { tensionCurveFromChapters } from './quality.mjs';
 import { mountStoryGraph, destroyStoryGraph } from './graphView.mjs';
-import { state, ui, $, getCharacterVersion, escapeHtml } from './shared.mjs';
+import { createVirtualList } from '../ui/virtualList.mjs';
+import { state, ui, $, getCharacterVersion, escapeHtml, getCardSeed } from './shared.mjs';
 import { renderWrite } from './writeBranchUi.mjs';
 import {
   storyGraphUi,
   formatStoryGraphDetail,
   openStoryGraphCtxMenu,
 } from './graphUi.mjs';
+
+var outlineVl = null;
+var readTocVl = null;
+var OUTLINE_VL_THRESHOLD = 40;
+var TOC_VL_THRESHOLD = 40;
+var OUTLINE_VL_ROW = 108;
+var TOC_VL_ROW = 40;
+
+function buildOutlineRowHtml(o, i) {
+  return (
+    '<div class="ss-outline-item" data-ol-idx="' + i + '" data-ol-id="' + escapeHtml(o.id) + '">'
+    + '<div class="ss-outline-item__head">'
+    + '<span class="ss-ol-idx">#' + (i + 1) + '</span>'
+    + '<button type="button" class="ss-ol-title-btn" data-ss-ol-edit-title title="点击编辑标题">'
+    + escapeHtml(o.title || '未命名') + '</button>'
+    + '<button type="button" class="btn btn-ghost btn-inline" data-ss-ol-discard title="从此章起废弃后续">废弃后续</button>'
+    + '<button type="button" class="btn btn-ghost btn-inline" data-ss-ol-volume-end title="设为卷末并生成弧摘要">卷末</button>'
+    + '<button type="button" class="btn btn-ghost btn-inline" data-ss-ol-del>删</button>'
+    + '</div>'
+    + '<textarea class="ss-ol-summary" rows="2" placeholder="摘要">' + escapeHtml(o.summary) + '</textarea>'
+    + '</div>'
+  );
+}
+
+function buildReadTocRowHtml(c, i, activeIdx) {
+  return '<button type="button" class="ss-toc-item' + (i === activeIdx ? ' is-active' : '')
+    + '" data-ch-id="' + escapeHtml(c.id) + '">' + (i + 1) + '. '
+    + escapeHtml(c.title || '未命名') + '</button>';
+}
 
 export function buildNovelActionsHtml(item) {
   function iconBtn(act, label, extraClass, svg) {
@@ -118,6 +148,7 @@ export function renderGraph() {
   var cy = $('ssGraphCy');
   if (cy) {
     mountStoryGraph(cy, g, {
+      sceneName: getCardSeed().charName,
       personOnly: !!storyGraphUi.personOnly,
       highlightDegree: storyGraphUi.highlightDepth,
       onSelect: function(payload) {
@@ -157,20 +188,31 @@ export function renderOutline() {
   }
   renderWizardChrome();
   var items = getActiveOutline(state.novel);
-  box.innerHTML = items.map(function(o, i) {
-    return (
-      '<div class="ss-outline-item" data-ol-idx="' + i + '" data-ol-id="' + escapeHtml(o.id) + '">'
-      + '<div class="ss-outline-item__head">'
-      + '<span class="ss-ol-idx">#' + (i + 1) + '</span>'
-      + '<button type="button" class="ss-ol-title-btn" data-ss-ol-edit-title title="点击编辑标题">'
-      + escapeHtml(o.title || '未命名') + '</button>'
-      + '<button type="button" class="btn btn-ghost btn-inline" data-ss-ol-discard title="从此章起废弃后续">废弃后续</button>'
-      + '<button type="button" class="btn btn-ghost btn-inline" data-ss-ol-del>删</button>'
-      + '</div>'
-      + '<textarea class="ss-ol-summary" rows="2" placeholder="摘要">' + escapeHtml(o.summary) + '</textarea>'
-      + '</div>'
-    );
-  }).join('') || '<div class="ss-empty ui-empty-tip">暂无大纲。可分段生成或手动添加。</div>';
+  if (items.length > OUTLINE_VL_THRESHOLD) {
+    if (!outlineVl || outlineVl._el !== box) {
+      if (outlineVl) outlineVl.destroy();
+      outlineVl = createVirtualList({
+        viewport: box,
+        rowHeight: OUTLINE_VL_ROW,
+        overscan: 8,
+        gap: 8,
+        renderRow: function(o, i) { return buildOutlineRowHtml(o, i); },
+        emptyHtml: '<div class="ss-empty ui-empty-tip">暂无大纲。可分段生成或手动添加。</div>',
+      });
+      outlineVl._el = box;
+      outlineVl.mount();
+    }
+    outlineVl.setItems(items);
+  } else {
+    if (outlineVl && outlineVl._el === box) {
+      outlineVl.destroy();
+      outlineVl = null;
+    }
+    box.classList.remove('is-vl');
+    box.innerHTML = items.map(function(o, i) {
+      return buildOutlineRowHtml(o, i);
+    }).join('') || '<div class="ss-empty ui-empty-tip">暂无大纲。可分段生成或手动添加。</div>';
+  }
 
   var chapters = getActiveChapters(state.novel);
   var curve = tensionCurveFromChapters(chapters);
@@ -276,10 +318,31 @@ export function renderRead() {
   }
 
   if (toc) {
-    toc.innerHTML = chapters.map(function(c, i) {
-      return '<button type="button" class="ss-toc-item' + (i === idx ? ' is-active' : '') + '" data-ch-id="'
-        + escapeHtml(c.id) + '">' + (i + 1) + '. ' + escapeHtml(c.title || '未命名') + '</button>';
-    }).join('') || '<div class="ss-empty ui-empty-tip">暂无章节</div>';
+    if (chapters.length > TOC_VL_THRESHOLD) {
+      if (!readTocVl || readTocVl._el !== toc) {
+        if (readTocVl) readTocVl.destroy();
+        readTocVl = createVirtualList({
+          viewport: toc,
+          rowHeight: TOC_VL_ROW,
+          overscan: 10,
+          gap: 4,
+          renderRow: function(c, i) { return buildReadTocRowHtml(c, i, idx); },
+          emptyHtml: '<div class="ss-empty ui-empty-tip">暂无章节</div>',
+        });
+        readTocVl._el = toc;
+        readTocVl.mount();
+      }
+      readTocVl.setItems(chapters);
+    } else {
+      if (readTocVl && readTocVl._el === toc) {
+        readTocVl.destroy();
+        readTocVl = null;
+      }
+      toc.classList.remove('is-vl');
+      toc.innerHTML = chapters.map(function(c, i) {
+        return buildReadTocRowHtml(c, i, idx);
+      }).join('') || '<div class="ss-empty ui-empty-tip">暂无章节</div>';
+    }
   }
 
   if (!ch) {

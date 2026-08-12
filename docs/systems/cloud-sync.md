@@ -50,7 +50,7 @@ npm run dev            # Astro :18826（127.0.0.1），/api 代理到 8787
 | **保存** | 始终先写本地；**不**自动推云（避免制作过程中频繁请求） |
 | **上云** | 卡管理「同步上云」：确认前 flush 当前卡本地编辑 → `PUT .../bundle`；失败入 outbox |
 | **列表** | boot 登录后与进入卡管理 /「刷新云端列表」时 `GET /api/data/cards` 合并云+本地；正文懒加载 |
-| **打开卡** | `GET .../bundle`：卡+头像+**小说工坊+RAG+助手会话**（与卡一套）；卡管理时间旁云标：未上云 / 未同步 / 已同步 |
+| **打开卡** | `GET .../bundle`：卡+头像+**小说工坊+RAG+助手会话**（与卡一套）；**不含**试聊 transcript / Episode IDB / Promotion L0（§6.3.6–§6.3.8，仅本地 IDB/LS）；卡管理时间旁云标：未上云 / 未同步 / 已同步 |
 | **写出的小说** | Story Studio 独立：`GET /stories/:cardId/catalog`、打开时拉单部；**不进**开卡 bundle |
 | **删除** | 本地确认弹窗；默认删绑卡套件；**可勾选**是否级联删 Story |
 | **卡管理云操作** | 「⋯」：同步上云 · 从云端覆盖 · 删云端；工具栏「同步未上云」批量上云 |
@@ -92,7 +92,7 @@ npm run dev            # Astro :18826（127.0.0.1），/api 代理到 8787
 |---|---|---|
 | GET | `/api/data/status` | 云端就绪探测 |
 | GET/PUT | `/api/data/cards`、`/cards/:id` | 列表 / 单卡草稿 |
-| GET/PUT | `/api/data/cards/:id/bundle` | **卡包**（卡+头像+工坊+RAG+助手会话；不含 Story） |
+| GET/PUT | `/api/data/cards/:id/bundle` | **卡包**（卡+头像+工坊+RAG+助手会话；**不含**试聊 transcript / `chatEpisodeV1` / `promotionLogV1` / Story） |
 | DELETE | `/api/data/cards/:id?deleteStories=0\|1` | 删卡；`deleteStories=1` 才级联删写出的小说 |
 | GET/PUT | `/api/data/stories/:cardId/catalog` 等 | Story 独立存取 |
 

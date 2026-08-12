@@ -13,18 +13,16 @@ import { seedGraphFromCard, mergeGraphSeed } from './graphSeed.mjs';
 import { trySyncAfterChapter } from './mvuHook.mjs';
 import {
   buildOutlineUserPrompt,
-  graphBriefFromNovel,
   parseOutlineAiText,
   CHILD_SAFETY_RULE,
 } from './prompts.mjs';
 import {
   forkBranchFromChapter,
-  branchBrief,
   getBranch,
   BRANCH_KIND_ENDING,
 } from './branch.mjs';
 import { runChapterWritePipeline } from './writePipeline.mjs';
-import { collectFeedForwardsBefore } from './feedForward.mjs';
+import { assembleOutlineContext } from './storyOutlineContext.mjs';
 import { showSsConfirm, showSsPrompt } from './dialogs.mjs';
 import {
   state,
@@ -38,7 +36,9 @@ import {
   taskSetProgress,
   isAbort,
   persistNovel,
+  getCardId,
 } from './shared.mjs';
+import { maybeAutoArcAfterChapter } from './storyArcMemory.mjs';
 import { renderAll, renderGraph, renderOutline, renderRead } from './renderViews.mjs';
 import { setWriteProgress, renderWrite, applyStreamContent, syncWriteSessionBar } from './writeBranchUi.mjs';
 import { WRITE_STEP_LABELS } from './writePipeline.mjs';
@@ -153,6 +153,33 @@ export async function seedGraph() {
   renderGraph();
 }
 
+export async function promoteGraphToCard() {
+  if (!state.novel || !state.novel.graph) {
+    setStatus('无图谱可同步', true);
+    return;
+  }
+  if (!window.__getWorldbookEntries__ || !window.__setWorldbookEntries__) {
+    setStatus('制卡 worldbook 未就绪', true);
+    return;
+  }
+  var mod = await import('./storyCardBridge.mjs');
+  var cardId = state.novel.cardId || (typeof window.__getCurrentDraftId__ === 'function' ? window.__getCurrentDraftId__() : '');
+  var r = await mod.promoteStoryGraphToCard(cardId, state.novel.id, {
+    policy: 'merge',
+    getWorldbook: function() { return window.__getWorldbookEntries__() || []; },
+    setWorldbook: function(entries) {
+      window.__setWorldbookEntries__(entries);
+      window.dispatchEvent(new Event('worldbook-changed'));
+      window.dispatchEvent(new Event('card-builder-data-changed'));
+    },
+  });
+  if (r.ok) {
+    setStatus('Story 图谱已同步到卡 worldbook（+' + r.added + ' / ~' + r.updated + '）');
+  } else {
+    setStatus(r.error || '同步失败', true);
+  }
+}
+
 
 export async function promptAndGenerateOutline(mode) {
   var isCont = mode === 'continue';
@@ -185,36 +212,18 @@ export async function generateOutline(mode, extraHint) {
   }
   var branchId = state.novel.activeBranchId;
   var visible = getActiveOutline(state.novel);
-  var existing = visible.map(function(o, i) {
-    return (i + 1) + '. ' + o.title + ' — ' + o.summary;
-  }).join('\n');
-  var chapters = getActiveChapters(state.novel);
-  var feeds = collectFeedForwardsBefore(chapters, chapters.length);
-  var feedBrief = feeds.slice(0, 6).map(function(f) {
-    return (f.order + 1) + '. ' + f.title + ' — ' + String(f.summary || '').slice(0, 100);
-  }).join('\n');
-  var segmentHint = mode === 'continue'
-    ? '在已有大纲之后续写 3～5 章。'
-    : '生成完整分段大纲，约 8～12 章。';
-  if (mode === 'branch') {
-    segmentHint = '这是分支世界的续写大纲，请按分支方向续写 3～6 章，承接分叉前剧情但走向不同。';
-  }
-  var extra = String(extraHint || '').trim();
-  if (extra) segmentHint += '\n额外要求：' + extra;
+  var ctx = assembleOutlineContext(state.novel, {
+    mode: mode === 'continue' ? 'continue' : (mode === 'branch' ? 'branch' : 'segment'),
+    direction: direction,
+    branchId: branchId,
+    extraHint: extraHint,
+  });
 
   var system = promptText(
     'storyOutlineGen',
     '你是长篇小说大纲策划。输出结构化章节大纲（标题+摘要）。' + CHILD_SAFETY_RULE
   );
-  var user = buildOutlineUserPrompt({
-    title: state.novel.title,
-    direction: direction,
-    branchHint: branchBrief(state.novel, branchId),
-    graphBrief: graphBriefFromNovel(state.novel),
-    existingOutline: existing,
-    feedForwardBrief: feedBrief,
-    segmentHint: segmentHint,
-  });
+  var user = buildOutlineUserPrompt(ctx);
 
   setStatus('正在生成大纲…');
   try {
@@ -354,6 +363,17 @@ export async function writeChapter(autoNext, opts) {
         setStatus('章节已写完；同步未生效：' + (syncResult.warning || ''), { panel: 'write' });
       }
       await persistNovel();
+      try {
+        var arcText = await maybeAutoArcAfterChapter(
+          { callAI: callAI, promptText: promptText },
+          getCardId(),
+          state.novel,
+          live
+        );
+        if (arcText) await persistNovel();
+      } catch (eArc) {
+        console.warn('[storyStudio] auto arc summary', eArc);
+      }
     });
 
     setWriteProgress(null);

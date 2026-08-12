@@ -25,6 +25,7 @@ import { pushChapterCheckpoint } from './checkpoint.mjs';
 import { mergeForeshadowsIntoLedger, ledgerBrief } from './plotLedger.mjs';
 import { resolveBranchLedger, branchBrief, getBranch } from './branch.mjs';
 import { getActiveChapters, getActiveOutline, getLiveChapterById } from './state.mjs';
+import { ensureChapterBodyLoaded } from './storyStorage.mjs';
 
 export var WRITE_STEPS = ['plan', 'draft', 'feed', 'qa'];
 export var WRITE_STEP_LABELS = {
@@ -56,6 +57,16 @@ export async function runChapterWritePipeline(deps, novel, chapterIndex, opts) {
   if (!viewCh) throw new Error('章节不存在');
   // 始终回绑 novel.chapters 活对象，防止视图层误返回克隆
   var ch = getLiveChapterById(n, viewCh.id) || viewCh;
+  var cardId = String(n.cardId || '');
+  var prevView = idx > 0 ? chapters[idx - 1] : null;
+
+  await ensureChapterBodyLoaded(cardId, n, ch.id);
+  if (prevView && prevView.id) await ensureChapterBodyLoaded(cardId, n, prevView.id);
+  ch = getLiveChapterById(n, viewCh.id) || viewCh;
+  var prev = prevView ? (getLiveChapterById(n, prevView.id) || prevView) : null;
+  chapters = getActiveChapters(n);
+  var feeds = collectFeedForwardsBefore(chapters, idx);
+  ch.__bodyLoaded = true;
 
   function step(name) {
     if (typeof d.onStep === 'function') d.onStep(name, { chapter: ch, index: idx });
@@ -77,9 +88,6 @@ export async function runChapterWritePipeline(deps, novel, chapterIndex, opts) {
   var runQa = o.skipQa ? false : (ws.runQuality !== false);
   var branch = getBranch(n, n.activeBranchId);
   var ledgerItems = resolveBranchLedger(n, n.activeBranchId);
-  var prevView = idx > 0 ? chapters[idx - 1] : null;
-  var prev = prevView ? (getLiveChapterById(n, prevView.id) || prevView) : null;
-  var feeds = collectFeedForwardsBefore(chapters, idx);
 
   if (o.rewriteOnly) {
     step('draft');

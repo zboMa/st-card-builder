@@ -100,6 +100,13 @@ export function getStoryNovel(cardId, novelId) {
   );
 }
 
+export function getStoryChapter(cardId, novelId, chapterId) {
+  return cloudGet(
+    '/api/data/stories/' + encodeURIComponent(cardId) + '/'
+    + encodeURIComponent(novelId) + '/chapters/' + encodeURIComponent(chapterId)
+  );
+}
+
 export function putCloudDoc(doc, opts) {
   opts = opts || {};
   return cloudPut('/api/data/doc', Object.assign({}, doc, {
@@ -173,6 +180,14 @@ export function putStoryNovel(cardId, novel) {
   return cloudPut(
     '/api/data/stories/' + encodeURIComponent(cardId) + '/' + encodeURIComponent(nid),
     { data: novel }
+  );
+}
+
+export function putStoryChapter(cardId, novelId, chapterId, body) {
+  return cloudPut(
+    '/api/data/stories/' + encodeURIComponent(cardId) + '/'
+    + encodeURIComponent(novelId) + '/chapters/' + encodeURIComponent(chapterId),
+    { data: body }
   );
 }
 

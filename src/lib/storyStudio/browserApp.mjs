@@ -16,7 +16,13 @@ import {
   setStatus,
   persistNovel,
   reloadCatalog,
+  ensureWriteChapterReady,
+  getCardId,
+  callAI,
+  promptText,
+  runTracked,
 } from './shared.mjs';
+import { markVolumeEnd, runArcSummaryTask } from './storyArcMemory.mjs';
 import {
   renderAll,
   renderGraph,
@@ -55,6 +61,7 @@ import {
   collectWriteFromDom,
   collectLedgerFromDom,
   seedGraph,
+  promoteGraphToCard,
   promptAndGenerateOutline,
   generateOutline,
   forkCurrentChapterBranch,
@@ -113,6 +120,8 @@ function bindEvents() {
 
   var btnSeed = $('btnSsSeedGraph');
   if (btnSeed) btnSeed.addEventListener('click', function() { seedGraph(); });
+  var btnPromoteCard = $('btnSsPromoteGraphToCard');
+  if (btnPromoteCard) btnPromoteCard.addEventListener('click', function() { promoteGraphToCard(); });
 
   var btnAddNode = $('btnSsAddNode');
   if (btnAddNode) {
@@ -202,6 +211,7 @@ function bindEvents() {
       if (!state.novel) return;
       var editTitle = ev.target.closest('[data-ss-ol-edit-title]');
       var discard = ev.target.closest('[data-ss-ol-discard]');
+      var volEnd = ev.target.closest('[data-ss-ol-volume-end]');
       var del = ev.target.closest('[data-ss-ol-del]');
       var row = ev.target.closest('[data-ol-idx]');
       if (!row) return;
@@ -248,6 +258,31 @@ function bindEvents() {
         renderAll();
         return;
       }
+      if (volEnd) {
+        collectOutlineFromDom();
+        var cardIdVol = getCardId();
+        var vol = null;
+        try {
+          vol = markVolumeEnd(state.novel, { outlineIndex: i });
+        } catch (eVol) {
+          setStatus('卷末标记失败：' + (eVol.message || eVol));
+          return;
+        }
+        await persistNovel();
+        renderOutline();
+        await runTracked({
+          type: 'story_arc',
+          typeLabel: '叙事记忆',
+          title: '弧段摘要',
+          target: vol.title,
+        }, async function() {
+          await runArcSummaryTask({ callAI: callAI, promptText: promptText }, cardIdVol, state.novel, vol);
+          await persistNovel();
+          renderOutline();
+          setStatus('卷末已标记，弧摘要已生成');
+        });
+        return;
+      }
       if (del) {
         collectOutlineFromDom();
         var visible = getActiveOutline(state.novel);
@@ -279,7 +314,7 @@ function bindEvents() {
         collectWriteFromDom({ chapterId: prevId });
       }
       ui.writeChapterId = nextId;
-      renderWrite();
+      ensureWriteChapterReady(nextId).then(function() { renderWrite(); });
     });
   }
 
@@ -294,7 +329,7 @@ function bindEvents() {
     if (writeSel) writeSel.value = next.id;
     ui.writeChapterId = next.id;
     ui.writeForceEdit = false;
-    renderWrite();
+    ensureWriteChapterReady(next.id).then(function() { renderWrite(); });
   }
   var btnChapPrev = $('btnSsChapPrev');
   if (btnChapPrev) btnChapPrev.addEventListener('click', function() { goChapter(-1); });
@@ -322,7 +357,7 @@ function bindEvents() {
       ui.writeChapterId = id;
       ui.writeForceEdit = false;
       setWriteTocOpen(false);
-      renderWrite();
+      ensureWriteChapterReady(id).then(function() { renderWrite(); });
     });
   }
 
@@ -666,6 +701,7 @@ function bindEvents() {
       if (!btn || !state.novel) return;
       state.novel.readState.chapterId = btn.getAttribute('data-ch-id');
       state.novel.readState.pageIndex = 0;
+      await ensureWriteChapterReady(state.novel.readState.chapterId);
       await persistNovel();
       renderRead();
     });
@@ -738,6 +774,7 @@ function bindEvents() {
         state.novel.readState.chapterId = chapters[idx - 1].id;
         state.novel.readState.pageIndex = 0;
       }
+      await ensureWriteChapterReady(state.novel.readState.chapterId);
       await persistNovel();
       renderRead();
     });
@@ -764,9 +801,10 @@ function bindEvents() {
       if (idx + 1 < chapters.length) {
         state.novel.readState.chapterId = chapters[idx + 1].id;
         state.novel.readState.pageIndex = 0;
-        await persistNovel();
-        renderRead();
       }
+      await ensureWriteChapterReady(state.novel.readState.chapterId);
+      await persistNovel();
+      renderRead();
     });
   }
   var btnBm = $('btnSsReadBookmark');
@@ -798,6 +836,7 @@ function bindEvents() {
       if (!btn || !state.novel) return;
       state.novel.readState.chapterId = btn.getAttribute('data-bm-ch');
       state.novel.readState.pageIndex = 0;
+      await ensureWriteChapterReady(state.novel.readState.chapterId);
       await persistNovel();
       renderRead();
     });

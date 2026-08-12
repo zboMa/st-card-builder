@@ -15,15 +15,18 @@
 | NSFW/NTL/恶堕层与入口 | [`domains/nsfw-ntl.md`](./domains/nsfw-ntl.md) |
 | ST 卡字段名（creatorNotes 等） | [`domains/st-card-fields.md`](./domains/st-card-fields.md) |
 | 壳层启动、模块地图 | [`architecture/overview.md`](./architecture/overview.md) |
+| **核心设计思想**（四模块融合/发散、三层对象；**§9.1 PR 排期**） | [`architecture/core-design-philosophy.md`](./architecture/core-design-philosophy.md) |
 | **操作引擎 / 重任务互斥** | [`architecture/action-engine.md`](./architecture/action-engine.md) |
 | 小说工坊 / 分析管道 | [`architecture/novel-workshop.md`](./architecture/novel-workshop.md)、[`architecture/novel-analysis.md`](./architecture/novel-analysis.md) |
 | 助手工具与风险 | [`architecture/assistant.md`](./architecture/assistant.md) |
 | 卡侧面板 | [`architecture/card-builder.md`](./architecture/card-builder.md) |
 | 小说创作（story studio） | [`architecture/story-studio.md`](./architecture/story-studio.md) |
+| **Story 千章规模架构**（Spine/Body/Memory · L1 契约） | [`architecture/story-scale.md`](./architecture/story-scale.md) |
 | 试聊运行时 | [`architecture/chat-runtime.md`](./architecture/chat-runtime.md) |
 | 生产部署 / Nginx | [`ops/production.md`](./ops/production.md)、[`ops/nginx.md`](./ops/nginx.md) |
 | 升级路线 / 回归 / 基线 | [`ops/upgrade-roadmap.md`](./ops/upgrade-roadmap.md)、[`ops/product-roadmap-v1.md`](./ops/product-roadmap-v1.md)、[`ops/competitive-research-2026.md`](./ops/competitive-research-2026.md)、[`ops/regression-checklist.md`](./ops/regression-checklist.md)、[`ops/baseline-metrics.md`](./ops/baseline-metrics.md) |
-| 写卡教程 / 目录扩写质量 | [`guides/`](./guides/) |
+| 写卡教程 / 目录扩写质量 | [`guides/`](./guides/)（**§2.0 多人卡原生**） |
+| 设计改进 backlog / PR 排期 | [`architecture/core-design-philosophy.md`](./architecture/core-design-philosophy.md) **§11**、**§9.1** |
 
 ## 真相源（SoT）
 
@@ -36,6 +39,8 @@
 | NSFW / NTL | **代码** `src/lib/adult/**`；规则见 `domains/nsfw-ntl.md`（**禁止文档写死口味数量**） | README / 旧架构里的数量 |
 | 部署 | `docs/ops/production.md` + `deploy/` + `.github/workflows/deploy.yml` | 「没有 CI/Docker」类传言 |
 | 升级执行 | `docs/ops/upgrade-roadmap.md` + `regression-checklist.md` + `baseline-metrics.md` | 口头约定无文档 |
+| 产品级设计思想 | `docs/architecture/core-design-philosophy.md` | 零散讨论 / README 口号 |
+| 设计改进跟踪 | `docs/architecture/core-design-philosophy.md` §11、§9.1 | 口头 todo |
 
 ## 目录约定
 

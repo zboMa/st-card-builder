@@ -17,6 +17,7 @@ import {
 import { novelToTxt, novelTxtFilename } from '../src/lib/storyStudio/exportTxt.mjs';
 import { storyNovelKey, storyCatalogKey } from '../src/lib/storyStudio/idb.mjs';
 import { seedGraphFromCard, mergeGraphSeed } from '../src/lib/storyStudio/graphSeed.mjs';
+import { storyGraphToKnowledge } from '../src/lib/storyStudio/graphView.mjs';
 import { detectMvuStatusBarDesign, trySyncAfterChapter } from '../src/lib/storyStudio/mvuHook.mjs';
 import {
   parseOutlineAiText,
@@ -166,10 +167,71 @@ describe('storyStudio graphSeed', function() {
     });
     assert.ok(g.nodes.length >= 3);
     assert.ok(g.nodes.some(function(n) { return n.name === '林深' && n.type === 'character'; }));
-    assert.ok(g.nodes.some(function(n) { return n.name === '苏晚'; }));
-    assert.ok(g.nodes.some(function(n) { return n.type === 'location'; }));
+    assert.ok(g.nodes.some(function(n) { return n.name.indexOf('苏晚') >= 0 && n.type === 'character'; }));
+    assert.ok(g.nodes.some(function(n) { return n.type === 'location' && n.name.indexOf('江城') >= 0; }));
     var merged = mergeGraphSeed(g, seedGraphFromCard({ charName: '林深', worldbookEntries: [] }));
     assert.equal(merged.nodes.filter(function(n) { return n.name === '林深'; }).length, 1);
+  });
+
+  it('V2 displayName/kind 骨架条目可生成节点', function() {
+    var g = seedGraphFromCard({
+      charName: '灵溪宗：雨幕下的隐龙',
+      worldbookEntries: [
+        {
+          id: 'wb1',
+          kind: 'outline_location',
+          owner: 'aiEngine',
+          ownerSlot: 'loc1',
+          displayName: '地理: 破败灵溪宗',
+          content: '山门残破',
+          enabled: true,
+        },
+        {
+          id: 'wb2',
+          kind: 'outline_person',
+          owner: 'aiEngine',
+          ownerSlot: 'p1',
+          displayName: '[宗主] 沈若冰',
+          content: '冷面宗主',
+          enabled: true,
+        },
+        {
+          id: 'wb3',
+          kind: 'outline_ability',
+          owner: 'aiEngine',
+          ownerSlot: 'a1',
+          displayName: '功法: 隐龙诀',
+          content: '镇派功法',
+          enabled: true,
+        },
+        {
+          id: 'mvu1',
+          kind: 'mvu_design',
+          owner: 'mvu',
+          displayName: 'MVU',
+          enabled: true,
+        },
+      ],
+    });
+    assert.ok(g.nodes.length >= 4, 'expect scene + 3 narrative entries');
+    assert.ok(g.nodes.some(function(n) { return n.name === '地理: 破败灵溪宗' && n.type === 'location'; }));
+    assert.ok(g.nodes.some(function(n) { return n.name === '[宗主] 沈若冰' && n.type === 'character'; }));
+    assert.ok(g.nodes.some(function(n) { return n.name === '功法: 隐龙诀' && n.type === 'other'; }));
+    assert.ok(g.nodes.some(function(n) { return n.name === '灵溪宗：雨幕下的隐龙' && n.role === 'protagonist'; }));
+    assert.ok(g.edges.some(function(e) { return e.label === '关联'; }));
+    assert.ok(!g.nodes.some(function(n) { return n.name === 'MVU'; }));
+  });
+
+  it('storyGraphToKnowledge 场景 hub → protagonist 锚点', function() {
+    var kg = storyGraphToKnowledge({
+      nodes: [
+        { id: 'a', name: '灵溪宗', type: 'character', role: 'protagonist' },
+        { id: 'b', name: '沈若冰', type: 'character' },
+      ],
+      edges: [],
+    }, { sceneName: '灵溪宗' });
+    assert.equal(kg.nodes[0].attrs.role, 'protagonist');
+    assert.equal(kg.nodes[1].attrs.role, '');
   });
 });
 
