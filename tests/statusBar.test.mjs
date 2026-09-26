@@ -601,6 +601,8 @@ describe('statusBar core', function() {
     assert.match(rx.replaceString, /```html/);
     assert.match(rx.replaceString, /data-zb-path/);
     assert.match(rx.replaceString, /getCurrentMessageId/);
+    assert.match(rx.replaceString, /errorCatched\(boot\)\(\)/);
+    assert.doesNotMatch(rx.replaceString, /errorCatched\(boot\);/);
     assert.match(rx.replaceString, /display_data[\s\S]*stat_data/);
     assert.doesNotMatch(rx.replaceString, /type="module"/);
     assert.doesNotMatch(rx.replaceString, /message_id:"latest"|message_id: "latest"/);

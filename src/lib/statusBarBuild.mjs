@@ -412,7 +412,7 @@ function buildStatusBarMvuRefreshScript() {
     '      eventOn(Mvu.events.VARIABLE_UPDATE_ENDED,function(){refresh(root);});',
     '    }',
     '  }',
-    '  if(typeof errorCatched==="function") errorCatched(boot); else boot();',
+    '  if(typeof errorCatched==="function") errorCatched(boot)(); else boot();',
     '})();',
     '</script>',
   ].join('');
