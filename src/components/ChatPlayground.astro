@@ -19,7 +19,7 @@
       <p class="ui-hint chat-scene-id-hint" style="margin:0 0 8px;padding:0 16px;font-size:0.78rem;">场景标识（charName）≠ 单人扮演；NPC 来自 worldbook</p>
       <div class="chat-config-drawer__ops">
         <span class="chat-indicator" id="chatWbIndicator" title="世界书触发状态">WB 0</span>
-        <span class="chat-indicator" id="chatTokenIndicator" title="估算 Token 数">~0 tok</span>
+        <span class="chat-indicator ui-meta" id="chatTokenIndicator" title="估算 Token 数">~0 tok</span>
         <label class="debug-toggle" title="调试模式">
           <input type="checkbox" id="chatShowPrompt" />
           <span>调试</span>
@@ -98,8 +98,7 @@
     <div id="chatPromptDebug" style="display: none;"></div>
     <div id="chatMessages" class="chat-messages">
       <div class="chat-empty-hint">
-        <div style="color: var(--color-text-muted); font-size: 0.82rem;">点击「开始试聊」加载开场白</div>
-        <div style="color: var(--color-text-muted); font-size: 0.72rem; margin-top: 4px;">世界书/正则按 SillyTavern 1.18.0 规则试运行</div>
+        <p class="ui-empty-tip">点击「开始试聊」加载开场白<br>世界书/正则按 SillyTavern 1.18.0 规则试运行</p>
       </div>
     </div>
   </div>
@@ -115,7 +114,7 @@
         </button>
       </div>
       <div class="chat-compose-meta">
-        <span class="chat-compose-hint">Enter 发送 · Shift+Enter 换行</span>
+        <span class="chat-compose-hint ui-hint">Enter 发送 · Shift+Enter 换行</span>
         <span id="chatTypingIndicator" class="chat-typing-indicator" style="display: none;">
           <span class="typing-dots">
             <span>.</span><span>.</span><span>.</span>

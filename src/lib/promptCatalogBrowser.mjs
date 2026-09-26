@@ -25,13 +25,13 @@ import {
   AFFECTION_TARGET_CHARS_PER_STAGE,
 } from './affectionProgress.mjs';
 
-/** 扩展规范：下拉分段（与 docs/catalog-quality-standards.md 对齐） */
+/** 扩展规范：下拉分段（与 docs/guides/catalog-quality-standards.md 对齐） */
 export var CATALOG_STANDARD_SECTIONS = [
   {
     id: 'overview',
     label: '总览与字数硬线',
     body:
-      '扩展 / 增补口味 · 表达层 · NTL · 世界观 · 载体时遵守本规范。完整文档见 docs/catalog-quality-standards.md。\n\n'
+      '扩展 / 增补口味 · 表达层 · NTL · 世界观 · 载体时遵守本规范。完整文档见 docs/guides/catalog-quality-standards.md。\n\n'
       + '字数硬线（JS .length）：\n'
       + '· 口味 / NTL / 世界观：description 300–450，writingGuide 350–500\n'
       + '· 表达层（姿势 / 话风）：description 150–225，writingGuide 175–250，summary 12–28\n'
@@ -309,7 +309,7 @@ export function buildPromptCatalogBrowser() {
     tabMeta: PROMPT_CATALOG_TAB_META.slice(),
     sections: {
       standards: {
-        hint: '扩展增项时遵守的硬标准（只读）。完整 Markdown 见仓库 docs/catalog-quality-standards.md。',
+        hint: '扩展增项时遵守的硬标准（只读）。完整 Markdown 见仓库 docs/guides/catalog-quality-standards.md。',
         items: CATALOG_STANDARD_SECTIONS.map(function(s) {
           return {
             id: s.id,

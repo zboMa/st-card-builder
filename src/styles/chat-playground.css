@@ -643,11 +643,7 @@
     margin-top: 6px;
     gap: 8px;
   }
-  .chat-compose-hint {
-    font-size: 0.65rem;
-    color: var(--color-text-muted);
-  }
-  /* 触屏 / 窄屏无物理 Enter，隐藏桌面快捷键提示 */
+  /* 字号色由 .ui-hint；窄屏无物理 Enter 时隐藏 */
   @media (max-width: 900px), (hover: none) and (pointer: coarse) {
     .chat-compose-hint {
       display: none;

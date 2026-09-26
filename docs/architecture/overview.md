@@ -64,7 +64,7 @@ server/src/
 
 子系统深读：
 
-- **核心设计思想**（制卡 / 工坊 / 试聊 / 创作如何融合；**§9.1 PR 排期**）→ [`core-design-philosophy.md`](./core-design-philosophy.md)
+- **核心设计思想**（制卡 / 工坊 / 试聊 / 创作如何融合；已决契约在 §6）→ [`core-design-philosophy.md`](./core-design-philosophy.md)
 - 操作引擎 → [`action-engine.md`](./action-engine.md)
 - 卡侧 → [`card-builder.md`](./card-builder.md)
 - 小说工坊 → [`novel-workshop.md`](./novel-workshop.md)、[`novel-analysis.md`](./novel-analysis.md)

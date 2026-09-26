@@ -83,4 +83,4 @@ Episode Promote **只写 Story**（章草稿 / plotLedger），不写卡。完�
 | **多说话人** | `build.mjs` 前缀检测含 worldbook person 名 |
 | **MVU** | cast 平等；Promote 快照 = 全 cast |
 
-**现状差距**：`prompt/build.mjs` 仍 `Continue the chat as {charName}`；无焦点 UI。实现独立 PR（§11 D2）。
+Continue 与焦点 NPC 按 §5.3 接在 `chatRuntime/prompt/build.mjs` 与 `playgroundBoot.mjs`。

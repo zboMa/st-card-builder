@@ -6,7 +6,6 @@ import { escapeHtml } from '../utils.mjs';
 
 /** 允许 appFeedback channel:inline 写入的 DOM id（上下文态，非操作结果） */
 export const FEEDBACK_INLINE_IDS = Object.freeze([
-  'assistantStatusTip',
   'syncStatusLine',
   'vcStatus',
   'imgComfyDetectHint',

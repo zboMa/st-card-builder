@@ -1,19 +1,21 @@
 /**
  * 助手上下文管理（独立模块）
  * - 预算：200k tokens（tiktoken cl100k_base，经 js-tiktoken）
- * - ≥60%：启动压缩；≥80%：激进压缩
- * - 发送时整体压缩，禁止单条工具结果盲切固定字符数
+ * - 送模从最近一次成功的上下文检查点开始；检查点之前的原文留在会话里
+ * - 达到硬阈值时由面板写一次检查点，不在每次发送时重压全文
+ * - 试聊仍走 prepareChatCompletionMessages 的发送时压缩
  */
 import { getEncoding } from 'js-tiktoken';
 import { messageContentForModel } from './ragInject.mjs';
+import { modelFacingToolSummary, toolResultBodyForModel } from './toolTraceSummary.mjs';
 
 /** @type {{ limit: number, softRatio: number, hardRatio: number, messageOverhead: number, reserveReply: number }} */
 export var CONTEXT_BUDGET = {
   /** 模型上下文总窗口 */
   limit: 200000,
-  /** 超过该比例启动压缩 */
+  /** 超过该比例只标档位，不在发送时重写历史 */
   softRatio: 0.6,
-  /** 超过该比例激进压缩 */
+  /** 超过该比例且还有可收起的对话时，写一次上下文检查点 */
   hardRatio: 0.8,
   /** 每条 Chat 消息额外开销（role / 分隔） */
   messageOverhead: 4,
@@ -101,6 +103,8 @@ export function uiMessagesToModelHistory(uiMessages) {
       return;
     }
     if (m.role === 'assistant') {
+      // 失败红条不送模（重试会删掉或续接）；工具错误走 role===tool，仍送模
+      if (m.error) return;
       out.push({
         role: 'assistant',
         // 送模优先 modelContent（完整 raw）；UI 用 content/displayContent
@@ -109,12 +113,25 @@ export function uiMessagesToModelHistory(uiMessages) {
       });
       return;
     }
-    if (m.role === 'tool') {
-      var toolLine = m.summary || String(m.toolName || 'tool');
-      var toolBody = m.modelDetail || m.detail || m.content || '';
+    if (m.compaction) {
+      if (!m.ok) return;
+      var checkpointBody = String(m.modelContent || m.content || '').trim();
+      if (!checkpointBody || checkpointBody === '上下文已压缩') return;
       out.push({
         role: 'user',
-        content: '[工具结果·成功]\n' + toolLine + '\n' + toolBody,
+        content: '[上下文检查点]\n' + checkpointBody,
+        meta: { kind: 'checkpoint' },
+      });
+      return;
+    }
+    if (m.role === 'tool') {
+      if (m.running) return;
+      var toolLine = modelFacingToolSummary(m);
+      var toolBody = toolResultBodyForModel(m);
+      var toolLabel = m.error ? '[工具结果·失败]' : '[工具结果·成功]';
+      out.push({
+        role: 'user',
+        content: toolLabel + '\n' + toolLine + (toolBody ? '\n' + toolBody : ''),
         meta: {
           kind: 'tool',
           toolName: m.toolName || '',
@@ -128,95 +145,103 @@ export function uiMessagesToModelHistory(uiMessages) {
   return out;
 }
 
+/** 检查点之后原样保留的近期 token。再早的对话收进下一次检查点。 */
+export var COMPACTION_KEEP_TOKENS = 8000;
+
+/** @param {object[]} uiMessages */
+export function lastCheckpointIndex(uiMessages) {
+  var idx = -1;
+  var list = uiMessages || [];
+  for (var i = 0; i < list.length; i++) {
+    if (list[i] && list[i].compaction && list[i].ok) idx = i;
+  }
+  return idx;
+}
+
+/** 送模面：最近一次成功检查点及其后的消息。 */
+export function modelSurfaceMessages(uiMessages) {
+  var list = uiMessages || [];
+  var idx = lastCheckpointIndex(list);
+  if (idx < 0) return list.slice();
+  return list.slice(idx);
+}
+
+function surfacePieceTokens(m) {
+  if (!m || m.running) return 0;
+  var hist = uiMessagesToModelHistory([m]);
+  return countMessagesTokens(stripToModelMessages(hist));
+}
+
+/**
+ * 压哪一段：检查点之后、近期原文之前。尾部是连续的近端，切在工具结果上时把前一条助手调用留在尾部。
+ * @param {object[]} uiMessages
+ * @returns {{ anchor: string, head: object[], insertAt: number }|null}
+ */
+export function planCompactionSpan(uiMessages) {
+  var list = uiMessages || [];
+  var ck = lastCheckpointIndex(list);
+  var bodyStart = ck < 0 ? 0 : ck + 1;
+  if (list.length - bodyStart < 2) return null;
+
+  var keep = 0;
+  var tailAt = list.length;
+  for (var i = list.length - 1; i >= bodyStart; i--) {
+    var tok = surfacePieceTokens(list[i]);
+    if (keep > 0 && keep + tok > COMPACTION_KEEP_TOKENS) break;
+    keep += tok;
+    tailAt = i;
+  }
+  if (list[tailAt] && list[tailAt].role === 'tool' && tailAt - 1 >= bodyStart
+    && list[tailAt - 1] && list[tailAt - 1].role === 'assistant') {
+    tailAt -= 1;
+  }
+  if (tailAt <= bodyStart) return null;
+  var head = list.slice(bodyStart, tailAt).filter(function(m) { return m && !m.running; });
+  if (!head.length) return null;
+  var anchor = ck >= 0 ? String(list[ck].modelContent || list[ck].content || '') : '';
+  if (anchor === '上下文已压缩') anchor = '';
+  return { anchor: anchor, head: head, insertAt: tailAt };
+}
+
+/**
+ * 摘要调用的用户消息。超长时只保留这段对话的近端，已有检查点全文仍放在前面。
+ * @param {{ anchor?: string, head?: object[] }} span
+ */
+export function buildCompactionRequest(span) {
+  span = span || {};
+  var headHist = uiMessagesToModelHistory(span.head || []);
+  var transcript = headHist.map(function(m) {
+    return '[' + (m.role || 'msg') + ']\n' + String(m.content || '');
+  }).join('\n\n');
+  var room = Math.max(2000, inputTokenBudget() - 2000);
+  if (countTokens(transcript) > room) transcript = truncateTailToTokens(transcript, room);
+  var lines = [
+    '你在为制卡助手写上下文检查点。只输出摘要，不要调用工具，不要抄长正文。',
+    '卡片上的设定以之后的读卡工具为准。不要把角色卡、世界书、开场白的全文写进摘要。',
+    '用中文，按此结构：当前目标；已写入的角色与世界书（标题和条数）；世界与限定；未完成的生成；失败与待确认；用户明确要求。',
+  ];
+  if (span.anchor) {
+    lines.push('已有检查点（据此更新，删掉已经过时的内容）：\n' + span.anchor);
+  }
+  lines.push('需要收进检查点的对话：\n' + (transcript || '（无）'));
+  return lines.join('\n\n');
+}
+
+/** @param {string} summary */
+export function makeCheckpointMessage(summary) {
+  var text = String(summary || '').trim();
+  return {
+    role: 'compaction',
+    compaction: true,
+    ok: true,
+    content: '上下文已压缩',
+    modelContent: text,
+  };
+}
+
 function stripToModelMessages(history) {
   return (history || []).map(function(m) {
     return { role: m.role, content: m.content };
-  });
-}
-
-/**
- * soft：压缩旧工具正文，保留近期完整结果；assistant 原文不丢弃、不改写结构
- * @param {{ role: string, content: string, meta?: object }[]} history
- * @param {number} keepRecentTools 近期工具条保留全文的数量
- */
-function compressSoft(history, keepRecentTools) {
-  var keep = keepRecentTools == null ? 4 : keepRecentTools;
-  var toolIdx = [];
-  history.forEach(function(m, i) {
-    if (m.meta && m.meta.kind === 'tool') toolIdx.push(i);
-  });
-  var keepSet = Object.create(null);
-  toolIdx.slice(-keep).forEach(function(i) { keepSet[i] = 1; });
-
-  var out = [];
-  for (var i = history.length - 1; i >= 0; i--) {
-    var m = history[i];
-    var meta = m.meta || {};
-    if (meta.kind === 'tool' && !keepSet[i]) {
-      var summary = meta.summary || '工具结果';
-      var body = String(meta.fullBody || m.content || '');
-      // 旧工具结果按 token 预算截断预览；不改写模型 assistant 原文
-      var preview = truncateToTokens(body, 180);
-      out.push({
-        role: 'user',
-        content: '[工具结果·压缩]\n' + summary + '\n' + preview,
-        meta: Object.assign({}, meta, { compressed: 'soft' }),
-      });
-      continue;
-    }
-    out.push(m);
-  }
-  return out.reverse();
-}
-
-/**
- * hard：只留系统外最近若干轮；工具只留摘要；旧 user RAG 去掉
- * assistant 仅允许按 token 截断，禁止 Thought/Action 重组
- * @param {{ role: string, content: string, meta?: object }[]} history
- */
-function compressHard(history) {
-  var softed = compressSoft(history, 2);
-  // 找最后一条真正的用户请求（非工具结果包装）
-  var lastUserIdx = -1;
-  for (var i = softed.length - 1; i >= 0; i--) {
-    var meta = softed[i].meta || {};
-    if (softed[i].role === 'user' && meta.kind === 'user') {
-      lastUserIdx = i;
-      break;
-    }
-  }
-  var start = Math.max(0, softed.length - 10);
-  if (lastUserIdx >= 0) start = Math.min(start, lastUserIdx);
-
-  var slice = softed.slice(start);
-  return slice.map(function(m) {
-    var meta = m.meta || {};
-    if (meta.kind === 'tool') {
-      return {
-        role: 'user',
-        content: '[工具结果·摘要]\n' + (meta.summary || '完成'),
-        meta: Object.assign({}, meta, { compressed: 'hard' }),
-      };
-    }
-    if (meta.kind === 'user' && meta.hasRag && m !== slice[slice.length - 1] && softed.indexOf(m) !== lastUserIdx) {
-      // 非当前用户回合：去掉可能很长的 RAG，只留短提示
-      var plain = String(m.content || '');
-      var cut = plain.split(/\n【相关小说/);
-      return {
-        role: 'user',
-        content: truncateToTokens(cut[0] || plain, 400),
-        meta: Object.assign({}, meta, { compressed: 'hard' }),
-      };
-    }
-    // assistant / 其它：仅按 token 截断，不重组 Thought/Action
-    if (String(m.content || '').length > 0 && countTokens(m.content) > 1200) {
-      return {
-        role: m.role,
-        content: truncateToTokens(m.content, 1200),
-        meta: Object.assign({}, meta, { compressed: 'hard-tail' }),
-      };
-    }
-    return m;
   });
 }
 
@@ -334,7 +359,7 @@ function dropOldestUntilFit(history, budget) {
 }
 
 /**
- * 组装即将发送的 messages，并按预算整体压缩。
+ * 组装即将发送的 messages。送模面从最近检查点开始；仍超窗时当次丢掉最旧几条，不改会话原文。
  * @param {{
  *   systemPrompt: string,
  *   uiMessages: object[],
@@ -357,7 +382,8 @@ export function prepareAssistantMessages(opts) {
   var softAt = softThreshold();
   var hardAt = hardThreshold();
 
-  var history = uiMessagesToModelHistory(opts.uiMessages || []);
+  var rawMessages = opts.uiMessages || [];
+  var history = uiMessagesToModelHistory(modelSurfaceMessages(rawMessages));
   var systemTokens = countTokens(systemPrompt)
     + (extraSystem ? countTokens(extraSystem) + (CONTEXT_BUDGET.messageOverhead || 0) : 0)
     + (CONTEXT_BUDGET.messageOverhead || 0);
@@ -366,14 +392,10 @@ export function prepareAssistantMessages(opts) {
   var total = systemTokens + historyTokens + pendingTokens;
 
   var level = compressionLevelForTotal(total);
-  if (level === 'soft') history = compressSoft(history, 4);
-  if (level === 'hard') history = compressHard(history);
+  var needsCompaction = total >= hardAt && !!planCompactionSpan(rawMessages);
 
-  historyTokens = countMessagesTokens(stripToModelMessages(history));
-  total = systemTokens + historyTokens + pendingTokens;
-
-  // 压缩后仍超硬阈值：继续丢最旧
-  if (total > hardAt || total > budget) {
+  // 检查点还没写上、或尾巴本身仍超窗：当次丢掉最旧的几条，避免请求超限。不改会话原文。
+  if (total > budget) {
     level = 'hard';
     var roomForHistory = Math.max(256, budget - systemTokens - pendingTokens);
     history = dropOldestUntilFit(history, roomForHistory);
@@ -398,19 +420,22 @@ export function prepareAssistantMessages(opts) {
       hardAt: hardAt,
     },
     historyForUi: stripToModelMessages(history),
+    needsCompaction: needsCompaction,
+    compacted: lastCheckpointIndex(rawMessages) >= 0,
   };
 }
 
 /**
- * 仅估算（不改写消息）— UI 计数器 / 弹窗用
+ * 仅估算送模面（最近检查点及其后），不改写消息。
  * @param {{ systemPrompt?: string, historyMessages?: { content?: string }[], pendingInput?: string, uiMessages?: object[] }} opts
  */
 export function estimateAssistantContext(opts) {
   opts = opts || {};
   var system = countTokens(opts.systemPrompt || '') + (CONTEXT_BUDGET.messageOverhead || 0);
   var historyMsgs = opts.historyMessages;
-  if ((!historyMsgs || !historyMsgs.length) && opts.uiMessages) {
-    historyMsgs = stripToModelMessages(uiMessagesToModelHistory(opts.uiMessages));
+  var raw = opts.uiMessages || [];
+  if ((!historyMsgs || !historyMsgs.length) && raw.length) {
+    historyMsgs = stripToModelMessages(uiMessagesToModelHistory(modelSurfaceMessages(raw)));
   }
   var history = countMessagesTokens(historyMsgs || []);
   var pending = countTokens(opts.pendingInput || '');
@@ -424,6 +449,7 @@ export function estimateAssistantContext(opts) {
     softAt: softThreshold(),
     hardAt: hardThreshold(),
     level: compressionLevelForTotal(total),
+    compacted: lastCheckpointIndex(raw) >= 0,
   };
 }
 

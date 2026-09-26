@@ -26,14 +26,15 @@ describe('pipeline separation', function() {
     assert.equal(protagonistDescLooksContaminated('【小说人物·甲】\n档案'), true);
   });
 
-  it('single NSFW presets do not include corruption_stage by default', function() {
-    ['single_nsfw', 'single_ntl', 'single_ntr'].forEach(function(id) {
+  it('NSFW 题材收成同一份，亲密/NTL/NTR 含恶堕，日常不含', function() {
+    ['single_nsfw', 'multi_nsfw', 'nsfw'].forEach(function(id) {
       var p = getPresetById(id);
-      assert.ok(p, id);
-      assert.ok((p.modules || []).indexOf('corruption_stage') < 0, id + ' should not default corruption on protagonist');
+      assert.equal(p.id, 'intimate');
+      assert.ok((p.modules || []).indexOf('corruption_stage') >= 0, id);
     });
-    var multi = getPresetById('multi_nsfw');
-    assert.ok((multi.modules || []).indexOf('corruption_stage') >= 0);
-    assert.ok(STATUS_BAR_PRESETS.some(function(p) { return p.id === 'multi_ntl'; }));
+    assert.ok(getPresetById('single_ntl').modules.indexOf('corruption_stage') >= 0);
+    assert.ok(getPresetById('ntr').modules.indexOf('corruption_stage') >= 0);
+    assert.ok(getPresetById('daily').modules.indexOf('corruption_stage') < 0);
+    assert.ok(STATUS_BAR_PRESETS.every(function(p) { return p.id.indexOf('single_') !== 0 && p.id.indexOf('multi_') !== 0; }));
   });
 });

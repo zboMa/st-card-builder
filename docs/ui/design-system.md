@@ -2,7 +2,7 @@
 
 > SoT：本文 + `src/styles/ui-patterns.css` + `src/styles/tokens.css`。索引见 [`../README.md`](../README.md)。
 
-SillyTavern 卡片构建器壳层设计 token。状态栏 **30 套预览主题** 在 `src/lib/statusBarThemes/`，与本文档的壳层 token 分层独立。
+SillyTavern 卡片构建器壳层设计 token。状态栏面板用壳层 token 与 `.ui-step-pill`；`src/lib/statusBarThemes/` 不再进入面板。
 
 **壳层换肤**：5 套精品场景主题；**实施 SoT 见 [`theme-scenes-v3-final.md`](./theme-scenes-v3-final.md)**（v2 Phase 1 已落地）。`html[data-app-theme]` + `html[data-app-scene]` + 分级 `data-scene-tier`；侧栏「外观」→ 主题馆 Modal；持久化 `st_v3_app_theme` / `st_v3_scene_fx`。
 
@@ -119,7 +119,7 @@ SillyTavern 卡片构建器壳层设计 token。状态栏 **30 套预览主题**
 | Toast | `ctx.showAppMessage` / `appFeedback({ channel:'toast' })` | 短句成功、轻量 warn |
 | Notification | `ctx.showAppNotification` / `appFeedback({ channel:'notify' })` | `level:'error'`、`important:true`、长文案、账户登录失败、进行中（导入/同步等） |
 | 任务中心 | `ctx.runTracked` / `__aiTaskCenter__` | 可取消 AI/长任务；**开始时** `notifyAiTaskStarted`（已实现于 `aiTaskCenter.run`）+ 列表进度 |
-| Inline 白名单 | `FEEDBACK_INLINE_IDS` | 仅上下文态：`syncStatusLine`、`vcStatus` 基线、`assistantStatusTip`、弹窗内 `aiStatus`/`imgGenStatus`/`auditStatus` 等 |
+| Inline 白名单 | `FEEDBACK_INLINE_IDS` | 仅上下文态：`syncStatusLine`、`vcStatus` 基线、弹窗内 `aiStatus`/`imgGenStatus`/`auditStatus` 等。助手标题 `#assistantStatusTip` **不是**反馈通道：只在进行中显示「正在思考…」「等待确认大改…」，闲置隐藏，绿点表示就绪/忙碌 |
 
 **调用约定**
 
@@ -200,7 +200,7 @@ SillyTavern 卡片构建器壳层设计 token。状态栏 **30 套预览主题**
 1. **新样式**优先用 `var(--*)` 与 ui-patterns 类，避免散落 hex。
 2. **侧栏**：线性 SVG 图标，不用 emoji 作结构导航。
 3. **面板标题**：纯文字 h2 + `panel-header`。
-4. **状态栏壳层**对齐全站 token；30 套预览主题独立。
+4. **状态栏**：四步同屏，竖线用 `var(--color-accent)`，序号复用 `.ui-step-pill`。顶栏只有查看提示词和样例楼层。变量、排版的生成按钮在各自标题行右侧，用 `.btn-inline`。右侧「预览 / 变量 / 注入脚本」复用 `.assistant-mode-switch`。
 5. **AI 助手 composer**：发送/停止同一 `.btn-icon--primary`；Enter 发送。
 6. **角色卡 / 小说管理**：底栏图标 + `btn-inline` 发布簇同行；点名重命名；检查用角标。
 7. **小说创作（story-studio）**：五视图面板全宽铺满主栏；**操作在面板右上角**；空态用居中 tip；阅读正文列可限宽。图谱用 G6（同小说分析）；大纲标题点击编辑；写作主 CTA「写作」统一模式配置 + 流式正文 + 步骤/任务中心进度；同质操作不并排堆按钮；写作/阅读章导航在正文下方共用 `.ss-read-nav`；写作目录左侧滑出；阅读模式用 `.ss-mode-menu`；配置/向导弹窗用 `.ss-studio-modal`（主题 token）；反馈用 message toast。

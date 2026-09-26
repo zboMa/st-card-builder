@@ -43,6 +43,15 @@ describe('playground context wiring', function() {
     assert.match(src, /contextManager\.mjs/);
     assert.doesNotMatch(src, /cn \* 2/);
     assert.doesNotMatch(src, /length - cn\) \* 0\.4/);
+    assert.doesNotMatch(src, /alert\('请先在角色面板填写角色描述/);
+    assert.match(src, /请先在角色面板填写角色描述或让 AI 生成！/);
+    assert.match(src, /level:\s*'warn'/);
+    assert.match(src, /channel:\s*'toast'/);
+    assert.match(src, /ui-empty-tip/);
+    var astro = readFileSync(join(root, 'src/components/ChatPlayground.astro'), 'utf8');
+    assert.match(astro, /chat-compose-hint ui-hint/);
+    assert.match(astro, /class="ui-empty-tip"/);
+    assert.match(astro, /chat-indicator ui-meta/);
   });
 });
 

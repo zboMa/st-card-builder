@@ -1,6 +1,6 @@
 # 手动回归清单
 
-> 发版或大改 sync/save/卡管理前勾选。自动化见 `npm test` + [`baseline-metrics.md`](./baseline-metrics.md)。
+> 发版或大改 sync/save/卡管理前勾选。自动化以 `npm test` 为准。
 
 ## 本地草稿与保存
 

@@ -1,6 +1,7 @@
 /**
  * 状态栏 AI 任务提示词预览（与 panelBoot 生成链路共用 vars 语义）
  */
+import { appendStylePreset } from '../statusBarBuild.mjs';
 
 /**
  * @param {string} tpl
@@ -33,6 +34,7 @@ export function formatStatusBarPromptSections(sections) {
  *   systemTpl: string,
  *   vars: Record<string, string>,
  *   userMessage: string,
+ *   presetsStr?: string,
  *   applyTemplate?: (tpl: string, vars: Record<string, string>) => string,
  * }} opts
  * @returns {{ title: string, text: string }}
@@ -40,7 +42,7 @@ export function formatStatusBarPromptSections(sections) {
 export function composeStatusBarPromptPreview(opts) {
   var o = opts || {};
   var apply = o.applyTemplate || applyStatusBarPromptTemplate;
-  var sys = apply(o.systemTpl, o.vars || {});
+  var sys = appendStylePreset(apply(o.systemTpl, o.vars || {}), o.presetsStr);
   var sections = [];
   if (o.metaLines && o.metaLines.length) {
     sections.push({ title: '元信息', body: o.metaLines.join('\n') });

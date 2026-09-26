@@ -14,6 +14,11 @@ import {
   evaluateVesselRichness, buildVesselExpandSystemPrompt, buildVesselExpandUserPrompt,
   buildVesselHintForState,
 } from '../nsfwSupport.mjs';
+import {
+  formatRelationBlock,
+  readCardGenerationPack,
+  relationMentionWarning,
+} from '../../assistant/generationContext.mjs';
 import { PRIOR_WB_EXTRACT_PER, RAG_ENTITY_BUDGET, ENTITY_SUMMARY_STORE } from '../contextBudgets.mjs';
 
 /**
@@ -115,9 +120,43 @@ export function attachNovelWorldbookAi(ctx, panel) {
         var adultOn = getAdultMode(state);
         var flavorItems = adultOn ? getNsfwFlavorItems(state) : [];
         var ntlTypes = getNtlMode(state) ? getNtlTabooTypes(state) : [];
+        var cardPack = readCardGenerationPack({
+          instruction: options.instruction || '',
+          focusTitle: matchName,
+          includeCharacter: true,
+        });
+        var novelEntries = [];
+        (state.characters || []).forEach(function(person) {
+          if (!person || !person.name) return;
+          novelEntries.push({
+            comment: person.name,
+            content: person.note || '',
+            keys: person.aliases || [],
+            outlineType: 'person',
+          });
+        });
+        (state.wbEntries || []).forEach(function(e, ei) {
+          if (ei === index) return;
+          var cat = String(e.category || '');
+          var outlineType = cat === 'location' ? 'location'
+            : (cat === 'faction' ? 'faction'
+              : (cat === 'item' ? 'item'
+                : (cat === 'event' || cat === 'history' ? 'event' : '')));
+          novelEntries.push({
+            comment: e.comment || e.name || '',
+            content: e.content || '',
+            keys: e.keys || [],
+            outlineType: outlineType,
+          });
+        });
+        var relationBlock = formatRelationBlock(novelEntries, (options.instruction || '') + '\n' + matchName);
+        var taskBlock = cardPack
+          ? ('\n' + cardPack)
+          : (options.instruction ? '\n【本次任务】\n' + options.instruction : '');
         var user = head
           + modeHint
-          + (options.instruction ? '\n【用户要求】' + options.instruction : '')
+          + taskBlock
+          + (relationBlock ? '\n' + relationBlock : '')
           + buildModeHintBlocks(state, 'expand')
           + (flavorItems.length ? buildNsfwFlavorHint(state) : '')
           + (ntlTypes.length ? buildNtlTabooHint(state) : '')
@@ -261,7 +300,13 @@ export function attachNovelWorldbookAi(ctx, panel) {
         ctx.save();
         ctx.renderAll();
         if (ctx.setStatus) ctx.setStatus('novelWbStatus', '「' + entry.name + '」扩展完成（召回 ' + recall.totalChars + ' tok）');
-        return { index: index, name: entry.name, mode: mode, recallChars: recall.totalChars };
+        return {
+          index: index,
+          name: entry.name,
+          mode: mode,
+          recallChars: recall.totalChars,
+          linkWarning: relationMentionWarning(JSON.stringify(json), novelEntries) || undefined,
+        };
       });
     } catch (e) {
       if (!ctx.isTrackedAbort(e)) {

@@ -1,18 +1,14 @@
 /** 状态栏：路径解析 / 预览 / 脚本拼装（拆自 statusBar） */
 import {
   normalizePathItem,
-  isCustomDesign,
-  CUSTOM_DESIGN_ID,
-  getPresetById,
+  pathSetOf,
+  pathIsMeter,
+  migratePresetId,
   resolveModuleFlags,
   STATUS_BAR_REGEX_NAME,
-  STATUS_BAR_SCRIPT_NAME,
   STATUS_BAR_PLACEHOLDER,
-  getDesignById,
-  defaultDesignId,
-  migrateDesignId,
   designCss,
-  renderDesignHtml,
+  migrateDesignId,
 } from './statusBarCatalog.mjs';
 import { escHtml } from './statusBarThemes/index.mjs';
 import {
@@ -93,21 +89,19 @@ export function ensureCardProtagonistInCast(characters, card) {
 }
 
 /**
- * MVU / 自定义排版：入选人物档案（平等格式，不分主配）
- * @param {{ castMode?: string, selected?: import('./statusBarBuild.mjs').CastCharacter[], card?: { name?: string, desc?: string, firstMes?: string }, worldbookEntries?: any[] }} opts
+ * 主角档案与女角色档案分开。卡角色本人不进入女角色名单。
+ * @param {{ includeProtagonist?: boolean, includeFemales?: boolean, selected?: import('./statusBarBuild.mjs').CastCharacter[], card?: { name?: string, desc?: string, firstMes?: string }, worldbookEntries?: any[] }} opts
  */
 export function buildCastProfileBlock(opts) {
   var o = opts || {};
-  var castMode = o.castMode === 'multi' ? 'multi' : 'single';
   var card = o.card || {};
   var cardName = String(card.name || '').trim();
-  var selected = Array.isArray(o.selected) ? o.selected.filter(function(c) {
-    return c && c.selected !== false && String(c.name || '').trim();
-  }) : [];
-  if (castMode === 'single' && cardName) {
-    selected = [normalizeCastCharacter({ name: cardName, selected: true })].filter(Boolean);
-  }
-  if (!selected.length) return '（暂无入选人物）';
+  var includeProtagonist = !!o.includeProtagonist;
+  var includeFemales = !!o.includeFemales;
+  var females = (Array.isArray(o.selected) ? o.selected : []).filter(function(c) {
+    var name = c && String(c.name || '').trim();
+    return c && c.selected !== false && name && name !== cardName;
+  });
 
   var wbIndex = Object.create(null);
   (o.worldbookEntries || []).forEach(function(e) {
@@ -116,33 +110,41 @@ export function buildCastProfileBlock(opts) {
     if (n && !wbIndex[n]) wbIndex[n] = e;
   });
 
-  var lines = [
-    '【入选人物档案】',
-    '以下 ' + selected.length + ' 人为状态栏追踪对象；为每人生成相同 variables 字段集（path 仅姓名段不同，禁止因档案长短减字段）。',
-  ];
-
-  selected.forEach(function(c) {
-    var name = String(c.name || '').trim();
-    if (!name) return;
+  var lines = ['【追踪对象】两套路径互不改写。禁止把主角写成 NPC.' + (cardName || '卡角色名') + '，禁止把女角色收成 角色.字段。'];
+  if (includeProtagonist) {
     lines.push('');
-    lines.push('■ ' + name);
-    if (name === cardName && (card.desc || card.firstMes)) {
-      if (card.desc) lines.push('描述：' + String(card.desc));
-      if (card.firstMes) lines.push('开场白：' + String(card.firstMes));
-    } else {
+    lines.push('■ 主角（路径前缀固定为「角色.」，第一段不要用卡角色名）');
+    lines.push('角色名：' + (cardName || '（未填）'));
+    if (card.desc) lines.push('描述：' + String(card.desc));
+    if (card.firstMes) lines.push('开场白：' + String(card.firstMes));
+  }
+  if (includeFemales) {
+    lines.push('');
+    lines.push('■ 女角色（路径前缀 NPC.姓名.；不要包含卡角色本人）');
+    if (!females.length) {
+      lines.push('（尚未勾选女角色）');
+    }
+    females.forEach(function(c) {
+      var name = String(c.name || '').trim();
+      lines.push('');
+      lines.push('· ' + name);
       var entry = wbIndex[name];
       var content = entry ? String(entry.content || '').trim() : '';
-      if (content) {
-        lines.push('档案：' + content);
-      } else if (c.identity) {
-        lines.push('档案：' + String(c.identity));
-        lines.push('（无独立世界书人物条目；variables 字段仍须与同套 path 一致）');
-      } else {
-        lines.push('档案：（暂无正文；variables 字段仍须与同套 path 一致）');
-      }
-    }
-  });
+      if (content) lines.push('档案：' + content);
+      else if (c.identity) lines.push('档案：' + String(c.identity));
+      else lines.push('档案：（暂无正文）');
+    });
+  }
+  if (!includeProtagonist && !includeFemales) return '（未勾选主角或女角色）';
   return lines.join('\n');
+}
+
+/** 女角色名单去掉卡角色名 */
+export function excludeCardNameFromCharacters(characters, cardName) {
+  var ban = String(cardName || '').trim();
+  return (Array.isArray(characters) ? characters : []).filter(function(c) {
+    return c && String(c.name || '').trim() && String(c.name).trim() !== ban;
+  });
 }
 
 export function pathsFromMvuDesign(design, opts) {
@@ -152,13 +154,14 @@ export function pathsFromMvuDesign(design, opts) {
   if (typeof o.limit === 'number' && o.limit > 0) {
     slice = vars.slice(0, o.limit);
   }
-  var mainName = o.mainName ? String(o.mainName) : '';
+  var charName = String(o.charName || o.protagonistName || '').trim();
   return slice.map(function(v) {
     var path = String((v && (v.path || v.name)) || '').trim();
     var parts = path.split('.');
+    var set = pathSetOf(path);
     var role = '';
-    if (parts[0] === 'NPC' && parts[1]) role = parts[1];
-    else if (mainName && (parts[0] === '角色' || parts[0] === mainName)) role = mainName || '主视角';
+    if (set === 'npc' && parts[1]) role = parts[1];
+    else if (set === 'protagonist') role = charName;
     return normalizePathItem({
       path: path,
       label: v && (v.description || v.label) ? String(v.description || v.label).slice(0, 24) : parts[parts.length - 1],
@@ -166,6 +169,7 @@ export function pathsFromMvuDesign(design, opts) {
       type: v && v.type,
       sample: v && v.default != null ? String(v.default) : undefined,
       role: role,
+      set: set,
     });
   }).filter(function(p) { return p.path; });
 }
@@ -196,194 +200,219 @@ export function styleCss(styleOrDesignId) {
 }
 
 /**
- * 解析 design id（人数不匹配时回落默认）
- * @param {string|undefined} designId
- * @param {string} castMode
- * @param {string|undefined} [styleId]
- */
-function resolveDesignId(designId, castMode, styleId) {
-  var raw = designId || styleId || '';
-  if (isCustomDesign(raw)) return CUSTOM_DESIGN_ID;
-  var id = migrateDesignId(raw || defaultDesignId(castMode), styleId);
-  var design = getDesignById(id);
-  if (design.cast !== castMode) return defaultDesignId(castMode);
-  return design.id;
-}
-
-/**
- * 自定义排版：把 AI 输出的 body 转为可注入片段（data-zb-path 占位）
+ * 自定义排版：注入片段里路径文本先写成「—」，数值条宽度归零，由酒馆脚本回填。
  * @param {string} bodyHtml
  */
 export function normalizeCustomBodyForSnippet(bodyHtml) {
-  return String(bodyHtml || '').replace(
+  var html = String(bodyHtml || '').replace(
     /(<span[^>]*\bdata-zb-path="[^"]+"[^>]*>)[\s\S]*?(<\/span>)/gi,
     '$1—$2'
   );
-}
-
-/**
- * 自定义排版完整预览文档
- * @param {{ customCss?: string, customBodyHtml?: string, castMode?: string, title?: string }} opts
- */
-export function buildCustomLayoutDocument(opts) {
-  var css = String((opts && opts.customCss) || '');
-  var body = String((opts && opts.customBodyHtml) || '');
-  var castMode = (opts && opts.castMode) || 'single';
-  if (!body.trim()) {
-    body = '<div class="zb-custom-empty"><p>尚未生成自定义排版，请在左侧填写描述并点击「生成排版」。</p></div>';
-    if (!css.trim()) {
-      css = '.zb-custom-empty{color:#94a3b8;padding:24px;text-align:center;font-size:14px;}';
+  html = html.replace(
+    /(<[^>]*\bdata-zb-meter="[^"]+"[^>]*style=")([^"]*)(")/gi,
+    function(_m, a, style, c) {
+      var next = String(style || '').replace(/width\s*:\s*[^;]+;?/i, '').trim();
+      if (next && !/;\s*$/.test(next)) next += ';';
+      return a + next + 'width:0%' + c;
     }
-  }
-  return '<!DOCTYPE html><html><head><meta charset="utf-8"><style>'
-    + css
-    + 'body{margin:0;padding:16px;background:#020617}</style></head><body>'
-    + '<div class="zb-root" data-zb-design="' + escAttr(CUSTOM_DESIGN_ID)
-    + '" data-zb-cast="' + escAttr(castMode) + '">' + body + '</div>'
-    + '</body></html>';
+  );
+  return html;
+}
+
+function meterWidth(value) {
+  var n = parseFloat(value);
+  if (!isFinite(n)) return 0;
+  if (n < 0) return 0;
+  if (n > 100) return 100;
+  return n;
+}
+
+function plainStatusCss() {
+  return 'body{margin:0;padding:16px;background:#0b1020;color:#e8e6f2;font:14px/1.45 sans-serif}'
+    + '.zb-plain{display:flex;flex-direction:column;gap:4px}'
+    + '.zb-row{display:flex;flex-direction:column;gap:4px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.08)}'
+    + '.zb-row-head{display:flex;justify-content:space-between;gap:12px}'
+    + '.zb-k{color:#a8a3b8}'
+    + '.zb-meter-track{height:6px;background:rgba(255,255,255,.12);border-radius:99px;overflow:hidden}'
+    + '.zb-meter-track>span{display:block;height:100%;background:#c4b5fd;width:0}';
 }
 
 /**
- * 自定义排版注入片段
- * @param {{ customCss?: string, customBodyHtml?: string, castMode?: string, mode?: string }} opts
+ * @param {import('./statusBarCatalog.mjs').PathItem[]} paths
+ * @param {Record<string, string>} map
+ * @param {boolean} placeholderDash
  */
-export function buildCustomLayoutSnippet(opts) {
-  var css = String((opts && opts.customCss) || '');
-  var body = normalizeCustomBodyForSnippet((opts && opts.customBodyHtml) || '');
-  var castMode = (opts && opts.castMode) || 'single';
-  var mode = (opts && opts.mode) || 'mvu';
-  if (!body.trim()) {
-    body = '<div class="zb-custom-empty">（自定义排版未生成）</div>';
-  }
-  return '<style id="zb-style">' + css + '</style>'
-    + '<div class="zb-root" id="zb-status-root" data-zb-design="' + escAttr(CUSTOM_DESIGN_ID)
-    + '" data-zb-mode="' + escAttr(mode) + '" data-zb-cast="' + escAttr(castMode) + '">'
-    + body + '</div>';
+export function buildPlainStatusBody(paths, map, placeholderDash) {
+  var rows = (paths || []).map(function(p) {
+    var raw = map && Object.prototype.hasOwnProperty.call(map, p.path) ? map[p.path] : (placeholderDash ? '—' : (p.sample || '—'));
+    var text = (raw == null || raw === '') ? '—' : String(raw);
+    var meter = (p.meter || pathIsMeter(p.path))
+      ? '<div class="zb-meter-track"><span data-zb-meter="' + escAttr(p.path) + '" style="width:' + meterWidth(text) + '%"></span></div>'
+      : '';
+    return '<div class="zb-row"><div class="zb-row-head"><span class="zb-k">' + escHtml(p.label || p.path) + '</span>'
+      + '<span class="zb-value" data-zb-path="' + escAttr(p.path) + '">' + escHtml(text) + '</span></div>'
+      + meter + '</div>';
+  }).join('');
+  return '<section class="zb-plain">' + rows + '</section>';
 }
 
 /**
- * 用样本值渲染预览 HTML（一对一视觉主题）
- * @param {{ designId?: string, styleId?: string, layoutId?: string, paths: PathItem[], title?: string, values?: Record<string,string>, castMode?: string, characters?: CastCharacter[], mainName?: string }} opts
+ * 父页面把某一楼的值写进已有 HTML（预览 iframe 不跑脚本）。
+ * 缺键写成「—」，不借用别的路径。
+ * @param {string} html
+ * @param {Record<string, string|number|null|undefined>} map
+ */
+export function fillStatusMarkup(html, map) {
+  var values = map || {};
+  var out = String(html || '');
+  out = out.replace(/<([a-zA-Z0-9]+)(\s[^>]*\bdata-zb-path="([^"]+)"[^>]*)>([\s\S]*?)<\/\1>/g, function(_full, tag, attrs, path) {
+    var has = Object.prototype.hasOwnProperty.call(values, path);
+    var raw = has ? values[path] : undefined;
+    var text = (!has || raw == null || raw === '') ? '—' : String(raw);
+    return '<' + tag + attrs + '>' + escHtml(text) + '</' + tag + '>';
+  });
+  out = out.replace(/(<[^>]*\bdata-zb-meter=")([^"]+)("[^>]*)>/g, function(full, a, path, b) {
+    var has = Object.prototype.hasOwnProperty.call(values, path);
+    var w = has ? meterWidth(values[path]) : 0;
+    if (/\bstyle="/.test(full)) {
+      return full.replace(/style="[^"]*"/, function(styleAttr) {
+        var inner = styleAttr.slice(7, -1).replace(/width\s*:\s*[^;]+;?/ig, '').trim();
+        if (inner && !/;\s*$/.test(inner)) inner += ';';
+        return 'style="' + inner + 'width:' + w + '%"';
+      });
+    }
+    return a + path + b + ' style="width:' + w + '%">';
+  });
+  return out;
+}
+
+/** 预览里去掉当前未勾选路径的节点，留下的 path 字符串不改写。 */
+export function keepMarkupPaths(html, paths) {
+  var allow = Object.create(null);
+  (paths || []).forEach(function(p) { if (p && p.path) allow[p.path] = true; });
+  return String(html || '').replace(
+    /<([a-zA-Z0-9]+)(\s[^>]*\bdata-zb-(?:path|meter)="([^"]+)"[^>]*)>[\s\S]*?<\/\1>/g,
+    function(full, _tag, _attrs, path) {
+      return allow[path] ? full : '';
+    }
+  );
+}
+
+function valueMapForPaths(paths, values, useSample) {
+  var map = {};
+  (paths || []).forEach(function(p) {
+    if (values && Object.prototype.hasOwnProperty.call(values, p.path)) {
+      var raw = values[p.path];
+      map[p.path] = (raw == null || raw === '') ? '—' : String(raw);
+    } else if (useSample) {
+      map[p.path] = p.sample || '—';
+    } else {
+      map[p.path] = '—';
+    }
+  });
+  return map;
+}
+
+/**
+ * 预览文档。已有排版 HTML 时用模型结果；否则朴素列表。不引用 30 套主题。
+ * @param {{ paths?: any[], values?: Record<string, string>, customCss?: string, customBodyHtml?: string, title?: string }} opts
  */
 export function buildPreviewHtml(opts) {
-  var castMode = (opts && opts.castMode) || 'single';
-  var designId = resolveDesignId(
-    (opts && (opts.designId || opts.layoutId)) || '',
-    castMode,
-    opts && opts.styleId
-  );
-  if (isCustomDesign(designId)) {
-    return buildCustomLayoutDocument({
-      customCss: opts && opts.customCss,
-      customBodyHtml: opts && opts.customBodyHtml,
-      castMode: castMode,
-      title: opts && opts.title,
-    });
-  }
-  var paths = Array.isArray(opts && opts.paths) ? opts.paths.map(normalizePathItem) : [];
-  var values = (opts && opts.values) || {};
-  var title = String((opts && opts.title) || 'STATUS');
-  var characters = Array.isArray(opts && opts.characters) ? opts.characters : [];
-  var mainName = String((opts && opts.mainName) || (characters[0] && characters[0].name) || '');
-  var css = designCss(designId);
-  function valueFn(p) {
-    return values[p.path] != null ? String(values[p.path]) : (p.sample || '—');
-  }
-  var body = renderDesignHtml({
-    designId: designId,
-    paths: paths,
-    title: title,
-    castMode: castMode,
-    characters: characters,
-    mainName: mainName,
-    valueFn: valueFn,
-    rawValueHtml: false,
-  });
-  return '<!DOCTYPE html><html><head><meta charset="utf-8"><style>' + css + 'body{margin:0;padding:16px;background:#020617}</style></head><body>'
-    + '<div class="zb-root" data-zb-design="' + escAttr(designId) + '" data-zb-style="' + escAttr(designId)
-    + '" data-zb-layout="' + escAttr(designId) + '" data-zb-cast="' + escAttr(castMode) + '">' + body + '</div>'
-    + '</body></html>';
+  var o = opts || {};
+  var paths = Array.isArray(o.paths) ? o.paths.map(normalizePathItem) : [];
+  var map = valueMapForPaths(paths, o.values, true);
+  var css = String(o.customCss || '');
+  var custom = String(o.customBodyHtml || '').trim();
+  var body = custom
+    ? fillStatusMarkup(custom, map)
+    : buildPlainStatusBody(paths, map, false);
+  return '<!DOCTYPE html><html><head><meta charset="utf-8"><style>'
+    + plainStatusCss() + css
+    + '</style></head><body><div class="zb-root" id="zb-status-root">' + body + '</div></body></html>';
 }
 
 /**
- * 生成可注入的状态栏片段 HTML
- * @param {{ designId?: string, styleId?: string, layoutId?: string, paths: PathItem[], title?: string, mode?: string, castMode?: string, characters?: CastCharacter[], mainName?: string }} opts
+ * 自定义排版完整预览文档（与 buildPreviewHtml 同一套 data-zb-path）
+ * @param {{ customCss?: string, customBodyHtml?: string, paths?: any[], values?: Record<string, string> }} opts
+ */
+export function buildCustomLayoutDocument(opts) {
+  return buildPreviewHtml(opts || {});
+}
+
+/**
+ * 注入片段：路径文本为「—」。有排版 HTML 用模型结果，否则朴素列表。
+ * @param {{ customCss?: string, customBodyHtml?: string, paths?: any[], mode?: string }} opts
+ */
+export function buildCustomLayoutSnippet(opts) {
+  return buildStatusBarSnippet(opts || {});
+}
+
+/**
+ * @param {{ paths?: any[], customCss?: string, customBodyHtml?: string, mode?: string }} opts
  */
 export function buildStatusBarSnippet(opts) {
-  var castMode = (opts && opts.castMode) || 'single';
-  var designId = resolveDesignId(
-    (opts && (opts.designId || opts.layoutId)) || '',
-    castMode,
-    opts && opts.styleId
-  );
-  if (isCustomDesign(designId)) {
-    return buildCustomLayoutSnippet({
-      customCss: opts && opts.customCss,
-      customBodyHtml: opts && opts.customBodyHtml,
-      castMode: castMode,
-      mode: (opts && opts.mode) || 'mvu',
-    });
-  }
-  var mode = (opts && opts.mode) || 'mvu';
-  var paths = Array.isArray(opts && opts.paths) ? opts.paths.map(normalizePathItem) : [];
-  var title = String((opts && opts.title) || 'STATUS');
-  var characters = Array.isArray(opts && opts.characters) ? opts.characters : [];
-  var mainName = String((opts && opts.mainName) || (characters[0] && characters[0].name) || '');
-  var css = designCss(designId);
-  function valueFn(p) {
-    if (mode === 'text') {
-      return '<span class="zb-value" data-zb-tag="' + escAttr(p.path) + '">—</span>';
-    }
-    return '<span class="zb-value" data-zb-path="' + escAttr(p.path) + '">—</span>';
-  }
-  var body = renderDesignHtml({
-    designId: designId,
-    paths: paths,
-    title: title,
-    castMode: castMode,
-    characters: characters,
-    mainName: mainName,
-    valueFn: valueFn,
-    rawValueHtml: true,
-  });
-  return '<style id="zb-style">' + css + '</style>'
-    + '<div class="zb-root" id="zb-status-root" data-zb-design="' + escAttr(designId)
-    + '" data-zb-style="' + escAttr(designId) + '" data-zb-layout="' + escAttr(designId)
-    + '" data-zb-mode="' + escAttr(mode) + '" data-zb-cast="' + escAttr(castMode) + '">'
+  var o = opts || {};
+  var mode = o.mode || 'mvu';
+  var paths = Array.isArray(o.paths) ? o.paths.map(normalizePathItem) : [];
+  var css = String(o.customCss || '');
+  var custom = String(o.customBodyHtml || '').trim();
+  var body = custom
+    ? normalizeCustomBodyForSnippet(custom)
+    : buildPlainStatusBody(paths, null, true);
+  return '<style id="zb-style">' + plainStatusCss() + css + '</style>'
+    + '<div class="zb-root" id="zb-status-root" data-zb-mode="' + escAttr(mode) + '">'
     + body + '</div>';
 }
 
 function buildStatusBarMvuRefreshScript() {
   return [
-    '<script type="module">',
-    '(async function(){',
-    '  function readStat(path){',
-    '    try{',
-    '      if(typeof Mvu!=="undefined"&&Mvu.getMvuData){',
-    '        const data=Mvu.getMvuData({type:"message",message_id:"latest"})||Mvu.getMvuData();',
-    '        const stat=(data&&(data.stat_data||data.statData))||data||{};',
-    '        return String(path||"").split(".").reduce(function(o,k){return o==null?o:o[k];},stat);',
-    '      }',
-    '    }catch(e){}',
-    '    return undefined;',
+    '<script>',
+    '(function(){',
+    '  function dig(root, path){',
+    '    if(root==null) return undefined;',
+    '    var cur=root;',
+    '    var parts=String(path||"").split(".");',
+    '    for(var i=0;i<parts.length;i++){',
+    '      if(cur==null) return undefined;',
+    '      cur=cur[parts[i]];',
+    '    }',
+    '    if(Array.isArray(cur)) return cur.length?cur[0]:undefined;',
+    '    return cur;',
+    '  }',
+    '  function readStat(data, path){',
+    '    if(!data) return undefined;',
+    '    var disp=data.display_data!=null?data.display_data:data.displayData;',
+    '    var stat=data.stat_data!=null?data.stat_data:data.statData;',
+    '    var v=dig(disp, path);',
+    '    if(v==null||v==="") v=dig(stat, path);',
+    '    return v;',
     '  }',
     '  function refresh(root){',
-    '    if(!root)return;',
+    '    if(!root) return;',
+    '    if(typeof getCurrentMessageId!=="function") return;',
+    '    var id=getCurrentMessageId();',
+    '    if(id==null||typeof Mvu==="undefined"||!Mvu.getMvuData) return;',
+    '    var data;',
+    '    try{ data=Mvu.getMvuData({type:"message", message_id:id}); }catch(e){ return; }',
     '    root.querySelectorAll("[data-zb-path]").forEach(function(el){',
-    '      var path=el.getAttribute("data-zb-path");',
-    '      var v=readStat(path);',
+    '      var v=readStat(data, el.getAttribute("data-zb-path"));',
     '      el.textContent=(v==null||v==="")?"—":String(v);',
     '    });',
+    '    root.querySelectorAll("[data-zb-meter]").forEach(function(el){',
+    '      var v=readStat(data, el.getAttribute("data-zb-meter"));',
+    '      var n=parseFloat(v);',
+    '      var w=isFinite(n)?Math.max(0,Math.min(100,n)):0;',
+    '      el.style.width=w+"%";',
+    '    });',
     '  }',
-    '  async function boot(){',
-    '    if(typeof waitGlobalInitialized==="function"){try{await waitGlobalInitialized("Mvu");}catch(e){}}',
-    '    var root=document.querySelector(".zb-root")||document.body;',
+    '  function boot(){',
+    '    var root=document.getElementById("zb-status-root")||document.querySelector(".zb-root")||document.body;',
     '    refresh(root);',
     '    if(typeof eventOn==="function"&&typeof Mvu!=="undefined"&&Mvu.events&&Mvu.events.VARIABLE_UPDATE_ENDED){',
     '      eventOn(Mvu.events.VARIABLE_UPDATE_ENDED,function(){refresh(root);});',
     '    }',
     '  }',
-    '  if(typeof errorCatched==="function")errorCatched(boot);else boot();',
+    '  if(typeof errorCatched==="function") errorCatched(boot); else boot();',
     '})();',
     '</script>',
   ].join('');
@@ -450,46 +479,77 @@ export function buildStatusBarRegex(opts) {
  * 设计对象持久化形状
  * @param {any} partial
  */
-export function normalizeDesign(partial) {
-  var p = partial || {};
-  var castMode = p.castMode === 'multi' ? 'multi' : 'single';
-  var presetId = p.presetId || (castMode === 'multi' ? 'multi_party' : 'single_daily');
-  if (!getPresetById(presetId) || getPresetById(presetId).cast !== castMode) {
-    presetId = castMode === 'multi' ? 'multi_party' : 'single_daily';
-  }
-  var nsfw = !!p.nsfw;
-  var moduleFlags = resolveModuleFlags(presetId, p.moduleFlags || p.modules, nsfw);
-  var characters = Array.isArray(p.characters)
+function migrateCastSelection(p) {
+  var chars = Array.isArray(p.characters)
     ? p.characters.map(normalizeCastCharacter).filter(Boolean)
     : [];
-  var mainName = String(p.mainName || '').trim();
-  if (castMode === 'multi' && !mainName && characters.length) {
-    var firstSel = characters.find(function(c) { return c.selected !== false; });
-    mainName = (firstSel || characters[0]).name;
+  var hasNew = p.includeProtagonist != null || p.includeFemales != null;
+  if (hasNew) {
+    return {
+      includeProtagonist: !!p.includeProtagonist,
+      includeFemales: !!p.includeFemales,
+      characters: chars,
+    };
   }
-  // designId 优先；兼容旧 layoutId/styleId 并 migrate
-  var designId = resolveDesignId(
-    p.designId || p.layoutId || p.layout,
-    castMode,
-    p.styleId || p.style
-  );
+  if (p.castMode === 'multi') {
+    var mainName = String(p.mainName || '').trim();
+    var includeProtagonist = false;
+    var females = [];
+    chars.forEach(function(c) {
+      var isProtag = c.source === 'card' || (mainName && c.name === mainName);
+      if (isProtag) includeProtagonist = true;
+      else females.push(c);
+    });
+    return {
+      includeProtagonist: includeProtagonist,
+      includeFemales: females.length > 0,
+      characters: females,
+    };
+  }
+  return { includeProtagonist: true, includeFemales: false, characters: [] };
+}
+
+/**
+ * 水合时用当前卡角色名再对一次：名单里姓名等于 charName 的人视为主角并移出 characters。
+ * 对不上就不把别人猜成主角。
+ * @param {object} design
+ * @param {string} charName
+ */
+export function reconcileDesignWithCharName(design, charName) {
+  var d = design || {};
+  var name = String(charName || '').trim();
+  var chars = Array.isArray(d.characters) ? d.characters : [];
+  if (!name || !chars.some(function(c) { return c && c.name === name; })) return d;
+  var rest = chars.filter(function(c) { return c && c.name !== name; });
+  return Object.assign({}, d, {
+    includeProtagonist: true,
+    includeFemales: rest.some(function(c) { return c.selected !== false; }),
+    characters: rest,
+  });
+}
+
+/**
+ * 持久化形状。样例楼层不进入结果。旧 castMode / 主题 id 不再参与渲染。
+ * @param {any} partial
+ */
+export function normalizeDesign(partial) {
+  var p = partial || {};
+  var cast = migrateCastSelection(p);
+  var presetId = migratePresetId(p.presetId);
+  var nsfw = !!p.nsfw;
+  var moduleFlags = resolveModuleFlags(presetId, p.moduleFlags || p.modules, nsfw);
+  var layoutPrompt = p.layoutPrompt != null ? String(p.layoutPrompt) : String(p.customPrompt || '');
   return {
-    mode: p.mode === 'text' ? 'text' : 'mvu',
-    stage: Number(p.stage) >= 1 && Number(p.stage) <= 4 ? Number(p.stage) : 1,
-    castMode: castMode,
+    mode: 'mvu',
+    includeProtagonist: cast.includeProtagonist,
+    includeFemales: cast.includeFemales,
+    femaleOnly: p.femaleOnly !== false,
     presetId: presetId,
     nsfw: nsfw,
-    femaleOnly: p.femaleOnly !== false, // 默认只识别女角色
     moduleFlags: moduleFlags,
-    characters: characters,
-    mainName: mainName,
-    designId: designId,
-    // 兼容旧字段：layoutId/styleId 均写为同一 design
-    styleId: designId,
-    layoutId: designId,
     extra: String(p.extra || ''),
-    customPrompt: String(p.customPrompt || ''),
-    customBaseDesignId: String(p.customBaseDesignId || ''),
+    characters: cast.characters,
+    layoutPrompt: layoutPrompt,
     customCss: String(p.customCss || ''),
     customBodyHtml: String(p.customBodyHtml || ''),
     paths: Array.isArray(p.paths) ? p.paths.map(normalizePathItem).filter(function(x) { return x.path; }) : [],
@@ -499,42 +559,64 @@ export function normalizeDesign(partial) {
 }
 
 /**
- * 按开启模块生成预览占位路径（设计态联动；不依赖已生成 paths 缓存）
- * 多人：入选每人生成相同模块字段（信息量一致），世界/任务/事件仍各一份
- * @param {{ castMode?: string, mainName?: string, moduleFlags?: Record<string, boolean>, characters?: CastCharacter[] }} opts
- * @returns {PathItem[]}
+ * 生成前拒绝。返回空字符串表示可以调模型。
+ * 变量生成传 `{ requireLayout: false }`。排版再要求路径；修改再要求已有 HTML。
+ * @param {{ includeProtagonist?: boolean, includeFemales?: boolean, characters?: any[], moduleFlags?: Record<string, boolean>, layoutPrompt?: string, charName?: string, paths?: any[], customBodyHtml?: string }} design
+ * @param {{ requireLayout?: boolean, requirePaths?: boolean, requireMarkup?: boolean }} [opts]
+ * @returns {string}
+ */
+export function rejectStatusBarGenerate(design, opts) {
+  var d = design || {};
+  var cardName = String(d.charName || '').trim();
+  var females = excludeCardNameFromCharacters(d.characters, cardName).filter(function(c) {
+    return c.selected !== false;
+  });
+  var hasProtag = !!d.includeProtagonist;
+  var hasFemales = !!d.includeFemales && females.length > 0;
+  if (!hasProtag && !hasFemales) return '请勾选主角或女角色';
+  var flags = d.moduleFlags || {};
+  var any = Object.keys(flags).some(function(k) { return !!flags[k]; });
+  if (!any) return '请至少开启一个模块';
+  var o = opts || {};
+  if (o.requirePaths && !(Array.isArray(d.paths) && d.paths.length)) return '请先生成变量';
+  if (o.requireLayout !== false && !String(d.layoutPrompt || '').trim()) return '请填写排版风格说明';
+  if (o.requireMarkup && !String(d.customBodyHtml || '').trim()) return '还没有排版，请先重新生成';
+  return '';
+}
+
+/**
+ * 占位路径。全局一份；主角固定「角色.字段」；女角色「NPC.姓名.字段」。
+ * 都不勾时返回空。卡角色名不会写成 NPC 前缀。
+ * @param {{ includeProtagonist?: boolean, includeFemales?: boolean, charName?: string, protagonistName?: string, mainName?: string, castMode?: string, moduleFlags?: Record<string, boolean>, characters?: CastCharacter[] }} opts
+ * @returns {import('./statusBarCatalog.mjs').PathItem[]}
  */
 export function buildPlaceholderPaths(opts) {
   var o = opts || {};
-  var castMode = o.castMode === 'multi' ? 'multi' : 'single';
   var flags = o.moduleFlags || {};
-  var main = String(o.mainName || '角色').trim() || '角色';
+  var cardName = String(o.charName || o.protagonistName || o.mainName || '').trim();
+  var includeProtagonist = o.includeProtagonist != null ? !!o.includeProtagonist : o.castMode !== 'multi';
+  var includeFemales = o.includeFemales != null ? !!o.includeFemales : o.castMode === 'multi';
+  if (!includeProtagonist && !includeFemales) return [];
+
   var base = [];
-
-  function push(path, label, group, sample, role) {
-    base.push(normalizePathItem({ path: path, label: label, group: group, sample: sample, role: role || '' }));
+  function push(path, label, group, sample, role, set) {
+    base.push(normalizePathItem({
+      path: path,
+      label: label,
+      group: group,
+      sample: sample,
+      role: role || '',
+      set: set,
+    }));
   }
 
-  // 世界 / 任务 / 事件：全局一份
   if (flags.time_weather) {
-    push('世界.当前时间', '时间', '世界', '08:30');
-    push('世界.天气', '天气', '世界', '晴');
+    push('世界.当前时间', '时间', '世界', '08:30', '', 'global');
+    push('世界.天气', '天气', '世界', '晴', '', 'global');
   }
-  if (flags.location) push('世界.当前地点', '地点', '世界', '咖啡馆');
-  if (flags.quest) push('任务.当前', '任务', '任务', '调查线索');
-  if (flags.event_chips) push('事件.标签', '事件', '事件', '同行');
-
-  // 入选角色名单：多人按勾选全员；单人仅主名
-  var names = [];
-  if (castMode === 'multi') {
-    var chars = Array.isArray(o.characters) ? o.characters : [];
-    names = chars
-      .filter(function(c) { return c && c.selected !== false && String(c.name || '').trim(); })
-      .map(function(c) { return String(c.name).trim(); });
-    if (!names.length) names = [main];
-  } else {
-    names = [main];
-  }
+  if (flags.location) push('世界.当前地点', '地点', '世界', '咖啡馆', '', 'global');
+  if (flags.quest) push('任务.当前', '任务', '任务', '调查线索', '', 'global');
+  if (flags.event_chips) push('事件.标签', '事件', '事件', '同行', '', 'global');
 
   var nsfwMap = [
     ['nsfw_thoughts', '内心', '隐秘心声'],
@@ -545,123 +627,180 @@ export function buildPlaceholderPaths(opts) {
     ['nsfw_anus', '屁穴', '紧致'],
     ['nsfw_mouth', '口腔', '微张'],
     ['nsfw_erogenous', '敏感带', '发烫'],
+    ['nsfw_uterus', '子宫', '未受孕'],
     ['nsfw_orgasm', '快感', '62'],
     ['nsfw_fluids', '体液', '微量'],
     ['nsfw_exposure', '露出', '低'],
     ['nsfw_training', '调教', '无'],
     ['nsfw_experience', '性经验', '摘要'],
     ['nsfw_act_state', '性行为', '无'],
+    ['nsfw_pregnancy', '怀孕', '未怀孕'],
   ];
 
-  /** 为单名角色写入与开启模块一一对应的同套字段 */
-  function pushCharFields(name) {
-    var prefix = castMode === 'multi' ? ('NPC.' + name) : '角色';
-    var role = castMode === 'multi' ? name : name;
-    var group = castMode === 'multi' ? 'NPC' : '角色';
-
-    if (flags.emotion) push(prefix + '.情绪', '情绪', group, '平静', role);
-    if (flags.action) push(prefix + '.行动', '行动', group, '闲聊', role);
-    if (flags.outfit) push(prefix + '.着装', '着装', group, '便装', role);
-    if (flags.affection) push(prefix + '.好感度', '好感', group, '42', role);
-    if (flags.trust) push(prefix + '.信任', '信任', group, '30', role);
-    if (flags.relation_stage) push(prefix + '.关系阶段', '关系', group, '熟人', role);
-    if (flags.corruption_stage) push(prefix + '.恶堕进度', '恶堕进度', '亲密', '0', role);
-    if (flags.affection_stage) push(prefix + '.亲密度', '亲密度', '亲密', '30', role);
+  function pushCharFields(prefix, set, role, group) {
+    if (flags.emotion) push(prefix + '.情绪', '情绪', group, '平静', role, set);
+    if (flags.action) push(prefix + '.行动', '行动', group, '闲聊', role, set);
+    if (flags.outfit) push(prefix + '.着装', '着装', group, '便装', role, set);
+    if (flags.affection) push(prefix + '.好感度', '好感', group, '42', role, set);
+    if (flags.trust) push(prefix + '.信任', '信任', group, '30', role, set);
+    if (flags.relation_stage) push(prefix + '.关系阶段', '关系', group, '熟人', role, set);
+    if (flags.corruption_stage) push(prefix + '.恶堕进度', '恶堕进度', '亲密', '0', role, set);
+    if (flags.affection_stage) push(prefix + '.亲密度', '亲密度', '亲密', '30', role, set);
     if (flags.attributes) {
-      push(prefix + '.体力', '体力', '属性', '78', role);
-      push(prefix + '.魔力', '魔力', '属性', '55', role);
+      push(prefix + '.体力', '体力', '属性', '78', role, set);
+      push(prefix + '.魔力', '魔力', '属性', '55', role, set);
     }
-    if (flags.items) push(prefix + '.物品', '物品', group, '钥匙扣', role);
-    if (flags.money) push(prefix + '.金钱', '金钱', group, '320', role);
-    if (flags.memory_summary) push(prefix + '.记忆', '记忆', group, '初遇约定', role);
-
+    if (flags.realm) push(prefix + '.境界', '境界', '属性', '练气三层', role, set);
+    if (flags.injury) push(prefix + '.伤势', '伤势', '属性', '轻伤', role, set);
+    if (flags.sanity) push(prefix + '.理智', '理智', '属性', '72', role, set);
+    if (flags.items) push(prefix + '.物品', '物品', group, '钥匙扣', role, set);
+    if (flags.money) push(prefix + '.金钱', '金钱', group, '320', role, set);
+    if (flags.memory_summary) push(prefix + '.记忆', '记忆', group, '初遇约定', role, set);
     nsfwMap.forEach(function(row) {
       if (!flags[row[0]]) return;
-      push(prefix + '.' + row[1], row[1], '亲密', row[2], role);
+      push(prefix + '.' + row[1], row[1], '亲密', row[2], role, set);
     });
   }
 
-  names.forEach(pushCharFields);
-
-  if (!base.length) {
-    push('世界.当前时间', '时间', '世界', '08:30');
-    names.forEach(function(name) {
-      var prefix = castMode === 'multi' ? ('NPC.' + name) : '角色';
-      push(prefix + '.情绪', '情绪', castMode === 'multi' ? 'NPC' : '角色', '平静', name);
+  if (includeProtagonist) pushCharFields('角色', 'protagonist', cardName, '角色');
+  if (includeFemales) {
+    (Array.isArray(o.characters) ? o.characters : []).forEach(function(c) {
+      if (!c || c.selected === false) return;
+      var name = String(c.name || '').trim();
+      if (!name || name === cardName) return;
+      pushCharFields('NPC.' + name, 'npc', name, 'NPC');
     });
   }
   return base;
 }
 
 /**
- * MVU 设计提示词：与 buildPlaceholderPaths 同规则的 path 布局说明（非强制校验，供模型对齐）
- * @param {{ castMode?: string, mainName?: string, moduleFlags?: Record<string, boolean>, characters?: import('./statusBarBuild.mjs').CastCharacter[] }} opts
- * @returns {string}
+ * 与 buildPlaceholderPaths 同规则的 path 说明。不含主题 CSS / 主题 id。
+ * @param {{ includeProtagonist?: boolean, includeFemales?: boolean, charName?: string, moduleFlags?: Record<string, boolean>, characters?: any[] }} opts
  */
 export function describeMvuPathLayoutSpec(opts) {
   var o = opts || {};
-  var castMode = o.castMode === 'multi' ? 'multi' : 'single';
-  var main = String(o.mainName || '角色').trim() || '角色';
-  var chars = Array.isArray(o.characters) ? o.characters : [];
-  var names = castMode === 'multi'
-    ? chars.filter(function(c) { return c && c.selected !== false && String(c.name || '').trim(); })
-      .map(function(c) { return String(c.name).trim(); })
-    : [main];
-  if (castMode === 'multi' && !names.length) names = [main];
-
   var paths = buildPlaceholderPaths({
-    castMode: castMode,
-    mainName: main,
+    includeProtagonist: !!o.includeProtagonist,
+    includeFemales: !!o.includeFemales,
+    charName: o.charName || o.mainName || '',
     moduleFlags: o.moduleFlags || {},
-    characters: castMode === 'multi' ? chars : [{ name: main, selected: true }],
+    characters: o.characters || [],
   });
   if (!paths.length) return '（按开启模块生成 path；暂无占位）';
-
-  var globalPaths = paths.filter(function(p) { return !p.role; });
-  var lines = ['【路径布局规格】（与预览占位一致；variables 的 path 须按此展开）'];
-
-  if (castMode === 'single') {
-    lines.push('单人：全局字段用「世界.* / 任务.* / 事件.*」；角色字段用「角色.字段名」。');
-    if (globalPaths.length) {
-      lines.push('全局 path 示例：' + globalPaths.map(function(p) { return p.path; }).join('、'));
-    }
-    var rolePaths = paths.filter(function(p) { return p.role === main || (p.path || '').indexOf('角色.') === 0; });
-    if (rolePaths.length) {
-      lines.push('角色 path 示例：' + rolePaths.map(function(p) { return p.path; }).join('、'));
-    }
-    return lines.join('\n');
+  var lines = [
+    '【路径布局规格】variables 的 path 须按此展开，两套前缀禁止互换。',
+    '全局字段用「世界.* / 任务.* / 事件.*」，整卡一份，set=global。',
+  ];
+  if (o.includeProtagonist) {
+    lines.push('主角字段固定「角色.字段名」，不要用卡角色名当第一段，不要写成 NPC.' + (o.charName || '卡角色名') + '。');
   }
-
-  lines.push('多人：世界 / 任务 / 事件各一份（无 NPC 前缀）；每位【入选人物】各复制完整同套 NPC 字段，禁止主详配简。');
-  if (globalPaths.length) {
-    lines.push('全局（各 1 条）：' + globalPaths.map(function(p) { return p.path; }).join('、'));
+  if (o.includeFemales) {
+    lines.push('女角色字段用「NPC.姓名.字段名」。卡角色本人不得出现在 NPC 路径里。');
   }
-
-  var first = names[0];
-  var templatePaths = paths.filter(function(p) { return p.role === first; });
-  if (templatePaths.length) {
-    var suffixes = templatePaths.map(function(p) {
-      var parts = String(p.path || '').split('.');
-      return parts.length >= 3 ? parts.slice(2).join('.') : parts[parts.length - 1];
-    });
-    lines.push('每人须具备的字段后缀（共 ' + suffixes.length + ' 个，入选 ' + names.length + ' 人须人人齐全）：'
-      + suffixes.join('、'));
-    lines.push('path 模式：NPC.{姓名}.' + suffixes[0] + '（将 {姓名} 替换为入选名单中的每一个名字，不得遗漏）');
-  }
-
-  var exampleLines = [];
-  names.slice(0, Math.min(names.length, 4)).forEach(function(name) {
-    var list = paths.filter(function(p) { return p.role === name; }).map(function(p) { return p.path; });
-    if (list.length) exampleLines.push(name + ' → ' + list.join('、'));
+  var globalPaths = paths.filter(function(p) { return p.set === 'global'; });
+  if (globalPaths.length) lines.push('全局：' + globalPaths.map(function(p) { return p.path; }).join('、'));
+  var protag = paths.filter(function(p) { return p.set === 'protagonist'; });
+  if (protag.length) lines.push('主角：' + protag.map(function(p) { return p.path; }).join('、'));
+  var npcNames = [];
+  paths.forEach(function(p) {
+    if (p.set === 'npc' && p.role && npcNames.indexOf(p.role) < 0) npcNames.push(p.role);
   });
-  if (exampleLines.length) {
-    lines.push('完整示例：\n' + exampleLines.join('\n'));
-  }
-  if (names.length > 4) {
-    lines.push('（另有 ' + (names.length - 4) + ' 人，须与上列同后缀集合完整复制）');
-  }
-  lines.push('输出前自检：除全局 path 外，每个入选姓名的 variables 条数相同、字段后缀集合一致。');
+  npcNames.forEach(function(name) {
+    var list = paths.filter(function(p) { return p.set === 'npc' && p.role === name; });
+    lines.push(name + '：' + list.map(function(p) { return p.path; }).join('、'));
+  });
   return lines.join('\n');
+}
+
+/**
+ * 把点分路径收成嵌套对象。主角停在「角色」，女角色停在「NPC.姓名」，两套前缀不改写。
+ * @param {Array<{ path?: string, sample?: any }>} paths
+ * @param {(pathItem: any) => any} [valueOf]
+ */
+export function buildVariableTree(paths, valueOf) {
+  var root = {};
+  (Array.isArray(paths) ? paths : []).forEach(function(p) {
+    if (!p || !p.path) return;
+    var parts = String(p.path).split('.').filter(Boolean);
+    if (!parts.length) return;
+    var value = valueOf ? valueOf(p) : (p.sample != null && p.sample !== '' ? p.sample : '—');
+    if (value == null || value === '') value = '—';
+    var cur = root;
+    for (var i = 0; i < parts.length - 1; i++) {
+      var key = parts[i];
+      if (!cur[key] || typeof cur[key] !== 'object' || Array.isArray(cur[key])) cur[key] = {};
+      cur = cur[key];
+    }
+    cur[parts[parts.length - 1]] = value;
+  });
+  return root;
+}
+
+function cloneJson(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+/**
+ * 三楼样例校验。少一楼、楼层对象或内层袋子共用引用、三楼内容相同，整次作废。
+ * @param {any} floors
+ * @returns {{ ok: boolean, reason?: string, floors?: object[] }}
+ */
+export function validateSampleFloors(floors) {
+  if (!Array.isArray(floors) || floors.length !== 3) return { ok: false, reason: 'count' };
+  for (var i = 0; i < 3; i++) {
+    if (!floors[i] || typeof floors[i] !== 'object' || Array.isArray(floors[i])) {
+      return { ok: false, reason: 'count' };
+    }
+  }
+  if (floors[0] === floors[1] || floors[1] === floors[2] || floors[0] === floors[2]) {
+    return { ok: false, reason: 'shared' };
+  }
+  var bags = ['global', 'protagonist', 'npc'];
+  for (var a = 0; a < 3; a++) {
+    for (var b = a + 1; b < 3; b++) {
+      for (var k = 0; k < bags.length; k++) {
+        var left = floors[a][bags[k]];
+        var right = floors[b][bags[k]];
+        if (left && right && left === right) return { ok: false, reason: 'shared' };
+      }
+    }
+  }
+  var sig = floors.map(function(f) { return JSON.stringify(f); });
+  if (sig[0] === sig[1] && sig[1] === sig[2]) return { ok: false, reason: 'duplicate' };
+  return { ok: true, floors: floors.map(cloneJson) };
+}
+
+/**
+ * 只读该楼、该套。缺键返回 undefined，不拿另一套填。
+ * @param {any} floor
+ * @param {{ path?: string, set?: string, role?: string }} pathItem
+ */
+export function readFloorValue(floor, pathItem) {
+  if (!floor || !pathItem) return undefined;
+  var path = String(pathItem.path || '');
+  var parts = path.split('.');
+  var leaf = parts[parts.length - 1] || '';
+  var set = pathItem.set || pathSetOf(path);
+  function pick(bag) {
+    if (!bag || typeof bag !== 'object' || Array.isArray(bag)) return undefined;
+    if (Object.prototype.hasOwnProperty.call(bag, path)) return bag[path];
+    if (Object.prototype.hasOwnProperty.call(bag, leaf)) return bag[leaf];
+    return undefined;
+  }
+  if (set === 'global') return pick(floor.global);
+  if (set === 'protagonist') return pick(floor.protagonist);
+  var npc = floor.npc;
+  if (!npc || typeof npc !== 'object' || Array.isArray(npc)) return undefined;
+  var name = pathItem.role || parts[1] || '';
+  var named = name ? npc[name] : undefined;
+  if (named && typeof named === 'object' && !Array.isArray(named)) {
+    if (Object.prototype.hasOwnProperty.call(named, leaf)) return named[leaf];
+    if (Object.prototype.hasOwnProperty.call(named, path)) return named[path];
+    return undefined;
+  }
+  if (Object.prototype.hasOwnProperty.call(npc, path)) return npc[path];
+  return undefined;
 }
 
 /** AI 路径规划（兼容旧调用） */
@@ -678,27 +817,37 @@ export const STATUS_BAR_PATHS_PROMPT =
   + '4. MVU 模式优先复用已有路径；没有则设计合理新路径。\n'
   + '5. 纯文本模式 path 用作标签名（如 HP、Mood）。\n';
 
-/** 从世界书识别人物条目 */
+/** 从世界书识别女角色。不要输出卡角色本人。 */
 export const STATUS_BAR_CHAR_SCAN_PROMPT =
-  '你是 SillyTavern 世界书人物识别器。根据世界书条目列表，找出可作为状态栏追踪对象的人物。\n'
+  '你是 SillyTavern 世界书人物识别器。根据世界书条目列表，找出可作状态栏女角色追踪对象的人物。\n'
   + '{{wbBlock}}\n'
-  + '当前卡主角（可作参考）：{{charName}}\n'
+  + '当前卡角色（禁止输出此人）：{{charName}}\n'
   + '规则：\n'
   + '1. 只输出 JSON，不要解释。\n'
   + '2. 格式：{ "characters": [ { "name":"姓名", "aliases":[], "identity":"一句话身份", "source":"来源条目标题" } ] }\n'
-  + '3. 优先条目标题/内容像角色卡、人物档案、配角的；忽略纯地点/势力/规则。\n'
+  + '3. 优先条目标题/内容像角色卡、人物档案的；忽略纯地点/势力/规则。\n'
   + '4. 最多 12 人；name 用最常用称呼。\n'
+  + '5. 不要输出当前卡角色本人，即使世界书里有同名条目。\n'
   + '{{femaleOnlyRule}}';
 
-/** 状态栏驱动的整套 MVU 变量设计（覆盖写入） */
+/**
+ * 把 AI 配置里已勾选的预设全文贴到系统提示末尾，与引擎阶段 1 的「文风要求」相同。
+ * 预设为空时原文不动。
+ * @param {string} systemText
+ * @param {string} presetsStr
+ */
+export function appendStylePreset(systemText, presetsStr) {
+  var base = String(systemText || '');
+  var extra = String(presetsStr || '').trim();
+  if (!extra) return base;
+  return base + '\n【文风要求】：\n' + extra;
+}
+
+/** 状态栏变量设计。两套路径并存，不引用视觉主题。 */
 export const STATUS_BAR_MVU_DESIGN_PROMPT =
   '你是 SillyTavern MVU 变量系统设计专家。请根据状态栏配置设计完整变量 JSON。'
   + '不要输出 zod/YAML/解释；本地会组装注入产物。\n\n'
   + '{{charBlock}}\n'
-  + '人数模式：{{castMode}}\n'
-  + '默认高亮（可选，仅影响排版展示）：{{mainName}}\n'
-  + '入选人物：{{castList}}\n'
-  + '视觉排版：{{design}}（变量先于排版生成，此处仅作参考）\n'
   + '开启模块（仅允许为这些项设计 variables）：\n{{moduleBlock}}\n'
   + '禁止模块（不得出现下列路径或同义字段）：\n{{forbiddenModuleBlock}}\n'
   + 'NSFW：{{nsfw}}\n'
@@ -706,37 +855,41 @@ export const STATUS_BAR_MVU_DESIGN_PROMPT =
   + '{{pathLayoutSpec}}\n\n'
   + '\n【设计原则】\n'
   + '1. variables 只能覆盖「开启模块」；「禁止模块」中的路径一律不要输出；NSFW=否时禁止一切身体私密字段。\n'
-  + '2. 单人：路径可用「角色.字段」或「世界.字段」，须覆盖 path 布局规格中的示例集合。\n'
-  + '3. 多人：世界/任务/事件各一份；入选人物档案中【每一个人】都必须用 NPC.姓名.字段 生成与开启模块一一对应的【完整同套】详字段；信息量人人相等，禁止因默认高亮姓名而增减字段、禁止精简/摘要块；path 须严格按「路径布局规格」为每个姓名完整展开。\n'
-  + '4. 变量须可被剧情更新；数量随开启模块与人数增加，勿为未开启模块凑字段。\n'
-  + '5. type 仅 string/number/boolean/enum/array/object；enum 必给 options。\n'
-  + '6. check 为数组，说明更新条件。\n'
-  + '7. 输出 JSON 前：多人模式下核对每位入选姓名的 path 数量与后缀集合是否一致；缺任一人的任一后缀须补全后再输出。\n'
+  + '2. 全局字段整卡一份：世界.当前时间、世界.天气、世界.当前地点、任务.当前、事件.标签，仅当对应模块开启。\n'
+  + '3. 勾了主角时，字段前缀固定为「角色.」，不要用卡角色名当第一段，禁止写成 NPC.卡角色名。\n'
+  + '4. 勾了女角色时，每人用「NPC.姓名.字段」。卡角色本人不得出现在 characters 或 NPC 路径中。两套前缀可以同时存在，禁止把女角色收成「角色.字段」，禁止把主角改写成 NPC。\n'
+  + '5. 只勾一边时，只生成那一边，外加开启的全局字段。\n'
+  + '6. 恶堕进度、亲密度：主角是 角色.恶堕进度 / 角色.亲密度；女角色是 NPC.姓名.恶堕进度 / NPC.姓名.亲密度。\n'
+  + '7. type 仅 string/number/boolean/enum/array/object；enum 必给 options。check 为数组。\n'
+  + '8. 变量须可被剧情更新；不要为未开启模块凑字段。\n'
   + '\n【输出】仅 JSON：\n'
   + '{ "summary":"摘要", "variables":[ { "path":"世界.当前时间", "type":"string", "default":"08:00", "description":"时间", "check":["推进时间时更新"] } ] }\n';
 
-/** 自定义排版 AI 提示（基于变量 + MVU 规则生成 HTML/CSS） */
+/** 排版：只用 data-zb-path / data-zb-meter，不引用主题 CSS。 */
 export const STATUS_BAR_CUSTOM_LAYOUT_PROMPT =
-  '你是 SillyTavern 状态栏前端排版工程师。根据已生成的 MVU 变量与用户需求，输出可注入的 HTML 结构与 CSS。\n\n'
+  '你是 SillyTavern 状态栏前端排版工程师。根据变量路径与用户的排版风格说明，输出可注入的 HTML 与 CSS。\n\n'
   + '{{charBlock}}\n'
-  + '人数模式：{{castMode}}\n'
-  + '主视角：{{mainName}}\n'
-  + '入选人物：{{castList}}\n'
   + 'NSFW：{{nsfw}}\n'
   + '开启模块：\n{{moduleBlock}}\n\n'
-  + '【变量路径（必须全部可见，禁止硬截断）】\n{{pathBlock}}\n\n'
-  + '{{baseBlock}}\n'
-  + '{{previousBlock}}\n'
-  + '【用户排版要求】\n{{userPrompt}}\n\n'
-  + '【MVU 绑定规则】\n'
-  + '1. 每个变量值用 <span class="zb-value" data-zb-path="完整路径">示例值</span> 绑定；示例值取自 path 的 sample。\n'
-  + '2. 多人：每个 NPC 字段路径形如 NPC.姓名.字段；世界/任务/事件全局一份。\n'
-  + '3. CSS 类名建议 zb-custom- 前缀，避免污染全局；勿用外部 CDN。\n'
-  + '4. 禁止 <script>；禁止内联 onclick；结构须响应式（窄屏可读）。\n'
-  + '5. 若提供基准主题，可在其结构/气质上按用户要求改造，但须重写 CSS/HTML 输出。\n'
-  + '6. 若提供当前排版，在其基础上按新要求迭代修改。\n\n'
-  + '【输出】仅 JSON，不要解释：\n'
-  + '{ "css": "/* 完整 CSS */", "bodyHtml": "<div class=\\"zb-custom-root\\">...</div>" }\n';
+  + '【变量路径（必须全部可见）】\n{{pathBlock}}\n\n'
+  + '【排版风格说明】\n{{userPrompt}}\n\n'
+  + '【绑定规则】\n'
+  + '1. 文本值只用属性 data-zb-path，写成 <span data-zb-path="完整路径">示例值</span>。\n'
+  + '2. 数值字段才加 data-zb-meter，写在用来表示宽度的元素上，例如 <span data-zb-meter="完整路径" style="width:40%"></span>。非数值字段不要加 data-zb-meter。\n'
+  + '3. 禁止 script，禁止内联事件（onclick 等），禁止外部 CDN。\n'
+  + '4. 不要引用任何预置主题样式；CSS 写在本次输出里，类名用 zb- 前缀。\n'
+  + '5. 主角路径保持「角色.字段」，女角色路径保持「NPC.姓名.字段」，不要改写前缀。\n'
+  + '\n【输出】仅 JSON，不要解释：\n'
+  + '{ "css": "/* CSS */", "bodyHtml": "<div class=\\"zb-custom-root\\">...</div>" }\n';
+
+/** 三楼样例，只活在面板内存。 */
+export const STATUS_BAR_SAMPLE_FLOORS_PROMPT =
+  '你为状态栏写 3 楼互不相同的样例变量值。只输出 JSON，不要解释。\n'
+  + '格式：{"floors":[{"global":{"世界.当前时间":"08:00"},"protagonist":{"角色.情绪":"平静"},"npc":{"林晚":{"情绪":"紧张"}}}]}\n'
+  + '必须正好 3 个 floor，且三楼的值不能相同。\n'
+  + 'global 的键是完整路径。protagonist 仅在勾了主角时出现，键是完整「角色.字段」路径。\n'
+  + 'npc 只含当前入选女角色的姓名，内层键是字段名，不要包含卡角色本人。没勾的那一套不要写。\n'
+  + '路径清单：\n{{pathBlock}}\n';
 
 function escAttr(s) {
   return escHtml(s).replace(/'/g, '&#39;');

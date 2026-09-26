@@ -260,12 +260,18 @@ export function attachWorldbookBind(ctx, s, panel) {
       generateEntry: async function(opts) {
         opts = opts || {};
         var before = ctx.state.worldbookEntries.length;
+        var genMeta = null;
         await ctx.runTracked({
           type: 'wb_single',
-          title: '\u52A9\u624B\u00B7\u4E16\u754C\u4E66\u5355\u6761\u751F\u6210',
+          title: '助手·世界书单条生成',
           target: String(opts.direction || opts.instruction || '').slice(0, 40),
         }, async function(task) {
-          await s.generateContextAwareWBEntry(opts.direction || opts.instruction || '', '\u52A9\u624B\u5355\u6761\u8865\u5145\u3002', task.signal);
+          genMeta = await s.generateContextAwareWBEntry(
+            opts.direction || opts.instruction || '',
+            '助手单条补充。',
+            task.signal,
+            { forceLinks: true, forceScene: true }
+          );
         });
         s.renderEntriesList();
         ctx.save();
@@ -273,6 +279,7 @@ export function attachWorldbookBind(ctx, s, panel) {
         return {
           added: ctx.state.worldbookEntries.length - before,
           total: ctx.state.worldbookEntries.length,
+          linkWarning: (genMeta && genMeta.linkWarning) || undefined,
           entry: last
             ? Object.assign(
               { contentLen: String(last.content || '').length },
@@ -292,10 +299,15 @@ export function attachWorldbookBind(ctx, s, panel) {
         if (mode === 'rewrite' && !instruction) instruction = '\u6309\u539F\u610F\u91CD\u5199\uFF0C\u63D0\u5347\u6E05\u6670\u5EA6\u4E0E\u53EF\u7528\u6027';
         if (mode === 'patch' && instruction) instruction = '\u5B9A\u5411\u4FEE\u6539\uFF1A' + instruction + '\uFF08\u4FDD\u7559\u672A\u8981\u6C42\u6539\u52A8\u7684\u90E8\u5206\uFF09';
         var fakeBtn = { textContent: '', disabled: false };
-        await s.aiRewriteEntry(idx, instruction, fakeBtn);
+        var rewritten = await s.aiRewriteEntry(idx, instruction, fakeBtn);
         var e = ctx.state.worldbookEntries[idx];
         return Object.assign(
-          { index: idx, contentLen: String(e.content || '').length, mode: mode },
+          {
+            index: idx,
+            contentLen: String(e.content || '').length,
+            mode: mode,
+            linkWarning: (rewritten && rewritten.linkWarning) || undefined,
+          },
           toAiJsonEntry(e),
         );
       },

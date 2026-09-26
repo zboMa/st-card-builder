@@ -1,1094 +1,942 @@
 /**
- * 状态栏面板 boot（从 StatusBarPanel.astro 外提）
+ * 状态栏面板：四步同屏。变量与排版分开生成。样例楼层只在内存。
  */
 import {
-    STATUS_BAR_MODULES,
-    STATUS_BAR_EXT_KEY,
-    STATUS_BAR_REGEX_NAME,
-    STATUS_BAR_CHAR_SCAN_PROMPT,
-    STATUS_BAR_MVU_DESIGN_PROMPT,
-    STATUS_BAR_CUSTOM_LAYOUT_PROMPT,
-    CUSTOM_DESIGN_ID,
-    isCustomDesign,
-    getDesignById,
-    getDesignMeta,
-    getPresetById,
-    presetsForCast,
-    layoutsForCast,
-    defaultDesignId,
-    designCss,
-    defaultModuleFlags,
-    resolveModuleFlags,
-    describeEnabledModules,
-    describeForbiddenModules,
-    describeFemaleOnlyRule,
-    describeMvuPathLayoutSpec,
-    ensureCardProtagonistInCast,
-    buildCastProfileBlock,
-    normalizeCastCharacter,
-    collectPersonCharactersFromWorldbook,
-    pathsFromMvuDesign,
-    buildPlaceholderPaths,
-    buildPreviewHtml,
-    buildStatusBarSnippet,
-    buildStatusBarRegex,
-    normalizeDesign,
-  } from '../statusBar.mjs';
-import {
-  isPersonWorldbookEntry,
-  personNameFromWorldbookEntry,
-} from '../novel/sync.mjs';
+  STATUS_BAR_MODULES,
+  STATUS_BAR_MODULE_GROUPS,
+  STATUS_BAR_EXT_KEY,
+  STATUS_BAR_PRESETS,
+  STATUS_BAR_REGEX_NAME,
+  STATUS_BAR_CHAR_SCAN_PROMPT,
+  STATUS_BAR_MVU_DESIGN_PROMPT,
+  STATUS_BAR_CUSTOM_LAYOUT_PROMPT,
+  STATUS_BAR_SAMPLE_FLOORS_PROMPT,
+  getPresetById,
+  defaultModuleFlags,
+  resolveModuleFlags,
+  describeEnabledModules,
+  describeForbiddenModules,
+  describeFemaleOnlyRule,
+  describeMvuPathLayoutSpec,
+  normalizeCastCharacter,
+  collectPersonCharactersFromWorldbook,
+  excludeCardNameFromCharacters,
+  pathsFromMvuDesign,
+  buildPlaceholderPaths,
+  buildPreviewHtml,
+  buildStatusBarSnippet,
+  buildStatusBarRegex,
+  normalizeDesign,
+  reconcileDesignWithCharName,
+  rejectStatusBarGenerate,
+  buildCastProfileBlock,
+  validateSampleFloors,
+  readFloorValue,
+  keepMarkupPaths,
+  buildVariableTree,
+  appendStylePreset,
+} from '../statusBar.mjs';
+import { appFeedback } from '../ui/appMessage.mjs';
+import { engineTryAllowed } from '../actionEngine/helpers.mjs';
 import { openTextPreview } from '../textPreviewModal.mjs';
-import { composeStatusBarPromptPreview } from './statusBarPromptPreview.mjs';
+import {
+  applyStatusBarPromptTemplate,
+  composeStatusBarPromptPreview,
+  formatStatusBarPromptSections,
+} from './statusBarPromptPreview.mjs';
 
 export function initStatusBarPanel() {
-  (function() {
-    var stage = 1;
-    var state = normalizeDesign({
-      castMode: 'single',
-      presetId: 'single_daily',
-      designId: 'sheet_attr',
+  var state = normalizeDesign({});
+  var samples = { activeFloor: 1, floors: null };
+  var floorToastSent = false;
+
+  var extraEl = document.getElementById('sbExtra');
+  var layoutEl = document.getElementById('sbLayoutPrompt');
+  var nsfwEl = document.getElementById('sbNsfw');
+  var protagEl = document.getElementById('sbIncludeProtagonist');
+  var femalesEl = document.getElementById('sbIncludeFemales');
+  var femaleOnlyBtn = document.getElementById('sbFemaleOnly');
+  var presetGrid = document.getElementById('sbPresetGrid');
+  var moduleGrid = document.getElementById('sbModuleGrid');
+  var charList = document.getElementById('sbCharList');
+  var varTree = document.getElementById('sbVarTree');
+  var previewFrame = document.getElementById('sbPreviewFrame');
+  var snippetCode = document.getElementById('sbSnippetCode');
+  var varsBtn = document.getElementById('sbBtnVars');
+  var layoutRegenBtn = document.getElementById('sbBtnLayoutRegen');
+  var layoutReviseBtn = document.getElementById('sbBtnLayoutRevise');
+  var treeOpen = Object.create(null);
+
+  function toast(message, level) {
+    appFeedback(null, { message: message, level: level || 'error', channel: 'toast' });
+  }
+
+  function escHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+  }
+
+  function currentCharName() {
+    return String((document.getElementById('charName') || {}).value || '').trim();
+  }
+
+  function selectedFemales() {
+    return excludeCardNameFromCharacters(state.characters, currentCharName()).filter(function(c) {
+      return c.selected !== false;
     });
-    var generatedOk = false;
+  }
 
-    var extraEl = document.getElementById('sbExtra');
-    var nsfwEl = document.getElementById('sbNsfw');
-    var femaleOnlyEl = document.getElementById('sbFemaleOnly');
-    var mainSel = document.getElementById('sbMainName');
-    var presetGrid = document.getElementById('sbPresetGrid');
-    var layoutGrid = document.getElementById('sbLayoutGrid');
-    var customBox = document.getElementById('sbCustomBox');
-    var customBaseRow = document.getElementById('sbCustomBaseRow');
-    var customBaseSel = document.getElementById('sbCustomBase');
-    var customPromptEl = document.getElementById('sbCustomPrompt');
-    var btnCustomGenerate = document.getElementById('sbBtnCustomGenerate');
-    var btnCustomRegenerate = document.getElementById('sbBtnCustomRegenerate');
-    var moduleGrid = document.getElementById('sbModuleGrid');
-    var charList = document.getElementById('sbCharList');
-    var previewFrame = document.getElementById('sbPreviewFrame');
-    var snippetCode = document.getElementById('sbSnippetCode');
-    var btnInject = document.getElementById('sbBtnInject');
+  function clearSamples() {
+    samples.floors = null;
+    samples.activeFloor = 1;
+    floorToastSent = false;
+  }
 
-    /** 当前视觉方案 id（兼容旧 layoutId） */
-    function currentDesignId() {
-      return state.designId || state.layoutId || defaultDesignId(state.castMode);
-    }
+  function syncGenerateLabel() {
+    if (!varsBtn) return;
+    var again = !!(state.paths && state.paths.length);
+    varsBtn.textContent = again ? '重新生成' : '生成';
+  }
 
-    /** 状态文案；tone: ok | warn | err | info */
-    function setStatus(id, text, tone) {
-      var el = document.getElementById(id);
-      if (!el) return;
-      el.textContent = text || '';
-      el.classList.remove('is-ok', 'is-warn', 'is-err', 'is-info');
-      if (tone) el.classList.add('is-' + tone);
-    }
+  function refreshCharName() {
+    var el = document.getElementById('sbCharName');
+    if (el) el.textContent = '#' + (currentCharName() || '');
+  }
 
-    function currentCharName() {
-      return String((document.getElementById('charName') || {}).value || '').trim();
-    }
+  function syncStepMarks() {
+    var flags = state.moduleFlags || {};
+    var anyMod = Object.keys(flags).some(function(k) { return !!flags[k]; });
+    var done = {
+      1: !!(state.includeProtagonist || (state.includeFemales && selectedFemales().length)),
+      2: anyMod,
+      3: pathsForPreview().length > 0,
+      4: !!String(state.layoutPrompt || '').trim(),
+    };
+    document.querySelectorAll('[data-sb-mark]').forEach(function(el) {
+      var n = Number(el.getAttribute('data-sb-mark'));
+      el.classList.toggle('is-done', !!done[n]);
+    });
+  }
 
-    function refreshSinglePill() {
-      var el = document.getElementById('sbSingleChar');
-      var name = currentCharName();
-      el.textContent = name || '（未填角色名）';
-      if (state.castMode === 'single') state.mainName = name;
-    }
-
-    function getCastMode() {
-      var checked = document.querySelector('input[name="sbCast"]:checked');
-      return checked && checked.value === 'multi' ? 'multi' : 'single';
-    }
-
-    function syncCastUi() {
-      var multi = state.castMode === 'multi';
-      document.getElementById('sbSingleBox').hidden = multi;
-      document.getElementById('sbMultiBox').hidden = !multi;
-      if (multi) loadCharactersFromWorldbookIntoState();
-      var design = getDesignMeta(currentDesignId(), state.castMode);
-      document.getElementById('sbPreviewHint').textContent = (multi ? '多人' : '单人')
-        + '：' + design.label + (isCustomDesign(currentDesignId()) ? '（自定义）' : '（模块联动）');
-      if (femaleOnlyEl) femaleOnlyEl.checked = state.femaleOnly !== false;
-      refreshSinglePill();
-      renderCharList();
-      renderPresets();
-      renderLayouts();
-      renderModules();
-    }
-
-    /** 互斥切换分步：仅当前 stage 可见，顶栏 is-active / is-done 同步 */
-    function setStage(n) {
-      stage = n;
-      document.querySelectorAll('[data-sb-stage]').forEach(function(el) {
-        el.hidden = Number(el.getAttribute('data-sb-stage')) !== n;
-      });
-      document.querySelectorAll('.sb-step').forEach(function(btn) {
-        var s = Number(btn.getAttribute('data-sb-step'));
-        btn.classList.toggle('is-active', s === n);
-        btn.classList.toggle('is-done', s < n);
-      });
-      if (n === 1) refreshSinglePill();
-      if (n === 2) { renderPresets(); renderModules(); }
-      if (n === 4) { renderLayouts(); syncCustomUi(); }
-      refreshPreview();
-    }
-
-    function syncCustomUi() {
-      if (!customBox) return;
-      var isCustom = isCustomDesign(currentDesignId());
-      customBox.hidden = !isCustom;
-      if (customPromptEl && state.customPrompt) customPromptEl.value = state.customPrompt;
-      if (btnCustomRegenerate) {
-        btnCustomRegenerate.hidden = !(isCustom && state.customBodyHtml);
-      }
-      populateCustomBaseSelect();
-    }
-
-    function populateCustomBaseSelect() {
-      if (!customBaseSel) return;
-      var cur = state.customBaseDesignId != null ? String(state.customBaseDesignId) : '';
-      customBaseSel.innerHTML = '';
-      var emptyOpt = document.createElement('option');
-      emptyOpt.value = '';
-      emptyOpt.textContent = '不参考（从零描述）';
-      if (!cur) emptyOpt.selected = true;
-      customBaseSel.appendChild(emptyOpt);
-      layoutsForCast(state.castMode).forEach(function(l) {
-        if (isCustomDesign(l.id)) return;
-        var opt = document.createElement('option');
-        opt.value = l.id;
-        opt.textContent = l.label;
-        if (l.id === cur) opt.selected = true;
-        customBaseSel.appendChild(opt);
-      });
-    }
-
-    function describePathBlock(paths) {
-      return (paths || []).map(function(p) {
-        return '- ' + p.path + ' | ' + p.label + ' | sample:' + (p.sample || '—');
-      }).join('\n') || '（无）';
-    }
-
-    function syncModuleFlagsFromDom() {
-      if (!moduleGrid) return;
-      if (!state.moduleFlags) state.moduleFlags = {};
+  function readFormIntoState() {
+    state.includeProtagonist = !!(protagEl && protagEl.checked);
+    state.includeFemales = !!(femalesEl && femalesEl.checked);
+    state.nsfw = !!(nsfwEl && nsfwEl.checked);
+    state.extra = extraEl ? extraEl.value.trim() : state.extra;
+    state.layoutPrompt = layoutEl ? layoutEl.value.trim() : state.layoutPrompt;
+    if (moduleGrid) {
       moduleGrid.querySelectorAll('input[data-mod]').forEach(function(input) {
         var id = input.getAttribute('data-mod');
         if (id) state.moduleFlags[id] = !!input.checked;
       });
     }
+    state.moduleFlags = resolveModuleFlags(state.presetId, state.moduleFlags, state.nsfw);
+    state.characters = excludeCardNameFromCharacters(state.characters, currentCharName());
+  }
 
-    function readFormIntoState() {
-      state.castMode = getCastMode();
-      state.nsfw = !!(nsfwEl && nsfwEl.checked);
-      state.femaleOnly = !(femaleOnlyEl && !femaleOnlyEl.checked);
-      state.extra = (extraEl.value || '').trim();
-      syncModuleFlagsFromDom();
-      // 视觉方案以 designId 为准（排版步点选；custom 单独存 HTML/CSS）
-      if (!isCustomDesign(state.designId)) {
-        var design = getDesignById(currentDesignId());
-        if (design.cast !== state.castMode) {
-          state.designId = defaultDesignId(state.castMode);
-          state.layoutId = state.designId;
-          state.styleId = state.designId;
-        } else {
-          state.designId = design.id;
-          state.layoutId = design.id;
-          state.styleId = design.id;
+  function livePaths() {
+    return buildPlaceholderPaths({
+      includeProtagonist: state.includeProtagonist,
+      includeFemales: state.includeFemales,
+      charName: currentCharName(),
+      characters: state.characters,
+      moduleFlags: state.moduleFlags,
+    });
+  }
+
+  function pathsForPreview() {
+    var live = livePaths();
+    if (!state.paths || !state.paths.length) return live;
+    var allow = Object.create(null);
+    live.forEach(function(p) { allow[p.path] = p; });
+    var out = [];
+    var used = Object.create(null);
+    state.paths.forEach(function(p) {
+      if (p && allow[p.path]) {
+        out.push(p);
+        used[p.path] = true;
+      }
+    });
+    live.forEach(function(p) {
+      if (!used[p.path]) out.push(p);
+    });
+    return out;
+  }
+
+  function previewValueMap(paths) {
+    var map = {};
+    var floor = samples.floors ? samples.floors[samples.activeFloor - 1] : null;
+    paths.forEach(function(p) {
+      if (!floor) {
+        map[p.path] = p.sample || '—';
+        return;
+      }
+      var v = readFloorValue(floor, p);
+      map[p.path] = (v == null || v === '') ? '—' : String(v);
+    });
+    return map;
+  }
+
+  function renderPresets() {
+    if (!presetGrid) return;
+    presetGrid.innerHTML = '';
+    STATUS_BAR_PRESETS.forEach(function(p) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn btn-inline' + (p.id === state.presetId ? ' is-active' : '');
+      btn.textContent = p.label;
+      btn.addEventListener('click', function() {
+        state.presetId = p.id;
+        if (p.nsfw) {
+          state.nsfw = true;
+          if (nsfwEl) nsfwEl.checked = true;
         }
-      }
-      if (state.castMode === 'single') {
-        state.mainName = currentCharName();
-        state.characters = state.mainName
-          ? [normalizeCastCharacter({ name: state.mainName, selected: true })]
-          : [];
-      } else {
-        ensureMultiCastIncludesCard();
-        state.mainName = (mainSel.value || '').trim() || state.mainName;
-      }
-      state.moduleFlags = resolveModuleFlags(state.presetId, state.moduleFlags, state.nsfw);
-    }
-
-    function renderPresets() {
-      var list = presetsForCast(state.castMode);
-      presetGrid.innerHTML = '';
-      list.forEach(function(p) {
-        var btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'sb-preset-btn'
-          + (p.id === state.presetId ? ' is-active' : '')
-          + (p.nsfw ? ' is-nsfw' : '');
-        btn.innerHTML = '<strong>' + p.label + '</strong><small>' + (p.hint || '') + '</small>';
-        btn.addEventListener('click', function() {
-          state.presetId = p.id;
-          if (p.nsfw) {
-            state.nsfw = true;
-            nsfwEl.checked = true;
-          }
-          state.moduleFlags = defaultModuleFlags(p.id, state.nsfw);
-          renderPresets();
-          renderModules();
-          refreshPreview();
-          saveDesignExt();
-        });
-        presetGrid.appendChild(btn);
+        state.moduleFlags = defaultModuleFlags(p.id, state.nsfw);
+        renderPresets();
+        renderModules();
+        refreshPreview();
+        saveDesignExt();
       });
-    }
+      presetGrid.appendChild(btn);
+    });
+  }
 
-    function renderLayouts() {
-      if (!layoutGrid) return;
-      var list = layoutsForCast(state.castMode);
-      layoutGrid.innerHTML = '';
-      var cur = currentDesignId();
-      // 当前方案不在列表则回落默认
-      if (!list.some(function(l) { return l.id === cur; })) {
-        state.designId = defaultDesignId(state.castMode);
-        state.layoutId = state.designId;
-        state.styleId = state.designId;
-        cur = state.designId;
-      }
-      list.forEach(function(l) {
-        var btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'sb-layout-btn'
-          + (l.id === cur ? ' is-active' : '')
-          + (l.cast === 'multi' ? ' is-multi' : '')
-          + (isCustomDesign(l.id) ? ' is-custom' : '');
-        var blurb = l.blurb || l.hint || '';
-        var accent = l.accent || '#64748b';
-        // 色点 + 名 + 一句说明
-        btn.innerHTML = '<span class="sb-layout-dot" aria-hidden="true"></span>'
-          + '<span class="sb-layout-meta"><strong>' + l.label + '</strong><small>' + blurb + '</small></span>';
-        btn.style.setProperty('--sb-accent', accent);
-        btn.addEventListener('click', function() {
-          state.designId = l.id;
-          state.layoutId = l.id;
-          state.styleId = l.id;
-          renderLayouts();
-          syncCustomUi();
-          refreshPreview();
-          saveDesignExt();
-        });
-        layoutGrid.appendChild(btn);
+  function renderModules() {
+    if (!moduleGrid) return;
+    moduleGrid.innerHTML = '';
+    var flags = resolveModuleFlags(state.presetId, state.moduleFlags, state.nsfw);
+    state.moduleFlags = flags;
+    STATUS_BAR_MODULE_GROUPS.forEach(function(group) {
+      var mods = STATUS_BAR_MODULES.filter(function(m) {
+        if (m.group !== group.id) return false;
+        if (m.nsfw && !state.nsfw) return false;
+        return true;
       });
-      syncCustomUi();
-    }
-
-    function renderModules() {
-      moduleGrid.innerHTML = '';
-      var flags = resolveModuleFlags(state.presetId, state.moduleFlags, state.nsfw);
-      state.moduleFlags = flags;
-      STATUS_BAR_MODULES.forEach(function(m) {
-        // NSFW 关：整组隐藏
-        if (m.nsfw && !state.nsfw) return;
-        if (m.cast === 'multi' && state.castMode !== 'multi') return;
-        if (m.cast === 'single' && state.castMode !== 'single') return;
+      if (!mods.length) return;
+      var block = document.createElement('div');
+      block.className = 'sb-module-group';
+      var title = document.createElement('div');
+      title.className = 'sb-k';
+      title.textContent = group.label;
+      var items = document.createElement('div');
+      items.className = 'sb-module-group__items';
+      mods.forEach(function(m) {
         var lab = document.createElement('label');
-        lab.className = 'sb-mod' + (m.nsfw ? ' is-nsfw' : '');
+        lab.className = 'sb-check';
         lab.innerHTML = '<input type="checkbox" data-mod="' + m.id + '"'
-          + (flags[m.id] ? ' checked' : '') + ' />'
-          + '<span>' + m.label + '</span>';
+          + (flags[m.id] ? ' checked' : '') + ' /><span>' + escHtml(m.label) + '</span>';
         lab.title = m.hint || '';
         lab.querySelector('input').addEventListener('change', function(e) {
           state.moduleFlags[m.id] = !!e.target.checked;
           refreshPreview();
         });
-        moduleGrid.appendChild(lab);
+        items.appendChild(lab);
+      });
+      block.appendChild(title);
+      block.appendChild(items);
+      moduleGrid.appendChild(block);
+    });
+  }
+
+  function renderCharList() {
+    if (!charList) return;
+    charList.innerHTML = '';
+    var list = excludeCardNameFromCharacters(state.characters, currentCharName());
+    state.characters = list;
+    if (!list.length) {
+      charList.innerHTML = '<p class="ui-hint">世界书暂无其他人物。可点「AI 识别」补充。</p>';
+      return;
+    }
+    list.forEach(function(c, idx) {
+      var lab = document.createElement('label');
+      lab.className = 'sb-check';
+      lab.innerHTML = '<input type="checkbox" data-ci="' + idx + '"'
+        + (c.selected !== false ? ' checked' : '') + ' /><span>' + escHtml(c.name) + '</span>';
+      charList.appendChild(lab);
+    });
+  }
+
+  function rawPathValue(p) {
+    var floor = samples.floors ? samples.floors[samples.activeFloor - 1] : null;
+    if (!floor) return (p.sample != null && p.sample !== '') ? p.sample : '—';
+    var v = readFloorValue(floor, p);
+    return (v == null || v === '') ? '—' : v;
+  }
+
+  function isTreeNumber(value) {
+    if (typeof value === 'number' && isFinite(value)) return true;
+    return typeof value === 'string' && /^-?\d+(\.\d+)?$/.test(value.trim());
+  }
+
+  function renderTreeValue(parent, key, value, pathKey, depth) {
+    var branch = value && typeof value === 'object';
+    if (!branch) {
+      var row = document.createElement('div');
+      row.className = 'sb-tree-row';
+      var label = document.createElement('span');
+      label.className = 'sb-tree-key';
+      label.textContent = key;
+      var sep = document.createElement('span');
+      sep.className = 'sb-tree-sep';
+      sep.textContent = ':';
+      var text = document.createElement('span');
+      text.className = isTreeNumber(value) ? 'sb-tree-num' : 'sb-tree-str';
+      text.textContent = value == null ? '—' : String(value);
+      row.appendChild(label);
+      row.appendChild(sep);
+      row.appendChild(text);
+      parent.appendChild(row);
+      return;
+    }
+    var node = document.createElement('details');
+    node.className = 'sb-tree-node';
+    if (treeOpen[pathKey] == null) treeOpen[pathKey] = depth < 1;
+    node.open = !!treeOpen[pathKey];
+    node.addEventListener('toggle', function() { treeOpen[pathKey] = node.open; });
+    var sum = document.createElement('summary');
+    var name = document.createElement('span');
+    name.className = 'sb-tree-key';
+    name.textContent = key;
+    sum.appendChild(name);
+    if (Array.isArray(value)) {
+      var meta = document.createElement('span');
+      meta.className = 'sb-tree-meta';
+      meta.textContent = value.length + ' 项';
+      sum.appendChild(meta);
+    }
+    node.appendChild(sum);
+    var body = document.createElement('div');
+    body.className = 'sb-tree-body';
+    if (Array.isArray(value)) {
+      value.forEach(function(item, index) {
+        renderTreeValue(body, String(index), item, pathKey + '.' + index, depth + 1);
+      });
+    } else {
+      Object.keys(value).forEach(function(child) {
+        renderTreeValue(body, child, value[child], pathKey + '.' + child, depth + 1);
       });
     }
+    node.appendChild(body);
+    parent.appendChild(node);
+  }
 
-    /** 仅刷新主视角下拉，避免重绘勾选框打断交互 */
-    function syncMainSelect() {
-      var selected = collectSelectedCharacters();
-      var prev = state.mainName;
-      mainSel.innerHTML = '';
-      selected.forEach(function(c) {
-        var opt = document.createElement('option');
-        opt.value = c.name;
-        opt.textContent = c.name;
-        if (c.name === prev) opt.selected = true;
-        mainSel.appendChild(opt);
-      });
-      if (selected.length && !selected.some(function(c) { return c.name === state.mainName; })) {
-        state.mainName = selected[0].name;
-        mainSel.value = state.mainName;
-      }
+  function renderVarTree() {
+    if (!varTree) return;
+    var tree = buildVariableTree(pathsForPreview(), rawPathValue);
+    varTree.textContent = '';
+    var keys = Object.keys(tree);
+    if (!keys.length) {
+      var empty = document.createElement('p');
+      empty.className = 'ui-hint';
+      empty.textContent = '勾选主角或女角色并开启模块后，这里显示变量结构。';
+      varTree.appendChild(empty);
+      return;
     }
+    keys.forEach(function(key) {
+      renderTreeValue(varTree, key, tree[key], key, 0);
+    });
+  }
 
-    function renderCharList() {
-      charList.innerHTML = '';
-      if (!state.characters.length) {
-        charList.innerHTML = '<div class="sb-tip">世界书暂无人物条目（[人物]/[小说人物] 或 outline_person）。可点「AI 识别」补充。</div>';
+  function setStatusView(mode) {
+    var sw = document.getElementById('sbViewSwitch');
+    if (sw) sw.setAttribute('data-mode', mode);
+    if (sw) {
+      sw.querySelectorAll('[data-sb-view]').forEach(function(btn) {
+        var on = btn.getAttribute('data-sb-view') === mode;
+        btn.classList.toggle('is-active', on);
+        btn.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+    }
+    document.querySelectorAll('#statusbarPanel [data-sb-view-pane]').forEach(function(pane) {
+      pane.hidden = pane.getAttribute('data-sb-view-pane') !== mode;
+    });
+  }
+
+  function hintText() {
+    var parts = [];
+    if (state.includeProtagonist) parts.push('主角');
+    if (state.includeFemales) parts.push('女角色');
+    var who = parts.length ? ('已勾 ' + parts.join('、')) : '未勾选主角或女角色';
+    var floor = samples.floors
+      ? ('样例第 ' + samples.activeFloor + ' / 3 楼')
+      : '尚无样例';
+    return who + ' · ' + floor;
+  }
+
+  function refreshPreview() {
+    readFormIntoState();
+    refreshCharName();
+    if (femaleOnlyBtn) femaleOnlyBtn.setAttribute('aria-pressed', state.femaleOnly !== false ? 'true' : 'false');
+    var paths = pathsForPreview();
+    var values = previewValueMap(paths);
+    var body = state.customBodyHtml ? keepMarkupPaths(state.customBodyHtml, paths) : '';
+    var html = buildPreviewHtml({
+      paths: paths,
+      values: values,
+      customCss: state.customCss,
+      customBodyHtml: body,
+    });
+    if (previewFrame) previewFrame.srcdoc = html;
+    var hint = document.getElementById('sbPreviewHint');
+    if (hint) hint.textContent = hintText();
+    var floorLabel = document.getElementById('sbFloorLabel');
+    if (floorLabel) {
+      floorLabel.textContent = samples.floors
+        ? ('第 ' + samples.activeFloor + ' / 3 楼')
+        : '尚无样例';
+    }
+    renderVarTree();
+    if (snippetCode) {
+      if (state.snippetHtml) {
+        var rx = buildStatusBarRegex({ snippetHtml: state.snippetHtml, mode: 'mvu' });
+        snippetCode.textContent = JSON.stringify({
+          scriptName: rx.scriptName,
+          findRegex: rx.findRegex,
+          placement: rx.placement,
+          replaceString: String(rx.replaceString || '').slice(0, 2400),
+        }, null, 2);
       } else {
-        state.characters.forEach(function(c, idx) {
-          // label 包整卡：点击任意处切换勾选
-          var card = document.createElement('label');
-          card.className = 'sb-char-card';
-          var checked = c.selected !== false;
-          var isCardRole = c.name === currentCharName();
-          var idText = c.identity ? String(c.identity) : '';
-          card.innerHTML = '<input type="checkbox" data-ci="' + idx + '"' + (checked ? ' checked' : '')
-            + (isCardRole ? ' disabled' : '') + ' />'
-            + '<span class="sb-char-card-body"><strong>' + escHtml(c.name) + '</strong>'
-            + (idText
-              ? '<small title="' + escHtml(idText) + '">' + escHtml(idText) + '</small>'
-              : '')
-            + '</span>';
-          if (isCardRole) card.title = '当前卡角色，始终在入选列表';
-          charList.appendChild(card);
-        });
+        snippetCode.textContent = '';
       }
-      syncMainSelect();
     }
+    syncStepMarks();
+    syncGenerateLabel();
+  }
 
-    function collectSelectedCharacters() {
-      if (state.castMode === 'single') {
-        var n = currentCharName();
-        return n ? [normalizeCastCharacter({ name: n, selected: true })] : [];
-      }
-      ensureMultiCastIncludesCard();
-      return state.characters.filter(function(c) { return c && c.selected !== false; });
+  function saveDesignExt() {
+    if (window.__setCardExtension__) {
+      window.__setCardExtension__(STATUS_BAR_EXT_KEY, normalizeDesign(state));
     }
+  }
 
-    function getCardProfile() {
-      return {
+  function paintFromState() {
+    if (protagEl) protagEl.checked = !!state.includeProtagonist;
+    if (femalesEl) femalesEl.checked = !!state.includeFemales;
+    if (nsfwEl) nsfwEl.checked = !!state.nsfw;
+    if (extraEl) extraEl.value = state.extra || '';
+    if (layoutEl) layoutEl.value = state.layoutPrompt || '';
+    if (femaleOnlyBtn) femaleOnlyBtn.setAttribute('aria-pressed', state.femaleOnly !== false ? 'true' : 'false');
+    loadCharactersFromWorldbook();
+    renderPresets();
+    renderModules();
+    renderCharList();
+    refreshPreview();
+  }
+
+  function loadCharactersFromWorldbook() {
+    var wb = window.__getWorldbookEntries__ ? window.__getWorldbookEntries__() : [];
+    var prevSel = Object.create(null);
+    (state.characters || []).forEach(function(c) {
+      if (c && c.name) prevSel[c.name] = c.selected;
+    });
+    var aiOnly = (state.characters || []).filter(function(c) {
+      return c && c.name && c.source && c.source !== 'worldbook';
+    });
+    state.characters = collectPersonCharactersFromWorldbook(wb, {
+      excludeName: currentCharName(),
+      merge: aiOnly,
+    });
+    state.characters.forEach(function(c) {
+      if (c && c.name && prevSel[c.name] !== undefined) c.selected = prevSel[c.name];
+    });
+    state.characters = excludeCardNameFromCharacters(state.characters, currentCharName());
+  }
+
+  function extractJson(text) {
+    var s = String(text || '');
+    var fence = s.match(/```(?:json)?\s*([\s\S]*?)```/i);
+    if (fence) s = fence[1];
+    var start = s.indexOf('{');
+    var end = s.lastIndexOf('}');
+    if (start < 0 || end <= start) throw new Error('AI 未返回 JSON');
+    return JSON.parse(s.slice(start, end + 1));
+  }
+
+  function getAiConfig() {
+    var apiUrl = document.getElementById('apiUrl');
+    var apiKey = document.getElementById('apiKey');
+    var modelSel = document.getElementById('modelSelect');
+    if (!apiUrl || !modelSel) throw new Error('找不到 AI 配置面板');
+    var model = modelSel.value;
+    if (!model) throw new Error('请先在 AI 配置拉取并选择模型');
+    return {
+      url: apiUrl.value.replace(/\/$/, '') + '/chat/completions',
+      key: (apiKey && apiKey.value || '').trim(),
+      model: model,
+    };
+  }
+
+  function applyTemplate(tpl, vars) {
+    var ps = window.__promptStore__;
+    if (ps && ps.applyTemplate) return ps.applyTemplate(tpl, vars);
+    return applyStatusBarPromptTemplate(tpl, vars);
+  }
+
+  function activePresetText() {
+    var bridge = typeof window !== 'undefined' ? window.__getActivePresetsStr__ : null;
+    if (typeof bridge !== 'function') return '';
+    try { return String(bridge() || ''); } catch (e) { return ''; }
+  }
+
+  async function fetchJson(sys, user, signal) {
+    var cfg = getAiConfig();
+    var headers = { 'Content-Type': 'application/json' };
+    if (cfg.key) headers.Authorization = 'Bearer ' + cfg.key;
+    var res = await fetch(cfg.url, {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify({
+        model: cfg.model,
+        messages: [
+          { role: 'system', content: appendStylePreset(sys, activePresetText()) },
+          { role: 'user', content: user },
+        ],
+        temperature: 0.25,
+      }),
+      signal: signal,
+    });
+    if (!res.ok) throw new Error('API HTTP ' + res.status);
+    var data = await res.json();
+    var message = data && data.choices && data.choices[0] && data.choices[0].message;
+    var text = message && message.content;
+    if (!String(text == null ? '' : text).trim()) throw new Error('模型返回空内容');
+    return extractJson(text);
+  }
+
+  function promptBundle() {
+    readFormIntoState();
+    var chars = selectedFemales();
+    var ps = window.__promptStore__;
+    var mvuTpl = (ps && ps.get('statusBarMvuDesign')) || STATUS_BAR_MVU_DESIGN_PROMPT;
+    var layoutTpl = (ps && ps.get('statusBarCustomLayout')) || STATUS_BAR_CUSTOM_LAYOUT_PROMPT;
+    var paths = pathsForPreview();
+    var pathLayoutSpec = describeMvuPathLayoutSpec({
+      includeProtagonist: state.includeProtagonist,
+      includeFemales: state.includeFemales,
+      charName: currentCharName(),
+      moduleFlags: state.moduleFlags,
+      characters: state.characters,
+    });
+    var charBlock = buildCastProfileBlock({
+      includeProtagonist: state.includeProtagonist,
+      includeFemales: state.includeFemales,
+      selected: chars,
+      card: {
         name: currentCharName(),
         desc: (document.getElementById('charDesc') || {}).value || '',
         firstMes: (document.getElementById('firstMes') || {}).value || '',
-      };
-    }
+      },
+      worldbookEntries: window.__getWorldbookEntries__ ? window.__getWorldbookEntries__() : [],
+    });
+    var moduleBlock = describeEnabledModules(state.moduleFlags);
+    var mvuVars = {
+      charBlock: charBlock,
+      moduleBlock: moduleBlock,
+      forbiddenModuleBlock: describeForbiddenModules(state.moduleFlags, { nsfwEnabled: state.nsfw }),
+      nsfw: state.nsfw ? '是' : '否',
+      extra: state.extra || '无',
+      pathLayoutSpec: pathLayoutSpec,
+    };
+    var pathBlock = paths.map(function(p) {
+      return '- ' + p.path + ' | ' + (p.label || '') + (p.meter ? ' | meter' : '');
+    }).join('\n') || '（无）';
+    var layoutVars = {
+      charBlock: charBlock,
+      nsfw: state.nsfw ? '是' : '否',
+      moduleBlock: moduleBlock,
+      pathBlock: pathBlock,
+      userPrompt: state.layoutPrompt || '',
+    };
+    return {
+      mvuSys: applyTemplate(mvuTpl, mvuVars),
+      mvuUser: '请输出完整 MVU 变量设计 JSON。主角与女角色用两套前缀，不要改写。',
+      layoutSys: applyTemplate(layoutTpl, layoutVars),
+      layoutUser: '请按排版风格说明输出 JSON。只用 data-zb-path 与 data-zb-meter。',
+      mvuTpl: mvuTpl,
+      layoutTpl: layoutTpl,
+      mvuVars: mvuVars,
+      layoutVars: layoutVars,
+      paths: paths,
+    };
+  }
 
-    function getWorldbookEntries() {
-      return window.__getWorldbookEntries__ ? window.__getWorldbookEntries__() : [];
-    }
+  function stripUnsafe(html) {
+    return String(html || '')
+      .replace(/<script[\s\S]*?<\/script>/gi, '')
+      .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+  }
 
-    function buildCastBlockForPrompt(selected) {
-      return buildCastProfileBlock({
-        castMode: state.castMode,
-        selected: selected,
-        card: getCardProfile(),
-        worldbookEntries: getWorldbookEntries(),
-      });
+  async function runInCenter(type, title, fn) {
+    var center = window.__aiTaskCenter__;
+    if (center && center.run) {
+      return center.run({ type: type, title: title, target: currentCharName() }, fn);
     }
+    return fn(null);
+  }
 
-    function ensureMultiCastIncludesCard() {
-      if (state.castMode !== 'multi') return;
-      var card = getCardProfile();
-      if (!card.name) return;
-      state.characters = ensureCardProtagonistInCast(state.characters, card);
-      if (!state.mainName || !state.characters.some(function(c) { return c.name === state.mainName; })) {
-        state.mainName = card.name;
-      }
+  function reportError(err) {
+    if (window.__isAiAbortError__ && window.__isAiAbortError__(err)) {
+      toast('已取消', 'info');
+      return;
     }
+    toast((err && err.message) || String(err), 'error');
+  }
 
-    /** 设计态占位路径（按当前模块） */
-    function previewPaths() {
-      var flags = resolveModuleFlags(state.presetId, state.moduleFlags, state.nsfw);
-      return buildPlaceholderPaths({
-        castMode: state.castMode,
-        mainName: state.mainName || currentCharName() || '角色',
-        moduleFlags: flags,
-        characters: collectSelectedCharacters(),
-      });
+  function gateDesign(opts) {
+    readFormIntoState();
+    return rejectStatusBarGenerate({
+      includeProtagonist: state.includeProtagonist,
+      includeFemales: state.includeFemales,
+      characters: state.characters,
+      charName: currentCharName(),
+      moduleFlags: state.moduleFlags,
+      layoutPrompt: state.layoutPrompt,
+      paths: state.paths,
+      customBodyHtml: state.customBodyHtml,
+    }, opts);
+  }
+
+  function writeBoundSnippet() {
+    if (!String(state.customCss || '').trim() || !String(state.customBodyHtml || '').trim()) return;
+    var paths = state.paths || [];
+    var body = keepMarkupPaths(state.customBodyHtml, paths);
+    state.mode = 'mvu';
+    state.snippetHtml = buildStatusBarSnippet({
+      paths: paths,
+      customCss: state.customCss,
+      customBodyHtml: body,
+      mode: 'mvu',
+    });
+    if (!window.__injectMvuEntries__) throw new Error('无法写入正则脚本');
+    var rx = buildStatusBarRegex({ snippetHtml: state.snippetHtml, mode: 'mvu' });
+    window.__injectMvuEntries__([], [rx]);
+  }
+
+  async function generateVariables() {
+    var reason = gateDesign({ requireLayout: false });
+    if (reason) {
+      toast(reason, 'warn');
+      return;
     }
-
-    /** 预览与注入同源：已生成 MVU 后用 state.paths，否则占位 */
-    function pathsForPreview() {
-      if (generatedOk && state.paths && state.paths.length) return state.paths;
-      return previewPaths();
-    }
-
-    function refreshPreview() {
-      readFormIntoState();
-      var paths = pathsForPreview();
-      var chars = collectSelectedCharacters();
-      var designId = currentDesignId();
-      var html = buildPreviewHtml({
-        designId: designId,
-        castMode: state.castMode,
-        paths: paths,
-        characters: chars,
-        mainName: state.mainName || (chars[0] && chars[0].name) || '',
-        title: 'STATUS',
-        customCss: state.customCss,
-        customBodyHtml: state.customBodyHtml,
-      });
-      if (previewFrame) previewFrame.srcdoc = html;
-      if (state.snippetHtml && snippetCode) {
-        var rxPreview = buildStatusBarRegex({ snippetHtml: state.snippetHtml, mode: state.mode || 'mvu' });
-        snippetCode.textContent = JSON.stringify({
-          scriptName: rxPreview.scriptName,
-          findRegex: rxPreview.findRegex,
-          replaceString: String(rxPreview.replaceString || '').slice(0, 2400)
-            + (String(rxPreview.replaceString || '').length > 2400 ? '\n…（已截断，导出为完整 replaceString）' : ''),
-        }, null, 2);
-      }
-      var design = getDesignMeta(designId, state.castMode);
-      var hint = document.getElementById('sbPreviewHint');
-      if (hint) {
-        var src = (generatedOk && state.paths && state.paths.length) ? ' · MVU 路径' : '';
-        hint.textContent = (state.castMode === 'multi' ? '多人' : '单人')
-          + '：' + design.label + (isCustomDesign(designId) ? '（自定义）' : '（模块联动）') + src;
-      }
-    }
-
-    function rebuildArtifacts() {
-      readFormIntoState();
-      if (!state.paths.length) state.paths = previewPaths();
-      var chars = collectSelectedCharacters();
-      var snippet = buildStatusBarSnippet({
-        designId: currentDesignId(),
-        castMode: state.castMode,
-        paths: state.paths,
-        mode: 'mvu',
-        characters: chars,
-        mainName: state.mainName,
-        title: 'STATUS',
-        customCss: state.customCss,
-        customBodyHtml: state.customBodyHtml,
-      });
-      state.mode = 'mvu';
-      state.snippetHtml = snippet;
-      refreshPreview();
-      return snippet;
-    }
-
-    function saveDesignExt() {
-      if (window.__setCardExtension__) {
-        state.stage = stage;
-        window.__setCardExtension__(STATUS_BAR_EXT_KEY, normalizeDesign(state));
-      }
-    }
-
-    function extractJson(text) {
-      var s = String(text || '');
-      var fence = s.match(/```(?:json)?\s*([\s\S]*?)```/i);
-      if (fence) s = fence[1];
-      var start = s.indexOf('{');
-      var end = s.lastIndexOf('}');
-      if (start < 0 || end <= start) throw new Error('AI 未返回 JSON');
-      return JSON.parse(s.slice(start, end + 1));
-    }
-
-    function getAiConfig() {
-      var apiUrl = document.getElementById('apiUrl');
-      var apiKey = document.getElementById('apiKey');
-      var modelSel = document.getElementById('modelSelect');
-      if (!apiUrl || !modelSel) throw new Error('找不到 AI 配置面板');
-      var model = modelSel.value;
-      if (!model) throw new Error('请先在 AI 配置拉取并选择模型');
-      return {
-        url: apiUrl.value.replace(/\/$/, '') + '/chat/completions',
-        key: (apiKey && apiKey.value || '').trim(),
-        model: model,
-      };
-    }
-
-    function applyTemplate(tpl, vars) {
-      return String(tpl).replace(/\{\{(\w+)\}\}/g, function(_, k) {
-        return vars[k] != null ? String(vars[k]) : '';
-      });
-    }
-
-    function buildWbBlock() {
-      var wb = window.__getWorldbookEntries__ ? window.__getWorldbookEntries__() : [];
-      var persons = (wb || []).filter(function(e) { return isPersonWorldbookEntry(e); });
-      var slice = persons.length ? persons : (wb || []);
-      return slice.map(function(e, i) {
-        var title = personNameFromWorldbookEntry(e) || e.comment || e.name || '?';
-        return (i + 1) + '. 「' + title + '」\n' + String(e.content || '');
-      }).join('\n\n') || '（世界书为空）';
-    }
-
-    function loadCharactersFromWorldbookIntoState() {
-      var wb = window.__getWorldbookEntries__ ? window.__getWorldbookEntries__() : [];
-      var prevSel = Object.create(null);
-      (state.characters || []).forEach(function(c) {
-        if (c && c.name) prevSel[c.name] = c.selected;
-      });
-      var aiOnly = (state.characters || []).filter(function(c) {
-        return c && c.name && c.source !== 'worldbook';
-      });
-      state.characters = collectPersonCharactersFromWorldbook(wb, {
-        excludeName: currentCharName(),
-        merge: aiOnly,
-      });
-      state.characters.forEach(function(c) {
-        if (c && c.name && prevSel[c.name] !== undefined) c.selected = prevSel[c.name];
-      });
-      if (state.characters.length) {
-        if (!state.mainName || !state.characters.some(function(c) {
-          return c.name === state.mainName && c.selected !== false;
-        })) {
-          var firstSel = state.characters.find(function(c) { return c.selected !== false; });
-          state.mainName = (firstSel && firstSel.name) || state.characters[0].name;
+    var gate = engineTryAllowed('card.statusbar.generate');
+    if (!gate.ok) return;
+    var bundle = promptBundle();
+    try {
+      await runInCenter('statusbar_generate', '状态栏变量', async function(task) {
+        var signal = task && task.signal;
+        var data = await fetchJson(bundle.mvuSys, bundle.mvuUser, signal);
+        var variables = Array.isArray(data.variables) ? data.variables : [];
+        if (!variables.length) throw new Error('AI 未返回 variables');
+        var design = {
+          summary: String(data.summary || '状态栏生成的变量设计').slice(0, 80),
+          variables: variables,
+          source: 'statusbar',
+        };
+        if (!window.__assistantMvuApi__ || !window.__assistantMvuApi__.upsertVariables) {
+          throw new Error('MVU 注入 API 不可用');
         }
-      }
-      ensureMultiCastIncludesCard();
-    }
-
-    async function runAiTask(type, title, userMsg, sysPrompt) {
-      var cfg = getAiConfig();
-      var headers = { 'Content-Type': 'application/json' };
-      if (cfg.key) headers['Authorization'] = 'Bearer ' + cfg.key;
-      var center = window.__aiTaskCenter__;
-      var runBody = async function(task) {
-        var res = await fetch(cfg.url, {
-          method: 'POST',
-          headers: headers,
-          body: JSON.stringify({
-            model: cfg.model,
-            messages: [
-              { role: 'system', content: sysPrompt },
-              { role: 'user', content: userMsg },
-            ],
-            temperature: 0.25,
-          }),
-          signal: task && task.signal,
-        });
-        if (!res.ok) throw new Error('API HTTP ' + res.status);
-        return extractJson((await res.json()).choices[0].message.content);
-      };
-      if (center && center.run) {
-        return center.run({ type: type, title: title, target: currentCharName() }, runBody);
-      }
-      return runBody(null);
-    }
-
-    async function scanCharacters() {
-      readFormIntoState();
-      var ps = window.__promptStore__;
-      var tpl = (ps && ps.get('statusBarCharScan')) || STATUS_BAR_CHAR_SCAN_PROMPT;
-      var vars = {
-        wbBlock: buildWbBlock(),
-        charName: currentCharName() || '未知',
-        femaleOnlyRule: describeFemaleOnlyRule(state.femaleOnly !== false),
-      };
-      var sys = ps ? ps.applyTemplate(tpl, vars) : applyTemplate(tpl, vars);
-      var data = await runAiTask('statusbar_char_scan', '状态栏人物识别', '请输出人物 JSON。', sys);
-      var list = Array.isArray(data.characters) ? data.characters : [];
-      state.characters = list.map(function(raw) {
-        return normalizeCastCharacter(Object.assign({}, raw, { selected: true }));
-      }).filter(Boolean);
-      if (!state.characters.length) throw new Error('未识别到人物条目');
-      if (!state.mainName || !state.characters.some(function(c) { return c.name === state.mainName && c.selected !== false; })) {
-        state.mainName = state.characters[0].name;
-      }
-      ensureMultiCastIncludesCard();
-      renderCharList();
-      saveDesignExt();
-      return state.characters;
-    }
-
-    function resolveMvuDesignPromptContext() {
-      readFormIntoState();
-      var chars = collectSelectedCharacters();
-      if (state.castMode === 'multi' && !chars.length) throw new Error('请先勾选至少一名人物');
-      if (state.castMode === 'single' && !currentCharName()) throw new Error('请先填写角色名');
-      state.moduleFlags = resolveModuleFlags(state.presetId, state.moduleFlags, state.nsfw);
-
-      var ps = window.__promptStore__;
-      var tpl = (ps && ps.get('statusBarMvuDesign')) || STATUS_BAR_MVU_DESIGN_PROMPT;
-      var moduleOpts = { castMode: state.castMode, nsfwEnabled: state.nsfw };
-      var pathLayoutSpec = describeMvuPathLayoutSpec({
-        castMode: state.castMode,
-        mainName: state.mainName || currentCharName() || '主角',
-        moduleFlags: state.moduleFlags,
-        characters: chars,
-      });
-      var vars = {
-        charBlock: buildCastBlockForPrompt(chars),
-        castMode: state.castMode === 'multi' ? '多人' : '单人',
-        mainName: state.mainName || currentCharName() || '主角',
-        castList: chars.map(function(c) { return c.name + (c.identity ? '(' + c.identity + ')' : ''); }).join('、')
-          + (state.castMode === 'multi' ? '（与入选人物档案一一对应；variables 须人人同套）' : ''),
-        design: '待定（下一步选择排版）',
-        layout: '待定',
-        style: '待定',
-        moduleBlock: describeEnabledModules(state.moduleFlags),
-        forbiddenModuleBlock: describeForbiddenModules(state.moduleFlags, moduleOpts),
-        nsfw: state.nsfw ? '是' : '否',
-        extra: state.extra || '无',
-        pathLayoutSpec: pathLayoutSpec,
-      };
-      var userMessage = state.castMode === 'multi'
-        ? '请输出完整 MVU 变量设计 JSON（将覆盖当前设计）。仅包含开启模块对应 variables；禁止未开启/禁止模块路径。'
-          + '入选 ' + chars.length + ' 人须人人同套：除世界/任务/事件外，每位 NPC 的 path 后缀集合必须与「路径布局规格」一致、条数相同。'
-        : '请输出完整 MVU 变量设计 JSON（将覆盖当前设计）。仅包含开启模块对应 variables，禁止输出未开启/禁止模块中的路径；path 须覆盖路径布局规格。';
-      return {
-        ps: ps,
-        tpl: tpl,
-        vars: vars,
-        userMessage: userMessage,
-        metaLines: [
-          '预设：' + getPresetById(state.presetId).label,
-          '人数：' + (state.castMode === 'multi' ? '多人' : '单人'),
-          'NSFW：' + (state.nsfw ? '开' : '关'),
-        ],
-      };
-    }
-
-    function resolveCustomLayoutPromptContext(isRegenerate) {
-      readFormIntoState();
-      var prompt = (customPromptEl && customPromptEl.value || state.customPrompt || '').trim();
-      if (!prompt) throw new Error('请输入排版描述');
-      state.customPrompt = prompt;
-
-      var baseId = String((customBaseSel && customBaseSel.value) || '').trim();
-      state.customBaseDesignId = baseId;
-
-      var paths = state.paths.length ? state.paths : previewPaths();
-      if (!paths.length) throw new Error('请先在「生成」步骤完成变量设计');
-      var chars = collectSelectedCharacters();
-      var baseBlock = '';
-      if (baseId && !isCustomDesign(baseId)) {
-        var baseDesign = getDesignById(baseId);
-        var cssSample = designCss(baseId);
-        baseBlock = '【基准主题】' + baseDesign.label + ' / ' + (baseDesign.blurb || '')
-          + '\n参考 CSS：\n' + cssSample + '\n';
-      } else {
-        baseBlock = '【基准主题】无（从零描述生成）\n';
-      }
-
-      var previousBlock = '';
-      if (isRegenerate && state.customBodyHtml) {
-        previousBlock = '【当前排版（请在此基础上修改）】\nCSS:\n' + state.customCss
-          + '\nHTML:\n' + state.customBodyHtml + '\n';
-      }
-
-      var ps = window.__promptStore__;
-      var tpl = (ps && ps.get('statusBarCustomLayout')) || STATUS_BAR_CUSTOM_LAYOUT_PROMPT;
-      var vars = {
-        charBlock: buildCastBlockForPrompt(chars),
-        castMode: state.castMode === 'multi' ? '多人' : '单人',
-        mainName: state.mainName || currentCharName() || '主角',
-        castList: chars.map(function(c) { return c.name; }).join('、') || '（仅主角）',
-        nsfw: state.nsfw ? '是' : '否',
-        moduleBlock: describeEnabledModules(state.moduleFlags),
-        pathBlock: describePathBlock(paths),
-        baseBlock: baseBlock,
-        previousBlock: previousBlock,
-        userPrompt: prompt,
-      };
-      var userMessage = isRegenerate
-        ? '请在当前排版基础上按新要求输出 JSON。'
-        : '请输出自定义排版 JSON。';
-      return {
-        ps: ps,
-        tpl: tpl,
-        vars: vars,
-        userMessage: userMessage,
-        metaLines: [
-          '排版模式：' + (isCustomDesign(currentDesignId()) ? '自定义' : getDesignMeta(currentDesignId(), state.castMode).label),
-          '基准：' + (baseId ? getDesignById(baseId).label : '从零'),
-          '变量路径：' + paths.length + ' 条',
-        ],
-      };
-    }
-
-    function openStatusBarPromptPreview(ctx, dialogTitle, promptId, taskType) {
-      var applyFn = ctx.ps ? ctx.ps.applyTemplate.bind(ctx.ps) : applyTemplate;
-      var preview = composeStatusBarPromptPreview({
-        dialogTitle: dialogTitle,
-        promptId: promptId,
-        taskType: taskType,
-        metaLines: ctx.metaLines,
-        systemTpl: ctx.tpl,
-        vars: ctx.vars,
-        userMessage: ctx.userMessage,
-        applyTemplate: applyFn,
-      });
-      openTextPreview({ title: preview.title, text: preview.text });
-    }
-
-    async function generateVariableDesign() {
-      var ctx = resolveMvuDesignPromptContext();
-      var sys = ctx.ps ? ctx.ps.applyTemplate(ctx.tpl, ctx.vars) : applyTemplate(ctx.tpl, ctx.vars);
-
-      var data = await runAiTask(
-        'statusbar_generate',
-        '状态栏变量设计生成',
-        ctx.userMessage,
-        sys
-      );
-
-      var design = {
-        summary: String(data.summary || '状态栏生成的变量设计').slice(0, 80),
-        variables: Array.isArray(data.variables) ? data.variables : [],
-        source: 'statusbar',
-      };
-      if (!design.variables.length) throw new Error('AI 未返回 variables');
-
-      if (!window.__assistantMvuApi__ || !window.__assistantMvuApi__.upsertVariables) {
-        throw new Error('MVU 注入 API 不可用');
-      }
-      window.__assistantMvuApi__.upsertVariables({ design: design, inject: true });
-
-      state.paths = pathsFromMvuDesign(design, { mainName: state.mainName });
-      rebuildArtifacts();
-      saveDesignExt();
-      generatedOk = true;
-      btnInject.disabled = false;
-
-      var sum = document.getElementById('sbGenSummary');
-      sum.hidden = false;
-      sum.textContent = '已覆盖 MVU：' + design.variables.length + ' 个变量 — ' + design.summary;
-      fillChecklist(design);
-      return design;
-    }
-
-    async function generateCustomLayout(isRegenerate) {
-      var ctx = resolveCustomLayoutPromptContext(!!isRegenerate);
-      var sys = ctx.ps ? ctx.ps.applyTemplate(ctx.tpl, ctx.vars) : applyTemplate(ctx.tpl, ctx.vars);
-
-      var data = await runAiTask(
-        'statusbar_custom_layout',
-        isRegenerate ? '状态栏自定义排版（迭代）' : '状态栏自定义排版',
-        ctx.userMessage,
-        sys
-      );
-
-      var css = String(data.css || '').trim();
-      var bodyHtml = String(data.bodyHtml || data.html || '').trim();
-      if (!css || !bodyHtml) throw new Error('AI 未返回 css/bodyHtml');
-
-      state.designId = CUSTOM_DESIGN_ID;
-      state.layoutId = CUSTOM_DESIGN_ID;
-      state.styleId = CUSTOM_DESIGN_ID;
-      state.customCss = css;
-      state.customBodyHtml = bodyHtml;
-      rebuildArtifacts();
-      renderLayouts();
-      syncCustomUi();
-      saveDesignExt();
-      return { css: css, bodyHtml: bodyHtml };
-    }
-
-    function fillChecklist(design) {
-      var list = document.getElementById('sbChecklist');
-      var layoutLabel = isCustomDesign(currentDesignId())
-        ? '自定义'
-        : getDesignMeta(currentDesignId(), state.castMode).label;
-      var items = [
-        '人数：' + (state.castMode === 'multi' ? '多人' : '单人'),
-        '预设：' + getPresetById(state.presetId).label,
-        '排版：' + layoutLabel,
-        'NSFW：' + (state.nsfw ? '开' : '关'),
-        '变量：' + ((design && design.variables && design.variables.length) || state.paths.length) + ' 个',
-        '正则：' + STATUS_BAR_REGEX_NAME,
-      ];
-      list.innerHTML = items.map(function(t) { return '<li>' + t + '</li>'; }).join('');
-    }
-
-    function injectScripts() {
-      if (!generatedOk && !state.paths.length) throw new Error('请先在「生成」步骤完成变量设计');
-      if (isCustomDesign(currentDesignId()) && !state.customBodyHtml) {
-        throw new Error('自定义排版尚未生成，请先点击「生成排版」');
-      }
-      rebuildArtifacts();
-      if (!window.__injectMvuEntries__) throw new Error('无法写入正则脚本');
-      var mode = state.mode || 'mvu';
-      var rx = buildStatusBarRegex({ snippetHtml: state.snippetHtml, mode: mode });
-      window.__injectMvuEntries__([], [rx]);
-      saveDesignExt();
-      if (window.triggerGlobalUpdate) window.triggerGlobalUpdate();
-    }
-
-    function escHtml(s) {
-      return String(s == null ? '' : s)
-        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
-    }
-
-    // —— 事件 ——
-    document.querySelectorAll('input[name="sbCast"]').forEach(function(r) {
-      r.addEventListener('change', function() {
-        state.castMode = getCastMode();
-        var first = presetsForCast(state.castMode)[0];
-        state.presetId = first.id;
-        state.moduleFlags = defaultModuleFlags(first.id, state.nsfw);
-        // 切换人数：校正到该模式默认视觉方案，并清空生成缓存
-        state.designId = defaultDesignId(state.castMode);
-        state.layoutId = state.designId;
-        state.styleId = state.designId;
-        state.paths = [];
-        state.snippetHtml = '';
-        state.customCss = '';
-        state.customBodyHtml = '';
-        state.customPrompt = '';
-        generatedOk = false;
-        btnInject.disabled = true;
-        syncCastUi();
-        refreshPreview();
-      });
-    });
-
-    nsfwEl.addEventListener('change', function() {
-      state.nsfw = !!nsfwEl.checked;
-      state.moduleFlags = resolveModuleFlags(state.presetId, state.moduleFlags, state.nsfw);
-      renderModules();
-      refreshPreview();
-    });
-
-    // 只识别女：独立勾选，仅改 flag，不触发 AI
-    if (femaleOnlyEl) {
-      femaleOnlyEl.addEventListener('click', function(e) {
-        e.stopPropagation();
-      });
-      femaleOnlyEl.addEventListener('change', function(e) {
-        e.stopPropagation();
-        state.femaleOnly = !!femaleOnlyEl.checked;
+        window.__assistantMvuApi__.upsertVariables({ design: design, inject: true });
+        state.paths = pathsFromMvuDesign(design, { charName: currentCharName() });
+        clearSamples();
+        if (String(state.customBodyHtml || '').trim()) writeBoundSnippet();
         saveDesignExt();
       });
-    }
-
-    document.getElementById('sbBtnResetModules').addEventListener('click', function() {
-      state.moduleFlags = defaultModuleFlags(state.presetId, state.nsfw);
-      renderModules();
-      setStatus('sbStatus2', '已重置为预设默认模块', 'ok');
       refreshPreview();
-    });
+      if (window.triggerGlobalUpdate) window.triggerGlobalUpdate();
+      toast('已生成变量', 'success');
+    } catch (err) {
+      reportError(err);
+    }
+  }
 
-    // 勾选变更写入 state.selected，只同步主视角下拉（不再强制全选重绘）
+  async function generateLayout(revise) {
+    var reason = gateDesign(revise
+      ? { requirePaths: true, requireMarkup: true }
+      : { requirePaths: true });
+    if (reason) {
+      toast(reason, 'warn');
+      return;
+    }
+    var gate = engineTryAllowed('card.statusbar.layout');
+    if (!gate.ok) return;
+    var bundle = promptBundle();
+    var user = bundle.layoutUser;
+    if (revise) {
+      user = '在现有排版上修改，不要另起一套。保留没要求改的结构。补上路径清单里还没有的字段，去掉已关闭的字段。\n\n'
+        + '【当前 CSS】\n' + String(state.customCss || '')
+        + '\n\n【当前 HTML】\n' + String(state.customBodyHtml || '')
+        + '\n\n请输出 JSON。只用 data-zb-path 与 data-zb-meter。';
+    }
+    try {
+      await runInCenter('statusbar_custom_layout', revise ? '状态栏排版修改' : '状态栏排版', async function(task) {
+        var signal = task && task.signal;
+        var layout = await fetchJson(bundle.layoutSys, user, signal);
+        var css = stripUnsafe(String(layout.css || '').trim());
+        var bodyHtml = stripUnsafe(String(layout.bodyHtml || layout.html || '').trim());
+        if (!css || !bodyHtml) throw new Error('排版未生成');
+        state.customCss = css;
+        state.customBodyHtml = bodyHtml;
+        writeBoundSnippet();
+        saveDesignExt();
+      });
+      refreshPreview();
+      if (window.triggerGlobalUpdate) window.triggerGlobalUpdate();
+      toast(revise ? '已按现有排版修改' : '已重新生成排版', 'success');
+    } catch (err) {
+      reportError(err);
+    }
+  }
+
+  function buildWbBlock() {
+    var wb = window.__getWorldbookEntries__ ? window.__getWorldbookEntries__() : [];
+    return (wb || []).map(function(e, i) {
+      var title = e.comment || e.name || '?';
+      return (i + 1) + '. 「' + title + '」\n' + String(e.content || '');
+    }).join('\n\n') || '（世界书为空）';
+  }
+
+  async function scanCharacters() {
+    readFormIntoState();
+    var gate = engineTryAllowed('card.statusbar.charScan');
+    if (!gate.ok) return;
+    var ps = window.__promptStore__;
+    var tpl = (ps && ps.get('statusBarCharScan')) || STATUS_BAR_CHAR_SCAN_PROMPT;
+    var sys = applyTemplate(tpl, {
+      wbBlock: buildWbBlock(),
+      charName: currentCharName() || '未知',
+      femaleOnlyRule: describeFemaleOnlyRule(state.femaleOnly !== false),
+    });
+    try {
+      var data = await runInCenter('statusbar_char_scan', '状态栏人物识别', function(task) {
+        return fetchJson(sys, '请输出人物 JSON。不要包含当前卡角色本人。', task && task.signal);
+      });
+      var cardName = currentCharName();
+      var list = (Array.isArray(data.characters) ? data.characters : []).map(function(raw) {
+        return normalizeCastCharacter(Object.assign({}, raw, { selected: true, source: 'ai' }));
+      }).filter(function(c) { return c && c.name !== cardName; });
+      var seen = Object.create(null);
+      state.characters.forEach(function(c) { if (c && c.name) seen[c.name] = c; });
+      list.forEach(function(c) {
+        if (seen[c.name]) seen[c.name].selected = true;
+        else state.characters.push(c);
+      });
+      state.characters = excludeCardNameFromCharacters(state.characters, cardName);
+      renderCharList();
+      saveDesignExt();
+      refreshPreview();
+    } catch (err) {
+      reportError(err);
+    }
+  }
+
+  async function generateSampleFloors() {
+    readFormIntoState();
+    var reason = rejectStatusBarGenerate({
+      includeProtagonist: state.includeProtagonist,
+      includeFemales: state.includeFemales,
+      characters: state.characters,
+      charName: currentCharName(),
+      moduleFlags: state.moduleFlags,
+      layoutPrompt: state.layoutPrompt || '样例',
+    });
+    if (!state.includeProtagonist && !state.includeFemales) {
+      toast('请勾选主角或女角色', 'warn');
+      return;
+    }
+    if (reason === '请至少开启一个模块') {
+      toast(reason, 'warn');
+      return;
+    }
+    var gate = engineTryAllowed('card.statusbar.sampleFloors');
+    if (!gate.ok) return;
+    var paths = pathsForPreview();
+    var pathBlock = paths.map(function(p) { return p.path + (p.set === 'npc' ? ' @' + (p.role || '') : ''); }).join('\n');
+    var ps = window.__promptStore__;
+    var tpl = (ps && ps.get('statusBarSampleFloors')) || STATUS_BAR_SAMPLE_FLOORS_PROMPT;
+    var sys = applyTemplate(tpl, { pathBlock: pathBlock });
+    try {
+      var data = await runInCenter('statusbar_sample_floors', '状态栏样例楼层', function(task) {
+        return fetchJson(sys, '请输出 3 楼样例 JSON。', task && task.signal);
+      });
+      var checked = validateSampleFloors(data && data.floors);
+      if (!checked.ok) {
+        toast('样例楼层无效', 'error');
+        return;
+      }
+      samples.floors = checked.floors;
+      samples.activeFloor = 1;
+      floorToastSent = false;
+      refreshPreview();
+    } catch (err) {
+      reportError(err);
+    }
+  }
+
+  function shiftFloor(delta) {
+    if (!samples.floors) {
+      if (!floorToastSent) {
+        floorToastSent = true;
+        toast('尚无样例', 'info');
+      }
+      return;
+    }
+    var next = samples.activeFloor + delta;
+    if (next < 1) next = 1;
+    if (next > 3) next = 3;
+    samples.activeFloor = next;
+    refreshPreview();
+  }
+
+  function openPromptPreview() {
+    try {
+      var bundle = promptBundle();
+      var presetsStr = activePresetText();
+      var mvu = composeStatusBarPromptPreview({
+        dialogTitle: '状态栏 · 生成提示词',
+        promptId: 'statusBarMvuDesign',
+        taskType: 'statusbar_generate',
+        metaLines: ['预设：' + getPresetById(state.presetId).label],
+        systemTpl: bundle.mvuTpl,
+        vars: bundle.mvuVars,
+        userMessage: bundle.mvuUser,
+        presetsStr: presetsStr,
+        applyTemplate: applyTemplate,
+      });
+      var layout = composeStatusBarPromptPreview({
+        dialogTitle: '状态栏 · 排版提示词',
+        promptId: 'statusBarCustomLayout',
+        taskType: 'statusbar_custom_layout',
+        systemTpl: bundle.layoutTpl,
+        vars: bundle.layoutVars,
+        userMessage: bundle.layoutUser,
+        presetsStr: presetsStr,
+        applyTemplate: applyTemplate,
+      });
+      openTextPreview({
+        title: '状态栏 · 查看提示词',
+        text: formatStatusBarPromptSections([
+          { title: '变量设计', body: mvu.text },
+          { title: '排版', body: layout.text },
+        ]),
+      });
+    } catch (err) {
+      toast((err && err.message) || String(err), 'error');
+    }
+  }
+
+  function applyDesignToPanel() {
+    var raw = window.__getCardExtension__ ? window.__getCardExtension__(STATUS_BAR_EXT_KEY) : null;
+    if (!raw) return false;
+    state = reconcileDesignWithCharName(normalizeDesign(raw), currentCharName());
+    paintFromState();
+    return true;
+  }
+
+  if (protagEl) protagEl.addEventListener('change', function() { refreshPreview(); saveDesignExt(); });
+  if (femalesEl) femalesEl.addEventListener('change', function() { refreshPreview(); saveDesignExt(); });
+  if (nsfwEl) nsfwEl.addEventListener('change', function() {
+    state.nsfw = !!nsfwEl.checked;
+    state.moduleFlags = resolveModuleFlags(state.presetId, state.moduleFlags, state.nsfw);
+    renderModules();
+    refreshPreview();
+  });
+  if (femaleOnlyBtn) {
+    femaleOnlyBtn.addEventListener('click', function() {
+      state.femaleOnly = femaleOnlyBtn.getAttribute('aria-pressed') !== 'true';
+      femaleOnlyBtn.setAttribute('aria-pressed', state.femaleOnly ? 'true' : 'false');
+      saveDesignExt();
+    });
+  }
+  if (charList) {
     charList.addEventListener('change', function(e) {
       var inp = e.target;
       if (!inp || !inp.hasAttribute('data-ci')) return;
       var c = state.characters[Number(inp.getAttribute('data-ci'))];
-      if (c && c.name === currentCharName()) {
-        inp.checked = true;
-        c.selected = true;
-        return;
-      }
       if (c) c.selected = !!inp.checked;
-      syncMainSelect();
+      refreshPreview();
       saveDesignExt();
+    });
+  }
+  var resetBtn = document.getElementById('sbBtnResetModules');
+  if (resetBtn) {
+    resetBtn.addEventListener('click', function() {
+      state.moduleFlags = defaultModuleFlags(state.presetId, state.nsfw);
+      renderModules();
       refreshPreview();
+      saveDesignExt();
     });
-    mainSel.addEventListener('change', function() {
-      state.mainName = mainSel.value;
-      refreshPreview();
-    });
-
-    extraEl.addEventListener('input', function() {
-      state.extra = extraEl.value.trim();
-    });
-
-    document.querySelectorAll('.sb-step').forEach(function(btn) {
-      btn.addEventListener('click', function() {
-        var n = Number(btn.getAttribute('data-sb-step'));
-        if (n <= stage || n === 1) setStage(n);
-        else if (n === 2 && stage >= 1) setStage(2);
-        else if (n === 3 && stage >= 2) setStage(3);
-        else if (n === 4 && stage >= 3) setStage(4);
-      });
-    });
-
-    document.getElementById('sbBtnNext1').addEventListener('click', function() {
-      readFormIntoState();
-      if (state.castMode === 'single' && !currentCharName()) {
-        return setStatus('sbStatus1', '请先在角色设定填写角色名', 'warn');
-      }
-      if (state.castMode === 'multi' && !collectSelectedCharacters().length) {
-        return setStatus('sbStatus1', '请先识别并勾选人物', 'warn');
-      }
-      setStage(2);
-    });
-    document.getElementById('sbBtnBack2').addEventListener('click', function() { setStage(1); });
-    document.getElementById('sbBtnNext2').addEventListener('click', function() {
-      readFormIntoState();
-      setStage(3);
-    });
-    document.getElementById('sbBtnBack3').addEventListener('click', function() { setStage(2); });
-    document.getElementById('sbBtnNext3').addEventListener('click', function() {
-      readFormIntoState();
-      if (!generatedOk && !(state.paths && state.paths.length)) {
-        return setStatus('sbStatus3', '请先生成并覆盖 MVU 变量设计', 'warn');
-      }
-      setStage(4);
-    });
-    document.getElementById('sbBtnBack4').addEventListener('click', function() { setStage(3); });
-
-    if (customBaseSel) {
-      customBaseSel.addEventListener('change', function() {
-        state.customBaseDesignId = String(customBaseSel.value || '').trim();
-        saveDesignExt();
-      });
-    }
-    if (customPromptEl) {
-      customPromptEl.addEventListener('input', function() {
-        state.customPrompt = customPromptEl.value.trim();
-      });
-    }
-
-    document.getElementById('sbBtnScanChars').addEventListener('click', async function() {
-      var btn = document.getElementById('sbBtnScanChars');
-      btn.disabled = true;
-      var old = btn.textContent;
-      btn.textContent = '识别中…';
-      setStatus('sbStatus1', '正在识别世界书人物…', 'info');
-      try {
-        var list = await scanCharacters();
-        setStatus('sbStatus1', '已识别 ' + list.length + ' 人，请勾选并指定主视角', 'ok');
-        refreshPreview();
-      } catch (err) {
-        if (window.__isAiAbortError__ && window.__isAiAbortError__(err)) {
-          setStatus('sbStatus1', '已取消', 'info');
-        } else {
-          setStatus('sbStatus1', (err && err.message) || String(err), 'err');
-        }
-      } finally {
-        btn.disabled = false;
-        btn.textContent = old;
-      }
-    });
-
-    var btnPreviewMvu = document.getElementById('sbBtnPreviewMvuPrompt');
-    if (btnPreviewMvu) {
-      btnPreviewMvu.addEventListener('click', function() {
-        try {
-          var ctxMvu = resolveMvuDesignPromptContext();
-          openStatusBarPromptPreview(ctxMvu, '状态栏 · 变量设计提示词', 'statusBarMvuDesign', 'statusbar_generate');
-        } catch (err) {
-          setStatus('sbStatus3', (err && err.message) || String(err), 'err');
-        }
-      });
-    }
-
-    var btnPreviewLayout = document.getElementById('sbBtnPreviewLayoutPrompt');
-    if (btnPreviewLayout) {
-      btnPreviewLayout.addEventListener('click', function() {
-        try {
-          var regen = !!(state.customBodyHtml && btnCustomRegenerate && !btnCustomRegenerate.hidden);
-          var ctxLayout = resolveCustomLayoutPromptContext(regen);
-          openStatusBarPromptPreview(
-            ctxLayout,
-            '状态栏 · 自定义排版提示词',
-            'statusBarCustomLayout',
-            regen ? 'statusbar_custom_layout (迭代)' : 'statusbar_custom_layout'
-          );
-        } catch (err) {
-          setStatus('sbStatus4', (err && err.message) || String(err), 'err');
-        }
-      });
-    }
-
-    document.getElementById('sbBtnGenerate').addEventListener('click', async function() {
-      var btn = document.getElementById('sbBtnGenerate');
-      btn.disabled = true;
-      var old = btn.textContent;
-      btn.textContent = '生成中…';
-      setStatus('sbStatus3', '正在生成变量设计并覆盖 MVU…', 'info');
-      try {
-        var design = await generateVariableDesign();
-        setStatus('sbStatus3', '已覆盖 MVU（' + design.variables.length + '），可进入排版步骤', 'ok');
-      } catch (err) {
-        if (window.__isAiAbortError__ && window.__isAiAbortError__(err)) {
-          setStatus('sbStatus3', '已取消', 'info');
-        } else {
-          setStatus('sbStatus3', (err && err.message) || String(err), 'err');
-        }
-      } finally {
-        btn.disabled = false;
-        btn.textContent = old;
-      }
-    });
-
-    async function runCustomLayoutTask(isRegenerate) {
-      var btn = isRegenerate ? btnCustomRegenerate : btnCustomGenerate;
+  }
+  if (extraEl) extraEl.addEventListener('input', function() { state.extra = extraEl.value.trim(); });
+  if (layoutEl) layoutEl.addEventListener('input', function() {
+    state.layoutPrompt = layoutEl.value.trim();
+    syncStepMarks();
+  });
+  var scanBtn = document.getElementById('sbBtnScanChars');
+  if (scanBtn) scanBtn.addEventListener('click', function() { scanCharacters(); });
+  var previewBtn = document.getElementById('sbBtnPreviewPrompt');
+  if (previewBtn) previewBtn.addEventListener('click', openPromptPreview);
+  if (varsBtn) varsBtn.addEventListener('click', function() { generateVariables(); });
+  if (layoutRegenBtn) layoutRegenBtn.addEventListener('click', function() { generateLayout(false); });
+  if (layoutReviseBtn) layoutReviseBtn.addEventListener('click', function() { generateLayout(true); });
+  var sampleBtn = document.getElementById('sbBtnSampleFloors');
+  if (sampleBtn) sampleBtn.addEventListener('click', function() { generateSampleFloors(); });
+  var prevFloor = document.getElementById('sbFloorPrev');
+  var nextFloor = document.getElementById('sbFloorNext');
+  if (prevFloor) prevFloor.addEventListener('click', function() { shiftFloor(-1); });
+  if (nextFloor) nextFloor.addEventListener('click', function() { shiftFloor(1); });
+  var viewSwitch = document.getElementById('sbViewSwitch');
+  if (viewSwitch) {
+    viewSwitch.addEventListener('click', function(ev) {
+      var btn = ev.target && ev.target.closest ? ev.target.closest('[data-sb-view]') : null;
       if (!btn) return;
-      btn.disabled = true;
-      var old = btn.textContent;
-      btn.textContent = '生成中…';
-      setStatus('sbStatus4', isRegenerate ? '正在迭代自定义排版…' : '正在生成自定义排版…', 'info');
-      try {
-        await generateCustomLayout(isRegenerate);
-        setStatus('sbStatus4', '自定义排版已就绪，可注入状态栏', 'ok');
-        refreshPreview();
-      } catch (err) {
-        if (window.__isAiAbortError__ && window.__isAiAbortError__(err)) {
-          setStatus('sbStatus4', '已取消', 'info');
-        } else {
-          setStatus('sbStatus4', (err && err.message) || String(err), 'err');
-        }
-      } finally {
-        btn.disabled = false;
-        btn.textContent = old;
-      }
-    }
-
-    if (btnCustomGenerate) {
-      btnCustomGenerate.addEventListener('click', function() { runCustomLayoutTask(false); });
-    }
-    if (btnCustomRegenerate) {
-      btnCustomRegenerate.addEventListener('click', function() { runCustomLayoutTask(true); });
-    }
-
-    btnInject.addEventListener('click', function() {
-      try {
-        injectScripts();
-        fillChecklist(null);
-        setStatus('sbStatus4', '已注入正则 ' + STATUS_BAR_REGEX_NAME, 'ok');
-      } catch (err) {
-        setStatus('sbStatus4', (err && err.message) || String(err), 'err');
-      }
+      setStatusView(btn.getAttribute('data-sb-view'));
     });
+  }
 
-    document.getElementById('sbBtnRefreshPreview').addEventListener('click', refreshPreview);
-
-    // 面板 boot 早于草稿水合（st-idb-ready 异步加载），初次可能读空显示默认；
-    // 完整应用扩展：state + 全量重渲染（预设/模块/排版/人物/预览），读到返回 true
-    function applyDesignToPanel() {
-      var raw = window.__getCardExtension__ ? window.__getCardExtension__(STATUS_BAR_EXT_KEY) : null;
-      if (!raw) return false;
-      state = normalizeDesign(raw);
-      // 先恢复人数模式，后续 readFormIntoState/getCastMode 才读到正确 radio
-      var radio = document.querySelector('input[name="sbCast"][value="' + state.castMode + '"]');
-      if (radio) radio.checked = true;
-      syncCastUi();
+  var charNameEl = document.getElementById('charName');
+  if (charNameEl) {
+    charNameEl.addEventListener('input', function() {
+      state = reconcileDesignWithCharName(state, currentCharName());
+      loadCharactersFromWorldbook();
+      renderCharList();
       refreshPreview();
-      extraEl.value = state.extra || '';
-      nsfwEl.checked = !!state.nsfw;
-      if (femaleOnlyEl) femaleOnlyEl.checked = state.femaleOnly !== false;
-      if (customPromptEl) customPromptEl.value = state.customPrompt || '';
-      generatedOk = !!(state.paths && state.paths.length && state.snippetHtml);
-      btnInject.disabled = !generatedOk;
-      setStage(state.stage);
-      return true;
-    }
+    });
+  }
 
-    // 首次尽力读（此刻桥可能未挂 / 草稿未水合，读到空是预期的）
+  paintFromState();
+  applyDesignToPanel();
+
+  window.addEventListener('card-builder-data-changed', function onReady() {
+    if (applyDesignToPanel()) window.removeEventListener('card-builder-data-changed', onReady);
+  });
+  window.addEventListener('card-draft-changed', function(ev) {
+    var id = ev && ev.detail && ev.detail.cardId ? String(ev.detail.cardId) : '';
+    if (id && id === boundCardId) return;
+    boundCardId = id;
+    clearSamples();
     applyDesignToPanel();
-    syncCastUi();
-    setStage(1);
+  });
+  window.addEventListener('app-view-changed', function(ev) {
+    var view = ev && ev.detail && ev.detail.view;
+    if (view !== 'statusbar') return;
+    loadCharactersFromWorldbook();
+    renderCharList();
     refreshPreview();
+  });
 
-    // 水合完成后补读一次：loadDraft 完成时派发 card-builder-data-changed，
-    // 此刻 extensions 已进 ctx.state；读到即停，避免与后续保存互相打扰
-    window.addEventListener('card-builder-data-changed', function onReady() {
-      if (applyDesignToPanel()) window.removeEventListener('card-builder-data-changed', onReady);
-    });
-    // 切到状态栏视图时重读（防止草稿水合 / 其它视图改动扩展后切回来仍是默认）
-    window.addEventListener('app-view-changed', function (ev) {
-      var view = ev && ev.detail && ev.detail.view;
-      if (view === 'statusbar') applyDesignToPanel();
-    });
+  var host = document.getElementById('statusbarPanel');
+  if (host) {
+    host.addEventListener('change', function() { saveDesignExt(); });
+  }
 
-    // 配置状态持久化：任何 sb 控件变更（勾选/选择/输入）都写入卡扩展，
-    // 刷新 / 切卡 / 换设备（随卡云同步）后不丢失当前配置
-    var sbPanelHost = document.getElementById('statusbarPanel');
-    if (sbPanelHost) {
-      sbPanelHost.addEventListener('change', function() {
-        saveDesignExt();
-      });
-    }
-
-    window.__statusBarApi__ = {
-      getDesign: function() { return normalizeDesign(state); },
-      setDesign: function(d) {
-        state = normalizeDesign(d);
-        saveDesignExt();
-        syncCastUi();
-        refreshPreview();
-        return state;
-      },
-    };
-  })();
+  window.__statusBarApi__ = {
+    getDesign: function() { return normalizeDesign(state); },
+    setDesign: function(d) {
+      state = reconcileDesignWithCharName(normalizeDesign(d), currentCharName());
+      clearSamples();
+      saveDesignExt();
+      paintFromState();
+      return state;
+    },
+  };
 }

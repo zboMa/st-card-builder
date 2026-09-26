@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 
 import { ASSISTANT_TOOLS } from '../src/lib/assistant/tools.mjs';
 import { createToolExecutor, resolveWorldbookIndex } from '../src/lib/assistant/executor.mjs';
+import { STOCK_CHAR_DESC, STOCK_GREETING, STOCK_WB } from '../src/lib/assistant/generationContext.mjs';
 
 /** 每个工具的最小合法参数（executeConfirmed 直跑，绕过 confirm） */
 const TOOL_MIN_ARGS = {
@@ -33,20 +34,20 @@ const TOOL_MIN_ARGS = {
   novel_list_outputs: {},
   update_character_fields: { fields: { charName: '新名' } },
   replace_character_section: { field: 'charDesc', content: '新描述' },
-  expand_character_field: { field: 'charDesc' },
+  expand_character_field: { field: 'charDesc', instruction: STOCK_CHAR_DESC },
   create_worldbook_entry: { entry: { comment: '新条', content: '内容' } },
   update_worldbook_entry: { index: 0, patch: { content: '改' } },
   delete_worldbook_entry: { index: 0 },
-  rewrite_greeting: { target: 'main' },
-  expand_greeting: { target: { alternate: 0 } },
+  rewrite_greeting: { target: 'main', instruction: STOCK_GREETING },
+  expand_greeting: { target: { alternate: 0 }, instruction: STOCK_GREETING },
   update_alternate_greeting: { index: 0, content: '新备选' },
   generate_character_draft: {},
   generate_worldbook_skeleton: {},
-  generate_worldbook_entry: {},
+  generate_worldbook_entry: { instruction: STOCK_WB },
   organize_worldbook: { apply: false },
   batch_fill_worldbook_keys: {},
-  rewrite_worldbook_entry: { target: { index: 0 } },
-  expand_worldbook_entry: { target: { index: 0 } },
+  rewrite_worldbook_entry: { target: { index: 0 }, instruction: STOCK_WB },
+  expand_worldbook_entry: { target: { index: 0 }, instruction: STOCK_WB },
   fix_from_lint: { apply: false },
   open_module: { view: 'worldbook' },
   open_entity_graph: {},
@@ -78,9 +79,9 @@ const TOOL_MIN_ARGS = {
   generate_affection_lore: { templateOnly: true, selectedNames: ['测试'] },
   novel_distill_style: {},
   novel_patch_chapters: { action: 'enable', id: 'ch1' },
-  novel_expand_character: { target: { name: '林月' } },
-  novel_rewrite_character: { target: { id: 'c1' } },
-  novel_expand_worldbook: { target: { index: 0 } },
+  novel_expand_character: { target: { name: '林月' }, instruction: STOCK_CHAR_DESC },
+  novel_rewrite_character: { target: { id: 'c1' }, instruction: STOCK_CHAR_DESC },
+  novel_expand_worldbook: { target: { index: 0 }, instruction: STOCK_WB },
   novel_sync_outputs: { target: 'worldbook' },
   apply_novel_result_to_card: {},
   upsert_mvu_design: { design: { variables: [] } },
@@ -399,6 +400,11 @@ describe('assistant tools execution audit', function() {
         }
 
         var r = await ctx.ex.executeConfirmed(toolMeta.name, args);
+        if (toolMeta.name === 'generate_character_draft' || toolMeta.name === 'generate_worldbook_skeleton') {
+          assert.equal(r.ok, false, toolMeta.name + ' 应拒绝一次写完');
+          assert.match(r.error, /逐篇生成/);
+          return;
+        }
         assert.equal(r.ok, true, toolMeta.name + ' 失败: ' + (r.error || ''));
       });
     })(ASSISTANT_TOOLS[ti]);
@@ -501,8 +507,8 @@ describe('assistant tools execution audit', function() {
       ['search_novel_passages', { query: 'x' }, /小说检索桥接未就绪/],
       ['list_novel_entities', {}, /知识库桥接未就绪/],
       ['list_cards', {}, /多卡桥接未就绪/],
-      ['expand_character_field', { field: 'charDesc' }, /角色字段扩写桥接未就绪/],
-      ['rewrite_greeting', { target: 'main' }, /开场白桥接未就绪/],
+      ['expand_character_field', { field: 'charDesc', instruction: STOCK_CHAR_DESC }, /角色字段扩写桥接未就绪/],
+      ['rewrite_greeting', { target: 'main', instruction: STOCK_GREETING }, /开场白桥接未就绪/],
     ];
     for (var ci = 0; ci < cases.length; ci++) {
       var c = cases[ci];

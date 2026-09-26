@@ -1,5 +1,5 @@
 /**
- * 助手上下文管理：tiktoken 计数 + 60%/80% 整体压缩
+ * 助手上下文管理：tiktoken 计数、送模面与检查点
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
@@ -16,6 +16,9 @@ import {
   prepareChatCompletionMessages,
   estimateAssistantContext,
   inputTokenBudget,
+  planCompactionSpan,
+  makeCheckpointMessage,
+  COMPACTION_KEEP_TOKENS,
 } from '../src/lib/assistant/contextManager.mjs';
 
 describe('contextManager budget', function() {
@@ -94,6 +97,53 @@ describe('contextManager prepare', function() {
     assert.equal(hist[1].meta.kind, 'assistant');
   });
 
+  it('跳过助手错误气泡，工具错误仍送模', function() {
+    var hist = uiMessagesToModelHistory([
+      { role: 'user', content: '改开场白', modelContent: '改开场白' },
+      { role: 'assistant', content: '错误：Failed to fetch', error: true, retryable: true },
+      {
+        role: 'tool',
+        toolName: 'update_character_fields',
+        summary: '写入失败',
+        detail: '桥接未就绪',
+        error: true,
+      },
+    ]);
+    assert.equal(hist.length, 2);
+    assert.equal(hist[0].role, 'user');
+    assert.equal(hist[1].meta.kind, 'tool');
+    assert.equal(hist[1].meta.error, true);
+    assert.match(hist[1].content, /工具结果·失败/);
+    assert.match(hist[1].content, /桥接未就绪/);
+    assert.ok(!hist.some(function(m) { return /Failed to fetch/.test(m.content); }));
+  });
+
+  it('工具结果不把调用参数再送一遍，执行中的卡片不送模', function() {
+    var instruction = '编写世界书人物条目：' + '李清露。'.repeat(40);
+    var hist = uiMessagesToModelHistory([
+      {
+        role: 'tool',
+        toolName: 'generate_worldbook_entry',
+        summary: '{"added":1}… · 点击展开',
+        detail: '{"added":1,"total":11}',
+        modelDetail: '调用: generate_worldbook_entry\n参数: {"instruction":"' + instruction + '"}\n返回: {"added":1}',
+        running: false,
+      },
+      {
+        role: 'tool',
+        toolName: 'generate_worldbook_entry',
+        summary: '执行中…',
+        running: true,
+      },
+    ]);
+    assert.equal(hist.length, 1);
+    assert.match(hist[0].content, /工具结果·成功/);
+    assert.match(hist[0].content, /生成世界书条目|读取/);
+    assert.ok(hist[0].content.indexOf(instruction) < 0);
+    assert.ok(!/点击展开/.test(hist[0].content));
+    assert.match(hist[0].content, /"added":1/);
+  });
+
   it('低用量不压缩', function() {
     var prepared = prepareAssistantMessages({
       systemPrompt: 'sys',
@@ -107,16 +157,17 @@ describe('contextManager prepare', function() {
     assert.ok(prepared.breakdown.total < softThreshold());
   });
 
-  it('超软阈值时压缩旧工具正文', function() {
+  it('超硬阈值标记需要检查点，不在发送时把工具结果重写成压缩稿', function() {
     var prevLimit = CONTEXT_BUDGET.limit;
     var prevReserve = CONTEXT_BUDGET.reserveReply;
     CONTEXT_BUDGET.limit = 8000;
     CONTEXT_BUDGET.reserveReply = 500;
     try {
       var fat = '角色描述段落。'.repeat(400);
-      var tools = [];
-      for (var i = 0; i < 5; i++) {
-        tools.push({
+      var msgs = [{ role: 'user', content: '任务', modelContent: '任务' }];
+      for (var i = 0; i < 4; i++) {
+        msgs.push({ role: 'assistant', content: '调用工具 ' + i, modelContent: '调用工具 ' + i });
+        msgs.push({
           role: 'tool',
           toolName: 'get_character_fields',
           summary: '读取角色字段 #' + i,
@@ -125,12 +176,27 @@ describe('contextManager prepare', function() {
       }
       var prepared = prepareAssistantMessages({
         systemPrompt: 'system prompt for assistant',
-        uiMessages: [{ role: 'user', content: '任务', modelContent: '任务' }].concat(tools),
+        uiMessages: msgs,
       });
-      assert.ok(prepared.level === 'soft' || prepared.level === 'hard');
+      assert.equal(prepared.needsCompaction, true);
       var joined = prepared.messages.map(function(m) { return m.content; }).join('\n');
-      assert.match(joined, /工具结果·压缩|工具结果·摘要/);
+      assert.ok(!/工具结果·压缩/.test(joined));
       assert.ok(prepared.breakdown.total <= inputTokenBudget());
+      var span = planCompactionSpan(msgs);
+      assert.ok(span);
+      assert.ok(span.head.length > 0);
+      assert.ok(span.insertAt > 0 && span.insertAt < msgs.length);
+      msgs.splice(span.insertAt, 0, makeCheckpointMessage('已写入若干角色字段。'));
+      var after = estimateAssistantContext({
+        systemPrompt: 'system prompt for assistant',
+        uiMessages: msgs,
+      });
+      assert.equal(after.compacted, true);
+      var surface = uiMessagesToModelHistory(msgs.slice(span.insertAt));
+      assert.match(surface[0].content, /上下文检查点/);
+      assert.match(surface[0].content, /已写入若干角色字段/);
+      assert.ok(surface[0].content.indexOf(fat) < 0);
+      assert.ok(COMPACTION_KEEP_TOKENS > 0);
     } finally {
       CONTEXT_BUDGET.limit = prevLimit;
       CONTEXT_BUDGET.reserveReply = prevReserve;

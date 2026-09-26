@@ -25,9 +25,9 @@ export {
 };
 
 /** @typedef {{ id: string, label: string, cast: 'single'|'multi', blurb?: string, accent?: string, hint?: string }} DesignDef */
-/** @typedef {{ id: string, label: string, nsfw?: boolean, cast?: 'single'|'multi'|'both', hint?: string }} ModuleDef */
+/** @typedef {{ id: string, label: string, nsfw?: boolean, cast?: 'single'|'multi'|'both', group: 'scene'|'person'|'nsfw', hint?: string }} ModuleDef */
 /** @typedef {{ id: string, label: string, cast: 'single'|'multi', nsfw?: boolean, modules: string[], hint?: string }} PresetDef */
-/** @typedef {{ path: string, label: string, group?: string, sample?: string, role?: string }} PathItem */
+/** @typedef {{ path: string, label: string, group?: string, sample?: string, role?: string, set?: 'global'|'protagonist'|'npc', meter?: boolean }} PathItem */
 /** @typedef {{ name: string, aliases?: string[], identity?: string, source?: string, selected?: boolean }} CastCharacter */
 
 /** 兼容旧名：LAYOUTS = 视觉主题（含 hint=blurb） */
@@ -56,41 +56,50 @@ const MODULE_ID_MIGRATE = Object.freeze({
   relation: ['affection', 'trust', 'relation_stage'],
 });
 
+/** 面板上的三类。NSFW 关时不渲染 nsfw 组。 */
+export const STATUS_BAR_MODULE_GROUPS = Object.freeze([
+  { id: 'scene', label: '场面' },
+  { id: 'person', label: '人物' },
+  { id: 'nsfw', label: 'NSFW' },
+]);
+
 /** 可组合模块（对齐 MVU；nsfw 需总开关，关则整组隐藏） */
 export const STATUS_BAR_MODULES = Object.freeze([
-  // —— 常规 ——
-  { id: 'affection', label: '亲密度/好感', cast: 'both', hint: '好感/亲密度数值' },
-  { id: 'trust', label: '信任', cast: 'both', hint: '信任度' },
-  { id: 'relation_stage', label: '关系阶段', cast: 'both', hint: '陌生/朋友/恋人等阶段' },
-  { id: 'corruption_stage', label: '恶堕进度', nsfw: true, cast: 'both', hint: '0-100 数值，档位映射见世界书「恶堕进度总则」' },
-  { id: 'affection_stage', label: '亲密度', cast: 'both', hint: '0-100 数值，档位映射见世界书「亲密关系总则」' },
-  { id: 'emotion', label: '情绪', cast: 'both', hint: '心情/张力' },
-  { id: 'action', label: '行动', cast: 'both', hint: '当前行动/行为' },
-  { id: 'location', label: '地点', cast: 'both', hint: '当前位置/场景' },
-  { id: 'outfit', label: '着装', cast: 'both', hint: '穿着/外观' },
-  { id: 'items', label: '物品', cast: 'both', hint: '持有物/关键道具' },
-  { id: 'money', label: '金钱', cast: 'both', hint: '金钱/资源' },
-  { id: 'quest', label: '任务', cast: 'both', hint: '进行中任务/目标' },
-  { id: 'memory_summary', label: '记忆摘要', cast: 'both', hint: '承诺/线索/阶段记忆' },
-  { id: 'event_chips', label: '事件芯片', cast: 'both', hint: '短标签剧情事件' },
-  // 配角摘要已移除：多人入选角色人人同套详字段（信息量一致）
-  { id: 'attributes', label: '属性条', cast: 'both', hint: '体力/魔力/等级等' },
-  { id: 'time_weather', label: '时间天气', cast: 'both', hint: '时间/日期/天气' },
-  // —— NSFW ——
-  { id: 'nsfw_vagina', label: '小穴', nsfw: true, cast: 'both', hint: '私密状态描述' },
-  { id: 'nsfw_breasts', label: '双乳', nsfw: true, cast: 'both', hint: '胸部状态' },
-  { id: 'nsfw_legs', label: '美腿', nsfw: true, cast: 'both', hint: '腿部状态' },
-  { id: 'nsfw_feet', label: '美脚', nsfw: true, cast: 'both', hint: '足部状态' },
-  { id: 'nsfw_anus', label: '屁穴', nsfw: true, cast: 'both', hint: '后庭状态' },
-  { id: 'nsfw_thoughts', label: '内心想法', nsfw: true, cast: 'both', hint: '隐秘心声' },
-  { id: 'nsfw_mouth', label: '口腔', nsfw: true, cast: 'both', hint: '口腔/口部状态' },
-  { id: 'nsfw_erogenous', label: '敏感带', nsfw: true, cast: 'both', hint: '敏感点刺激' },
-  { id: 'nsfw_orgasm', label: '高潮/快感', nsfw: true, cast: 'both', hint: '快感/高潮进度' },
-  { id: 'nsfw_fluids', label: '体液', nsfw: true, cast: 'both', hint: '体液状态' },
-  { id: 'nsfw_exposure', label: '露出', nsfw: true, cast: 'both', hint: '暴露/走光程度' },
-  { id: 'nsfw_training', label: '调教标记', nsfw: true, cast: 'both', hint: '调教/标记痕迹' },
-  { id: 'nsfw_experience', label: '性经验摘要', nsfw: true, cast: 'both', hint: '经验摘要' },
-  { id: 'nsfw_act_state', label: '当前性行为状态', nsfw: true, cast: 'both', hint: '正在进行的性行为' },
+  { id: 'time_weather', label: '时间天气', cast: 'both', group: 'scene', hint: '时间/日期/天气' },
+  { id: 'location', label: '地点', cast: 'both', group: 'scene', hint: '当前位置/场景' },
+  { id: 'emotion', label: '情绪', cast: 'both', group: 'scene', hint: '心情/张力' },
+  { id: 'action', label: '行动', cast: 'both', group: 'scene', hint: '当前行动/行为' },
+  { id: 'outfit', label: '着装', cast: 'both', group: 'scene', hint: '穿着/外观' },
+  { id: 'event_chips', label: '事件芯片', cast: 'both', group: 'scene', hint: '短标签剧情事件' },
+  { id: 'affection', label: '好感度', cast: 'both', group: 'person', hint: '好感数值' },
+  { id: 'trust', label: '信任', cast: 'both', group: 'person', hint: '信任度' },
+  { id: 'relation_stage', label: '关系阶段', cast: 'both', group: 'person', hint: '陌生/朋友/恋人等阶段' },
+  { id: 'affection_stage', label: '亲密档位', cast: 'both', group: 'person', hint: '0-100 数值，档位映射见世界书「亲密关系总则」' },
+  { id: 'attributes', label: '属性条', cast: 'both', group: 'person', hint: '体力/魔力' },
+  { id: 'realm', label: '境界', cast: 'both', group: 'person', hint: '修为/境界' },
+  { id: 'injury', label: '伤势', cast: 'both', group: 'person', hint: '伤势程度' },
+  { id: 'sanity', label: '理智', cast: 'both', group: 'person', hint: '理智数值' },
+  { id: 'items', label: '物品', cast: 'both', group: 'person', hint: '持有物/关键道具' },
+  { id: 'money', label: '金钱', cast: 'both', group: 'person', hint: '金钱/资源' },
+  { id: 'quest', label: '任务', cast: 'both', group: 'person', hint: '进行中任务/目标' },
+  { id: 'memory_summary', label: '记忆摘要', cast: 'both', group: 'person', hint: '承诺/线索/阶段记忆' },
+  { id: 'nsfw_vagina', label: '小穴', nsfw: true, cast: 'both', group: 'nsfw', hint: '私密状态描述' },
+  { id: 'nsfw_breasts', label: '双乳', nsfw: true, cast: 'both', group: 'nsfw', hint: '胸部状态' },
+  { id: 'nsfw_legs', label: '美腿', nsfw: true, cast: 'both', group: 'nsfw', hint: '腿部状态' },
+  { id: 'nsfw_feet', label: '美脚', nsfw: true, cast: 'both', group: 'nsfw', hint: '足部状态' },
+  { id: 'nsfw_anus', label: '屁穴', nsfw: true, cast: 'both', group: 'nsfw', hint: '后庭状态' },
+  { id: 'nsfw_mouth', label: '口腔', nsfw: true, cast: 'both', group: 'nsfw', hint: '口腔/口部状态' },
+  { id: 'nsfw_erogenous', label: '敏感带', nsfw: true, cast: 'both', group: 'nsfw', hint: '敏感点刺激' },
+  { id: 'nsfw_uterus', label: '子宫', nsfw: true, cast: 'both', group: 'nsfw', hint: '子宫状态' },
+  { id: 'nsfw_thoughts', label: '内心想法', nsfw: true, cast: 'both', group: 'nsfw', hint: '隐秘心声' },
+  { id: 'nsfw_orgasm', label: '高潮/快感', nsfw: true, cast: 'both', group: 'nsfw', hint: '快感/高潮进度' },
+  { id: 'nsfw_fluids', label: '体液', nsfw: true, cast: 'both', group: 'nsfw', hint: '体液状态' },
+  { id: 'nsfw_exposure', label: '露出', nsfw: true, cast: 'both', group: 'nsfw', hint: '暴露/走光程度' },
+  { id: 'nsfw_training', label: '调教标记', nsfw: true, cast: 'both', group: 'nsfw', hint: '调教/标记痕迹' },
+  { id: 'nsfw_experience', label: '性经验摘要', nsfw: true, cast: 'both', group: 'nsfw', hint: '经验摘要' },
+  { id: 'nsfw_act_state', label: '当前性行为状态', nsfw: true, cast: 'both', group: 'nsfw', hint: '正在进行的性行为' },
+  { id: 'nsfw_pregnancy', label: '怀孕', nsfw: true, cast: 'both', group: 'nsfw', hint: '是否怀孕与孕期' },
+  { id: 'corruption_stage', label: '恶堕进度', nsfw: true, cast: 'both', group: 'nsfw', hint: '0-100 数值，档位映射见世界书「恶堕进度总则」' },
 ]);
 
 /** 日常/恋爱通用模块组 */
@@ -99,69 +108,67 @@ const MODS_RPG = ['time_weather', 'location', 'attributes', 'action', 'outfit', 
 const MODS_ROMANCE = ['time_weather', 'location', 'emotion', 'affection', 'trust', 'relation_stage', 'action', 'outfit', 'event_chips'];
 const MODS_NSFW_CORE = [
   'nsfw_vagina', 'nsfw_breasts', 'nsfw_legs', 'nsfw_feet', 'nsfw_anus', 'nsfw_thoughts',
-  'nsfw_mouth', 'nsfw_erogenous', 'nsfw_orgasm', 'nsfw_fluids', 'nsfw_exposure',
-  'nsfw_training', 'nsfw_experience', 'nsfw_act_state',
+  'nsfw_mouth', 'nsfw_erogenous', 'nsfw_uterus', 'nsfw_orgasm', 'nsfw_fluids', 'nsfw_exposure',
+  'nsfw_training', 'nsfw_experience', 'nsfw_act_state', 'nsfw_pregnancy',
 ];
-/** 恶堕进度默认只进多人预设（绑世界书人物）；单人预设不挂主角「角色.恶堕进度」 */
+/** 恶堕进度进 NTL / NTR / 亲密。主角写成 角色.恶堕进度，女角色写成 NPC.姓名.恶堕进度。 */
 const MODS_CORRUPTION = ['corruption_stage'];
 /** 纯爱线（亲密度）模块：进恋爱/亲密向预设 */
 const MODS_AFFECTION = ['affection_stage'];
 /** 多人基础模块（无配角摘要） */
 const MODS_MULTI_BASE = ['time_weather', 'location', 'emotion', 'action', 'outfit', 'event_chips'];
 
-/** 单人/多人内置预设（题材尽量铺全） */
+/** 一份题材（无人数前缀）。single_* / multi_* 在 normalize 时收成同一 id，写入同一份 moduleFlags。 */
 export const STATUS_BAR_PRESETS = Object.freeze([
-  // —— 单人 ——
-  { id: 'single_daily', cast: 'single', label: '日常陪伴', hint: '时间地点+情绪着装', modules: MODS_DAILY },
-  { id: 'single_rpg', cast: 'single', label: '冒险 RPG', hint: '属性物品任务记忆', modules: MODS_RPG },
-  { id: 'single_romance', cast: 'single', label: '恋爱向', hint: '好感信任关系阶段', modules: MODS_ROMANCE.concat(MODS_AFFECTION) },
-  { id: 'single_campus', cast: 'single', label: '校园日常', hint: '轻量校园追踪', modules: ['time_weather', 'location', 'emotion', 'action', 'outfit', 'items', 'affection', 'event_chips'] },
-  { id: 'single_wuxia', cast: 'single', label: '武侠江湖', hint: '属性+物品+任务', modules: ['time_weather', 'location', 'attributes', 'action', 'outfit', 'items', 'quest', 'memory_summary', 'event_chips'] },
-  { id: 'single_xianxia', cast: 'single', label: '仙侠修真', hint: '属性境界+记忆', modules: ['time_weather', 'location', 'attributes', 'action', 'outfit', 'items', 'quest', 'memory_summary', 'event_chips'] },
-  { id: 'single_apocalypse', cast: 'single', label: '末日废土', hint: '属性资源生存', modules: ['time_weather', 'location', 'attributes', 'action', 'outfit', 'items', 'money', 'quest', 'memory_summary', 'event_chips'] },
-  { id: 'single_court', cast: 'single', label: '古代宫廷', hint: '关系+记忆+事件', modules: ['time_weather', 'location', 'emotion', 'affection', 'trust', 'relation_stage', 'action', 'outfit', 'memory_summary', 'event_chips'] },
-  { id: 'single_fantasy', cast: 'single', label: '西幻冒险', hint: '属性物品任务', modules: MODS_RPG },
-  { id: 'single_urban', cast: 'single', label: '都市日常', hint: '时间地点情绪金钱', modules: ['time_weather', 'location', 'emotion', 'action', 'outfit', 'money', 'items', 'affection', 'event_chips'] },
-  { id: 'single_scifi', cast: 'single', label: '科幻任务', hint: '属性物品任务', modules: ['time_weather', 'location', 'attributes', 'items', 'quest', 'memory_summary', 'event_chips', 'action'] },
-  { id: 'single_cyber', cast: 'single', label: '赛博都市', hint: '属性金钱任务', modules: ['time_weather', 'location', 'attributes', 'action', 'outfit', 'items', 'money', 'quest', 'event_chips'] },
-  { id: 'single_mystery', cast: 'single', label: '悬疑推理', hint: '记忆线索+事件', modules: ['time_weather', 'location', 'emotion', 'action', 'memory_summary', 'quest', 'event_chips', 'items'] },
-  { id: 'single_military', cast: 'single', label: '军事行动', hint: '属性任务地点', modules: ['time_weather', 'location', 'attributes', 'action', 'outfit', 'items', 'quest', 'event_chips'] },
-  { id: 'single_lovecraft', cast: 'single', label: '克苏鲁', hint: '理智向属性+记忆', modules: ['time_weather', 'location', 'attributes', 'emotion', 'action', 'memory_summary', 'event_chips', 'quest'] },
-  { id: 'single_ntl', cast: 'single', label: 'NTL 亲密', nsfw: true, hint: '恋爱+内心身体', modules: MODS_ROMANCE.concat(MODS_AFFECTION).concat(['nsfw_thoughts', 'nsfw_breasts', 'nsfw_legs', 'nsfw_orgasm', 'nsfw_act_state']) },
-  { id: 'single_ntr', cast: 'single', label: 'NTR 张力', nsfw: true, hint: '关系张力+身体', modules: MODS_ROMANCE.concat(MODS_AFFECTION).concat(['nsfw_thoughts', 'nsfw_vagina', 'nsfw_breasts', 'nsfw_fluids', 'nsfw_act_state']) },
+  { id: 'daily', label: '日常', hint: '时间地点+情绪着装', modules: MODS_DAILY },
+  { id: 'adventure', label: '冒险', hint: '属性物品任务记忆', modules: MODS_RPG.concat(['injury']) },
+  { id: 'romance', label: '恋爱', hint: '好感信任关系阶段', modules: MODS_ROMANCE.concat(MODS_AFFECTION) },
+  { id: 'campus', label: '校园', hint: '轻量校园追踪', modules: ['time_weather', 'location', 'emotion', 'action', 'outfit', 'items', 'affection', 'event_chips'] },
+  { id: 'wuxia', label: '武侠', hint: '属性+物品+任务', modules: ['time_weather', 'location', 'attributes', 'realm', 'action', 'outfit', 'items', 'quest', 'memory_summary', 'event_chips'] },
+  { id: 'xianxia', label: '仙侠', hint: '属性境界+记忆', modules: ['time_weather', 'location', 'attributes', 'realm', 'action', 'outfit', 'items', 'quest', 'memory_summary', 'event_chips'] },
+  { id: 'apocalypse', label: '末日', hint: '属性资源生存', modules: ['time_weather', 'location', 'attributes', 'injury', 'action', 'outfit', 'items', 'money', 'quest', 'memory_summary', 'event_chips'] },
+  { id: 'court', label: '宫廷', hint: '关系+记忆+事件', modules: ['time_weather', 'location', 'emotion', 'affection', 'trust', 'relation_stage', 'action', 'outfit', 'memory_summary', 'event_chips'] },
+  { id: 'fantasy', label: '西幻', hint: '属性物品任务', modules: MODS_RPG },
+  { id: 'urban', label: '都市', hint: '时间地点情绪金钱', modules: ['time_weather', 'location', 'emotion', 'action', 'outfit', 'money', 'items', 'affection', 'event_chips'] },
+  { id: 'scifi', label: '科幻', hint: '属性物品任务', modules: ['time_weather', 'location', 'attributes', 'items', 'quest', 'memory_summary', 'event_chips', 'action'] },
+  { id: 'cyber', label: '赛博', hint: '属性金钱任务', modules: ['time_weather', 'location', 'attributes', 'action', 'outfit', 'items', 'money', 'quest', 'event_chips'] },
+  { id: 'mystery', label: '悬疑', hint: '记忆线索+事件', modules: ['time_weather', 'location', 'emotion', 'action', 'memory_summary', 'quest', 'event_chips', 'items'] },
+  { id: 'military', label: '军事', hint: '属性任务地点', modules: ['time_weather', 'location', 'attributes', 'injury', 'action', 'outfit', 'items', 'quest', 'event_chips'] },
+  { id: 'lovecraft', label: '克苏鲁', hint: '理智向属性+记忆', modules: ['time_weather', 'location', 'attributes', 'sanity', 'emotion', 'action', 'memory_summary', 'event_chips', 'quest'] },
   {
-    id: 'single_nsfw', cast: 'single', label: '亲密 NSFW', nsfw: true, hint: '全身体模块',
-    modules: MODS_ROMANCE.concat(MODS_AFFECTION).concat(MODS_NSFW_CORE),
-  },
-  // —— 多人（入选角色人人同套详字段）——
-  { id: 'multi_party', cast: 'multi', label: '小队同行', hint: '全员同套+属性物品', modules: MODS_MULTI_BASE.concat(['attributes', 'items']) },
-  { id: 'multi_harem', cast: 'multi', label: '群像恋爱', hint: '好感信任关系阶段', modules: MODS_MULTI_BASE.concat(['affection', 'trust', 'relation_stage']).concat(MODS_AFFECTION) },
-  { id: 'multi_wuxia', cast: 'multi', label: '武侠群侠', hint: '属性物品任务', modules: MODS_MULTI_BASE.concat(['attributes', 'items', 'quest', 'memory_summary']) },
-  { id: 'multi_xianxia', cast: 'multi', label: '仙侠同门', hint: '属性境界任务', modules: MODS_MULTI_BASE.concat(['attributes', 'items', 'quest', 'memory_summary']) },
-  { id: 'multi_apocalypse', cast: 'multi', label: '末日小队', hint: '生存资源任务', modules: MODS_MULTI_BASE.concat(['attributes', 'items', 'money', 'quest']) },
-  { id: 'multi_court', cast: 'multi', label: '宫廷群像', hint: '关系记忆事件', modules: MODS_MULTI_BASE.concat(['affection', 'trust', 'relation_stage', 'memory_summary']) },
-  { id: 'multi_fantasy', cast: 'multi', label: '西幻队伍', hint: '属性任务金钱', modules: MODS_MULTI_BASE.concat(['attributes', 'items', 'quest', 'money']) },
-  { id: 'multi_urban', cast: 'multi', label: '都市群像', hint: '情绪金钱物品', modules: MODS_MULTI_BASE.concat(['affection', 'money', 'items']) },
-  { id: 'multi_scifi', cast: 'multi', label: '科幻编队', hint: '属性任务记忆', modules: MODS_MULTI_BASE.concat(['attributes', 'items', 'quest', 'memory_summary']) },
-  { id: 'multi_cyber', cast: 'multi', label: '赛博团伙', hint: '属性金钱任务', modules: MODS_MULTI_BASE.concat(['attributes', 'money', 'quest', 'items']) },
-  { id: 'multi_campus', cast: 'multi', label: '校园群像', hint: '情绪好感关系', modules: MODS_MULTI_BASE.concat(['affection', 'relation_stage', 'items']) },
-  { id: 'multi_mystery', cast: 'multi', label: '悬疑群像', hint: '线索记忆任务', modules: MODS_MULTI_BASE.concat(['memory_summary', 'quest', 'items']) },
-  { id: 'multi_military', cast: 'multi', label: '军事编队', hint: '属性物品任务', modules: MODS_MULTI_BASE.concat(['attributes', 'items', 'quest']) },
-  { id: 'multi_lovecraft', cast: 'multi', label: '克苏鲁调查', hint: '理智记忆任务', modules: MODS_MULTI_BASE.concat(['attributes', 'memory_summary', 'quest']) },
-  { id: 'multi_rpg', cast: 'multi', label: '多人冒险', hint: '属性物品任务', modules: MODS_MULTI_BASE.concat(['attributes', 'items', 'quest', 'memory_summary', 'money']) },
-  {
-    id: 'multi_ntl', cast: 'multi', label: 'NTL 群像', hint: '全员同套亲密模块', nsfw: true,
-    modules: MODS_MULTI_BASE.concat(['affection', 'trust', 'relation_stage', 'nsfw_thoughts', 'nsfw_breasts', 'nsfw_legs', 'nsfw_orgasm']).concat(MODS_CORRUPTION).concat(MODS_AFFECTION),
+    id: 'ntl', label: 'NTL', nsfw: true, hint: '恋爱+内心身体+恶堕',
+    modules: MODS_ROMANCE.concat(MODS_AFFECTION).concat(MODS_CORRUPTION).concat(['nsfw_thoughts', 'nsfw_breasts', 'nsfw_legs', 'nsfw_orgasm', 'nsfw_act_state']),
   },
   {
-    id: 'multi_ntr', cast: 'multi', label: 'NTR 张力', hint: '关系张力+内心', nsfw: true,
-    modules: MODS_MULTI_BASE.concat(['affection', 'trust', 'relation_stage', 'nsfw_thoughts', 'nsfw_vagina', 'nsfw_breasts', 'nsfw_act_state']).concat(MODS_CORRUPTION).concat(MODS_AFFECTION),
+    id: 'ntr', label: 'NTR', nsfw: true, hint: '关系张力+身体+恶堕',
+    modules: MODS_ROMANCE.concat(MODS_AFFECTION).concat(MODS_CORRUPTION).concat(['nsfw_thoughts', 'nsfw_vagina', 'nsfw_breasts', 'nsfw_fluids', 'nsfw_act_state']),
   },
   {
-    id: 'multi_nsfw', cast: 'multi', label: '群像 NSFW', hint: '主详+身体模块', nsfw: true,
-    modules: MODS_MULTI_BASE.concat(['affection', 'relation_stage']).concat(MODS_NSFW_CORE).concat(MODS_CORRUPTION).concat(MODS_AFFECTION),
+    id: 'intimate', label: '亲密', nsfw: true, hint: '全身体模块',
+    modules: MODS_ROMANCE.concat(MODS_AFFECTION).concat(MODS_CORRUPTION).concat(MODS_NSFW_CORE),
   },
 ]);
+
+/** 旧 presetId（含人数前缀）→ 无前缀题材。multi_party 对到日常。 */
+const PRESET_ID_ALIAS = Object.freeze({
+  rpg: 'adventure',
+  harem: 'romance',
+  nsfw: 'intimate',
+  party: 'daily',
+});
+
+/**
+ * @param {string} [id]
+ * @returns {string}
+ */
+export function migratePresetId(id) {
+  var raw = String(id || '').trim();
+  if (!raw || raw === 'multi_party') return 'daily';
+  var stripped = raw.replace(/^(single_|multi_)/, '');
+  var mapped = PRESET_ID_ALIAS[stripped] || stripped;
+  if (STATUS_BAR_PRESETS.some(function(p) { return p.id === mapped; })) return mapped;
+  return 'daily';
+}
 
 export const STATUS_BAR_MODES = Object.freeze([
   { id: 'mvu', label: 'MVU 变量模式（读取 stat_data）' },
@@ -234,7 +241,8 @@ export function defaultLayoutId(cast) {
 
 /** @param {string} id */
 export function getPresetById(id) {
-  return STATUS_BAR_PRESETS.find(function(p) { return p.id === id; }) || STATUS_BAR_PRESETS[0];
+  var mid = migratePresetId(id);
+  return STATUS_BAR_PRESETS.find(function(p) { return p.id === mid; }) || STATUS_BAR_PRESETS[0];
 }
 
 /** @param {string} id */
@@ -242,9 +250,9 @@ export function getModuleById(id) {
   return STATUS_BAR_MODULES.find(function(m) { return m.id === id; }) || null;
 }
 
-/** @param {'single'|'multi'} cast */
-export function presetsForCast(cast) {
-  return STATUS_BAR_PRESETS.filter(function(p) { return p.cast === cast; });
+/** 题材不再按人数拆分；参数保留以免旧调用崩。 */
+export function presetsForCast() {
+  return STATUS_BAR_PRESETS.slice();
 }
 
 /** 常规 / NSFW 模块列表 */
@@ -337,6 +345,9 @@ var MODULE_FORBIDDEN_PATH_HINT = Object.freeze({
   relation_stage: '*.关系阶段',
   corruption_stage: '*.恶堕进度 / *.恶堕',
   affection_stage: '*.亲密度',
+  realm: '*.境界',
+  injury: '*.伤势',
+  sanity: '*.理智',
   attributes: '*.体力 / *.魔力 / *.生命',
   items: '*.物品',
   money: '*.金钱',
@@ -355,6 +366,8 @@ var MODULE_FORBIDDEN_PATH_HINT = Object.freeze({
   nsfw_training: '*.调教',
   nsfw_experience: '*.性经验',
   nsfw_act_state: '*.性行为',
+  nsfw_uterus: '*.子宫',
+  nsfw_pregnancy: '*.怀孕',
 });
 
 /**
@@ -363,13 +376,10 @@ var MODULE_FORBIDDEN_PATH_HINT = Object.freeze({
  */
 export function describeForbiddenModules(flags, opts) {
   var o = opts || {};
-  var castMode = o.castMode === 'multi' ? 'multi' : 'single';
   var nsfwOn = !!o.nsfwEnabled;
   var f = flags || {};
   var lines = [];
   STATUS_BAR_MODULES.forEach(function(m) {
-    if (m.cast === 'multi' && castMode !== 'multi') return;
-    if (m.cast === 'single' && castMode !== 'single') return;
     var forcedOff = m.nsfw && !nsfwOn;
     var off = forcedOff || !f[m.id];
     if (!off) return;
@@ -390,7 +400,7 @@ export function describeFemaleOnlyRule(femaleOnly) {
   if (!femaleOnly) {
     return '5. 性别不限：男女及其他可识别人物均可列入。\n';
   }
-  return '5. 【只识别女角色】仅输出女性/可作女主或女配追踪的人物；排除明确男性、纯雄性生物；性别不明且明显男性化的跳过；主角若为男性可仅作参考不强制列入。\n';
+  return '6. 【只识别女角色】仅输出女性人物；排除明确男性。当前卡角色本人仍然不要输出。\n';
 }
 
 /**
@@ -398,14 +408,34 @@ export function describeFemaleOnlyRule(femaleOnly) {
  * @param {any} raw
  * @returns {PathItem}
  */
+var METER_LEAF_RE = /(好感度|信任|恶堕进度|亲密度|体力|魔力|金钱|快感|理智)$/;
+
+/** @param {string} path @param {string} [type] */
+export function pathIsMeter(path, type) {
+  if (String(type || '') === 'number') return true;
+  var leaf = String(path || '').split('.').pop() || '';
+  return METER_LEAF_RE.test(leaf);
+}
+
+/** @param {string} path @param {string} [explicit] */
+export function pathSetOf(path, explicit) {
+  if (explicit === 'global' || explicit === 'protagonist' || explicit === 'npc') return explicit;
+  var p = String(path || '');
+  if (p.indexOf('NPC.') === 0) return 'npc';
+  if (p.indexOf('角色.') === 0) return 'protagonist';
+  return 'global';
+}
+
 export function normalizePathItem(raw) {
   var path = String((raw && (raw.path || raw.name || raw.key)) || '').trim().replace(/^stat_data\./, '');
   var label = String((raw && (raw.label || raw.title || raw.description)) || path.split('.').pop() || '字段').trim();
   var group = String((raw && (raw.group || raw.section)) || '状态').trim() || '状态';
   var sample = raw && raw.sample != null ? String(raw.sample) : guessSample(path, raw && raw.type);
   var role = raw && raw.role != null ? String(raw.role) : '';
-  var item = { path: path, label: label, group: group, sample: sample };
+  var set = pathSetOf(path, raw && raw.set);
+  var item = { path: path, label: label, group: group, sample: sample, set: set };
   if (role) item.role = role;
+  if (raw && raw.meter === true || pathIsMeter(path, raw && raw.type)) item.meter = true;
   return item;
 }
 

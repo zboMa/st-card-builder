@@ -16,6 +16,7 @@ import {
   VALID_VIEWS,
 } from '../src/lib/assistant/tools.mjs';
 import { classifyToolRisk, buildChangePreview } from '../src/lib/assistant/risk.mjs';
+import { STOCK_CHAR_DESC, STOCK_GREETING, STOCK_WB } from '../src/lib/assistant/generationContext.mjs';
 import { parseReactStep, extractJsonObject } from '../src/lib/assistant/reactParse.mjs';
 import {
   createToolExecutor,
@@ -179,7 +180,7 @@ function mockBridge(seed) {
       return {
         source: 'llm',
         issues: [{ type: 'thin_desc', message: '人设偏薄' }],
-        fixes: [{ tool: 'expand_character_field', args: { field: 'charDesc', mode: 'expand' } }],
+        fixes: [{ tool: 'expand_character_field', args: { field: 'charDesc', mode: 'expand', instruction: STOCK_CHAR_DESC } }],
       };
     },
     openModule: function(v) { state.opened = v; },
@@ -351,7 +352,8 @@ describe('assistant risk', function() {
 
   it('buildChangePreview 含工具名', function() {
     var p = buildChangePreview('update_character_fields', { fields: { charName: 'A' } });
-    assert.match(p, /update_character_fields/);
+    assert.match(p, /更新角色字段/);
+    assert.doesNotMatch(p, /update_character_fields/);
     assert.match(p, /charName/);
   });
 });
@@ -484,11 +486,14 @@ describe('assistant executor', function() {
     var ex = createToolExecutor(bridge);
     var byTitle = await ex.invoke('expand_worldbook_entry', {
       target: { titleMatch: '剑宗' },
-      instruction: '扩写',
+      instruction: STOCK_WB,
     });
     assert.equal(byTitle.ok, true);
     assert.match(bridge.state.worldbook[0].content, /expand/);
-    var byIndex = await ex.invoke('expand_worldbook_entry', { target: { index: 1 } }, { forceApply: true });
+    var byIndex = await ex.invoke('expand_worldbook_entry', {
+      target: { index: 1 },
+      instruction: STOCK_WB,
+    }, { forceApply: true });
     assert.equal(byIndex.ok, true);
     assert.match(bridge.state.worldbook[1].content, /expand/);
   });
@@ -496,10 +501,10 @@ describe('assistant executor', function() {
   it('开场白定向：主 / 备选 index', async function() {
     var bridge = mockBridge();
     var ex = createToolExecutor(bridge);
-    var main = await ex.invoke('rewrite_greeting', { target: 'main', instruction: '更沉浸' }, { forceApply: true });
+    var main = await ex.invoke('rewrite_greeting', { target: 'main', instruction: STOCK_GREETING }, { forceApply: true });
     assert.equal(main.ok, true);
     assert.match(bridge.state.character.firstMes, /主开场/);
-    var alt = await ex.invoke('expand_greeting', { target: { alternate: 1 } }, { forceApply: true });
+    var alt = await ex.invoke('expand_greeting', { target: { alternate: 1 }, instruction: STOCK_GREETING }, { forceApply: true });
     assert.equal(alt.ok, true);
     assert.match(bridge.state.character.altGreetings[1], /备选1/);
   });
@@ -516,12 +521,14 @@ describe('assistant executor', function() {
     var exp = await ex.invoke('novel_expand_character', {
       target: { name: '林月' },
       mode: 'expand',
+      instruction: STOCK_CHAR_DESC,
     }, { forceApply: true });
     assert.equal(exp.ok, true);
     assert.equal(exp.data.name, '林月');
     var wbExp = await ex.invoke('novel_expand_worldbook', {
       target: { name: '青云宗' },
       mode: 'expand',
+      instruction: STOCK_WB,
     }, { forceApply: true });
     assert.equal(wbExp.ok, true);
     assert.equal(wbExp.data.name, '青云宗');
@@ -693,7 +700,11 @@ describe('assistant tool trace summary', function() {
     );
     assert.equal(
       summarizePendingConfirm('generate_worldbook_entry', { direction: '女帝' }, '工具: generate_worldbook_entry\n参数: {}'),
-      '待确认：生成并写入世界书条目',
+      '待确认：生成世界书条目',
+    );
+    assert.equal(
+      summarizePendingConfirm('update_character_fields', { fields: { charName: '甲' } }, '工具: update_character_fields'),
+      '待确认：更新角色字段',
     );
     assert.equal(
       summarizeToolTrace('delete_worldbook_entry', {
@@ -713,7 +724,7 @@ describe('assistant tool trace summary', function() {
       message: '此操作为大改，需用户确认后再应用。',
     });
     assert.equal(msg.pendingConfirm, true);
-    assert.equal(msg.summary, '待确认：生成并写入世界书条目');
+    assert.equal(msg.summary, '待确认：生成世界书条目');
     assert.match(msg.detail, /generate_worldbook_entry/);
     assert.doesNotMatch(msg.detail, /此操作为大改/);
   });
@@ -757,6 +768,13 @@ describe('assistant prompts & UI wiring', function() {
     assert.match(DEFAULT_PROMPTS.assistantSystem, /自然语言|智能体|普通回复/);
     assert.match(DEFAULT_PROMPTS.assistantSystem, /需要工具时/);
     assert.doesNotMatch(DEFAULT_PROMPTS.assistantSystem, /严格输出一个 JSON 对象，不要其它文字/);
+    assert.match(DEFAULT_PROMPTS.assistantSystem, /长文生成/);
+    ['assistantCharField', 'assistantGreeting'].forEach(function(id) {
+      assert.ok(DEFAULT_PROMPTS[id]);
+      assert.ok(PROMPT_META.some(function(m) { return m.id === id; }));
+    });
+    assert.match(DEFAULT_PROMPTS.assistantGreeting, /300/);
+    assert.match(DEFAULT_PROMPTS.wbSingle, /200/);
     assert.match(DEFAULT_PROMPTS.assistantReactHint, /勿强制|跳步/);
     assert.match(DEFAULT_PROMPTS.assistantReactHint, /自然语言/);
     assert.match(DEFAULT_PROMPTS.assistantChatFeedback, /fixes/);
@@ -793,7 +811,10 @@ describe('assistant prompts & UI wiring', function() {
     assert.match(panel, /reactResume/);
     assert.match(panel, /等待确认大改/);
     assert.match(panel, /if \(tr\.pendingConfirm\)[\s\S]*?reactPaused = true/);
-    assert.match(panel, /applyBtn\.addEventListener[\s\S]*?resume/);
+    assert.match(panel, /applyBtn\.addEventListener[\s\S]*?planApplyOutcome/);
+    assert.match(panel, /outcome === 'reopen'/);
+    assert.match(panel, /outcome === 'stop'/);
+    assert.match(panel, /applyBtn\.addEventListener[\s\S]*?resume\(\)/);
     assert.match(panel, /已达单轮工具调用上限/);
     assert.match(panel, /最后一次工具调用机会/);
     assert.match(panel, /getNovelRagOptions[\s\S]*?enabled: false/);
@@ -834,7 +855,7 @@ describe('assistant prompts & UI wiring', function() {
     assert.match(panel, /assistant-panel__preview-wrap/);
     assert.doesNotMatch(panel, /pendingBox\.open/);
     assert.doesNotMatch(panel, /已准备大改预览/);
-    assert.match(panel, /if \(result\.pendingConfirm\)[\s\S]*?return result;/);
+    assert.match(panel, /result\.pendingConfirm[\s\S]*?return result;/);
     assert.match(panel, /if \(m\.pendingConfirm\) card\.open = true/);
     assert.match(panel, /id="assistantTokenCount"/);
     assert.match(panel, /assistant-token-count/);
@@ -849,7 +870,12 @@ describe('assistant prompts & UI wiring', function() {
     assert.match(panel, /setPendingHint/);
     assert.match(panel, /assistant-msg--pending/);
     assert.match(panel, /正在思考/);
-    assert.match(panel, /正在执行/);
+    assert.match(panel, /执行中/);
+    assert.match(panel, /assistant-tool-card--running/);
+    assert.match(panel, /buildRunningToolMessage/);
+    assert.match(panel, /reactApplying/);
+    assert.match(panel, /planCompactionSpan/);
+    assert.match(panel, /writeCheckpointIfNeeded/);
     assert.match(panel, /assistant-btn-rag-preview/);
     assert.match(panel, /id="assistantRagModal"/);
     assert.match(panel, /assistant-rag-modal/);
@@ -880,6 +906,42 @@ describe('assistant prompts & UI wiring', function() {
     assert.match(panel, /setQuickOpen\(false\)/);
     assert.match(panel, /setQuickOpen\(quickMenu\.hidden\)/);
     assert.match(panel, /!quickMenu\.contains\(e\.target\)/);
+  });
+
+  it('标题只留思考与确认；门控与结果走 appFeedback；错误可重试、回复不复制', function() {
+    const panel = readAssistantPanelSources(root);
+    assert.match(panel, /tip === '正在思考…' \|\| tip === '等待确认大改…'/);
+    assert.match(panel, /if \(!showTitle && reactPaused\) return/);
+    assert.doesNotMatch(panel, /setStatus\('已停止'\)/);
+    assert.doesNotMatch(panel, /setStatus\('会话已清空'\)/);
+    assert.doesNotMatch(panel, /setStatus\('请先在「AI 配置」填写接口与模型'/);
+    assert.match(panel, /warnToast\('请先在「AI 配置」填写接口与模型'\)/);
+    assert.match(panel, /msg === '小说检索桥接未就绪'/);
+    assert.match(panel, /warnToast\('RAG 已关闭'\)/);
+    assert.match(panel, /warnToast\('无 RAG 预览数据'\)/);
+    assert.match(panel, /warnToast\('请输入内容或先发送一条消息'\)/);
+    assert.match(panel, /warnToast\('该消息无可用检索文本'\)/);
+    assert.match(panel, /notifyError\(msg, 'RAG 预览'\)/);
+    assert.match(panel, /message: '会话已清空', level: 'success'/);
+    assert.match(panel, /level: 'info'/);
+    assert.match(panel, /已切换到 /);
+    assert.match(panel, /retryable: true/);
+    assert.match(panel, /isRetryableAssistantError/);
+    assert.match(panel, /notifyError\(errText, '助手'\)/);
+    assert.match(panel, /class="assistant-panel__sub ui-panel-lead"/);
+    assert.match(panel, /ui-empty-tip/);
+    assert.match(panel, /ui-meta/);
+    assert.match(panel, /planAssistantRetry/);
+    assert.match(panel, /reuseExisting/);
+    assert.match(panel, /node\.innerHTML = m\.error/);
+    assert.match(panel, /makeMsgIconBtn\('重试'/);
+    assert.doesNotMatch(panel, /makeMsgIconBtn\('复制'/);
+    assert.doesNotMatch(panel, /copyPlainText/);
+    assert.match(panel, /btn-icon btn-icon--sm/);
+    assert.match(panel, /aria-label/);
+    assert.doesNotMatch(panel, /el\('button', 'btn-inline', '重试'\)/);
+    assert.doesNotMatch(panel, /el\('button', 'btn-inline btn-ghost', '复制'\)/);
+    assert.doesNotMatch(panel, /assistant-msg--user[\s\S]{0,200}复制/);
   });
 
   it('README 含工具全表与定向约定', function() {

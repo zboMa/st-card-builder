@@ -15,7 +15,15 @@ import { ASSISTANT_PRESET_CHIPS, getToolByName } from './tools.mjs';
 import { normalizeCharacterFieldKey, normalizeCharacterPatch, CHARACTER_FIELD_HINT } from './characterFields.mjs';
 import { fromAiJsonEntry, toAiJsonEntry, normalizeAiJsonRow, aiCommentFromRow } from '../worldbook/worldbookEntryBridge.mjs';
 import { getDefaultWBEntry } from '../card-builder/state.mjs';
+import { applyTemplate } from '../promptStore.mjs';
+import { DEFAULT_PROMPTS } from '../promptCanon.mjs';
 import {
+  buildGenerationPack,
+  collectBrowserGenerationInputs,
+  relationMentionWarning,
+} from './generationContext.mjs';
+import {
+    buildRunningToolMessage,
     buildToolUiMessage,
     summarizePendingConfirm,
     toolMessageSummary,
@@ -28,7 +36,12 @@ import {
     formatAssistantContextTitle,
     buildAssistantContextSections,
   } from './tokenEstimate.mjs';
-import { prepareAssistantMessages } from './contextManager.mjs';
+import {
+    prepareAssistantMessages,
+    planCompactionSpan,
+    buildCompactionRequest,
+    makeCheckpointMessage,
+  } from './contextManager.mjs';
 import { isCatalogRelevantText, buildCatalogBlocks } from '../catalogSummaries.mjs';
 import { renderAssistantMarkdown, escapeAssistantHtml } from './markdownRender.mjs';
 import {
@@ -44,6 +57,8 @@ import {
 import { inferMvuCandidatesFromCard, corruptionProgressGap } from '../mvu/inferFromCard.mjs';
 import { STATUS_BAR_EXT_KEY } from '../statusBar.mjs';
 import { engineTryAllowed } from '../actionEngine/helpers.mjs';
+import { appFeedback } from '../ui/appMessage.mjs';
+import { planAssistantRetry, isRetryableAssistantError, planApplyOutcome } from './retryTurn.mjs';
 import { buildLocationBlock } from './locationBlock.mjs';
 import { computeCardProgress } from '../card-builder/cardProgress.mjs';
 
@@ -290,12 +305,15 @@ export function initAssistantPanelMain() {
     var MAX_REACT_STEPS = 20;
     var reactTask = null;      // 当前 react 运行的任务中心任务
     var reactPaused = false;   // 大改等待用户确认中（暂停续接）
+    var reactApplying = false; // 已点应用，工具还在执行
+    var applyTaskIdsBefore = null;
     var reactResume = null;    // 确认后从哪一步续接
     var catalogRelevant = false; // 本轮是否注入完整目录概览（方案 B 混合注入）
     var catalogLocked = false;   // 本会话一旦注入过完整 overview 即锁定，不再降级 index（省缓存重写）；切卡/清空会话重置
     var catalogDataParsed = null; // get_adult_catalog 懒解析结果
 
     var ragSearchIconSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/><path d="M8 11h6M11 8v6"/></svg>';
+    var retryIconSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>';
 
     /** 发送/停止同一按钮切换（最右圆形主操作） */
     function syncActionBtn() {
@@ -316,18 +334,20 @@ export function initAssistantPanelMain() {
       if (ragPreviewBtn) ragPreviewBtn.disabled = ragPreviewBusy;
     }
 
-    /** 就绪绿点 + 非就绪时的轻量 tip（不占独立就绪文案位） */
-    function setStatus(text, isWarn) {
+    /**
+     * 标题状态位只保留进行中文案：「正在思考…」「等待确认大改…」。
+     * 闲置隐藏文案，只留绿点就绪；忙碌时绿点表示进行中。
+     * 等待确认期间忽略把标题清掉的调用（finally 不得冲掉）。
+     */
+    function setStatus(text) {
       var tip = text || '';
-      var idle = !tip || tip === '就绪';
+      var showTitle = tip === '正在思考…' || tip === '等待确认大改…';
+      if (!showTitle && reactPaused) return;
       if (readyDot) {
         readyDot.classList.remove('is-ready', 'is-busy', 'is-warn');
         if (busy) {
           readyDot.classList.add('is-busy');
-          readyDot.title = tip || '处理中';
-        } else if (isWarn) {
-          readyDot.classList.add('is-warn');
-          readyDot.title = tip || '提示';
+          readyDot.title = showTitle ? tip : '处理中';
         } else {
           readyDot.classList.add('is-ready');
           readyDot.title = '就绪';
@@ -335,16 +355,34 @@ export function initAssistantPanelMain() {
         readyDot.setAttribute('aria-label', readyDot.title);
       }
       if (statusTip) {
-        if (idle && !isWarn) {
+        statusTip.classList.remove('is-warn');
+        if (!showTitle) {
           statusTip.hidden = true;
           statusTip.textContent = '';
-          statusTip.classList.remove('is-warn');
         } else {
           statusTip.hidden = false;
           statusTip.textContent = tip;
-          statusTip.classList.toggle('is-warn', !!isWarn);
         }
       }
+    }
+
+    function warnToast(message) {
+      appFeedback(null, { message: message, level: 'warn', channel: 'toast' });
+    }
+
+    function notifyError(message, title) {
+      appFeedback(null, {
+        message: message,
+        level: 'error',
+        channel: 'notify',
+        title: title || '操作未完成',
+      });
+    }
+
+    function reportRagPreviewError(err) {
+      var msg = (err && err.message) || 'RAG 预览失败';
+      if (msg === '小说检索桥接未就绪') warnToast(msg);
+      else notifyError(msg, 'RAG 预览');
     }
 
     function el(tag, cls, text) {
@@ -387,7 +425,8 @@ export function initAssistantPanelMain() {
       var detailText = m.detail || m.content || '';
 
       var cardCls = 'assistant-tool-card';
-      if (m.error) cardCls += ' assistant-tool-card--error';
+      if (m.running) cardCls += ' assistant-tool-card--running';
+      else if (m.error) cardCls += ' assistant-tool-card--error';
       else if (m.pendingConfirm) cardCls += ' assistant-tool-card--pending';
 
       var card = document.createElement('details');
@@ -402,7 +441,15 @@ export function initAssistantPanelMain() {
       headerRow.appendChild(nameEl);
       headerRow.appendChild(riskEl);
 
-      var sumEl = el('div', 'assistant-tool-card__summary', summaryText);
+      var sumEl = el('div', 'assistant-tool-card__summary');
+      if (m.running) {
+        var dots = el('span', 'assistant-typing-dots');
+        dots.innerHTML = '<span></span><span></span><span></span>';
+        sumEl.appendChild(dots);
+        sumEl.appendChild(document.createTextNode(' 执行中…'));
+      } else {
+        sumEl.textContent = summaryText;
+      }
 
       head.appendChild(headerRow);
       head.appendChild(sumEl);
@@ -497,10 +544,10 @@ export function initAssistantPanelMain() {
       var catalogRepeat = Math.max(1, (String(systemRaw).match(/\{\{catalogOverview\}\}/g) || []).length);
       var ragInfo = latestRagInfo();
       var histCount = uiMessages.length;
-      var histNote = prepared.level === 'hard'
-        ? '激进压缩：仅保留最近若干轮；旧工具结果只留摘要、旧 user RAG 已剥离。'
-        : (prepared.level === 'soft'
-          ? '已启动压缩：旧工具结果按 token 截断，近端保留完整。'
+      var histNote = prepared.compacted
+        ? '送模从最近一次上下文检查点开始。检查点之前的对话仍留在会话里。'
+        : (prepared.needsCompaction
+          ? '已超过硬阈值，下次模型调用前会写成检查点。'
           : '未压缩。');
       var sections = buildAssistantContextSections({
         systemPrompt: systemRaw,
@@ -547,7 +594,7 @@ export function initAssistantPanelMain() {
         var tabsEl = document.getElementById('assistantContextTabs');
         if (!sections.length) {
           if (tabsEl) tabsEl.innerHTML = '';
-          contextModalBody.innerHTML = '<p class="assistant-context-empty">当前无可展示上下文</p>';
+          contextModalBody.innerHTML = '<p class="assistant-context-empty ui-empty-tip">当前无可展示上下文</p>';
         } else {
           var shortTitle = function(title) {
             return String(title || '')
@@ -572,7 +619,7 @@ export function initAssistantPanelMain() {
                   return '<div class="assistant-context-sub">'
                     + '<div class="assistant-context-sub__head">'
                     + '<span class="assistant-context-sub__title">' + escapeHtmlLite(ch.title) + '</span>'
-                    + '<span class="assistant-context-sub__tokens">≈ ' + ch.tokens + ' tok</span></div>'
+                    + '<span class="assistant-context-sub__tokens ui-meta">≈ ' + ch.tokens + ' tok</span></div>'
                     + '<pre class="assistant-context-sub__pre">' + escapeHtmlLite(ch.body) + '</pre>'
                     + '</div>';
                 }).join('') + '</div>'
@@ -580,7 +627,7 @@ export function initAssistantPanelMain() {
             return '<section class="assistant-context-section' + (i === 0 ? ' is-active' : '')
               + '" data-section="' + escapeHtmlLite(sec.id) + '" role="tabpanel">'
               + '<div class="assistant-context-section__head"><span>' + escapeHtmlLite(sec.title) + '</span>'
-              + '<span class="assistant-context-section__tokens">≈ ' + sec.tokens + ' tok</span></div>'
+              + '<span class="assistant-context-section__tokens ui-meta">≈ ' + sec.tokens + ' tok</span></div>'
               + (sec.note ? '<p class="assistant-context-section__note">' + escapeHtmlLite(sec.note) + '</p>' : '')
               + childrenHtml
               + '</section>';
@@ -607,7 +654,7 @@ export function initAssistantPanelMain() {
 
     function showRagPreviewPayload(payload) {
       if (!payload) {
-        setStatus('无 RAG 预览数据', true);
+        warnToast('无 RAG 预览数据');
         return;
       }
       if (ragModalMeta) ragModalMeta.textContent = formatRagPreviewMeta(payload);
@@ -684,22 +731,20 @@ export function initAssistantPanelMain() {
       if (ragPreviewBusy) return;
       var query = getComposerRagQuery();
       if (!query) {
-        setStatus('请输入内容或先发送一条消息', true);
+        warnToast('请输入内容或先发送一条消息');
         return;
       }
       ragPreviewBusy = true;
       syncActionBtn();
-      setStatus('检索 RAG 预览…');
       try {
         var payload = await resolveAssistantRag(query, true);
         if (!payload) {
-          setStatus('RAG 已关闭', true);
+          warnToast('RAG 已关闭');
           return;
         }
         showRagPreviewPayload(payload);
-        setStatus('就绪');
       } catch (err) {
-        setStatus((err && err.message) || 'RAG 预览失败', true);
+        reportRagPreviewError(err);
       } finally {
         ragPreviewBusy = false;
         syncActionBtn();
@@ -710,31 +755,64 @@ export function initAssistantPanelMain() {
       if (ragPreviewBusy || !msg) return;
       var query = String(msg.content || '').trim();
       if (!query) {
-        setStatus('该消息无可用检索文本', true);
+        warnToast('该消息无可用检索文本');
         return;
       }
       ragPreviewBusy = true;
       syncActionBtn();
-      setStatus('检索本回合 RAG…');
       try {
         var payload = await resolveAssistantRag(query, true);
         if (!payload) {
-          setStatus('RAG 已关闭', true);
+          warnToast('RAG 已关闭');
           return;
         }
         showRagPreviewPayload(Object.assign({}, payload, { source: 'rerun' }));
-        setStatus('就绪');
       } catch (err) {
-        setStatus((err && err.message) || 'RAG 预览失败', true);
+        reportRagPreviewError(err);
       } finally {
         ragPreviewBusy = false;
         syncActionBtn();
       }
     }
 
+    function makeMsgIconBtn(label, svg) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn-icon btn-icon--sm';
+      btn.title = label;
+      btn.setAttribute('aria-label', label);
+      btn.innerHTML = svg;
+      return btn;
+    }
+
+    function renderAssistantMessageNode(m) {
+      var wrap = el('div', 'assistant-msg-wrap assistant-msg-wrap--assistant');
+      var cls = 'assistant-msg assistant-msg--assistant';
+      if (m.error) cls += ' assistant-msg--error';
+      var node = document.createElement('div');
+      node.className = cls;
+      // 错误按纯文本转义；正常回复走 markdown。按钮用 DOM API，不拼进消息 innerHTML。
+      node.innerHTML = m.error
+        ? escapeAssistantHtml(messageContentForDisplay(m))
+        : renderAssistantMarkdown(messageContentForDisplay(m));
+      wrap.appendChild(node);
+      if (isRetryableAssistantError(m)) {
+        var actions = el('div', 'assistant-msg-actions');
+        var retryBtn = makeMsgIconBtn('重试', retryIconSvg);
+        retryBtn.addEventListener('click', function() { retryLastTurn(); });
+        actions.appendChild(retryBtn);
+        wrap.appendChild(actions);
+      }
+      return wrap;
+    }
+
     function renderMessages() {
       messagesEl.innerHTML = '';
       uiMessages.forEach(function(m) {
+        if (m.compaction) {
+          messagesEl.appendChild(renderCompactionNode(m));
+          return;
+        }
         if (m.role === 'tool') {
           messagesEl.appendChild(renderToolTraceNode(m));
           return;
@@ -743,15 +821,7 @@ export function initAssistantPanelMain() {
           messagesEl.appendChild(renderUserMessageNode(m));
           return;
         }
-        var cls = 'assistant-msg assistant-msg--' + (m.role || 'assistant');
-        if (m.error) cls += ' assistant-msg--error';
-        var node = document.createElement('div');
-        node.className = cls;
-        // assistant 回复渲染 markdown（安全壳：HTML 转义 + 链接 scheme 过滤）；错误消息按纯文本转义展示
-        node.innerHTML = m.error
-          ? escapeAssistantHtml(messageContentForDisplay(m))
-          : renderAssistantMarkdown(messageContentForDisplay(m));
-        messagesEl.appendChild(node);
+        messagesEl.appendChild(renderAssistantMessageNode(m));
       });
       if (pendingHintText) {
         messagesEl.appendChild(buildPendingHintNode(pendingHintText));
@@ -761,6 +831,24 @@ export function initAssistantPanelMain() {
     }
 
     var pendingHintText = '';
+
+    function renderCompactionNode(m) {
+      var card = document.createElement('details');
+      card.className = 'assistant-tool-card assistant-compaction';
+      var head = document.createElement('summary');
+      head.className = 'assistant-tool-card__head';
+      var row = el('div', 'assistant-tool-card__header-row');
+      row.appendChild(el('span', 'assistant-tool-card__name', '上下文已压缩'));
+      head.appendChild(row);
+      var sumEl = el('div', 'assistant-tool-card__summary', '更早的对话已收成检查点，之后从这里接着送模');
+      head.appendChild(sumEl);
+      var detail = el('div', 'assistant-tool-card__detail');
+      var body = el('pre', 'assistant-tool-card__body', m.modelContent || '');
+      detail.appendChild(body);
+      card.appendChild(head);
+      card.appendChild(detail);
+      return card;
+    }
 
     function buildPendingHintNode(text) {
       var wrap = el('div', 'assistant-msg assistant-msg--pending');
@@ -774,7 +862,6 @@ export function initAssistantPanelMain() {
 
     function setPendingHint(text) {
       pendingHintText = text ? String(text) : '';
-      setStatus(pendingHintText || (busy ? '处理中…' : '就绪'));
       renderMessages();
     }
 
@@ -853,6 +940,24 @@ export function initAssistantPanelMain() {
     function setWorldbook(entries) {
       if (window.__setWorldbookEntries__) window.__setWorldbookEntries__(entries);
     }
+
+    function cardGenerationPack(opts) {
+      opts = opts || {};
+      var extra = collectBrowserGenerationInputs();
+      return buildGenerationPack({
+        entries: getWorldbook(),
+        character: getCharacter(),
+        worldviewHint: extra.worldviewHint,
+        adultHints: extra.adultHints,
+        instruction: opts.instruction || '',
+        focusTitle: opts.focusTitle || '',
+        excludeIndex: opts.excludeIndex,
+        includeCharacter: opts.includeCharacter !== false,
+        includeRelations: opts.includeRelations !== false,
+        charDescCap: opts.charDescCap,
+      });
+    }
+    window.__cardGenerationPack__ = cardGenerationPack;
 
     function captureSnapshot() {
       var novel = null;
@@ -943,7 +1048,7 @@ export function initAssistantPanelMain() {
     function ensureAiConfigured() {
       var cfg = getAiConfig();
       if (cfg.url && cfg.model) return true;
-      setStatus('请先在「AI 配置」填写接口与模型', true);
+      warnToast('请先在「AI 配置」填写接口与模型');
       return false;
     }
 
@@ -1594,15 +1699,20 @@ export function initAssistantPanelMain() {
         // 无面板桥时本地 LLM 扩写
         var entries = getWorldbook();
         var target = entries[idx];
-        var c = getCharacter();
-        var sys = promptText('wbRewrite')
-          + '\n【角色】：' + c.charName
+        var pack = cardGenerationPack({
+          instruction: opts.instruction || opts.direction || '',
+          excludeIndex: idx,
+          focusTitle: (target && (target.comment || target.displayName)) || '',
+          includeCharacter: true,
+          charDescCap: 400,
+        });
+        var sys = (promptText('wbRewrite') || DEFAULT_PROMPTS.wbRewrite)
+          + '\n' + pack
           + '\n【原条目】：' + JSON.stringify(toAiJsonEntry(target))
-          + (opts.direction || opts.instruction ? '\n【方向】：' + (opts.instruction || opts.direction) : '')
           + '\n【输出】：JSON对象 { comment, type(worldview|location|faction|person|event|item|ability|other 可选), content, keys, strategy, position }';
         var content = await callChat([
           { role: 'system', content: sys },
-          { role: 'user', content: '请展开/重写该条目' },
+          { role: 'user', content: '请按本次任务展开或重写该条目，只输出 JSON。' },
         ], 0.75);
         var entry = null;
         try { entry = JSON.parse(content); } catch (e) {
@@ -1613,7 +1723,11 @@ export function initAssistantPanelMain() {
         var next = entries.slice();
         next[idx] = fromAiJsonEntry(entry, target);
         setWorldbook(next);
-        return Object.assign({ index: idx }, toAiJsonEntry(next[idx]));
+        var others = entries.filter(function(_, i) { return i !== idx; });
+        return Object.assign({
+          index: idx,
+          linkWarning: relationMentionWarning(next[idx].content, others) || undefined,
+        }, toAiJsonEntry(next[idx]));
       },
       expandCharacterField: async function(opts) {
         opts = opts || {};
@@ -1622,22 +1736,35 @@ export function initAssistantPanelMain() {
         var c = getCharacter();
         var cur = c[field] != null ? String(c[field]) : '';
         var mode = opts.mode || 'expand';
-        var sys = '你是角色卡文案助手。按字段「' + field + '」' + (mode === 'rewrite' ? '重写' : '扩写')
-          + '内容。只输出纯文本正文，不要 JSON/Markdown 围栏。';
+        var instruction = String(opts.instruction || opts.direction || '').trim();
+        var sys = promptText('assistantCharField', {
+          field: field,
+          mode: mode === 'rewrite' ? '重写' : '扩写',
+        }) || applyTemplate(DEFAULT_PROMPTS.assistantCharField, {
+          field: field,
+          mode: mode === 'rewrite' ? '重写' : '扩写',
+        });
+        var pack = cardGenerationPack({
+          instruction: instruction,
+          includeCharacter: field !== 'charDesc',
+          charDescCap: 400,
+        });
         var content = await callChat([
           { role: 'system', content: sys },
           {
             role: 'user',
-            content: '角色名：' + (c.charName || '')
+            content: pack
+              + '\n\n字段：' + field
+              + '\n角色名：' + (c.charName || '')
               + '\n现有内容：\n' + cur
-              + (opts.instruction ? '\n要求：' + opts.instruction : '')
               + '\n请输出改写后的完整字段文本。',
           },
         ], 0.7);
         var patch = {};
         patch[field] = String(content || '').trim();
         setCharacter(patch);
-        return { field: field, mode: mode, length: patch[field].length };
+        var linkWarning = relationMentionWarning(patch[field], getWorldbook());
+        return { field: field, mode: mode, length: patch[field].length, linkWarning: linkWarning || undefined };
       },
       mutateGreeting: async function(opts) {
         opts = opts || {};
@@ -1658,27 +1785,33 @@ export function initAssistantPanelMain() {
         if (!isMain && (altIndex < 0 || altIndex >= (c.altGreetings || []).length)) {
           throw new Error('备选开场白序号越界');
         }
-        var sys = '你是开场白写手。' + (mode === 'expand' ? '扩写' : '重写')
-          + '开场白，贴合人设，只输出正文。开场白属于主角互动，禁止写成恶堕进度说明或 NTL 调教手册。';
+        var instruction = String(opts.instruction || opts.direction || '').trim();
+        var sys = promptText('assistantGreeting', { mode: mode === 'expand' ? '扩写' : '重写' })
+          || applyTemplate(DEFAULT_PROMPTS.assistantGreeting, { mode: mode === 'expand' ? '扩写' : '重写' });
         var text = await callChat([
           { role: 'system', content: sys },
           {
             role: 'user',
-            content: '角色：' + (c.charName || '') + '\n人设摘要：' + String(c.charDesc || '').slice(0, 600)
-              + '\n当前开场白：\n' + cur
-              + (opts.instruction ? '\n要求：' + opts.instruction : '')
-              + '\n目标：' + (isMain ? '主开场白 firstMes' : ('备选第 ' + altIndex + ' 条')),
+            content: cardGenerationPack({
+              instruction: instruction,
+              includeCharacter: true,
+              charDescCap: 1200,
+            })
+              + '\n\n当前开场白：\n' + cur
+              + '\n目标：' + (isMain ? '主开场白 firstMes' : ('备选第 ' + altIndex + ' 条'))
+              + '\n请只输出这一条开场白正文。',
           },
         ], 0.75);
         text = String(text || '').trim();
+        var linkWarning = relationMentionWarning(text, getWorldbook());
         if (isMain) {
           setCharacter({ firstMes: text });
-          return { target: 'main', mode: mode, length: text.length };
+          return { target: 'main', mode: mode, length: text.length, linkWarning: linkWarning || undefined };
         }
         var alts = (c.altGreetings || []).slice();
         alts[altIndex] = text;
         setCharacter({ altGreetings: alts });
-        return { target: { alternate: altIndex }, mode: mode, length: text.length };
+        return { target: { alternate: altIndex }, mode: mode, length: text.length, linkWarning: linkWarning || undefined };
       },
       captureSnapshot: captureSnapshot,
       restoreSnapshot: restoreSnapshot,
@@ -1761,14 +1894,79 @@ export function initAssistantPanelMain() {
       }
     }
 
+    function toolWillExecute(toolName, args, force) {
+      if (force) return true;
+      if (!executor.classify) return false;
+      var risk = executor.classify(toolName, args || {});
+      return risk === 'none' || risk === 'auto';
+    }
+
+    function replaceUiAt(index, msg) {
+      if (index >= 0 && index < uiMessages.length) uiMessages[index] = msg;
+      else uiMessages.push(msg);
+      sessionStore.setMessages(uiMessages);
+      renderMessages();
+    }
+
+    function removeUiAt(index) {
+      if (index < 0 || index >= uiMessages.length) return;
+      uiMessages.splice(index, 1);
+      sessionStore.setMessages(uiMessages);
+      renderMessages();
+    }
+
+    async function writeCheckpointIfNeeded(signal) {
+      var span = planCompactionSpan(uiMessages);
+      if (!span) return false;
+      var summary;
+      try {
+        summary = await callChat([
+          { role: 'system', content: '你只写制卡会话的上下文检查点，不调用工具。' },
+          { role: 'user', content: buildCompactionRequest(span) },
+        ], 0.2, signal);
+      } catch (errCompact) {
+        var aborted = (window.__isAiAbortError__ && window.__isAiAbortError__(errCompact))
+          || (errCompact && errCompact.name === 'AbortError')
+          || abortFlag
+          || (signal && signal.aborted);
+        if (aborted) throw errCompact;
+        console.warn('[assistant] compaction failed', errCompact);
+        return false;
+      }
+      var text = String(summary || '').trim();
+      if (!text || abortFlag) return false;
+      uiMessages.splice(span.insertAt, 0, makeCheckpointMessage(text));
+      sessionStore.setMessages(uiMessages);
+      renderMessages();
+      return true;
+    }
+
     async function runTool(toolName, args, force) {
       var effectiveArgs = injectDialogBackground(args || {}, toolName);
-      var result = await executor.invoke(toolName, effectiveArgs, { forceApply: !!force });
-      if (result.pendingConfirm) {
+      var displayArgs = stripDialogBackground(effectiveArgs);
+      var runningIndex = -1;
+      if (toolWillExecute(toolName, effectiveArgs, force)) {
+        uiMessages.push(buildRunningToolMessage(toolName, displayArgs));
+        sessionStore.setMessages(uiMessages);
+        renderMessages();
+        runningIndex = uiMessages.length - 1;
+        setStatus('正在思考…');
+      }
+      var result;
+      try {
+        result = await executor.invoke(toolName, effectiveArgs, { forceApply: !!force });
+      } catch (err) {
+        if (runningIndex >= 0) removeUiAt(runningIndex);
+        throw err;
+      }
+      if (result && result.pendingConfirm) {
+        if (runningIndex >= 0) removeUiAt(runningIndex);
         showPending({ tool: toolName, args: effectiveArgs, preview: result.preview });
         return result;
       }
-      pushUi(buildToolUiMessage(toolName, stripDialogBackground(effectiveArgs), result));
+      var done = buildToolUiMessage(toolName, displayArgs, result);
+      if (runningIndex >= 0) replaceUiAt(runningIndex, done);
+      else pushUi(done);
       if (result && result.ok) {
         try {
           window.dispatchEvent(new CustomEvent('assistant-change-summary', {
@@ -1822,7 +2020,8 @@ export function initAssistantPanelMain() {
         uiMessages: uiMessages,
         pendingInput: (inputEl.value || '').trim(),
       });
-      tokenCountEl.textContent = formatAssistantContextLabel(breakdown.total);
+      tokenCountEl.textContent = formatAssistantContextLabel(breakdown.total)
+        + (breakdown.compacted ? ' · 已压缩' : '');
       tokenCountEl.title = formatAssistantContextTitle(breakdown);
     }
 
@@ -1831,54 +2030,91 @@ export function initAssistantPanelMain() {
       tokenCountTimer = setTimeout(updateTokenCount, 200);
     }
 
-    async function reactLoop(userText) {
+    async function startReact(opts) {
+      opts = opts || {};
       if (busy) return;
-      if (!engineTryAllowed('card.assistant.react').ok) return;
+      if (!opts.skipGuards) {
+        if (!engineTryAllowed('card.assistant.react').ok) return;
+        if (!ensureAiConfigured()) return;
+      }
+      var userText = String(opts.userText || '');
+      if (!opts.reuseExisting && !userText) return;
       abortFlag = false;
       busy = true;
       syncActionBtn();
+      setStatus('正在思考…');
       setPendingHint('正在思考…');
 
-      pushUi({ role: 'user', content: userText, modelContent: userText });
+      if (!opts.reuseExisting) {
+        pushUi({ role: 'user', content: userText, modelContent: userText });
 
-      // 方案 B：目录形态会话内锁定——一旦注入过完整 overview 即保持，避免反复切换打断前缀缓存
-      catalogRelevant = catalogLocked || isCatalogRelevantText(userText);
-      if (!catalogRelevant) {
-        var crStart = Math.max(0, uiMessages.length - 9);
-        for (var crIdx = uiMessages.length - 1; crIdx >= crStart; crIdx--) {
-          if (uiMessages[crIdx] && isCatalogRelevantText(String(uiMessages[crIdx].content || ''))) {
-            catalogRelevant = true;
-            break;
+        // 方案 B：目录形态会话内锁定——一旦注入过完整 overview 即保持，避免反复切换打断前缀缓存
+        catalogRelevant = catalogLocked || isCatalogRelevantText(userText);
+        if (!catalogRelevant) {
+          var crStart = Math.max(0, uiMessages.length - 9);
+          for (var crIdx = uiMessages.length - 1; crIdx >= crStart; crIdx--) {
+            if (uiMessages[crIdx] && isCatalogRelevantText(String(uiMessages[crIdx].content || ''))) {
+              catalogRelevant = true;
+              break;
+            }
           }
         }
+        if (catalogRelevant) catalogLocked = true;
       }
-      if (catalogRelevant) catalogLocked = true;
 
       var extra = '';
       if (/试聊|回流|反馈/.test(userText)) {
         extra = promptText('assistantChatFeedback') || '';
       }
-      // 小说 RAG：检索原文 + 相关实体，绑定到本回合 user 消息（非 system extra）
-      try {
-        var ragOpt = getNovelRagOptions();
-        if (ragOpt.enabled === true && window.__novelWorkshopBridge__ && window.__novelWorkshopBridge__.searchPassages) {
-          setPendingHint('正在检索小说原文…');
-          var ragPayload = await resolveAssistantRag(userText, false);
-          if (ragPayload) {
-            var ragBlock = ragPayload.ragBody;
-            var modelContent = buildUserModelContent(userText, ragBlock);
-            uiMessages[uiMessages.length - 1].modelContent = modelContent;
-            uiMessages[uiMessages.length - 1].ragPreview = ragPayload;
-            uiMessages[uiMessages.length - 1].ragInjectedIds = ragPayload.injectedKeys.slice();
-            sessionStore.setMessages(uiMessages);
-            renderMessages();
+      // 小说 RAG：仅新发送时检索；重试复用该用户消息上已有的 modelContent
+      if (!opts.reuseExisting) {
+        try {
+          var ragOpt = getNovelRagOptions();
+          if (ragOpt.enabled === true && window.__novelWorkshopBridge__ && window.__novelWorkshopBridge__.searchPassages) {
+            setPendingHint('正在检索小说原文…');
+            var ragPayload = await resolveAssistantRag(userText, false);
+            if (ragPayload) {
+              var ragBlock = ragPayload.ragBody;
+              var modelContent = buildUserModelContent(userText, ragBlock);
+              uiMessages[uiMessages.length - 1].modelContent = modelContent;
+              uiMessages[uiMessages.length - 1].ragPreview = ragPayload;
+              uiMessages[uiMessages.length - 1].ragInjectedIds = ragPayload.injectedKeys.slice();
+              sessionStore.setMessages(uiMessages);
+              renderMessages();
+            }
           }
+        } catch (ragErr) {
+          console.warn('[assistant] novel RAG inject failed', ragErr);
         }
-      } catch (ragErr) {
-        console.warn('[assistant] novel RAG inject failed', ragErr);
       }
 
-      await reactSteps(0, false, extra);
+      var startStep = opts.startStep || 0;
+      if (startStep < 0) startStep = 0;
+      if (startStep >= MAX_REACT_STEPS) startStep = MAX_REACT_STEPS - 1;
+      await reactSteps(startStep, !!opts.isContinuation, extra);
+    }
+
+    async function reactLoop(userText) {
+      await startReact({ userText: String(userText || '') });
+    }
+
+    /** 重发会话里最后一条用户输入：不读输入框，不追加相同用户消息。 */
+    async function retryLastTurn() {
+      if (busy) return;
+      if (!engineTryAllowed('card.assistant.react').ok) return;
+      if (!ensureAiConfigured()) return;
+      var plan = planAssistantRetry(uiMessages);
+      if (!plan || !plan.userText) return;
+      uiMessages = plan.nextMessages;
+      sessionStore.setMessages(uiMessages);
+      renderMessages();
+      await startReact({
+        skipGuards: true,
+        reuseExisting: true,
+        userText: plan.userText,
+        startStep: plan.startStep,
+        isContinuation: false,
+      });
     }
 
     /**
@@ -1931,8 +2167,17 @@ export function initAssistantPanelMain() {
             uiMessages: uiMessages,
             extraSystem: stepHint,
           });
-          if (prepared.level === 'soft') stepLabel = '正在整理上下文…';
-          if (prepared.level === 'hard') stepLabel = '上下文较长，正在压缩…';
+          if (prepared.needsCompaction) {
+            setPendingHint('正在整理上下文…');
+            var wroteCk = await writeCheckpointIfNeeded(reactSignal);
+            if (wroteCk) {
+              prepared = prepareAssistantMessages({
+                systemPrompt: buildSystemPrompt(extra),
+                uiMessages: uiMessages,
+                extraSystem: stepHint,
+              });
+            }
+          }
           setPendingHint(stepLabel);
           var messages = prepared.messages;
           if (center && task && task.id) center.setDetail(task.id, buildReactTaskDetail(messages));
@@ -1951,7 +2196,6 @@ export function initAssistantPanelMain() {
               displayContent: toolDisplay,
               modelContent: raw || '',
             });
-            setPendingHint('正在执行 ' + parsed.tool + '…');
             var tr = await runTool(parsed.tool, parsed.args || {}, false);
             if (tr.pendingConfirm) {
               clearPendingHint();
@@ -2004,20 +2248,26 @@ export function initAssistantPanelMain() {
         if (aborted) {
           pushUi({ role: 'assistant', content: '已停止。' });
           if (center && task && task.status !== 'cancelled') center.cancel(task.id);
-          setStatus('已停止');
         } else {
-          // 运行期失败才写入对话；未配置已在发送前拦截
-          pushUi({ role: 'assistant', content: '错误：' + (err && err.message ? err.message : String(err)), error: true });
-          setStatus(err.message || '失败', true);
+          // 对话保留错误气泡；另发一条 notification。不再 toast 同一句，也不写标题栏。
+          var errText = (err && err.message) ? String(err.message) : String(err || '失败');
+          pushUi({
+            role: 'assistant',
+            content: '错误：' + errText,
+            error: true,
+            retryable: true,
+          });
+          notifyError(errText, '助手');
           if (center && task) center.fail(task.id, err);
         }
         reactTask = null;
       } finally {
+        // 等待确认时保持「等待确认大改…」与 busy；回合真正结束才回到闲置绿点
         if (!reactPaused) {
           clearPendingHint();
           busy = false;
           syncActionBtn();
-          setStatus('就绪');
+          setStatus('');
         }
       }
     }
@@ -2115,6 +2365,10 @@ export function initAssistantPanelMain() {
       actionBtn.addEventListener('click', function() {
         if (busy) {
           abortFlag = true;
+          if (reactApplying) {
+            cancelSpawnedTasks(applyTaskIdsBefore);
+            return;
+          }
           if (reactPaused) {
             // 确认等待中停止：清空待确认并复位
             showPending(null);
@@ -2126,11 +2380,10 @@ export function initAssistantPanelMain() {
             clearPendingHint();
             busy = false;
             syncActionBtn();
-            setStatus('已停止');
+            setStatus('');
             pushUi({ role: 'assistant', content: '已停止。' });
             return;
           }
-          setStatus('正在停止…');
           var center = window.__aiTaskCenter__;
           if (center) {
             var snap = center.snapshot();
@@ -2162,8 +2415,7 @@ export function initAssistantPanelMain() {
       sessionStore.clear();
       showPending(null);
       renderMessages();
-      setStatus('会话已清空');
-      setTimeout(function() { if (!busy) setStatus('就绪'); }, 1200);
+      appFeedback(null, { message: '会话已清空', level: 'success', channel: 'toast' });
     });
     if (undoBtn) undoBtn.addEventListener('click', function() {
       runTool('undo_last_bundle', {}, true).then(function(r) {
@@ -2174,56 +2426,109 @@ export function initAssistantPanelMain() {
         });
       });
     });
+    function runningTaskIds() {
+      var center = window.__aiTaskCenter__;
+      if (!center || !center.snapshot) return [];
+      var snap = center.snapshot();
+      return (snap.tasks || []).map(function(t) { return t.id; });
+    }
+
+    function cancelSpawnedTasks(idsBefore) {
+      var center = window.__aiTaskCenter__;
+      if (!center || !center.snapshot || !center.cancel) return;
+      var before = {};
+      (idsBefore || []).forEach(function(id) { before[id] = 1; });
+      (center.snapshot().tasks || []).forEach(function(t) {
+        if (t.status !== 'running' && t.status !== 'queued') return;
+        if (t.type === 'assistant_react' || !before[t.id]) center.cancel(t.id);
+      });
+    }
+
+    function releaseConfirmWait(opts) {
+      opts = opts || {};
+      reactPaused = false;
+      reactApplying = false;
+      reactResume = null;
+      var center = window.__aiTaskCenter__;
+      if (center && reactTask && reactTask.status !== 'cancelled' && reactTask.status !== 'failed') {
+        if (opts.failMessage) center.fail(reactTask.id, new Error(opts.failMessage));
+        else if (opts.cancelTask) center.cancel(reactTask.id);
+      }
+      reactTask = null;
+      clearPendingHint();
+      busy = false;
+      syncActionBtn();
+      setStatus('');
+    }
+
     applyBtn.addEventListener('click', async function() {
       if (!pending) return;
       var p = pending;
+      var resume = reactResume;
       showPending(null);
+      reactApplying = true;
+      reactPaused = false;
+      applyTaskIdsBefore = runningTaskIds();
+      setStatus('正在思考…');
       var r = null;
+      var threw = null;
       try {
         r = await runTool(p.tool, p.args, true);
       } catch (errApply) {
-        pushUi({
-          role: 'assistant',
-          content: '应用失败：' + (errApply && errApply.message ? errApply.message : String(errApply)),
-          error: true,
-        });
+        threw = errApply;
       }
-      if (r && !r.ok) {
-        pushUi({
-          role: 'assistant',
-          content: '应用失败：' + (r.error || ''),
-          error: true,
-        });
-      }
-      // 续接：确认后让模型继续总结 / 继续下一步工具调用
-      var resume = reactResume;
-      var wasPaused = reactPaused;
-      reactResume = null;
-      reactPaused = false;
-      if (resume && !abortFlag) {
-        setPendingHint('正在继续…');
-        resume();
-      } else if (wasPaused) {
+      reactApplying = false;
+      if (abortFlag) {
+        reactResume = null;
         clearPendingHint();
         busy = false;
         syncActionBtn();
-        setStatus('就绪');
+        setStatus('');
+        var stopCenter = window.__aiTaskCenter__;
+        if (stopCenter && reactTask && reactTask.status !== 'cancelled') stopCenter.cancel(reactTask.id);
+        reactTask = null;
+        pushUi({ role: 'assistant', content: '已停止。' });
+        return;
+      }
+      var outcome = planApplyOutcome({ threw: !!threw, ok: !!(r && r.ok) });
+      if (outcome === 'reopen') {
+        var throwMsg = threw && threw.message ? threw.message : String(threw || '应用未完成');
+        pushUi({
+          role: 'assistant',
+          content: '应用失败：' + throwMsg,
+          error: true,
+        });
+        reactPaused = true;
+        showPending(p);
+        setStatus('等待确认大改…');
+        return;
+      }
+      if (outcome === 'stop') {
+        var errText = (r && r.error) ? String(r.error) : '应用未完成';
+        pushUi({
+          role: 'assistant',
+          content: '应用失败：' + errText,
+          error: true,
+        });
+        releaseConfirmWait({ failMessage: errText });
+        return;
+      }
+      reactResume = null;
+      if (resume) {
+        setStatus('正在思考…');
+        setPendingHint('正在继续…');
+        resume();
+      } else {
+        clearPendingHint();
+        busy = false;
+        syncActionBtn();
+        setStatus('');
       }
     });
     rejectBtn.addEventListener('click', function() {
       showPending(null);
       pushUi({ role: 'assistant', content: '已拒绝本次大改。' });
-      if (reactPaused) {
-        reactPaused = false;
-        reactResume = null;
-        var centerR = window.__aiTaskCenter__;
-        if (centerR && reactTask && reactTask.status !== 'cancelled') centerR.cancel(reactTask.id);
-        reactTask = null;
-        clearPendingHint();
-        busy = false;
-        syncActionBtn();
-        setStatus('就绪');
-      }
+      if (reactPaused) releaseConfirmWait({ cancelTask: true });
     });
 
     /** 从当前卡会话恢复 UI（卡片切换 / 初始恢复共用） */
@@ -2236,6 +2541,17 @@ export function initAssistantPanelMain() {
         sessionRagInjected = new Set();
       }
       uiMessages = Array.isArray(saved.messages) ? saved.messages.slice() : [];
+      var settled = false;
+      uiMessages.forEach(function(m) {
+        if (!m || !m.running) return;
+        m.running = false;
+        m.error = true;
+        m.summary = '执行未完成';
+        m.detail = '执行未完成（页面已离开）';
+        m.modelDetail = '返回: 错误 — 执行未完成';
+        settled = true;
+      });
+      if (settled) sessionStore.setMessages(uiMessages);
       showPending(null);
       renderMessages();
     }
@@ -2245,7 +2561,7 @@ export function initAssistantPanelMain() {
       migrateLegacyAssistantSession(window.localStorage, currentCardId());
     } catch (eMig) { /* ignore */ }
     loadSessionIntoView();
-    setStatus('就绪');
+    setStatus('');
     syncActionBtn();
 
     // 切卡 → 重载该卡会话；进行中任务对切卡已硬禁，此处再兜底
@@ -2253,8 +2569,11 @@ export function initAssistantPanelMain() {
       if (busy) return;
       try { migrateLegacyAssistantSession(window.localStorage, currentCardId()); } catch (eM) { /* ignore */ }
       loadSessionIntoView();
-      setStatus('已切换到 ' + (currentCardId() ? '当前卡片会话' : '全局会话'));
-      setTimeout(function() { if (!busy) setStatus('就绪'); }, 1200);
+      appFeedback(null, {
+        message: '已切换到 ' + (currentCardId() ? '当前卡片会话' : '全局会话'),
+        level: 'info',
+        channel: 'toast',
+      });
     });
 
     window.__assistantPanel__ = {

@@ -11,6 +11,7 @@ import {
 import { resolveWorldbookIndex, normalizeTarget } from './executorResolve.mjs';
 import { fromAiJsonEntry, toAiJsonEntry, entryExportComment } from '../worldbook/worldbookEntryBridge.mjs';
 import { getDefaultWBEntry } from '../card-builder/state.mjs';
+import { longFormToolError } from './generationContext.mjs';
 
 export function createExecutorExecute(bridge, snaps, helpers) {
   var ok = helpers.ok;
@@ -21,6 +22,8 @@ export function createExecutorExecute(bridge, snaps, helpers) {
   var buildLintFixOps = helpers.buildLintFixOps;
   async function executeConfirmed(toolName, args, execOpts) {
     var a = args || {};
+    var longFormBlock = longFormToolError(toolName, a);
+    if (longFormBlock) return fail(longFormBlock);
     var skipSnap = !!(execOpts && execOpts.skipSnapshot);
     function maybeSnap() {
       if (!skipSnap && snaps.pushSnapshot) snaps.pushSnapshot(bridge.captureSnapshot());

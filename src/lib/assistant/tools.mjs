@@ -9,7 +9,7 @@
  * 定向修改约定（写入类工具通用）：
  * - target: { id?, titleMatch?, index?, comment? } 或简写 index/comment/id
  * - mode: rewrite | expand | patch
- * - instruction: 用户自然语言要求
+ * - instruction: 本次生成提示（长文工具必填：已确认设定、要写的内容、与已有人物/物品/地点的关系）
  */
 
 /**
@@ -51,25 +51,25 @@ export const ASSISTANT_TOOLS = [
   // —— 写入（小改 auto / 大改 confirm）——
   { name: 'update_character_fields', title: '更新角色字段', kind: 'write', risk: 'auto', summary: '更新部分角色字段', argsHint: '{ fields:{charName?,wbName?,charDesc?,firstMes?,creatorNotes?,tags?,altGreetings?} }' },
   { name: 'replace_character_section', title: '覆盖角色字段', kind: 'write', risk: 'confirm', summary: '整段覆盖角色字段', argsHint: '{ field: charDesc|firstMes|creatorNotes|..., content }' },
-  { name: 'expand_character_field', title: '重写/扩写角色字段', kind: 'generate', risk: 'confirm', summary: '按字段名重写/扩写角色字段', argsHint: '{ field: charDesc|creatorNotes|..., mode?, instruction? }' },
+  { name: 'expand_character_field', title: '重写/扩写角色字段', kind: 'generate', risk: 'confirm', summary: '按字段重写/扩写一篇角色长文；instruction 为本次生成提示', argsHint: '{ field: charDesc|creatorNotes|..., mode?, instruction }' },
   { name: 'set_adult_config', title: '更新世界与限定', kind: 'write', risk: 'confirm', summary: '更新卡级「世界与限定」（worldviewPresetItems/框架/口味/表达层/NTL/恶堕等）', argsHint: '{ worldviewPresetItems?, enabled?, flavorItems?, postureItems?, speechItems?, ntlEnabled?, ntlTabooTypes?, adultWorldframeForced?, corruptionEnabled?, ... }' },
   { name: 'create_worldbook_entry', title: '新建世界书', kind: 'write', risk: 'auto', summary: '新建一条世界书', argsHint: '{ entry: { comment, content, type?, keys?, strategy? } }' },
   { name: 'update_worldbook_entry', title: '更新世界书', kind: 'write', risk: 'auto', summary: '更新一条世界书', argsHint: '{ target|{index|comment}, patch: { comment?, type?, content?, keys? } }' },
   { name: 'delete_worldbook_entry', title: '删除世界书', kind: 'write', risk: 'confirm', summary: '删除世界书条目（含清空全部）', argsHint: '{ index|indices|target|{all:true} }' },
 
   // —— 开场白定向 ——
-  { name: 'rewrite_greeting', title: '重写开场白', kind: 'generate', risk: 'confirm', summary: '定向重写主/备选开场白', argsHint: '{ target: main|{alternate:n}|index, mode?, instruction? }' },
-  { name: 'expand_greeting', title: '扩写开场白', kind: 'generate', risk: 'confirm', summary: '定向扩写主/备选开场白', argsHint: '{ target: main|{alternate:n}|index, instruction? }' },
+  { name: 'rewrite_greeting', title: '重写开场白', kind: 'generate', risk: 'confirm', summary: '重写一条开场白；instruction 为本次生成提示', argsHint: '{ target: main|{alternate:n}|index, mode?, instruction }' },
+  { name: 'expand_greeting', title: '扩写开场白', kind: 'generate', risk: 'confirm', summary: '扩写一条开场白；instruction 为本次生成提示', argsHint: '{ target: main|{alternate:n}|index, instruction }' },
   { name: 'update_alternate_greeting', title: '更新备选开场白', kind: 'write', risk: 'auto', summary: '更新备选开场白第 N 条', argsHint: '{ index, content }' },
 
   // —— 生成（对接现有引擎/面板）——
-  { name: 'generate_character_draft', title: '生成角色草稿', kind: 'generate', risk: 'confirm', summary: '按 AI 引擎生成角色草稿', argsHint: '{ prompt? }' },
-  { name: 'generate_worldbook_skeleton', title: '生成世界书骨架', kind: 'generate', risk: 'confirm', summary: '生成世界书骨架并写入', argsHint: '{ count?, direction? }' },
-  { name: 'generate_worldbook_entry', title: '生成世界书条目', kind: 'generate', risk: 'confirm', summary: '单条世界书生成并写入', argsHint: '{ direction?, instruction? }' },
+  { name: 'generate_character_draft', title: '生成角色草稿', kind: 'generate', risk: 'confirm', summary: '已停用：长文请逐篇调用 expand_character_field 等', argsHint: '{ prompt? }' },
+  { name: 'generate_worldbook_skeleton', title: '生成世界书骨架', kind: 'generate', risk: 'confirm', summary: '已停用：世界书正文请逐条 generate/expand/rewrite_worldbook_entry', argsHint: '{ count?, direction? }' },
+  { name: 'generate_worldbook_entry', title: '生成世界书条目', kind: 'generate', risk: 'confirm', summary: '单条世界书生成并写入；instruction 为本次生成提示', argsHint: '{ instruction }' },
   { name: 'organize_worldbook', title: '整理世界书', kind: 'generate', risk: 'confirm', summary: '智能整理世界书参数（可预览后应用）', argsHint: '{ apply?: boolean }' },
   { name: 'batch_fill_worldbook_keys', title: '批量补触发词', kind: 'generate', risk: 'confirm', summary: '批量补全世界书触发词', argsHint: '{ onlyMissing?: boolean }' },
-  { name: 'rewrite_worldbook_entry', title: '重写世界书', kind: 'generate', risk: 'confirm', summary: '按 id/标题/序号定向重写世界书', argsHint: '{ target, mode?, instruction? }' },
-  { name: 'expand_worldbook_entry', title: '扩写世界书', kind: 'generate', risk: 'auto', summary: '按 id/标题/序号定向扩写世界书', argsHint: '{ target, instruction?/direction? }' },
+  { name: 'rewrite_worldbook_entry', title: '重写世界书', kind: 'generate', risk: 'confirm', summary: '定向重写一条世界书；instruction 为本次生成提示', argsHint: '{ target, mode?, instruction }' },
+  { name: 'expand_worldbook_entry', title: '扩写世界书', kind: 'generate', risk: 'auto', summary: '定向扩写一条世界书；instruction 为本次生成提示', argsHint: '{ target, instruction }' },
   { name: 'fix_from_lint', title: '应用修复补丁', kind: 'write', risk: 'confirm', summary: '根据 lint/审计生成并应用修复补丁包', argsHint: '{ apply?: boolean, maxOps? }' },
 
   // —— 导航 / 补丁 ——
@@ -106,9 +106,9 @@ export const ASSISTANT_TOOLS = [
   { name: 'generate_affection_lore', title: '生成亲密档案', kind: 'generate', risk: 'confirm', summary: '生成/更新纯爱线亲密关系总则与角色分期档案世界书', argsHint: '{ selectedNames?, preset?, customBrief?, templateOnly? }' },
   { name: 'novel_distill_style', title: '文风蒸馏', kind: 'generate', risk: 'confirm', summary: 'await 文风蒸馏', argsHint: '{}' },
   { name: 'novel_patch_chapters', title: '章节管理', kind: 'write', risk: 'auto', summary: '章节合并/启停/调序/删/重命名', argsHint: '{ action, ids?, id?, title?, enabled? }' },
-  { name: 'novel_expand_character', title: '扩写人物档案', kind: 'generate', risk: 'confirm', summary: '按人物 id/名扩写档案（附录1；助手直跑跳过确认弹窗）', argsHint: '{ target|{id|name}, mode?, instruction? }' },
-  { name: 'novel_rewrite_character', title: '重写人物档案', kind: 'generate', risk: 'confirm', summary: '按人物 id/名重写档案', argsHint: '{ target|{id|name}, instruction? }' },
-  { name: 'novel_expand_worldbook', title: '扩写世界书条目', kind: 'generate', risk: 'confirm', summary: '按草稿 index/名扩写世界书条目（助手直跑跳过确认弹窗）', argsHint: '{ target|{index|name}, mode?, instruction? }' },
+  { name: 'novel_expand_character', title: '扩写人物档案', kind: 'generate', risk: 'confirm', summary: '按人物扩写一篇档案；instruction 为本次生成提示', argsHint: '{ target|{id|name}, mode?, instruction }' },
+  { name: 'novel_rewrite_character', title: '重写人物档案', kind: 'generate', risk: 'confirm', summary: '按人物重写一篇档案；instruction 为本次生成提示', argsHint: '{ target|{id|name}, instruction }' },
+  { name: 'novel_expand_worldbook', title: '扩写世界书条目', kind: 'generate', risk: 'confirm', summary: '按草稿扩写一条世界书；instruction 为本次生成提示', argsHint: '{ target|{index|name}, mode?, instruction }' },
   { name: 'novel_sync_outputs', title: '同步到世界书管道', kind: 'write', risk: 'confirm', summary: '同步到世界书管道（character 会重定向为 character_worldbook；写主角需 asProtagonist:true）', argsHint: '{ target?, selected?, policy?, ids?, names?, asProtagonist? }' },
   { name: 'apply_novel_result_to_card', title: '同步到主世界书', kind: 'write', risk: 'confirm', summary: '同步小说产出到主世界书（人物默认不进主角设定；文风→「文风」条目）', argsHint: '{ target?, policy? }' },
   { name: 'upsert_mvu_design', title: '写入 MVU 设计', kind: 'write', risk: 'confirm', summary: '仅写入 MVU 设计 JSON（不强制注入）', argsHint: '{ design, inject?: false }' },
@@ -148,8 +148,8 @@ export const ASSISTANT_PRESET_CHIPS = [
   {
     id: 'start_generate',
     label: '开始生成',
-    prompt: '配置若已就绪，请用 generate_character_draft 或生成世界书相关工具帮我开生成；也可 open_module 到角色设定让我自己点引擎。先确认我要生成哪一块。',
-    tool: 'generate_character_draft',
+    prompt: '配置若已就绪，先确认要写的一块。角色长文用 expand_character_field，开场白用 expand_greeting 或 rewrite_greeting，世界书用 generate_worldbook_entry 或 expand_worldbook_entry，每次只写一篇，instruction 写清这次的生成提示。不要用 generate_character_draft 或骨架工具一次写完。',
+    tool: 'expand_character_field',
   },
   {
     id: 'audit',
@@ -208,6 +208,12 @@ export function getToolByName(name) {
     if (ASSISTANT_TOOLS[i].name === name) return ASSISTANT_TOOLS[i];
   }
   return null;
+}
+
+/** 界面上的工具名。没有登记标题时才回退英文 id。 */
+export function toolTitleOf(name) {
+  var meta = getToolByName(name);
+  return (meta && meta.title) || String(name || '工具');
 }
 
 /** 生成工具清单文本，注入系统提示 */

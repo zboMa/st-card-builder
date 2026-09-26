@@ -1,5 +1,5 @@
 /**
- * §9.1 核心模块单测：D10/D12/D15/D16
+ * 核心模块单测：卡进度、试聊选段、Promotion L0
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';

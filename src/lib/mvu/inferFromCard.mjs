@@ -7,6 +7,7 @@
 import {
   STATUS_BAR_EXT_KEY,
   normalizeDesign,
+  reconcileDesignWithCharName,
   buildPlaceholderPaths,
   getModuleById,
 } from '../statusBar.mjs';
@@ -290,8 +291,10 @@ function pathToModuleId(path) {
  */
 function resolveInferContext(n) {
   var sb = n.statusBar ? normalizeDesign(n.statusBar) : null;
-  var castMode = sb ? sb.castMode : 'single';
-  var mainName = (sb && sb.mainName) || n.name || '角色';
+  var charName = String(n.name || '').trim();
+  if (sb) sb = reconcileDesignWithCharName(sb, charName);
+  var includeProtagonist = sb ? !!sb.includeProtagonist : true;
+  var includeFemales = sb ? !!sb.includeFemales : false;
   var characters = sb && Array.isArray(sb.characters) ? sb.characters.slice() : [];
   var nsfw = !!(sb && sb.nsfw) || adultEnabled(n.adult);
   var moduleFlags;
@@ -326,23 +329,29 @@ function resolveInferContext(n) {
     moduleFlags.affection_stage = true;
   }
 
-  // 多人无勾选人物时：用恶堕选中名或世界书人物补齐
-  if (castMode === 'multi') {
-    var selected = characters.filter(function(c) { return c && c.selected !== false && c.name; });
+  if (includeFemales) {
+    var selected = characters.filter(function(c) {
+      return c && c.selected !== false && c.name && c.name !== charName;
+    });
     if (!selected.length) {
-      var names = n.corruption.selectedNames.length
+      var names = (n.corruption.selectedNames.length
         ? n.corruption.selectedNames
-        : extractWorldbookPersonNames(n.worldbook);
-      if (!names.length && mainName) names = [mainName];
+        : extractWorldbookPersonNames(n.worldbook)
+      ).filter(function(name) { return name && name !== charName; });
       characters = names.map(function(name) {
         return { name: name, selected: true, aliases: [], identity: '', source: 'infer' };
       });
+    } else {
+      characters = selected;
     }
+  } else {
+    characters = characters.filter(function(c) { return c && c.name !== charName; });
   }
 
   return {
-    castMode: castMode,
-    mainName: mainName,
+    includeProtagonist: includeProtagonist,
+    includeFemales: includeFemales,
+    charName: charName,
     characters: characters,
     nsfw: nsfw,
     moduleFlags: moduleFlags,
@@ -395,19 +404,7 @@ function candidateFromPathItem(pathItem, ctx, existing) {
  */
 function inferConsentCandidates(ctx, existing) {
   var out = [];
-  var names = [];
-  if (ctx.castMode === 'multi') {
-    names = (ctx.characters || [])
-      .filter(function(c) { return c && c.selected !== false && c.name; })
-      .map(function(c) { return String(c.name).trim(); });
-    if (!names.length) names = [ctx.mainName || '角色'];
-  } else {
-    names = [ctx.mainName || '角色'];
-  }
-  names.forEach(function(name) {
-    var path = ctx.castMode === 'multi'
-      ? ('NPC.' + name + '.同意边界')
-      : '角色.同意边界';
+  function pushPath(path) {
     var typed = inferTypeForPath(path, '同意边界');
     out.push({
       name: '同意边界',
@@ -420,7 +417,14 @@ function inferConsentCandidates(ctx, existing) {
       alreadyPresent: !!existing[path],
       selected: !existing[path],
     });
-  });
+  }
+  if (ctx.includeProtagonist) pushPath('角色.同意边界');
+  if (ctx.includeFemales) {
+    (ctx.characters || []).forEach(function(c) {
+      if (!c || c.selected === false || !c.name || c.name === ctx.charName) return;
+      pushPath('NPC.' + c.name + '.同意边界');
+    });
+  }
   return out;
 }
 
@@ -430,21 +434,27 @@ function inferConsentCandidates(ctx, existing) {
  */
 function inferOutfitStateIfNeeded(ctx, existing, haveOutfitPath) {
   if (haveOutfitPath || !ctx.moduleFlags.outfit) return [];
-  var path = ctx.castMode === 'multi'
-    ? ('NPC.' + (ctx.mainName || '角色') + '.衣着状态')
-    : '角色.衣着状态';
-  if (existing[path]) return [];
-  return [{
-    name: '衣着状态',
-    path: path,
-    type: 'string',
-    initial: '完整着装',
-    updateHint: '更衣、破损、褪去或整理仪容时更新',
-    source: 'baseline:outfit_state',
-    options: [],
-    alreadyPresent: false,
-    selected: true,
-  }];
+  var paths = [];
+  if (ctx.includeProtagonist) paths.push('角色.衣着状态');
+  if (ctx.includeFemales) {
+    (ctx.characters || []).forEach(function(c) {
+      if (!c || c.selected === false || !c.name || c.name === ctx.charName) return;
+      paths.push('NPC.' + c.name + '.衣着状态');
+    });
+  }
+  return paths.filter(function(path) { return !existing[path]; }).map(function(path) {
+    return {
+      name: '衣着状态',
+      path: path,
+      type: 'string',
+      initial: '完整着装',
+      updateHint: '更衣、破损、褪去或整理仪容时更新',
+      source: 'baseline:outfit_state',
+      options: [],
+      alreadyPresent: false,
+      selected: true,
+    };
+  });
 }
 
 /**
@@ -479,8 +489,9 @@ export function inferMvuCandidatesFromCard(cardLike) {
 
   // 2) 按模块占位路径补齐（与状态栏 buildPlaceholderPaths 对齐）
   var placeholders = buildPlaceholderPaths({
-    castMode: ctx.castMode,
-    mainName: ctx.mainName,
+    includeProtagonist: ctx.includeProtagonist,
+    includeFemales: ctx.includeFemales,
+    charName: ctx.charName,
     moduleFlags: ctx.moduleFlags,
     characters: ctx.characters,
   });

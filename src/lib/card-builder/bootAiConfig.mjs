@@ -471,6 +471,13 @@ export function attachBootAiConfig(ctx) {
     return [];
   };
 
+  window.__getActivePresetsStr__ = function() {
+    if (ctx.panels.aiEngine && typeof ctx.panels.aiEngine.getActivePresetsStr === 'function') {
+      return ctx.panels.aiEngine.getActivePresetsStr() || '';
+    }
+    return '';
+  };
+
   // 试聊：角色卡字段桥（缺字段用空字符串，不抛错）
   window.__getChatCharacterPayload__ = function() {
     var s = ctx.state || {};

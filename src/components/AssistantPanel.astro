@@ -51,7 +51,7 @@ const catalogDataJson = JSON.stringify(buildAdultCatalogData(catalogOpts));
       <span class="assistant-panel__tip" id="assistantStatusTip" hidden></span>
       <button type="button" class="assistant-panel__close" id="btnAssistantClose" aria-label="关闭 AI 助手" title="关闭">×</button>
     </div>
-    <p class="assistant-panel__sub" id="assistantPanelSub">ReAct 工具调用 · 与卡片状态同步</p>
+    <p class="assistant-panel__sub ui-panel-lead" id="assistantPanelSub">ReAct 工具调用 · 与卡片状态同步</p>
   </header>
 
   <div class="assistant-panel__stages" id="assistantPanelStages">
@@ -79,7 +79,7 @@ const catalogDataJson = JSON.stringify(buildAdultCatalogData(catalogOpts));
             </button>
             <div class="assistant-quick-menu" id="assistantQuickMenu" role="listbox" hidden></div>
           </div>
-          <span id="assistantTokenCount" class="assistant-token-count composer-bar__meta" role="button" tabindex="0" aria-label="查看上下文内容" aria-live="polite"></span>
+          <span id="assistantTokenCount" class="assistant-token-count composer-bar__meta ui-meta" role="button" tabindex="0" aria-label="查看上下文内容" aria-live="polite"></span>
           <div class="composer-bar__actions assistant-panel__composer-actions">
             <button type="button" class="btn-icon assistant-btn-undo" id="assistantUndoBtn" title="撤销上一补丁" aria-label="撤销上一补丁">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 7H5v4"/><path d="M5 11a7 7 0 1 1 2 5.2L5 11z"/></svg>
@@ -110,7 +110,7 @@ const catalogDataJson = JSON.stringify(buildAdultCatalogData(catalogOpts));
     <div class="assistant-rag-modal__head">
       <div>
         <h2 id="assistantRagModalTitle">RAG 检索预览</h2>
-        <p class="assistant-rag-modal__meta" id="assistantRagModalMeta"></p>
+        <p class="assistant-rag-modal__meta ui-meta" id="assistantRagModalMeta"></p>
       </div>
       <button type="button" class="btn-icon btn-icon--sm" id="assistantRagModalClose" aria-label="关闭 RAG 预览">×</button>
     </div>
@@ -126,7 +126,7 @@ const catalogDataJson = JSON.stringify(buildAdultCatalogData(catalogOpts));
     <div class="assistant-rag-modal__head">
       <div>
         <h2 id="assistantContextModalTitle">上下文内容</h2>
-        <p class="assistant-rag-modal__meta" id="assistantContextModalMeta"></p>
+        <p class="assistant-rag-modal__meta ui-meta" id="assistantContextModalMeta"></p>
       </div>
       <button type="button" class="btn-icon btn-icon--sm" id="assistantContextModalClose" aria-label="关闭上下文预览">×</button>
     </div>

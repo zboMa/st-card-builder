@@ -24,6 +24,7 @@ import {
 import { openChatSelectionModal, openChatPromoteModal } from './chatModals.mjs';
 import { promoteChatEpisodeToStory } from './chatPromote.mjs';
 import { showConfirmDialog } from '../ui/confirmDialog.mjs';
+import { appFeedback } from '../ui/appMessage.mjs';
 import { collectWorldbookPersonNames } from '../novel/sync.mjs';
 
 export function initChatPlayground() {
@@ -794,7 +795,11 @@ export function initChatPlayground() {
   btnChatStart.addEventListener('click', function() {
     var char = getCurrentCharData();
     if (!char.description && !char.firstMes) {
-      alert('请先在角色面板填写角色描述或让 AI 生成！');
+      appFeedback(null, {
+        message: '请先在角色面板填写角色描述或让 AI 生成！',
+        level: 'warn',
+        channel: 'toast',
+      });
       return;
     }
     chatStarted = true;
@@ -845,7 +850,16 @@ export function initChatPlayground() {
     chatWbIndicator.textContent = 'WB 0';
     chatWbIndicator.classList.remove('active');
     chatTokenIndicator.textContent = '~0 tok';
-    chatMessages.innerHTML = '<div class="chat-empty-hint"><div style="color:var(--color-text-muted);font-size:0.82rem;">点击「开始试聊」加载开场白</div><div style="color:var(--color-text-muted);font-size:0.72rem;margin-top:4px;">世界书/正则按 SillyTavern 1.18.0 规则试运行</div></div>';
+    chatMessages.replaceChildren();
+    var emptyHost = document.createElement('div');
+    emptyHost.className = 'chat-empty-hint';
+    var emptyTip = document.createElement('p');
+    emptyTip.className = 'ui-empty-tip';
+    emptyTip.appendChild(document.createTextNode('点击「开始试聊」加载开场白'));
+    emptyTip.appendChild(document.createElement('br'));
+    emptyTip.appendChild(document.createTextNode('世界书/正则按 SillyTavern 1.18.0 规则试运行'));
+    emptyHost.appendChild(emptyTip);
+    chatMessages.appendChild(emptyHost);
   });
 
   btnChatRegenerate.addEventListener('click', async function() {

@@ -33,7 +33,8 @@ npm run server:dev     # :8787
 npm run dev            # Astro :18826（127.0.0.1），/api 代理到 8787
 ```
 
-> dev 端口固定 `127.0.0.1:18826`（`astro.config.mjs` 顶层 `server`）：原 `8826` 落在 Windows 排除段 `8781–8880`（Hyper-V/WinNAT 等），绑定会 `EACCES`。改端口仅影响本地 dev。
+> dev 端口固定 `127.0.0.1:18826`（`astro.config.mjs` 顶层 `server`）：原 `8826` 落在 Windows 排除段 `8781–8880`（Hyper-V/WinNAT 等），绑定会 `EACCES`。改端口仅影响本地 dev。  
+> Windows 上 API 跑在 WSL（NAT）时，开发代理解析 Ubuntu 地址再转到 `:8787`（保留 `/api` 前缀）。本机 `127.0.0.1:8787` 到不了 WSL。可用 `DEV_API_PROXY` 覆盖目标。
 
 打开侧栏 **配置 → 账户与云端**：
 

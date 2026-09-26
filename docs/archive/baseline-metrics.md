@@ -1,3 +1,5 @@
+> **不是契约。** 历史材料，见 [`README.md`](./README.md)。不要按本文改代码。
+
 # 基线度量（Phase 0）
 
 > 后续性能 PR 对照本表；更新方式：`npm run build && npm run measure:baseline`。

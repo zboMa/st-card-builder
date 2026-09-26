@@ -337,7 +337,7 @@ storyStudioV1:card:{cardId}:{novelId}:arc:{arcId}     → 可选 · 大 arc 摘�
 
 - 小说管理页卡片化（用户已决：先不做）  
 - Story 写作 → entity 自动提取（core-design Phase 2）  
-- Story Ref 实时读工坊 entity（§9.1 Phase 2）  
+- Story Ref 实时读工坊 entity（未做；快照见 archive，不是现行契约）  
 - 写作过程自动更新 graph（产品当前：**否**；千章下仍 **否**）
 
 ---

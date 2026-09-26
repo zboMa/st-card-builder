@@ -1,479 +1,308 @@
 ---
 /**
- * 状态栏：紧凑分步配置 + 大预览；排版=一对一视觉主题；覆盖 MVU 后注入
- * 左栏：标题→说明→选项→细节→固定底栏（上一步次要 / 下一步主色同行）
+ * 状态栏：左四步同屏，右预览。变量与排版在各自标题行生成。
  */
 ---
 <div class="panel statusbar-panel" id="statusbarPanel">
   <div class="panel-header statusbar-panel-head">
-    <div>
-      <h2>状态栏</h2>
-      <p class="ui-hint ui-hint--inline statusbar-panel-head__sub">人数 → 预设 → 生成（覆盖 MVU）→ 排版 → 预览并注入</p>
-    </div>
+    <h2>状态栏</h2>
+  </div>
+  <div class="sb-toolbar">
+    <button type="button" class="btn btn-ghost btn-inline btn-expand-preview" id="sbBtnPreviewPrompt" title="查看提示词" aria-label="查看提示词"><svg class="icon-expand-corners" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button>
+    <button type="button" class="btn btn-inline" id="sbBtnSampleFloors">生成3楼样例变量数据</button>
   </div>
 
-  <nav class="sb-steps ui-step-pills" aria-label="设计步骤">
-    <button type="button" class="ui-step-pill sb-step is-active" data-sb-step="1"><span>1</span>人数</button>
-    <button type="button" class="ui-step-pill sb-step" data-sb-step="2"><span>2</span>预设</button>
-    <button type="button" class="ui-step-pill sb-step" data-sb-step="3"><span>3</span>生成</button>
-    <button type="button" class="ui-step-pill sb-step" data-sb-step="4"><span>4</span>排版</button>
-  </nav>
-
   <div class="sb-layout">
-    <!-- 左：分步配置（内容可滚 + 底栏固定） -->
-    <div class="sb-config">
-      <!-- Step 1 人数 -->
-      <section class="sb-card sb-stage" data-sb-stage="1">
-        <div class="sb-stage-body">
-          <h3>人数</h3>
-          <p class="sb-tip">单人用当前卡角色；多人从世界书识别后勾选。</p>
-          <!-- 分段控件：单人｜多人 -->
-          <div class="sb-seg" id="sbCastRow" role="radiogroup" aria-label="人数模式">
-            <label class="sb-seg-item">
-              <input type="radio" name="sbCast" value="single" checked />
-              <span>单人</span>
+    <ol class="sb-rail">
+      <li class="sb-step" data-sb-step="1">
+        <span class="ui-step-pill sb-step-mark" data-sb-mark="1"><span>1</span></span>
+        <div class="sb-step-body">
+          <h3>人物</h3>
+          <div class="sb-line">
+            <label class="sb-check" for="sbIncludeProtagonist">
+              <input type="checkbox" id="sbIncludeProtagonist" checked />
+              <span>主角</span>
             </label>
-            <label class="sb-seg-item">
-              <input type="radio" name="sbCast" value="multi" />
-              <span>多人</span>
+            <span class="ui-hint ui-hint--inline" id="sbCharName">#</span>
+          </div>
+          <div class="sb-line">
+            <label class="sb-check" for="sbIncludeFemales">
+              <input type="checkbox" id="sbIncludeFemales" />
+              <span>女角色</span>
             </label>
+            <button type="button" class="btn btn-inline" id="sbFemaleOnly" aria-pressed="true">只识别女</button>
+            <button type="button" class="btn btn-inline" id="sbBtnScanChars">AI 识别</button>
           </div>
-
-          <div id="sbSingleBox" class="sb-cast-box">
-            <p class="sb-tip">主视角取自角色设定面板的角色名。</p>
-            <div class="sb-char-pill" id="sbSingleChar">（未填角色名）</div>
-          </div>
-
-          <div id="sbMultiBox" class="sb-cast-box" hidden>
-            <!-- 工具行：左说明 | 中「只识别女」独立勾选 | 右「AI 识别」；flex+gap，禁 absolute 叠层 -->
-            <div class="sb-tool-row sb-cast-toolbar">
-              <span class="sb-tip-inline">勾选入选人物</span>
-              <label class="sb-check-inline" for="sbFemaleOnly" title="仅影响「AI 识别」提示词，不筛选世界书自动加载列表">
-                <input type="checkbox" id="sbFemaleOnly" checked />
-                <span>只识别女</span>
-              </label>
-              <button type="button" class="btn sb-tool-btn" id="sbBtnScanChars">AI 识别</button>
-            </div>
-            <div id="sbCharList" class="sb-char-list"></div>
-            <div class="sb-field-inline">
-              <label class="sb-label-inline" for="sbMainName">主视角</label>
-              <select id="sbMainName"></select>
-            </div>
-          </div>
-          <div id="sbStatus1" class="sb-status"></div>
+          <div id="sbCharList" class="sb-char-list"></div>
         </div>
-        <div class="sb-footer">
-          <span class="sb-footer-spacer" aria-hidden="true"></span>
-          <button type="button" class="btn btn-primary sb-footer-btn" id="sbBtnNext1">下一步</button>
-        </div>
-      </section>
+      </li>
 
-      <!-- Step 2 预设 -->
-      <section class="sb-card sb-stage" data-sb-stage="2" hidden>
-        <div class="sb-stage-body">
+      <li class="sb-step" data-sb-step="2">
+        <span class="ui-step-pill sb-step-mark" data-sb-mark="2"><span>2</span></span>
+        <div class="sb-step-body">
           <h3>预设</h3>
-          <p class="sb-tip">选题材预设，再按需微调模块。</p>
-          <label class="sb-check-inline sb-nsfw-inline">
+          <label class="sb-check" for="sbNsfw">
             <input type="checkbox" id="sbNsfw" />
-            <span>NSFW（开则显示身体模块）</span>
+            <span>NSFW</span>
           </label>
-          <div id="sbPresetGrid" class="sb-preset-grid"></div>
-          <div class="sb-field sb-field-tight">
-            <div class="sb-card-head">
-              <label class="sb-label" style="margin:0">模块开关</label>
-              <button type="button" class="btn btn-ghost btn-sm" id="sbBtnResetModules">重置</button>
-            </div>
-            <div id="sbModuleGrid" class="sb-module-grid"></div>
+          <div id="sbPresetGrid" class="sb-presets"></div>
+          <div class="sb-line">
+            <span class="sb-k">模块</span>
+            <button type="button" class="btn btn-inline" id="sbBtnResetModules">重置</button>
           </div>
-          <div id="sbStatus2" class="sb-status"></div>
+          <div id="sbModuleGrid" class="sb-modules"></div>
         </div>
-        <div class="sb-footer">
-          <button type="button" class="btn btn-ghost sb-footer-btn" id="sbBtnBack2">上一步</button>
-          <button type="button" class="btn btn-primary sb-footer-btn" id="sbBtnNext2">下一步</button>
-        </div>
-      </section>
+      </li>
 
-      <!-- Step 3 生成：先生成 MVU 变量，再选排版 -->
-      <section class="sb-card sb-stage" data-sb-stage="3" hidden>
-        <div class="sb-stage-body">
-          <h3>生成</h3>
-          <p class="sb-tip">将<strong>覆盖</strong>当前 MVU；变量设计完成后，下一步选择排版样式。可经任务中心停止。</p>
-          <div class="sb-field sb-field-tight">
-            <label class="sb-label" for="sbExtra">额外要求（可选）</label>
-            <textarea id="sbExtra" rows="2" placeholder="如：强调契约进度、隐藏体力条…"></textarea>
+      <li class="sb-step" data-sb-step="3">
+        <span class="ui-step-pill sb-step-mark" data-sb-mark="3"><span>3</span></span>
+        <div class="sb-step-body">
+          <div class="sb-step-head">
+            <h3>变量</h3>
+            <button type="button" class="btn btn-inline" id="sbBtnVars">生成</button>
           </div>
-          <div id="sbGenSummary" class="sb-hint" hidden></div>
-          <div class="sb-tool-row">
-            <span class="sb-tip-inline">生成变量设计（覆盖 MVU）</span>
-            <button type="button" class="btn btn-ghost btn-inline btn-expand-preview" id="sbBtnPreviewMvuPrompt" title="查看提示词组成" aria-label="查看提示词组成"><svg class="icon-expand-corners" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button>
-            <button type="button" class="btn sb-tool-btn" id="sbBtnGenerate">生成并覆盖 MVU</button>
-          </div>
-          <ul class="sb-checklist" id="sbChecklist"></ul>
-          <div id="sbStatus3" class="sb-status"></div>
+          <label class="sb-k" for="sbExtra">额外要求</label>
+          <textarea id="sbExtra" rows="2" placeholder="如：强调契约进度"></textarea>
         </div>
-        <div class="sb-footer">
-          <button type="button" class="btn btn-ghost sb-footer-btn" id="sbBtnBack3">上一步</button>
-          <button type="button" class="btn btn-primary sb-footer-btn" id="sbBtnNext3">下一步</button>
-        </div>
-      </section>
+      </li>
 
-      <!-- Step 4 排版：预设主题或自定义 AI 排版，底栏注入 -->
-      <section class="sb-card sb-stage" data-sb-stage="4" hidden>
-        <div class="sb-stage-body">
-          <h3>排版</h3>
-          <p class="sb-tip">每套 = 完整视觉方案；按人数过滤。选「自定义」可按描述 AI 生成排版。</p>
-          <div id="sbLayoutGrid" class="sb-layout-grid"></div>
-          <div id="sbCustomBox" class="sb-custom-box" hidden>
-            <div id="sbCustomBaseRow" class="sb-field sb-field-tight">
-              <label class="sb-label" for="sbCustomBase">基准主题 <span class="sb-label-opt">（留空则从零描述，不参考现有 CSS）</span></label>
-              <select id="sbCustomBase"></select>
-            </div>
-            <div class="sb-field sb-field-tight">
-              <label class="sb-label" for="sbCustomPrompt">排版描述</label>
-              <textarea id="sbCustomPrompt" rows="3" placeholder="如：赛博 HUD 风格，左侧角色头像，右侧属性条…"></textarea>
-            </div>
-            <div class="sb-tool-row">
-              <span class="sb-tip-inline">基于已生成变量与 MVU 规则</span>
-              <button type="button" class="btn btn-ghost btn-inline btn-expand-preview" id="sbBtnPreviewLayoutPrompt" title="查看提示词组成" aria-label="查看提示词组成"><svg class="icon-expand-corners" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button>
-              <button type="button" class="btn sb-tool-btn" id="sbBtnCustomGenerate">生成排版</button>
-              <button type="button" class="btn sb-tool-btn" id="sbBtnCustomRegenerate" hidden>再次修改</button>
+      <li class="sb-step" data-sb-step="4">
+        <span class="ui-step-pill sb-step-mark" data-sb-mark="4"><span>4</span></span>
+        <div class="sb-step-body">
+          <div class="sb-step-head">
+            <h3>排版</h3>
+            <div class="sb-step-actions">
+              <button type="button" class="btn btn-inline" id="sbBtnLayoutRegen">重新生成</button>
+              <button type="button" class="btn btn-inline" id="sbBtnLayoutRevise">修改</button>
             </div>
           </div>
-          <div id="sbStatus4" class="sb-status"></div>
+          <label class="sb-k" for="sbLayoutPrompt">排版风格说明</label>
+          <textarea id="sbLayoutPrompt" rows="4" placeholder="如：窄条清单，数值用细进度条"></textarea>
         </div>
-        <div class="sb-footer">
-          <button type="button" class="btn btn-ghost sb-footer-btn" id="sbBtnBack4">上一步</button>
-          <button type="button" class="btn btn-primary sb-footer-btn" id="sbBtnInject" disabled>注入状态栏</button>
-        </div>
-      </section>
-    </div>
+      </li>
+    </ol>
 
-    <!-- 右：预览（占比更大） -->
-    <section class="sb-preview-pane sb-card">
-      <div class="sb-card-head">
-        <h3>预览</h3>
-        <button type="button" class="btn btn-ghost btn-sm" id="sbBtnRefreshPreview">刷新</button>
+    <section class="sb-preview-pane">
+      <div class="assistant-mode-switch" id="sbViewSwitch" data-mode="preview" role="tablist" aria-label="预览、变量与注入脚本">
+        <span class="assistant-mode-switch__thumb" aria-hidden="true"></span>
+        <button type="button" class="assistant-mode-switch__btn is-active" role="tab" aria-selected="true" data-sb-view="preview">预览</button>
+        <button type="button" class="assistant-mode-switch__btn" role="tab" aria-selected="false" data-sb-view="vars">变量</button>
+        <button type="button" class="assistant-mode-switch__btn" role="tab" aria-selected="false" data-sb-view="script">注入脚本</button>
       </div>
-      <p class="sb-tip" id="sbPreviewHint">预览随排版方案 + 模块联动（勾选模块即时重绘）</p>
-      <iframe id="sbPreviewFrame" class="sb-preview-frame" title="状态栏预览" sandbox="allow-same-origin"></iframe>
-      <details class="sb-code-details">
-        <summary>查看注入脚本</summary>
+      <div class="sb-view-pane" data-sb-view-pane="preview">
+        <p class="ui-hint" id="sbPreviewHint">尚无样例</p>
+        <iframe id="sbPreviewFrame" class="sb-preview-frame" title="状态栏预览" sandbox="allow-same-origin"></iframe>
+        <div class="sb-floor-nav">
+          <button type="button" class="btn btn-inline" id="sbFloorPrev">上一楼</button>
+          <span id="sbFloorLabel">尚无样例</span>
+          <button type="button" class="btn btn-inline" id="sbFloorNext">下一楼</button>
+        </div>
+      </div>
+      <div class="sb-view-pane" data-sb-view-pane="vars" hidden>
+        <div id="sbVarTree" class="sb-tree"></div>
+      </div>
+      <div class="sb-view-pane" data-sb-view-pane="script" hidden>
         <pre id="sbSnippetCode" class="sb-code"></pre>
-      </details>
+      </div>
     </section>
   </div>
 </div>
 
 <style is:global>
-  /* 壳层对齐夜庭 token；30 套预览主题仍在 statusBarThemes/ */
-  .statusbar-panel {
-    border-color: var(--color-accent-border);
-    background:
-      radial-gradient(circle at top right, var(--color-accent-soft), transparent 42%),
-      var(--color-glass);
+  .statusbar-panel-head h2 { margin: 0; }
+  .sb-toolbar {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: var(--space-2);
+    margin: 0 0 var(--space-3);
   }
-  .statusbar-panel-head__sub {
-    margin: 2px 0 0;
-    display: block;
-  }
-
-  .sb-steps { margin-bottom: var(--space-2); }
-
   .sb-layout {
     display: grid;
-    grid-template-columns: minmax(280px, 36%) minmax(0, 1fr);
-    gap: var(--space-2);
-    align-items: stretch;
+    grid-template-columns: minmax(280px, 42%) minmax(0, 1fr);
+    gap: var(--space-4);
+    align-items: start;
   }
   @media (max-width: 960px) {
     .sb-layout { grid-template-columns: 1fr; }
   }
-
-  .sb-config { min-width: 0; display: flex; flex-direction: column; }
-  .sb-card {
-    border: 1px solid var(--color-border-subtle);
-    border-radius: var(--radius-md);
-    padding: var(--space-3);
-    background: var(--color-surface-inset);
-    box-shadow: var(--shadow-inset);
+  .sb-rail {
+    list-style: none;
+    margin: 0 0 0 11px;
+    padding: 0 0 0 18px;
+    border-left: 2px solid var(--color-accent);
   }
-  .sb-stage {
-    display: flex; flex-direction: column;
-    min-height: min(62vh, 560px);
-    max-height: min(72vh, 680px);
+  .sb-step { position: relative; padding: 0 0 var(--space-4); }
+  .sb-step > .ui-step-pill {
+    position: absolute;
+    left: -18px;
+    top: 0;
+    transform: translateX(-50%);
     padding: 0;
-    overflow: hidden;
+    pointer-events: none;
+    cursor: default;
   }
-  .sb-stage[hidden] { display: none !important; }
-  .sb-stage-body {
-    flex: 1; min-height: 0; overflow-y: auto;
-    padding: var(--space-3) var(--space-3) var(--space-2);
-  }
-  .sb-stage h3 {
-    margin: 0 0 4px;
+  .sb-step h3 {
+    margin: 0 0 var(--space-2);
     font-size: 0.84rem;
-    color: var(--color-text);
   }
-  .sb-card-head {
-    display: flex; align-items: center; justify-content: space-between;
-    gap: var(--space-2); margin-bottom: var(--space-2);
+  .sb-step-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    margin: 0 0 var(--space-2);
   }
-  .sb-card-head h3 { margin: 0; }
-
-  .sb-footer {
-    display: flex; align-items: center; justify-content: space-between;
-    gap: var(--space-2); flex-shrink: 0;
-    padding: var(--space-2) var(--space-3);
-    border-top: 1px solid var(--color-border-subtle);
-    background: var(--color-surface-inset);
-  }
-  .sb-footer-spacer { flex: 1; }
-  .sb-footer-btn {
-    height: 36px !important; min-height: 36px !important; max-height: 40px !important;
-    padding: 0 14px !important; font-size: 0.76rem !important;
-    line-height: 1 !important; white-space: nowrap; width: auto !important;
-  }
-  .sb-footer .btn-primary { margin-left: auto; }
-
-  .sb-field { margin-bottom: var(--space-2); }
-  .sb-field-tight { margin-bottom: var(--space-2); }
-  .sb-label {
-    display: block; margin-bottom: 4px;
-    color: var(--color-text-muted); font-size: 0.7rem; font-weight: 700;
-  }
-  .sb-field-inline {
-    display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-2);
-  }
-  .sb-label-inline {
-    flex-shrink: 0; color: var(--color-text-muted); font-size: 0.7rem; font-weight: 700;
-  }
-  .sb-field-inline select { flex: 1; min-width: 0; }
-  .statusbar-panel select,
-  .statusbar-panel textarea {
-    width: 100%; border-radius: var(--radius-sm);
-    border: 1px solid var(--color-border-subtle);
-    background: var(--color-surface-input); color: var(--color-text);
-    padding: 6px 8px; font: inherit; font-size: 0.76rem;
-  }
-
-  .sb-seg {
-    display: grid; grid-template-columns: 1fr 1fr; gap: 2px;
-    margin-bottom: var(--space-2); padding: 3px; border-radius: var(--radius-sm);
-    border: 1px solid var(--color-border-subtle);
-    background: var(--color-surface-inset);
-  }
-  .sb-seg-item {
-    position: relative; display: flex; align-items: center; justify-content: center;
-    padding: 7px 8px; border-radius: 7px; cursor: pointer;
-    color: var(--color-text-muted); font-size: 0.76rem; font-weight: 700;
-    transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
-  }
-  .sb-seg-item input {
-    position: absolute; opacity: 0; width: 0; height: 0; pointer-events: none;
-  }
-  .sb-seg-item:has(input:checked) {
-    background: var(--color-accent-soft);
-    color: var(--color-accent-hover);
-    box-shadow: inset 0 0 0 1px var(--color-accent-border);
-  }
-
-  .sb-tool-row {
-    display: flex; flex-wrap: wrap; align-items: center;
-    gap: var(--space-2); margin-bottom: var(--space-2); min-height: 32px;
-  }
-  .sb-cast-toolbar {
-    display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2);
-  }
-  .sb-cast-toolbar .sb-tip-inline { flex: 1 1 4em; min-width: 0; }
-  .sb-cast-toolbar .sb-check-inline,
-  .sb-cast-toolbar .sb-tool-btn { flex: 0 0 auto; }
-  .sb-tip-inline {
-    color: var(--color-text-muted); font-size: 0.68rem; white-space: nowrap;
-    overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1;
-  }
-  .sb-tool-btn {
-    flex-shrink: 0; width: auto !important; height: 32px !important;
-    padding: 0 12px !important; margin: 0 !important;
-    font-size: 0.72rem !important; font-weight: 700 !important;
-    position: static !important; overflow: visible !important;
-  }
-  .sb-check-inline {
-    display: inline-flex; align-items: center; gap: 4px;
-    color: var(--color-text-secondary); font-size: 0.68rem; cursor: pointer; white-space: nowrap;
-    position: static; margin: 0;
-  }
-  .sb-check-inline input { accent-color: var(--color-accent); }
-  .sb-nsfw-inline {
-    margin-bottom: var(--space-2); padding: 4px 0;
-    border: 0; background: transparent;
-  }
-  .sb-nsfw-inline input { accent-color: var(--color-accent); }
-
-  .sb-hint {
-    margin: 0 0 var(--space-2); padding: 6px 8px; border-radius: var(--radius-sm);
-    border: 1px solid oklch(78% 0.12 85 / 0.35);
-    background: var(--color-warning-soft); color: var(--color-warning);
-    font-size: 0.7rem; line-height: 1.4;
-  }
-  .sb-status {
-    margin-top: var(--space-2); min-height: 1.1em;
-    font-size: 0.7rem; color: var(--color-text-muted);
-  }
-  .sb-status.is-ok { color: var(--color-success); }
-  .sb-status.is-warn { color: var(--color-warning); }
-  .sb-status.is-err { color: var(--color-danger); }
-  .sb-status.is-info { color: var(--color-accent-hover); }
-  .sb-tip {
-    margin: 0 0 var(--space-2); color: var(--color-text-muted);
-    font-size: 0.68rem; line-height: 1.4;
-  }
-
-  .sb-char-pill {
-    display: inline-block; padding: 4px 10px; border-radius: var(--radius-pill);
-    border: 1px solid var(--color-accent-border);
-    background: var(--color-accent-soft); color: var(--color-accent-hover); font-size: 0.78rem;
-  }
-  .sb-char-list {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  .sb-step-head h3 { margin: 0; }
+  .sb-step-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
     gap: 6px;
-    max-height: 220px;
-    overflow-y: auto;
+  }
+  .sb-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
     margin-bottom: var(--space-2);
   }
-  .sb-char-card {
-    display: flex; align-items: flex-start; gap: 6px;
-    min-width: 0; padding: 6px 8px; border-radius: var(--radius-sm);
+  .sb-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--color-text-secondary);
+    font-size: 0.76rem;
+    cursor: pointer;
+  }
+  .sb-check input { accent-color: var(--color-accent); }
+  .sb-k {
+    display: block;
+    margin-bottom: 4px;
+    color: var(--color-text-muted);
+    font-size: 0.7rem;
+    font-weight: 700;
+  }
+  .sb-line .sb-k { margin: 0; }
+  .statusbar-panel textarea {
+    width: 100%;
+    margin-bottom: var(--space-2);
+    border-radius: var(--radius-sm);
     border: 1px solid var(--color-border-subtle);
-    background: var(--color-surface-inset);
-    font-size: 0.72rem; color: var(--color-text-secondary); cursor: pointer;
-    transition: border-color var(--dur-fast) var(--ease-out),
-      background var(--dur-fast) var(--ease-out), opacity var(--dur-fast) var(--ease-out);
+    background: var(--color-surface-input);
+    color: var(--color-text);
+    padding: 6px 8px;
+    font: inherit;
+    font-size: 0.76rem;
   }
-  .sb-char-card input { margin-top: 2px; flex-shrink: 0; accent-color: var(--color-accent); }
-  .sb-char-card-body { min-width: 0; flex: 1; }
-  .sb-char-card strong {
-    display: block; color: var(--color-text); font-weight: 700;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  .sb-char-list, .sb-modules, .sb-presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: var(--space-2);
   }
-  .sb-char-card small {
-    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
-    overflow: hidden; color: var(--color-text-muted); font-size: 0.62rem; line-height: 1.35; margin-top: 2px;
+  .sb-module-group {
+    flex: 1 0 100%;
   }
-  .sb-char-card:has(input:checked) {
-    border-color: var(--color-accent-border);
+  .sb-module-group__items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .sb-presets .btn.is-active {
     background: var(--color-accent-soft);
-  }
-  .sb-char-card:has(input:not(:checked)) { opacity: 0.58; }
-
-  .sb-preset-grid {
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-    gap: 6px; margin-bottom: var(--space-2); max-height: 200px; overflow-y: auto;
-  }
-  .sb-preset-btn {
-    text-align: left; padding: 8px; border-radius: var(--radius-sm);
-    border: 1px solid var(--color-border-subtle);
-    background: var(--color-surface-inset); color: var(--color-text-secondary);
-    font: inherit; font-size: 0.7rem; cursor: pointer;
-    transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
-  }
-  .sb-preset-btn strong {
-    display: block; color: var(--color-text); margin-bottom: 2px; font-size: 0.72rem;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
-  .sb-preset-btn small {
-    display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical;
-    overflow: hidden; color: var(--color-text-muted); font-size: 0.62rem;
-  }
-  .sb-preset-btn.is-active {
+    color: var(--color-accent-hover);
     border-color: var(--color-accent-border);
-    background: var(--color-accent-soft); color: var(--color-accent-hover);
-    box-shadow: inset 0 0 0 1px var(--color-accent-border);
   }
-  .sb-preset-btn.is-nsfw { border-color: oklch(72% 0.14 305 / 0.4); }
-
-  .sb-layout-grid {
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
-    gap: 6px; max-height: 280px; overflow-y: auto; margin-bottom: var(--space-2);
+  .statusbar-panel .assistant-mode-switch {
+    grid-template-columns: repeat(3, 1fr);
+    min-width: 196px;
+    margin: 0 0 var(--space-2) 0;
   }
-  .sb-layout-btn {
-    display: flex; align-items: flex-start; gap: 6px;
-    text-align: left; padding: 7px 8px; border-radius: var(--radius-sm);
+  .statusbar-panel .assistant-mode-switch__thumb {
+    width: calc((100% - 4px) / 3);
+  }
+  .statusbar-panel .assistant-mode-switch[data-mode="vars"] .assistant-mode-switch__thumb {
+    transform: translateX(100%);
+  }
+  .statusbar-panel .assistant-mode-switch[data-mode="script"] .assistant-mode-switch__thumb {
+    transform: translateX(200%);
+  }
+  .sb-view-pane[hidden] { display: none !important; }
+  .sb-tree {
+    min-height: 380px;
+    max-height: min(62vh, 640px);
+    overflow: auto;
+    padding: 8px 10px;
     border: 1px solid var(--color-border-subtle);
-    background: var(--color-surface-inset); color: var(--color-text-secondary);
-    font: inherit; font-size: 0.68rem; cursor: pointer;
-    transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
-  }
-  .sb-layout-dot {
-    flex-shrink: 0; width: 8px; height: 8px; margin-top: 4px;
-    border-radius: 50%; background: var(--sb-accent, var(--color-text-muted));
-    box-shadow: 0 0 0 1px var(--color-border-subtle);
-  }
-  .sb-layout-meta { min-width: 0; flex: 1; }
-  .sb-layout-btn strong {
-    display: block; color: var(--color-text); margin-bottom: 2px; font-size: 0.7rem;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
-  .sb-layout-btn small {
-    display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical;
-    overflow: hidden; color: var(--color-text-muted); font-size: 0.58rem;
-  }
-  .sb-layout-btn.is-active {
-    border-color: var(--color-accent-border);
-    background: var(--color-accent-soft); color: var(--color-accent-hover);
-    box-shadow: inset 0 0 0 1px var(--color-accent-border);
-  }
-  .sb-layout-btn.is-multi { border-style: dashed; }
-  .sb-layout-btn.is-custom { border-style: dotted; border-color: oklch(72% 0.18 305 / 0.45); }
-
-  .sb-custom-box {
-    margin-top: var(--space-2);
-    padding: var(--space-2);
-    border: 1px dashed oklch(72% 0.18 305 / 0.35);
     border-radius: var(--radius-md);
-    background: oklch(72% 0.08 305 / 0.06);
+    background: var(--color-paper-deep);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    line-height: 1.55;
   }
-  .statusbar-panel .sb-label-opt { font-weight: 400; opacity: 0.72; font-size: 0.92em; }
-
-  .sb-module-grid {
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 4px;
-    max-height: 200px; overflow-y: auto;
+  .sb-tree-node { margin-left: 12px; }
+  .sb-tree > .sb-tree-node { margin-left: 0; }
+  .sb-tree summary {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    cursor: pointer;
+    list-style: none;
   }
-  .sb-mod {
-    display: flex; align-items: center; gap: 6px;
-    padding: 4px 6px; border-radius: var(--radius-sm);
+  .sb-tree summary::-webkit-details-marker { display: none; }
+  .sb-tree summary::before {
+    content: '▸';
+    width: 0.8em;
+    color: var(--color-text-muted);
+  }
+  .sb-tree details[open] > summary::before { content: '▾'; }
+  .sb-tree-key { color: var(--color-text); }
+  .sb-tree-sep { color: var(--color-text-muted); }
+  .sb-tree-str { color: var(--color-warning); }
+  .sb-tree-num { color: var(--color-accent); font-weight: 650; }
+  .sb-tree-meta {
+    color: var(--color-text-muted);
+    font-size: 0.64rem;
     border: 1px solid var(--color-border-subtle);
-    background: var(--color-surface-inset); font-size: 0.68rem;
-    color: var(--color-text-muted); cursor: pointer;
+    border-radius: 999px;
+    padding: 0 6px;
   }
-  .sb-mod:has(input:checked) {
-    border-color: oklch(72% 0.14 155 / 0.4);
-    color: var(--color-success);
-    background: var(--color-success-soft);
+  .sb-tree-row {
+    display: flex;
+    gap: 6px;
+    margin-left: 1.15em;
   }
-  .sb-mod.is-nsfw { border-style: dashed; border-color: oklch(72% 0.14 305 / 0.35); }
-
-  .sb-preview-pane { min-height: 420px; }
+  .sb-tree .ui-hint { margin: 8px 0; }
   .sb-preview-frame {
-    width: 100%; min-height: 380px; height: min(62vh, 640px);
+    width: 100%;
+    min-height: 380px;
+    height: min(62vh, 640px);
     border: 1px solid var(--color-border-subtle);
-    border-radius: var(--radius-md); background: var(--color-paper-deep); margin-bottom: var(--space-2);
+    border-radius: var(--radius-md);
+    background: var(--color-paper-deep);
   }
-  .sb-code-details { margin-bottom: 2px; color: var(--color-text-muted); font-size: 0.7rem; }
+  .sb-floor-nav {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin: var(--space-2) 0;
+    color: var(--color-text-muted);
+    font-size: 0.72rem;
+  }
   .sb-code {
-    margin: var(--space-2) 0 0; max-height: 120px; overflow: auto;
-    padding: 8px 10px; border-radius: var(--radius-sm);
+    margin: 0;
+    min-height: 380px;
+    max-height: min(62vh, 640px);
+    overflow: auto;
+    padding: 8px 10px;
+    border-radius: var(--radius-md);
     background: var(--color-paper-deep);
     border: 1px solid var(--color-border-subtle);
-    color: var(--color-warning); font-size: 0.64rem; white-space: pre-wrap;
+    color: var(--color-warning);
+    font-size: 0.64rem;
+    white-space: pre-wrap;
     font-family: var(--font-mono);
-  }
-  .sb-checklist {
-    margin: var(--space-2) 0 0; padding-left: 16px;
-    color: var(--color-text-secondary); font-size: 0.74rem; line-height: 1.55;
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .sb-seg-item, .sb-char-card, .sb-preset-btn, .sb-layout-btn { transition: none; }
   }
 </style>
 

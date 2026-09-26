@@ -4,6 +4,7 @@
 import { VALID_VIEWS } from './tools.mjs';
 import { resolveWorldbookIndex } from './executorResolve.mjs';
 import { entryExportComment } from '../worldbook/worldbookEntryBridge.mjs';
+import { STOCK_CHAR_DESC, STOCK_GREETING, STOCK_WB } from './generationContext.mjs';
 
 export function createExecutorHelpers(bridge, snaps) {
   function ok(data, extra) {
@@ -58,7 +59,7 @@ export function createExecutorHelpers(bridge, snaps) {
       issues.push({ type: 'short_replies', message: '回复偏短，可加强人设主动性或 RP 指令。' });
       fixes.push({
         tool: 'expand_character_field',
-        args: { field: 'charDesc', mode: 'expand', instruction: '加强主动性与 RP 指引，避免短回复' },
+        args: { field: 'charDesc', mode: 'expand', instruction: STOCK_CHAR_DESC },
       });
     }
     var char = bridge.getCharacter() || {};
@@ -67,7 +68,7 @@ export function createExecutorHelpers(bridge, snaps) {
       issues.push({ type: 'thin_desc', message: '角色描述偏短，试聊易跑偏。' });
       fixes.push({
         tool: 'expand_character_field',
-        args: { field: 'charDesc', mode: 'expand', instruction: '补全性格、说话方式与互动边界' },
+        args: { field: 'charDesc', mode: 'expand', instruction: STOCK_CHAR_DESC },
       });
     }
     var wb = bridge.getWorldbook() || [];
@@ -100,13 +101,13 @@ export function createExecutorHelpers(bridge, snaps) {
       } else if (code === 'short_desc' || /角色描述偏短/.test(issue.message || '')) {
         ops.push({
           op: 'expand_character_field',
-          args: { field: 'charDesc', mode: 'expand', instruction: '补足至可支撑试聊的完整人设' },
+          args: { field: 'charDesc', mode: 'expand', instruction: STOCK_CHAR_DESC },
         });
       } else if (code === 'no_first_mes' || /缺少开场白/.test(issue.message || '')) {
         if (!char.firstMes) {
           ops.push({
             op: 'expand_greeting',
-            args: { target: 'main', instruction: '写一段贴合人设的开场白' },
+            args: { target: 'main', instruction: STOCK_GREETING },
           });
         }
       } else if (/缺少触发词|noKeys|wb_/.test(code + (issue.message || '')) && /触发词/.test(issue.message || issue.title || '')) {
@@ -121,7 +122,7 @@ export function createExecutorHelpers(bridge, snaps) {
           if (ops.length < lim) {
             ops.push({
               op: 'expand_worldbook_entry',
-              args: { target: { index: idx }, mode: 'expand', instruction: '展开为完整设定' },
+              args: { target: { index: idx }, mode: 'expand', instruction: STOCK_WB },
             });
           }
         });
@@ -139,7 +140,7 @@ export function createExecutorHelpers(bridge, snaps) {
           if (String(e.content || '').length < 60) {
             ops.push({
               op: 'expand_worldbook_entry',
-              args: { target: { index: i }, instruction: '展开骨架' },
+              args: { target: { index: i }, instruction: STOCK_WB },
             });
           }
         });

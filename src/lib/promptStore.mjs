@@ -24,6 +24,8 @@ export const PROMPT_TAB_ORDER = [
 export const PROMPT_META = [
   { id: 'charGen', label: '角色生成（阶段1）', group: '角色卡制作' },
   { id: 'greetingGen', label: '开场白生成（阶段3）', group: '角色卡制作' },
+  { id: 'assistantCharField', label: '助手·角色长文', group: 'AI 助手' },
+  { id: 'assistantGreeting', label: '助手·开场白', group: 'AI 助手' },
   { id: 'charTagsGen', label: '角色标签 AI 生成', group: '角色卡制作' },
   { id: 'aiNativeSearch', label: '联网搜索指令', group: '角色卡制作' },
   { id: 'chatRpCore', label: '试聊 RP 核心指令', group: '角色卡制作' },

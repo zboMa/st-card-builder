@@ -1,3 +1,5 @@
+> **不是契约。** 历史材料，见 [`README.md`](./README.md)。不要按本文改代码。
+
 # 升级路线图（执行跟踪）
 
 > **Phase 6C（TS/checkJs/ESLint 全量）不做。**  
@@ -28,5 +30,5 @@
 
 - [`../architecture/card-builder.md`](../architecture/card-builder.md)
 - [`../systems/cloud-sync.md`](../systems/cloud-sync.md)
-- [`regression-checklist.md`](./regression-checklist.md)
+- [`regression-checklist.md`](../ops/regression-checklist.md)
 - [`baseline-metrics.md`](./baseline-metrics.md)

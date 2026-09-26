@@ -23,6 +23,7 @@ import {
   getLayoutById,
   getDesignById,
   getPresetById,
+  getModuleById,
   presetsForCast,
   layoutsForCast,
   designsForCast,
@@ -41,6 +42,7 @@ import {
   normalizeCastCharacter,
   pathsFromMvuDesign,
   buildPreviewHtml,
+  buildVariableTree,
   buildPlaceholderPaths,
   buildCastProfileBlock,
   ensureCardProtagonistInCast,
@@ -48,6 +50,11 @@ import {
   buildStatusBarSnippet,
   buildStatusBarRegex,
   normalizeDesign,
+  rejectStatusBarGenerate,
+  appendStylePreset,
+  reconcileDesignWithCharName,
+  validateSampleFloors,
+  readFloorValue,
   CUSTOM_DESIGN_ID,
   isCustomDesign,
   customDesignMeta,
@@ -60,11 +67,37 @@ import {
   designCss,
 } from '../src/lib/statusBar.mjs';
 import {
+  designCss as themeCss,
+  renderDesignHtml,
+  getDesignById as themeById,
+} from '../src/lib/statusBarThemes/index.mjs';
+import {
   orphanPaths,
   worldScopedPaths,
   globalQuestEventPaths,
   displayBuckets,
 } from '../src/lib/statusBarThemes/shared.mjs';
+
+function themePreviewHtml(opts) {
+  var castMode = (opts && opts.castMode) || 'single';
+  var raw = (opts && (opts.designId || opts.layoutId || opts.styleId)) || defaultDesignId(castMode);
+  var designId = migrateDesignId(raw, opts && opts.styleId);
+  var design = themeById(designId);
+  if (design.cast !== castMode) designId = defaultDesignId(castMode);
+  var paths = (opts && opts.paths) || [];
+  var values = (opts && opts.values) || {};
+  var body = renderDesignHtml({
+    designId: designId,
+    paths: paths,
+    title: (opts && opts.title) || 'STATUS',
+    castMode: castMode,
+    characters: (opts && opts.characters) || [],
+    mainName: (opts && opts.mainName) || '',
+    valueFn: function(p) { return values[p.path] != null ? String(values[p.path]) : (p.sample || '—'); },
+    rawValueHtml: false,
+  });
+  return '<style>' + themeCss(designId) + '</style><div data-zb-design="' + designId + '" data-zb-layout="' + designId + '">' + body + '</div>';
+}
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -101,25 +134,27 @@ describe('statusBar core', function() {
     assert.doesNotMatch(snippet, />08:00</);
 
     var norm = normalizeDesign({
-      designId: CUSTOM_DESIGN_ID,
       customCss: css,
       customBodyHtml: body,
       customPrompt: '赛博 HUD',
     });
-    assert.equal(norm.designId, CUSTOM_DESIGN_ID);
-    assert.equal(norm.customPrompt, '赛博 HUD');
+    assert.equal(norm.layoutPrompt, '赛博 HUD');
+    assert.equal(norm.customCss, css);
+    assert.equal(norm.mode, 'mvu');
+    assert.equal(norm.designId, undefined);
 
     var themed = buildPreviewHtml({
-      designId: CUSTOM_DESIGN_ID,
       customCss: css,
       customBodyHtml: body,
-      castMode: 'single',
       paths: SAMPLE_PATHS,
     });
     assert.match(themed, /zb-custom-root/);
+    assert.match(themed, /data-zb-path/);
 
     assert.match(STATUS_BAR_CUSTOM_LAYOUT_PROMPT, /data-zb-path/);
+    assert.match(STATUS_BAR_CUSTOM_LAYOUT_PROMPT, /data-zb-meter/);
     assert.match(STATUS_BAR_CUSTOM_LAYOUT_PROMPT, /\{\{userPrompt\}\}/);
+    assert.doesNotMatch(STATUS_BAR_CUSTOM_LAYOUT_PROMPT, /sheet_attr|neon_monitor|基准主题/);
   });
 
   it('视觉主题：15 族×单人/多人≥30，按人数严格过滤，family 成对', function() {
@@ -179,22 +214,22 @@ describe('statusBar core', function() {
   });
 
   it('各主题预览含独立结构类名与主题色，主路径不用 zb-kv', function() {
-    var sheet = buildPreviewHtml({
+    var sheet = themePreviewHtml({
       designId: 'sheet_attr', paths: SAMPLE_PATHS, mainName: '林雾', castMode: 'single',
     });
     assert.match(sheet, /rpg-panel|rpg-mini-bars|rpg-grid/);
     assert.doesNotMatch(sheet, /class="zb-kv"/);
 
-    assert.match(buildPreviewHtml({ designId: 'neon_monitor', paths: SAMPLE_PATHS, castMode: 'single' }), /crt-bezel|crt-screen|crt-prompt-line/);
-    assert.match(buildPreviewHtml({ designId: 'form_sections', paths: SAMPLE_PATHS, castMode: 'single' }), /lib-panel|lib-grid|lib-toc/);
-    assert.match(buildPreviewHtml({ designId: 'romance_glow', paths: SAMPLE_PATHS, castMode: 'single' }), /rom-panel|rom-chip|rom-diary/);
-    assert.match(buildPreviewHtml({ designId: 'xianxia_scroll', paths: SAMPLE_PATHS, castMode: 'single' }), /xxs-scroll|xxs-couplet|xxs-rod/);
-    assert.match(buildPreviewHtml({ designId: 'scifi_console', paths: SAMPLE_PATHS, castMode: 'single' }), /sci-panel|sci-grid|sci-hud/);
-    assert.match(buildPreviewHtml({ designId: 'ink_paper', paths: SAMPLE_PATHS, castMode: 'single' }), /ink-panel|ink-cell/);
-    var scrap = buildPreviewHtml({ designId: 'scrapbook', paths: SAMPLE_PATHS, castMode: 'single' });
+    assert.match(themePreviewHtml({ designId: 'neon_monitor', paths: SAMPLE_PATHS, castMode: 'single' }), /crt-bezel|crt-screen|crt-prompt-line/);
+    assert.match(themePreviewHtml({ designId: 'form_sections', paths: SAMPLE_PATHS, castMode: 'single' }), /lib-panel|lib-grid|lib-toc/);
+    assert.match(themePreviewHtml({ designId: 'romance_glow', paths: SAMPLE_PATHS, castMode: 'single' }), /rom-panel|rom-chip|rom-diary/);
+    assert.match(themePreviewHtml({ designId: 'xianxia_scroll', paths: SAMPLE_PATHS, castMode: 'single' }), /xxs-scroll|xxs-couplet|xxs-rod/);
+    assert.match(themePreviewHtml({ designId: 'scifi_console', paths: SAMPLE_PATHS, castMode: 'single' }), /sci-panel|sci-grid|sci-hud/);
+    assert.match(themePreviewHtml({ designId: 'ink_paper', paths: SAMPLE_PATHS, castMode: 'single' }), /ink-panel|ink-cell/);
+    var scrap = themePreviewHtml({ designId: 'scrapbook', paths: SAMPLE_PATHS, castMode: 'single' });
     assert.match(scrap, /scr-page|scr-polaroid|scr-sticker/);
     assert.match(scrap, /scr-tab|scr-tabs/); // 分区 Tab
-    assert.match(buildPreviewHtml({ designId: 'mahogany_dossier', paths: SAMPLE_PATHS, castMode: 'single' }), /wax-folio|wax-seal|wax-stamp/);
+    assert.match(themePreviewHtml({ designId: 'mahogany_dossier', paths: SAMPLE_PATHS, castMode: 'single' }), /wax-folio|wax-seal|wax-stamp/);
 
     // designCss / styleCss 含主题色
     assert.match(designCss('sheet_attr'), /38bdf8/);
@@ -232,54 +267,84 @@ describe('statusBar core', function() {
   });
 
   it('预设与模块：题材铺全、无配角摘要、NSFW 开关', function() {
-    assert.ok(presetsForCast('single').length >= 15);
-    assert.ok(presetsForCast('multi').length >= 15);
-    assert.ok(STATUS_BAR_PRESETS.length >= 30);
+    assert.equal(presetsForCast().length, 18);
+    assert.equal(STATUS_BAR_PRESETS.length, 18);
+    assert.ok(STATUS_BAR_PRESETS.every(function(p) { return !/^single_|^multi_/.test(p.id); }));
 
     var sfwIds = STATUS_BAR_MODULES.filter(function(m) { return !m.nsfw; }).map(function(m) { return m.id; });
     [
-      'affection', 'trust', 'relation_stage', 'emotion', 'action', 'location', 'outfit',
+      'affection', 'trust', 'relation_stage', 'affection_stage', 'emotion', 'action', 'location', 'outfit',
       'items', 'money', 'quest', 'memory_summary', 'event_chips',
-      'attributes', 'time_weather',
+      'attributes', 'realm', 'injury', 'sanity', 'time_weather',
     ].forEach(function(id) {
       assert.ok(sfwIds.indexOf(id) >= 0, 'missing sfw ' + id);
     });
     assert.equal(sfwIds.indexOf('support_summary'), -1, '配角摘要模块应已移除');
+    assert.equal(STATUS_BAR_MODULES.some(function(m) { return /阴茎|肉棒/.test(m.label); }), false);
 
     presetsForCast('multi').forEach(function(p) {
       assert.ok((p.modules || []).indexOf('support_summary') < 0, p.id + ' should not include support_summary');
     });
     assert.equal(defaultModuleFlags('multi_party', false).support_summary, undefined);
+    assert.equal(getPresetById('multi_party').id, 'daily');
 
     var nsfwMods = STATUS_BAR_MODULES.filter(function(m) { return m.nsfw; }).map(function(m) { return m.id; });
     [
       'nsfw_vagina', 'nsfw_breasts', 'nsfw_legs', 'nsfw_feet', 'nsfw_anus', 'nsfw_thoughts',
       'nsfw_mouth', 'nsfw_erogenous', 'nsfw_orgasm', 'nsfw_fluids', 'nsfw_exposure',
       'nsfw_training', 'nsfw_experience', 'nsfw_act_state', 'corruption_stage',
+      'nsfw_uterus', 'nsfw_pregnancy',
     ].forEach(function(id) {
       assert.ok(nsfwMods.indexOf(id) >= 0, 'missing nsfw ' + id);
     });
+    assert.deepEqual(
+      STATUS_BAR_MODULES.reduce(function(acc, m) {
+        if (acc.indexOf(m.group) < 0) acc.push(m.group);
+        return acc;
+      }, []),
+      ['scene', 'person', 'nsfw']
+    );
+    assert.equal(getModuleById('affection').label, '好感度');
+    assert.equal(getModuleById('affection_stage').label, '亲密档位');
+    assert.ok(getPresetById('wuxia').modules.indexOf('realm') >= 0);
+    assert.ok(getPresetById('xianxia').modules.indexOf('realm') >= 0);
+    assert.ok(getPresetById('adventure').modules.indexOf('injury') >= 0);
+    assert.ok(getPresetById('apocalypse').modules.indexOf('injury') >= 0);
+    assert.ok(getPresetById('military').modules.indexOf('injury') >= 0);
+    assert.ok(getPresetById('lovecraft').modules.indexOf('sanity') >= 0);
+    assert.ok(getPresetById('intimate').modules.indexOf('nsfw_uterus') >= 0);
+    assert.ok(getPresetById('intimate').modules.indexOf('nsfw_pregnancy') >= 0);
+    var added = buildPlaceholderPaths({
+      includeProtagonist: true,
+      charName: '甲',
+      moduleFlags: { realm: true, injury: true, sanity: true, nsfw_uterus: true, nsfw_pregnancy: true },
+    });
+    assert.ok(added.some(function(p) { return p.path === '角色.境界'; }));
+    assert.ok(added.some(function(p) { return p.path === '角色.伤势'; }));
+    assert.ok(added.some(function(p) { return p.path === '角色.理智' && p.meter; }));
+    assert.ok(added.some(function(p) { return p.path === '角色.子宫'; }));
+    assert.ok(added.some(function(p) { return p.path === '角色.怀孕'; }));
     assert.equal(modulesByGroup(false).every(function(m) { return !m.nsfw; }), true);
     assert.ok(modulesByGroup(true).some(function(m) { return m.nsfw; }));
 
-    var sfw = defaultModuleFlags('single_nsfw', false);
+    var sfw = defaultModuleFlags('intimate', false);
     assert.equal(sfw.nsfw_vagina, false);
-    var nsfw = defaultModuleFlags('single_nsfw', true);
+    var nsfw = defaultModuleFlags('intimate', true);
     assert.equal(nsfw.nsfw_vagina, true);
     assert.equal(nsfw.nsfw_mouth, true);
-    var forced = resolveModuleFlags('single_daily', { nsfw_vagina: true }, false);
+    var forced = resolveModuleFlags('daily', { nsfw_vagina: true }, false);
     assert.equal(forced.nsfw_vagina, false);
     assert.match(describeEnabledModules(nsfw), /小穴/);
     var forbid = describeForbiddenModules(
-      resolveModuleFlags('single_daily', { affection: false, corruption_stage: false }, false),
+      resolveModuleFlags('daily', { affection: false, corruption_stage: false }, false),
       { castMode: 'single', nsfwEnabled: false }
     );
     assert.match(forbid, /好感度|affection/);
     assert.match(forbid, /恶堕/);
     assert.match(forbid, /小穴|nsfw_vagina/);
-    assert.equal(getPresetById('multi_party').cast, 'multi');
-    assert.equal(getPresetById('single_wuxia').cast, 'single');
-    assert.equal(getPresetById('multi_apocalypse').cast, 'multi');
+    assert.equal(getPresetById('wuxia').label, '武侠');
+    assert.equal(getPresetById('apocalypse').label, '末日');
+    assert.equal(getPresetById('not-a-preset').id, 'daily');
   });
 
   it('旧模块 flags 可迁移且丢弃配角摘要', function() {
@@ -306,10 +371,10 @@ describe('statusBar core', function() {
     assert.match(describeFemaleOnlyRule(true), /只识别女角色|女性/);
     assert.match(describeFemaleOnlyRule(false), /性别不限/);
     assert.match(STATUS_BAR_CHAR_SCAN_PROMPT, /femaleOnlyRule/);
-    assert.match(STATUS_BAR_MVU_DESIGN_PROMPT, /视觉排版：\{\{design\}\}/);
     assert.match(STATUS_BAR_MVU_DESIGN_PROMPT, /\{\{pathLayoutSpec\}\}/);
-    assert.match(STATUS_BAR_MVU_DESIGN_PROMPT, /完整同套|人人/);
-    assert.match(STATUS_BAR_MVU_DESIGN_PROMPT, /每一个人|入选人物档案/);
+    assert.match(STATUS_BAR_MVU_DESIGN_PROMPT, /角色\./);
+    assert.match(STATUS_BAR_MVU_DESIGN_PROMPT, /NPC\.姓名/);
+    assert.doesNotMatch(STATUS_BAR_MVU_DESIGN_PROMPT, /sheet_attr|neon_monitor|基准主题/);
   });
 
   it('ensureCardProtagonistInCast / buildCastProfileBlock / describeMvuPathLayoutSpec', function() {
@@ -329,33 +394,33 @@ describe('statusBar core', function() {
       keys: [],
     }];
     var block = buildCastProfileBlock({
-      castMode: 'multi',
+      includeProtagonist: true,
+      includeFemales: true,
       selected: merged,
       card: { name: '林雾', desc: '卡侧描述', firstMes: '你好' },
       worldbookEntries: wb,
     });
-    assert.match(block, /【入选人物档案】/);
-    assert.match(block, /■ 林雾/);
-    assert.match(block, /■ 秦玥/);
+    assert.match(block, /角色\./);
+    assert.match(block, /NPC\.姓名/);
     assert.match(block, /描述：卡侧描述/);
     assert.match(block, /开场白：你好/);
+    assert.match(block, /· 秦玥/);
     assert.match(block, /档案：世界书档案正文/);
-    assert.doesNotMatch(block, /主角|配角|当前卡主角|精简/);
+    assert.doesNotMatch(block, /· 林雾/);
 
-    var flags = defaultModuleFlags('multi_party', false);
+    var flags = defaultModuleFlags('daily', false);
     var chars = [{ name: '林雾', selected: true }, { name: '秦玥', selected: true }];
     var spec = describeMvuPathLayoutSpec({
-      castMode: 'multi',
-      mainName: '林雾',
+      includeProtagonist: true,
+      includeFemales: true,
+      charName: '林雾',
       moduleFlags: flags,
       characters: chars,
     });
     assert.match(spec, /路径布局规格/);
-    assert.match(spec, /林雾/);
-    assert.match(spec, /秦玥/);
-    var linPaths = (spec.match(/NPC\.林雾\.[^、\s]+/g) || []).length;
-    var qinPaths = (spec.match(/NPC\.秦玥\.[^、\s]+/g) || []).length;
-    assert.ok(linPaths > 0 && linPaths === qinPaths, 'multi path examples symmetric');
+    assert.match(spec, /角色\./);
+    assert.match(spec, /NPC\.秦玥\./);
+    assert.doesNotMatch(spec, /NPC\.林雾\./);
   });
 
   it('normalizePathItem / pathsFromMvuDesign / castCharacter 勾选态', function() {
@@ -388,7 +453,7 @@ describe('statusBar core', function() {
       { path: 'NPC.林雾.着装', label: '着装', group: 'NPC', sample: '常服', role: '林雾' },
       { path: 'NPC.秦玥.情绪', label: '情绪', group: 'NPC', sample: '旁观', role: '秦玥' },
     ];
-    var multi = buildPreviewHtml({
+    var multi = themePreviewHtml({
       designId: 'multi_frost_blue', castMode: 'multi',
       mainName: '林雾', characters: chars, paths: mPaths,
     });
@@ -397,29 +462,29 @@ describe('statusBar core', function() {
     assert.doesNotMatch(multi, /配角摘要/);
     assert.match(multi, /data-zb-design="multi_frost_blue"|data-zb-layout="multi_frost_blue"/);
 
-    assert.match(buildPreviewHtml({
+    assert.match(themePreviewHtml({
       designId: 'multi_snow_glass', castMode: 'multi',
       mainName: '林雾', characters: chars, paths: mPaths,
     }), /sn-panel|sn-card/);
-    assert.match(buildPreviewHtml({
+    assert.match(themePreviewHtml({
       designId: 'multi_scrapbook', castMode: 'multi',
       mainName: '林雾', characters: chars, paths: mPaths,
     }), /scr-stack|scr-note-card|scr-cast-tab/);
-    assert.match(buildPreviewHtml({
+    assert.match(themePreviewHtml({
       designId: 'multi_oz_green', castMode: 'multi',
       mainName: '林雾', characters: chars, paths: mPaths,
     }), /oz-panel|oz-card|oz-fold/);
-    assert.match(buildPreviewHtml({
+    assert.match(themePreviewHtml({
       designId: 'multi_romance_glass', castMode: 'multi',
       mainName: '林雾', characters: chars, paths: mPaths,
     }), /rom-panel|rom-card|rom-drawer|rom-tab/);
-    assert.match(buildPreviewHtml({
+    assert.match(themePreviewHtml({
       designId: 'multi_neon_cyber', castMode: 'multi',
       mainName: '林雾', characters: chars, paths: mPaths,
     }), /crt-bezel|crt-win|crt-grid/);
 
     // 暮褐群档：信笺叠匣点信封翻页（非 softmon）
-    var mh = buildPreviewHtml({
+    var mh = themePreviewHtml({
       designId: 'multi_mahogany_dossier', castMode: 'multi',
       mainName: '林雾', characters: chars, paths: mPaths.concat([
         { path: '世界.地点', label: '地点', group: '世界', sample: '客厅' },
@@ -433,13 +498,13 @@ describe('statusBar core', function() {
     assert.match(designCss('multi_mahogany_dossier'), /c9a46a|wax-letter/);
     assert.match(mh, /data-zb-design="multi_mahogany_dossier"|data-zb-layout="multi_mahogany_dossier"/);
 
-    assert.match(buildPreviewHtml({
+    assert.match(themePreviewHtml({
       designId: 'multi_xianxia_ink', castMode: 'multi',
       mainName: '林雾', characters: chars, paths: mPaths,
     }), /xxs-plaques|xxs-unit|xxs-couplet/);
 
     // 软监控：仪表盘结构（无「其他角色」精简区）
-    var soft = buildPreviewHtml({
+    var soft = themePreviewHtml({
       designId: 'soft_monitor', castMode: 'single', mainName: '林雾',
       paths: SAMPLE_PATHS.concat([
         { path: '角色.好感', label: '好感', group: '角色', sample: '40' },
@@ -449,7 +514,7 @@ describe('statusBar core', function() {
     assert.match(soft, /sm-panel|sm-mini-bars|sm-grid|sm-dial|SYSTEM MONITORING/);
     assert.match(designCss('soft_monitor'), /a8d8ea|81ecec/);
 
-    var softM = buildPreviewHtml({
+    var softM = themePreviewHtml({
       designId: 'multi_soft_monitor', castMode: 'multi',
       mainName: '林雾', characters: chars, paths: mPaths.concat([
         { path: '世界.地点', label: '地点', group: '世界', sample: '客厅' },
@@ -465,7 +530,7 @@ describe('statusBar core', function() {
     assert.match(designCss('multi_soft_monitor'), /SYSTEM MONITORING|a8d8ea/);
 
     // 单人暮褐：蜡封印卷宗开合，无 Tab 栏名 mh-tabs
-    var mhSolo = buildPreviewHtml({
+    var mhSolo = themePreviewHtml({
       designId: 'mahogany_dossier', castMode: 'single',
       mainName: '林雾', paths: SAMPLE_PATHS,
     });
@@ -473,11 +538,11 @@ describe('statusBar core', function() {
     assert.doesNotMatch(mhSolo, /其他角色|mh-tabs/);
 
     // 兼容旧 layoutId / 旧 multi id 入参
-    var legacy = buildPreviewHtml({
+    var legacy = themePreviewHtml({
       layoutId: 'hero_sheet', styleId: 'romance', paths: SAMPLE_PATHS, castMode: 'single',
     });
     assert.match(legacy, /data-zb-design="sheet_attr"|data-zb-layout="sheet_attr"/);
-    var legacyMulti = buildPreviewHtml({
+    var legacyMulti = themePreviewHtml({
       designId: 'multi_pill_sheet', castMode: 'multi',
       mainName: '林雾', characters: chars, paths: mPaths,
     });
@@ -512,13 +577,11 @@ describe('statusBar core', function() {
       ],
       moduleFlags: { emotion: true, affection: true, action: true },
     });
-    var qin = multi.filter(function(p) { return p.role === '秦玥'; });
+    assert.ok(multi.every(function(p) { return p.path.indexOf('NPC.秦玥') !== 0; }));
+    assert.ok(multi.every(function(p) { return p.path.indexOf('角色.') !== 0; }));
     var lin = multi.filter(function(p) { return p.role === '林雾'; });
-    assert.ok(qin.some(function(p) { return /NPC\.秦玥/.test(p.path); }));
-    assert.ok(lin.some(function(p) { return /NPC\.林雾/.test(p.path); }));
-    // 信息量相等：同套模块字段数一致
-    assert.equal(qin.length, lin.length);
-    assert.equal(qin.length, 3); // emotion + affection + action
+    assert.equal(lin.length, 3);
+    assert.ok(lin.every(function(p) { return /NPC\.林雾/.test(p.path); }));
   });
 
   it('snippet / 正则组装', function() {
@@ -529,13 +592,18 @@ describe('statusBar core', function() {
       paths: [{ path: '角色.好感度', label: '好感' }],
     });
     assert.match(snip, /data-zb-path="角色\.好感度"/);
+    assert.match(snip, /data-zb-meter="角色\.好感度"/);
     assert.match(snip, /zb-style/);
-    assert.match(snip, /data-zb-layout="form_sections"|data-zb-design="form_sections"/);
+    assert.doesNotMatch(snip, /form_sections|sheet_attr/);
     var rx = buildStatusBarRegex({ snippetHtml: snip, mode: 'mvu' });
     assert.equal(rx.scriptName, '[美化]状态栏展示');
     assert.match(rx.findRegex, /StatusPlaceHolderImpl/);
     assert.match(rx.replaceString, /```html/);
     assert.match(rx.replaceString, /data-zb-path/);
+    assert.match(rx.replaceString, /getCurrentMessageId/);
+    assert.match(rx.replaceString, /display_data[\s\S]*stat_data/);
+    assert.doesNotMatch(rx.replaceString, /type="module"/);
+    assert.doesNotMatch(rx.replaceString, /message_id:"latest"|message_id: "latest"/);
     var rxText = buildStatusBarRegex({ snippetHtml: snip, mode: 'text' });
     assert.match(rxText.findRegex, /StatusBar/);
   });
@@ -550,15 +618,17 @@ describe('statusBar core', function() {
       characters: [{ name: 'A' }, { name: 'B', selected: false }],
       paths: [{ path: 'a' }],
     });
-    assert.equal(d.castMode, 'multi');
-    assert.equal(d.presetId, 'multi_harem');
-    assert.equal(d.designId, 'multi_frost_blue');
-    assert.equal(d.layoutId, 'multi_frost_blue');
-    assert.equal(d.styleId, 'multi_frost_blue');
-    assert.equal(d.mainName, 'A');
+    assert.equal(d.mode, 'mvu');
+    assert.equal(d.presetId, 'romance');
+    assert.equal(d.includeProtagonist, false);
+    assert.equal(d.includeFemales, true);
+    assert.equal(d.designId, undefined);
+    assert.equal(d.mainName, undefined);
     assert.equal(d.femaleOnly, true);
+    assert.equal(d.characters[0].name, 'A');
     assert.equal(d.characters[1].selected, false);
     assert.equal(d.paths[0].path, 'a');
+    assert.equal(d.paths[0].set, 'global');
     assert.equal(STATUS_BAR_EXT_KEY, 'zmer_statusbar_design');
     assert.equal(STATUS_BAR_SCRIPT_NAME, '[状态栏]前端展示');
     assert.equal(getDesignById('ink_paper').id, 'ink_paper');
@@ -567,18 +637,32 @@ describe('statusBar core', function() {
 
     // 单人误选多人方案 → 回落默认（旧 multi id 先 migrate 再校验 cast）
     var bad = normalizeDesign({ castMode: 'single', layoutId: 'multi_pill_sheet' });
-    assert.equal(bad.designId, 'sheet_attr');
+    assert.equal(bad.includeProtagonist, true);
+    assert.equal(bad.includeFemales, false);
+    assert.equal(bad.designId, undefined);
 
-    // 多人误选单人方案 → 回落
-    var badM = normalizeDesign({ castMode: 'multi', layoutId: 'sheet_attr' });
-    assert.equal(badM.designId, 'multi_mahogany_dossier');
+    var badM = normalizeDesign({
+      castMode: 'multi',
+      mainName: '卡角色',
+      characters: [{ name: '卡角色', source: 'card' }, { name: '女配', selected: true }],
+    });
+    assert.equal(badM.includeProtagonist, true);
+    assert.deepEqual(badM.characters.map(function(c) { return c.name; }), ['女配']);
 
     var off = normalizeDesign({ femaleOnly: false });
     assert.equal(off.femaleOnly, false);
 
     // designId 直读
-    var direct = normalizeDesign({ castMode: 'single', designId: 'romance_glow' });
-    assert.equal(direct.designId, 'romance_glow');
+    var direct = normalizeDesign({
+      includeProtagonist: true,
+      includeFemales: false,
+      presetId: 'daily',
+      layoutPrompt: '细线',
+      floors: [{ global: { a: 1 } }],
+    });
+    assert.equal(direct.layoutPrompt, '细线');
+    assert.equal(direct.floors, undefined);
+    assert.equal(direct.includeFemales, false);
   });
 });
 
@@ -600,107 +684,48 @@ describe('statusBar wiring', function() {
     assert.match(tools, /'statusbar'/);
 
     const panel = readStatusBarPanelSources(root);
-    assert.match(panel, /人数/);
-    assert.match(panel, /预设/);
-    assert.match(panel, /排版/);
-    assert.match(panel, /panel-header statusbar-panel-head/);
-    assert.match(panel, /ui-step-pills/);
-    assert.match(panel, /人数 → 预设 → 生成/);
-    assert.match(panel, /data-sb-step="3"[^>]*>[\s\S]*?生成/);
-    assert.match(panel, /data-sb-step="4"[^>]*>[\s\S]*?排版/);
-    assert.match(panel, /sbCustomBox/);
-    assert.match(panel, /sbCustomBase/);
-    assert.doesNotMatch(readFileSync(join(root, 'src/components/StatusBarPanel.astro'), 'utf8'), /sbCustomMode/);
-    assert.match(panel, /buildCastProfileBlock/);
-    assert.match(panel, /ensureCardProtagonistInCast/);
-    assert.match(panel, /describeMvuPathLayoutSpec/);
-    assert.match(panel, /sbBtnCustomGenerate/);
-    assert.match(panel, /statusbar_custom_layout/);
-    assert.match(panel, /STATUS_BAR_CUSTOM_LAYOUT_PROMPT/);
-    assert.match(panel, /CUSTOM_DESIGN_ID/);
-    assert.doesNotMatch(panel, /人数 → 预设 → 排版 → 样式 → 生成/);
-    assert.doesNotMatch(panel, /data-sb-step="5"/);
-    assert.match(panel, /sbLayoutGrid/);
-    assert.match(panel, /layoutsForCast/);
-    assert.match(panel, /designId|getDesignById/);
-    assert.match(panel, /sbBtnGenerate/);
-    assert.match(panel, /sbBtnInject/);
-    assert.match(panel, /__injectMvuEntries__/);
-    assert.match(panel, /buildStatusBarRegex/);
-    assert.doesNotMatch(panel, /buildTavernHelperScript/);
-    assert.doesNotMatch(panel, /__setTavernHelperScript__/);
-    assert.match(panel, /statusbar_generate/);
-    assert.match(panel, /statusbar_char_scan/);
-    assert.match(panel, /__assistantMvuApi__/);
-    assert.match(panel, /__aiTaskCenter__/);
-    assert.match(panel, /完整视觉方案|一对一|模块联动/);
-    assert.match(panel, /buildPlaceholderPaths/);
-    assert.match(panel, /previewPaths|pathsForPreview/);
-    assert.match(panel, /pathsForPreview\(\)|generatedOk && state\.paths/);
-    assert.match(panel, /state\.paths = \[\]/);
-    assert.match(panel, /defaultDesignId\(state\.castMode\)/);
-    assert.doesNotMatch(readFileSync(join(root, 'src/components/StatusBarPanel.astro'), 'utf8'), /配角摘要/);
-    assert.match(panel, /sbFemaleOnly/);
-    assert.match(panel, /只识别女/);
-    assert.match(panel, /AI 识别/);
-    assert.match(panel, /describeFemaleOnlyRule/);
-    // 「只识别女」须为独立 checkbox，不得包进 button（否则无法勾选）
-    {
-      const multiTool = panel.match(/id="sbMultiBox"[\s\S]*?id="sbCharList"/);
-      assert.ok(multiTool, '多人工具行 DOM 缺失');
-      const chunk = multiTool[0];
-      assert.match(chunk, /id="sbFemaleOnly"/);
-      assert.match(chunk, /id="sbBtnScanChars"/);
-      assert.match(chunk, /sb-cast-toolbar/);
-      assert.doesNotMatch(chunk, /sb-tool-actions/);
-      assert.doesNotMatch(chunk, /<button[\s\S]*id="sbFemaleOnly"/);
-      assert.doesNotMatch(chunk, /<button[\s\S]*?<\/button>[\s\S]*id="sbFemaleOnly"[\s\S]*?<\/button>/);
-      // checkbox 在 label 内，与 AI 按钮为兄弟（同在 cast-toolbar）
-      assert.match(chunk, /<label[^>]*for="sbFemaleOnly"[\s\S]*?id="sbFemaleOnly"[\s\S]*?<\/label>[\s\S]*?<button[^>]*id="sbBtnScanChars"/);
-    }
-    // 工具行布局：flex+gap，无 absolute 盖按钮；覆盖全局 .btn 全宽
-    assert.match(panel, /\.sb-cast-toolbar\s*\{[^}]*display:\s*flex/);
-    assert.match(panel, /\.sb-cast-toolbar\s*\{[^}]*gap:\s*var\(--space-2\)/);
-    assert.match(panel, /\.sb-tool-btn\s*\{[^}]*width:\s*auto\s*!important/);
-    assert.match(panel, /\.sb-tool-btn\s*\{[^}]*position:\s*static\s*!important/);
-    assert.doesNotMatch(panel, /\.sb-cast-toolbar[^{]*\{[^}]*position:\s*absolute/);
-    assert.doesNotMatch(panel, /\.sb-check-inline\s*\{[^}]*z-index:/);
-    assert.match(panel, /femaleOnlyEl\.addEventListener\('change'/);
-    assert.match(panel, /state\.femaleOnly = !!femaleOnlyEl\.checked/);
-    assert.match(panel, /c\.selected = !!inp\.checked/);
-    assert.match(panel, /syncMainSelect/);
-    assert.match(panel, /sb-layout/);
-    assert.match(panel, /grid-template-columns/);
-    // 多人人物列表：紧凑网格短卡片（非整行纵向堆叠）
-    assert.match(panel, /sb-char-card/);
-    assert.match(panel, /minmax\(160px,\s*1fr\)/);
-    assert.match(panel, /-webkit-line-clamp:\s*2/);
-    assert.doesNotMatch(panel, /sb-char-row/);
-    // 左栏排版：固定底栏同行、分段人数、工具行、主题色点短卡
-    assert.match(panel, /sb-footer/);
-    assert.match(panel, /sb-footer-btn/);
-    assert.match(panel, /height:\s*36px/);
-    assert.match(panel, /sb-seg/);
-    assert.match(panel, /sb-tool-row/);
-    assert.match(panel, /sb-tool-btn/);
-    assert.match(panel, /sb-layout-dot/);
-    assert.match(panel, /--sb-accent/);
-    assert.doesNotMatch(panel, /📊/);
-    assert.match(panel, /sb-status\.is-ok/);
-    // 生成在 step3 工具行；注入在 step4 底栏
-    assert.match(panel, /data-sb-stage="3"[\s\S]*?sb-tool-row[\s\S]*?sbBtnGenerate/);
-    assert.match(panel, /data-sb-stage="4"[\s\S]*?sb-footer[\s\S]*?sbBtnInject/);
-    assert.doesNotMatch(panel, /class="sb-actions"/);
-    // 分步互斥：非当前步 hidden；CSS 须覆盖 .sb-stage 的 display:flex，否则会叠在一起
-    assert.match(panel, /data-sb-stage="1"/);
-    assert.match(panel, /data-sb-stage="2"[^>]*\bhidden\b/);
-    assert.match(panel, /data-sb-stage="3"[^>]*\bhidden\b/);
-    assert.match(panel, /data-sb-stage="4"[^>]*\bhidden\b/);
-    assert.match(panel, /\.sb-stage\[hidden\][\s\S]*display:\s*none\s*!important/);
-    assert.match(panel, /el\.hidden\s*=\s*Number\(el\.getAttribute\('data-sb-stage'\)\)\s*!==\s*n/);
-    // 每步底栏在 stage 内（body 后），不跨步插在中间
-    assert.match(panel, /data-sb-stage="1"[\s\S]*?sb-stage-body[\s\S]*?sb-footer[\s\S]*?sbBtnNext1/);
-    assert.match(panel, /data-sb-stage="2"[\s\S]*?sb-stage-body[\s\S]*?sb-footer[\s\S]*?sbBtnNext2/);
+    const astro = readFileSync(join(root, 'src/components/StatusBarPanel.astro'), 'utf8');
+    const boot = readFileSync(join(root, 'src/lib/statusBar/panelBoot.mjs'), 'utf8');
+    assert.match(astro, /人物/);
+    assert.match(astro, /主角/);
+    assert.match(astro, /女角色/);
+    assert.match(astro, /id="sbBtnVars"/);
+    assert.match(astro, /id="sbBtnLayoutRegen"/);
+    assert.match(astro, /id="sbBtnLayoutRevise"/);
+    assert.doesNotMatch(astro, /id="sbBtnGenerate"/);
+    assert.match(astro, /sb-module-group/);
+    assert.match(boot, /STATUS_BAR_MODULE_GROUPS/);
+    assert.match(astro, /生成3楼样例变量数据/);
+    assert.match(astro, /sbBtnPreviewPrompt/);
+    assert.match(astro, /border-left:\s*2px solid var\(--color-accent\)/);
+    assert.match(astro, /ui-step-pill/);
+    assert.match(astro, /max-width:\s*960px/);
+    assert.equal((astro.match(/btn-primary/g) || []).length, 0);
+    assert.doesNotMatch(astro, /sbBtnRefreshPreview|sbLayoutGrid|sbBtnInject|上一步|下一步|sbPathGroups|查看注入脚本/);
+    assert.match(astro, /assistant-mode-switch/);
+    assert.match(astro, /data-sb-view="preview"/);
+    assert.match(astro, /data-sb-view="vars"/);
+    assert.match(astro, /data-sb-view="script"/);
+    assert.match(boot, /buildVariableTree/);
+    assert.match(panel, /rejectStatusBarGenerate/);
+    assert.match(boot, /appendStylePreset/);
+    assert.match(boot, /__getActivePresetsStr__/);
+    assert.match(boot, /模型返回空内容/);
+    const bootAi = readFileSync(join(root, 'src/lib/card-builder/bootAiConfig.mjs'), 'utf8');
+    assert.match(bootAi, /window\.__getActivePresetsStr__/);
+    const wb = readFileSync(join(root, 'src/lib/card-builder/panels/worldbookShared.mjs'), 'utf8');
+    assert.match(wb, /window\.__getActivePresetsStr__/);
+    assert.match(boot, /generateVariables/);
+    assert.match(boot, /generateLayout/);
+    assert.match(boot, /card\.statusbar\.layout/);
+    assert.match(panel, /statusbar_sample_floors/);
+    assert.match(panel, /validateSampleFloors/);
+    assert.match(panel, /keepMarkupPaths/);
+    assert.match(panel, /getCurrentMessageId|buildStatusBarRegex/);
+    assert.doesNotMatch(astro + boot, /designCss\(|layoutsForCast|statusBarThemes/);
+    assert.match(panel, /请勾选主角或女角色|rejectStatusBarGenerate/);
+    assert.doesNotMatch(panel, /btn\.disabled\s*=\s*true/);
+    assert.doesNotMatch(panel, /正在生成|正在识别/);
   });
 
   it('MVU 面板已去掉整套生成入口', function() {
@@ -724,7 +749,9 @@ describe('statusBar wiring', function() {
     assert.match(canon, /femaleOnlyRule/);
     assert.match(canon, /statusBarCustomLayout/);
     assert.match(canon, /data-zb-path/);
-    assert.match(canon, /配角摘要|完整同套|人人/);
+    assert.match(canon, /data-zb-meter/);
+    assert.match(canon, /不要输出当前卡角色本人/);
+    assert.doesNotMatch(canon, /sheet_attr|neon_monitor|multi_frost/);
     const tc = readFileSync(join(root, 'src/lib/aiTaskCenter.mjs'), 'utf8');
     assert.match(tc, /statusbar_generate/);
     assert.match(tc, /statusbar_char_scan/);
@@ -769,9 +796,9 @@ describe('statusBar wiring', function() {
     assert.ok(nsfwPaths.length > sfwPaths.length);
 
     CORE_SINGLE.forEach(function(id) {
-      var htmlSfw = buildPreviewHtml({ designId: id, paths: sfwPaths, mainName: '林雾', castMode: 'single' });
+      var htmlSfw = themePreviewHtml({ designId: id, paths: sfwPaths, mainName: '林雾', castMode: 'single' });
       assert.deepEqual(orphanPaths(sfwPaths, htmlSfw).map(function(p) { return p.label; }), [], id + ' SFW orphan');
-      var htmlNsfw = buildPreviewHtml({ designId: id, paths: nsfwPaths, mainName: '林雾', castMode: 'single' });
+      var htmlNsfw = themePreviewHtml({ designId: id, paths: nsfwPaths, mainName: '林雾', castMode: 'single' });
       assert.deepEqual(orphanPaths(nsfwPaths, htmlNsfw).map(function(p) { return p.label; }), [], id + ' NSFW orphan');
       assert.ok((htmlNsfw.match(/双乳|小穴|内心|美腿/g) || []).length >= 3, id + ' NSFW fields');
     });
@@ -784,7 +811,7 @@ describe('statusBar wiring', function() {
       castMode: 'multi', mainName: '林雾', characters: chars, moduleFlags: allFlags(true),
     });
     CORE_MULTI.forEach(function(id) {
-      var html = buildPreviewHtml({
+      var html = themePreviewHtml({
         designId: id, paths: multiPaths, mainName: '林雾', castMode: 'multi', characters: chars,
       });
       assert.match(html, /任务/, id + ' quest');
@@ -793,44 +820,205 @@ describe('statusBar wiring', function() {
     });
 
     // softmonLayout 回归（frost）
-    var frostHtml = buildPreviewHtml({
+    var frostHtml = themePreviewHtml({
       designId: 'frost_blue', paths: sfwPaths, mainName: '林雾', castMode: 'single',
     });
     assert.deepEqual(orphanPaths(sfwPaths, frostHtml).map(function(p) { return p.label; }), [], 'frost_blue SFW');
-    var multiFrost = buildPreviewHtml({
+    var multiFrost = themePreviewHtml({
       designId: 'multi_frost_blue', paths: multiPaths, mainName: '林雾', castMode: 'multi', characters: chars,
     });
     assert.match(multiFrost, /任务/);
     assert.match(multiFrost, /事件/);
   });
 
-  it('文档同步状态栏一对一主题与女角识别', function() {
+  it('文档同步状态栏两套路径', function() {
     const doc = readFileSync(join(root, 'docs/guides/card-writing-guide.md'), 'utf8');
     assert.match(doc, /只识别女/);
-    assert.match(doc, /AI 识别.*提示词|仅影响.*AI 识别|仅作用于.*AI 识别/);
-    assert.match(doc, /独立 checkbox|不在 AI 按钮内|独立勾选/);
-    assert.match(doc, /紧凑网格短卡片|minmax\(160px/);
-    assert.match(doc, /固定底栏|分段控件|工具行/);
-    assert.match(doc, /亲密度\/好感|信任|关系阶段/);
-    assert.match(doc, /口腔|敏感带|高潮\/快感|体液/);
-    assert.match(doc, /视觉主题|一对一|完整视觉/);
-    assert.match(doc, /排版/);
-    assert.match(doc, /配角摘要/);
-    assert.match(doc, /人人同套|同信息量/);
-    assert.match(doc, /按人数严格过滤|单人只显示单人|人数过滤|按人数过滤/);
-    assert.match(doc, /15 美学族|30 套|一主题一文件|暮褐|软监控/);
-    assert.match(doc, /结构互异|拍立得|CRT|蜡封|人人同套|其他角色/);
-    assert.match(doc, /开启模块重绘|模块.*重绘|占位路径|state\.paths/);
-    assert.match(doc, /模块覆盖约定|orphanPaths|worldScopedPaths|无硬/);
-    assert.match(doc, /人数.*预设.*生成.*排版|生成.*排版/);
-    assert.doesNotMatch(doc, /人数\/预设\/排版\/样式生成/);
-    assert.doesNotMatch(doc, /其他角色折叠/);
+    assert.match(doc, /AI 识别/);
+    assert.match(doc, /角色\.字段/);
+    assert.match(doc, /NPC\.姓名/);
+    assert.match(doc, /请勾选主角或女角色/);
+    assert.match(doc, /getCurrentMessageId/);
+    assert.doesNotMatch(doc, /15 美学族|30 套预览主题/);
     const readme = readFileSync(join(root, 'README.md'), 'utf8');
-    assert.match(readme, /人数→预设→生成|人数 → 预设 → 生成/);
-    assert.match(readme, /自定义排版/);
-    assert.match(readme, /15 美学族|30 套|一主题一文件|软监控|一对一视觉主题/);
-    assert.match(readme, /人人同套|同信息量|结构互异|其他角色/);
-    assert.match(readme, /勾选模块须在预览中可见|无硬截断|全局任务\/事件/);
-    assert.match(readme, /固定底栏|分段人数|短卡网格|工具行/);
+    assert.match(readme, /两套路径|角色\.字段/);
+    assert.doesNotMatch(readme, /15 美学族 × 单人/);
+  });
+});
+
+describe('statusBar two path sets', function() {
+  var flags = { emotion: true, time_weather: true, affection: true, corruption_stage: true };
+
+  it('只勾主角：角色. 加全局，没有 NPC.卡角色名', function() {
+    var paths = buildPlaceholderPaths({
+      includeProtagonist: true,
+      includeFemales: false,
+      charName: '林雾',
+      characters: [{ name: '林雾', selected: true }, { name: '秦玥', selected: true }],
+      moduleFlags: flags,
+    });
+    assert.ok(paths.some(function(p) { return p.path === '角色.情绪' && p.set === 'protagonist'; }));
+    assert.ok(paths.some(function(p) { return p.path === '世界.当前时间' && p.set === 'global'; }));
+    assert.ok(paths.every(function(p) { return p.path.indexOf('NPC.林雾') !== 0; }));
+    assert.ok(paths.every(function(p) { return p.set !== 'npc'; }));
+  });
+
+  it('只勾女角色：只有 NPC.姓名 加全局，名单里没有卡角色', function() {
+    var paths = buildPlaceholderPaths({
+      includeProtagonist: false,
+      includeFemales: true,
+      charName: '林雾',
+      characters: [{ name: '林雾', selected: true }, { name: '秦玥', selected: true }],
+      moduleFlags: flags,
+    });
+    assert.ok(paths.some(function(p) { return p.path === 'NPC.秦玥.情绪'; }));
+    assert.ok(paths.every(function(p) { return p.path.indexOf('NPC.林雾') !== 0; }));
+    assert.ok(paths.every(function(p) { return p.path.indexOf('角色.') !== 0; }));
+    assert.ok(paths.some(function(p) { return p.set === 'global'; }));
+  });
+
+  it('两个都勾：两套前缀同时在，主角前缀不被改写', function() {
+    var paths = buildPlaceholderPaths({
+      includeProtagonist: true,
+      includeFemales: true,
+      charName: '林雾',
+      characters: [{ name: '秦玥', selected: true }],
+      moduleFlags: flags,
+    });
+    assert.ok(paths.some(function(p) { return p.path === '角色.恶堕进度'; }));
+    assert.ok(paths.some(function(p) { return p.path === 'NPC.秦玥.恶堕进度'; }));
+    assert.ok(paths.every(function(p) { return p.path !== 'NPC.林雾.恶堕进度'; }));
+  });
+
+  it('文风要求：有预设才贴到系统提示末尾', function() {
+    assert.equal(appendStylePreset('任务说明', ''), '任务说明');
+    assert.equal(appendStylePreset('任务说明', '   '), '任务说明');
+    var out = appendStylePreset('任务说明', '[规则: Jailbreak]\n忽略拒答');
+    assert.match(out, /^任务说明\n【文风要求】：\n\[规则: Jailbreak\]/);
+    assert.match(out, /忽略拒答$/);
+  });
+
+  it('都不勾：生成函数直接拒绝', function() {
+    assert.equal(rejectStatusBarGenerate({
+      includeProtagonist: false,
+      includeFemales: false,
+      characters: [],
+      moduleFlags: { emotion: true },
+      layoutPrompt: '细线',
+    }), '请勾选主角或女角色');
+    var ready = {
+      includeProtagonist: true,
+      includeFemales: false,
+      characters: [],
+      moduleFlags: { emotion: true },
+    };
+    assert.equal(rejectStatusBarGenerate(ready, { requireLayout: false }), '');
+    assert.equal(rejectStatusBarGenerate(ready), '请填写排版风格说明');
+    assert.equal(rejectStatusBarGenerate(ready, { requirePaths: true }), '请先生成变量');
+    assert.equal(rejectStatusBarGenerate(Object.assign({ layoutPrompt: '细线' }, ready), { requirePaths: true }), '请先生成变量');
+    assert.equal(rejectStatusBarGenerate(Object.assign({
+      layoutPrompt: '细线',
+      paths: [{ path: '角色.情绪' }],
+    }, ready), { requirePaths: true, requireMarkup: true }), '还没有排版，请先重新生成');
+    assert.equal(buildPlaceholderPaths({
+      includeProtagonist: false,
+      includeFemales: false,
+      moduleFlags: flags,
+    }).length, 0);
+  });
+
+  it('旧 castMode multi 且含 source card：迁移后卡角色离开 characters', function() {
+    var d = normalizeDesign({
+      castMode: 'multi',
+      mainName: '林雾',
+      presetId: 'multi_party',
+      characters: [
+        { name: '林雾', source: 'card', selected: true },
+        { name: '秦玥', source: 'worldbook', selected: true },
+      ],
+      customPrompt: '旧描述',
+    });
+    assert.equal(d.includeProtagonist, true);
+    assert.equal(d.includeFemales, true);
+    assert.deepEqual(d.characters.map(function(c) { return c.name; }), ['秦玥']);
+    assert.equal(d.presetId, 'daily');
+    assert.equal(d.layoutPrompt, '旧描述');
+    assert.equal(d.mode, 'mvu');
+    var hydrated = reconcileDesignWithCharName(normalizeDesign({
+      castMode: 'multi',
+      characters: [{ name: '路人', selected: true }, { name: '现卡', selected: true }],
+    }), '现卡');
+    assert.equal(hydrated.includeProtagonist, true);
+    assert.deepEqual(hydrated.characters.map(function(c) { return c.name; }), ['路人']);
+  });
+
+  it('三楼三份对象；切回第 1 楼读到第 1 楼的值', function() {
+    var shared = { global: { '世界.当前时间': '相同' } };
+    assert.equal(validateSampleFloors([shared, shared, { global: {} }]).ok, false);
+    var a = { global: { '世界.当前时间': '晨' }, protagonist: { '角色.情绪': '平静' }, npc: {} };
+    var b = { global: { '世界.当前时间': '午' }, protagonist: { '角色.情绪': '紧张' }, npc: {} };
+    var c = { global: { '世界.当前时间': '夜' }, protagonist: { '角色.情绪': '疲倦' }, npc: {} };
+    var checked = validateSampleFloors([a, b, c]);
+    assert.equal(checked.ok, true);
+    assert.notEqual(checked.floors[0], checked.floors[2]);
+    assert.equal(readFloorValue(checked.floors[2], { path: '世界.当前时间', set: 'global' }), '夜');
+    assert.equal(readFloorValue(checked.floors[0], { path: '世界.当前时间', set: 'global' }), '晨');
+    assert.equal(readFloorValue(checked.floors[0], { path: '角色.情绪', set: 'protagonist' }), '平静');
+    assert.equal(readFloorValue(checked.floors[0], { path: 'NPC.秦玥.情绪', set: 'npc', role: '秦玥' }), undefined);
+  });
+
+  it('样例不出现在 normalizeDesign 结果里', function() {
+    var d = normalizeDesign({
+      includeProtagonist: true,
+      floors: [{ global: { x: 1 } }, { global: { x: 2 } }, { global: { x: 3 } }],
+      activeFloor: 2,
+    });
+    assert.equal(d.floors, undefined);
+    assert.equal(d.activeFloor, undefined);
+  });
+
+  it('预览朴素列表与正则都带 data-zb-path，数值条带 data-zb-meter', function() {
+    var paths = buildPlaceholderPaths({
+      includeProtagonist: true,
+      charName: '林雾',
+      moduleFlags: { affection: true, emotion: true },
+    });
+    var preview = buildPreviewHtml({ paths: paths });
+    assert.match(preview, /data-zb-path="角色\.好感度"/);
+    assert.match(preview, /data-zb-meter="角色\.好感度"/);
+    assert.doesNotMatch(preview, /data-zb-meter="角色\.情绪"/);
+    assert.doesNotMatch(preview, /sheet_attr|neon_monitor/);
+    var snip = buildStatusBarSnippet({ paths: paths, mode: 'mvu' });
+    var rx = buildStatusBarRegex({ snippetHtml: snip, mode: 'mvu' });
+    assert.equal(rx.placement[0], 2);
+    assert.match(rx.replaceString, /data-zb-path/);
+    assert.match(rx.replaceString, /data-zb-meter/);
+    assert.match(rx.replaceString, /getCurrentMessageId/);
+    assert.doesNotMatch(rx.replaceString, /type=.module/);
+    assert.doesNotMatch(rx.replaceString, /latest/);
+  });
+
+  it('变量树按路径嵌套，主角与女角色前缀不改写', function() {
+    var tree = buildVariableTree([
+      { path: '世界.当前时间', set: 'global', sample: '晨' },
+      { path: '事件.标签', set: 'global', sample: ['青霞门逼债', '雨中苦练', '身份伪装'] },
+      { path: '角色.情绪', set: 'protagonist', sample: '平静' },
+      { path: '角色.好感度', set: 'protagonist', sample: '42' },
+      { path: 'NPC.秦玥.情绪', set: 'npc', role: '秦玥', sample: '紧张' },
+    ], function(p) { return p.sample; });
+    assert.equal(tree['世界']['当前时间'], '晨');
+    assert.deepEqual(tree['事件']['标签'], ['青霞门逼债', '雨中苦练', '身份伪装']);
+    assert.equal(tree['角色']['情绪'], '平静');
+    assert.equal(tree['NPC']['秦玥']['情绪'], '紧张');
+    assert.equal(tree['NPC']['林雾'], undefined);
+    assert.equal(tree['角色']['秦玥'], undefined);
+  });
+
+  it('提示词正文不含主题 CSS 与 30 套主题 id', function() {
+    var blob = STATUS_BAR_MVU_DESIGN_PROMPT + '\n' + STATUS_BAR_CUSTOM_LAYOUT_PROMPT + '\n' + STATUS_BAR_CHAR_SCAN_PROMPT;
+    STATUS_BAR_DESIGNS.forEach(function(d) {
+      assert.equal(blob.indexOf(d.id), -1, d.id);
+    });
+    assert.doesNotMatch(blob, /基准主题|statusBarThemes|designCss/);
   });
 });

@@ -21,6 +21,7 @@ import {
   entryExportComment,
 } from '../../worldbook/worldbookUi.mjs';
 import { fromAiJsonEntry, normalizeDraftEntry } from '../../worldbook/worldbookEntryBridge.mjs';
+import { buildGenerationPack, relationMentionWarning } from '../../assistant/generationContext.mjs';
 
 /** 世界书行估算高度（TanStack estimateSize + measure） */
 export var WB_VL_ROW_HEIGHT = 72;
@@ -403,6 +404,8 @@ export function createWorldbookShared(ctx) {
   //  预设 / 联网搜索
   // ============================================================
   function getActivePresetsStr() {
+    var bridge = typeof window !== 'undefined' ? window.__getActivePresetsStr__ : null;
+    if (typeof bridge === 'function') return String(bridge() || '');
     var list = window.__parsedPresetList__ || [];
     return list.filter(function(p) { return p.enabled; })
       .map(function(p) { return '[\u89C4\u5219: ' + p.name + ']\n' + p.content; }).join('\n\n');
@@ -443,8 +446,9 @@ export function createWorldbookShared(ctx) {
   // ============================================================
   //  AI 单条生成（供 UI 按钮 + 助手复用）
   // ============================================================
-  async function generateContextAwareWBEntry(customDirection, stepInfo, signal) {
+  async function generateContextAwareWBEntry(customDirection, stepInfo, signal, contextOpts) {
     if (!stepInfo) stepInfo = '';
+    contextOpts = contextOpts || {};
     var url = String(ctx.$('apiUrl').value).replace(/\/$/, '') + '/chat/completions';
     var key = ctx.val('apiKey');
     var model = ctx.val('modelSelect');
@@ -455,48 +459,53 @@ export function createWorldbookShared(ctx) {
       searchInjection = sr.searchText || '';
     }
     var wbIncludeOtherEntries = ctx.$('wbIncludeOtherEntries');
-    var includeOthers = !wbIncludeOtherEntries || wbIncludeOtherEntries.checked;
-    var existingCtx = includeOthers
-      ? ctx.state.worldbookEntries.map(function(e) {
-        return '[\u6807\u9898:' + entryExportComment(e) + '] (\u7B56\u7565:' + e.strategy + '): ' + e.content;
-      }).join('\n-----\n')
-      : '';
-    var ctxStr = includeOthers
-      ? (existingCtx ? '\n\u3010\u5DF2\u6709\u8BBE\u5B9A(\u4E0D\u53EF\u91CD\u590D)\u3011\uFF1A\n' + existingCtx : '\n\u3010\u5F53\u524D\u4E16\u754C\u4E66\u4E3A\u7A7A\u3011')
-      : '\n\u3010\u5DF2\u8DF3\u8FC7\u878D\u5408\u5DF2\u6709\u4E16\u754C\u4E66\u6761\u76EE\u3011';
+    var includeOthers = !!(contextOpts.forceLinks) || !wbIncludeOtherEntries || wbIncludeOtherEntries.checked;
     var presetsStr = getActivePresetsStr();
-    var presetBlock = presetsStr ? '\n\n\u3010\u6587\u98CE\u7EA6\u675F\u3011\uFF1A\n' + presetsStr : '';
+    var presetBlock = presetsStr ? '\n\n【文风约束】：\n' + presetsStr : '';
     var wbIncludeCharData = ctx.$('wbIncludeCharData');
-    var includeChar = wbIncludeCharData && wbIncludeCharData.checked;
-    var charBlock = includeChar
-      ? '\n【高级·主角背景参考】：' + ctx.val('charName') + ' | ' + String(ctx.val('charDesc') || '').slice(0, 2000) + '\n'
-      : '\n【管道】世界书与主角角色设定分离；默认不读取主角 Description。\n';
+    var includeChar = !!(contextOpts.forceScene) || (wbIncludeCharData && wbIncludeCharData.checked);
     var adultHints = (typeof window.__buildAdultPromptHints__ === 'function')
       ? (window.__buildAdultPromptHints__() || {})
       : {};
     var wvHint = getWorldviewHintBlock();
-    var sysPrompt = ctx.promptText('wbSingle', '') + stepInfo + charBlock + '\n' + ctxStr + '\n' + presetBlock
-      + buildNsfwFlavorHint() + buildNtlHintForPrompt()
-      + (adultHints.vessel || '') + buildAdultCanonHint()
-      + (wvHint || '')
-      + '\n【冲突处理】若「用户额外要求」与「世界观预设」冲突，以用户额外要求为准。'
+    var pack = buildGenerationPack({
+      instruction: customDirection || '',
+      entries: includeOthers ? ctx.state.worldbookEntries : [],
+      character: { charName: ctx.val('charName'), charDesc: ctx.val('charDesc') },
+      worldviewHint: wvHint,
+      adultHints: {
+        nsfw: buildNsfwFlavorHint(),
+        ntl: buildNtlHintForPrompt(),
+        canon: buildAdultCanonHint(),
+        vessel: adultHints.vessel || '',
+      },
+      includeCharacter: includeChar,
+      includeRelations: includeOthers,
+      charDescCap: (wbIncludeCharData && wbIncludeCharData.checked) ? 2000 : 400,
+    });
+    var sysPrompt = ctx.promptText('wbSingle', '') + stepInfo + '\n' + pack + presetBlock
+      + '\n【冲突处理】若「本次任务」与「世界观预设」冲突，以本次任务为准，已确认的 Limits 仍优先。'
       + searchInjection
-      + '\n\u3010\u8F93\u51FA\u3011\uFF1A1\u4E2AJSON\u5BF9\u8C61 { "comment": "\u6807\u9898", "type": "worldview|location|...", "content": "\u8BE6\u7EC6\u8BBE\u5B9A(\u81F3\u5C11100\u5B57)", "keys": ["\u89E6\u53D1\u8BCD"], "strategy": "selective \u6216 constant", "position": 4 }';
-    var userPrompt = customDirection ? '\u3010\u65B9\u5411\u00B7\u4F18\u5148\u3011\uFF1A' + customDirection : '\u3010\u81EA\u7531\u53D1\u6325\uFF0C\u62D2\u7EDD\u91CD\u590D\uFF1B\u6709\u4E16\u754C\u89C2\u9884\u8BBE\u5219\u7D27\u8D34\u8BED\u6C47\u3011';
+      + '\n【输出】：1个JSON对象 { "comment": "标题", "type": "worldview|location|...", "content": "详细设定(至少200字)", "keys": ["触发词"], "strategy": "selective 或 constant", "position": 4 }';
+    var userPrompt = customDirection
+      ? '按【本次任务】生成仅仅 1 条，不要重复索引里已有条目，并写清和它们的关系。'
+      : '自由发挥一条，拒绝重复已有条目；有世界观预设则紧贴其语汇，并写清和已有人物、物品、地点的关系。';
     var headers = { 'Content-Type': 'application/json' };
     if (key) headers['Authorization'] = 'Bearer ' + key;
     var aiResp = await ctx.fetchAIContent({
-      context: '\u4E16\u754C\u4E66\u5355\u6761\u751F\u6210',
+      context: '世界书单条生成',
       url: url,
       headers: headers,
       model: model,
       messages: [{ role: 'system', content: sysPrompt }, { role: 'user', content: userPrompt }],
       temperature: 0.8,
-      httpErrorPrefix: '\u8BF7\u6C42\u5931\u8D25 HTTP ',
+      httpErrorPrefix: '请求失败 HTTP ',
       signal: signal,
     });
-    var entry = ctx.extractJsonObj(aiResp.content, '\u4E16\u754C\u4E66\u5355\u6761\u751F\u6210');
+    var entry = ctx.extractJsonObj(aiResp.content, '世界书单条生成');
+    var linkWarning = relationMentionWarning(entry && entry.content, ctx.state.worldbookEntries);
     ctx.state.worldbookEntries.push(fromAiJsonEntry(entry, getDefaultWBEntry()));
+    return { linkWarning: linkWarning || '' };
   }
 
   // ============================================================
@@ -507,48 +516,76 @@ export function createWorldbookShared(ctx) {
     var key = ctx.val('apiKey');
     var model = ctx.val('modelSelect');
     if (!model) {
-      alert('\u8BF7\u5148\u9009\u62E9\u6A21\u578B\uFF01');
-      throw new Error('\u8BF7\u5148\u9009\u62E9\u6A21\u578B');
+      alert('请先选择模型！');
+      throw new Error('请先选择模型');
     }
     var old = ctx.state.worldbookEntries[index];
     var oldText = btn && btn.textContent;
-    if (btn) { btn.disabled = true; btn.textContent = '\u23F3 \u91CD\u94F8\u4E2D...'; }
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ 重铸中...'; }
     var isSkeleton = old.content.length < 60;
     var taskType = isSkeleton ? 'wb_expand' : 'wb_rewrite';
     try {
-      await ctx.runTracked({
+      var tracked = await ctx.runTracked({
         type: taskType,
-        title: isSkeleton ? '\u4E16\u754C\u4E66\u6269\u5199' : '\u4E16\u754C\u4E66\u91CD\u5199',
+        title: isSkeleton ? '世界书扩写' : '世界书重写',
         target: wbEntryTitle(old) || ('#' + index),
       }, async function(task) {
         var presetsStr = getActivePresetsStr();
-        var expandHint = isSkeleton ? '\n\n\u3010\u91CD\u8981\u3011\uFF1A\u539F\u6761\u76EE\u662F\u9AA8\u67B6\u6982\u8981\uFF0C\u8BF7\u5C55\u5F00\u4E3A\u5B8C\u6574\u8BE6\u7EC6\u7684\u4E16\u754C\u4E66\u8BBE\u5B9A\u8BCD\u6761\uFF08\u81F3\u5C11150\u5B57\uFF09\uFF0C\u4FDD\u7559\u65B9\u5411\u4F46\u5927\u5E45\u6269\u5145\u3002' : '';
+        var expandHint = isSkeleton ? '\n\n【重要】：原条目是骨架概要，请展开为完整详细的世界书设定（至少300字），保留方向但大幅扩充，并写清与已有条目的关系。' : '';
         var searchInjection = '';
         if (window.__searchConfig__ && window.__searchConfig__.isEnabled()) {
           var sq = entryExportComment(old) + ' ' + (req || '');
           var sr = await performSearchIfEnabled(sq);
           searchInjection = sr.searchText || '';
         }
-        var wvHint = getWorldviewHintBlock();
-        var sys = ctx.promptText('wbRewrite', '') + '\n\u3010\u539F\u8BCD\u6761\u3011: \u6807\u9898: ' + entryExportComment(old) + ' | \u7B56\u7565: ' + old.strategy + ' | \u89E6\u53D1\u8BCD: ' + old.keys.join(',') + '\n\u5185\u5BB9: ' + old.content + (presetsStr ? '\n\u3010\u6587\u98CE\u3011\uFF1A\n' + presetsStr : '') + expandHint + (wvHint || '') + '\n【冲突处理】若「用户额外要求」与「世界观预设」冲突，以用户额外要求为准。' + searchInjection + '\n\u3010\u4EFB\u52A1\u3011\uFF1A\u91CD\u5199\u3002\u8F93\u51FAJSON\uFF1A{ "comment": "\u6807\u9898", "type": "worldview|location|...", "content": "\u8BE6\u7EC6\u8BBE\u5B9A", "keys": ["\u89E6\u53D1\u8BCD"], "strategy": "selective \u6216 constant", "position": ' + old.position + ' }';
+        var adultHints = (typeof window.__buildAdultPromptHints__ === 'function')
+          ? (window.__buildAdultPromptHints__() || {})
+          : {};
+        var pack = buildGenerationPack({
+          instruction: req || '',
+          entries: ctx.state.worldbookEntries,
+          excludeIndex: index,
+          focusTitle: entryExportComment(old),
+          character: { charName: ctx.val('charName'), charDesc: ctx.val('charDesc') },
+          worldviewHint: getWorldviewHintBlock(),
+          adultHints: {
+            nsfw: buildNsfwFlavorHint(),
+            ntl: buildNtlHintForPrompt(),
+            canon: buildAdultCanonHint(),
+            vessel: adultHints.vessel || '',
+          },
+          includeCharacter: true,
+          charDescCap: 400,
+        });
+        var sys = ctx.promptText('wbRewrite', '') + '\n' + pack
+          + '\n【原词条】: 标题: ' + entryExportComment(old) + ' | 策略: ' + old.strategy + ' | 触发词: ' + old.keys.join(',')
+          + '\n内容: ' + old.content
+          + (presetsStr ? '\n【文风】：\n' + presetsStr : '')
+          + expandHint
+          + '\n【冲突处理】若「本次任务」与「世界观预设」冲突，以本次任务为准，已确认的 Limits 仍优先。'
+          + searchInjection
+          + '\n【任务】：重写。输出JSON：{ "comment": "标题", "type": "worldview|location|...", "content": "详细设定", "keys": ["触发词"], "strategy": "selective 或 constant", "position": ' + old.position + ' }';
         var h = { 'Content-Type': 'application/json' };
         if (key) h['Authorization'] = 'Bearer ' + key;
         var aiResp = await ctx.fetchAIContent({
-          context: '\u4E16\u754C\u4E66\u91CD\u5199/\u7D22\u5F15' + index,
+          context: '世界书重写/索引' + index,
           url: url,
           headers: h,
           model: model,
-          messages: [{ role: 'system', content: sys }, { role: 'user', content: isSkeleton ? '\u5C06\u9AA8\u67B6\u5C55\u5F00\u4E3A\u5B8C\u6574\u8BBE\u5B9A\u3002' + (req ? ' \u989D\u5916\u8981\u6C42\uFF1A' + req : '') : '\u4FEE\u6539\u8981\u6C42\uFF1A' + req }],
+          messages: [{ role: 'system', content: sys }, { role: 'user', content: '按本次任务重写这一条，只输出 JSON。' }],
           temperature: 0.8,
           httpErrorPrefix: 'HTTP ',
           signal: task.signal,
         });
-        var ed = ctx.extractJsonObj(aiResp.content, '\u4E16\u754C\u4E66\u91CD\u5199/\u7D22\u5F15' + index);
+        var ed = ctx.extractJsonObj(aiResp.content, '世界书重写/索引' + index);
         var merged = fromAiJsonEntry(ed, old);
         ctx.state.worldbookEntries[index] = merged;
         renderEntriesList();
         ctx.save();
+        var others = ctx.state.worldbookEntries.filter(function(_, i) { return i !== index; });
+        return relationMentionWarning(merged.content, others);
       });
+      return { linkWarning: tracked || '' };
     } catch (err) {
       if (!ctx.isTrackedAbort(err)) {
         alert('\u91CD\u5199\u5931\u8D25: ' + err.message);

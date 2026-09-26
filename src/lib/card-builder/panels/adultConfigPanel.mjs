@@ -642,23 +642,30 @@ export function attachAdultConfigPanel(ctx, s, panel) {
       if (!names.length && !generalMode) {
         return { ok: false, reason: 'no_worldbook_targets' };
       }
+      var cardName = String(ctx.state.charName || '').trim();
+      var females = names.filter(function(n) { return n && n !== cardName; });
       var next = ensureCorruptionModuleInDesign(Object.assign({}, cur, { nsfw: true }), stageNames);
-      if (names.length) {
-        next.castMode = 'multi';
+      delete next.castMode;
+      delete next.mainName;
+      if (females.length) {
+        next.includeFemales = true;
         next.femaleOnly = true;
-        next.characters = names.map(function(n) {
+        next.characters = females.map(function(n) {
           return { name: n, selected: true, aliases: [] };
         });
-        next.mainName = names[0];
-        next = normalizeDesign(next);
-        next.paths = buildPlaceholderPaths(next);
-      } else {
-        next = normalizeDesign(next);
       }
+      next = normalizeDesign(next);
+      next.paths = buildPlaceholderPaths({
+        includeProtagonist: next.includeProtagonist,
+        includeFemales: next.includeFemales,
+        charName: cardName,
+        characters: next.characters,
+        moduleFlags: next.moduleFlags,
+      });
       if (typeof window.__statusBarApi__.setDesign === 'function') {
         window.__statusBarApi__.setDesign(next);
       }
-      return { ok: true, castMode: names.length ? 'multi' : 'general', names: names.slice(), general: generalMode || !names.length };
+      return { ok: true, includeFemales: !!next.includeFemales, names: females.slice(), general: generalMode || !females.length };
     },
 
     setAffectionTip: function(text, kind) {
@@ -828,22 +835,29 @@ export function attachAdultConfigPanel(ctx, s, panel) {
       }
       var cur = window.__statusBarApi__.getDesign() || {};
       var names = Array.isArray(selectedNames) ? selectedNames.filter(Boolean) : [];
+      var cardName = String(ctx.state.charName || '').trim();
+      var females = names.filter(function(n) { return n && n !== cardName; });
       var next = ensureAffectionModuleInDesign(Object.assign({}, cur), stageNames);
-      if (names.length) {
-        next.castMode = 'multi';
-        next.characters = names.map(function(n) {
+      delete next.castMode;
+      delete next.mainName;
+      if (females.length) {
+        next.includeFemales = true;
+        next.characters = females.map(function(n) {
           return { name: n, selected: true, aliases: [] };
         });
-        next.mainName = names[0];
-        next = normalizeDesign(next);
-        next.paths = buildPlaceholderPaths(next);
-      } else {
-        next = normalizeDesign(next);
       }
+      next = normalizeDesign(next);
+      next.paths = buildPlaceholderPaths({
+        includeProtagonist: next.includeProtagonist,
+        includeFemales: next.includeFemales,
+        charName: cardName,
+        characters: next.characters,
+        moduleFlags: next.moduleFlags,
+      });
       if (typeof window.__statusBarApi__.setDesign === 'function') {
         window.__statusBarApi__.setDesign(next);
       }
-      return { ok: true, castMode: names.length ? 'multi' : 'general', names: names.slice(), general: generalMode || !names.length };
+      return { ok: true, includeFemales: !!next.includeFemales, names: females.slice(), general: generalMode || !females.length };
     },
 
     runGenerateAffectionLore: async function(opts) {

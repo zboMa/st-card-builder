@@ -43,6 +43,11 @@ import {
   personMentionsVessels,
 } from '../nsfwSupport.mjs';
 import {
+  formatRelationBlock,
+  readCardGenerationPack,
+  relationMentionWarning,
+} from '../../assistant/generationContext.mjs';
+import {
   upsertEntity,
   findEntityMatch,
   projectEntitiesToLegacy,
@@ -141,9 +146,42 @@ export function attachNovelCharactersExpand(ctx, panel) {
             ? '\n【模式】定向修改：保留未提及字段，仅按要求改动。'
             : '\n【模式】扩写：在已有档案基础上补全空白与细节；空白处合理虚构。');
         var adultOn = getAdultMode(state);
+        var cardPack = readCardGenerationPack({
+          instruction: options.instruction || '',
+          focusTitle: ch.name,
+          includeCharacter: true,
+        });
+        var novelEntries = [];
+        (state.characters || []).forEach(function(person) {
+          if (!person || !person.name || person.name === ch.name) return;
+          novelEntries.push({
+            comment: person.name,
+            content: person.note || '',
+            keys: person.aliases || [],
+            outlineType: 'person',
+          });
+        });
+        (state.wbEntries || []).forEach(function(e) {
+          var cat = String(e.category || '');
+          var outlineType = cat === 'location' ? 'location'
+            : (cat === 'faction' ? 'faction'
+              : (cat === 'item' ? 'item'
+                : (cat === 'event' || cat === 'history' ? 'event' : '')));
+          novelEntries.push({
+            comment: e.comment || e.name || '',
+            content: e.content || '',
+            keys: e.keys || [],
+            outlineType: outlineType,
+          });
+        });
+        var relationBlock = formatRelationBlock(novelEntries, (options.instruction || '') + '\n' + ch.name);
+        var taskBlock = cardPack
+          ? ('\n' + cardPack)
+          : (options.instruction ? '\n【本次任务】\n' + options.instruction : '');
         var user = head
           + modeHint
-          + (options.instruction ? '\n【用户要求】' + options.instruction : '')
+          + taskBlock
+          + (relationBlock ? '\n' + relationBlock : '')
           + (ch.profile && mode !== 'rewrite' ? '\n【现有档案】\n' + JSON.stringify(ch.profile) : '')
           + (adultOn ? extractStyleNsfwSection(state.styleText) : '')
           + buildModeHintBlocks(state, 'expand')
@@ -278,7 +316,14 @@ export function attachNovelCharactersExpand(ctx, panel) {
           'novelCharStatus',
           '「' + ch.name + '」扩展完成（召回 ' + recall.totalChars + ' tok / ' + recall.snippetCount + ' 片段）' + flavorThinTip
         );
-        return { id: ch.id, name: ch.name, mode: mode, recallChars: recall.totalChars, flavorThin: !!flavorThinTip };
+        return {
+          id: ch.id,
+          name: ch.name,
+          mode: mode,
+          recallChars: recall.totalChars,
+          flavorThin: !!flavorThinTip,
+          linkWarning: relationMentionWarning(JSON.stringify(profile), novelEntries) || undefined,
+        };
       });
     } catch (e) {
       if (!ctx.isTrackedAbort(e)) {

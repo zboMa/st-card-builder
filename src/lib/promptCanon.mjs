@@ -97,7 +97,8 @@ export const PROMPT_BLOCKS = {
     + '事件（背景转折/当前冲突/可玩钩子/开局）、世界观（时代/规则/势力/禁忌与 Limits）、基调（题材/成人向/情感浓度）。'
     + '\n3. 查漏补缺：对照维度指出这张卡还缺什么并给补齐方向；用户明确拒绝或要求简化的维度不要硬塞，尊重其节奏与 Limits。'
     + '\n4. 出口：用户只要一句话卡/极简卡/实验卡，或要求快速时，直接按原话起卡，不套流程；用户要求简化就简化。'
-    + '\n5. 节奏折叠：默认最小干预——信息不足时优先「先给一句话草案让用户改」，而不是逐个追问；'
+    + '\n5. 节奏折叠：默认最小干预——信息不足、还没调用长文工具时，可以先给一句话草案让用户改，而不是逐个追问；'
+    + '一旦调用角色长文、开场白、世界书正文或小说长文工具，instruction 必须写清这次的生成提示。'
     + '确需收集信息时用「一次性列选项」，避免连环提问。'
     + '\n6. 产出标准：具体可扮演，按内容描述体系写，禁止空话与纯形容词堆叠；成人向开启时按 NSFW 描述体系，Limits 优先。',
 };
@@ -137,6 +138,29 @@ export const DEFAULT_PROMPTS = {
     + '\n- altGreetings 固定 2 条，场景或氛围须有差异；'
     + '\n- 结尾留白：把话头抛给用户；不要替用户接话。',
     '\n只输出 JSON：{ "firstMes":"主开场白", "altGreetings":["备选1","备选2"] }'
+  ),
+
+  assistantCharField: join(
+    '你是 SillyTavern 多人场景卡写手。按字段「{{field}}」{{mode}}这一篇，只输出纯文本正文，不要 JSON，不要 Markdown 围栏。',
+    B.contentCanon,
+    B.antiSlop,
+    B.adultGate,
+    '\n【本次任务优先】用户消息里的【本次任务】是这次要写的内容，优先于本模板的通用例子。世界与限定和已有关联必须遵守，不要另起一套互不认识的人物或物品。',
+    '\n【篇幅】'
+    + '\n- 字段为 charDesc：场景契约至少 400 字。写局面、叙事视角、多角色如何出场与调度、用户能做什么、禁止 OOC。不要把 NPC 小传堆进本字段，人物详情在世界书。'
+    + '\n- 字段为 creatorNotes：至少 120 字，写给使用者怎么玩这张卡，不要复述整篇场景契约。'
+    + '\n- 其他字段：写满该字段该有的信息，禁止一句话敷衍。',
+    '\n保留【不要改】里点名的事实。成人向关闭时不写露骨内容；开启时按 NSFW 描述体系写，Limits 优先。'
+  ),
+
+  assistantGreeting: join(
+    '你是 SillyTavern 场景开场写手。只写用户指定的这一条开场白，只输出正文，不要 JSON，不要标题。',
+    B.contentCanon,
+    B.antiSlop,
+    B.adultGate,
+    '\n【本次任务优先】用户消息里的【本次任务】决定这场谁出场、什么气氛。',
+    '\n【开场白】至少 300 字。只写场景侧，可以多个人物的动作和对白；禁止替用户说话、行动或写用户心理。结尾把话头抛给用户。',
+    '\n只让【已有关联】里这场会出现的人开口。不要新造一套与索引无关的角色。成人向关闭时不写露骨内容；开启时可以有张力，但不得超过角色 Limits。'
   ),
 
   charTagsGen: join(
@@ -200,7 +224,7 @@ export const DEFAULT_PROMPTS = {
     B.inferCanon,
     B.antiSlop,
     B.outputCanon,
-    '\n【content】至少 100 字，写清定义、规则、用法、与角色/剧情的关联，可直接指导 RP。',
+    '\n【content】至少 200 字。按 type 写该写的层：人物写外貌、性格层、关系与口吻；地点写规则、用法和谁会在这里；物品写用途、持有者和如何被用到；势力写立场以及与人物的隶属或对立。必须用上下文里已有的人名、地名、物品名写关系，不要另起一套互不认识的卡司。',
     '\n【keys】2～6 个短触发词（正式名/简称/相关物）。',
     '\n【strategy】重要常驻用 constant，其余 selective；position 默认 4 除非内容明显属世界观前缀。',
     '\n【type】与大纲相同：worldview|location|faction|person|event|item|ability|other（必填，便于分类）。',
@@ -213,7 +237,8 @@ export const DEFAULT_PROMPTS = {
     B.nsfwWorldCanon,
     B.inferCanon,
     B.antiSlop,
-    '\n保留可靠事实；按用户要求或原文检索结果补全细节，使 content 饱满可指导 RP。',
+    '\n保留可靠事实；按【本次任务】或原文检索结果补全细节。改写后 content 至少 200 字；原内容不足 60 字的骨架，展开后至少 300 字。',
+    '\n写明与已有人物、地点、物品、势力的关系（认识、对立、持有、位于、隶属）。不要另起一套互不认识的名字。',
     '\n若属成人/情欲设定：写清规则、敏感触发、禁忌边界、氛围与玩法。',
     '\n输出完整 JSON 词条字段（comment/type/content/keys/strategy/position 等，与调用方要求一致）。'
   ),
@@ -316,6 +341,7 @@ export const DEFAULT_PROMPTS = {
     B.antiSlop,
     B.outputCanon,
     '\n【丰满度】外貌/性格/关系/关键事件写具体；speech_style 给可模仿口吻示例；persona_layers 写满五层；tension_pairs 至少一对；core_desire 一句话穿透角色灵魂。',
+    '\n若提示中有【本次任务】或【已有关联】，关系必须点名其中已有的人物、物品或地点，禁止另写一套互不相关的名字。本次任务优先于通用模板。',
     '\n只输出一个 JSON 对象，顶层字段必须完整包含：'
     + '\nChinese name, Nickname, age, gender, identity, key_events, relationships, turning_points,'
     + '\nappearance{hair,eyes,build,识别特征}, personality{core_traits},'
@@ -356,7 +382,8 @@ export const DEFAULT_PROMPTS = {
     '\nAdultMode=true：无论是否 category=nsfw，都须补全成人向用法；content 可含【成人向用法】；'
     + '返回 attrs.adult（lastPass:"expand"）；nsfw 条目填满 kind 字段。',
     '\nNtlMode=true：content 须含禁忌/权力张力要点，可附 attrs.ntl。',
-    '\n只输出 JSON：{ "name": "...", "content": "扩写后的设定正文（宜充实）", "keys": ["触发词"], "attrs": {} }'
+    '\n【篇幅】content 至少 200 字，写明与已有人物、地点、物品的关系（认识、对立、持有、位于、隶属）。若有【本次任务】，以它为准。',
+    '\n只输出 JSON：{ "name": "...", "content": "扩写后的设定正文", "keys": ["触发词"], "attrs": {} }'
   ),
 
   novelStyleDistill: join(
@@ -514,14 +541,15 @@ export const DEFAULT_PROMPTS = {
   ),
 
   statusBarCharScan: join(
-    '你是 SillyTavern 世界书人物识别器。根据世界书条目列表，找出可作为状态栏追踪对象的人物。\n',
+    '你是 SillyTavern 世界书人物识别器。根据世界书条目列表，找出可作状态栏女角色追踪对象的人物。\n',
     '{{wbBlock}}\n',
-    '当前卡主角（可作参考）：{{charName}}\n',
+    '当前卡角色（禁止输出此人）：{{charName}}\n',
     '规则：\n',
     '1. 只输出 JSON，不要解释。\n',
     '2. 格式：{ "characters": [ { "name":"姓名", "aliases":[], "identity":"一句话身份", "source":"来源条目标题" } ] }\n',
-    '3. 优先条目标题/内容像角色卡、人物档案、配角的；忽略纯地点/势力/规则。\n',
+    '3. 优先条目标题/内容像角色卡、人物档案的；忽略纯地点/势力/规则。\n',
     '4. 最多 12 人；name 用最常用称呼；identity 点明与主线关系。\n',
+    '5. 不要输出当前卡角色本人，即使世界书里有同名条目。\n',
     '{{femaleOnlyRule}}'
   ),
 
@@ -529,10 +557,6 @@ export const DEFAULT_PROMPTS = {
     '你是 SillyTavern MVU 变量系统设计专家。请根据状态栏配置设计完整变量 JSON。',
     '不要输出 zod/YAML/解释；本地会组装注入产物。\n\n',
     '{{charBlock}}\n',
-    '人数模式：{{castMode}}\n',
-    '默认高亮（可选，仅影响排版展示）：{{mainName}}\n',
-    '入选人物：{{castList}}\n',
-    '视觉排版：{{design}}（变量先于排版生成，此处仅作参考）\n',
     '开启模块（仅允许为这些项设计 variables）：\n{{moduleBlock}}\n',
     '禁止模块（不得出现下列路径或同义字段）：\n{{forbiddenModuleBlock}}\n',
     'NSFW：{{nsfw}}\n',
@@ -542,38 +566,32 @@ export const DEFAULT_PROMPTS = {
     B.adultGate,
     '\n【设计原则】\n',
     '1. variables 只能覆盖「开启模块」；「禁止模块」中的路径一律不要输出；NSFW=否时禁止一切身体私密字段。\n',
-    '2. 单人：路径可用「角色.字段」或「世界.字段」，须覆盖 path 布局规格中的示例集合。\n',
-    '3. 多人：世界/任务/事件各一份；入选人物档案中【每一个人】都必须用 NPC.姓名.字段 生成与开启模块一一对应的【完整同套】详字段；信息量人人相等，禁止因默认高亮姓名而增减字段、禁止精简/摘要块；path 须严格按「路径布局规格」为每个姓名完整展开。\n',
-    '4. 变量须可被剧情更新；数量随开启模块与人数增加，勿为未开启模块凑字段。\n',
-    '5. type 仅 string/number/boolean/enum/array/object；enum 必给 options。\n',
-    '6. check 为数组，说明更新条件。\n',
-    '7. 输出 JSON 前：多人模式下核对每位入选姓名的 path 数量与后缀集合是否一致；缺任一人的任一后缀须补全后再输出。\n',
-    '8. NSFW=是时：身体/情欲字段须可更新且与角色 Limits 不冲突；勿生成鼓励越界的默认值。\n',
+    '2. 全局字段整卡一份：世界.当前时间、世界.天气、世界.当前地点、任务.当前、事件.标签，仅当对应模块开启。\n',
+    '3. 勾了主角时，字段前缀固定为「角色.」，不要用卡角色名当第一段，禁止写成 NPC.卡角色名。\n',
+    '4. 勾了女角色时，每人用「NPC.姓名.字段」。卡角色本人不得出现在 characters 或 NPC 路径中。两套前缀可以同时存在，禁止把女角色收成「角色.字段」，禁止把主角改写成 NPC。\n',
+    '5. 只勾一边时，只生成那一边，外加开启的全局字段。\n',
+    '6. 恶堕进度、亲密度：主角是 角色.恶堕进度 / 角色.亲密度；女角色是 NPC.姓名.恶堕进度 / NPC.姓名.亲密度。\n',
+    '7. type 仅 string/number/boolean/enum/array/object；enum 必给 options。check 为数组。\n',
+    '8. 变量须可被剧情更新；不要为未开启模块凑字段。NSFW=是时身体字段须可更新且与角色 Limits 不冲突。\n',
     '\n【输出】仅 JSON：\n',
     '{ "summary":"摘要", "variables":[ { "path":"世界.当前时间", "type":"string", "default":"08:00", "description":"时间", "check":["推进时间时更新"] } ] }\n'
   ),
 
   statusBarCustomLayout: join(
-    '你是 SillyTavern 状态栏前端排版工程师。根据已生成的 MVU 变量与用户需求，输出可注入的 HTML 结构与 CSS。\n\n',
+    '你是 SillyTavern 状态栏前端排版工程师。根据变量路径与用户的排版风格说明，输出可注入的 HTML 与 CSS。\n\n',
     '{{charBlock}}\n',
-    '人数模式：{{castMode}}\n',
-    '主视角：{{mainName}}\n',
-    '入选人物：{{castList}}\n',
     'NSFW：{{nsfw}}\n',
     '开启模块：\n{{moduleBlock}}\n\n',
-    '【变量路径（必须全部可见，禁止硬截断）】\n{{pathBlock}}\n\n',
-    '{{baseBlock}}\n',
-    '{{previousBlock}}\n',
-    '【用户排版要求】\n{{userPrompt}}\n\n',
-    '【MVU 绑定规则】\n',
-    '1. 每个变量值用 <span class="zb-value" data-zb-path="完整路径">示例值</span> 绑定；示例值取自 path 的 sample。\n',
-    '2. 多人：每个 NPC 字段路径形如 NPC.姓名.字段；世界/任务/事件全局一份。\n',
-    '3. CSS 类名建议 zb-custom- 前缀，避免污染全局；勿用外部 CDN。\n',
-    '4. 禁止 <script>；禁止内联 onclick；结构须响应式（窄屏可读）。\n',
-    '5. 若提供基准主题，可在其结构/气质上按用户要求改造，但须重写 CSS/HTML 输出。\n',
-    '6. 若提供当前排版，在其基础上按新要求迭代修改。\n\n',
-    '【输出】仅 JSON，不要解释：\n',
-    '{ "css": "/* 完整 CSS */", "bodyHtml": "<div class=\\"zb-custom-root\\">...</div>" }\n'
+    '【变量路径（必须全部可见）】\n{{pathBlock}}\n\n',
+    '【排版风格说明】\n{{userPrompt}}\n\n',
+    '【绑定规则】\n',
+    '1. 文本值只用属性 data-zb-path，写成 <span data-zb-path="完整路径">示例值</span>。\n',
+    '2. 数值字段才加 data-zb-meter，写在用来表示宽度的元素上，例如 <span data-zb-meter="完整路径" style="width:40%"></span>。非数值字段不要加 data-zb-meter。\n',
+    '3. 禁止 script，禁止内联事件（onclick 等），禁止外部 CDN。\n',
+    '4. 不要引用任何预置主题样式；CSS 写在本次输出里，类名用 zb- 前缀。\n',
+    '5. 主角路径保持「角色.字段」，女角色路径保持「NPC.姓名.字段」，不要改写前缀。\n',
+    '\n【输出】仅 JSON，不要解释：\n',
+    '{ "css": "/* CSS */", "bodyHtml": "<div class=\\"zb-custom-root\\">...</div>" }\n'
   ),
 
   mvuDesign: join(
@@ -665,6 +683,12 @@ export const DEFAULT_PROMPTS = {
     + '可选 type=worldview|location|faction|person|event|item|ability|other（与引擎骨架同一枚举）。'
     + 'create/update 的 patch 只改目标条，禁止用 comment 当合并键批量覆盖多条；'
     + '定位用 get_worldbook_list / get_worldbook_entry 的 index 或 titleMatch；系统 owner 条目勿改。\n',
+    '13. 【长文生成】角色长文、开场白、世界书正文、小说人物档案、小说世界书，每次只调用一个生成工具处理一篇。'
+    + 'args.instruction 必填，写成这次的生成提示：对话里已经确认的设定、这篇要写什么、不要写什么、和已有人物/物品/地点的关系。'
+    + '不要把写好的正文放进参数。'
+    + '禁止用 update_character_fields、replace_character_section、create_worldbook_entry、update_worldbook_entry、update_alternate_greeting 写入长正文；'
+    + '禁止用 generate_character_draft、generate_worldbook_skeleton 代替逐篇生成。'
+    + '工具会自行带上世界与限定和已有条目索引。信息还不够、仍在商量时，先在对话里确认，再调用工具。\n',
     '\n{{buildGuide}}\n',
     '\n【可用工具】\n{{toolList}}\n',
     '\n{{catalogOverview}}\n',
@@ -679,6 +703,7 @@ export const DEFAULT_PROMPTS = {
     '根据上一轮工具结果继续：若仍需工具，再输出一个 tool JSON；否则用自然语言直接回复用户（不要强制 final JSON）。'
     + '若用户要求改指定条目/人物/开场白，先确认定位再改。'
     + '补全内容时对齐内容/NSFW 描述体系。'
+    + '长文工具每次一篇，instruction 写清这次的生成提示。'
     + '配卡/生成倾向引导勿强制；用户已跳步则跟随其当前意图。',
 
   assistantBuildGuide: PROMPT_BLOCKS.buildGuideCanon,

@@ -2,21 +2,7 @@
  * 助手工具轨迹：折叠摘要与展开详情
  */
 import { entryDisplayLabel } from '../worldbook/worldbookEntryBridge.mjs';
-
-/** @type {Record<string, string>} */
-var PENDING_TOOL_LABELS = {
-  generate_worldbook_entry: '生成并写入世界书条目',
-  generate_worldbook_skeleton: '生成世界书骨架',
-  generate_corruption_lore: '生成恶堕进度世界书',
-  generate_affection_lore: '生成纯爱线世界书',
-  generate_character_draft: '生成角色草稿',
-  organize_worldbook: '整理世界书',
-  switch_card: '切换卡片',
-  rewrite_worldbook_entry: '重写世界书条目',
-  replace_character_section: '替换角色段落',
-  delete_worldbook_entry: '删除世界书条目',
-  apply_patch_bundle: '应用补丁包',
-};
+import { getToolByName, toolTitleOf } from './tools.mjs';
 
 /**
  * @param {string} toolName
@@ -89,15 +75,7 @@ export function summarizePendingConfirm(toolName, args, preview) {
     if (a.target && a.target.titleMatch) return '待确认：删除「' + a.target.titleMatch + '」';
     return '待确认：删除世界书条目';
   }
-  if (PENDING_TOOL_LABELS[toolName]) {
-    return '待确认：' + PENDING_TOOL_LABELS[toolName];
-  }
-  if (preview) {
-    var first = String(preview).split('\n').find(function(line) { return line.trim(); }) || '';
-    if (first.indexOf('工具: ') === 0) first = first.slice(4).trim();
-    if (first) return '待确认：' + first.slice(0, 72);
-  }
-  return '待确认：' + toolName;
+  return '待确认：' + toolTitleOf(toolName);
 }
 
 /**
@@ -116,8 +94,7 @@ export function summarizeJsonData(data) {
 }
 
 /**
- * 送模用的工具轨迹（系统侧）：调用名 + 参数 + 返回。
- * 模型侧原文由 panelBoot 原样写入，不在此改写。
+ * 送模只用返回或错误。调用参数留在上一句模型自己的工具调用里，也留在卡片的 toolArgs 上。
  * @param {string} toolName
  * @param {object} [args]
  * @param {object} result
@@ -125,29 +102,66 @@ export function summarizeJsonData(data) {
  */
 export function buildToolModelDetail(toolName, args, result) {
   var r = result || {};
-  var lines = ['调用: ' + String(toolName || 'tool')];
-  try {
-    lines.push('参数: ' + JSON.stringify(args && typeof args === 'object' ? args : {}, null, 2));
-  } catch (e) {
-    lines.push('参数: (无法序列化)');
-  }
   if (r.pendingConfirm) {
-    lines.push('状态: 待确认');
-    if (r.preview) lines.push(String(r.preview));
-    else lines.push(r.message || '等待用户确认');
-    return lines.join('\n');
+    return '状态: 待确认\n' + (r.message || '等待用户确认');
   }
   if (!r.ok) {
-    lines.push('返回: 错误 — ' + (r.error || 'unknown'));
-    return lines.join('\n');
+    return '返回: 错误 — ' + (r.error || 'unknown');
   }
   try {
     var data = r.data != null ? r.data : r;
-    lines.push('返回: ' + JSON.stringify(data, null, 2));
+    return '返回: ' + JSON.stringify(data, null, 2);
   } catch (e2) {
-    lines.push('返回: ok');
+    return '返回: ok';
   }
-  return lines.join('\n');
+}
+
+function isLegacyCallEcho(text) {
+  var s = String(text || '');
+  return /(^|\n)调用:\s*/.test(s) && /(^|\n)参数:\s*/.test(s);
+}
+
+/** 旧会话的 modelDetail 把参数又写了一遍。发送时只留「返回」。 */
+export function stripToolCallEcho(text) {
+  var s = String(text || '').trim();
+  if (!isLegacyCallEcho(s)) return s;
+  var m = s.match(/(?:^|\n)(返回:[\s\S]*)$/);
+  return m ? m[1].trim() : s;
+}
+
+/** 送模的工具正文：优先纯返回 detail；否则从旧的「调用+参数+返回」里剥掉参数。 */
+export function toolResultBodyForModel(msg) {
+  if (!msg || msg.running) return '';
+  var detail = String(msg.detail || '').trim();
+  if (detail && !isLegacyCallEcho(detail)) return detail;
+  return stripToolCallEcho(msg.modelDetail || msg.content || '');
+}
+
+/** 送模摘要。界面用的「点击展开」和截断 JSON 不进模型。 */
+export function modelFacingToolSummary(msg) {
+  var s = String((msg && msg.summary) || '').trim().replace(/\s*·\s*点击展开\s*$/, '');
+  if (!s || /点击展开/.test(String((msg && msg.summary) || '')) || s.length > 80) {
+    return toolTitleOf(msg && msg.toolName);
+  }
+  return s;
+}
+
+/** 执行中的工具卡。不送模；结果回来后就地换成 buildToolUiMessage。 */
+export function buildRunningToolMessage(toolName, args) {
+  var meta = getToolByName(toolName);
+  return {
+    role: 'tool',
+    toolName: toolName,
+    toolArgs: args && typeof args === 'object' ? args : {},
+    risk: (meta && meta.risk) || 'confirm',
+    summary: '执行中…',
+    detail: '',
+    modelDetail: '',
+    content: '',
+    running: true,
+    error: false,
+    pendingConfirm: false,
+  };
 }
 
 /**
@@ -199,7 +213,7 @@ export function buildToolUiMessage(toolName, args, result) {
     risk: risk,
     summary: summary,
     detail: detail,
-    /** 送模全文：调用 + 参数 + 返回（UI 折叠区仍用 detail） */
+    /** 送模正文：只有返回或错误，不含调用参数 */
     modelDetail: modelDetail,
     content: header + '\n' + detail,
     error: !r.ok && !r.pendingConfirm,

@@ -1,7 +1,7 @@
 /**
  * 变更风险分级：小改自动应用；大改需用户确认
  */
-import { getToolByName } from './tools.mjs';
+import { getToolByName, toolTitleOf } from './tools.mjs';
 import { normalizeCharacterFieldKey, normalizeCharacterPatch } from './characterFields.mjs';
 
 /** 整段覆盖视为大改的角色字段 */
@@ -104,7 +104,7 @@ export function classifyToolRisk(toolName, args) {
 export function buildChangePreview(toolName, args, beforeHint) {
   var a = args || {};
   var lines = [];
-  lines.push('工具: ' + toolName);
+  lines.push('工具: ' + toolTitleOf(toolName));
   if (beforeHint) lines.push('上下文: ' + beforeHint);
 
   if (toolName === 'update_character_fields' || toolName === 'replace_character_section' || toolName === 'expand_character_field') {
@@ -115,7 +115,7 @@ export function buildChangePreview(toolName, args, beforeHint) {
     }
     if (toolName === 'expand_character_field' && a.field) {
       lines.push('· 字段: ' + (normalizeCharacterFieldKey(a.field) || a.field) + ' · mode=' + (a.mode || 'expand'));
-      if (a.instruction) lines.push('· 要求: ' + String(a.instruction).slice(0, 200));
+      if (a.instruction) lines.push('· 生成提示: ' + String(a.instruction).slice(0, 2000));
     }
     Object.keys(fields).forEach(function(k) {
       var text = String(fields[k] == null ? '' : fields[k]);
@@ -137,7 +137,7 @@ export function buildChangePreview(toolName, args, beforeHint) {
     });
   } else if (toolName.indexOf('greeting') >= 0) {
     lines.push('target: ' + JSON.stringify(a.target != null ? a.target : a.index));
-    if (a.instruction) lines.push('要求: ' + String(a.instruction).slice(0, 200));
+    if (a.instruction) lines.push('生成提示: ' + String(a.instruction).slice(0, 2000));
   } else {
     try {
       lines.push('参数: ' + JSON.stringify(a).slice(0, 400));

@@ -36,7 +36,7 @@
 - **保存**：只写草稿，不写 `versions`；`updatedAt` 仅在真实落盘时刷新
 - **切版 / 增版 / 发布**：才把当前草稿写入 `versions`（若草稿坐在已发号上会先 fork）
 - **发布**：标记已发布，草稿自动再升一版；升版号须 **> 全局最大已发号**；云失败则回滚本地
-- **话术（草案）**：产品三阶段见 [`core-design-philosophy.md`](./core-design-philosophy.md) **§6.6 讨论稿**（议题 9 未决）
+- **话术**：卡 / Story / 工坊不统一三阶段；版本与发布见 [`core-design-philosophy.md`](./core-design-philosophy.md) **§6.6**
 - **分享**：`latest` 固定链对接最新已发；另有带版本号链接；读者进度按 token+版本隔离
 - 实现：`cardVersions.mjs` / `novelVersions.mjs`（开发期无旧数据兼容负担）
 

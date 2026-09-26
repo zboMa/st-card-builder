@@ -1,7 +1,7 @@
 # 精品场景主题 · 最终方案 v3
 
-> **状态：M1+M2 已实施**（tier 基建 + 水墨 L2/L3 标杆）；M3–M5 待续  
-> 取代 [`theme-scenes-v2.md`](./theme-scenes-v2.md) 的 Phase 2/3 规划；v2 Phase 1 已落地。  
+> **状态：M1+M2 已实施**（tier 基建 + 水墨 L2/L3 标杆）。**M3–M5 未实施，不是契约。**  
+> 已实施部分以 [`design-system.md`](./design-system.md) 与 `src/lib/theme/` 为准。v2 规划在 [`../archive/theme-scenes-v2.md`](../archive/theme-scenes-v2.md)，不是现行依据。  
 > 关联：[`design-system.md`](./design-system.md) · `src/lib/theme/` · `src/styles/theme/`
 
 ---
@@ -343,6 +343,8 @@ Layout.astro
 ---
 
 ## 7. 实施分期（按依赖排序）
+
+> M1–M2 的勾选是当时的施工单。已落地行为以 `src/lib/theme/` 为准。**M3–M5 未实施，不是契约。**
 
 ### M1 · 基建（必须先做）
 

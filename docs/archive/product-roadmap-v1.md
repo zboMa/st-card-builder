@@ -1,3 +1,5 @@
+> **不是契约。** 历史材料，见 [`README.md`](./README.md)。不要按本文改代码。
+
 # 产品路线图 v1（执行跟踪）
 
 > 单线分支 `cursor/product-roadmap-v1-5f2a` — 涵盖方案 1/2/3/4/6。

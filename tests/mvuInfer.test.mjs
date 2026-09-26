@@ -183,11 +183,14 @@ describe('mvu inferFromCard', function() {
       adultConfig: { enabled: true, corruptionEnabled: true, corruptionPreset: '3' },
     });
     var paths = cands.map(function(c) { return c.path; });
-    assert.ok(paths.indexOf('NPC.秦玥.好感度') >= 0);
+    assert.ok(paths.indexOf('角色.好感度') >= 0);
     assert.ok(paths.indexOf('NPC.沈知夏.好感度') >= 0);
+    assert.ok(paths.indexOf('NPC.秦玥.好感度') < 0);
     assert.ok(paths.indexOf('NPC.路人甲.好感度') < 0);
-    assert.ok(paths.indexOf('NPC.秦玥.恶堕进度') >= 0);
-    assert.ok(paths.indexOf('NPC.秦玥.同意边界') >= 0);
+    assert.ok(paths.indexOf('角色.恶堕进度') >= 0);
+    assert.ok(paths.indexOf('NPC.沈知夏.恶堕进度') >= 0);
+    assert.ok(paths.indexOf('角色.同意边界') >= 0);
+    assert.ok(paths.indexOf('NPC.沈知夏.同意边界') >= 0);
   });
 
   it('mergeCandidatesIntoDesign upserts by path; onlySelected', function() {
