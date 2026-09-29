@@ -63,6 +63,15 @@ export function setCharacterFields(fields, $) {
 }
 
 export function setGreetingFields(firstMes, altGreetings, $) {
+  if (typeof window.__acceptGreetingTexts__ === 'function') {
+    window.__acceptGreetingTexts__(
+      firstMes != null ? String(firstMes) : null,
+      Array.isArray(altGreetings) ? altGreetings : null,
+      'replace'
+    );
+    window.dispatchEvent(new Event('card-builder-data-changed'));
+    return;
+  }
   if (firstMes != null && $('firstMes')) {
     $('firstMes').value = String(firstMes);
     $('firstMes').dispatchEvent(new Event('input', { bubbles: true }));

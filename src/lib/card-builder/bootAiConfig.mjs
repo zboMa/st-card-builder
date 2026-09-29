@@ -5,6 +5,7 @@ import { escapeHtml } from '../utils.mjs';
 import { buildExportChecklist } from './exportChecklist.mjs';
 import { countNovelUnsynced } from './fieldValidation.mjs';
 import { upsertWorldbookEntry, normalizeDraftEntry, entryExportComment } from '../worldbook/worldbookEntryBridge.mjs';
+import { baselineLeavesFromEntries, composeGreetingText } from '../mvu/greetingInit.mjs';
 
 export function attachBootAiConfig(ctx) {
   var AI_KEY = 'st_v3_builder_ai_config';
@@ -495,7 +496,11 @@ export function attachBootAiConfig(ctx) {
       systemPrompt: s.systemPrompt != null ? String(s.systemPrompt)
         : (s.system_prompt != null ? String(s.system_prompt) : ''),
       creatorNotes: s.creatorNotes || domVal('creatorNotes') || '',
-      firstMes: s.firstMes || domVal('firstMes') || '你好。',
+      firstMes: composeGreetingText(
+        s.firstMes || domVal('firstMes') || '你好。',
+        s.greetingInitMain || (typeof window !== 'undefined' ? window.__greetingInitMain__ : null),
+        baselineLeavesFromEntries(s.worldbookEntries || (typeof window !== 'undefined' && window.__getWorldbookEntries__ ? window.__getWorldbookEntries__() : []))
+      ) || '你好。',
     };
   };
 

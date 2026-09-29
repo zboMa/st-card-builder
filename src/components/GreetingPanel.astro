@@ -6,7 +6,7 @@
     <h2>开场白</h2>
     <span id="greetingsTokenCount" class="tok-text" title="开场白总 token" aria-live="polite"></span>
   </div>
-  <p class="greetings-tip ui-panel-lead">对应 SillyTavern 的 <code>first_mes</code> 与 <code>alternate_greetings</code>，导出语义与原先一致。</p>
+  <p class="greetings-tip ui-panel-lead">编辑时只写场景。每条开场可以另附初始值，导出和试聊时再拼进 <code>first_mes</code>。</p>
   <p id="greetingsFlavorTip" class="greetings-flavor-tip" hidden></p>
 
   <!-- 主开场白 → data.first_mes / 顶层 first_mes -->
@@ -17,6 +17,12 @@
       <button type="button" id="btnPreviewFirstMes" class="btn-alt-action btn-expand-preview" title="预览" aria-label="预览主开场白"><svg class="icon-expand-corners" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button>
     </div>
     <textarea id="firstMes" style="min-height: 160px;" placeholder="角色的开场白（首次对话发送的第一条消息）..."></textarea>
+    <div class="greeting-init-row">
+      <button type="button" id="btnGreetingInitGenerate" class="btn-inline">生成</button>
+      <button type="button" id="btnGreetingInitMain" class="btn-inline">初始值</button>
+      <span id="greetingInitMainHint" class="ui-hint ui-hint--inline"></span>
+    </div>
+    <textarea id="greetingInitMain" class="greeting-init-ta" hidden rows="3" placeholder="每行一条：路径=值。留空则这个开局用世界书保底。"></textarea>
   </div>
 
   <!-- 备选开场 → data.alternate_greetings；内存态 window.__altGreetings__ -->
@@ -248,9 +254,20 @@
     font-size: 0.75rem;
   }
 
-  /* 主/备选开场白：明确文字与占位符对比度 */
+  .greeting-init-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 6px;
+  }
+  .greeting-init-ta {
+    margin-top: 6px;
+    min-height: 72px;
+    font-size: 0.78rem;
+  }
+  .alt-greeting-item textarea.alt-greeting-ta,
   .area-greetings #firstMes,
-  .alt-greeting-item textarea {
+  .greeting-init-ta {
     color: var(--color-text);
     background-color: var(--color-surface-elevated);
     border-color: var(--color-border);
@@ -264,6 +281,19 @@
 
 <script>
   import { countTokens, formatTokenCount } from '../lib/tokenStats.mjs';
+  import { appFeedback } from '../lib/ui/appMessage.mjs';
+  import { engineTryAllowed } from '../lib/actionEngine/helpers.mjs';
+  import { isAbortError } from '../lib/aiTaskCenter.mjs';
+  import { DEFAULT_PROMPTS } from '../lib/promptCanon.mjs';
+  import {
+    applyGreetingInitChange,
+    applyGreetingTexts,
+    baselineLeavesFromEntries,
+    buildGreetingInitUserPrompt,
+    formatOverrideLines,
+    interpretGreetingInitDraft,
+    parseOverrideLines,
+  } from '../lib/mvu/greetingInit.mjs';
   (function() {
   var btnAdd = document.getElementById('btnAddGreeting');
   var listEl = document.getElementById('altGreetingsList');
@@ -271,9 +301,139 @@
 
   // 与导出/导入/助手共用同一内存列表
   if (!window.__altGreetings__) window.__altGreetings__ = [];
+  if (!window.__greetingInitMain__ || typeof window.__greetingInitMain__ !== 'object') window.__greetingInitMain__ = {};
+  if (!Array.isArray(window.__greetingInitAlts__)) window.__greetingInitAlts__ = [];
+
+  function hintText(map) {
+    var n = map && typeof map === 'object' ? Object.keys(map).length : 0;
+    return n ? (n + ' 项与保底不同') : '与保底相同';
+  }
+
+  function initGenerateLabel(map) {
+    var n = map && typeof map === 'object' ? Object.keys(map).length : 0;
+    return n ? '重新生成' : '生成';
+  }
+
+  function syncMainInitField() {
+    var ta = document.getElementById('greetingInitMain');
+    var hint = document.getElementById('greetingInitMainHint');
+    var gen = document.getElementById('btnGreetingInitGenerate');
+    if (hint) hint.textContent = hintText(window.__greetingInitMain__);
+    if (gen) gen.textContent = initGenerateLabel(window.__greetingInitMain__);
+    if (ta && document.activeElement !== ta) ta.value = formatOverrideLines(window.__greetingInitMain__);
+  }
+
+  function toast(message, level) {
+    appFeedback(null, { message: message, level: level || 'info', channel: 'toast' });
+  }
+
+  function readAiConfig() {
+    var url = String((document.getElementById('apiUrl') || {}).value || '').replace(/\/$/, '');
+    var key = String((document.getElementById('apiKey') || {}).value || '').trim();
+    var model = String((document.getElementById('modelSelect') || {}).value || '');
+    return { url: url, key: key, model: model };
+  }
+
+  function greetingInitSystem() {
+    var ps = window.__promptStore__;
+    if (ps && typeof ps.get === 'function') {
+      var text = ps.get('greetingInitGen');
+      if (text) return text;
+    }
+    return DEFAULT_PROMPTS.greetingInitGen;
+  }
+
+  async function fetchChatText(sys, user, signal) {
+    var cfg = readAiConfig();
+    var headers = { 'Content-Type': 'application/json' };
+    if (cfg.key) headers.Authorization = 'Bearer ' + cfg.key;
+    var res = await fetch(cfg.url + '/chat/completions', {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify({
+        model: cfg.model,
+        messages: [
+          { role: 'system', content: sys },
+          { role: 'user', content: user },
+        ],
+        temperature: 0.2,
+      }),
+      signal: signal,
+    });
+    if (!res.ok) throw new Error('API HTTP ' + res.status);
+    var data = await res.json();
+    var message = data && data.choices && data.choices[0] && data.choices[0].message;
+    return String((message && message.content) || '');
+  }
+
+  async function runInCenter(title, fn) {
+    var center = window.__aiTaskCenter__;
+    if (center && center.run) {
+      return center.run({ type: 'greeting_init_generate', title: title, target: title }, fn);
+    }
+    return fn(null);
+  }
+
+  async function generateGreetingInit(target, prose) {
+    var entries = window.__getWorldbookEntries__ ? window.__getWorldbookEntries__() : [];
+    var baseline = baselineLeavesFromEntries(entries);
+    if (!Object.keys(baseline).length) {
+      toast('请先生成变量', 'warn');
+      return;
+    }
+    if (!String(prose || '').trim()) {
+      toast('先写这一条开场白', 'warn');
+      return;
+    }
+    var gate = engineTryAllowed('card.greeting.init');
+    if (!gate.ok) return;
+    var cfg = readAiConfig();
+    if (!cfg.url || !cfg.model) {
+      toast('请先在「AI 配置」填写接口与模型', 'warn');
+      return;
+    }
+    try {
+      var draft = await runInCenter('开场初始值', async function(task) {
+        var text = await fetchChatText(
+          greetingInitSystem(),
+          buildGreetingInitUserPrompt(prose, baseline),
+          task && task.signal
+        );
+        return interpretGreetingInitDraft(text, baseline);
+      });
+      if (!draft || draft.empty) {
+        window.__setGreetingInit__({ target: target, clear: true });
+        if (draft && draft.dropped && draft.dropped.length) toast('模型写的路径不在保底里，没有写入', 'warn');
+        else toast('这条开场和保底一致', 'info');
+        return;
+      }
+      window.__setGreetingInit__({ target: target, clear: true, overrides: draft.overrides });
+      toast('已生成 ' + Object.keys(draft.overrides).length + ' 项初始值', 'success');
+    } catch (err) {
+      if (isAbortError(err)) {
+        toast('已取消', 'info');
+        return;
+      }
+      toast((err && err.message) || String(err), 'error');
+    }
+  }
+
+  function warnIfNoBaseline() {
+    var entries = window.__getWorldbookEntries__ ? window.__getWorldbookEntries__() : [];
+    if (Object.keys(baselineLeavesFromEntries(entries)).length) return;
+    appFeedback(null, {
+      message: '请先生成变量。没有保底时，这里写上的值会成为这个开局的全部初始值。',
+      level: 'warn',
+      channel: 'toast',
+    });
+  }
 
   function render() {
     var greetings = window.__altGreetings__;
+    while (window.__greetingInitAlts__.length < greetings.length) window.__greetingInitAlts__.push({});
+    if (window.__greetingInitAlts__.length > greetings.length) {
+      window.__greetingInitAlts__.length = greetings.length;
+    }
     if (!greetings.length) {
       listEl.innerHTML = '<div class="alt-greetings-empty">暂无备选开场白，点击右上角 ＋ 添加</div>';
       return;
@@ -305,6 +465,18 @@
         '</div>' +
         '<textarea class="alt-greeting-ta" data-idx="' + i + '" placeholder="备选开场白 #' + (i + 2) + ' 的内容...">' +
           escapeHTML(text) +
+        '</textarea>' +
+        '<div class="greeting-init-row">' +
+          '<button type="button" class="btn-inline" data-action="generate-init" data-idx="' + i + '">' +
+            escapeHTML(initGenerateLabel(window.__greetingInitAlts__[i])) +
+          '</button>' +
+          '<button type="button" class="btn-inline" data-action="init" data-idx="' + i + '">初始值</button>' +
+          '<span class="ui-hint ui-hint--inline greeting-init-hint" data-idx="' + i + '">' +
+            escapeHTML(hintText(window.__greetingInitAlts__[i])) +
+          '</span>' +
+        '</div>' +
+        '<textarea class="greeting-init-ta" data-idx="' + i + '" hidden rows="3" placeholder="每行一条：路径=值。留空则这个开局用世界书保底。">' +
+          escapeHTML(formatOverrideLines(window.__greetingInitAlts__[i])) +
         '</textarea>';
       listEl.appendChild(item);
     });
@@ -316,6 +488,37 @@
         notifyChange();
       });
     });
+    listEl.querySelectorAll('.greeting-init-ta').forEach(function(ta) {
+      ta.addEventListener('input', function(e) {
+        var idx = parseInt(e.target.getAttribute('data-idx'), 10);
+        window.__greetingInitAlts__[idx] = parseOverrideLines(e.target.value);
+        var hint = listEl.querySelector('.greeting-init-hint[data-idx="' + idx + '"]');
+        if (hint) hint.textContent = hintText(window.__greetingInitAlts__[idx]);
+        var genBtn = listEl.querySelector('.btn-inline[data-action="generate-init"][data-idx="' + idx + '"]');
+        if (genBtn) genBtn.textContent = initGenerateLabel(window.__greetingInitAlts__[idx]);
+        notifyChange();
+      });
+    });
+    listEl.querySelectorAll('.btn-inline[data-action="generate-init"]').forEach(function(btn) {
+      btn.addEventListener('click', function(e) {
+        var idx = parseInt(e.currentTarget.getAttribute('data-idx'), 10);
+        generateGreetingInit({ alternate: idx }, (window.__altGreetings__ || [])[idx]);
+      });
+    });
+    listEl.querySelectorAll('.btn-inline[data-action="init"]').forEach(function(btn) {
+      btn.addEventListener('click', function(e) {
+        var idx = parseInt(e.currentTarget.getAttribute('data-idx'), 10);
+        var box = listEl.querySelector('.greeting-init-ta[data-idx="' + idx + '"]');
+        if (!box) return;
+        if (box.hasAttribute('hidden')) {
+          box.removeAttribute('hidden');
+          warnIfNoBaseline();
+          box.focus();
+        } else {
+          box.setAttribute('hidden', '');
+        }
+      });
+    });
     listEl.querySelectorAll('.btn-alt-action').forEach(function(btn) {
       btn.addEventListener('click', function(e) {
         var action = e.currentTarget.getAttribute('data-action');
@@ -325,12 +528,16 @@
           openPreview('开场白 #' + (idx + 2), g[idx]);
           return;
         }
+        var inits = window.__greetingInitAlts__;
         if (action === 'del') {
           g.splice(idx, 1);
+          inits.splice(idx, 1);
         } else if (action === 'up' && idx > 0) {
           var tmp = g[idx]; g[idx] = g[idx - 1]; g[idx - 1] = tmp;
+          var tmpInit = inits[idx]; inits[idx] = inits[idx - 1]; inits[idx - 1] = tmpInit;
         } else if (action === 'down' && idx < g.length - 1) {
           var tmp2 = g[idx]; g[idx] = g[idx + 1]; g[idx + 1] = tmp2;
+          var tmpInit2 = inits[idx]; inits[idx] = inits[idx + 1]; inits[idx + 1] = tmpInit2;
         }
         render();
         notifyChange();
@@ -356,6 +563,7 @@
 
   btnAdd.addEventListener('click', function() {
     window.__altGreetings__.push('');
+    window.__greetingInitAlts__.push({});
     render();
     var tas = listEl.querySelectorAll('.alt-greeting-ta');
     if (tas.length) tas[tas.length - 1].focus();
@@ -410,7 +618,79 @@
     tip.hidden = false;
   }
 
-  window.__renderAltGreetings__ = render;
+  var btnInitGenerate = document.getElementById('btnGreetingInitGenerate');
+  if (btnInitGenerate) {
+    btnInitGenerate.addEventListener('click', function() {
+      var prose = (document.getElementById('firstMes') || {}).value || '';
+      generateGreetingInit('main', prose);
+    });
+  }
+
+  var btnInitMain = document.getElementById('btnGreetingInitMain');
+  var initMainTa = document.getElementById('greetingInitMain');
+  if (btnInitMain && initMainTa) {
+    btnInitMain.addEventListener('click', function() {
+      if (initMainTa.hasAttribute('hidden')) {
+        initMainTa.removeAttribute('hidden');
+        warnIfNoBaseline();
+        initMainTa.focus();
+      } else {
+        initMainTa.setAttribute('hidden', '');
+      }
+    });
+    initMainTa.addEventListener('input', function() {
+      window.__greetingInitMain__ = parseOverrideLines(initMainTa.value);
+      syncMainInitField();
+      notifyChange();
+    });
+  }
+
+  window.__acceptGreetingTexts__ = function(firstMes, altGreetings, mode) {
+    var entries = window.__getWorldbookEntries__ ? window.__getWorldbookEntries__() : [];
+    var result = applyGreetingTexts({
+      firstMes: firstMes == null ? ((document.getElementById('firstMes') || {}).value || '') : firstMes,
+      altGreetings: altGreetings == null ? (window.__altGreetings__ || []).slice() : altGreetings,
+      entries: entries,
+      previousMain: window.__greetingInitMain__,
+      previousAlts: window.__greetingInitAlts__,
+      resetMain: mode !== 'keep' && firstMes != null,
+      resetAlts: mode !== 'keep' && altGreetings != null,
+    });
+    var firstEl = document.getElementById('firstMes');
+    if (firstEl) firstEl.value = result.firstMes;
+    window.__greetingInitMain__ = result.greetingInitMain;
+    window.__greetingInitAlts__ = result.greetingInitAlts.slice();
+    window.__altGreetings__ = result.altGreetings.slice();
+    if (result.baselineInstalled && typeof window.__setWorldbookEntries__ === 'function') {
+      window.__setWorldbookEntries__(result.entries);
+    }
+    syncMainInitField();
+    render();
+    notifyChange();
+    return result;
+  };
+
+  window.__setGreetingInit__ = function(opts) {
+    var entries = window.__getWorldbookEntries__ ? window.__getWorldbookEntries__() : [];
+    var result = applyGreetingInitChange({
+      greetingInitMain: window.__greetingInitMain__,
+      greetingInitAlts: window.__greetingInitAlts__,
+      altCount: (window.__altGreetings__ || []).length,
+      baseline: baselineLeavesFromEntries(entries),
+    }, opts || {});
+    if (!result.ok) throw new Error(result.error || '设置开场初始值失败');
+    window.__greetingInitMain__ = result.greetingInitMain;
+    window.__greetingInitAlts__ = result.greetingInitAlts.slice();
+    syncMainInitField();
+    render();
+    notifyChange();
+    return { target: result.target, overrides: result.overrides, cleared: result.cleared };
+  };
+
+  window.__renderAltGreetings__ = function() {
+    syncMainInitField();
+    render();
+  };
   window.addEventListener('nsfw-config-changed', refreshFlavorTip);
   window.addEventListener('app-view-changed', function() {
     refreshFlavorTip();
@@ -419,6 +699,7 @@
   var firstMesEl = document.getElementById('firstMes');
   if (firstMesEl) firstMesEl.addEventListener('input', scheduleGreetingTokens);
   refreshFlavorTip();
+  syncMainInitField();
   render();
   refreshGreetingTokens();
 })();

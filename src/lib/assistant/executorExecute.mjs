@@ -36,7 +36,13 @@ export function createExecutorExecute(bridge, snaps, helpers) {
         var maxLen = a.maxLen || 280;
         var summary = {};
         Object.keys(c).forEach(function(k) {
-          var t = String(c[k] == null ? '' : c[k]);
+          var t;
+          if (k === 'greetingInitMain' || k === 'greetingInitAlts') {
+            try { t = JSON.stringify(c[k] == null ? (k === 'greetingInitAlts' ? [] : {}) : c[k]); }
+            catch (eSum) { t = ''; }
+          } else {
+            t = String(c[k] == null ? '' : c[k]);
+          }
           summary[k] = t.length > maxLen ? t.slice(0, maxLen) + '…' : t;
         });
         return ok(summary);
@@ -328,6 +334,17 @@ export function createExecutorExecute(bridge, snaps, helpers) {
         alts[a.index] = a.content != null ? String(a.content) : alts[a.index];
         bridge.setCharacter({ altGreetings: alts });
         return ok({ index: a.index, length: alts[a.index].length });
+      }
+      case 'set_greeting_init': {
+        if (!bridge.setGreetingInit) return fail('开场初始值桥接未就绪');
+        maybeSnap();
+        try {
+          var initResult = await bridge.setGreetingInit(a);
+          if (initResult && initResult.ok === false) return fail(initResult.error || '设置开场初始值失败');
+          return ok(initResult || {});
+        } catch (eInit) {
+          return fail((eInit && eInit.message) || String(eInit));
+        }
       }
       case 'generate_character_draft':
         maybeSnap();

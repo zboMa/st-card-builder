@@ -8,9 +8,17 @@ import {
     corruptionProgressGap,
   } from './inferFromCard.mjs';
 import { STATUS_BAR_EXT_KEY } from '../statusBar.mjs';
+import { buildGroupedUpdateRules } from '../statusBarBuild.mjs';
 import { patchForRegistrySlot } from '../worldbook/worldbookEntryBridge.mjs';
 import { WB_OWNER } from '../worldbook/worldbookRegistry.mjs';
 import { appFeedback } from '../ui/appMessage.mjs';
+import {
+  UPDATE_FIND,
+  INIT_FIND,
+  HIDE_FIND,
+  FORMAT_TPL,
+  buildUpdateDisplayReplace,
+} from './updateBlock.mjs';
 
 export function initVariableCardPanelCore() {
 /* ============================================================
@@ -78,12 +86,12 @@ export function initVariableCardPanelCore() {
     'rule-inject': '规则注入草稿：\\n- 好感 Roll\\n- 随机事件\\n- 阻尼器：限制变量剧烈跳变\\n- 交易规则：金钱、库存、价格、风险',
     'model-generate': '模型应同时输出：\\n<story>剧情正文</story>\\n<UpdateVariable>变量更新 JSONPatch</UpdateVariable>',
     'story-output': '<story>\\n这里是展示给用户的剧情正文。\\n</story>',
-    'update-output': '<UpdateVariable>\\n<Analysis>简短分析</Analysis>\\n<JSONPatch>\\n[{"op":"replace","path":"/世界/当前时间","value":"09:00"}]\\n</JSONPatch>\\n</UpdateVariable>',
+    'update-output': '<UpdateVariable>\\n<Analyze>简短说明</Analyze>\\n<JSONPatch>\\n[{"op":"replace","path":"/世界/当前时间","value":"09:00"}]\\n</JSONPatch>\\n</UpdateVariable>',
     'mvu-patch': 'MVU JSONPatch 支持：\\nreplace / delta / insert / remove / move',
     'zod-validate': 'Zod Schema：\\n- 类型转换\\n- 默认值 prefault\\n- 数值范围 clamp\\n- 非法字段兜底',
     'varmap': 'stat_data 状态向量窗口\\n每个变量节点显示：变量路径 / 读取路径 / JSONPatch 路径',
     'status-event': 'eventOn(VARIABLE_UPDATE_ENDED, () => {\\n  // 刷新状态栏 / 重新渲染当前变量\\n});',
-    'regex-display': '正则处理：\\n1. 隐藏 <UpdateVariable> 技术块\\n2. 只显示 <story> 正文\\n3. 美化状态栏更新结果'
+    'regex-display': '正则处理：\\n1. 提示词里去掉 <UpdateVariable>\\n2. 画面上把更新收成默认折叠的列表\\n3. 开场 <initvar> 不显示'
   };
   var graphDefaultConnections = [
     { from: 'user-message:out', to: 'st-prompt:in', className: 'vc-wire-source' },
@@ -732,26 +740,12 @@ export function initVariableCardPanelCore() {
   var SCHEMA_TAIL = "\n\n$(() => {\n  registerMvuSchema(Schema);\n});";
 
   var VARLIST_TPL = '---\n<status_current_variables>\n{{format_message_variable::stat_data}}\n</status_current_variables>';
-
-  var FORMAT_TPL = '---\n变量输出格式:\n  rule:\n    - you must output the update analysis, JSONPatch commands, and visual DisplayPatch at once in the end of the next reply\n    - JSONPatch works like the **JSON Patch (RFC 6902)** standard, must be a valid JSON array containing operation objects, but supports the following operations instead:\n      - replace: replace the value of existing paths\n      - delta: update the value of existing number paths by a delta value\n      - insert: insert new items into an object or array (using `-` as array index intends appending to the end)\n      - remove\n      - move\n    - don\'t update field names starts with `_` as they are readonly\n    - DisplayPatch must mirror every JSONPatch operation with one visible <article> card; do not output raw JSON inside DisplayPatch\n    - DisplayPatch values should be concise human-readable text; if a value is an object or array, summarize it as readable text\n    - if DisplayPatch text contains < or >, rewrite them as Chinese brackets to avoid breaking HTML\n  format: |-\n    <UpdateVariable>\n    <Analysis>$(IN ENGLISH, no more than 80 words)\n    - ${calculate time passed: ...}\n    - ${decide whether dramatic updates are allowed as it\'s in a special case or the time passed is more than usual: yes/no}\n    - ${analyze every variable based on its corresponding `check`, according only to current reply instead of previous plots: ...}\n    </Analysis>\n    <JSONPatch>\n    [\n      { "op": "replace", "path": "${/path/to/variable}", "value": "${new_value}" },\n      { "op": "delta", "path": "${/path/to/number/variable}", "value": "${positive_or_negative_delta}" },\n      { "op": "insert", "path": "${/path/to/object/new_key}", "value": "${new_value}" },\n      { "op": "insert", "path": "${/path/to/array/-}", "value": "${new_value}" },\n      { "op": "remove", "path": "${/path/to/object/key}" },\n      { "op": "remove", "path": "${/path/to/array/0}" },\n      { "op": "move", "from": "${/path/to/variable}", "to": "${/path/to/another/path}" },\n      ...\n    ]\n    </JSONPatch>\n    </UpdateVariable>\n    <DisplayPatch>\n    <article class="mvu-change-card"><b>已更新</b><strong>${/path/to/variable}</strong><em>${new_value}</em></article>\n    <article class="mvu-change-card is-delta"><b>数值变化</b><strong>${/path/to/number/variable}</strong><em>${positive_or_negative_delta}</em></article>\n    <article class="mvu-change-card is-insert"><b>已新增</b><strong>${/path/to/object/new_key}</strong><em>${new_value}</em></article>\n    <article class="mvu-change-card is-remove"><b>已移除</b><strong>${/path/to/variable}</strong><em>已删除</em></article>\n    <article class="mvu-change-card"><b>已移动</b><strong>${/path/from}</strong><em>→ ${/path/to}</em></article>\n    </DisplayPatch>';
-
-  var MVU_DISPLAY_HTML = '<style>'
-    + '.mvu-report{margin:14px 0;border-radius:16px;border:1px solid rgba(245,158,11,.42);background:linear-gradient(180deg,rgba(31,22,12,.98),rgba(14,10,8,.98));overflow:hidden;box-shadow:0 18px 46px rgba(0,0,0,.42);font-family:Georgia,serif;position:relative;color:#f8fafc}'
-    + '.mvu-report:before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(180deg,rgba(245,158,11,.035),rgba(245,158,11,.035) 2px,transparent 2px,transparent 5px);pointer-events:none}'
-    + '.mvu-body{position:relative;padding:16px 18px 18px}.mvu-kicker{margin:0 0 12px;color:#facc15;font-size:.76rem;font-weight:900;letter-spacing:1px}'
-    + '.mvu-change-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.mvu-change-card{min-width:0;padding:13px 15px;border-radius:13px;border:1px solid rgba(245,158,11,.36);background:linear-gradient(145deg,rgba(86,55,16,.35),rgba(22,16,10,.82));box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}'
-    + '.mvu-change-card b{display:inline-flex;margin:0 0 8px;padding:3px 8px;border-radius:999px;background:rgba(245,158,11,.16);color:#fde68a;font-size:.68rem;font-style:normal}.mvu-change-card strong{display:block;color:#fef3c7;font-size:.88rem;line-height:1.45;word-break:break-word}.mvu-change-card em{display:block;margin-top:7px;color:#fff;font-size:.95rem;font-style:normal;font-weight:800;line-height:1.55;word-break:break-word}.mvu-change-card.is-insert{border-color:rgba(34,197,94,.42);background:linear-gradient(145deg,rgba(20,83,45,.32),rgba(14,18,12,.82))}.mvu-change-card.is-insert b{background:rgba(34,197,94,.18);color:#bbf7d0}.mvu-change-card.is-delta{border-color:rgba(56,189,248,.4);background:linear-gradient(145deg,rgba(8,47,73,.34),rgba(14,18,20,.82))}.mvu-change-card.is-delta b{background:rgba(56,189,248,.16);color:var(--color-accent-hover)}.mvu-change-card.is-remove{opacity:.82;border-color:rgba(248,113,113,.4)}'
-    + '.mvu-raw{position:relative;margin-top:14px}.mvu-raw summary{cursor:pointer;color:var(--color-warning);font-size:.74rem;font-weight:800}.mvu-raw pre{margin:10px 0 0;padding:12px 14px;border-radius:10px;background:rgba(2,6,23,.58);border:1px solid rgba(245,158,11,.16);color:#fde68a;font-size:.72rem;line-height:1.55;overflow-x:auto;white-space:pre-wrap}'
-    + '@media(max-width:720px){.mvu-change-grid{grid-template-columns:1fr}.mvu-body{padding:14px}}'
-    + '</style>'
-    + '<div class="mvu-report">'
-    + '<div class="mvu-body"><div class="mvu-kicker">变量变更</div><div class="mvu-change-grid">$3</div>'
-    + '<details class="mvu-raw"><summary>查看技术补丁</summary><pre>$2</pre></details></div>'
-    + '</div>';
+  var UPDATE_DISPLAY_REPLACE = buildUpdateDisplayReplace();
 
   var REGEX_SCRIPTS = [
-    { id:'mvu_hide', scriptName:'[不发送]去除变量更新', findRegex:'<UpdateVariable>[\\s\\S]*?</UpdateVariable>\\s*<DisplayPatch>[\\s\\S]*?</DisplayPatch>', replaceString:'', trimStrings:[], placement:[2], disabled:false, markdownOnly:false, promptOnly:true, runOnEdit:true, substituteRegex:false, minDepth:null, maxDepth:null },
-    { id:'mvu_display', scriptName:'[美化]变量更新状态卡', findRegex:'<UpdateVariable>\\s*<Analysis>([\\s\\S]*?)</Analysis>\\s*<JSONPatch>([\\s\\S]*?)</JSONPatch>\\s*</UpdateVariable>\\s*<DisplayPatch>\\s*([\\s\\S]*?)\\s*</DisplayPatch>', replaceString:MVU_DISPLAY_HTML, trimStrings:[], placement:[2], disabled:false, markdownOnly:true, promptOnly:false, runOnEdit:true, substituteRegex:false, minDepth:null, maxDepth:null }
+    { id:'mvu_hide', scriptName:'[不发送]去除变量更新', findRegex:HIDE_FIND, replaceString:'', trimStrings:[], placement:[2], disabled:false, markdownOnly:false, promptOnly:true, runOnEdit:true, substituteRegex:false, minDepth:null, maxDepth:null },
+    { id:'mvu_display', scriptName:'[美化]变量更新状态卡', findRegex:UPDATE_FIND, replaceString:UPDATE_DISPLAY_REPLACE, trimStrings:[], placement:[2], disabled:false, markdownOnly:true, promptOnly:false, runOnEdit:true, substituteRegex:false, minDepth:null, maxDepth:null },
+    { id:'mvu_init_hide', scriptName:'[美化]隐藏变量初始化', findRegex:INIT_FIND, replaceString:'', trimStrings:[], placement:[2], disabled:false, markdownOnly:true, promptOnly:false, runOnEdit:true, substituteRegex:false, minDepth:null, maxDepth:null }
   ];
 
   /* ============================================================
@@ -1324,20 +1318,7 @@ export function initVariableCardPanelCore() {
   }
 
   function buildUpdateRules(design) {
-    var lines = ['---', '变量更新规则:'];
-    design.variables.forEach(function(v) {
-      lines.push('');
-      lines.push('  ' + v.path + ':');
-      lines.push('    type: ' + v.type);
-      if (v.min !== undefined || v.max !== undefined) lines.push('    range: ' + (v.min ?? '-∞') + '~' + (v.max ?? '+∞'));
-      if (v.options && v.options.length) lines.push('    options: ' + v.options.join(' / '));
-      if (v.format) lines.push('    format: ' + v.format);
-      if (v.description) lines.push('    desc: ' + v.description);
-      lines.push('    check:');
-      var checks = v.check && v.check.length ? v.check : ['仅当本轮剧情明确导致该变量变化时更新；无变化不要输出操作'];
-      checks.forEach(function(c) { lines.push('      - ' + c); });
-    });
-    return lines.join('\n');
+    return buildGroupedUpdateRules(design && design.variables);
   }
 
   /* ============================================================
@@ -1496,7 +1477,7 @@ export function initVariableCardPanelCore() {
         role: 0,
         order: 1000,
         prob: 100,
-        enabled: modules.initvar,
+        enabled: false,
       }),
       varlist,
       patchForRegistrySlot(WB_OWNER.mvu, 'update_rules', {
@@ -1715,7 +1696,7 @@ export function initVariableCardPanelCore() {
       + '7. enum 必须给 options 数组，并让 default 是 options 中的一项。\n'
       + '8. number 可给 min/max。\n'
       + '9. check 写成数组，说明这个变量在什么剧情条件下应该更新。\n'
-      + '10. 默认值要符合角色开局设定，不知道时给安全中性值。\n'
+      + '10. default 是还没选开场时已经成立、且符合这张卡设定的状态。设定写明的照写；没写死但按这个世界推得出的，给说得通的值；推不出的用未结识、0、未在场或空。不要把某一条开场的当场场面写成所有人的 default。\n'
       + '\n【输出要求】\n'
       + '仅输出 JSON 对象，格式如下：\n'
       + '{\n'

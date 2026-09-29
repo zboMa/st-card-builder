@@ -99,6 +99,7 @@ describe('aiTaskCenter core', function() {
       'novel_rag_index', 'novel_analyze_skeleton', 'novel_analyze_enrich', 'novel_analyze_relations',
       'novel_style', 'novel_char_setup', 'novel_greetings',
       'chat_reply', 'auditor', 'mvu_generate', 'statusbar_generate', 'statusbar_char_scan',
+      'greeting_init_generate',
     ].forEach(function(k) {
       assert.ok(AI_TASK_TYPES[k], 'missing type ' + k);
     });

@@ -31,6 +31,7 @@ export function initRegexPanel() {
   var KNOWN_AUTO = {
     '[不发送]去除变量更新': 'MVU',
     '[美化]变量更新状态卡': 'MVU',
+    '[美化]隐藏变量初始化': 'MVU',
     '[美化]状态栏展示': '状态栏',
   };
 

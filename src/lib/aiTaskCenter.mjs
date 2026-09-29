@@ -32,6 +32,7 @@ export const AI_TASK_TYPES = Object.freeze({
   auditor: '世界书内容监测',
   mvu_generate: 'MVU 变量卡生成',
   statusbar_generate: '状态栏变量',
+  greeting_init_generate: '开场初始值',
   statusbar_char_scan: '状态栏人物识别',
   statusbar_custom_layout: '状态栏排版',
   statusbar_sample_floors: '状态栏样例楼层',

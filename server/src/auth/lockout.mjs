@@ -35,7 +35,9 @@ async function lockConfig() {
     return {
       enabled: cfg.enabled !== false,
       maxFails: Number(cfg.maxFails) || MAX_FAILS,
-      lockMs: Number(cfg.lockMs) || LOCK_MS,
+      lockMs: Number(cfg.lockMinutes) > 0
+        ? Number(cfg.lockMinutes) * 60 * 1000
+        : (Number(cfg.lockMs) || LOCK_MS),
     };
   } catch (e) {
     return { enabled: false };

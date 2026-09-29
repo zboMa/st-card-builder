@@ -84,6 +84,14 @@ export function createCardManagerShared(ctx) {
     if (typeof window !== 'undefined' && Array.isArray(window.__altGreetings__)) {
       ctx.state.altGreetings = window.__altGreetings__.slice();
     }
+    if (typeof window !== 'undefined') {
+      ctx.state.greetingInitMain = window.__greetingInitMain__ && typeof window.__greetingInitMain__ === 'object'
+        ? window.__greetingInitMain__
+        : {};
+      ctx.state.greetingInitAlts = Array.isArray(window.__greetingInitAlts__)
+        ? window.__greetingInitAlts__
+        : [];
+    }
   }
 
   // ---- State bridge helpers ----

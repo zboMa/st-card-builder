@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import { ASSISTANT_TOOLS } from '../src/lib/assistant/tools.mjs';
 import { createToolExecutor, resolveWorldbookIndex } from '../src/lib/assistant/executor.mjs';
 import { STOCK_CHAR_DESC, STOCK_GREETING, STOCK_WB } from '../src/lib/assistant/generationContext.mjs';
+import { applyGreetingInitChange, baselineLeavesFromEntries } from '../src/lib/mvu/greetingInit.mjs';
 
 /** 每个工具的最小合法参数（executeConfirmed 直跑，绕过 confirm） */
 const TOOL_MIN_ARGS = {
@@ -41,6 +42,7 @@ const TOOL_MIN_ARGS = {
   rewrite_greeting: { target: 'main', instruction: STOCK_GREETING },
   expand_greeting: { target: { alternate: 0 }, instruction: STOCK_GREETING },
   update_alternate_greeting: { index: 0, content: '新备选' },
+  set_greeting_init: { target: 'main', overrides: { '世界.当前时间': '亥时' } },
   generate_character_draft: {},
   generate_worldbook_skeleton: {},
   generate_worldbook_entry: { instruction: STOCK_WB },
@@ -107,6 +109,7 @@ const EMPTY_ARGS_SHOULD_FAIL = new Set([
   'update_worldbook_entry',
   'delete_worldbook_entry',
   'update_alternate_greeting',
+  'set_greeting_init',
   'open_module',
   'patch_mvu_node',
   'novel_patch_chapters',
@@ -353,6 +356,20 @@ function createFullMockBridge(seed) {
     mutateGreeting: async function(opts) {
       return { target: opts.target || 'main', mode: opts.mode || 'rewrite' };
     },
+    setGreetingInit: function(opts) {
+      var baseline = baselineLeavesFromEntries(state.worldbook);
+      if (!Object.keys(baseline).length) baseline = { '世界.当前时间': '08:00' };
+      var result = applyGreetingInitChange({
+        greetingInitMain: state.character.greetingInitMain,
+        greetingInitAlts: state.character.greetingInitAlts,
+        altCount: (state.character.altGreetings || []).length,
+        baseline: baseline,
+      }, opts);
+      if (!result.ok) throw new Error(result.error);
+      state.character.greetingInitMain = result.greetingInitMain;
+      state.character.greetingInitAlts = result.greetingInitAlts;
+      return { target: result.target, overrides: result.overrides, cleared: result.cleared };
+    },
     captureSnapshot: function() {
       return {
         character: Object.assign({}, state.character),
@@ -509,6 +526,7 @@ describe('assistant tools execution audit', function() {
       ['list_cards', {}, /多卡桥接未就绪/],
       ['expand_character_field', { field: 'charDesc', instruction: STOCK_CHAR_DESC }, /角色字段扩写桥接未就绪/],
       ['rewrite_greeting', { target: 'main', instruction: STOCK_GREETING }, /开场白桥接未就绪/],
+      ['set_greeting_init', { target: 'main', overrides: { '世界.当前时间': '亥时' } }, /开场初始值桥接未就绪/],
     ];
     for (var ci = 0; ci < cases.length; ci++) {
       var c = cases[ci];
@@ -516,5 +534,45 @@ describe('assistant tools execution audit', function() {
       assert.equal(r.ok, false);
       assert.match(r.error, c[2]);
     }
+  });
+
+  it('set_greeting_init 合并到对应开场，没有保底时拒绝', async function() {
+    var state = {
+      greetingInitMain: {},
+      greetingInitAlts: [{}],
+      altCount: 1,
+      baseline: { '世界.当前时间': '08:00', '世界.当前地点': '大厅' },
+    };
+    var bridge = createFullMockBridge();
+    bridge.setGreetingInit = function(opts) {
+      var result = applyGreetingInitChange(state, opts);
+      if (!result.ok) throw new Error(result.error);
+      state.greetingInitMain = result.greetingInitMain;
+      state.greetingInitAlts = result.greetingInitAlts;
+      return { target: result.target, overrides: result.overrides, cleared: result.cleared };
+    };
+    var ex = createToolExecutor(bridge);
+    var main = await ex.executeConfirmed('set_greeting_init', {
+      target: 'main',
+      overrides: { '世界.当前时间': '亥时' },
+    });
+    assert.equal(main.ok, true);
+    assert.deepEqual(main.data.overrides, { '世界.当前时间': '亥时' });
+    var alt = await ex.executeConfirmed('set_greeting_init', {
+      target: { alternate: 0 },
+      overrides: '世界.当前地点=水榭',
+    });
+    assert.equal(alt.ok, true);
+    assert.deepEqual(state.greetingInitAlts[0], { '世界.当前地点': '水榭' });
+    assert.deepEqual(state.greetingInitMain, { '世界.当前时间': '亥时' });
+
+    state.baseline = {};
+    var refused = await ex.executeConfirmed('set_greeting_init', {
+      target: 'main',
+      overrides: { '世界.当前时间': '子时' },
+    });
+    assert.equal(refused.ok, false);
+    assert.match(refused.error, /请先生成变量/);
+    assert.deepEqual(state.greetingInitMain, { '世界.当前时间': '亥时' });
   });
 });

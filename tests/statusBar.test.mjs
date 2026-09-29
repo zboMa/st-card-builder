@@ -63,6 +63,15 @@ import {
   buildCustomLayoutSnippet,
   normalizeCustomBodyForSnippet,
   STATUS_BAR_CUSTOM_LAYOUT_PROMPT,
+  STATUS_BAR_MVU_FILL_PROMPT,
+  STATUS_BAR_LAYOUT_SHELL_PROMPT,
+  planStatusBarBatches,
+  applyBatchFill,
+  fillStatusBarVariables,
+  expandStatusBarTemplate,
+  layoutReviseSource,
+  buildLocalSampleFloors,
+  buildGroupedUpdateRules,
   styleCss,
   designCss,
 } from '../src/lib/statusBar.mjs';
@@ -374,6 +383,8 @@ describe('statusBar core', function() {
     assert.match(STATUS_BAR_MVU_DESIGN_PROMPT, /\{\{pathLayoutSpec\}\}/);
     assert.match(STATUS_BAR_MVU_DESIGN_PROMPT, /角色\./);
     assert.match(STATUS_BAR_MVU_DESIGN_PROMPT, /NPC\.姓名/);
+    assert.match(STATUS_BAR_MVU_DESIGN_PROMPT, /还没选开场时/);
+    assert.match(STATUS_BAR_MVU_DESIGN_PROMPT, /未结识/);
     assert.doesNotMatch(STATUS_BAR_MVU_DESIGN_PROMPT, /sheet_attr|neon_monitor|基准主题/);
   });
 
@@ -403,10 +414,28 @@ describe('statusBar core', function() {
     assert.match(block, /角色\./);
     assert.match(block, /NPC\.姓名/);
     assert.match(block, /描述：卡侧描述/);
-    assert.match(block, /开场白：你好/);
+    assert.match(block, /【各条开场】/);
+    assert.match(block, /主开场：你好/);
+    assert.ok(block.indexOf('【各条开场】') > block.indexOf('描述：卡侧描述'));
     assert.match(block, /· 秦玥/);
     assert.match(block, /档案：世界书档案正文/);
     assert.doesNotMatch(block, /· 林雾/);
+    var withAlts = buildCastProfileBlock({
+      includeProtagonist: true,
+      includeFemales: false,
+      selected: [],
+      card: {
+        name: '林雾',
+        desc: '已与秦玥结义',
+        greetings: [
+          { label: '主开场', text: '在归云庄' },
+          { label: '备选1', text: '在曼陀山庄' },
+        ],
+      },
+    });
+    assert.match(withAlts, /主开场：在归云庄/);
+    assert.match(withAlts, /备选1：在曼陀山庄/);
+    assert.ok(withAlts.indexOf('【各条开场】') > withAlts.indexOf('已与秦玥结义'));
 
     var flags = defaultModuleFlags('daily', false);
     var chars = [{ name: '林雾', selected: true }, { name: '秦玥', selected: true }];
@@ -720,7 +749,12 @@ describe('statusBar wiring', function() {
     assert.match(boot, /generateVariables/);
     assert.match(boot, /generateLayout/);
     assert.match(boot, /card\.statusbar\.layout/);
-    assert.match(panel, /statusbar_sample_floors/);
+    assert.match(panel, /buildLocalSampleFloors/);
+    assert.match(boot, /fillStatusBarVariables/);
+    assert.match(boot, /statusBarMvuFill/);
+    assert.match(boot, /expandStatusBarTemplate/);
+    var genFn = boot.slice(boot.indexOf('async function generateVariables'), boot.indexOf('async function generateLayout'));
+    assert.ok(genFn.indexOf('upsertVariables') > genFn.indexOf('await fillStatusBarVariables'));
     assert.match(panel, /validateSampleFloors/);
     assert.match(panel, /keepMarkupPaths/);
     assert.match(panel, /getCurrentMessageId|buildStatusBarRegex/);
@@ -744,7 +778,10 @@ describe('statusBar wiring', function() {
     const meta = readFileSync(join(root, 'src/lib/promptStore.mjs'), 'utf8');
     assert.match(meta, /statusBarPaths/);
     assert.match(meta, /statusBarCharScan/);
+    assert.match(meta, /statusBarMvuFill/);
+    assert.match(meta, /statusBarLayoutShell/);
     assert.match(meta, /statusBarMvuDesign/);
+    assert.match(meta, /已停用/);
     assert.match(meta, /statusBarCustomLayout/);
     // 默认提示词正文在 promptCanon（描述体系组装）
     const canon = readFileSync(join(root, 'src/lib/promptCanon.mjs'), 'utf8');
@@ -1017,10 +1054,112 @@ describe('statusBar two path sets', function() {
   });
 
   it('提示词正文不含主题 CSS 与 30 套主题 id', function() {
-    var blob = STATUS_BAR_MVU_DESIGN_PROMPT + '\n' + STATUS_BAR_CUSTOM_LAYOUT_PROMPT + '\n' + STATUS_BAR_CHAR_SCAN_PROMPT;
+    var blob = STATUS_BAR_MVU_DESIGN_PROMPT + '\n' + STATUS_BAR_CUSTOM_LAYOUT_PROMPT + '\n' + STATUS_BAR_CHAR_SCAN_PROMPT
+      + '\n' + STATUS_BAR_MVU_FILL_PROMPT + '\n' + STATUS_BAR_LAYOUT_SHELL_PROMPT;
     STATUS_BAR_DESIGNS.forEach(function(d) {
       assert.equal(blob.indexOf(d.id), -1, d.id);
     });
     assert.doesNotMatch(blob, /基准主题|statusBarThemes|designCss/);
+    assert.match(STATUS_BAR_MVU_FILL_PROMPT, /defaults/);
+    assert.match(STATUS_BAR_MVU_FILL_PROMPT, /未结识/);
+    assert.match(STATUS_BAR_LAYOUT_SHELL_PROMPT, /data-zb-repeat="npc"/);
+    assert.match(STATUS_BAR_MVU_DESIGN_PROMPT, /已停用/);
+    assert.match(STATUS_BAR_CUSTOM_LAYOUT_PROMPT, /已停用/);
+  });
+
+  it('按人分批填短默认值，超长截断，失败不交出半套', async function() {
+    var paths = buildPlaceholderPaths({
+      includeProtagonist: true,
+      includeFemales: true,
+      charName: '杨过',
+      moduleFlags: { emotion: true, relation_stage: true, affection: true, time_weather: true },
+      characters: [
+        { name: '小龙女', selected: true },
+        { name: '黄蓉', selected: true },
+      ],
+    });
+    var batches = planStatusBarBatches(paths);
+    assert.equal(batches.length, 3);
+    assert.equal(batches[0].kind, 'shared');
+    assert.equal(batches[1].label, '小龙女');
+    assert.equal(batches[2].label, '黄蓉');
+    var long = '清冷'.repeat(50);
+    var filled = applyBatchFill(batches[1].paths, {
+      defaults: { 情绪: long, 好感度: '12', 不存在: '丢掉' },
+      enums: { 关系阶段: ['初识', '道侣'] },
+    });
+    assert.equal(filled.length, batches[1].paths.length);
+    var mood = filled.find(function(v) { return v.path === 'NPC.小龙女.情绪'; });
+    assert.equal(mood.default.length, 80);
+    assert.equal(mood.description, '情绪');
+    assert.ok(mood.check.length);
+    var affection = filled.find(function(v) { return v.path === 'NPC.小龙女.好感度'; });
+    assert.equal(affection.default, 12);
+    assert.equal(affection.type, 'number');
+    var stage = filled.find(function(v) { return v.path === 'NPC.小龙女.关系阶段'; });
+    assert.equal(stage.options[0], '未结识');
+    assert.equal(stage.default, '未结识');
+    var missing = applyBatchFill(batches[1].paths, {});
+    assert.equal(missing.find(function(v) { return v.path === 'NPC.小龙女.关系阶段'; }).default, '未结识');
+    assert.equal(missing.find(function(v) { return v.path === 'NPC.小龙女.好感度'; }).default, 0);
+    assert.equal(missing.find(function(v) { return v.path === 'NPC.小龙女.情绪'; }).default, '');
+    var calls = 0;
+    await assert.rejects(function() {
+      return fillStatusBarVariables({
+        batches: batches,
+        fetchBatch: function(batch) {
+          calls += 1;
+          if (batch.kind === 'npc') throw new Error('这一批失败');
+          return { defaults: { 当前时间: '辰时', 情绪: '平静' } };
+        },
+      });
+    }, /这一批失败/);
+    assert.equal(calls, 3);
+  });
+
+  it('排版模板按姓名展开，旧卡修改只留一个女角色样本', function() {
+    var html = '<div data-zb-path="世界.当前时间">—</div>'
+      + '<template data-zb-repeat="npc"><span data-zb-path="NPC.{{name}}.情绪">—</span></template>';
+    var expanded = expandStatusBarTemplate(html, ['小龙女', '黄蓉']);
+    assert.match(expanded, /data-zb-path="NPC\.小龙女\.情绪"/);
+    assert.match(expanded, /data-zb-path="NPC\.黄蓉\.情绪"/);
+    assert.doesNotMatch(expanded, /data-zb-repeat/);
+    assert.match(html, /\{\{name\}\}/);
+    var legacy = '<section><span data-zb-path="NPC.小龙女.情绪">清冷</span></section>'
+      + '<section><span data-zb-path="NPC.黄蓉.情绪">活泼</span></section>';
+    var source = layoutReviseSource(legacy, ['小龙女', '黄蓉']);
+    assert.equal(source.legacy, true);
+    assert.match(source.html, /NPC\.\{\{name\}\}\.情绪/);
+    assert.doesNotMatch(source.html, /黄蓉/);
+    assert.deepEqual(source.names, ['小龙女', '黄蓉']);
+  });
+
+  it('样例楼本地生成三楼，更新规则按字段合并', function() {
+    var paths = buildPlaceholderPaths({
+      includeProtagonist: true,
+      includeFemales: true,
+      charName: '杨过',
+      moduleFlags: { emotion: true, relation_stage: true },
+      characters: [
+        { name: '小龙女', selected: true },
+        { name: '黄蓉', selected: true },
+      ],
+    });
+    var checked = validateSampleFloors(buildLocalSampleFloors(paths));
+    assert.equal(checked.ok, true);
+    assert.equal(checked.floors.length, 3);
+    var rules = buildGroupedUpdateRules([
+      { path: 'NPC.小龙女.情绪', type: 'string', description: '当前情绪', check: ['情绪变化时更新'] },
+      { path: 'NPC.黄蓉.情绪', type: 'string', description: '当前情绪', check: ['情绪变化时更新'] },
+      { path: 'NPC.小龙女.关系阶段', type: 'enum', description: '关系阶段', check: ['关系阶段真正改变时才更新'], options: ['未结识', '道侣'] },
+      { path: 'NPC.黄蓉.关系阶段', type: 'enum', description: '关系阶段', check: ['关系阶段真正改变时才更新'], options: ['未结识', '相识'] },
+    ]);
+    assert.equal((rules.match(/type:/g) || []).length, 2);
+    assert.match(rules, /小龙女: 未结识 \/ 道侣/);
+    assert.match(rules, /黄蓉: 未结识 \/ 相识/);
+    assert.equal((rules.match(/情绪变化时更新/g) || []).length, 1);
+    assert.match(rules, /只输出本轮真正变化的路径/);
+    var mvu = readVariableCardPanelSources(root);
+    assert.match(mvu, /buildGroupedUpdateRules/);
   });
 });

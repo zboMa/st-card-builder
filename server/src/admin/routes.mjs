@@ -15,6 +15,9 @@ import {
   setShareEnabled,
   appendAdminAudit,
   listAdminAudit,
+  listAuditByUser,
+  getShareMapping,
+  putShareMapping,
   countUserDatabases,
   revokeUserSyncAccess,
   ensureAdminDatabase,
@@ -24,6 +27,7 @@ import {
 import {
   listBearerTokenDocs,
   revokeBearerByDocId,
+  revokeBearersForUser,
   purgeExpiredBearerTokens,
   countBearersByUserIds,
 } from '../auth/bearer.mjs';
@@ -38,7 +42,7 @@ import {
   requirePerm,
 } from '../auth/roles.mjs';
 import { listMenus, putMenu, deleteMenu } from './menus.mjs';
-import { listCardIndex, listNovelIndex } from '../index/aggregate.mjs';
+import { listCardIndex, listNovelIndex, upsertCardIndex } from '../index/aggregate.mjs';
 import {
   applyCardModeration,
   hardDeleteCard,
@@ -58,7 +62,9 @@ import {
 } from './moderation.mjs';
 import { opLogMiddleware, listOpLog, listLoginLog } from '../audit/oplog.mjs';
 import { PARAM_WHITELIST, listParams, setParam, deleteParam } from '../sysparams.mjs';
-import { listDicts, putDict, deleteDict, listFiles, uploadFile, readFile, deleteFile, generateInvite, listInvites, revokeInvite } from './system.mjs';
+import { listDicts, putDict, deleteDict, listFiles, uploadFile, readFile, deleteFile, recordAdminFile, generateInvite, listInvites, revokeInvite } from './system.mjs';
+import { listTasks, setTaskEnabled, runTaskById, seedTasks } from '../scheduler.mjs';
+import { capMeta, LIST_HARD_CAP, INDEX_SCAN_CAP, exceededLabels } from './deskLogic.mjs';
 import { runBackup, listBackupRuns } from '../backup.mjs';
 import { getQuotaSnapshot, resolveUserTier } from '../quota/quotaService.mjs';
 import { QUOTA_TIERS, tierLabel } from '../quota/quotaPolicy.mjs';
@@ -86,6 +92,15 @@ function requireOps(req, res, next) {
     return res.status(403).json({ error: 'readonly', message: '只读管理员无写权限' });
   }
   next();
+}
+
+function needReason(req, res) {
+  var reason = String((req.body || {}).reason || '').trim();
+  if (!reason) {
+    res.status(400).json({ error: 'reason_required', message: '请填写原因' });
+    return '';
+  }
+  return reason;
 }
 
 function paginate(list, req) {
@@ -236,7 +251,9 @@ adminRouter.get('/users', async function(req, res) {
   try {
     var q = String(req.query.q || '').trim().toLowerCase();
     var status = String(req.query.status || 'all');
-    var users = await listUserRegistry(2000);
+    var rawUsers = await listUserRegistry(LIST_HARD_CAP);
+    var userCap = capMeta(rawUsers.length, LIST_HARD_CAP);
+    var users = rawUsers;
     if (q) {
       users = users.filter(function(u) {
         var blob = [u.userId, u.username, u.displayName, u.discordId, u.email, u.provider].join(' ').toLowerCase();
@@ -263,7 +280,24 @@ adminRouter.get('/users', async function(req, res) {
         isReadonlyAdmin: isRo && !isOps,
       });
     });
-    res.json({ ok: true, users: page.items, total: page.total, limit: page.limit, offset: page.offset });
+    var idx = await listCardIndex({ limit: INDEX_SCAN_CAP, offset: 0 });
+    var cardCount = {};
+    (idx.items || []).forEach(function(c) {
+      if (!c || !c.userId) return;
+      cardCount[c.userId] = (cardCount[c.userId] || 0) + 1;
+    });
+    page.items = page.items.map(function(u) {
+      return Object.assign({}, u, { cardCount: cardCount[u.userId] || 0 });
+    });
+    res.json({
+      ok: true,
+      users: page.items,
+      total: page.total,
+      limit: page.limit,
+      offset: page.offset,
+      capped: userCap.capped,
+      listedCap: userCap.listedCap,
+    });
   } catch (e) {
     res.status(500).json({ error: 'users_failed', message: String(e && e.message || e) });
   }
@@ -273,16 +307,30 @@ adminRouter.post('/users/:userId/disable', requirePerm(PERMS.userDisable), async
   try {
     var userId = String(req.params.userId || '').trim();
     var disabled = !(req.body && req.body.disabled === false);
+    var reason = '';
+    if (disabled) {
+      reason = needReason(req, res);
+      if (!reason) return;
+    }
     await setUserDisabled(userId, disabled, req.session.user.id);
+    var tokenRevoke = null;
     if (disabled) {
       try { await revokeUserSyncAccess(userId); } catch (e) { /* ignore */ }
+      tokenRevoke = await revokeBearersForUser(userId);
     }
     await appendAdminAudit({
       action: disabled ? 'user.disable' : 'user.enable',
       targetUserId: userId,
       by: req.session.user.id,
+      reason: reason,
     });
-    res.json({ ok: true, userId: userId, disabled: disabled });
+    res.json({
+      ok: true,
+      userId: userId,
+      disabled: disabled,
+      tokensRevoked: tokenRevoke ? tokenRevoke.revoked : 0,
+      message: disabled ? '已禁用。下一次登录和同步会被拒绝；已经打开的主站要到下一次请求才失败。' : '已启用',
+    });
   } catch (e) {
     res.status(500).json({ error: 'disable_failed', message: String(e && e.message || e) });
   }
@@ -293,7 +341,9 @@ adminRouter.get('/shares', async function(req, res) {
     var type = String(req.query.type || 'all');
     var status = String(req.query.status || 'all');
     var q = String(req.query.q || '').trim().toLowerCase();
-    var shares = await listShareMappings(2000);
+    var shareRaw = await listShareMappings(LIST_HARD_CAP);
+    var shareCap = capMeta(shareRaw.length, LIST_HARD_CAP);
+    var shares = shareRaw;
     if (type === 'card-share' || type === 'novel-share') {
       shares = shares.filter(function(s) { return s && s.type === type; });
     }
@@ -343,7 +393,15 @@ adminRouter.get('/shares', async function(req, res) {
         updatedAt: s.updatedAt || null,
       };
     });
-    res.json({ ok: true, shares: items, total: page.total, limit: page.limit, offset: page.offset });
+    res.json({
+      ok: true,
+      shares: items,
+      total: page.total,
+      limit: page.limit,
+      offset: page.offset,
+      capped: shareCap.capped,
+      listedCap: shareCap.listedCap,
+    });
   } catch (e) {
     res.status(500).json({ error: 'shares_failed', message: String(e && e.message || e) });
   }
@@ -354,11 +412,20 @@ adminRouter.post('/shares/:token/enabled', requirePerm(PERMS.shareToggle), async
   try {
     var token = String(req.params.token || '').trim();
     var enabled = !!(req.body && req.body.enabled);
+    var reason = '';
+    if (!enabled) {
+      reason = needReason(req, res);
+      if (!reason) return;
+    }
+    var before = await getShareMapping(token);
     var mapping = await setShareEnabled(token, enabled);
     await appendAdminAudit({
       action: enabled ? 'share.enable' : 'share.disable',
       token: token,
+      targetUserId: before && before.ownerUserId,
+      targetCardId: before && before.cardId,
       by: req.session.user.id,
+      reason: reason,
     });
     res.json({ ok: true, token: token, enabled: mapping.enabled !== false });
   } catch (e) {
@@ -371,11 +438,17 @@ adminRouter.post('/shares/:token/enabled', requirePerm(PERMS.shareToggle), async
 adminRouter.delete('/shares/:token', requirePerm(PERMS.shareDelete), async function(req, res) {
   try {
     var token = String(req.params.token || '').trim();
+    var reason = needReason(req, res);
+    if (!reason) return;
+    var before = await getShareMapping(token);
     await deleteShareMapping(token);
     await appendAdminAudit({
       action: 'share.force_delete',
       token: token,
+      targetUserId: before && before.ownerUserId,
+      targetCardId: before && before.cardId,
       by: req.session.user.id,
+      reason: reason,
     });
     res.json({ ok: true });
   } catch (e) {
@@ -387,7 +460,9 @@ adminRouter.get('/tokens', async function(req, res) {
   try {
     var status = String(req.query.status || 'all');
     var q = String(req.query.q || '').trim().toLowerCase();
-    var tokens = await listBearerTokenDocs(2000);
+    var tokenRaw = await listBearerTokenDocs(LIST_HARD_CAP);
+    var tokenCap = capMeta(tokenRaw.length, LIST_HARD_CAP);
+    var tokens = tokenRaw;
     if (status === 'active') tokens = tokens.filter(function(t) { return !t.expired; });
     if (status === 'expired') tokens = tokens.filter(function(t) { return t.expired; });
     if (q) {
@@ -400,7 +475,15 @@ adminRouter.get('/tokens', async function(req, res) {
       return String(b.createdAt || '').localeCompare(String(a.createdAt || ''));
     });
     var page = paginate(tokens, req);
-    res.json({ ok: true, tokens: page.items, total: page.total, limit: page.limit, offset: page.offset });
+    res.json({
+      ok: true,
+      tokens: page.items,
+      total: page.total,
+      limit: page.limit,
+      offset: page.offset,
+      capped: tokenCap.capped,
+      listedCap: tokenCap.listedCap,
+    });
   } catch (e) {
     res.status(500).json({ error: 'tokens_failed', message: String(e && e.message || e) });
   }
@@ -450,7 +533,11 @@ adminRouter.get('/audit', async function(req, res) {
   try {
     var action = String(req.query.action || '').trim();
     var by = String(req.query.by || '').trim().toLowerCase();
-    var rows = await listAdminAudit(500);
+    var targetUserId = String(req.query.targetUserId || '').trim();
+    var rows = targetUserId
+      ? await listAuditByUser(targetUserId, 200)
+      : await listAdminAudit(LIST_HARD_CAP);
+    var cap = capMeta(targetUserId ? rows.length : rows.length, targetUserId ? 200 : LIST_HARD_CAP);
     if (action) rows = rows.filter(function(r) { return r && r.action === action; });
     if (by) {
       rows = rows.filter(function(r) {
@@ -458,7 +545,15 @@ adminRouter.get('/audit', async function(req, res) {
       });
     }
     var page = paginate(rows, req);
-    res.json({ ok: true, audit: page.items, total: page.total, limit: page.limit, offset: page.offset });
+    res.json({
+      ok: true,
+      audit: page.items,
+      total: page.total,
+      limit: page.limit,
+      offset: page.offset,
+      capped: !targetUserId && cap.capped,
+      listedCap: cap.listedCap,
+    });
   } catch (e) {
     res.status(500).json({ error: 'audit_failed', message: String(e && e.message || e) });
   }
@@ -466,7 +561,12 @@ adminRouter.get('/audit', async function(req, res) {
 
 adminRouter.get('/audit/export', async function(req, res) {
   try {
-    var rows = await listAdminAudit(1000);
+    var action = String(req.query.action || '').trim();
+    var by = String(req.query.by || '').trim().toLowerCase();
+    var targetUserId = String(req.query.targetUserId || '').trim();
+    var rows = targetUserId ? await listAuditByUser(targetUserId, 200) : await listAdminAudit(LIST_HARD_CAP);
+    if (action) rows = rows.filter(function(r) { return r && r.action === action; });
+    if (by) rows = rows.filter(function(r) { return String(r && r.by || '').toLowerCase().indexOf(by) >= 0; });
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.setHeader('Content-Disposition', 'attachment; filename="admin-audit.json"');
     res.send(JSON.stringify({ exportedAt: new Date().toISOString(), audit: rows }, null, 2));
@@ -547,28 +647,181 @@ adminRouter.get('/system-status', async function(req, res) {
   }
 });
 
-/** 配额概览：各用户用量 + 档位定义 */
+/** 配额概览：与主站同步中心同一份快照。一次拉分享和 Token，避免按人重复扫全表。 */
 adminRouter.get('/quota/users', async function(req, res) {
   try {
-    var page = await listCardIndex({ limit: 10000, offset: 0 });
-    var agg = {};
-    (page.items || []).forEach(function(c) {
-      agg[c.userId] = agg[c.userId] || { cards: 0, bytes: 0 };
-      agg[c.userId].cards += 1;
-      agg[c.userId].bytes += Number(c.bundleBytes) || 0;
+    var tierQ = String(req.query.tier || 'all');
+    var overOnly = String(req.query.over || '') === '1';
+    var raw = await listUserRegistry(LIST_HARD_CAP);
+    var userCap = capMeta(raw.length, LIST_HARD_CAP);
+    var shares = await listShareMappings(LIST_HARD_CAP);
+    var now = Date.now();
+    var shareCount = {};
+    (shares || []).forEach(function(m) {
+      if (!m || m.enabled === false) return;
+      if (m.expiresAt && Date.parse(m.expiresAt) < now) return;
+      var uid = String(m.ownerUserId || '');
+      shareCount[uid] = (shareCount[uid] || 0) + 1;
     });
-    var users = await listUserRegistry(2000);
-    var rows = (users || []).map(function(u) {
-      var a = agg[u.userId] || { cards: 0, bytes: 0 };
-      return { userId: u.userId, cards: a.cards, bytes: a.bytes };
-    }).sort(function(a, b) { return b.bytes - a.bytes; });
+    var tokens = await listBearerTokenDocs(LIST_HARD_CAP);
+    var tokenCount = {};
+    (tokens || []).forEach(function(t) {
+      if (!t || t.expired) return;
+      tokenCount[t.userId] = (tokenCount[t.userId] || 0) + 1;
+    });
+    var rows = [];
+    for (var i = 0; i < raw.length; i++) {
+      var u = raw[i];
+      var snap = await getQuotaSnapshot({
+        id: u.userId,
+        email: u.email,
+        discordId: u.discordId,
+        provider: u.provider || (u.email ? 'email' : 'discord'),
+      }, {
+        activeShares: shareCount[u.userId] || 0,
+        bearerTokens: tokenCount[u.userId] || 0,
+      });
+      var exceeded = exceededLabels(snap.usage, snap.limits);
+      if (tierQ !== 'all' && snap.tier !== tierQ) continue;
+      if (overOnly && !exceeded.length) continue;
+      rows.push({
+        userId: u.userId,
+        displayName: u.displayName || u.username || u.email || u.userId,
+        tier: snap.tier,
+        tierLabel: snap.tierLabel,
+        usage: snap.usage,
+        limits: snap.limits,
+        exceeded: exceeded,
+        tierLocked: !!(snap.tier === 'admin' && getAdminRole({
+          provider: u.provider || (u.email ? 'email' : 'discord'),
+          email: u.email,
+          discordId: u.discordId,
+          id: u.userId,
+        })),
+      });
+    }
+    var page = paginate(rows, req);
     res.json({
       ok: true,
-      users: rows,
-      tiers: Object.keys(QUOTA_TIERS).map(function(k) { return { key: k, label: tierLabel(k), limits: QUOTA_TIERS[k] }; }),
+      users: page.items,
+      total: page.total,
+      capped: userCap.capped,
+      listedCap: userCap.listedCap,
+      limit: page.limit,
+      offset: page.offset,
     });
   } catch (e) {
     res.status(500).json({ error: 'quota_users_failed', message: String(e && e.message || e) });
+  }
+});
+
+adminRouter.post('/users/:userId/quota', requirePerm(PERMS.quotaManage), async function(req, res) {
+  try {
+    var userId = String(req.params.userId || '').trim();
+    var tier = String((req.body || {}).tier || '');
+    if (tier !== QUOTA_TIERS.REGISTERED && tier !== QUOTA_TIERS.MEMBER && tier !== QUOTA_TIERS.ADMIN) {
+      return res.status(400).json({ error: 'bad_tier', message: '档位只能是 registered、member、admin' });
+    }
+    var reg = await getUserRegistry(userId);
+    if (!reg) return res.status(404).json({ error: 'not_found' });
+    var locked = getAdminRole({
+      provider: reg.provider || (reg.email ? 'email' : 'discord'),
+      email: reg.email,
+      discordId: reg.discordId,
+      id: userId,
+    });
+    if (locked) {
+      return res.status(409).json({
+        error: 'tier_locked',
+        message: '这个账号在环境变量管理员名单里，配额固定为管理员档，改档不会生效。',
+      });
+    }
+    reg.quotaTier = tier;
+    reg.updatedAt = new Date().toISOString();
+    var db = await ensureAdminDatabase();
+    await db.insert(reg);
+    var snap = await getQuotaSnapshot({ id: userId, email: reg.email, provider: reg.provider || 'email' });
+    await appendAdminAudit({
+      action: 'user.quota',
+      targetUserId: userId,
+      by: req.session.user.id,
+      reason: tier,
+    });
+    res.json({ ok: true, tier: snap.tier, usage: snap.usage, limits: snap.limits });
+  } catch (e) {
+    res.status(500).json({ error: 'quota_set_failed', message: String(e && e.message || e) });
+  }
+});
+
+adminRouter.post('/users/:userId/roles', requirePerm(PERMS.userManage), async function(req, res) {
+  try {
+    var userId = String(req.params.userId || '').trim();
+    var roles = Array.isArray((req.body || {}).roles) ? req.body.roles.map(function(r) { return String(r); }) : [];
+    var reg = await getUserRegistry(userId);
+    if (!reg) return res.status(404).json({ error: 'not_found' });
+    reg.roles = roles;
+    reg.updatedAt = new Date().toISOString();
+    var db = await ensureAdminDatabase();
+    await db.insert(reg);
+    await appendAdminAudit({
+      action: 'user.roles',
+      targetUserId: userId,
+      by: req.session.user.id,
+      reason: roles.join(','),
+    });
+    res.json({ ok: true, roles: roles });
+  } catch (e) {
+    res.status(500).json({ error: 'roles_set_failed', message: String(e && e.message || e) });
+  }
+});
+
+adminRouter.get('/tasks', async function(req, res) {
+  try {
+    await seedTasks();
+    var tasks = await listTasks();
+    res.json({ ok: true, tasks: tasks, handlers: ['index.rebuild', 'token.purge', 'backup.periodic'] });
+  } catch (e) {
+    res.status(500).json({ error: 'tasks_failed', message: String(e && e.message || e) });
+  }
+});
+
+adminRouter.post('/tasks/:id/enabled', requirePerm(PERMS.taskManage), async function(req, res) {
+  try {
+    var doc = await setTaskEnabled(req.params.id, !!((req.body || {}).enabled));
+    res.json({ ok: true, task: doc });
+  } catch (e) {
+    var status = e && e.statusCode === 404 ? 404 : 500;
+    res.status(status).json({ error: 'task_toggle_failed', message: String(e && e.message || e) });
+  }
+});
+
+adminRouter.post('/tasks/:id/run', requirePerm(PERMS.taskTrigger), async function(req, res) {
+  try {
+    var result = await runTaskById(req.params.id);
+    res.json({ ok: true, run: result });
+  } catch (e) {
+    var status = e && e.statusCode === 404 ? 404 : 500;
+    res.status(status).json({ error: 'task_run_failed', message: String(e && e.message || e) });
+  }
+});
+
+adminRouter.post('/shares/:token/clear-password', requirePerm(PERMS.shareToggle), async function(req, res) {
+  try {
+    var token = String(req.params.token || '').trim();
+    var mapping = await getShareMapping(token);
+    if (!mapping) return res.status(404).json({ error: 'not_found' });
+    mapping.passwordHash = null;
+    mapping.updatedAt = new Date().toISOString();
+    await putShareMapping(mapping);
+    await appendAdminAudit({
+      action: 'share.clear_password',
+      token: token,
+      targetUserId: mapping.ownerUserId,
+      by: req.session.user.id,
+    });
+    res.json({ ok: true, hasPassword: false });
+  } catch (e) {
+    res.status(500).json({ error: 'clear_password_failed', message: String(e && e.message || e) });
   }
 });
 
@@ -594,12 +847,13 @@ adminRouter.get('/cards', async function(req, res) {
     var nsfw = String(req.query.nsfw || 'all');
     var status = String(req.query.status || 'all');
     var userId = String(req.query.userId || '').trim();
-    var page = await listCardIndex({
+    var scanned = await listCardIndex({
       userId: userId || null,
-      limit: Number(req.query.limit) || 200,
-      offset: Number(req.query.offset) || 0,
+      limit: INDEX_SCAN_CAP,
+      offset: 0,
     });
-    var items = (page.items || []).filter(function(c) {
+    var cardCap = capMeta((scanned.items || []).length, INDEX_SCAN_CAP);
+    var items = (scanned.items || []).filter(function(c) {
       if (!matchText(c.charName + ' ' + c.cardId + ' ' + c.userId, q)) return false;
       if (nsfw === 'yes' && !c.nsfw) return false;
       if (nsfw === 'no' && c.nsfw) return false;
@@ -607,7 +861,16 @@ adminRouter.get('/cards', async function(req, res) {
       if (status === 'active' && c.moderated && c.moderated.status === 'removed') return false;
       return true;
     });
-    res.json({ ok: true, cards: items, total: items.length, filteredTotal: page.total });
+    var page = paginate(items, req);
+    res.json({
+      ok: true,
+      cards: page.items,
+      total: page.total,
+      limit: page.limit,
+      offset: page.offset,
+      capped: cardCap.capped,
+      listedCap: cardCap.listedCap,
+    });
   } catch (e) {
     res.status(500).json({ error: 'cards_failed', message: String(e && e.message || e) });
   }
@@ -618,6 +881,27 @@ adminRouter.get('/cards/:userId/:cardId', async function(req, res) {
   try {
     var detail = await cardDetail(req.params.userId, req.params.cardId);
     if (!detail) return res.status(404).json({ error: 'not_found' });
+    var shares = await listShareMappings(LIST_HARD_CAP);
+    detail.shares = (shares || []).filter(function(s) {
+      return s && s.ownerUserId === req.params.userId && s.cardId === req.params.cardId && !s.novelId;
+    }).map(function(s) {
+      return {
+        token: s.token,
+        type: s.type,
+        enabled: s.enabled !== false,
+        expired: !!(s.expiresAt && Date.parse(s.expiresAt) < Date.now()),
+        expiresAt: s.expiresAt || null,
+        hasPassword: !!s.passwordHash,
+        pngPublic: !!s.pngPublic,
+      };
+    });
+    var approvals = await listApprovals('pending');
+    detail.pendingDelete = (approvals || []).some(function(a) {
+      return a && a.action === 'delete-card' && a.target && a.target.userId === req.params.userId && a.target.cardId === req.params.cardId;
+    });
+    detail.audit = (await listAuditByUser(req.params.userId, 40)).filter(function(r) {
+      return r && r.targetCardId === req.params.cardId;
+    });
     res.json({ ok: true, detail: detail });
   } catch (e) {
     res.status(500).json({ error: 'card_failed', message: String(e && e.message || e) });
@@ -629,6 +913,15 @@ adminRouter.get('/cards/:userId/:cardId/export', requirePerm(PERMS.cardExport), 
   try {
     var out = await exportCard(req.params.userId, req.params.cardId);
     if (!out) return res.status(404).json({ error: 'not_found' });
+    try {
+      await recordAdminFile({
+        name: (out.charName || req.params.cardId) + '.json',
+        source: 'export',
+        by: req.session.user.id,
+        contentType: 'application/json',
+        text: JSON.stringify(out),
+      });
+    } catch (eFile) { /* 导出本身已成功 */ }
     res.json({ ok: true, card: out });
   } catch (e) {
     res.status(500).json({ error: 'card_export_failed', message: String(e && e.message || e) });
@@ -636,12 +929,23 @@ adminRouter.get('/cards/:userId/:cardId/export', requirePerm(PERMS.cardExport), 
 });
 
 /** 卡下架（软） */
+adminRouter.post('/cards/:userId/:cardId/reindex', requirePerm(PERMS.cardRead), async function(req, res) {
+  try {
+    await upsertCardIndex(req.params.userId, req.params.cardId);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: 'reindex_failed', message: String(e && e.message || e) });
+  }
+});
+
 adminRouter.post('/cards/:userId/:cardId/disable', requirePerm(PERMS.cardDisable), async function(req, res) {
   try {
+    var reason = needReason(req, res);
+    if (!reason) return;
     var out = await applyCardModeration(req.params.userId, req.params.cardId, {
       status: 'removed',
       by: req.session.user.id,
-      reason: String((req.body || {}).reason || ''),
+      reason: reason,
     });
     res.json(out);
   } catch (e) {
@@ -664,10 +968,12 @@ adminRouter.post('/cards/:userId/:cardId/restore', requirePerm(PERMS.cardDisable
 /** 卡硬删除（危险：改走审批流，需 moderation.approve 审批通过后执行） */
 adminRouter.delete('/cards/:userId/:cardId', requirePerm(PERMS.cardDelete), async function(req, res) {
   try {
+    var reason = needReason(req, res);
+    if (!reason) return;
     var approval = await createApproval({
       action: 'delete-card',
       target: { userId: req.params.userId, cardId: req.params.cardId },
-      reason: String((req.body || {}).reason || ''),
+      reason: reason,
       by: req.session.user.id,
     });
     res.json({ ok: true, pending: true, approval: approval });
@@ -682,18 +988,28 @@ adminRouter.get('/novels', async function(req, res) {
     var q = String(req.query.q || '').trim().toLowerCase();
     var status = String(req.query.status || 'all');
     var userId = String(req.query.userId || '').trim();
-    var page = await listNovelIndex({
+    var scanned = await listNovelIndex({
       userId: userId || null,
-      limit: Number(req.query.limit) || 200,
-      offset: Number(req.query.offset) || 0,
+      limit: INDEX_SCAN_CAP,
+      offset: 0,
     });
-    var items = (page.items || []).filter(function(n) {
+    var novelCap = capMeta((scanned.items || []).length, INDEX_SCAN_CAP);
+    var items = (scanned.items || []).filter(function(n) {
       if (!matchText(n.title + ' ' + n.novelId + ' ' + n.cardId + ' ' + n.userId, q)) return false;
       if (status === 'removed' && !(n.moderated && n.moderated.status === 'removed')) return false;
       if (status === 'active' && n.moderated && n.moderated.status === 'removed') return false;
       return true;
     });
-    res.json({ ok: true, novels: items, total: items.length, filteredTotal: page.total });
+    var page = paginate(items, req);
+    res.json({
+      ok: true,
+      novels: page.items,
+      total: page.total,
+      limit: page.limit,
+      offset: page.offset,
+      capped: novelCap.capped,
+      listedCap: novelCap.listedCap,
+    });
   } catch (e) {
     res.status(500).json({ error: 'novels_failed', message: String(e && e.message || e) });
   }
@@ -702,10 +1018,12 @@ adminRouter.get('/novels', async function(req, res) {
 /** 小说处置：下架 / 恢复 / 删除 */
 adminRouter.post('/novels/:userId/:cardId/:novelId/disable', requirePerm(PERMS.novelDisable), async function(req, res) {
   try {
+    var reason = needReason(req, res);
+    if (!reason) return;
     var out = await applyNovelModeration(req.params.userId, req.params.cardId, req.params.novelId, {
       status: 'removed',
       by: req.session.user.id,
-      reason: String((req.body || {}).reason || ''),
+      reason: reason,
     });
     res.json(out);
   } catch (e) {
@@ -726,10 +1044,12 @@ adminRouter.post('/novels/:userId/:cardId/:novelId/restore', requirePerm(PERMS.n
 
 adminRouter.delete('/novels/:userId/:cardId/:novelId', requirePerm(PERMS.novelDelete), async function(req, res) {
   try {
+    var reason = needReason(req, res);
+    if (!reason) return;
     var approval = await createApproval({
       action: 'delete-novel',
       target: { userId: req.params.userId, cardId: req.params.cardId, novelId: req.params.novelId },
-      reason: String((req.body || {}).reason || ''),
+      reason: reason,
       by: req.session.user.id,
     });
     res.json({ ok: true, pending: true, approval: approval });
@@ -753,6 +1073,7 @@ adminRouter.post('/moderation/flags/:id/resolve', requirePerm(PERMS.modReview), 
     var out = await resolveFlag(req.params.id, {
       action: String((req.body || {}).action || 'ignore'),
       by: req.session.user.id,
+      reason: String((req.body || {}).reason || ''),
     });
     res.json(out);
   } catch (e) {
@@ -778,8 +1099,8 @@ adminRouter.post('/moderation/approvals/:id/decide', requirePerm(PERMS.modApprov
     });
     res.json(out);
   } catch (e) {
-    var status = e && e.statusCode === 404 ? 404 : (e && e.statusCode === 409 ? 409 : 500);
-    res.status(status).json({ error: 'approval_decide_failed', message: String(e && e.message || e) });
+    var status = e && (e.statusCode === 404 || e.statusCode === 409 || e.statusCode === 403) ? e.statusCode : 500;
+    res.status(status).json({ error: e && e.message || 'approval_decide_failed', message: String(e && e.message || e) });
   }
 });
 
@@ -819,7 +1140,33 @@ adminRouter.post('/users/:userId/password', requirePerm(PERMS.userManage), async
 /** 用户档案：卡 / 小说 / 分享 / token 一览 */
 adminRouter.get('/users/:userId/overview', async function(req, res) {  try {
     var ov = await userOverview(req.params.userId);
-    var shares = await listShareMappings(2000);
+    var reg = await getUserRegistry(req.params.userId);
+    ov.registry = reg ? {
+      displayName: reg.displayName || '',
+      username: reg.username || '',
+      email: reg.email || '',
+      discordId: reg.discordId || '',
+      provider: reg.provider || '',
+      disabled: !!reg.disabled,
+      quotaTier: reg.quotaTier || '',
+      roles: Array.isArray(reg.roles) ? reg.roles : [],
+    } : null;
+    ov.tierLocked = !!(reg && getAdminRole({
+      provider: reg.provider || (reg.email ? 'email' : 'discord'),
+      email: reg.email,
+      discordId: reg.discordId,
+      id: req.params.userId,
+    }));
+    try {
+      ov.quota = await getQuotaSnapshot({
+        id: req.params.userId,
+        email: reg && reg.email,
+        discordId: reg && reg.discordId,
+        provider: (reg && reg.provider) || (reg && reg.email ? 'email' : 'discord'),
+      });
+    } catch (eQ) { ov.quota = null; }
+    ov.audit = await listAuditByUser(req.params.userId, 30);
+    var shares = await listShareMappings(LIST_HARD_CAP);
     ov.shares = (shares || []).filter(function(s) { return s && s.ownerUserId === req.params.userId; })
       .map(function(s) {
         var expired = false;
@@ -829,8 +1176,8 @@ adminRouter.get('/users/:userId/overview', async function(req, res) {  try {
         }
         return { token: s.token, type: s.type || 'share', enabled: s.enabled !== false, expired: expired };
       });
-    var tokens = await listBearerTokenDocs(2000);
-    ov.tokens = (tokens || []).filter(function(t) { return t.userId === req.params.userId && !t.expired; });
+    var tokens = await listBearerTokenDocs(LIST_HARD_CAP);
+    ov.tokens = (tokens || []).filter(function(t) { return t.userId === req.params.userId; });
     var novelPage = await listNovelIndex({ userId: req.params.userId, limit: 500, offset: 0 });
     ov.stories = novelPage.items || [];
     res.json({ ok: true, overview: ov });

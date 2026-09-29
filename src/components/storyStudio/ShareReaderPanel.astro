@@ -11,8 +11,14 @@
       <button type="button" id="btnShareReaderCopy" class="btn btn-sm btn-ghost">复制到本地创作</button>
       <button type="button" id="btnShareReaderRestart" class="btn btn-sm btn-ghost">重开主线</button>
       <button type="button" id="btnShareReaderRefresh" class="btn btn-sm btn-ghost">刷新</button>
+      <button type="button" id="btnShareReport" class="btn btn-sm btn-ghost">举报</button>
     </div>
   </header>
+  <form id="shareReportForm" class="share-reader__report" hidden>
+    <label for="shareReportReason">理由</label>
+    <textarea id="shareReportReason" rows="3" required></textarea>
+    <button type="submit" class="btn btn-primary btn-sm">提交举报</button>
+  </form>
   <div id="shareReaderPath" class="share-reader__path" hidden></div>
   <div class="share-reader__layout">
     <aside class="share-reader__toc-wrap">
@@ -453,6 +459,32 @@
     shareState.pinnedVersion = (typeof __shareParsed === "object" && __shareParsed && __shareParsed.version) || "";
     if (token) loadShare(token);
     else exitShareIfNeeded();
+  }
+
+  var reportBtn = document.getElementById('btnShareReport');
+  var reportForm = document.getElementById('shareReportForm');
+  if (reportBtn && reportForm) {
+    reportBtn.addEventListener('click', function() { reportForm.hidden = !reportForm.hidden; });
+    reportForm.addEventListener('submit', async function(ev) {
+      ev.preventDefault();
+      var token = shareState.token;
+      var reason = (document.getElementById('shareReportReason') || {}).value || '';
+      if (!token || !String(reason).trim()) return;
+      try {
+        var res = await fetch('/api/data/report', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: token, reason: String(reason).trim() }),
+        });
+        var body = await res.json().catch(function() { return {}; });
+        if (!res.ok) throw new Error(body.message || body.error || '提交失败');
+        reportForm.hidden = true;
+        setStatus('举报已提交');
+      } catch (err) {
+        setStatus(String(err && err.message || err) + '。未登录时请先登录再举报。');
+      }
+    });
   }
 
   document.addEventListener('DOMContentLoaded', function() {

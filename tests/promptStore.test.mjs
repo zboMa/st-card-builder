@@ -131,7 +131,7 @@ describe('promptStore', function() {
   });
 
   it('侧栏相关默认提示词键齐全', function() {
-    ['charGen', 'greetingGen', 'charTagsGen', 'wbSkeleton', 'novelExtract', 'novelMerge', 'wbAudit', 'mvuDesign', 'statusBarPaths', 'statusBarCharScan', 'statusBarMvuDesign', 'statusBarCustomLayout', 'chatRpCore',
+    ['charGen', 'greetingGen', 'charTagsGen', 'wbSkeleton', 'novelExtract', 'novelMerge', 'wbAudit', 'mvuDesign', 'statusBarPaths', 'statusBarCharScan', 'statusBarMvuFill', 'statusBarLayoutShell', 'statusBarMvuDesign', 'statusBarCustomLayout', 'chatRpCore',
       'assistantSystem', 'assistantReactHint', 'assistantChatFeedback', 'assistantCharField', 'assistantGreeting',
       'novelCharScan', 'novelCharExpand', 'novelWbExtract', 'novelWbExpand', 'novelStyleDistill',
       'novelAnalyzeSkeleton', 'novelEnrichEntity', 'novelAnalyzeRelations',

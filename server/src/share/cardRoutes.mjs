@@ -18,6 +18,9 @@ import {
 } from '../couch.mjs';
 import { config } from '../config.mjs';
 import { hashSharePassword, verifySharePassword } from './password.mjs';
+import { targetRemoved } from './targetGate.mjs';
+import { getParam } from '../sysparams.mjs';
+import { defaultExpiresAt } from '../admin/deskLogic.mjs';
 import { assertQuota } from '../quota/quotaService.mjs';
 
 export var cardShareRouter = Router();
@@ -71,6 +74,9 @@ async function assertShareAccess(req, mapping) {
     );
     var ok = await verifySharePassword(pass, mapping.passwordHash);
     if (!ok) return { ok: false, status: 403, error: 'bad_password' };
+  }
+  if (await targetRemoved(mapping)) {
+    return { ok: false, status: 404, error: 'removed' };
   }
   return { ok: true };
 }
@@ -171,6 +177,9 @@ cardShareRouter.post('/', requireUserFlexible, async function(req, res) {
       }
     } else if (body.expiresAt === null) {
       mapping.expiresAt = null;
+    } else if (!mapping.expiresAt && mapping.createdAt && Date.now() - Date.parse(mapping.createdAt) < 5000) {
+      var defAt = defaultExpiresAt(await getParam('share.defaultExpireDays'));
+      if (defAt) mapping.expiresAt = defAt;
     }
 
     await putShareMapping(mapping);
@@ -291,6 +300,7 @@ cardShareRouter.get('/:token/png', async function(req, res) {
       return res.status(404).json({ error: 'not_found' });
     }
     if (isExpired(mapping)) return res.status(410).json({ error: 'expired' });
+    if (await targetRemoved(mapping)) return res.status(404).json({ error: 'removed' });
     if (!mapping.pngPublic) return res.status(404).json({ error: 'png_disabled' });
     var buf = await getOwnerCardPng(mapping.ownerUserId, mapping.cardId, null);
     if (!buf) return res.status(404).json({ error: 'png_missing' });
@@ -313,6 +323,7 @@ cardShareRouter.get('/:token/versions/:ver/png', async function(req, res, next) 
       return res.status(404).json({ error: 'not_found' });
     }
     if (isExpired(mapping)) return res.status(410).json({ error: 'expired' });
+    if (await targetRemoved(mapping)) return res.status(404).json({ error: 'removed' });
     if (!mapping.pngPublic) {
       return requireUserFlexible(req, res, async function() {
         var gate = await assertShareAccess(req, mapping);

@@ -140,6 +140,8 @@ export function createCardStateMachine(state) {
     state.cardBuilderExtensions = Object.assign({}, d.cardBuilderExtensions || {});
     state.activeAvatarId = String(d.activeAvatarId || '').trim();
     state.altGreetings = d.altGreetings || [];
+    state.greetingInitMain = d.greetingInitMain && typeof d.greetingInitMain === 'object' ? d.greetingInitMain : {};
+    state.greetingInitAlts = Array.isArray(d.greetingInitAlts) ? d.greetingInitAlts : [];
     state.nsfwEnabled = !!d.nsfwEnabled;
     state.nsfwFlavor = d.nsfwFlavor || '';
     if (Array.isArray(d.nsfwFlavorItems) && d.nsfwFlavorItems.length) {
@@ -220,6 +222,8 @@ export function createCardStateMachine(state) {
     state.cardBuilderExtensions = {};
     state.activeAvatarId = '';
     state.altGreetings = [];
+    state.greetingInitMain = {};
+    state.greetingInitAlts = [];
     state.nsfwEnabled = false;
     state.nsfwFlavor = '';
     state.nsfwFlavorItems = [];

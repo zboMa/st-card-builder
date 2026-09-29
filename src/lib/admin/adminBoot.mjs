@@ -3,9 +3,9 @@
  */
 import { apiFetch, getPublicAppUrl, discordLoginUrl } from '../publicConfig.mjs';
 import {
-  state, api, $, escapeHtml, setBanner, setStatus, isOps, apiEmailLogin,
+  state, api, $, escapeHtml, setBanner, setStatus, isOps, hasPerm, apiEmailLogin, askReason,
 } from './adminShared.mjs';
-import { showView, renderAdminNav, loadUsers, loadShares, loadTokens, loadDatabases, loadAudit, loadCards, loadNovels, loadOpLog, loadLoginLog, loadParams, loadDicts, loadInvites, loadQuota, loadFiles } from './adminViews.mjs';
+import { showView, renderAdminNav, loadUsers, loadShares, loadTokens, loadDatabases, loadAudit, loadCards, loadNovels, loadOpLog, loadLoginLog, loadParams, loadDicts, loadInvites, loadQuota, loadFiles, openUserProfile } from './adminViews.mjs';
 import { bootAdminActionEngine } from '../actionEngine/bootAdmin.mjs';
 import { engineBegin, engineEnd, engineTryAllowed, engineRefresh } from '../actionEngine/helpers.mjs';
 
@@ -162,11 +162,12 @@ function bindEvents() {
   $('btnAdminPurgeTokens') && $('btnAdminPurgeTokens').addEventListener('click', async function() {
     if (!isOps()) return;
     if (!engineTryAllowed('admin.token.purge').ok) return;
-    if (!window.confirm('清理所有过期插件 Token？')) return;
+    var preview = await api('/api/admin/tokens?status=expired&limit=1');
+    setStatus('将清理 ' + (preview.total || 0) + ' 条过期 Token');
     engineBegin('admin.token.purge');
     try {
       var r = await api('/api/admin/tokens/purge-expired', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
-      setStatus('已清理 ' + r.purged + ' 个过期 Token');
+      setStatus('已清掉 ' + r.purged + ' 条');
       loadTokens();
     } catch (e) {
       setStatus(String(e.message || e));
@@ -177,7 +178,6 @@ function bindEvents() {
   $('btnAdminBackup') && $('btnAdminBackup').addEventListener('click', async function() {
     if (!isOps()) return;
     if (!engineTryAllowed('admin.backup.run').ok) return;
-    if (!window.confirm('确认在服务器执行逻辑备份？可能耗时较长。')) return;
     engineBegin('admin.backup.run');
     setStatus('备份进行中…');
     try {
@@ -212,20 +212,28 @@ function bindEvents() {
       return;
     }
 
-    if (!isOps()) return;
+    if (!hasPerm('admin.user.disable') && !hasPerm('admin.share.toggle') && !hasPerm('admin.share.delete') && !hasPerm('admin.token.revoke')) return;
 
     var uid = t.getAttribute('data-user-toggle');
     if (uid) {
+      if (!hasPerm('admin.user.disable')) return;
       if (!engineTryAllowed('admin.user.disable').ok) return;
       var disabled = t.getAttribute('data-disabled') === '1';
+      var reason = '';
+      if (disabled) {
+        reason = await askReason('禁用这个用户。下一次登录和同步会被拒绝，已经打开的页面要到下一次请求才失败。');
+        if (!reason) return;
+      }
       try {
         await api('/api/admin/users/' + encodeURIComponent(uid) + '/disable', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ disabled: disabled }),
+          body: JSON.stringify({ disabled: disabled, reason: reason }),
         });
-        setStatus((disabled ? '已禁用 ' : '已启用 ') + uid);
+        setStatus(disabled ? '已禁用，Token 已撤销' : '已启用');
         loadUsers();
+        var profile = $('adminUserProfile');
+        if (profile && profile.innerHTML) openUserProfile(uid);
       } catch (err) {
         setStatus(String(err.message || err));
       }
@@ -236,11 +244,16 @@ function bindEvents() {
     if (soft) {
       if (!engineTryAllowed('admin.share.toggle').ok) return;
       var on = t.getAttribute('data-on') === '1';
+      var stopReason = '';
+      if (!on) {
+        stopReason = await askReason('停用这条分享');
+        if (!stopReason) return;
+      }
       try {
         await api('/api/admin/shares/' + encodeURIComponent(soft) + '/enabled', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ enabled: on }),
+          body: JSON.stringify({ enabled: on, reason: stopReason }),
         });
         setStatus(on ? '已恢复分享' : '已软停用分享');
         loadShares();
@@ -253,9 +266,14 @@ function bindEvents() {
     var del = t.getAttribute('data-share-del');
     if (del) {
       if (!engineTryAllowed('admin.share.delete').ok) return;
-      if (!window.confirm('硬删除分享映射？此操作不可恢复。')) return;
+      var delReason = await askReason('删除这条分享映射。卡和小说还在，链接不能恢复。');
+      if (!delReason) return;
       try {
-        await api('/api/admin/shares/' + encodeURIComponent(del), { method: 'DELETE' });
+        await api('/api/admin/shares/' + encodeURIComponent(del), {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reason: delReason }),
+        });
         setStatus('已删除分享');
         loadShares();
       } catch (err) {
@@ -267,7 +285,6 @@ function bindEvents() {
     var tok = t.getAttribute('data-token-revoke');
     if (tok) {
       if (!engineTryAllowed('admin.token.revoke').ok) return;
-      if (!window.confirm('吊销该插件 Token？')) return;
       try {
         await api('/api/admin/tokens/' + encodeURIComponent(tok), { method: 'DELETE' });
         setStatus('已吊销 Token');

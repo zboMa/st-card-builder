@@ -7,6 +7,7 @@ import { getUserDoc, putUserDoc, getCardBundle, cascadeDeleteCard, getCardIndexD
 import { DOC, cardDocId, storyNovelDocId, storyCatalogDocId, storyReleaseDocId } from '../data/docIds.mjs';
 import { cardIndexEntryId, novelIndexEntryId, upsertCardIndex, deleteCardIndex } from '../index/aggregate.mjs';
 import { appendAdminAudit } from '../couch.mjs';
+import { stopMatchingShares, deleteMatchingShares } from './shareStop.mjs';
 import { getOrNull } from '../index/aggregate.mjs';
 import { getAdmin, userDbName } from '../couch.mjs';
 
@@ -57,25 +58,37 @@ export async function applyCardModeration(userId, cardId, action) {
   await putUserDoc(userId, { _id: DOC.cardIndex, type: 'card-index', cards: cards, updatedAt: new Date().toISOString() }, { force: true });
 
   await upsertCardIndex(userId, cardId);
+  var shareStop = null;
+  if (removed) {
+    shareStop = await stopMatchingShares(function(doc) {
+      return doc && doc.ownerUserId === userId && doc.cardId === cardId;
+    });
+  }
   await appendAdminAudit({
     action: removed ? 'content.card.disable' : 'content.card.restore',
     targetUserId: userId,
     targetCardId: cardId,
     by: action2.by || '',
+    reason: String(action2.reason || '').slice(0, 500),
   });
-  return { ok: true, userId: userId, cardId: cardId, removed: removed };
+  return { ok: true, userId: userId, cardId: cardId, removed: removed, shareStop: shareStop };
 }
 
 /** 硬删除卡（危险，需审批流前置确认） */
-export async function hardDeleteCard(userId, cardId, byAdmin) {
+export async function hardDeleteCard(userId, cardId, byAdmin, reason) {
   var out = await cascadeDeleteCard(userId, cardId, { deleteStories: true });
   await deleteCardIndex(userId, cardId);
+  var shareDelete = await deleteMatchingShares(function(doc) {
+    return doc && doc.ownerUserId === userId && doc.cardId === cardId;
+  });
   await appendAdminAudit({
     action: 'content.card.delete',
     targetUserId: userId,
     targetCardId: cardId,
     by: byAdmin || '',
+    reason: String(reason || '').slice(0, 500),
   });
+  out.shareDelete = shareDelete;
   return out;
 }
 
@@ -104,6 +117,12 @@ export async function cardDetail(userId, cardId) {
   var cardDoc = await getUserDoc(userId, cardDocId(cardId));
   if (!cardDoc && !entry) return null;
   var draft = cardDoc && cardDoc.data != null ? cardDoc.data : {};
+  var alts = Array.isArray(draft.altGreetings) ? draft.altGreetings : [];
+  var wb = Array.isArray(draft.worldbookEntries) ? draft.worldbookEntries : [];
+  var wbTitles = wb.map(function(e) {
+    if (!e) return '';
+    return String(e.comment || e.name || e.key || (Array.isArray(e.keys) ? e.keys[0] : '') || '未命名');
+  }).filter(Boolean);
   var avatarFull = await getUserDoc(userId, 'avatar/' + cardId + '/full');
   var catalogDoc = await getUserDoc(userId, storyCatalogDocId(cardId));
   var novelDoc = await getUserDoc(userId, 'novel/' + cardId);
@@ -120,10 +139,17 @@ export async function cardDetail(userId, cardId) {
         charTags: Array.isArray(draft.charTags) ? draft.charTags : [],
         nsfw: !!draft.nsfwEnabled,
         characterVersion: draft.characterVersion || '',
-        worldbookEntries: Array.isArray(draft.worldbookEntries) ? draft.worldbookEntries.length : 0,
+        worldbookEntries: wb.length,
         createdAt: draft.createdAt || null,
+        description: String(draft.charDesc || draft.description || '').slice(0, 400),
+        greetingCount: (draft.firstMes ? 1 : 0) + alts.length,
+        greetingStart: String(draft.firstMes || '').slice(0, 120),
+        worldbookTitles: wbTitles.slice(0, 20),
+        worldbookMore: wbTitles.length > 20,
       },
     } : null,
+    indexStale: !!(entry && cardDoc && String(entry.updatedAt || '') && String(cardDoc.updatedAt || '')
+      && String(entry.updatedAt) < String(cardDoc.updatedAt)),
     avatarFullPresent: !!avatarFull,
     novelWorkshopPresent: !!novelDoc,
     storyCount: catalogDoc && Array.isArray(catalogDoc.data) ? catalogDoc.data.length
@@ -142,29 +168,40 @@ export async function applyNovelModeration(userId, cardId, novelId, action) {
     : null;
   await putUserDoc(userId, Object.assign({}, doc, { moderation: moderation, updatedAt: new Date().toISOString() }), { force: true });
   await upsertCardIndex(userId, cardId);
+  var shareStop = null;
+  if (removed) {
+    shareStop = await stopMatchingShares(function(doc) {
+      return doc && doc.ownerUserId === userId && doc.cardId === cardId && doc.novelId === novelId;
+    });
+  }
   await appendAdminAudit({
     action: removed ? 'content.novel.disable' : 'content.novel.restore',
     targetUserId: userId,
     targetCardId: cardId,
     targetNovelId: novelId,
     by: action2.by || '',
+    reason: String(action2.reason || '').slice(0, 500),
   });
-  return { ok: true, removed: removed };
+  return { ok: true, removed: removed, shareStop: shareStop };
 }
 
 /** Story 小说硬删除 */
-export async function hardDeleteNovel(userId, cardId, novelId, byAdmin) {
+export async function hardDeleteNovel(userId, cardId, novelId, byAdmin, reason) {
   await deleteUserDoc(userId, storyNovelDocId(cardId, novelId), { force: true });
   await deleteUserDoc(userId, storyReleaseDocId(cardId, novelId), { force: true });
   await upsertCardIndex(userId, cardId);
+  var shareDelete = await deleteMatchingShares(function(doc) {
+    return doc && doc.ownerUserId === userId && doc.cardId === cardId && doc.novelId === novelId;
+  });
   await appendAdminAudit({
     action: 'content.novel.delete',
     targetUserId: userId,
     targetCardId: cardId,
     targetNovelId: novelId,
     by: byAdmin || '',
+    reason: String(reason || '').slice(0, 500),
   });
-  return { ok: true };
+  return { ok: true, shareDelete: shareDelete };
 }
 
 /** 用户档案：卡 / 小说 / 分享 / token / 配额 概览（在 admin routes 组合） */
@@ -179,7 +216,8 @@ export async function userOverview(userId) {
     cardTotalIndexed: (idx.cards || []).length,
     moderatedCardCount: (idx.cards || []).filter(isRemovedIndexEntry).length,
     bundleBytes: cards.reduce(function(a, c) { return a + (Number(c.bundleBytes) || 0); }, 0),
-    cards: cards,
+    cards: (idx.cards || []).slice(),
+    visibleCards: cards,
     novelWorkshopCount: (novelRows.rows || []).length,
   };
 }

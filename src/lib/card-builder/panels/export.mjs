@@ -10,6 +10,7 @@ import {
   tagsFromImportJson,
 } from '../state.mjs';
 import { fromStImportEntry } from '../../worldbook/worldbookEntryBridge.mjs';
+import { applyGreetingTexts } from '../../mvu/greetingInit.mjs';
 import { crc32, createTextChunk, embedTextChunkIntoPng } from '../../utils.mjs';
 import { dataUrlToPngDataUrl } from '../../avatarIdb.mjs';
 
@@ -33,6 +34,14 @@ export function registerExport(ctx) {
     ctx.state.characterVersion = ver || '1.0';
     if (typeof window !== 'undefined' && Array.isArray(window.__altGreetings__)) {
       ctx.state.altGreetings = window.__altGreetings__.slice();
+    }
+    if (typeof window !== 'undefined') {
+      ctx.state.greetingInitMain = window.__greetingInitMain__ && typeof window.__greetingInitMain__ === 'object'
+        ? window.__greetingInitMain__
+        : {};
+      ctx.state.greetingInitAlts = Array.isArray(window.__greetingInitAlts__)
+        ? window.__greetingInitAlts__
+        : [];
     }
   }
 
@@ -228,15 +237,29 @@ export function registerExport(ctx) {
       ctx.state.tavernHelperScripts = [];
     }
 
-    if (json.data.alternate_greetings && json.data.alternate_greetings.length > 0) {
-      window.__altGreetings__ = json.data.alternate_greetings;
-      ctx.state.altGreetings = json.data.alternate_greetings;
-      if (window.__renderAltGreetings__) window.__renderAltGreetings__();
-    } else {
-      window.__altGreetings__ = [];
-      ctx.state.altGreetings = [];
-      if (window.__renderAltGreetings__) window.__renderAltGreetings__();
+    var importedGreetings = applyGreetingTexts({
+      firstMes: (firstMes && firstMes.value) || json.data.first_mes || '',
+      altGreetings: (json.data.alternate_greetings && json.data.alternate_greetings.length)
+        ? json.data.alternate_greetings
+        : [],
+      entries: ctx.state.worldbookEntries,
+      resetMissing: true,
+    });
+    if (firstMes) firstMes.value = importedGreetings.firstMes;
+    ctx.state.firstMes = importedGreetings.firstMes;
+    ctx.state.greetingInitMain = importedGreetings.greetingInitMain;
+    ctx.state.greetingInitAlts = importedGreetings.greetingInitAlts;
+    ctx.state.altGreetings = importedGreetings.altGreetings;
+    if (importedGreetings.baselineInstalled) {
+      ctx.state.worldbookEntries = importedGreetings.entries;
+      if (ctx.panels.worldbook && ctx.panels.worldbook.renderEntriesList) {
+        ctx.panels.worldbook.renderEntriesList();
+      }
     }
+    window.__greetingInitMain__ = importedGreetings.greetingInitMain;
+    window.__greetingInitAlts__ = importedGreetings.greetingInitAlts.slice();
+    window.__altGreetings__ = importedGreetings.altGreetings.slice();
+    if (window.__renderAltGreetings__) window.__renderAltGreetings__();
 
     // R1 水合：卡携带的成人配置快照 → 覆盖本地并回填面板
     var adultSnap = ctx.state.cardBuilderExtensions && ctx.state.cardBuilderExtensions['st-builder.adultConfig'];

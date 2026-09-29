@@ -167,13 +167,15 @@ SoT 论述见 [`core-design-philosophy.md`](./core-design-philosophy.md) **§2.1
 | 工具 | 提示词 | 篇幅 |
 |------|--------|------|
 | `expand_character_field` | `assistantCharField` | `charDesc` 场景契约至少 400 字；`creatorNotes` 至少 120 字 |
-| `rewrite_greeting` / `expand_greeting` | `assistantGreeting` | 这一条至少 300 字；只写场景侧 |
+| `rewrite_greeting` / `expand_greeting` | `assistantGreeting` | 这一条至少 300 字；只写场景侧，正文不含 `<initvar>` |
 | `generate_worldbook_entry` | `wbSingle` | 至少 200 字，按 type 写该写的层 |
 | `expand_worldbook_entry` / `rewrite_worldbook_entry` | `wbRewrite` | 至少 200 字；不足 60 字的骨架展开后至少 300 字 |
 | `novel_expand_character` / `novel_rewrite_character` | `novelCharExpand` | 附录 1 字段写满，关系点名已有条目 |
 | `novel_expand_worldbook` | `novelWbExpand` | 至少 200 字 |
 
 `instruction` 过短，或把长正文塞进 `update_character_fields` / `replace_character_section` / `create_worldbook_entry` / `update_worldbook_entry` / `update_alternate_greeting`，执行器直接拒绝。`generate_character_draft` 与 `generate_worldbook_skeleton` 不再作为助手的长文入口。世界书单条生成/重写与面板共用 `worldbookShared` 的上下文拼装。引擎面板的分阶段生成不走这条路径。生成结果若未点名已有人物或物品，工具返回 `linkWarning`，不阻断写入。
+
+开场初始值走 `set_greeting_init`，`target` 与 `rewrite_greeting` / `expand_greeting` 相同（`main`、`{ alternate: n }` 或序号）。`overrides` 只写和世界书 `[initvar]` 保底不同的路径和值；`clear: true` 从空表开始，值为 `null` 删掉一条。没有保底时拒绝，提示先生成变量。`rewrite_greeting` 写完正文后清掉这一条的旧初始值，返回 `initCleared`；`expand_greeting`、`update_alternate_greeting`、`update_character_fields` 保留。`get_character_fields` 带回 `greetingInitMain` 与 `greetingInitAlts`。
 
 ## 相关
 

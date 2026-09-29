@@ -3,6 +3,7 @@
  * 切版 / 增版 / 发布 → commit；autosave 不写 versions
  */
 import { buildCardJSONFromDraft } from './state.mjs';
+import { applyGreetingTexts } from '../mvu/greetingInit.mjs';
 import {
   normalizeCharacterVersion,
   parseCharacterVersion,
@@ -196,6 +197,17 @@ export function applyCardVersionEntry(draft, entry) {
       draft.wbName = data.character_book.name;
     }
     draft.worldbookEntries = rebuildWbFromCardJson(entry.cardJson);
+    var greetings = applyGreetingTexts({
+      firstMes: draft.firstMes,
+      altGreetings: draft.altGreetings,
+      entries: draft.worldbookEntries,
+      resetMissing: true,
+    });
+    draft.firstMes = greetings.firstMes;
+    draft.altGreetings = greetings.altGreetings;
+    draft.greetingInitMain = greetings.greetingInitMain;
+    draft.greetingInitAlts = greetings.greetingInitAlts;
+    if (greetings.baselineInstalled) draft.worldbookEntries = greetings.entries;
     if (data.extensions && typeof data.extensions === 'object') {
       var ext = data.extensions;
       draft.cardBuilderExtensions = Object.assign({}, ext);

@@ -26,6 +26,7 @@ import { promoteChatEpisodeToStory } from './chatPromote.mjs';
 import { showConfirmDialog } from '../ui/confirmDialog.mjs';
 import { appFeedback } from '../ui/appMessage.mjs';
 import { collectWorldbookPersonNames } from '../novel/sync.mjs';
+import { UPDATE_FIND, INIT_FIND, mountUpdateList } from '../mvu/updateBlock.mjs';
 
 export function initChatPlayground() {
   var chatConversation = document.getElementById('chatConversation');
@@ -375,8 +376,12 @@ export function initChatPlayground() {
     div.innerHTML = '<div class="chat-avatar ' + avClass + '">' + avEmoji + '</div>'
       + '<div class="chat-bubble ' + bbClass + '">'
       + '<span class="chat-name">' + esc(name) + '</span>'
-      + '<span class="chat-text' + (streaming ? ' streaming-cursor' : '') + '">' + esc(text) + '</span>'
       + '</div>';
+    var textEl = document.createElement('span');
+    textEl.className = 'chat-text' + (streaming ? ' streaming-cursor' : '');
+    if (streaming) textEl.textContent = text || '';
+    else renderChatText(textEl, text || '');
+    div.querySelector('.chat-bubble').appendChild(textEl);
 
     chatMessages.appendChild(div);
     scrollChatToBottom();
@@ -396,184 +401,28 @@ export function initChatPlayground() {
     scrollChatToBottom();
   }
 
-  var UV_RE = /<UpdateVariable>\s*<Analysis>([\s\S]*?)<\/Analysis>\s*<JSONPatch>([\s\S]*?)<\/JSONPatch>\s*<\/UpdateVariable>/;
-
-  function decodeJsonPointerPart(part) {
-    return String(part || '').replace(/~1/g, '/').replace(/~0/g, '~');
-  }
-
-  function splitPatchPath(path) {
-    return String(path || '')
-      .replace(/^\/+/, '')
-      .split('/')
-      .filter(Boolean)
-      .map(decodeJsonPointerPart);
-  }
-
-  function compactPatchValue(value) {
-    if (value === undefined) return '未提供';
-    if (value === null) return 'null';
-    if (typeof value === 'number' || typeof value === 'boolean') return String(value);
-    var text = typeof value === 'string' ? value : JSON.stringify(value);
-    return text.length > 64 ? text.slice(0, 61) + '...' : text;
-  }
-
-  function patchOpLabel(op) {
-    var map = {
-      replace: '已更新',
-      insert: '已新增',
-      delta: '数值变化',
-      remove: '已移除',
-      move: '已移动'
-    };
-    return map[op] || '状态变更';
-  }
-
-  function patchDisplayValue(item) {
-    if (!item || !item.op) return '未知';
-    if (item.op === 'delta') {
-      var num = Number(item.value);
-      if (Number.isFinite(num)) return (num > 0 ? '+' : '') + num;
-      return compactPatchValue(item.value);
-    }
-    if (item.op === 'remove') return '已移除';
-    if (item.op === 'move') {
-      var target = splitPatchPath(item.to).join(' / ');
-      return target ? '→ ' + target : '已移动';
-    }
-    return compactPatchValue(item.value);
-  }
-
-  function getMvuVariableMetaMap() {
-    if (!window.__getCardExtension__) return {};
-    var data = window.__getCardExtension__('zmer_mvu_design');
-    var vars = data && Array.isArray(data.variables) ? data.variables : [];
-    var map = {};
-    vars.forEach(function(v) {
-      var path = String(v && v.path || '').trim();
-      if (!path) return;
-      var patchPath = '/' + path.split('.').filter(Boolean).map(function(part) {
-        return String(part).replace(/~/g, '~0').replace(/\//g, '~1');
-      }).join('/');
-      map[patchPath] = {
-        description: String(v.description || '').trim(),
-        check: Array.isArray(v.check) ? v.check.map(String).filter(Boolean) : []
-      };
-    });
-    return map;
-  }
-
-  function parsePatchCards(patchText) {
-    try {
-      var parsed = JSON.parse(patchText);
-      if (!Array.isArray(parsed)) return [];
-      var metaMap = getMvuVariableMetaMap();
-      return parsed.map(function(item) {
-        var rawPath = item.path || item.to || '';
-        var pathParts = splitPatchPath(rawPath);
-        var leaf = pathParts[pathParts.length - 1] || item.op || '变量';
-        var group = pathParts.slice(0, -1).join(' / ') || '根节点';
-        var matched = metaMap[String(rawPath || '').trim()] || null;
-        var note = '';
-        if (matched) {
-          note = matched.description || (matched.check && matched.check[0]) || '';
-          if (!note && matched.check && matched.check.length) note = matched.check[0];
-        }
-        return {
-          label: leaf,
-          value: patchDisplayValue(item),
-          meta: patchOpLabel(item.op) + ' · ' + group,
-          note: note
-        };
-      });
-    } catch (err) {
-      return [];
-    }
-  }
+  var UPDATE_RE = new RegExp(UPDATE_FIND);
+  var INIT_RE = new RegExp(INIT_FIND, 'g');
+  var EMBEDDED_PATCH_RE = /<script type="application\/json" class="mvu-upd-src">([\s\S]*?)<\/script>/;
 
   function renderChatText(el, text) {
-    var m = text.match(UV_RE);
-    if (!m) { el.textContent = text; return; }
-
+    var raw = String(text || '').replace(INIT_RE, '');
+    var update = raw.match(UPDATE_RE);
+    var embedded = raw.match(EMBEDDED_PATCH_RE);
+    var patch = update ? update[1] : (embedded ? embedded[1] : null);
+    if (patch == null) {
+      el.textContent = raw.trim();
+      return;
+    }
+    var cut = update ? raw.indexOf('<UpdateVariable>') : raw.indexOf('```html');
+    var before = cut > 0 ? raw.slice(0, cut) : '';
     el.textContent = '';
-    var idx = text.indexOf('<UpdateVariable>');
-    var endTag = '</UpdateVariable>';
-    var endIdx = text.indexOf(endTag);
-    var before = text.substring(0, idx);
-    var after  = text.substring(endIdx + endTag.length);
-
     if (before.trim()) {
-      var bs = document.createElement('span');
-      bs.textContent = before;
-      el.appendChild(bs);
+      var lead = document.createElement('span');
+      lead.textContent = before.trim();
+      el.appendChild(lead);
     }
-
-    var card = document.createElement('div');
-    card.className = 'chat-var-update';
-    var hdr = document.createElement('div');
-    hdr.className = 'cvu-header';
-    hdr.innerHTML = '<div class="cvu-header-main"><span class="cvu-header-dot"></span><span>STATUS REPORT</span></div>'
-      + '<span class="cvu-header-tag">MVU LIVE</span>';
-    var body = document.createElement('div');
-    body.className = 'cvu-body open';
-    var ana = document.createElement('div');
-    ana.className = 'cvu-analysis';
-    ana.innerHTML = '<span class="cvu-analysis-label">Sync Summary</span>';
-    ana.appendChild(document.createTextNode(m[1].trim()));
-    body.appendChild(ana);
-    var cards = parsePatchCards(m[2].trim());
-    if (cards.length) {
-      var grid = document.createElement('div');
-      grid.className = 'cvu-grid';
-      cards.forEach(function(item) {
-        var stat = document.createElement('article');
-        stat.className = 'cvu-stat';
-        var label = document.createElement('span');
-        label.className = 'cvu-stat-label';
-        label.textContent = item.label;
-        var value = document.createElement('span');
-        value.className = 'cvu-stat-value';
-        value.textContent = item.value;
-        var meta = document.createElement('span');
-        meta.className = 'cvu-stat-path';
-        meta.textContent = item.meta;
-        stat.appendChild(label);
-        stat.appendChild(value);
-        stat.appendChild(meta);
-        if (item.note) {
-          var note = document.createElement('span');
-          note.className = 'cvu-stat-note';
-          note.textContent = item.note;
-          stat.appendChild(note);
-        }
-        grid.appendChild(stat);
-      });
-      body.appendChild(grid);
-    } else {
-      var empty = document.createElement('div');
-      empty.className = 'cvu-empty';
-      empty.textContent = '本轮没有可提炼成状态卡的结构化字段，已保留原始补丁供调试查看。';
-      body.appendChild(empty);
-    }
-    var debug = document.createElement('details');
-    debug.className = 'cvu-debug';
-    var debugSummary = document.createElement('summary');
-    debugSummary.textContent = '查看原始补丁（调试）';
-    var patch = document.createElement('pre');
-    patch.className = 'cvu-patch';
-    patch.textContent = m[2].trim();
-    debug.appendChild(debugSummary);
-    debug.appendChild(patch);
-    body.appendChild(debug);
-    card.appendChild(hdr);
-    card.appendChild(body);
-    el.appendChild(card);
-
-    if (after.trim()) {
-      var as = document.createElement('span');
-      as.textContent = after;
-      el.appendChild(as);
-    }
+    mountUpdateList(el, patch);
   }
 
   function esc(s) {

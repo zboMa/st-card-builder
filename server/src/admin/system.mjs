@@ -70,9 +70,21 @@ export async function listFiles() {
   return (res.rows || []).map(function(r) { return r.doc; }).filter(Boolean);
 }
 
+export async function recordAdminFile(f) {
+  if (!f || !f.name) throw new Error('invalid_file');
+  var buf = Buffer.isBuffer(f.buffer)
+    ? f.buffer
+    : Buffer.from(String(f.text != null ? f.text : f.base64 || ''), f.text != null ? 'utf8' : 'base64');
+  return writeAdminFile(f, buf);
+}
+
 export async function uploadFile(f) {
   if (!f || !f.name || !f.base64) throw new Error('invalid_file');
   var buf = Buffer.from(String(f.base64 || ''), 'base64');
+  return writeAdminFile(f, buf);
+}
+
+async function writeAdminFile(f, buf) {
   var maxBytes = 15 * 1024 * 1024;
   if (buf.length > maxBytes) throw new Error('file_too_large');
   var id = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
@@ -87,6 +99,7 @@ export async function uploadFile(f) {
     name: String(f.name).slice(0, 200),
     contentType: String(f.contentType || 'application/octet-stream'),
     size: buf.length,
+    source: String(f.source || 'upload'),
     uploadedBy: f.by || '',
     uploadedAt: new Date().toISOString(),
   };

@@ -265,7 +265,7 @@ describe('assistant tools registry', function() {
       'novel_split_chapters', 'novel_patch_chapters', 'novel_expand_character',
       'novel_rewrite_character', 'novel_expand_worldbook', 'novel_sync_outputs',
       'list_cards', 'switch_card', 'create_card', 'clear_mvu', 'patch_mvu_node',
-      'rewrite_greeting', 'expand_greeting', 'expand_character_field',
+      'rewrite_greeting', 'expand_greeting', 'set_greeting_init', 'expand_character_field',
       'get_engine_options', 'set_engine_options', 'export_card_check',
     ].forEach(function(n) {
       assert.ok(getToolByName(n), 'missing tool ' + n);

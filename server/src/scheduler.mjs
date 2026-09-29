@@ -92,8 +92,13 @@ export function seedTasks() {
     { id: 'token.purge', name: '清理过期插件 Token', handler: 'token.purge', schedule: '@daily', enabled: true, builtin: true },
     { id: 'backup.periodic', name: '周期逻辑备份', handler: 'backup.periodic', schedule: '@daily', enabled: false, builtin: true },
   ];
-  return Promise.all(seeds.map(function(s) {
-    return putTask(s).catch(function(e) { console.warn('[scheduler] seed', s.id, e); });
+  return Promise.all(seeds.map(async function(s) {
+    try {
+      var db = await ensureAdminDatabase();
+      var existing = await getOrNull(db, 'task/' + s.id);
+      if (existing) return;
+      await putTask(s);
+    } catch (e) { console.warn('[scheduler] seed', s.id, e); }
   }));
 }
 
@@ -118,9 +123,15 @@ async function runDueTasks(now, deps) {
     try { await db.insert(doc); } catch (e) { /* ignore */ }
     try {
       var result = await handler.run();
-      doc.lastStatus = 'ok';
-      doc.lastResult = JSON.stringify(result).slice(0, 2000);
-      doc.lastError = null;
+      if (result && result.skipped) {
+        doc.lastStatus = 'skipped';
+        doc.lastResult = result.skipped === 'disabled' ? '服务器未开启备份' : String(result.skipped);
+        doc.lastError = null;
+      } else {
+        doc.lastStatus = 'ok';
+        doc.lastResult = JSON.stringify(result).slice(0, 2000);
+        doc.lastError = null;
+      }
     } catch (e) {
       doc.lastStatus = 'error';
       doc.lastError = String(e && e.message || e).slice(0, 2000);
@@ -172,4 +183,76 @@ export function stopScheduler() {
   started = false;
 }
 
-export { runDueTasks };
+export async function listTasks() {
+  var db = await ensureAdminDatabase();
+  var res = await db.list({ include_docs: true, startkey: 'task/', endkey: 'task/\ufff0' });
+  var rows = (res.rows || []).map(function(r) { return r.doc; }).filter(function(d) {
+    return d && HANDLERS[d.handler];
+  });
+  rows.sort(function(a, b) { return String(a.id).localeCompare(String(b.id)); });
+  return rows;
+}
+
+export async function setTaskEnabled(taskId, enabled) {
+  var db = await ensureAdminDatabase();
+  var doc = await getOrNull(db, 'task/' + String(taskId || ''));
+  if (!doc || !HANDLERS[doc.handler]) {
+    throw Object.assign(new Error('task_not_found'), { statusCode: 404 });
+  }
+  doc.enabled = !!enabled;
+  doc.updatedAt = new Date().toISOString();
+  await db.insert(doc);
+  return doc;
+}
+
+export async function runTaskById(taskId) {
+  var db = await ensureAdminDatabase();
+  var doc = await getOrNull(db, 'task/' + String(taskId || ''));
+  if (!doc || !HANDLERS[doc.handler]) {
+    throw Object.assign(new Error('task_not_found'), { statusCode: 404 });
+  }
+  var handler = HANDLERS[doc.handler];
+  var now = Date.now();
+  doc.lastRun = new Date(now).toISOString();
+  doc.lastStatus = 'running';
+  try { await db.insert(doc); } catch (e) { /* ignore */ }
+  try {
+    var result = await handler.run();
+    if (result && result.skipped) {
+      doc.lastStatus = 'skipped';
+      doc.lastResult = result.skipped === 'disabled' ? '服务器未开启备份' : String(result.skipped);
+      doc.lastError = null;
+    } else {
+      doc.lastStatus = 'ok';
+      doc.lastResult = JSON.stringify(result == null ? {} : result).slice(0, 2000);
+      doc.lastError = null;
+    }
+  } catch (e) {
+    doc.lastStatus = 'error';
+    doc.lastError = String(e && e.message || e).slice(0, 2000);
+    doc.lastResult = null;
+  }
+  doc.lastFinishedAt = new Date().toISOString();
+  delete doc._rev;
+  await forcePut(db, doc);
+  try {
+    await db.insert({
+      _id: 'task-run/' + doc.id + '/' + now,
+      type: 'task-run',
+      taskId: doc.id,
+      status: doc.lastStatus,
+      at: new Date(now).toISOString(),
+      result: doc.lastResult || null,
+      error: doc.lastError || null,
+    });
+  } catch (e2) { /* ignore */ }
+  return {
+    id: doc.id,
+    status: doc.lastStatus,
+    result: doc.lastResult,
+    error: doc.lastError,
+    lastFinishedAt: doc.lastFinishedAt,
+  };
+}
+
+export { runDueTasks, HANDLERS };

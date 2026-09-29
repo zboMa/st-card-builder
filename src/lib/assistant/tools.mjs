@@ -61,6 +61,7 @@ export const ASSISTANT_TOOLS = [
   { name: 'rewrite_greeting', title: '重写开场白', kind: 'generate', risk: 'confirm', summary: '重写一条开场白；instruction 为本次生成提示', argsHint: '{ target: main|{alternate:n}|index, mode?, instruction }' },
   { name: 'expand_greeting', title: '扩写开场白', kind: 'generate', risk: 'confirm', summary: '扩写一条开场白；instruction 为本次生成提示', argsHint: '{ target: main|{alternate:n}|index, instruction }' },
   { name: 'update_alternate_greeting', title: '更新备选开场白', kind: 'write', risk: 'auto', summary: '更新备选开场白第 N 条', argsHint: '{ index, content }' },
+  { name: 'set_greeting_init', title: '设置开场初始值', kind: 'write', risk: 'auto', summary: '设置某一条开场相对世界书保底的初始值差异；target 与开场白工具相同', argsHint: '{ target: main|{alternate:n}|index, overrides:{路径:值}, clear? }' },
 
   // —— 生成（对接现有引擎/面板）——
   { name: 'generate_character_draft', title: '生成角色草稿', kind: 'generate', risk: 'confirm', summary: '已停用：长文请逐篇调用 expand_character_field 等', argsHint: '{ prompt? }' },

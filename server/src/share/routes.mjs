@@ -15,6 +15,9 @@ import {
 import { config } from '../config.mjs';
 import { sanitizeReleaseDoc } from './logic.mjs';
 import { assertQuota } from '../quota/quotaService.mjs';
+import { targetRemoved } from './targetGate.mjs';
+import { getParam } from '../sysparams.mjs';
+import { defaultExpiresAt } from '../admin/deskLogic.mjs';
 
 export var shareRouter = Router();
 
@@ -91,6 +94,7 @@ shareRouter.post('/novels', requireUser, async function(req, res) {
       mapping = null;
       token = '';
     }
+    var created = !mapping;
     if (!mapping) {
       await assertQuota({ id: ownerId }, 'create_share');
       token = genToken();
@@ -117,6 +121,10 @@ shareRouter.post('/novels', requireUser, async function(req, res) {
     var exp = parseExpiresAt(body);
     if (exp === null) mapping.expiresAt = null;
     else if (typeof exp === 'string') mapping.expiresAt = exp;
+    else if (created) {
+      var defAt = defaultExpiresAt(await getParam('share.defaultExpireDays'));
+      if (defAt) mapping.expiresAt = defAt;
+    }
 
     await putShareMapping(mapping);
     var publicPayload = sanitizeReleaseDoc(release);
@@ -148,6 +156,9 @@ shareRouter.get('/novels/:token', async function(req, res) {
     }
     if (isExpired(mapping)) {
       return res.status(410).json({ error: 'expired', message: '分享链接已过期' });
+    }
+    if (await targetRemoved(mapping)) {
+      return res.status(404).json({ error: 'removed', message: '内容已下架' });
     }
     var release = await readOwnerRelease(mapping.ownerUserId, mapping.cardId, mapping.novelId);
     if (!release) {
@@ -182,6 +193,9 @@ shareRouter.get('/novels/:token/versions/:ver', async function(req, res) {
     }
     if (isExpired(mapping)) {
       return res.status(410).json({ error: 'expired', message: '分享链接已过期' });
+    }
+    if (await targetRemoved(mapping)) {
+      return res.status(404).json({ error: 'removed', message: '内容已下架' });
     }
     var release = await readOwnerReleaseVersion(mapping.ownerUserId, mapping.cardId, mapping.novelId, ver);
     if (!release) {

@@ -47,6 +47,18 @@ import Layout from '../layouts/Layout.astro';
         </div>
       </header>
 
+      <div id="adminReasonDialog" class="admin-dialog" hidden>
+        <form id="adminReasonForm">
+          <strong id="adminReasonTitle">填写原因</strong>
+          <label for="adminReasonText">原因</label>
+          <textarea id="adminReasonText" rows="4" required></textarea>
+          <div class="admin-actions">
+            <button type="submit" class="btn btn-primary">确定</button>
+            <button type="button" class="btn btn-ghost" id="adminReasonCancel">取消</button>
+          </div>
+        </form>
+      </div>
+
       <div id="adminBanner" class="admin-banner" hidden></div>
       <div id="adminStatus" class="admin-status" aria-live="polite"></div>
 
@@ -197,10 +209,24 @@ import Layout from '../layouts/Layout.astro';
             <div id="adminModerationBody"></div>
           </section>
 
+          <section class="admin-panel" data-admin-view="tasks" hidden>
+            <div class="admin-panel-head">
+              <h2>定时任务</h2>
+            </div>
+            <div id="adminTaskTable"></div>
+          </section>
+
+          <section class="admin-panel" data-admin-view="backup" hidden>
+            <div class="admin-panel-head">
+              <h2>备份</h2>
+              <button type="button" id="btnAdminBackup" class="btn btn-primary admin-ops-only">立即备份</button>
+            </div>
+            <div id="adminBackupBody"></div>
+          </section>
+
           <section class="admin-panel" data-admin-view="system" hidden>
             <div class="admin-panel-head">
-              <h2>系统与备份</h2>
-              <button type="button" id="btnAdminBackup" class="btn btn-sm btn-primary admin-ops-only">执行逻辑备份</button>
+              <h2>进程</h2>
             </div>
             <div id="adminSystemBody"></div>
           </section>

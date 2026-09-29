@@ -104,6 +104,41 @@ function setBanner(msg, kind) {
   el.className = 'admin-banner' + (kind ? ' admin-banner--' + kind : '');
 }
 
+function askReason(title, label) {
+  return new Promise(function(resolve) {
+    var dlg = $('adminReasonDialog');
+    var form = $('adminReasonForm');
+    var text = $('adminReasonText');
+    var heading = $('adminReasonTitle');
+    var cancel = $('adminReasonCancel');
+    if (!dlg || !form || !text) {
+      resolve('');
+      return;
+    }
+    if (heading) heading.textContent = title || '填写原因';
+    var lab = form.querySelector('label');
+    if (lab) lab.lastChild.textContent = label || '原因';
+    text.value = '';
+    dlg.hidden = false;
+    text.focus();
+    function finish(value) {
+      dlg.hidden = true;
+      form.removeEventListener('submit', onSubmit);
+      if (cancel) cancel.removeEventListener('click', onCancel);
+      resolve(value);
+    }
+    function onSubmit(e) {
+      e.preventDefault();
+      var v = String(text.value || '').trim();
+      if (!v) return;
+      finish(v);
+    }
+    function onCancel() { finish(''); }
+    form.addEventListener('submit', onSubmit);
+    if (cancel) cancel.addEventListener('click', onCancel);
+  });
+}
+
 function setStatus(msg) {
   var el = $('adminStatus');
   if (el) el.textContent = '';
@@ -113,4 +148,4 @@ function setStatus(msg) {
 }
 
 
-export { state, api, $, escapeHtml, fmtBytes, fmtTime, setBanner, setStatus, isOps, hasPerm, apiEmailLogin };
+export { state, api, $, escapeHtml, fmtBytes, fmtTime, setBanner, setStatus, isOps, hasPerm, apiEmailLogin, askReason };

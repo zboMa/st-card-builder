@@ -86,13 +86,13 @@ export async function resolveFlag(flagId, decision) {
       out = await applyCardModeration(doc.targetUserId, doc.cardId, {
         status: 'removed',
         by: d.by || '',
-        reason: '举报处理：' + (doc.reason || ''),
+        reason: String(d.reason || ('举报处理：' + (doc.reason || ''))),
       });
     } else if (doc.targetType === 'novel') {
       out = await applyNovelModeration(doc.targetUserId, doc.cardId, doc.novelId, {
         status: 'removed',
         by: d.by || '',
-        reason: '举报处理：' + (doc.reason || ''),
+        reason: String(d.reason || ('举报处理：' + (doc.reason || ''))),
       });
     }
   }
@@ -164,6 +164,9 @@ export async function decideApproval(approvalId, decision) {
   if (!doc) throw Object.assign(new Error('approval_not_found'), { statusCode: 404 });
   if (doc.status !== 'pending') throw Object.assign(new Error('already_decided'), { statusCode: 409 });
   var approve = d.approve === true;
+  if (approve && d.by && doc.requestedBy && String(d.by) === String(doc.requestedBy)) {
+    throw Object.assign(new Error('cannot_approve_own_request'), { statusCode: 403 });
+  }
   doc.status = approve ? 'approved' : 'rejected';
   doc.decidedBy = d.by || '';
   doc.decidedAt = new Date().toISOString();
@@ -171,9 +174,9 @@ export async function decideApproval(approvalId, decision) {
   if (approve) {
     var t = doc.target || {};
     if (doc.action === 'delete-card') {
-      result = await hardDeleteCard(t.userId, t.cardId, d.by || '');
+      result = await hardDeleteCard(t.userId, t.cardId, d.by || '', doc.reason || '');
     } else if (doc.action === 'delete-novel') {
-      result = await hardDeleteNovel(t.userId, t.cardId, t.novelId, d.by || '');
+      result = await hardDeleteNovel(t.userId, t.cardId, t.novelId, d.by || '', doc.reason || '');
     }
   }
   delete doc._rev;
@@ -182,7 +185,9 @@ export async function decideApproval(approvalId, decision) {
     action: 'moderation.approve.' + (approve ? 'approved' : 'rejected'),
     targetUserId: doc.target && doc.target.userId,
     targetCardId: doc.target && doc.target.cardId,
+    targetNovelId: doc.target && doc.target.novelId,
     by: d.by || '',
+    reason: String(doc.reason || ''),
   });
   return { ok: true, approval: doc, executed: result };
 }

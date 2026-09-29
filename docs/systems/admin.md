@@ -21,7 +21,15 @@
 
 客户端写入口经 **独立 Action Engine 实例**（同契约，不与主站共享单例）做 ops / busy 门禁 → [`../architecture/action-engine.md`](../architecture/action-engine.md)。
 
-## UI 注意
+## UI
+
+视口高度。左侧菜单按 `menu/` 的父子和顺序画，空权限登录管理员都可见，填了权限码则没有该权限的人看不见这项。右侧是查询、表格和工作页。点一行进入对象，不在表上方再堆详情。
+
+做完留在结果页。禁用会撤销该用户全部插件 Token，下一次登录和同步被拒绝；已经打开的主站要到下一次请求才失败。改档只接受 `registered` / `member` / `admin`，保存后配额快照上限换成新档。环境变量里的管理员配额锁定为管理员档。下架卡或小说会停掉对应分享，公开读取在已下架或已停时拒绝；恢复不自动打开分享。删除审批申请人不能通过自己的单。举报从分享页提交 token，服务端按 token 找主人。
+
+列表「共 N 条」是滤完之后的总数。用户、分享、Token、卡索引有硬顶时，页上写「只列出前 N 条」。
+
+参数只有三项：`auth.loginFailLock`、`share.defaultExpireDays`（新建分享未填过期时用）、`announcement.topbar`（主站顶栏，空则不显示）。定时任务只有 `index.rebuild`、`token.purge`、`backup.periodic`。备份未在服务器开启时，立即执行的结果是跳过。
 
 - 登录门禁与主站共用 `auth-login.css`；隐藏门禁须尊重 `[hidden]`
 - 主站账户页 **不** 放「打开管理端」入口（直接访问管理端 URL）

@@ -2,8 +2,9 @@
  * 管理端：视图切换与数据加载（拆自 browserApp）
  */
 import {
-  state, api, $, escapeHtml, fmtBytes, fmtTime, setBanner, setStatus, isOps, hasPerm,
+  state, api, $, escapeHtml, fmtBytes, fmtTime, setBanner, setStatus, isOps, hasPerm, askReason,
 } from './adminShared.mjs';
+import { sidebarGroups, quotaRows, sortCardsByBytes, capNote, permLabel, dictOptions } from './deskView.mjs';
 import { apiUrl } from '../publicConfig.mjs';
 
 function showView(name) {
@@ -33,6 +34,8 @@ function showView(name) {
   if (name === 'invites') loadInvites();
   if (name === 'quota') loadQuota();
   if (name === 'files') loadFiles();
+  if (name === 'tasks') loadTasks();
+  if (name === 'backup') loadBackup();
 }
 
 function navBtn(m) {
@@ -48,18 +51,15 @@ async function renderAdminNav() {
     var data = await api('/api/admin/menus');
     var menus = data.menus || [];
     var visible = menus.filter(function(m) { return !m.perm || hasPerm(m.perm); });
-    var html = '';
-    visible.filter(function(m) { return !m.parentId && !m.group; }).forEach(function(m) {
-      html += navBtn(m);
-    });
-    visible.filter(function(m) { return m.group; }).forEach(function(g) {
-      var children = visible.filter(function(c) { return c.parentId === g.id; });
-      if (!children.length) return;
+    var tree = sidebarGroups(visible);
+    var html = tree.tops.map(navBtn).join('');
+    tree.groups.forEach(function(g) {
       html += '<div class="admin-nav-group">'
         + '<div class="admin-nav-group-label">' + escapeHtml(g.name) + '</div>'
-        + children.map(navBtn).join('') + '</div>';
+        + g.children.map(navBtn).join('') + '</div>';
     });
     nav.innerHTML = html;
+    applyDictSelects();
   } catch (e) {
     nav.innerHTML = '';
   }
@@ -90,7 +90,8 @@ function permEditorHtml(checked, groups) {
       + escapeHtml(PERM_DOMAIN_LABELS[key] || key) + '</div><div class="admin-perm-items">';
     groups[key].forEach(function(p) {
       html += '<label class="admin-perm-item"><input type="checkbox" value="' + escapeHtml(p) + '"'
-        + (checked.indexOf(p) >= 0 ? ' checked' : '') + '> <code>' + escapeHtml(p) + '</code></label>';
+        + (checked.indexOf(p) >= 0 ? ' checked' : '') + '> ' + escapeHtml(permLabel(p))
+        + ' <code>' + escapeHtml(p) + '</code></label>';
     });
     html += '</div></div>';
   });
@@ -100,51 +101,57 @@ function permEditorHtml(checked, groups) {
 async function loadDashboard() {
   var grid = $('adminDashGrid');
   var flags = $('adminDashFlags');
+  var trendBox = $('adminTrendBox');
+  if (trendBox) trendBox.innerHTML = '';
   try {
     var data = await api('/api/admin/overview');
-    var c = data.counts || {};
     var couchOk = data.couch && data.couch.ok;
+    var tasks = [];
+    var quota = { users: [] };
+    var approvals = { approvals: [] };
+    var audit = { audit: [] };
+    var sys = null;
+    try { tasks = (await api('/api/admin/tasks')).tasks || []; } catch (e1) { tasks = []; }
+    try { quota = await api('/api/admin/quota/users?over=1&limit=1'); } catch (e2) { quota = { total: 0 }; }
+    try { approvals = await api('/api/admin/moderation/approvals?status=pending'); } catch (e3) { approvals = { approvals: [] }; }
+    try { audit = await api('/api/admin/audit?limit=8'); } catch (e4) { audit = { audit: [] }; }
+    try { sys = (await api('/api/admin/system-status')).status; } catch (e5) { sys = null; }
+    var failed = tasks.filter(function(t) { return t.lastStatus === 'error'; }).length;
+    var pending = (approvals.approvals || []).length;
+    var over = quota.total || 0;
     if (grid) {
-      grid.innerHTML = [
-        card('API', '正常', 'ok'),
-        card('CouchDB', couchOk ? ('正常 · ' + (data.couch.version || '')) : '异常', couchOk ? 'ok' : 'bad'),
-        card('注册用户', String(c.registryUsers || 0)),
-        card('已禁用', String(c.disabledUsers || 0), c.disabledUsers ? 'warn' : ''),
-        card('活跃分享', String(c.activeShares || 0) + ' / ' + String(c.shareMappings || 0)),
-        card('卡分享', String(c.cardShares || 0)),
-        card('小说分享', String(c.novelShares || 0)),
-        card('用户库', String(c.userDatabases || 0)),
-        card('插件 Token', String(c.activeBearerTokens || 0) + ' 有效'),
-        card('孤儿库', c.orphanUserDbs == null ? '—' : String(c.orphanUserDbs), c.orphanUserDbs ? 'warn' : 'ok'),
-      ].join('');
+      grid.innerHTML = ''
+        + statusRow('databases', 'Couch', couchOk ? '正常' : '异常')
+        + statusRow('tasks', '任务', failed ? (failed + ' 个失败') : '任务正常')
+        + statusRow('quota', '配额', over ? (over + ' 人超限') : '无人超限')
+        + statusRow('moderation', '审批', pending ? (pending + ' 条待审批') : '无待审批');
     }
-    var f = data.flags || {};
     if (flags) {
-      flags.innerHTML = [
-        flag('DEV_LOGIN', f.devLoginEnabled),
-        flag('Discord 门禁', f.enforceMembership),
-        flag('Cookie Secure', f.cookieSecure),
-        flag('备份开关', f.backupEnabled),
-        '<div class="admin-flag"><span>运维管理员</span><strong>' + escapeHtml(f.adminIdsConfigured) + '</strong></div>',
-        '<div class="admin-flag"><span>只读管理员</span><strong>' + escapeHtml(f.readonlyAdminIdsConfigured) + '</strong></div>',
-        '<div class="admin-flag admin-flag--wide"><span>PUBLIC_APP_URL</span><strong>' + escapeHtml(f.publicAppUrl || '—') + '</strong></div>',
-        '<div class="admin-flag admin-flag--wide"><span>PUBLIC_API_URL</span><strong>' + escapeHtml(f.publicApiUrl || '—') + '</strong></div>',
-      ].join('');
+      var uptime = sys ? Math.round((sys.uptimeSec || 0) / 60) + ' 分钟' : '—';
+      var mem = sys ? ((sys.memUsedPct || 0) + '%') : '—';
+      flags.innerHTML = '<p class="admin-muted">进程已运行 ' + escapeHtml(uptime) + '，内存占用 ' + escapeHtml(mem) + '</p>';
     }
-    var trendBox = $('adminTrendBox');
     if (trendBox) {
-      try {
-        var tr = await api('/api/admin/reports/trends?days=14');
-        trendBox.innerHTML = trendSvg(tr.trends || []);
-      } catch (eT) {
-        trendBox.innerHTML = '<div class="admin-empty">趋势暂不可用</div>';
-      }
+      var lines = (audit.audit || []).slice(0, 8).map(function(r) {
+        var who = r.by || '—';
+        var target = r.targetCardId || r.token || r.targetUserId || '—';
+        return '<button type="button" class="admin-status-row" data-admin-jump="'
+          + escapeHtml(r.targetCardId ? 'cards' : (r.token ? 'shares' : 'users')) + '">'
+          + '<span>' + escapeHtml(who) + ' · ' + escapeHtml(r.action || '') + ' · ' + escapeHtml(target) + '</span>'
+          + '<span class="admin-muted">' + escapeHtml(r.reason || '') + '</span></button>';
+      }).join('');
+      trendBox.innerHTML = '<h3>最近处置</h3>' + (lines || '<p class="ui-empty-tip">还没有处置记录</p>');
     }
     setBanner('');
   } catch (e) {
     if (grid) grid.innerHTML = '';
     setBanner(bannerForError(e), e.status === 502 || e.status >= 500 ? 'err' : 'warn');
   }
+}
+
+function statusRow(view, label, value) {
+  return '<button type="button" class="admin-status-row" data-admin-nav="' + view + '">'
+    + '<span>' + escapeHtml(label) + '</span><strong>' + escapeHtml(value) + '</strong></button>';
 }
 
 function trendSvg(trends) {
@@ -225,36 +232,24 @@ async function loadUsers() {
       box.innerHTML = '<div class="admin-empty">无匹配用户</div>' + pagerHtml('users', data.total || 0, state.usersOffset);
       return;
     }
-    box.innerHTML = '<table class="admin-table"><thead><tr>'
-      + '<th>用户</th><th>身份</th><th>Token</th><th>状态</th><th>更新</th><th></th>'
+    var note = capNote(data.capped, data.listedCap);
+    box.innerHTML = (note ? '<p class="admin-muted">' + escapeHtml(note) + '</p>' : '')
+      + '<table class="admin-table"><thead><tr>'
+      + '<th>名字</th><th>邮箱或 Discord</th><th>档位</th><th>状态</th><th>卡数</th><th>更新</th>'
       + '</tr></thead><tbody>'
       + users.map(function(u) {
-        var badges = '';
-        if (u.isOpsAdmin) badges += '<span class="admin-badge">运维</span>';
-        if (u.isReadonlyAdmin) badges += '<span class="admin-badge admin-badge--muted">只读</span>';
         var disabled = !!u.disabled;
-        var actions = isOps()
-          ? ('<button type="button" class="btn btn-sm btn-ghost" data-user-toggle="'
-            + escapeHtml(u.userId) + '" data-disabled="' + (disabled ? '0' : '1') + '">'
-            + (disabled ? '启用' : '禁用') + '</button>')
-          : '<span class="admin-muted">只读</span>';
-        if (hasPerm('content.card.read')) {
-          actions = '<button type="button" class="btn btn-sm btn-ghost" data-user-profile="'
-            + escapeHtml(u.userId) + '">档案</button>' + actions;
-        }
         var identity = u.email
           ? escapeHtml(u.email)
           : (u.discordId ? ('Discord ' + escapeHtml(u.discordId)) : '—');
-        var provider = escapeHtml(u.provider || '—');
-        return '<tr class="' + (disabled ? 'is-disabled' : '') + '">'
+        return '<tr class="' + (disabled ? 'is-disabled' : '') + '" data-user-profile="' + escapeHtml(u.userId) + '">'
           + '<td><strong>' + escapeHtml(u.displayName || u.username || u.userId) + '</strong>'
-          + badges
           + '<div class="admin-muted">' + escapeHtml(u.userId) + '</div></td>'
-          + '<td><div>' + identity + '</div><div class="admin-muted">' + provider + '</div></td>'
-          + '<td>' + escapeHtml(u.bearerCount || 0) + '</td>'
-          + '<td>' + (disabled ? '<span class="admin-pill admin-pill--warn">已禁用</span>' : '<span class="admin-pill admin-pill--ok">正常</span>') + '</td>'
-          + '<td>' + escapeHtml(fmtTime(u.updatedAt || u.createdAt)) + '</td>'
-          + '<td class="admin-td-actions">' + actions + '</td></tr>';
+          + '<td>' + identity + '</td>'
+          + '<td>' + escapeHtml(u.quotaTier || 'registered') + '</td>'
+          + '<td>' + (disabled ? '已禁用' : '正常') + '</td>'
+          + '<td>' + escapeHtml(u.cardCount || 0) + '</td>'
+          + '<td>' + escapeHtml(fmtTime(u.updatedAt || u.createdAt)) + '</td></tr>';
       }).join('')
       + '</tbody></table>'
       + pagerHtml('users', data.total || 0, state.usersOffset);
@@ -767,10 +762,11 @@ async function loadModeration() {
     }).join('');
     var approvalRows = approvals.map(function(a) {
       var t = a.target || {};
-      var actions = canApprove
-        ? ('<button type="button" class="btn btn-sm btn-primary" data-appr-decide="' + escapeHtml(a._id) + '|1">通过</button>'
-          + '<button type="button" class="btn btn-sm btn-ghost" data-appr-decide="' + escapeHtml(a._id) + '|0">驳回</button>')
-        : '<span class="admin-muted">无审批权</span>';
+      var own = state.user && String(a.requestedBy || '') === String(state.user.id);
+      var actions = (!canApprove || own)
+        ? '<span class="admin-muted">' + (own ? '不能批自己的单' : '无审批权') + '</span>'
+        : ('<button type="button" class="btn btn-sm btn-primary" data-appr-decide="' + escapeHtml(a._id) + '|1">通过</button>'
+          + '<button type="button" class="btn btn-sm btn-ghost" data-appr-decide="' + escapeHtml(a._id) + '|0">驳回</button>');
       return '<tr>'
         + '<td><code>' + escapeHtml(a.action) + '</code></td>'
         + '<td class="admin-mono">' + escapeHtml(t.userId) + '</td>'
@@ -800,12 +796,16 @@ if (typeof document !== 'undefined') {
     if (t.hasAttribute('data-flag-resolve')) {
       var fr = t.getAttribute('data-flag-resolve').split('|');
       var action = fr[1];
-      if (action === 'remove' && !window.confirm('确认下架举报目标内容？')) return;
+      var flagReason = '';
+      if (action === 'remove') {
+        flagReason = await askReason('下架这条举报的目标');
+        if (!flagReason) return;
+      }
       try {
         await api('/api/admin/moderation/flags/' + encodeURIComponent(fr[0]) + '/resolve', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: action }),
+          body: JSON.stringify({ action: action, reason: flagReason }),
         });
         setStatus('举报已处理');
         loadModeration();
@@ -815,7 +815,10 @@ if (typeof document !== 'undefined') {
     if (t.hasAttribute('data-appr-decide')) {
       var ad = t.getAttribute('data-appr-decide').split('|');
       var approve = ad[1] === '1';
-      if (approve && !window.confirm('审批通过将立即执行删除（不可恢复）。确认？')) return;
+      if (approve) {
+        var okDel = await askReason('通过后会删除，不能恢复。写下原因');
+        if (!okDel) return;
+      }
       try {
         await api('/api/admin/moderation/approvals/' + encodeURIComponent(ad[0]) + '/decide', {
           method: 'POST',
@@ -905,8 +908,10 @@ async function openCardDetail(key) {
     var d = data.detail || {};
     var meta = (d.doc && d.doc.draftMeta) || {};
     var mod = d.doc && d.doc.moderation;
+    var cardTable = $('adminCardTable');
+    if (cardTable) cardTable.hidden = true;
     var html = '<div class="admin-editor">'
-      + '<div class="admin-panel-head"><h3>卡详情 · ' + escapeHtml(meta.charName || cardId) + '</h3>'
+      + '<div class="admin-panel-head"><h3>卡 · ' + escapeHtml(meta.charName || cardId) + '</h3>'
       + '<button type="button" class="btn btn-sm btn-ghost" id="btnAdminCardDetailClose">关闭</button></div>'
       + '<div class="admin-flag-grid">'
       + '<div class="admin-flag"><span>用户</span><strong>' + escapeHtml(userId) + '</strong></div>'
@@ -919,9 +924,21 @@ async function openCardDetail(key) {
       + '<div class="admin-flag"><span>Story 小说</span><strong>' + (d.storyCount || 0) + '</strong></div>'
       + '<div class="admin-flag"><span>更新时间</span><strong>' + escapeHtml(fmtTime(d.doc && d.doc.updatedAt)) + '</strong></div>'
       + '</div>'
+      + (d.pendingDelete ? '<p>删除审批中，尚未删除</p>' : '')
+      + (d.indexStale ? '<p>索引旧了 <button type="button" class="btn btn-inline" data-card-reindex="'
+        + escapeHtml(userId) + '|' + escapeHtml(cardId) + '">重建这张卡的索引</button></p>' : '')
+      + (meta.description ? '<p>' + escapeHtml(meta.description) + '</p>' : '')
+      + '<p class="admin-muted">开场白 ' + (meta.greetingCount || 0) + ' 条'
+      + (meta.greetingStart ? ' · ' + escapeHtml(meta.greetingStart) : '') + '</p>'
       + (mod
-        ? '<p class="admin-muted" style="margin-top:8px">下架：' + escapeHtml(mod.reason || '') + ' · ' + escapeHtml(mod.by || '') + ' · ' + escapeHtml(fmtTime(mod.at)) + '</p>'
+        ? '<p class="admin-muted">下架：' + escapeHtml(mod.reason || '') + ' · ' + escapeHtml(mod.by || '') + ' · ' + escapeHtml(fmtTime(mod.at)) + '</p>'
         : '')
+      + '<h4>分享</h4>'
+      + ((d.shares || []).length
+        ? '<ul>' + d.shares.map(function(s) {
+          return '<li class="admin-mono">' + escapeHtml(s.token) + ' · ' + (s.enabled && !s.expired ? '有效' : '已停') + '</li>';
+        }).join('') + '</ul>'
+        : '<p class="admin-muted">没有分享</p>')
       + (meta.charTags && meta.charTags.length
         ? '<p class="admin-muted" style="margin-top:8px">标签：' + meta.charTags.map(escapeHtml).join(' · ') + '</p>'
         : '')
@@ -939,16 +956,18 @@ async function runCardAction(verb, key) {
   var base = '/api/admin/cards/' + encodeURIComponent(userId) + '/' + encodeURIComponent(cardId);
   try {
     if (verb === 'disable') {
-      if (!window.confirm('确认下架该卡？（用户端将不可见且不可修改）')) return;
-      await api(base + '/disable', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
-      setStatus('已下架 ' + cardId);
+      var reason = await askReason('下架这张卡');
+      if (!reason) return;
+      await api(base + '/disable', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reason: reason }) });
+      setStatus('已下架。这条卡的分享已停，公开链接再打开会被拒绝。恢复不会自动打开分享。');
     } else if (verb === 'restore') {
       await api(base + '/restore', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
       setStatus('已恢复 ' + cardId);
     } else if (verb === 'del') {
-      if (!window.confirm('提交删除审批？需另一管理员在「审核」页通过后才执行，不可恢复。')) return;
-      var ar = await api(base, { method: 'DELETE' });
-      setStatus(ar.pending ? '已提交删除审批' : '已删除 ' + cardId);
+      var delReason = await askReason('申请删除。通过后才会删掉，卡现在还在');
+      if (!delReason) return;
+      var ar = await api(base, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reason: delReason }) });
+      setStatus(ar.pending ? '已提交删除审批，卡还在' : '已删除 ' + cardId);
     } else if (verb === 'export') {
       var ed = await api(base + '/export');
       var blob = new Blob([JSON.stringify(ed, null, 2)], { type: 'application/json' });
@@ -1024,16 +1043,18 @@ async function runNovelAction(verb, key) {
   var base = '/api/admin/novels/' + encodeURIComponent(userId) + '/' + encodeURIComponent(cardId) + '/' + encodeURIComponent(novelId);
   try {
     if (verb === 'disable') {
-      if (!window.confirm('确认下架该小说？')) return;
-      await api(base + '/disable', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
-      setStatus('已下架小说');
+      var reason = await askReason('下架这本小说');
+      if (!reason) return;
+      await api(base + '/disable', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reason: reason }) });
+      setStatus('已下架。这本小说的分享已停。恢复不会自动打开分享。');
     } else if (verb === 'restore') {
       await api(base + '/restore', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
       setStatus('已恢复小说');
     } else if (verb === 'del') {
-      if (!window.confirm('提交删除审批？需另一管理员在「审核」页通过后才执行，不可恢复。')) return;
-      var ar = await api(base, { method: 'DELETE' });
-      setStatus(ar.pending ? '已提交删除审批' : '已删除小说');
+      var delReason = await askReason('申请删除这本小说。通过后才会消失');
+      if (!delReason) return;
+      var ar = await api(base, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reason: delReason }) });
+      setStatus(ar.pending ? '已提交删除审批，小说还在' : '已删除小说');
     }
     loadNovels();
   } catch (e) {
@@ -1047,6 +1068,17 @@ async function openUserProfile(userId) {
   try {
     var data = await api('/api/admin/users/' + encodeURIComponent(userId) + '/overview');
     var ov = data.overview || {};
+    var reg = ov.registry || {};
+    var rows = quotaRows(ov.quota || {});
+    var quotaHtml = rows.map(function(r) {
+      var used = r.bytes ? fmtBytes(r.used) : String(r.used);
+      var lim = r.unlimited ? '不限' : (r.bytes ? fmtBytes(r.limit) : String(r.limit));
+      return '<tr' + (r.over ? ' class="is-disabled"' : '') + '><td>' + escapeHtml(r.label) + '</td><td>'
+        + escapeHtml(used) + ' / ' + escapeHtml(lim) + (r.over ? ' · 超限' : '') + '</td></tr>';
+    }).join('');
+    var cards = sortCardsByBytes(ov.cards || []);
+    var canDisable = hasPerm('admin.user.disable');
+    var canQuota = hasPerm('sys.quota.manage') && !ov.tierLocked;
     var shareRows = (ov.shares || []).map(function(s) {
       return '<tr><td class="admin-mono">' + escapeHtml(s.token) + '</td>'
         + '<td>' + escapeHtml(s.type) + '</td>'
@@ -1060,21 +1092,35 @@ async function openUserProfile(userId) {
         + '<td>' + (n.chapterCount || 0) + '</td>'
         + '<td>' + (n.moderated && n.moderated.status === 'removed' ? '已下架' : '正常') + '</td></tr>';
     }).join('');
+    var table = $('adminUserTable');
+    if (table) table.hidden = true;
+    box.hidden = false;
+    var tier = (ov.quota && ov.quota.tier) || reg.quotaTier || 'registered';
     box.innerHTML = '<div class="admin-editor">'
-      + '<div class="admin-panel-head"><h3>用户档案 · ' + escapeHtml(userId) + '</h3>'
-      + '<button type="button" class="btn btn-sm btn-ghost" id="btnAdminProfileClose">关闭</button></div>'
-      + '<div class="admin-flag-grid">'
-      + '<div class="admin-flag"><span>卡</span><strong>' + (ov.cardCount || 0) + '（下架 ' + (ov.moderatedCardCount || 0) + '）</strong></div>'
-      + '<div class="admin-flag"><span>卡总大小</span><strong>' + escapeHtml(fmtBytes(ov.bundleBytes)) + '</strong></div>'
-      + '<div class="admin-flag"><span>小说工坊</span><strong>' + (ov.novelWorkshopCount || 0) + '</strong></div>'
-      + '<div class="admin-flag"><span>Story 小说</span><strong>' + (ov.stories || []).length + '</strong></div>'
-      + '<div class="admin-flag"><span>分享</span><strong>' + (ov.shares || []).length + '</strong></div>'
-      + '<div class="admin-flag"><span>有效 Token</span><strong>' + (ov.tokens || []).length + '</strong></div>'
-      + '</div>'
-      + '<h4 class="admin-mt">卡</h4><table class="admin-table"><thead><tr><th>卡名</th><th>cardId</th><th>大小</th><th>状态</th></tr></thead><tbody>'
-      + (ov.cards || []).map(function(c) {
-        return '<tr><td>' + escapeHtml(c.charName || '(未命名)') + '</td>'
-          + '<td class="admin-mono">' + escapeHtml(c.id) + '</td>'
+      + '<div class="admin-panel-head"><h3>' + escapeHtml(reg.displayName || reg.username || userId) + '</h3>'
+      + '<button type="button" class="btn btn-ghost" id="btnAdminProfileClose">返回列表</button></div>'
+      + '<p class="admin-muted">' + escapeHtml(userId)
+      + (reg.email ? ' · ' + escapeHtml(reg.email) : '')
+      + (reg.discordId ? ' · Discord ' + escapeHtml(reg.discordId) : '')
+      + ' · ' + (reg.disabled ? '已禁用' : '正常') + '</p>'
+      + (canDisable
+        ? '<p><button type="button" class="btn btn-primary" data-user-toggle="' + escapeHtml(userId)
+          + '" data-disabled="' + (reg.disabled ? '0' : '1') + '">' + (reg.disabled ? '启用' : '禁用') + '</button> '
+          + '<button type="button" class="btn btn-ghost" data-user-password="' + escapeHtml(userId) + '">重置密码</button></p>'
+        : '')
+      + (reg.disabled ? '<p class="admin-muted">下一次登录和同步会被拒绝。已经打开的主站要到下一次请求才失败。</p>' : '')
+      + '<h4 class="admin-mt">配额</h4><table class="admin-table" data-quota-rows="5"><thead><tr><th>项</th><th>已用 / 上限</th></tr></thead><tbody>'
+      + quotaHtml + '</tbody></table>'
+      + (ov.tierLocked
+        ? '<p class="admin-muted">这个账号在环境变量管理员名单里，配额固定为管理员档。</p>'
+        : (canQuota
+          ? '<p><label>档位 <select id="adminUserTier"><option value="registered">registered</option><option value="member">member</option><option value="admin">admin</option></select></label> '
+            + '<button type="button" class="btn btn-primary" data-user-tier="' + escapeHtml(userId) + '">保存档位</button></p>'
+          : ''))
+      + '<h4 class="admin-mt">卡</h4><table class="admin-table"><thead><tr><th>卡名</th><th>体积</th><th>状态</th></tr></thead><tbody>'
+      + cards.map(function(c) {
+        return '<tr><td><button type="button" class="btn btn-inline" data-open-card="'
+          + escapeHtml(userId) + '|' + escapeHtml(c.id) + '">' + escapeHtml(c.charName || '(未命名)') + '</button></td>'
           + '<td>' + escapeHtml(fmtBytes(c.bundleBytes)) + '</td>'
           + '<td>' + (c.moderated && c.moderated.status === 'removed' ? '已下架' : '正常') + '</td></tr>';
       }).join('') + '</tbody></table>'
@@ -1085,6 +1131,8 @@ async function openUserProfile(userId) {
       + '<h4 class="admin-mt">Story 小说</h4><table class="admin-table"><thead><tr><th>标题</th><th>novelId</th><th>章节</th><th>状态</th></tr></thead><tbody>'
       + (storyRows || '<tr><td colspan="4" class="admin-empty">无</td></tr>') + '</tbody></table>'
       + '</div>';
+    var selTier = $('adminUserTier');
+    if (selTier) selTier.value = tier;
   } catch (e) {
     box.innerHTML = '<div class="admin-empty">' + escapeHtml(e.message || e) + '</div>';
   }
@@ -1092,23 +1140,77 @@ async function openUserProfile(userId) {
 
 if (typeof document !== 'undefined') {
   document.addEventListener('click', async function(e) {
-    var t = e.target.closest('[data-card-detail],[data-card-disable],[data-card-restore],[data-card-del],[data-card-export],[data-novel-disable],[data-novel-restore],[data-novel-del],[data-user-profile]');
+    var t = e.target.closest('[data-card-detail],[data-card-disable],[data-card-restore],[data-card-del],[data-card-export],[data-card-reindex],[data-novel-disable],[data-novel-restore],[data-novel-del],[data-user-profile]');
     if (!t) return;
     if (t.hasAttribute('data-card-detail')) { openCardDetail(t.getAttribute('data-card-detail')); return; }
     if (t.hasAttribute('data-card-disable')) { runCardAction('disable', t.getAttribute('data-card-disable')); return; }
     if (t.hasAttribute('data-card-restore')) { runCardAction('restore', t.getAttribute('data-card-restore')); return; }
     if (t.hasAttribute('data-card-del')) { runCardAction('del', t.getAttribute('data-card-del')); return; }
     if (t.hasAttribute('data-card-export')) { runCardAction('export', t.getAttribute('data-card-export')); return; }
+    if (t.hasAttribute('data-card-reindex')) {
+      var rk = t.getAttribute('data-card-reindex').split('|');
+      try {
+        await api('/api/admin/cards/' + encodeURIComponent(rk[0]) + '/' + encodeURIComponent(rk[1]) + '/reindex', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+        setStatus('已重建这张卡的索引');
+        openCardDetail(t.getAttribute('data-card-reindex'));
+      } catch (err) { setStatus(String(err.message || err)); }
+      return;
+    }
     if (t.hasAttribute('data-novel-disable')) { runNovelAction('disable', t.getAttribute('data-novel-disable')); return; }
     if (t.hasAttribute('data-novel-restore')) { runNovelAction('restore', t.getAttribute('data-novel-restore')); return; }
     if (t.hasAttribute('data-novel-del')) { runNovelAction('del', t.getAttribute('data-novel-del')); return; }
-    if (t.hasAttribute('data-user-profile')) { openUserProfile(t.getAttribute('data-user-profile')); }
+    if (t.hasAttribute('data-user-profile')) {
+      showView('users');
+      openUserProfile(t.getAttribute('data-user-profile'));
+    }
+    if (t.hasAttribute('data-open-card')) {
+      showView('cards');
+      openCardDetail(t.getAttribute('data-open-card'));
+    }
+    if (t.hasAttribute('data-user-password')) {
+      var uid = t.getAttribute('data-user-password');
+      var pwd = await askReason('重置密码。没有邮箱认证记录会停在这里并说明，不会显示成功。', '新密码');
+      if (!pwd) return;
+      try {
+        await api('/api/admin/users/' + encodeURIComponent(uid) + '/password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: pwd }),
+        });
+        setStatus('密码已重置');
+      } catch (err) {
+        setStatus(String(err.message || err));
+      }
+    }
+    if (t.hasAttribute('data-user-tier')) {
+      var uid2 = t.getAttribute('data-user-tier');
+      var sel = $('adminUserTier');
+      try {
+        await api('/api/admin/users/' + encodeURIComponent(uid2) + '/quota', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tier: sel ? sel.value : '' }),
+        });
+        setStatus('档位已保存，五行上限已按新档重算');
+        openUserProfile(uid2);
+      } catch (err2) {
+        setStatus(String(err2.message || err2));
+      }
+    }
   });
   document.addEventListener('click', function(e) {
     var t = e.target.closest('#btnAdminCardDetailClose,#btnAdminProfileClose');
     if (!t) return;
     var target = t.id === 'btnAdminCardDetailClose' ? $('adminCardDetail') : $('adminUserProfile');
     if (target) target.innerHTML = '';
+    if (t.id === 'btnAdminProfileClose') {
+      var table = $('adminUserTable');
+      if (table) table.hidden = false;
+    }
+    if (t.id === 'btnAdminCardDetailClose') {
+      var cards = $('adminCardTable');
+      if (cards) cards.hidden = false;
+    }
   });
 }
 
@@ -1160,22 +1262,54 @@ async function loadLoginLog() {
   }
 }
 
+var PARAM_ROWS = [
+  { key: 'auth.loginFailLock', hint: '邮箱登录：是否启用、失败次数、锁定分钟。失败记在登录日志。' },
+  { key: 'share.defaultExpireDays', hint: '新建分享没有填过期时用这个天数。0 表示不设过期。' },
+  { key: 'announcement.topbar', hint: '主站顶栏公告。留空则顶栏不显示这句。' },
+];
+
+async function applyDictSelects() {
+  try {
+    var data = await api('/api/admin/dicts');
+    var byType = {};
+    (data.dicts || []).forEach(function(d) { byType[d.dictType || d.type] = d.items; });
+    [
+      ['adminUserStatus', 'user.status'],
+      ['adminShareType', 'share.type'],
+      ['adminShareStatus', 'share.status'],
+      ['adminAuditAction', 'audit.action'],
+    ].forEach(function(pair) {
+      var el = $(pair[0]);
+      if (!el) return;
+      var cur = el.value;
+      var opts = dictOptions(pair[1], byType[pair[1]]);
+      el.innerHTML = opts.map(function(o) {
+        return '<option value="' + escapeHtml(o.value) + '">' + escapeHtml(o.label) + '</option>';
+      }).join('');
+      if (cur) el.value = cur;
+    });
+  } catch (e) { /* 下拉保持页面里的默认项 */ }
+}
+
 async function loadParams() {
   var box = $('adminParamTable');
   if (!box) return;
   var canEdit = hasPerm('sys.param.manage');
   try {
     var data = await api('/api/admin/params');
-    var params = data.params || [];
-    box.innerHTML = '<table class="admin-table"><thead><tr><th>键</th><th>值</th><th>更新</th><th></th></tr></thead><tbody>'
+    var saved = {};
+    (data.params || []).forEach(function(p) { saved[p.key] = p; });
+    var params = PARAM_ROWS.map(function(row) {
+      return Object.assign({ value: null }, saved[row.key] || {}, row);
+    });
+    box.innerHTML = '<table class="admin-table"><thead><tr><th>参数</th><th>值</th><th></th></tr></thead><tbody>'
       + params.map(function(p) {
         var actions = canEdit
-          ? '<button type="button" class="btn btn-sm btn-ghost" data-param-save="' + escapeHtml(p.key) + '">保存</button>'
-            + (p.value != null ? '<button type="button" class="btn btn-sm btn-delete" data-param-del="' + escapeHtml(p.key) + '">重置</button>' : '')
+          ? '<button type="button" class="btn btn-inline" data-param-save="' + escapeHtml(p.key) + '">保存</button>'
           : '';
-        return '<tr><td class="admin-mono">' + escapeHtml(p.key) + '</td>'
-          + '<td><input type="text" class="admin-param-value" data-key="' + escapeHtml(p.key) + '" value="' + escapeHtml(p.value == null ? '' : p.value) + '" style="min-width:260px" /></td>'
-          + '<td>' + escapeHtml(fmtTime(p.updatedAt)) + '</td>'
+        var shown = p.value == null ? '' : (typeof p.value === 'string' ? p.value : JSON.stringify(p.value));
+        return '<tr><td><div class="admin-mono">' + escapeHtml(p.key) + '</div><div class="admin-muted">' + escapeHtml(p.hint || '') + '</div></td>'
+          + '<td><input type="text" class="admin-param-value" data-key="' + escapeHtml(p.key) + '" value="' + escapeHtml(shown) + '" style="min-width:260px" /></td>'
           + '<td class="admin-td-actions">' + actions + '</td></tr>';
       }).join('')
       + '</tbody></table>';
@@ -1254,17 +1388,27 @@ async function loadQuota() {
     var data = await api('/api/admin/quota/users');
     var users = data.users || [];
     if (tiersBox) {
-      tiersBox.innerHTML = '<div class="admin-flag-grid">' + (data.tiers || []).map(function(t) {
-        return '<div class="admin-flag"><span>' + escapeHtml(t.label) + '</span><strong>'
-          + escapeHtml(String(t.limits.cloudBytes || '∞')) + '</strong></div>';
-      }).join('') + '</div>';
+      tiersBox.innerHTML = capNote(data.capped, data.listedCap)
+        ? '<p class="admin-muted">' + escapeHtml(capNote(data.capped, data.listedCap)) + '。点一行进用户页改档，这里不改档。</p>'
+        : '<p class="admin-muted">点一行进用户页改档，这里不改档。</p>';
     }
-    box.innerHTML = '<table class="admin-table"><thead><tr><th>用户</th><th>卡数</th><th>容量</th></tr></thead><tbody>'
+    box.innerHTML = '<table class="admin-table"><thead><tr><th>用户</th><th>档位</th><th>卡</th><th>容量</th><th>分享</th><th>Token</th><th>超了</th></tr></thead><tbody>'
       + (users.length ? users.map(function(u) {
-        return '<tr><td class="admin-mono">' + escapeHtml(u.userId) + '</td>'
-          + '<td>' + u.cards + '</td>'
-          + '<td>' + escapeHtml(fmtBytes(u.bytes)) + '</td></tr>';
-      }).join('') : '<tr><td colspan="3" class="admin-empty">无用户</td></tr>')
+        var use = u.usage || {};
+        var lim = u.limits || {};
+        function pair(key, bytes) {
+          var used = bytes ? fmtBytes(use[key]) : String(use[key] || 0);
+          var cap = Number.isFinite(lim[key]) ? (bytes ? fmtBytes(lim[key]) : String(lim[key])) : '不限';
+          return used + '/' + cap;
+        }
+        return '<tr data-user-profile="' + escapeHtml(u.userId) + '"><td>' + escapeHtml(u.displayName || u.userId) + '</td>'
+          + '<td>' + escapeHtml(u.tierLabel || u.tier || '') + '</td>'
+          + '<td>' + pair('cardsOnCloud') + '</td>'
+          + '<td>' + pair('cloudBytes', true) + '</td>'
+          + '<td>' + pair('activeShares') + '</td>'
+          + '<td>' + pair('bearerTokens') + '</td>'
+          + '<td>' + escapeHtml((u.exceeded || []).join('、') || '—') + '</td></tr>';
+      }).join('') : '<tr><td colspan="7" class="ui-empty-tip">无用户</td></tr>')
       + '</tbody></table>';
   } catch (e) {
     box.innerHTML = '<div class="admin-empty">' + escapeHtml(e.message || e) + '</div>';
@@ -1278,14 +1422,15 @@ async function loadFiles() {
   try {
     var data = await api('/api/admin/files');
     var files = data.files || [];
-    box.innerHTML = '<table class="admin-table"><thead><tr><th>文件名</th><th>类型</th><th>大小</th><th>上传</th><th></th></tr></thead><tbody>'
+    box.innerHTML = '<table class="admin-table"><thead><tr><th>名称</th><th>来源</th><th>大小</th><th>时间</th><th>谁</th><th></th></tr></thead><tbody>'
       + (files.length ? files.map(function(f) {
         var actions = '<a class="btn btn-sm btn-ghost" href="' + apiUrl('/api/admin/files/' + encodeURIComponent(f.id) + '/download') + '" target="_blank">下载</a>'
           + (canManage ? '<button type="button" class="btn btn-sm btn-delete" data-file-del="' + escapeHtml(f.id) + '">删除</button>' : '');
         return '<tr><td>' + escapeHtml(f.name) + '</td>'
-          + '<td class="admin-mono">' + escapeHtml(f.contentType) + '</td>'
+          + '<td>' + escapeHtml(f.source || 'upload') + '</td>'
           + '<td>' + escapeHtml(fmtBytes(f.size)) + '</td>'
           + '<td>' + escapeHtml(fmtTime(f.uploadedAt)) + '</td>'
+          + '<td>' + escapeHtml(f.uploadedBy || '—') + '</td>'
           + '<td class="admin-td-actions">' + actions + '</td></tr>';
       }).join('') : '<tr><td colspan="5" class="admin-empty">无文件</td></tr>')
       + '</tbody></table>';
@@ -1444,4 +1589,86 @@ async function uploadFileFromForm() {
   reader.readAsDataURL(file);
 }
 
-export { showView, loadDashboard, loadUsers, loadShares, loadTokens, loadDatabases, loadAudit, loadSystem, loadRoles, loadMenus, renderAdminNav, loadCards, loadNovels, loadOpLog, loadLoginLog, loadParams, loadDicts, loadInvites, loadQuota, loadFiles };
+async function loadTasks() {
+  var box = $('adminTaskTable');
+  if (!box) return;
+  var canToggle = hasPerm('sys.task.manage');
+  var canRun = hasPerm('sys.task.trigger');
+  try {
+    var data = await api('/api/admin/tasks');
+    var tasks = data.tasks || [];
+    box.innerHTML = '<table class="admin-table"><thead><tr><th>名称</th><th>周期</th><th>开启</th><th>上次</th><th>结果</th><th></th></tr></thead><tbody>'
+      + tasks.map(function(t) {
+        var err = t.lastStatus === 'error' ? '<div class="admin-muted">' + escapeHtml(t.lastError || '') + '</div>' : '';
+        var result = t.lastStatus === 'skipped' ? '跳过：' + (t.lastResult || '') : (t.lastStatus || '—');
+        var actions = '';
+        if (canToggle) {
+          actions += '<button type="button" class="btn btn-inline" data-task-toggle="' + escapeHtml(t.id) + '" data-on="' + (t.enabled ? '0' : '1') + '">'
+            + (t.enabled ? '关闭' : '开启') + '</button> ';
+        }
+        if (canRun) {
+          actions += '<button type="button" class="btn btn-inline" data-task-run="' + escapeHtml(t.id) + '">立即执行</button>';
+        }
+        return '<tr><td>' + escapeHtml(t.name || t.id) + '</td><td>' + escapeHtml(t.schedule || '') + '</td><td>'
+          + (t.enabled ? '开' : '关') + '</td><td>' + escapeHtml(fmtTime(t.lastFinishedAt || t.lastRun)) + '</td><td>'
+          + escapeHtml(result) + err + '</td><td>' + actions + '</td></tr>';
+      }).join('')
+      + '</tbody></table>';
+  } catch (e) {
+    box.innerHTML = '<div class="ui-empty-tip">' + escapeHtml(e.message || e) + '</div>';
+  }
+}
+
+async function loadBackup() {
+  var box = $('adminBackupBody');
+  if (!box) return;
+  try {
+    var overview = await api('/api/admin/overview');
+    state.overview = overview;
+    var on = !!(overview.flags && overview.flags.backupEnabled);
+    var btn = $('btnAdminBackup');
+    if (btn) {
+      btn.disabled = !on || !hasPerm('admin.backup.run');
+      btn.title = on ? '' : '服务器未打开 ADMIN_BACKUP_ENABLED';
+    }
+    var backups = [];
+    try { backups = (await api('/api/admin/backups')).backups || []; } catch (eB) { backups = []; }
+    box.innerHTML = '<p class="admin-muted">' + (on
+      ? '服务器允许备份。下载的是这次备份的结果说明，目录仍在服务器 ADMIN_BACKUP_DIR。'
+      : '服务器未打开 ADMIN_BACKUP_ENABLED，这里不能把它改成开启。') + '</p>'
+      + '<table class="admin-table"><thead><tr><th>时间</th><th>结果</th><th>目录</th></tr></thead><tbody>'
+      + (backups.length ? backups.map(function(b) {
+        return '<tr><td>' + escapeHtml(fmtTime(b.at)) + '</td><td>' + escapeHtml(b.status || '') + '</td><td class="admin-mono">'
+          + escapeHtml(b.outDir || b.log || '') + '</td></tr>';
+      }).join('') : '<tr><td colspan="3" class="ui-empty-tip">还没有备份</td></tr>')
+      + '</tbody></table>';
+  } catch (e) {
+    box.innerHTML = '<div class="ui-empty-tip">' + escapeHtml(e.message || e) + '</div>';
+  }
+}
+
+if (typeof document !== 'undefined') {
+  document.addEventListener('click', async function(e) {
+    var t = e.target.closest('[data-task-toggle],[data-task-run]');
+    if (!t) return;
+    var id = t.getAttribute('data-task-toggle') || t.getAttribute('data-task-run');
+    try {
+      if (t.hasAttribute('data-task-toggle')) {
+        await api('/api/admin/tasks/' + encodeURIComponent(id) + '/enabled', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ enabled: t.getAttribute('data-on') === '1' }),
+        });
+      } else {
+        var run = await api('/api/admin/tasks/' + encodeURIComponent(id) + '/run', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+        var st = run.run && run.run.status;
+        setStatus(st === 'skipped' ? '未执行：服务器未开启备份' : ('任务结果：' + st));
+      }
+      loadTasks();
+    } catch (err) {
+      setStatus(String(err.message || err));
+    }
+  });
+}
+
+export { showView, loadDashboard, loadUsers, loadShares, loadTokens, loadDatabases, loadAudit, loadSystem, loadRoles, loadMenus, renderAdminNav, loadCards, loadNovels, loadOpLog, loadLoginLog, loadParams, loadDicts, loadInvites, loadQuota, loadFiles, loadTasks, loadBackup, openUserProfile };

@@ -8,16 +8,14 @@ import {
   STATUS_BAR_PRESETS,
   STATUS_BAR_REGEX_NAME,
   STATUS_BAR_CHAR_SCAN_PROMPT,
-  STATUS_BAR_MVU_DESIGN_PROMPT,
-  STATUS_BAR_CUSTOM_LAYOUT_PROMPT,
-  STATUS_BAR_SAMPLE_FLOORS_PROMPT,
+  STATUS_BAR_MVU_FILL_PROMPT,
+  STATUS_BAR_LAYOUT_SHELL_PROMPT,
   getPresetById,
   defaultModuleFlags,
   resolveModuleFlags,
   describeEnabledModules,
   describeForbiddenModules,
   describeFemaleOnlyRule,
-  describeMvuPathLayoutSpec,
   normalizeCastCharacter,
   collectPersonCharactersFromWorldbook,
   excludeCardNameFromCharacters,
@@ -29,12 +27,18 @@ import {
   normalizeDesign,
   reconcileDesignWithCharName,
   rejectStatusBarGenerate,
-  buildCastProfileBlock,
   validateSampleFloors,
   readFloorValue,
   keepMarkupPaths,
   buildVariableTree,
   appendStylePreset,
+  planStatusBarBatches,
+  fillStatusBarVariables,
+  buildBatchProfileBlock,
+  describeLayoutFields,
+  expandStatusBarTemplate,
+  layoutReviseSource,
+  buildLocalSampleFloors,
 } from '../statusBar.mjs';
 import { appFeedback } from '../ui/appMessage.mjs';
 import { engineTryAllowed } from '../actionEngine/helpers.mjs';
@@ -369,7 +373,9 @@ export function initStatusBarPanel() {
     if (femaleOnlyBtn) femaleOnlyBtn.setAttribute('aria-pressed', state.femaleOnly !== false ? 'true' : 'false');
     var paths = pathsForPreview();
     var values = previewValueMap(paths);
-    var body = state.customBodyHtml ? keepMarkupPaths(state.customBodyHtml, paths) : '';
+    var body = state.customBodyHtml
+      ? keepMarkupPaths(expandStatusBarTemplate(state.customBodyHtml, selectedFemaleNames()), paths)
+      : '';
     var html = buildPreviewHtml({
       paths: paths,
       values: values,
@@ -503,60 +509,84 @@ export function initStatusBarPanel() {
     return extractJson(text);
   }
 
+  function collectGreetingTexts() {
+    var list = [];
+    var main = String((document.getElementById('firstMes') || {}).value || '').trim();
+    if (main) list.push({ label: '主开场', text: main });
+    var alts = window.__altGreetings__;
+    if (!Array.isArray(alts)) return list;
+    alts.forEach(function(text, i) {
+      var body = String(text || '').trim();
+      if (!body) return;
+      list.push({ label: '备选' + (i + 1), text: body });
+    });
+    return list;
+  }
+
+  function selectedFemaleNames() {
+    return selectedFemales().map(function(c) { return String(c.name || '').trim(); }).filter(Boolean);
+  }
+
+  function fillCardSnapshot() {
+    return {
+      name: currentCharName(),
+      desc: (document.getElementById('charDesc') || {}).value || '',
+      creatorNotes: (document.getElementById('creatorNotes') || {}).value || '',
+      greetings: collectGreetingTexts(),
+    };
+  }
+
+  function fillUserForBatch(batch, card, worldbookEntries) {
+    var profile = buildBatchProfileBlock(batch, card, worldbookEntries, state.characters);
+    var fields = (batch.paths || []).map(function(p) {
+      var leaf = String(p.path || '').split('.').pop();
+      var note = leaf === '关系阶段' ? '（枚举，选项必须含未结识）' : (p.meter ? '（数字）' : '');
+      return '- ' + leaf + note;
+    }).join('\n');
+    return profile
+      + '\n\n【这一批要填的字段】\n' + (fields || '（无）')
+      + '\n\n只输出 JSON：{"defaults":{"字段名":"短值"},"enums":{"关系阶段":["未结识"]}}。'
+      + '不要输出 path、type、description、check。不认识的字段不要写。每个值不超过一句。';
+  }
+
   function promptBundle() {
     readFormIntoState();
-    var chars = selectedFemales();
     var ps = window.__promptStore__;
-    var mvuTpl = (ps && ps.get('statusBarMvuDesign')) || STATUS_BAR_MVU_DESIGN_PROMPT;
-    var layoutTpl = (ps && ps.get('statusBarCustomLayout')) || STATUS_BAR_CUSTOM_LAYOUT_PROMPT;
+    var mvuTpl = (ps && ps.get('statusBarMvuFill')) || STATUS_BAR_MVU_FILL_PROMPT;
+    var layoutTpl = (ps && ps.get('statusBarLayoutShell')) || STATUS_BAR_LAYOUT_SHELL_PROMPT;
     var paths = pathsForPreview();
-    var pathLayoutSpec = describeMvuPathLayoutSpec({
-      includeProtagonist: state.includeProtagonist,
-      includeFemales: state.includeFemales,
-      charName: currentCharName(),
-      moduleFlags: state.moduleFlags,
-      characters: state.characters,
-    });
-    var charBlock = buildCastProfileBlock({
-      includeProtagonist: state.includeProtagonist,
-      includeFemales: state.includeFemales,
-      selected: chars,
-      card: {
-        name: currentCharName(),
-        desc: (document.getElementById('charDesc') || {}).value || '',
-        firstMes: (document.getElementById('firstMes') || {}).value || '',
-      },
-      worldbookEntries: window.__getWorldbookEntries__ ? window.__getWorldbookEntries__() : [],
-    });
+    var batches = planStatusBarBatches(paths);
+    var card = fillCardSnapshot();
+    var worldbookEntries = window.__getWorldbookEntries__ ? window.__getWorldbookEntries__() : [];
     var moduleBlock = describeEnabledModules(state.moduleFlags);
     var mvuVars = {
-      charBlock: charBlock,
       moduleBlock: moduleBlock,
       forbiddenModuleBlock: describeForbiddenModules(state.moduleFlags, { nsfwEnabled: state.nsfw }),
       nsfw: state.nsfw ? '是' : '否',
       extra: state.extra || '无',
-      pathLayoutSpec: pathLayoutSpec,
     };
-    var pathBlock = paths.map(function(p) {
-      return '- ' + p.path + ' | ' + (p.label || '') + (p.meter ? ' | meter' : '');
-    }).join('\n') || '（无）';
     var layoutVars = {
-      charBlock: charBlock,
       nsfw: state.nsfw ? '是' : '否',
       moduleBlock: moduleBlock,
-      pathBlock: pathBlock,
+      fieldBlock: describeLayoutFields(paths),
       userPrompt: state.layoutPrompt || '',
     };
+    var sampleBatch = batches[0];
     return {
       mvuSys: applyTemplate(mvuTpl, mvuVars),
-      mvuUser: '请输出完整 MVU 变量设计 JSON。主角与女角色用两套前缀，不要改写。',
+      mvuUser: sampleBatch
+        ? fillUserForBatch(sampleBatch, card, worldbookEntries)
+        : '没有可填的字段。',
       layoutSys: applyTemplate(layoutTpl, layoutVars),
-      layoutUser: '请按排版风格说明输出 JSON。只用 data-zb-path 与 data-zb-meter。',
+      layoutUser: '请按排版风格说明输出 JSON。女角色只写一套 <template data-zb-repeat="npc">，路径用 NPC.{{name}}.字段。',
       mvuTpl: mvuTpl,
       layoutTpl: layoutTpl,
       mvuVars: mvuVars,
       layoutVars: layoutVars,
       paths: paths,
+      batches: batches,
+      card: card,
+      worldbookEntries: worldbookEntries,
     };
   }
 
@@ -599,7 +629,7 @@ export function initStatusBarPanel() {
   function writeBoundSnippet() {
     if (!String(state.customCss || '').trim() || !String(state.customBodyHtml || '').trim()) return;
     var paths = state.paths || [];
-    var body = keepMarkupPaths(state.customBodyHtml, paths);
+    var body = keepMarkupPaths(expandStatusBarTemplate(state.customBodyHtml, selectedFemaleNames()), paths);
     state.mode = 'mvu';
     state.snippetHtml = buildStatusBarSnippet({
       paths: paths,
@@ -621,17 +651,30 @@ export function initStatusBarPanel() {
     var gate = engineTryAllowed('card.statusbar.generate');
     if (!gate.ok) return;
     var bundle = promptBundle();
+    if (!bundle.batches.length) {
+      toast('请至少开启一个模块', 'warn');
+      return;
+    }
     try {
       await runInCenter('statusbar_generate', '状态栏变量', async function(task) {
         var signal = task && task.signal;
-        var data = await fetchJson(bundle.mvuSys, bundle.mvuUser, signal);
-        var variables = Array.isArray(data.variables) ? data.variables : [];
-        if (!variables.length) throw new Error('AI 未返回 variables');
-        var design = {
-          summary: String(data.summary || '状态栏生成的变量设计').slice(0, 80),
-          variables: variables,
-          source: 'statusbar',
-        };
+        var design = await fillStatusBarVariables({
+          batches: bundle.batches,
+          signal: signal,
+          onProgress: function(progress, text) {
+            var center = window.__aiTaskCenter__;
+            if (center && task) center.setProgress(task.id, progress, text);
+          },
+          fetchBatch: function(batch) {
+            return fetchJson(
+              bundle.mvuSys,
+              fillUserForBatch(batch, bundle.card, bundle.worldbookEntries),
+              signal
+            );
+          },
+        });
+        if (!design.variables.length) throw new Error('没有可写入的变量');
+        design.source = 'statusbar';
         if (!window.__assistantMvuApi__ || !window.__assistantMvuApi__.upsertVariables) {
           throw new Error('MVU 注入 API 不可用');
         }
@@ -662,9 +705,12 @@ export function initStatusBarPanel() {
     var bundle = promptBundle();
     var user = bundle.layoutUser;
     if (revise) {
-      user = '在现有排版上修改，不要另起一套。保留没要求改的结构。补上路径清单里还没有的字段，去掉已关闭的字段。\n\n'
+      var source = layoutReviseSource(state.customBodyHtml, selectedFemaleNames());
+      user = '在现有排版上修改，不要另起一套。保留没要求改的结构。补上字段清单里还没有的字段，去掉已关闭的字段。\n'
+        + '女角色只保留一套 <template data-zb-repeat="npc">，路径用 NPC.{{name}}.字段，不要把每个人展开。\n'
+        + '姓名：' + (source.names.join('、') || '（无）') + '\n\n'
         + '【当前 CSS】\n' + String(state.customCss || '')
-        + '\n\n【当前 HTML】\n' + String(state.customBodyHtml || '')
+        + '\n\n【当前 HTML】\n' + source.html
         + '\n\n请输出 JSON。只用 data-zb-path 与 data-zb-meter。';
     }
     try {
@@ -749,27 +795,16 @@ export function initStatusBarPanel() {
     }
     var gate = engineTryAllowed('card.statusbar.sampleFloors');
     if (!gate.ok) return;
-    var paths = pathsForPreview();
-    var pathBlock = paths.map(function(p) { return p.path + (p.set === 'npc' ? ' @' + (p.role || '') : ''); }).join('\n');
-    var ps = window.__promptStore__;
-    var tpl = (ps && ps.get('statusBarSampleFloors')) || STATUS_BAR_SAMPLE_FLOORS_PROMPT;
-    var sys = applyTemplate(tpl, { pathBlock: pathBlock });
-    try {
-      var data = await runInCenter('statusbar_sample_floors', '状态栏样例楼层', function(task) {
-        return fetchJson(sys, '请输出 3 楼样例 JSON。', task && task.signal);
-      });
-      var checked = validateSampleFloors(data && data.floors);
-      if (!checked.ok) {
-        toast('样例楼层无效', 'error');
-        return;
-      }
-      samples.floors = checked.floors;
-      samples.activeFloor = 1;
-      floorToastSent = false;
-      refreshPreview();
-    } catch (err) {
-      reportError(err);
+    var checked = validateSampleFloors(buildLocalSampleFloors(pathsForPreview()));
+    if (!checked.ok) {
+      toast('样例楼层无效', 'error');
+      return;
     }
+    samples.floors = checked.floors;
+    samples.activeFloor = 1;
+    floorToastSent = false;
+    refreshPreview();
+    toast('已生成本地样例', 'success');
   }
 
   function shiftFloor(delta) {
@@ -793,7 +828,7 @@ export function initStatusBarPanel() {
       var presetsStr = activePresetText();
       var mvu = composeStatusBarPromptPreview({
         dialogTitle: '状态栏 · 生成提示词',
-        promptId: 'statusBarMvuDesign',
+        promptId: 'statusBarMvuFill',
         taskType: 'statusbar_generate',
         metaLines: ['预设：' + getPresetById(state.presetId).label],
         systemTpl: bundle.mvuTpl,
@@ -804,7 +839,7 @@ export function initStatusBarPanel() {
       });
       var layout = composeStatusBarPromptPreview({
         dialogTitle: '状态栏 · 排版提示词',
-        promptId: 'statusBarCustomLayout',
+        promptId: 'statusBarLayoutShell',
         taskType: 'statusbar_custom_layout',
         systemTpl: bundle.layoutTpl,
         vars: bundle.layoutVars,
@@ -815,7 +850,7 @@ export function initStatusBarPanel() {
       openTextPreview({
         title: '状态栏 · 查看提示词',
         text: formatStatusBarPromptSections([
-          { title: '变量设计', body: mvu.text },
+          { title: '变量填值', body: mvu.text },
           { title: '排版', body: layout.text },
         ]),
       });

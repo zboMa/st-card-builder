@@ -73,10 +73,13 @@ export async function getQuotaSnapshot(user, opts) {
   var idx = await getCardIndexDoc(user.id);
   var cardsOnCloud = ((idx && idx.cards) || []).length;
   var cloudBytes = await computeCloudBytesFromIndex(user.id, idx);
-  var activeShares = await countActiveSharesForUser(user.id);
+  var activeShares = opts.activeShares != null
+    ? opts.activeShares
+    : await countActiveSharesForUser(user.id);
   var storyNovels = await countStoryNovelsForUser(user.id);
-  var bearerCounts = await countBearersByUserIds([user.id]);
-  var bearerTokens = bearerCounts[user.id] || 0;
+  var bearerTokens = opts.bearerTokens != null
+    ? opts.bearerTokens
+    : ((await countBearersByUserIds([user.id]))[user.id] || 0);
 
   var usage = {
     cardsOnCloud: cardsOnCloud,

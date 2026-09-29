@@ -647,10 +647,21 @@ export function attachAiEnginePanel(ctx, s, panel) {
         signal: o.engineSignal,
       });
       var greetData = ctx.extractJsonObj(aiResp3.content, '开场白/阶段3');
-      ctx.state.firstMes = greetData.firstMes || '';
-      ctx.state.altGreetings = (greetData.altGreetings && Array.isArray(greetData.altGreetings)) ? greetData.altGreetings : [];
-      window.__altGreetings__ = ctx.state.altGreetings;
-      if (window.__renderAltGreetings__) window.__renderAltGreetings__();
+      var greetProse = greetData.firstMes || '';
+      var greetAlts = (greetData.altGreetings && Array.isArray(greetData.altGreetings)) ? greetData.altGreetings : [];
+      if (typeof window.__acceptGreetingTexts__ === 'function') {
+        var acceptedGreetings = window.__acceptGreetingTexts__(greetProse, greetAlts, 'replace');
+        ctx.state.firstMes = acceptedGreetings.firstMes;
+        ctx.state.altGreetings = acceptedGreetings.altGreetings;
+        ctx.state.greetingInitMain = acceptedGreetings.greetingInitMain;
+        ctx.state.greetingInitAlts = acceptedGreetings.greetingInitAlts;
+        if (acceptedGreetings.baselineInstalled) ctx.state.worldbookEntries = acceptedGreetings.entries;
+      } else {
+        ctx.state.firstMes = greetProse;
+        ctx.state.altGreetings = greetAlts;
+        window.__altGreetings__ = ctx.state.altGreetings;
+        if (window.__renderAltGreetings__) window.__renderAltGreetings__();
+      }
       ctx.save();
       return currentStep;
     },

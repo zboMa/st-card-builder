@@ -15,6 +15,7 @@ import { ASSISTANT_PRESET_CHIPS, getToolByName } from './tools.mjs';
 import { normalizeCharacterFieldKey, normalizeCharacterPatch, CHARACTER_FIELD_HINT } from './characterFields.mjs';
 import { fromAiJsonEntry, toAiJsonEntry, normalizeAiJsonRow, aiCommentFromRow } from '../worldbook/worldbookEntryBridge.mjs';
 import { getDefaultWBEntry } from '../card-builder/state.mjs';
+import { copyOverrideMap } from '../mvu/greetingInit.mjs';
 import { applyTemplate } from '../promptStore.mjs';
 import { DEFAULT_PROMPTS } from '../promptCanon.mjs';
 import {
@@ -913,6 +914,8 @@ export function initAssistantPanelMain() {
         // 与 ST tags / data.tags 同步
         tags: window.__getCharTags__ ? window.__getCharTags__() : [],
         altGreetings: Array.isArray(window.__altGreetings__) ? window.__altGreetings__.slice() : [],
+        greetingInitMain: copyOverrideMap(window.__greetingInitMain__),
+        greetingInitAlts: (Array.isArray(window.__greetingInitAlts__) ? window.__greetingInitAlts__ : []).map(copyOverrideMap),
       };
     }
 
@@ -922,14 +925,24 @@ export function initAssistantPanelMain() {
       if (f.charName != null) setVal('charName', f.charName);
       if (f.wbName != null) setVal('wbName', f.wbName);
       if (f.charDesc != null) setVal('charDesc', f.charDesc);
-      if (f.firstMes != null) setVal('firstMes', f.firstMes);
       if (f.creatorNotes != null) setVal('creatorNotes', f.creatorNotes);
       if (Array.isArray(f.tags) || Array.isArray(f.charTags)) {
         if (window.__setCharTags__) window.__setCharTags__(f.tags || f.charTags);
       }
-      if (Array.isArray(f.altGreetings)) {
-        window.__altGreetings__ = f.altGreetings.slice();
-        if (window.__renderAltGreetings__) window.__renderAltGreetings__();
+      if (f.firstMes != null || Array.isArray(f.altGreetings)) {
+        if (typeof window.__acceptGreetingTexts__ === 'function') {
+          window.__acceptGreetingTexts__(
+            f.firstMes != null ? f.firstMes : null,
+            Array.isArray(f.altGreetings) ? f.altGreetings : null,
+            'keep'
+          );
+        } else {
+          if (f.firstMes != null) setVal('firstMes', f.firstMes);
+          if (Array.isArray(f.altGreetings)) {
+            window.__altGreetings__ = f.altGreetings.slice();
+            if (window.__renderAltGreetings__) window.__renderAltGreetings__();
+          }
+        }
       }
       if (window.triggerGlobalUpdate) window.triggerGlobalUpdate();
     }
@@ -1804,14 +1817,30 @@ export function initAssistantPanelMain() {
         ], 0.75);
         text = String(text || '').trim();
         var linkWarning = relationMentionWarning(text, getWorldbook());
+        var writtenTarget = isMain ? 'main' : { alternate: altIndex };
         if (isMain) {
           setCharacter({ firstMes: text });
-          return { target: 'main', mode: mode, length: text.length, linkWarning: linkWarning || undefined };
+        } else {
+          var alts = (c.altGreetings || []).slice();
+          alts[altIndex] = text;
+          setCharacter({ altGreetings: alts });
         }
-        var alts = (c.altGreetings || []).slice();
-        alts[altIndex] = text;
-        setCharacter({ altGreetings: alts });
-        return { target: { alternate: altIndex }, mode: mode, length: text.length, linkWarning: linkWarning || undefined };
+        var initCleared = false;
+        if (mode !== 'expand' && typeof window.__setGreetingInit__ === 'function') {
+          window.__setGreetingInit__({ target: writtenTarget, clear: true });
+          initCleared = true;
+        }
+        return {
+          target: writtenTarget,
+          mode: mode,
+          length: text.length,
+          linkWarning: linkWarning || undefined,
+          initCleared: initCleared || undefined,
+        };
+      },
+      setGreetingInit: function(opts) {
+        if (typeof window.__setGreetingInit__ !== 'function') throw new Error('开场初始值桥接未就绪');
+        return window.__setGreetingInit__(opts || {});
       },
       captureSnapshot: captureSnapshot,
       restoreSnapshot: restoreSnapshot,

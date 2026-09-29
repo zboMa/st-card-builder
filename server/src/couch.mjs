@@ -505,12 +505,39 @@ export async function listShareMappings(limit) {
 
 export async function appendAdminAudit(entry) {
   var db = await ensureAdminDatabase();
-  var id = 'audit/' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
-  return db.insert(Object.assign({
-    _id: id,
+  var at = new Date().toISOString();
+  var stamp = Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+  var doc = Object.assign({
+    _id: 'audit/' + stamp,
     type: 'admin-audit',
-    at: new Date().toISOString(),
-  }, entry || {}));
+    at: at,
+  }, entry || {});
+  await db.insert(doc);
+  var userId = String(doc.targetUserId || '').trim();
+  if (userId) {
+    var byUser = Object.assign({}, doc, {
+      _id: 'audit-by-user/' + userId + '/' + stamp,
+      type: 'admin-audit-by-user',
+    });
+    delete byUser._rev;
+    try { await db.insert(byUser); } catch (e) { /* 总账已写入 */ }
+  }
+  return doc;
+}
+
+export async function listAuditByUser(userId, limit) {
+  var uid = String(userId || '').trim();
+  if (!uid) return [];
+  var db = await ensureAdminDatabase();
+  var prefix = 'audit-by-user/' + uid + '/';
+  var res = await db.list({
+    include_docs: true,
+    startkey: prefix + '\ufff0',
+    endkey: prefix,
+    descending: true,
+    limit: Math.min(200, Math.max(1, Number(limit) || 50)),
+  });
+  return (res.rows || []).map(function(r) { return r.doc; }).filter(Boolean);
 }
 
 export async function listAdminAudit(limit) {

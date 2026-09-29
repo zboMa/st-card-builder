@@ -153,13 +153,20 @@ export const DEFAULT_PROMPTS = {
     '\n保留【不要改】里点名的事实。成人向关闭时不写露骨内容；开启时按 NSFW 描述体系写，Limits 优先。'
   ),
 
+  greetingInitGen: join(
+    '你根据一条开场白，列出这场相对世界书保底真正改掉的路径。',
+    '\n只输出路径=值，一行一条。路径必须来自保底清单，不要新造路径。',
+    '\n设定里已成立、这场没改的不要输出。这场把保底里的关系、地点或在场状态改掉了，要写出来。',
+    '\n正文和设定都推不出的不要猜。没有差异时不要输出任何字。每个值不超过一句，不要写人物小传。不要解释，不要 YAML 树，不要 <initvar>。'
+  ),
+
   assistantGreeting: join(
     '你是 SillyTavern 场景开场写手。只写用户指定的这一条开场白，只输出正文，不要 JSON，不要标题。',
     B.contentCanon,
     B.antiSlop,
     B.adultGate,
     '\n【本次任务优先】用户消息里的【本次任务】决定这场谁出场、什么气氛。',
-    '\n【开场白】至少 300 字。只写场景侧，可以多个人物的动作和对白；禁止替用户说话、行动或写用户心理。结尾把话头抛给用户。',
+    '\n【开场白】至少 300 字。只写场景侧，可以多个人物的动作和对白；禁止替用户说话、行动或写用户心理。结尾把话头抛给用户。不要输出 <initvar>、变量块或 YAML。',
     '\n只让【已有关联】里这场会出现的人开口。不要新造一套与索引无关的角色。成人向关闭时不写露骨内容；开启时可以有张力，但不得超过角色 Limits。'
   ),
 
@@ -553,7 +560,38 @@ export const DEFAULT_PROMPTS = {
     '{{femaleOnlyRule}}'
   ),
 
+  statusBarMvuFill: join(
+    '你只为这一批对象填写变量的短默认值。不要输出 path、type、description、check，那些由本地目录提供。\n',
+    '开启模块：\n{{moduleBlock}}\n',
+    '禁止模块：\n{{forbiddenModuleBlock}}\n',
+    'NSFW：{{nsfw}}\n',
+    '额外要求：{{extra}}\n\n',
+    '【填写规矩】\n',
+    '1. 只返回 JSON：{"defaults":{"字段名":"短值"},"enums":{"关系阶段":["未结识","相识"]}}。\n',
+    '2. defaults 的键是用户消息里列出的字段名。人物字段不要写成 NPC.姓名.字段，也不要写 角色.。\n',
+    '3. 只有关系阶段需要 enums。选项必须包含未结识，defaults 里的关系阶段必须是其中一项。选项可以按这个人来写。\n',
+    '4. default 表示还没选开场时已经成立、且符合这张卡设定的状态。设定写明的照写。没写死但按这个世界推得出的给说得通的短值。推不出的：关系用未结识，数值用 0，其余留空字符串。\n',
+    '5. 各条开场互相并列。不要把某一场的地点和此刻动作写成 default。身体字段只写开局前的客观状态。\n',
+    '6. 每个值不超过一句，不要写人物小传。\n'
+  ),
+
+  statusBarLayoutShell: join(
+    '你是 SillyTavern 状态栏排版工程师。只写 CSS 和一套外壳，不要把每个人的名字和路径都展开。\n\n',
+    'NSFW：{{nsfw}}\n',
+    '开启模块：\n{{moduleBlock}}\n',
+    '字段清单：\n{{fieldBlock}}\n\n',
+    '【排版风格说明】\n{{userPrompt}}\n\n',
+    '【结构】\n',
+    '1. 全局字段一块。路径用完整路径，例如 data-zb-path="世界.当前时间"。\n',
+    '2. 主角一块。路径用 角色.字段。\n',
+    '3. 女角色只写一套，放在 <template data-zb-repeat="npc"> 里。路径写成 NPC.{{name}}.字段，不要写出具体姓名。\n',
+    '4. 文本用 data-zb-path。数值才加 data-zb-meter。\n',
+    '5. 禁止 script、内联事件、外部 CDN。CSS 类名用 zb- 前缀。\n',
+    '6. 只输出 JSON：{"css":"...","bodyHtml":"<div class=\\"zb-custom-root\\">...</div>"}。\n'
+  ),
+
   statusBarMvuDesign: join(
+    '【已停用】状态栏生成变量已改走按人分批填值，本提示词不再被读取。\n',
     '你是 SillyTavern MVU 变量系统设计专家。请根据状态栏配置设计完整变量 JSON。',
     '不要输出 zod/YAML/解释；本地会组装注入产物。\n\n',
     '{{charBlock}}\n',
@@ -573,11 +611,14 @@ export const DEFAULT_PROMPTS = {
     '6. 恶堕进度、亲密度：主角是 角色.恶堕进度 / 角色.亲密度；女角色是 NPC.姓名.恶堕进度 / NPC.姓名.亲密度。\n',
     '7. type 仅 string/number/boolean/enum/array/object；enum 必给 options。check 为数组。\n',
     '8. 变量须可被剧情更新；不要为未开启模块凑字段。NSFW=是时身体字段须可更新且与角色 Limits 不冲突。\n',
+    '9. default 会写成世界书变量初始化，表示还没选开场时这张卡已经成立的状态。设定里写明的身份、关系、常驻地、身体事实照写。设定没写死、但按这个世界的常理推得出的，给一个说得通的值，不要套示例数字。设定和常理都推不出的，关系用未结识、数值关系用 0、人不在场则写未在场或其日常所在，物品和记忆留空。关系阶段的 options 必须包含未结识，default 必须是 options 里的一项。\n',
+    '10. 【各条开场】互相并列，不是同时发生。不要把某一场的地点、在场人物和此刻动作写成所有人的 default。多条开场互相矛盾的内容不要进 default。只有一条开场、卡面又没有更早的前史时，default 可以写成这场。身体字段只写开局前的客观状态；欲望和比喻不是正在发生的事。\n',
     '\n【输出】仅 JSON：\n',
     '{ "summary":"摘要", "variables":[ { "path":"世界.当前时间", "type":"string", "default":"08:00", "description":"时间", "check":["推进时间时更新"] } ] }\n'
   ),
 
   statusBarCustomLayout: join(
+    '【已停用】状态栏排版已改走人物模板，本提示词不再被读取。\n',
     '你是 SillyTavern 状态栏前端排版工程师。根据变量路径与用户的排版风格说明，输出可注入的 HTML 与 CSS。\n\n',
     '{{charBlock}}\n',
     'NSFW：{{nsfw}}\n',
@@ -610,7 +651,7 @@ export const DEFAULT_PROMPTS = {
     '7. enum 必须给 options 数组，并让 default 是 options 中的一项。\n',
     '8. number 可给 min/max。\n',
     '9. check 写成数组，说明这个变量在什么剧情条件下应该更新。\n',
-    '10. 默认值要符合角色开局设定，不知道时给安全中性值。\n',
+    '10. default 是还没选开场时已经成立、且符合这张卡设定的状态。设定写明的照写；没写死但按这个世界推得出的，给说得通的值，不要套示例数字；推不出的用未结识、0、未在场或空。不要把某一条开场的当场场面写成所有人的 default。关系阶段的 options 必须包含未结识。\n',
     '\n【输出要求】\n',
     '仅输出 JSON 对象，格式如下：\n',
     '{\n',
@@ -688,7 +729,8 @@ export const DEFAULT_PROMPTS = {
     + '不要把写好的正文放进参数。'
     + '禁止用 update_character_fields、replace_character_section、create_worldbook_entry、update_worldbook_entry、update_alternate_greeting 写入长正文；'
     + '禁止用 generate_character_draft、generate_worldbook_skeleton 代替逐篇生成。'
-    + '工具会自行带上世界与限定和已有条目索引。信息还不够、仍在商量时，先在对话里确认，再调用工具。\n',
+    + '工具会自行带上世界与限定和已有条目索引。信息还不够、仍在商量时，先在对话里确认，再调用工具。'
+    + '开场白正文不要包含 <initvar>。重写后若这条开局的起点和世界书保底不同，用同一个 target 调用 set_greeting_init，overrides 只写不同的路径和值；扩写和改措辞保留原初始值。没有变量保底时不要调用。\n',
     '\n{{buildGuide}}\n',
     '\n【可用工具】\n{{toolList}}\n',
     '\n{{catalogOverview}}\n',
@@ -704,6 +746,7 @@ export const DEFAULT_PROMPTS = {
     + '若用户要求改指定条目/人物/开场白，先确认定位再改。'
     + '补全内容时对齐内容/NSFW 描述体系。'
     + '长文工具每次一篇，instruction 写清这次的生成提示。'
+    + '重写开场后，起点有变化再用 set_greeting_init，不要把初始值写进正文。'
     + '配卡/生成倾向引导勿强制；用户已跳步则跟随其当前意图。',
 
   assistantBuildGuide: PROMPT_BLOCKS.buildGuideCanon,

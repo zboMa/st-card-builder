@@ -6,6 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { config } from './config.mjs';
 import { ensureAdminDatabase, appendAdminAudit } from './couch.mjs';
+import { recordAdminFile } from './admin/system.mjs';
 
 var __dirname = path.dirname(fileURLToPath(import.meta.url));
 var SERVER_ROOT = path.resolve(__dirname, '..');
@@ -84,6 +85,15 @@ export async function runBackup(triggeredBy) {
     triggeredBy: triggeredBy || 'manual',
     log: String(result.stdout || '').slice(-2000),
   });
+  try {
+    await recordAdminFile({
+      name: 'backup-' + stamp + '.txt',
+      source: 'backup',
+      by: triggeredBy || '',
+      contentType: 'text/plain',
+      text: '目录：' + outDir + '\n' + String(result.stdout || '').slice(-4000),
+    });
+  } catch (eFile) { /* 备份目录已写成，文件页缺行时仍可看备份历史 */ }
   try {
     await appendAdminAudit({ action: 'backup.run', outDir: outDir, by: triggeredBy || '' });
   } catch (e) { /* ignore */ }

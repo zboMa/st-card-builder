@@ -65,6 +65,7 @@ const { title } = Astro.props;
   <body>
     <canvas id="sceneFxCanvasBlend" aria-hidden="true"></canvas>
     <canvas id="sceneFxCanvasAmbient" aria-hidden="true"></canvas>
+    <div id="appAnnouncement" class="app-announcement" hidden></div>
     <slot />
     <ThemeGallery />
 
@@ -76,9 +77,11 @@ const { title } = Astro.props;
       import { initThemeSceneFx } from '../lib/theme/themeSceneFxBoot.mjs';
       import { isImmersiveFxEnabled } from '../lib/theme/themeSceneTier.mjs';
       import { trackPageView } from '../lib/track.mjs';
+      import { loadAnnouncement } from '../lib/layout/announcement.mjs';
       initTheme();
       initThemeSceneFx();
       initLayoutChrome();
+      loadAnnouncement();
       initThemePicker();
       window.__fxEnabled__ = function() { return isImmersiveFxEnabled(); };
       try {

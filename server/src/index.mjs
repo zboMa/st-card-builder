@@ -16,6 +16,7 @@ import { attachRequestTiming } from './requestTiming.mjs';
 import { startScheduler } from './scheduler.mjs';
 import { seedRoles } from './auth/roles.mjs';
 import { seedMenus } from './admin/menus.mjs';
+import { getParam } from './sysparams.mjs';
 
 var app = express();
 
@@ -55,6 +56,12 @@ app.get('/api/health', async function(req, res) {
       adminIdsConfigured: config.adminDiscordIds.length > 0,
     },
   });
+});
+
+app.get('/api/data/announcement', async function(req, res) {
+  var text = '';
+  try { text = String(await getParam('announcement.topbar') || ''); } catch (e) { text = ''; }
+  res.json({ ok: true, text: text });
 });
 
 app.use('/api/auth', authRouter);

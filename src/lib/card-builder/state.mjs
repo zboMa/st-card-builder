@@ -8,6 +8,11 @@ import {
   toStExportEntry,
   normalizeWorldbookEntriesForDraft,
 } from '../worldbook/worldbookEntryBridge.mjs';
+import {
+  baselineLeavesFromEntries,
+  composeGreetingText,
+  copyOverrideMap,
+} from '../mvu/greetingInit.mjs';
 
 export { normalizeWorldbookEntriesForDraft };
 
@@ -29,6 +34,10 @@ export function createDefaultCardState() {
     cardBuilderExtensions: {},
     activeAvatarId: '',
     altGreetings: [],
+    /** 主开场相对世界书保底的初始值差异，path → value */
+    greetingInitMain: {},
+    /** 与 altGreetings 下标对齐的差异表 */
+    greetingInitAlts: [],
     nsfwEnabled: false,
     nsfwFlavor: '',
     nsfwFlavorItems: [],
@@ -88,6 +97,10 @@ export function buildDraftSnapshot(state) {
     cardBuilderExtensions: Object.assign({}, s.cardBuilderExtensions || {}),
     activeAvatarId: String(s.activeAvatarId || '').trim(),
     altGreetings: s.altGreetings || [],
+    greetingInitMain: copyOverrideMap(s.greetingInitMain),
+    greetingInitAlts: Array.isArray(s.greetingInitAlts)
+      ? s.greetingInitAlts.map(function(item) { return copyOverrideMap(item); })
+      : [],
     nsfwEnabled: !!s.nsfwEnabled,
     nsfwFlavor: s.nsfwFlavor || '',
     nsfwFlavorItems: Array.isArray(s.nsfwFlavorItems)
@@ -246,7 +259,12 @@ export function buildCardJSONFromDraft(d) {
   } else {
     delete ext.tavern_helper;
   }
-  var altG = (d.altGreetings || []).filter(function(g) { return g && String(g).trim(); });
+  var baseline = baselineLeavesFromEntries(entries);
+  var firstMesOut = composeGreetingText(d.firstMes || '', d.greetingInitMain, baseline);
+  var altG = (d.altGreetings || []).map(function(g, i) {
+    var ov = d.greetingInitAlts && d.greetingInitAlts[i];
+    return composeGreetingText(g, ov, baseline);
+  }).filter(function(g) { return g && String(g).trim(); });
   var tags = normalizeTags(d.charTags || d.tags || []);
   var characterVersion = String(d.characterVersion != null ? d.characterVersion : '1.0').trim() || '1.0';
   return {
@@ -254,7 +272,7 @@ export function buildCardJSONFromDraft(d) {
     description: d.charDesc || '',
     personality: '',
     scenario: '',
-    first_mes: d.firstMes || '',
+    first_mes: firstMesOut,
     mes_example: '',
     creatorcomment: d.creatorNotes || '',
     avatar: 'none',
@@ -268,7 +286,7 @@ export function buildCardJSONFromDraft(d) {
       description: d.charDesc || '',
       personality: '',
       scenario: '',
-      first_mes: d.firstMes || '',
+      first_mes: firstMesOut,
       mes_example: '',
       creator_notes: d.creatorNotes || '',
       system_prompt: '',
@@ -296,6 +314,8 @@ export function generateCardJSON(state) {
     tavernHelperScripts: state.tavernHelperScripts,
     cardBuilderExtensions: state.cardBuilderExtensions,
     altGreetings: state.altGreetings || [],
+    greetingInitMain: state.greetingInitMain,
+    greetingInitAlts: state.greetingInitAlts,
     characterVersion: state.characterVersion,
   });
 }

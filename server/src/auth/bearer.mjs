@@ -95,6 +95,37 @@ export async function listBearerTokenDocs(limit) {
   }).filter(Boolean);
 }
 
+/** 禁用用户时撤掉他名下全部插件 Token。扫完全表，超出页数时 capped。 */
+export async function revokeBearersForUser(userId) {
+  var uid = String(userId || '');
+  var db = await ensureAdminDatabase();
+  var revoked = 0;
+  var start = 'bearer/';
+  var capped = false;
+  for (var page = 0; page < 40; page++) {
+    var res = await db.list({
+      include_docs: true,
+      startkey: start,
+      endkey: 'bearer/\ufff0',
+      limit: 500,
+    });
+    var rows = res.rows || [];
+    if (!rows.length) break;
+    for (var i = 0; i < rows.length; i++) {
+      var d = rows[i] && rows[i].doc;
+      if (!d || String(d.userId || '') !== uid) continue;
+      try {
+        await db.destroy(d._id, d._rev);
+        revoked += 1;
+      } catch (e) { /* 已删 */ }
+    }
+    if (rows.length < 500) break;
+    start = String(rows[rows.length - 1].id || '') + '\0';
+    if (page === 39) capped = true;
+  }
+  return { revoked: revoked, capped: capped };
+}
+
 export async function revokeBearerByDocId(docId) {
   var id = String(docId || '').trim();
   if (id.indexOf('bearer/') !== 0) throw new Error('invalid_token_id');

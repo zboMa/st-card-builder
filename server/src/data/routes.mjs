@@ -36,6 +36,7 @@ import { getQuotaSnapshot, assertQuota } from '../quota/quotaService.mjs';
 import { upsertCardIndex, deleteCardIndex } from '../index/aggregate.mjs';
 import { isRemoved, filterCardsIndex } from '../admin/content.mjs';
 import { createFlag } from '../admin/moderation.mjs';
+import { getShareMapping } from '../couch.mjs';
 import { appendEvent } from '../events.mjs';
 
 export var dataRouter = Router();
@@ -87,33 +88,28 @@ function sendErr(res, e, fallbackStatus) {
   });
 }
 
-/** 用户举报内容（卡 / 小说） */
+/** 分享页举报：按 token 找到真实主人，不把举报人写成卡主人 */
 dataRouter.post('/report', async function(req, res) {
   try {
     var body = req.body || {};
-    var targetType = String(body.targetType || '');
-    var cardId = String(body.cardId || '').trim();
-    if (!cardId || (targetType !== 'card' && targetType !== 'novel')) {
-      return res.status(400).json({ ok: false, error: 'invalid_report' });
+    var token = String(body.token || '').trim();
+    var reason = String(body.reason || '').trim();
+    if (!token || !reason) {
+      return res.status(400).json({ ok: false, error: 'invalid_report', message: '需要分享 token 和理由' });
     }
-    var uid = userIdOf(req);
-    var novelId = '';
-    if (targetType === 'card') {
-      var cardDoc = await getUserDoc(uid, cardDocId(cardId));
-      if (!cardDoc) return res.status(404).json({ ok: false, error: 'not_found' });
-    } else {
-      novelId = String(body.novelId || '').trim();
-      if (!novelId) return res.status(400).json({ ok: false, error: 'invalid_report' });
-      var novelDoc = await getUserDoc(uid, storyNovelDocId(cardId, novelId));
-      if (!novelDoc) return res.status(404).json({ ok: false, error: 'not_found' });
+    var mapping = await getShareMapping(token);
+    if (!mapping || !mapping.ownerUserId || !mapping.cardId) {
+      return res.status(404).json({ ok: false, error: 'share_not_found' });
     }
+    var targetType = mapping.type === 'novel-share' || mapping.novelId ? 'novel' : 'card';
     var flag = await createFlag({
       targetType: targetType,
-      targetUserId: uid,
-      cardId: cardId,
-      novelId: novelId,
-      reason: String(body.reason || ''),
-      reportedBy: uid,
+      targetUserId: mapping.ownerUserId,
+      cardId: mapping.cardId,
+      novelId: mapping.novelId || '',
+      reason: reason,
+      reportedBy: userIdOf(req),
+      shareToken: token,
     });
     res.json({ ok: true, flagId: flag._id });
   } catch (e) {

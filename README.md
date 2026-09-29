@@ -56,7 +56,7 @@
 | 域 | 工具 | 风险 |
 |---|---|---|
 | 只读 | `get_character_*` / `get_worldbook_*` / `search_card_content` / `audit_worldbook` / `lint_for_sillytavern` / `get_chat_feedback` / `get_mvu_state` / `get_novel_workspace` / `novel_list_outputs` / `get_export_preview` / `export_card_check` / `list_cards` / `get_engine_options` / `get_prompt_ids` | none |
-| 角色/开场白 | `update_character_fields` / `replace_character_section` / `expand_character_field` / `rewrite_greeting` / `expand_greeting` / `update_alternate_greeting` | auto↑confirm |
+| 角色/开场白 | `update_character_fields` / `replace_character_section` / `expand_character_field` / `rewrite_greeting` / `expand_greeting` / `update_alternate_greeting` / `set_greeting_init` | auto↑confirm |
 | 世界书 | CRUD（`delete_worldbook_entry` 支持 `{ all: true }` 清空全部）+ `generate_worldbook_entry` / `organize_worldbook` / `batch_fill_worldbook_keys` / `rewrite_worldbook_entry` / `expand_worldbook_entry` / `generate_worldbook_skeleton` / `fix_from_lint` | 生成类 confirm |
 | 多卡 | `switch_card` / `create_card` / `duplicate_card` / `rename_card` / `delete_card` / `import_card`（已解析 JSON） | 删/切/建 confirm |
 | 小说 | `set_novel_source` / `novel_split_chapters` / `novel_extract_*` / `novel_distill_style` / `novel_patch_chapters` / `novel_expand_character` / `novel_rewrite_character` / `novel_sync_outputs`（真 await） | 抽取 confirm |

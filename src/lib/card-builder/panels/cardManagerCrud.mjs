@@ -145,6 +145,8 @@ export function attachCardManagerCrud(ctx, s, panel) {
     // worldbookEntries, regexScripts, tavernHelperScripts, cardBuilderExtensions
     // altGreetings
     window.__altGreetings__ = d.altGreetings || [];
+    window.__greetingInitMain__ = ctx.state.greetingInitMain || {};
+    window.__greetingInitAlts__ = Array.isArray(ctx.state.greetingInitAlts) ? ctx.state.greetingInitAlts.slice() : [];
     if (window.__renderAltGreetings__) window.__renderAltGreetings__();
 
     // Reset WB form
@@ -234,6 +236,8 @@ export function attachCardManagerCrud(ctx, s, panel) {
     if (avatarPlaceholder) avatarPlaceholder.style.display = 'block';
 
     window.__altGreetings__ = [];
+    window.__greetingInitMain__ = {};
+    window.__greetingInitAlts__ = [];
     if (window.__renderAltGreetings__) window.__renderAltGreetings__();
 
     // Reset WB form

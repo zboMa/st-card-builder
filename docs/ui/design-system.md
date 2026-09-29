@@ -110,7 +110,9 @@ SillyTavern 卡片构建器壳层设计 token。状态栏面板用壳层 token �
 3. 底栏仅操作：左图标组（复制 / 删除）、右「云快捷（按状态）+ 更多」⋯，**一行**；更多菜单挂 `document.body` + `position: fixed`，避免卡片 `overflow: hidden` 裁切。云快捷仅额外入口，⋯ 内云菜单项不变。
 4. 点名称 → 重命名；点封面其余区域 → 打开；不设独立重命名图标。
 5. 标签筛选浮层：竖排可滚动列表，挂 body（高 z-index），避免被卡片网格盖住。
-6. 操作反馈：**统一走 `appFeedback`**（SoT：`src/lib/ui/appMessage.mjs`）；禁止新增 `#*Tip` / 面板底栏写操作结果。普通成功/短警告 → **message toast**；失败/需阅读/长文/进行中（非 AI 任务）→ **notification**；**禁止** `alert` / `confirm` / `prompt`（角色卡管理走自定义对话框）。
+6. 操作反馈：**统一走 `appFeedback`**（SoT：`src/lib/ui/appMessage.mjs`）；禁止新增 `#*Tip` / 面板底栏写操作结果。普通成功/短警告 → **message toast**；失败/需阅读/长文/进行中（非 AI 任务）→ **notification**；**禁止** `alert` / `confirm` / `prompt`（角色卡管理走自定义对话框）。管理端原因用页内对话框，不用 `confirm`。
+
+管理端是全视口：左菜单、右滚动。列表是带标签的查询、主按钮「查询」可以仍用现有刷新、表格和「共 N 条」。查询输入保持普通 input（本页例外）。空态用 `.ui-empty-tip`。没有权限的按钮不出现。
 
 #### 操作反馈路由（强制）
 

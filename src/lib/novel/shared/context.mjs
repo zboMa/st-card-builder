@@ -223,6 +223,15 @@ export function createNovelAppContext(sm, opts) {
 
     setGreetingFields: function(opts) {
       if (!opts) return;
+      if (typeof window.__acceptGreetingTexts__ === 'function') {
+        window.__acceptGreetingTexts__(
+          opts.firstMes != null ? opts.firstMes : null,
+          opts.alternateGreetings != null ? opts.alternateGreetings : null,
+          'replace'
+        );
+        window.dispatchEvent(new CustomEvent('card-builder-data-changed'));
+        return;
+      }
       var $fm = $('firstMes');
       if (opts.firstMes != null && $fm) $fm.value = opts.firstMes;
       if (opts.alternateGreetings != null && window.__altGreetings__) {

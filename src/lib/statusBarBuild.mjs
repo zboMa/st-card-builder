@@ -116,7 +116,7 @@ export function buildCastProfileBlock(opts) {
     lines.push('■ 主角（路径前缀固定为「角色.」，第一段不要用卡角色名）');
     lines.push('角色名：' + (cardName || '（未填）'));
     if (card.desc) lines.push('描述：' + String(card.desc));
-    if (card.firstMes) lines.push('开场白：' + String(card.firstMes));
+    if (card.creatorNotes) lines.push('作者注释：' + String(card.creatorNotes));
   }
   if (includeFemales) {
     lines.push('');
@@ -136,6 +136,17 @@ export function buildCastProfileBlock(opts) {
     });
   }
   if (!includeProtagonist && !includeFemales) return '（未勾选主角或女角色）';
+  var greetings = Array.isArray(card.greetings) ? card.greetings : [];
+  if (!greetings.length && card.firstMes) greetings = [{ label: '主开场', text: card.firstMes }];
+  lines.push('');
+  lines.push('【各条开场】互相并列，不是同时发生。某一场的地点、在场人物和此刻动作只属于该场，不要写进所有人的 default。');
+  if (!greetings.length) lines.push('（无开场白）');
+  greetings.forEach(function(g) {
+    var label = g && g.label ? String(g.label) : '开场';
+    var text = g && g.text != null ? String(g.text).trim() : '';
+    if (!text) return;
+    lines.push(label + '：' + text);
+  });
   return lines.join('\n');
 }
 
@@ -843,9 +854,468 @@ export function appendStylePreset(systemText, presetsStr) {
   return base + '\n【文风要求】：\n' + extra;
 }
 
-/** 状态栏变量设计。两套路径并存，不引用视觉主题。 */
+/** 默认值最长一句，避免把人物小传写进变量。 */
+export var STATUS_BAR_DEFAULT_MAX = 80;
+
+var NUMBER_LEAVES = {
+  '好感度': true,
+  '信任': true,
+  '恶堕进度': true,
+  '亲密度': true,
+  '体力': true,
+  '魔力': true,
+  '理智': true,
+  '金钱': true,
+  '快感': true,
+};
+
+var GLOBAL_FIELD_SPECS = {
+  '世界.当前时间': { description: '当前时间', check: '根据行动耗时、移动、等待或用户指定时间推进' },
+  '世界.天气': { description: '天气', check: '天气变化时更新' },
+  '世界.当前地点': { description: '当前地点', check: '随场景切换更新' },
+  '任务.当前': { description: '当前任务', check: '任务确立、推进或完成时更新' },
+  '事件.标签': { description: '当前事件', check: '场面事件变化时更新' },
+};
+
+export function clipDefaultText(value) {
+  var s = String(value == null ? '' : value).trim();
+  if (s.length <= STATUS_BAR_DEFAULT_MAX) return s;
+  return s.slice(0, STATUS_BAR_DEFAULT_MAX);
+}
+
+function leafOfPath(path) {
+  var parts = String(path || '').split('.');
+  return parts[parts.length - 1] || '';
+}
+
+function specForFillPath(p) {
+  var path = String(p && p.path || '');
+  var leaf = leafOfPath(path);
+  var global = GLOBAL_FIELD_SPECS[path];
+  if (global) {
+    return {
+      type: 'string',
+      description: global.description,
+      check: [global.check],
+      fallback: '',
+    };
+  }
+  if (leaf === '关系阶段') {
+    return {
+      type: 'enum',
+      description: '关系阶段',
+      check: ['关系阶段真正改变时才更新，无变化不要输出'],
+      fallback: '未结识',
+      enumRequired: ['未结识'],
+    };
+  }
+  if (NUMBER_LEAVES[leaf] || (p && p.meter)) {
+    var spec = {
+      type: 'number',
+      description: leaf,
+      check: [leaf + '被剧情改变时更新，无变化不要输出'],
+      fallback: 0,
+      min: 0,
+    };
+    if (leaf !== '金钱') spec.max = 100;
+    return spec;
+  }
+  return {
+    type: 'string',
+    description: (p && p.label) || leaf,
+    check: [leaf + '被剧情写明时更新'],
+    fallback: '',
+  };
+}
+
+function coerceFillValue(raw, spec) {
+  if (spec.type === 'number') {
+    if (typeof raw === 'number' && isFinite(raw)) return raw;
+    var n = Number(String(raw == null ? '' : raw).trim());
+    return isFinite(n) ? n : spec.fallback;
+  }
+  if (raw == null) return spec.fallback;
+  return clipDefaultText(raw);
+}
+
+function normalizeEnumOptions(raw, spec) {
+  var list = [];
+  (Array.isArray(raw) ? raw : []).forEach(function(item) {
+    var text = clipDefaultText(item);
+    if (text && list.indexOf(text) < 0) list.push(text);
+  });
+  (spec.enumRequired || []).forEach(function(req) {
+    if (list.indexOf(req) < 0) list.unshift(req);
+  });
+  if (!list.length) list = (spec.enumRequired || ['未结识']).slice();
+  return list.slice(0, 8);
+}
+
+function readFillPayload(payload) {
+  var defaults = {};
+  var enums = {};
+  if (payload && payload.defaults && typeof payload.defaults === 'object' && !Array.isArray(payload.defaults)) {
+    Object.keys(payload.defaults).forEach(function(key) { defaults[key] = payload.defaults[key]; });
+  }
+  if (payload && payload.enums && typeof payload.enums === 'object' && !Array.isArray(payload.enums)) {
+    Object.keys(payload.enums).forEach(function(key) { enums[key] = payload.enums[key]; });
+  }
+  if (payload && Array.isArray(payload.variables)) {
+    payload.variables.forEach(function(v) {
+      if (!v) return;
+      var leaf = leafOfPath(v.path || v.name || '');
+      if (!leaf) return;
+      if (defaults[leaf] === undefined && defaults[v.path] === undefined && v.default !== undefined) defaults[leaf] = v.default;
+      if (enums[leaf] === undefined && Array.isArray(v.options)) enums[leaf] = v.options;
+    });
+  }
+  return { defaults: defaults, enums: enums };
+}
+
+/**
+ * 全局加主角一批，每个勾选的女角色单独一批。
+ * @param {Array<{ path?: string, set?: string, role?: string }>} paths
+ */
+export function planStatusBarBatches(paths) {
+  var globals = [];
+  var protagonist = [];
+  var byNpc = Object.create(null);
+  var npcOrder = [];
+  (paths || []).forEach(function(p) {
+    if (!p || !p.path) return;
+    if (p.set === 'npc') {
+      var name = p.role || String(p.path).split('.')[1] || '';
+      if (!byNpc[name]) {
+        byNpc[name] = [];
+        npcOrder.push(name);
+      }
+      byNpc[name].push(p);
+      return;
+    }
+    if (p.set === 'protagonist') protagonist.push(p);
+    else globals.push(p);
+  });
+  var batches = [];
+  var shared = globals.concat(protagonist);
+  if (shared.length) {
+    batches.push({
+      id: 'shared',
+      label: protagonist.length ? '全局与主角' : '全局',
+      kind: 'shared',
+      name: '',
+      paths: shared,
+    });
+  }
+  npcOrder.forEach(function(name) {
+    batches.push({
+      id: 'npc:' + name,
+      label: name,
+      kind: 'npc',
+      name: name,
+      paths: byNpc[name],
+    });
+  });
+  return batches;
+}
+
+/**
+ * 只采纳这一批路径上的短值。不认识的键丢掉；没返回的用目录兜底。
+ * description / check 来自目录，同一字段所有人共用。
+ */
+export function applyBatchFill(paths, payload) {
+  var parsed = readFillPayload(payload);
+  return (paths || []).filter(function(p) { return p && p.path; }).map(function(p) {
+    var spec = specForFillPath(p);
+    var leaf = leafOfPath(p.path);
+    var hasLeaf = Object.prototype.hasOwnProperty.call(parsed.defaults, leaf);
+    var hasPath = Object.prototype.hasOwnProperty.call(parsed.defaults, p.path);
+    var raw = hasLeaf ? parsed.defaults[leaf] : (hasPath ? parsed.defaults[p.path] : undefined);
+    var def = raw === undefined || raw === null ? spec.fallback : coerceFillValue(raw, spec);
+    var item = {
+      path: p.path,
+      type: spec.type,
+      default: def,
+      description: spec.description,
+      check: spec.check.slice(),
+    };
+    if (spec.min !== undefined) item.min = spec.min;
+    if (spec.max !== undefined) item.max = spec.max;
+    if (spec.type === 'enum') {
+      var options = normalizeEnumOptions(parsed.enums[leaf] || parsed.enums[p.path], spec);
+      item.options = options;
+      if (options.indexOf(String(item.default)) < 0) item.default = options.indexOf('未结识') >= 0 ? '未结识' : options[0];
+    }
+    return item;
+  });
+}
+
+function isFillAbort(err, signal) {
+  if (signal && signal.aborted) return true;
+  return !!(err && (err.name === 'AbortError' || /aborted/i.test(String(err.message || ''))));
+}
+
+/**
+ * 按批填值。某一批失败再试一次；仍失败则抛出，调用方不得写入已有设计。
+ * @param {{ batches: any[], fetchBatch: (batch: any, attempt: number) => Promise<any>, signal?: AbortSignal, onProgress?: (progress: number, text: string) => void }} opts
+ */
+export async function fillStatusBarVariables(opts) {
+  var o = opts || {};
+  var batches = o.batches || [];
+  var variables = [];
+  for (var i = 0; i < batches.length; i++) {
+    if (o.signal && o.signal.aborted) {
+      var abort = new Error('已取消');
+      abort.name = 'AbortError';
+      throw abort;
+    }
+    var batch = batches[i];
+    var label = batch.label + ' ' + (i + 1) + '/' + batches.length;
+    if (typeof o.onProgress === 'function') o.onProgress(i / batches.length, label);
+    var payload = null;
+    var lastErr = null;
+    for (var attempt = 0; attempt < 2; attempt++) {
+      try {
+        payload = await o.fetchBatch(batch, attempt);
+        lastErr = null;
+        break;
+      } catch (err) {
+        if (isFillAbort(err, o.signal)) throw err;
+        lastErr = err;
+      }
+    }
+    if (lastErr) throw lastErr;
+    variables = variables.concat(applyBatchFill(batch.paths, payload));
+    if (typeof o.onProgress === 'function') o.onProgress((i + 1) / batches.length, label);
+  }
+  return { summary: '状态栏生成的变量设计', variables: variables };
+}
+
+/**
+ * 这一批的人设和各条开场。不带其他女角色的长文。
+ */
+export function buildBatchProfileBlock(batch, card, worldbookEntries, characters) {
+  var b = batch || { kind: 'shared', paths: [] };
+  var hasProtag = (b.paths || []).some(function(p) { return p.set === 'protagonist'; });
+  if (b.kind === 'npc') {
+    var one = (characters || []).filter(function(c) {
+      return c && String(c.name || '').trim() === b.name;
+    });
+    return buildCastProfileBlock({
+      includeProtagonist: false,
+      includeFemales: true,
+      selected: one.length ? one : [{ name: b.name, selected: true }],
+      card: card || {},
+      worldbookEntries: worldbookEntries || [],
+    });
+  }
+  if (hasProtag) {
+    return buildCastProfileBlock({
+      includeProtagonist: true,
+      includeFemales: false,
+      selected: [],
+      card: card || {},
+      worldbookEntries: worldbookEntries || [],
+    });
+  }
+  var lines = ['【这一批】全局字段。'];
+  appendGreetingLines(lines, card);
+  return lines.join('\n');
+}
+
+function appendGreetingLines(lines, card) {
+  var greetings = card && Array.isArray(card.greetings) ? card.greetings : [];
+  if ((!greetings || !greetings.length) && card && card.firstMes) greetings = [{ label: '主开场', text: card.firstMes }];
+  lines.push('');
+  lines.push('【各条开场】互相并列，不是同时发生。某一场的地点、在场人物和此刻动作只属于该场，不要写进 default。');
+  if (!greetings.length) lines.push('（无开场白）');
+  greetings.forEach(function(g) {
+    var text = g && g.text != null ? String(g.text).trim() : '';
+    if (!text) return;
+    lines.push((g && g.label ? String(g.label) : '开场') + '：' + text);
+  });
+}
+
+/** 排版提示只列一套字段，不把每个人的路径摊开。 */
+export function describeLayoutFields(paths) {
+  var globals = [];
+  var protag = [];
+  var npc = [];
+  (paths || []).forEach(function(p) {
+    if (!p || !p.path) return;
+    var leaf = leafOfPath(p.path);
+    if (p.set === 'npc') {
+      if (npc.indexOf(leaf) < 0) npc.push(leaf);
+    } else if (p.set === 'protagonist') protag.push(p.path);
+    else globals.push(p.path);
+  });
+  var lines = [];
+  if (globals.length) lines.push('全局：\n' + globals.map(function(p) { return '- ' + p; }).join('\n'));
+  if (protag.length) lines.push('主角：\n' + protag.map(function(p) { return '- ' + p; }).join('\n'));
+  if (npc.length) lines.push('女角色模板（路径写成 NPC.{{name}}.字段）：\n' + npc.map(function(p) { return '- ' + p; }).join('\n'));
+  return lines.join('\n\n') || '（无）';
+}
+
+function escapeTemplateName(name) {
+  return String(name || '').replace(/"/g, '');
+}
+
+/**
+ * 预览和正则按当前勾选的姓名展开。存下来的仍是模板。
+ * @param {string} html
+ * @param {string[]} names
+ */
+export function expandStatusBarTemplate(html, names) {
+  var src = String(html || '');
+  var list = (names || []).map(function(n) { return String(n || '').trim(); }).filter(Boolean);
+  return src.replace(/<template\b([^>]*)>([\s\S]*?)<\/template>/gi, function(full, attrs, inner) {
+    if (!/data-zb-repeat\s*=\s*["']npc["']/.test(attrs || '')) return full;
+    if (!list.length) return '';
+    return list.map(function(name) {
+      var safe = escapeTemplateName(name);
+      return inner.replace(/\{\{\s*name\s*\}\}/g, safe);
+    }).join('');
+  });
+}
+
+/**
+ * 修改时发给模型的是模板。旧卡已展开的，只留一个女角色样本。
+ * @param {string} html
+ * @param {string[]} names
+ */
+export function layoutReviseSource(html, names) {
+  var src = String(html || '');
+  var roster = (names || []).map(function(n) { return String(n || '').trim(); }).filter(Boolean);
+  if (/data-zb-repeat\s*=\s*["']npc["']/.test(src)) {
+    return { html: src, names: roster, legacy: false };
+  }
+  var found = [];
+  var re = /data-zb-(?:path|meter)="NPC\.([^.]+)\./g;
+  var m;
+  while ((m = re.exec(src))) {
+    if (found.indexOf(m[1]) < 0) found.push(m[1]);
+  }
+  if (found.length <= 1) {
+    return { html: src, names: roster.length ? roster : found, legacy: found.length > 0 };
+  }
+  var keep = found[0];
+  var stripped = src.replace(/<([a-zA-Z][\w:-]*)([^>]*\bdata-zb-(?:path|meter)="NPC\.([^.]+)\.[^"]*"[^>]*)>[\s\S]*?<\/\1>/g, function(full, _tag, _attrs, name) {
+    return name === keep ? full : '';
+  });
+  stripped = stripped.split('NPC.' + keep + '.').join('NPC.{{name}}.');
+  return { html: stripped, names: roster.length ? roster : found, legacy: true };
+}
+
+/**
+ * 用默认值在本地变出三楼不同的样例，不请求模型。
+ * @param {Array<{ path?: string, set?: string, role?: string, sample?: any, meter?: boolean }>} paths
+ */
+export function buildLocalSampleFloors(paths) {
+  function vary(p, n) {
+    var spec = specForFillPath(p);
+    if (spec.type === 'number') {
+      var base = Number(p && p.sample);
+      if (!isFinite(base)) base = 0;
+      var shifted = [base, Math.min(spec.max != null ? spec.max : base + 12, base + 12), Math.max(0, base - 8)];
+      return shifted[n];
+    }
+    if (spec.type === 'enum') {
+      var options = ['未结识', '相识', '同行'];
+      return options[n % options.length];
+    }
+    var text = p && p.sample != null && String(p.sample).trim() ? String(p.sample).trim() : '—';
+    var marks = ['', '·二', '·三'];
+    return text + marks[n];
+  }
+  function floor(n) {
+    var global = {};
+    var protagonist = {};
+    var npc = {};
+    (paths || []).forEach(function(p) {
+      if (!p || !p.path) return;
+      var value = vary(p, n);
+      if (p.set === 'protagonist') protagonist[p.path] = value;
+      else if (p.set === 'npc') {
+        var name = p.role || String(p.path).split('.')[1] || '';
+        if (!name) return;
+        npc[name] = npc[name] || {};
+        npc[name][leafOfPath(p.path)] = value;
+      } else global[p.path] = value;
+    });
+    var out = { global: global };
+    if (Object.keys(protagonist).length) out.protagonist = protagonist;
+    if (Object.keys(npc).length) out.npc = npc;
+    return out;
+  }
+  return [floor(0), floor(1), floor(2)];
+}
+
+/**
+ * 更新规则按字段名合并。枚举选项不同时，在该字段下按角色列出。
+ * @param {Array<{ path?: string, type?: string, description?: string, check?: string[], options?: string[], min?: number, max?: number }>} variables
+ */
+export function buildGroupedUpdateRules(variables) {
+  var groups = [];
+  var index = Object.create(null);
+  (variables || []).forEach(function(v) {
+    if (!v || !v.path) return;
+    var parts = String(v.path).split('.');
+    var leaf = parts[parts.length - 1];
+    var role = '';
+    if (parts[0] === 'NPC' && parts.length >= 3) role = parts[1];
+    else if (parts[0] === '角色') role = '主角';
+    if (!index[leaf]) {
+      index[leaf] = {
+        field: leaf,
+        type: v.type || 'string',
+        description: v.description || '',
+        check: Array.isArray(v.check) ? v.check.filter(Boolean).slice(0, 3) : [],
+        min: v.min,
+        max: v.max,
+        optionsByRole: {},
+      };
+      groups.push(index[leaf]);
+    }
+    var g = index[leaf];
+    if (v.type === 'enum' && Array.isArray(v.options) && v.options.length) {
+      g.optionsByRole[role || '全局'] = v.options.slice();
+    }
+  });
+  var lines = ['---', '变量更新规则:'];
+  groups.forEach(function(g) {
+    lines.push('');
+    lines.push('  ' + g.field + ':');
+    lines.push('    type: ' + g.type);
+    if (g.min !== undefined || g.max !== undefined) {
+      lines.push('    range: ' + (g.min != null ? g.min : '-∞') + '~' + (g.max != null ? g.max : '+∞'));
+    }
+    if (g.description) lines.push('    desc: ' + g.description);
+    var roles = Object.keys(g.optionsByRole);
+    if (roles.length) {
+      var first = g.optionsByRole[roles[0]].join('\0');
+      var same = roles.every(function(r) { return g.optionsByRole[r].join('\0') === first; });
+      if (same) lines.push('    options: ' + g.optionsByRole[roles[0]].join(' / '));
+      else {
+        lines.push('    options:');
+        roles.forEach(function(r) {
+          lines.push('      ' + r + ': ' + g.optionsByRole[r].join(' / '));
+        });
+      }
+    }
+    lines.push('    check:');
+    var checks = g.check.length ? g.check : ['仅当本轮剧情明确导致该变量变化时更新；无变化不要输出操作'];
+    checks.forEach(function(c) { lines.push('      - ' + c); });
+  });
+  lines.push('');
+  lines.push('  输出范围:');
+  lines.push('    check:');
+  lines.push('      - 只输出本轮真正变化的路径，不要把没变化的人再写一遍');
+  return lines.join('\n');
+}
+
+/** 状态栏变量设计。已停用：生成变量改走 STATUS_BAR_MVU_FILL_PROMPT。 */
 export const STATUS_BAR_MVU_DESIGN_PROMPT =
-  '你是 SillyTavern MVU 变量系统设计专家。请根据状态栏配置设计完整变量 JSON。'
+  '【已停用】状态栏生成变量已改走按人分批填值，本提示词不再被读取。\n'
+  + '你是 SillyTavern MVU 变量系统设计专家。请根据状态栏配置设计完整变量 JSON。'
   + '不要输出 zod/YAML/解释；本地会组装注入产物。\n\n'
   + '{{charBlock}}\n'
   + '开启模块（仅允许为这些项设计 variables）：\n{{moduleBlock}}\n'
@@ -862,12 +1332,30 @@ export const STATUS_BAR_MVU_DESIGN_PROMPT =
   + '6. 恶堕进度、亲密度：主角是 角色.恶堕进度 / 角色.亲密度；女角色是 NPC.姓名.恶堕进度 / NPC.姓名.亲密度。\n'
   + '7. type 仅 string/number/boolean/enum/array/object；enum 必给 options。check 为数组。\n'
   + '8. 变量须可被剧情更新；不要为未开启模块凑字段。\n'
+  + '9. default 会写成世界书变量初始化，表示还没选开场时这张卡已经成立的状态。设定里写明的身份、关系、常驻地、身体事实照写。设定没写死、但按这个世界的常理推得出的，给一个说得通的值，不要套示例数字。设定和常理都推不出的，关系用未结识、数值关系用 0、人不在场则写未在场或其日常所在，物品和记忆留空。关系阶段的 options 必须包含未结识，default 必须是 options 里的一项。\n'
+  + '10. 【各条开场】互相并列，不是同时发生。不要把某一场的地点、在场人物和此刻动作写成所有人的 default。多条开场互相矛盾的内容不要进 default。只有一条开场、卡面又没有更早的前史时，default 可以写成这场。身体字段只写开局前的客观状态；欲望和比喻不是正在发生的事。\n'
   + '\n【输出】仅 JSON：\n'
   + '{ "summary":"摘要", "variables":[ { "path":"世界.当前时间", "type":"string", "default":"08:00", "description":"时间", "check":["推进时间时更新"] } ] }\n';
 
-/** 排版：只用 data-zb-path / data-zb-meter，不引用主题 CSS。 */
+/** 按人分批时模型只填短默认值和个别枚举。path / type / description / check 由本地目录提供。 */
+export const STATUS_BAR_MVU_FILL_PROMPT =
+  '你只为这一批对象填写变量的短默认值。不要输出 path、type、description、check，那些由本地目录提供。\n'
+  + '开启模块：\n{{moduleBlock}}\n'
+  + '禁止模块：\n{{forbiddenModuleBlock}}\n'
+  + 'NSFW：{{nsfw}}\n'
+  + '额外要求：{{extra}}\n\n'
+  + '【填写规矩】\n'
+  + '1. 只返回 JSON：{"defaults":{"字段名":"短值"},"enums":{"关系阶段":["未结识","相识"]}}。\n'
+  + '2. defaults 的键是用户消息里列出的字段名。人物字段不要写成 NPC.姓名.字段，也不要写 角色.。\n'
+  + '3. 只有关系阶段需要 enums。选项必须包含未结识，defaults 里的关系阶段必须是其中一项。选项可以按这个人来写。\n'
+  + '4. default 表示还没选开场时已经成立、且符合这张卡设定的状态。设定写明的照写。没写死但按这个世界推得出的给说得通的短值。推不出的：关系用未结识，数值用 0，其余留空字符串。\n'
+  + '5. 各条开场互相并列。不要把某一场的地点和此刻动作写成 default。身体字段只写开局前的客观状态。\n'
+  + '6. 每个值不超过一句，不要写人物小传。\n';
+
+/** 排版：只用 data-zb-path / data-zb-meter，不引用主题 CSS。已停用：排版改走 STATUS_BAR_LAYOUT_SHELL_PROMPT。 */
 export const STATUS_BAR_CUSTOM_LAYOUT_PROMPT =
-  '你是 SillyTavern 状态栏前端排版工程师。根据变量路径与用户的排版风格说明，输出可注入的 HTML 与 CSS。\n\n'
+  '【已停用】状态栏排版已改走人物模板，本提示词不再被读取。\n'
+  + '你是 SillyTavern 状态栏前端排版工程师。根据变量路径与用户的排版风格说明，输出可注入的 HTML 与 CSS。\n\n'
   + '{{charBlock}}\n'
   + 'NSFW：{{nsfw}}\n'
   + '开启模块：\n{{moduleBlock}}\n\n'
@@ -882,9 +1370,25 @@ export const STATUS_BAR_CUSTOM_LAYOUT_PROMPT =
   + '\n【输出】仅 JSON，不要解释：\n'
   + '{ "css": "/* CSS */", "bodyHtml": "<div class=\\"zb-custom-root\\">...</div>" }\n';
 
-/** 三楼样例，只活在面板内存。 */
+/** 排版只写一套外壳。女角色放在 template 里，本地再按姓名展开。 */
+export const STATUS_BAR_LAYOUT_SHELL_PROMPT =
+  '你是 SillyTavern 状态栏排版工程师。只写 CSS 和一套外壳，不要把每个人的名字和路径都展开。\n\n'
+  + 'NSFW：{{nsfw}}\n'
+  + '开启模块：\n{{moduleBlock}}\n'
+  + '字段清单：\n{{fieldBlock}}\n\n'
+  + '【排版风格说明】\n{{userPrompt}}\n\n'
+  + '【结构】\n'
+  + '1. 全局字段一块。路径用完整路径，例如 data-zb-path="世界.当前时间"。\n'
+  + '2. 主角一块。路径用 角色.字段。\n'
+  + '3. 女角色只写一套，放在 <template data-zb-repeat="npc"> 里。路径写成 NPC.{{name}}.字段，不要写出具体姓名。\n'
+  + '4. 文本用 data-zb-path。数值才加 data-zb-meter。\n'
+  + '5. 禁止 script、内联事件、外部 CDN。CSS 类名用 zb- 前缀。\n'
+  + '6. 只输出 JSON：{"css":"...","bodyHtml":"<div class=\\"zb-custom-root\\">...</div>"}。\n';
+
+/** 三楼样例提示词。已停用：样例改由 buildLocalSampleFloors 在本地生成。 */
 export const STATUS_BAR_SAMPLE_FLOORS_PROMPT =
-  '你为状态栏写 3 楼互不相同的样例变量值。只输出 JSON，不要解释。\n'
+  '【已停用】三楼样例已改由本地按默认值生成，本提示词不再被读取。\n'
+  + '你为状态栏写 3 楼互不相同的样例变量值。只输出 JSON，不要解释。\n'
   + '格式：{"floors":[{"global":{"世界.当前时间":"08:00"},"protagonist":{"角色.情绪":"平静"},"npc":{"林晚":{"情绪":"紧张"}}}]}\n'
   + '必须正好 3 个 floor，且三楼的值不能相同。\n'
   + 'global 的键是完整路径。protagonist 仅在勾了主角时出现，键是完整「角色.字段」路径。\n'

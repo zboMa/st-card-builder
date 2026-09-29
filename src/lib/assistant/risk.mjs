@@ -137,6 +137,8 @@ export function buildChangePreview(toolName, args, beforeHint) {
     });
   } else if (toolName.indexOf('greeting') >= 0) {
     lines.push('target: ' + JSON.stringify(a.target != null ? a.target : a.index));
+    if (a.overrides) lines.push('初始值: ' + JSON.stringify(a.overrides).slice(0, 500));
+    if (a.clear) lines.push('清空旧初始值');
     if (a.instruction) lines.push('生成提示: ' + String(a.instruction).slice(0, 2000));
   } else {
     try {
