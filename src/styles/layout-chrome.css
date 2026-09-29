@@ -597,6 +597,8 @@
       }
 
       input[type="text"],
+      input[type="search"],
+      input[type="email"],
       input[type="password"],
       input[type="number"],
       textarea,
@@ -616,6 +618,8 @@
           background-color var(--dur-fast) var(--ease-out);
       }
       input[type="text"]:focus,
+      input[type="search"]:focus,
+      input[type="email"]:focus,
       input[type="password"]:focus,
       input[type="number"]:focus,
       textarea:focus,
