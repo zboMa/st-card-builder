@@ -1,11 +1,11 @@
 /**
  * 管理端：登录门禁 / 事件 / boot（拆自 browserApp）
  */
-import { apiFetch, getPublicAppUrl, discordLoginUrl } from '../publicConfig.mjs';
+import { apiFetch, getPublicAppUrl, discordLoginUrl, apiUrl } from '../publicConfig.mjs';
 import {
   state, api, $, escapeHtml, setBanner, setStatus, isOps, hasPerm, apiEmailLogin, askReason,
 } from './adminShared.mjs';
-import { showView, renderAdminNav, loadUsers, loadShares, loadTokens, loadDatabases, loadAudit, loadCards, loadNovels, loadOpLog, loadLoginLog, loadParams, loadDicts, loadInvites, loadQuota, loadFiles, openUserProfile } from './adminViews.mjs';
+import { showView, renderAdminNav, loadUsers, loadShares, loadTokens, loadDatabases, loadAudit, loadCards, loadNovels, loadOpLog, loadLoginLog, loadParams, loadDicts, loadInvites, loadQuota, loadFiles, openUserProfile, openCardDetail, openNovelDetail, openShareDetail } from './adminViews.mjs';
 import { bootAdminActionEngine } from '../actionEngine/bootAdmin.mjs';
 import { engineBegin, engineEnd, engineTryAllowed, engineRefresh } from '../actionEngine/helpers.mjs';
 
@@ -88,8 +88,35 @@ function showAdminWorkspace(st) {
   showView('dashboard');
 }
 
+function refreshOpenWork() {
+  if (state.view === 'shares' && state.openShareToken && ($('adminShareDetail') || {}).innerHTML) openShareDetail(state.openShareToken);
+  if (state.view === 'cards' && state.openCardKey && ($('adminCardDetail') || {}).innerHTML) openCardDetail(state.openCardKey);
+  if (state.view === 'novels' && state.openNovelKey && ($('adminNovelDetail') || {}).innerHTML) openNovelDetail(state.openNovelKey);
+  if (state.view === 'users' && state.openUserId && ($('adminUserProfile') || {}).innerHTML) openUserProfile(state.openUserId);
+}
+
 function bindEvents() {
+  document.addEventListener('submit', function(e) {
+    var form = e.target;
+    if (!form || !form.classList || !form.classList.contains('admin-query')) return;
+    e.preventDefault();
+  });
   document.addEventListener('click', function(e) {
+    var reset = e.target.closest('[data-admin-reset]');
+    if (!reset) return;
+    var form = reset.closest('form');
+    if (!form) return;
+    form.querySelectorAll('input, select').forEach(function(el) {
+      if (el.type === 'file' || el.type === 'button' || el.type === 'submit') return;
+      if (el.tagName === 'SELECT') { el.selectedIndex = 0; return; }
+      el.value = el.defaultValue || '';
+    });
+    var submit = form.querySelector('button[type="submit"]');
+    if (submit) submit.click();
+  });
+  document.addEventListener('click', function(e) {
+    var jump = e.target.closest('[data-admin-jump]');
+    if (jump) { showView(jump.getAttribute('data-admin-jump')); return; }
     var btn = e.target.closest('[data-admin-nav]');
     if (btn) showView(btn.getAttribute('data-admin-nav'));
   });
@@ -131,9 +158,11 @@ function bindEvents() {
     loadUsers();
   });
   $('btnAdminLoadCards') && $('btnAdminLoadCards').addEventListener('click', function() {
+    state.cardsOffset = 0;
     loadCards();
   });
   $('btnAdminLoadNovels') && $('btnAdminLoadNovels').addEventListener('click', function() {
+    state.novelsOffset = 0;
     loadNovels();
   });
   $('btnAdminLoadOpLog') && $('btnAdminLoadOpLog').addEventListener('click', loadOpLog);
@@ -157,7 +186,10 @@ function bindEvents() {
     loadAudit();
   });
   $('btnAdminExportAudit') && $('btnAdminExportAudit').addEventListener('click', function() {
-    window.open(apiUrl('/api/admin/audit/export'), '_blank');
+    var q = '?action=' + encodeURIComponent(($('adminAuditAction') || {}).value || '')
+      + '&by=' + encodeURIComponent(($('adminAuditBy') || {}).value || '')
+      + '&targetUserId=' + encodeURIComponent(($('adminAuditUser') || {}).value || '');
+    window.open(apiUrl('/api/admin/audit/export' + q), '_blank');
   });
   $('btnAdminPurgeTokens') && $('btnAdminPurgeTokens').addEventListener('click', async function() {
     if (!isOps()) return;
@@ -205,10 +237,16 @@ function bindEvents() {
       if (pager === 'tokens-next') state.tokensOffset += size;
       if (pager === 'audit-prev') state.auditOffset = Math.max(0, state.auditOffset - size);
       if (pager === 'audit-next') state.auditOffset += size;
+      if (pager === 'cards-prev') state.cardsOffset = Math.max(0, state.cardsOffset - size);
+      if (pager === 'cards-next') state.cardsOffset += size;
+      if (pager === 'novels-prev') state.novelsOffset = Math.max(0, state.novelsOffset - size);
+      if (pager === 'novels-next') state.novelsOffset += size;
       if (pager.indexOf('users') === 0) loadUsers();
       if (pager.indexOf('shares') === 0) loadShares();
       if (pager.indexOf('tokens') === 0) loadTokens();
       if (pager.indexOf('audit') === 0) loadAudit();
+      if (pager.indexOf('cards') === 0) loadCards();
+      if (pager.indexOf('novels') === 0) loadNovels();
       return;
     }
 
@@ -255,8 +293,9 @@ function bindEvents() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ enabled: on, reason: stopReason }),
         });
-        setStatus(on ? '已恢复分享' : '已软停用分享');
+        setStatus(on ? '已恢复分享' : '已停用分享');
         loadShares();
+        refreshOpenWork();
       } catch (err) {
         setStatus(String(err.message || err));
       }
@@ -274,8 +313,9 @@ function bindEvents() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ reason: delReason }),
         });
-        setStatus('已删除分享');
+        setStatus('已删除分享映射');
         loadShares();
+        if (state.openShareToken) openShareDetail(state.openShareToken);
       } catch (err) {
         setStatus(String(err.message || err));
       }
@@ -287,8 +327,9 @@ function bindEvents() {
       if (!engineTryAllowed('admin.token.revoke').ok) return;
       try {
         await api('/api/admin/tokens/' + encodeURIComponent(tok), { method: 'DELETE' });
-        setStatus('已吊销 Token');
+        setStatus('已撤销 Token');
         loadTokens();
+        refreshOpenWork();
       } catch (err) {
         setStatus(String(err.message || err));
       }

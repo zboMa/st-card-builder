@@ -630,11 +630,21 @@ export async function analyzeUserDatabases() {
   }).map(function(name) {
     return { db: name, userId: expected[name] };
   });
+  var rows = userDbs.map(function(name) {
+    return {
+      name: name,
+      userId: expected[name] || '',
+      status: expected[name] ? 'ok' : 'orphan',
+    };
+  }).concat(missing.map(function(m) {
+    return { name: m.db, userId: m.userId, status: 'missing' };
+  }));
   return {
     userDbCount: userDbs.length,
     registryCount: registry.length,
     orphans: orphans,
     missing: missing,
+    rows: rows,
   };
 }
 

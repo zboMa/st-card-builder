@@ -23,6 +23,7 @@ import {
   ensureAdminDatabase,
   listDatabaseInfos,
   analyzeUserDatabases,
+  readOwnerCardRelease,
 } from '../couch.mjs';
 import {
   listBearerTokenDocs,
@@ -64,7 +65,8 @@ import { opLogMiddleware, listOpLog, listLoginLog } from '../audit/oplog.mjs';
 import { PARAM_WHITELIST, listParams, setParam, deleteParam } from '../sysparams.mjs';
 import { listDicts, putDict, deleteDict, listFiles, uploadFile, readFile, deleteFile, recordAdminFile, generateInvite, listInvites, revokeInvite } from './system.mjs';
 import { listTasks, setTaskEnabled, runTaskById, seedTasks } from '../scheduler.mjs';
-import { capMeta, LIST_HARD_CAP, INDEX_SCAN_CAP, exceededLabels } from './deskLogic.mjs';
+import { capMeta, LIST_HARD_CAP, INDEX_SCAN_CAP, exceededLabels, isExpiredAt } from './deskLogic.mjs';
+import { targetRemoved } from '../share/targetGate.mjs';
 import { runBackup, listBackupRuns } from '../backup.mjs';
 import { getQuotaSnapshot, resolveUserTier } from '../quota/quotaService.mjs';
 import { QUOTA_TIERS, tierLabel } from '../quota/quotaPolicy.mjs';
@@ -407,6 +409,42 @@ adminRouter.get('/shares', async function(req, res) {
   }
 });
 
+function shareView(s, removed) {
+  var expired = isExpiredAt(s.expiresAt);
+  var why = [];
+  if (s.enabled === false) why.push('已停');
+  if (expired) why.push('已过期');
+  if (removed) why.push('目标已下架');
+  return {
+    token: s.token,
+    type: s.type || 'share',
+    enabled: s.enabled !== false,
+    expired: expired,
+    removed: !!removed,
+    why: why,
+    ownerUserId: s.ownerUserId || '',
+    cardId: s.cardId || '',
+    novelId: s.novelId || '',
+    titleHint: s.titleHint || '',
+    pngPublic: !!s.pngPublic,
+    hasPassword: !!s.passwordHash,
+    expiresAt: s.expiresAt || null,
+    createdAt: s.createdAt || null,
+  };
+}
+
+adminRouter.get('/shares/:token', async function(req, res) {
+  try {
+    var s = await getShareMapping(String(req.params.token || '').trim());
+    if (!s) return res.status(404).json({ error: 'not_found' });
+    var removed = false;
+    try { removed = await targetRemoved(s); } catch (eGate) { removed = false; }
+    res.json({ ok: true, share: shareView(s, removed) });
+  } catch (e) {
+    res.status(500).json({ error: 'share_failed', message: String(e && e.message || e) });
+  }
+});
+
 /** 软停用 / 重新启用 */
 adminRouter.post('/shares/:token/enabled', requirePerm(PERMS.shareToggle), async function(req, res) {
   try {
@@ -523,7 +561,8 @@ adminRouter.get('/databases', async function(req, res) {
   try {
     var dbs = await listDatabaseInfos();
     var analysis = await analyzeUserDatabases();
-    res.json({ ok: true, databases: dbs, analysis: analysis });
+    var couch = await couchHealth();
+    res.json({ ok: true, databases: dbs, analysis: analysis, couch: couch });
   } catch (e) {
     res.status(500).json({ error: 'databases_failed', message: String(e && e.message || e) });
   }
@@ -861,10 +900,21 @@ adminRouter.get('/cards', async function(req, res) {
       if (status === 'active' && c.moderated && c.moderated.status === 'removed') return false;
       return true;
     });
+    var shareRaw = await listShareMappings(LIST_HARD_CAP);
+    var activeShareCount = {};
+    (shareRaw || []).forEach(function(s) {
+      if (!s || s.novelId || s.enabled === false || isExpiredAt(s.expiresAt)) return;
+      var key = String(s.ownerUserId || '') + '|' + String(s.cardId || '');
+      activeShareCount[key] = (activeShareCount[key] || 0) + 1;
+    });
     var page = paginate(items, req);
     res.json({
       ok: true,
-      cards: page.items,
+      cards: page.items.map(function(c) {
+        return Object.assign({}, c, {
+          activeShares: activeShareCount[String(c.userId || '') + '|' + String(c.cardId || '')] || 0,
+        });
+      }),
       total: page.total,
       limit: page.limit,
       offset: page.offset,
@@ -902,6 +952,24 @@ adminRouter.get('/cards/:userId/:cardId', async function(req, res) {
     detail.audit = (await listAuditByUser(req.params.userId, 40)).filter(function(r) {
       return r && r.targetCardId === req.params.cardId;
     });
+    var novelPage = await listNovelIndex({ userId: req.params.userId, limit: 200, offset: 0 });
+    detail.novels = (novelPage.items || []).filter(function(n) {
+      return n && n.cardId === req.params.cardId;
+    }).map(function(n) {
+      return {
+        novelId: n.novelId,
+        title: n.title || '',
+        chapterCount: n.chapterCount || 0,
+        published: !!n.published,
+        removed: !!(n.moderated && n.moderated.status === 'removed'),
+      };
+    });
+    var release = await readOwnerCardRelease(req.params.userId, req.params.cardId);
+    var releaseData = release && release.data ? release.data : {};
+    detail.release = release ? {
+      characterVersion: release.characterVersion || releaseData.characterVersion || '',
+      publishedAt: release.publishedAt || releaseData.publishedAt || null,
+    } : null;
     res.json({ ok: true, detail: detail });
   } catch (e) {
     res.status(500).json({ error: 'card_failed', message: String(e && e.message || e) });
@@ -1012,6 +1080,33 @@ adminRouter.get('/novels', async function(req, res) {
     });
   } catch (e) {
     res.status(500).json({ error: 'novels_failed', message: String(e && e.message || e) });
+  }
+});
+
+adminRouter.get('/novels/:userId/:cardId/:novelId', async function(req, res) {
+  try {
+    var page = await listNovelIndex({ userId: req.params.userId, limit: 500, offset: 0 });
+    var novel = (page.items || []).find(function(n) {
+      return n && n.cardId === req.params.cardId && n.novelId === req.params.novelId;
+    });
+    if (!novel) return res.status(404).json({ error: 'not_found' });
+    var shares = await listShareMappings(LIST_HARD_CAP);
+    var mine = (shares || []).filter(function(s) {
+      return s && s.ownerUserId === req.params.userId && s.cardId === req.params.cardId && s.novelId === req.params.novelId;
+    }).map(function(s) { return shareView(s, false); });
+    var approvals = await listApprovals('pending');
+    var pendingDelete = (approvals || []).some(function(a) {
+      return a && a.action === 'delete-novel' && a.target
+        && a.target.userId === req.params.userId
+        && a.target.cardId === req.params.cardId
+        && a.target.novelId === req.params.novelId;
+    });
+    var audit = (await listAuditByUser(req.params.userId, 40)).filter(function(r) {
+      return r && r.targetNovelId === req.params.novelId;
+    });
+    res.json({ ok: true, novel: novel, shares: mine, pendingDelete: pendingDelete, audit: audit });
+  } catch (e) {
+    res.status(500).json({ error: 'novel_failed', message: String(e && e.message || e) });
   }
 });
 
@@ -1174,12 +1269,22 @@ adminRouter.get('/users/:userId/overview', async function(req, res) {  try {
           var t = Date.parse(s.expiresAt);
           expired = Number.isFinite(t) && Date.now() > t;
         }
-        return { token: s.token, type: s.type || 'share', enabled: s.enabled !== false, expired: expired };
+        return {
+          token: s.token,
+          type: s.type || 'share',
+          enabled: s.enabled !== false,
+          expired: expired,
+          titleHint: s.titleHint || '',
+          cardId: s.cardId || '',
+          novelId: s.novelId || '',
+          expiresAt: s.expiresAt || null,
+        };
       });
     var tokens = await listBearerTokenDocs(LIST_HARD_CAP);
     ov.tokens = (tokens || []).filter(function(t) { return t.userId === req.params.userId; });
     var novelPage = await listNovelIndex({ userId: req.params.userId, limit: 500, offset: 0 });
     ov.stories = novelPage.items || [];
+    ov.logins = await listLoginLog({ who: req.params.userId, limit: 12 });
     res.json({ ok: true, overview: ov });
   } catch (e) {
     res.status(500).json({ error: 'user_overview_failed', message: String(e && e.message || e) });

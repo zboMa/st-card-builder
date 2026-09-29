@@ -104,9 +104,14 @@ body.admin-locked .admin-app {
   }
 }
 
-.admin-nav {
+.admin-nav,
+.admin-nav-group {
   display: flex;
   flex-direction: column;
+  align-items: stretch;
+}
+
+.admin-nav {
   gap: 2px;
   padding: 12px 8px;
   border: 0;
@@ -131,6 +136,14 @@ body.admin-locked .admin-app {
   background: transparent;
   box-shadow: none;
   padding: 0;
+}
+
+.admin-query-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px 24px;
+  align-items: flex-end;
 }
 
 .admin-query {
@@ -176,15 +189,25 @@ body.admin-locked .admin-app {
   gap: 10px;
 }
 
+.admin-status-list {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 8px;
+}
+
 .admin-status-row {
   display: flex;
   justify-content: space-between;
-  gap: 12px;
+  align-items: baseline;
+  gap: 16px;
+  width: 100%;
+  box-sizing: border-box;
   padding: 10px 0;
+  border: 0;
   border-bottom: 1px solid var(--color-border-subtle);
+  border-radius: 0;
   background: transparent;
   color: inherit;
-  width: 100%;
   text-align: left;
   font: inherit;
   cursor: pointer;
@@ -198,6 +221,9 @@ body.admin-locked .admin-app {
 }
 
 .admin-nav button {
+  display: flex;
+  width: 100%;
+  box-sizing: border-box;
   text-align: left;
   border: 0;
   background: transparent;
@@ -437,16 +463,50 @@ body.admin-readonly .admin-ops-only {
 }
 
 .admin-nav-group {
-  margin-top: 10px;
-  border-top: 1px solid var(--color-border-subtle);
-  padding-top: 8px;
+  margin-top: 14px;
+  padding-top: 0;
+  border-top: 0;
+  gap: 2px;
+}
+
+.admin-nav-group button {
+  padding-left: 18px;
+}
+
+.admin-split {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.admin-side-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.admin-side-list button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.admin-side-list button.is-active {
+  background: var(--color-accent-soft);
 }
 
 .admin-nav-group-label {
-  font-size: 0.7rem;
-  letter-spacing: 0.06em;
+  font-size: 0.72rem;
   color: var(--color-text-muted);
-  padding: 4px 10px;
+  padding: 4px 10px 6px;
 }
 
 .admin-editor {

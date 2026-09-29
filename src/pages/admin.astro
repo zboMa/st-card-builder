@@ -68,25 +68,29 @@ import Layout from '../layouts/Layout.astro';
         <div class="admin-main">
           <section class="admin-panel" data-admin-view="dashboard">
             <h2>仪表盘</h2>
+            <div id="adminDashGrid" class="admin-status-list"></div>
+            <p id="adminDashFlags" class="admin-muted"></p>
             <div id="adminTrendBox" class="admin-trend-box"></div>
-            <div id="adminDashGrid" class="admin-stat-grid"></div>
-            <h2>配置开关（只读）</h2>
-            <div id="adminDashFlags" class="admin-flag-grid"></div>
           </section>
 
           <section class="admin-panel" data-admin-view="users" hidden>
             <div class="admin-panel-head">
               <h2>用户管理</h2>
             </div>
-            <div class="admin-toolbar">
-              <input id="adminUserQ" type="search" placeholder="搜索 userId / 名 / 邮箱 / Discord" />
-              <select id="adminUserStatus">
-                <option value="all">全部状态</option>
-                <option value="active">正常</option>
-                <option value="disabled">已禁用</option>
-              </select>
-              <button type="button" id="btnAdminLoadUsers" class="btn btn-sm btn-fetch">刷新</button>
-            </div>
+            <form class="admin-query">
+              <label>关键字
+                <input id="adminUserQ" type="search" placeholder="邮箱、名字、userId、Discord" />
+              </label>
+              <label>状态
+                <select id="adminUserStatus">
+                  <option value="all">全部</option>
+                  <option value="active">正常</option>
+                  <option value="disabled">已禁用</option>
+                </select>
+              </label>
+              <button type="submit" id="btnAdminLoadUsers" class="btn btn-primary">查询</button>
+              <button type="button" class="btn btn-ghost" data-admin-reset>重置</button>
+            </form>
             <div id="adminUserProfile"></div>
             <div id="adminUserTable"></div>
           </section>
@@ -95,21 +99,30 @@ import Layout from '../layouts/Layout.astro';
             <div class="admin-panel-head">
               <h2>卡管理</h2>
             </div>
-            <div class="admin-toolbar">
-              <input id="adminCardQ" type="search" placeholder="搜索卡名 / cardId / userId" />
-              <select id="adminCardNsfw">
-                <option value="all">全部 NSFW</option>
-                <option value="yes">NSFW</option>
-                <option value="no">非 NSFW</option>
-              </select>
-              <select id="adminCardStatus">
-                <option value="all">全部状态</option>
-                <option value="active">正常</option>
-                <option value="removed">已下架</option>
-              </select>
-              <input id="adminCardUser" type="search" placeholder="userId" style="max-width:170px" />
-              <button type="button" id="btnAdminLoadCards" class="btn btn-sm btn-fetch">刷新</button>
-            </div>
+            <form class="admin-query">
+              <label>关键字
+                <input id="adminCardQ" type="search" placeholder="卡名、cardId、userId" />
+              </label>
+              <label>NSFW
+                <select id="adminCardNsfw">
+                  <option value="all">全部</option>
+                  <option value="yes">是</option>
+                  <option value="no">否</option>
+                </select>
+              </label>
+              <label>状态
+                <select id="adminCardStatus">
+                  <option value="all">全部</option>
+                  <option value="active">正常</option>
+                  <option value="removed">已下架</option>
+                </select>
+              </label>
+              <label>用户
+                <input id="adminCardUser" type="search" placeholder="userId" />
+              </label>
+              <button type="submit" id="btnAdminLoadCards" class="btn btn-primary">查询</button>
+              <button type="button" class="btn btn-ghost" data-admin-reset>重置</button>
+            </form>
             <div id="adminCardDetail"></div>
             <div id="adminCardTable"></div>
           </section>
@@ -118,16 +131,24 @@ import Layout from '../layouts/Layout.astro';
             <div class="admin-panel-head">
               <h2>小说管理</h2>
             </div>
-            <div class="admin-toolbar">
-              <input id="adminNovelQ" type="search" placeholder="搜索标题 / novelId / cardId / userId" />
-              <select id="adminNovelStatus">
-                <option value="all">全部状态</option>
-                <option value="active">正常</option>
-                <option value="removed">已下架</option>
-              </select>
-              <input id="adminNovelUser" type="search" placeholder="userId" style="max-width:170px" />
-              <button type="button" id="btnAdminLoadNovels" class="btn btn-sm btn-fetch">刷新</button>
-            </div>
+            <form class="admin-query">
+              <label>关键字
+                <input id="adminNovelQ" type="search" placeholder="标题、novelId、cardId、userId" />
+              </label>
+              <label>状态
+                <select id="adminNovelStatus">
+                  <option value="all">全部</option>
+                  <option value="active">正常</option>
+                  <option value="removed">已下架</option>
+                </select>
+              </label>
+              <label>用户
+                <input id="adminNovelUser" type="search" placeholder="userId" />
+              </label>
+              <button type="submit" id="btnAdminLoadNovels" class="btn btn-primary">查询</button>
+              <button type="button" class="btn btn-ghost" data-admin-reset>重置</button>
+            </form>
+            <div id="adminNovelDetail"></div>
             <div id="adminNovelTable"></div>
           </section>
 
@@ -135,21 +156,29 @@ import Layout from '../layouts/Layout.astro';
             <div class="admin-panel-head">
               <h2>分享管理</h2>
             </div>
-            <div class="admin-toolbar">
-              <input id="adminShareQ" type="search" placeholder="搜索 token / 标题 / 所有者" />
-              <select id="adminShareType">
-                <option value="all">全部类型</option>
-                <option value="card-share">角色卡</option>
-                <option value="novel-share">小说</option>
-              </select>
-              <select id="adminShareStatus">
-                <option value="all">全部状态</option>
-                <option value="active">有效</option>
-                <option value="disabled">已停用</option>
-                <option value="expired">已过期</option>
-              </select>
-              <button type="button" id="btnAdminLoadShares" class="btn btn-sm btn-fetch">刷新</button>
-            </div>
+            <form class="admin-query">
+              <label>关键字
+                <input id="adminShareQ" type="search" placeholder="token、目标名、主人" />
+              </label>
+              <label>类型
+                <select id="adminShareType">
+                  <option value="all">全部</option>
+                  <option value="card-share">卡</option>
+                  <option value="novel-share">小说</option>
+                </select>
+              </label>
+              <label>状态
+                <select id="adminShareStatus">
+                  <option value="all">全部</option>
+                  <option value="active">有效</option>
+                  <option value="disabled">已停</option>
+                  <option value="expired">已过期</option>
+                </select>
+              </label>
+              <button type="submit" id="btnAdminLoadShares" class="btn btn-primary">查询</button>
+              <button type="button" class="btn btn-ghost" data-admin-reset>重置</button>
+            </form>
+            <div id="adminShareDetail"></div>
             <div id="adminShareTable"></div>
           </section>
 
@@ -158,15 +187,20 @@ import Layout from '../layouts/Layout.astro';
               <h2>插件 Bearer Token</h2>
               <button type="button" id="btnAdminPurgeTokens" class="btn btn-sm btn-ghost admin-ops-only">清理过期</button>
             </div>
-            <div class="admin-toolbar">
-              <input id="adminTokenQ" type="search" placeholder="搜索用户 / Discord" />
-              <select id="adminTokenStatus">
-                <option value="all">全部</option>
-                <option value="active">有效</option>
-                <option value="expired">过期</option>
-              </select>
-              <button type="button" id="btnAdminLoadTokens" class="btn btn-sm btn-fetch">刷新</button>
-            </div>
+            <form class="admin-query">
+              <label>用户
+                <input id="adminTokenQ" type="search" placeholder="用户、Discord" />
+              </label>
+              <label>状态
+                <select id="adminTokenStatus">
+                  <option value="all">全部</option>
+                  <option value="active">有效</option>
+                  <option value="expired">过期</option>
+                </select>
+              </label>
+              <button type="submit" id="btnAdminLoadTokens" class="btn btn-primary">查询</button>
+              <button type="button" class="btn btn-ghost" data-admin-reset>重置</button>
+            </form>
             <div id="adminTokenTable"></div>
           </section>
 
@@ -184,21 +218,28 @@ import Layout from '../layouts/Layout.astro';
               <h2>审计日志</h2>
               <button type="button" id="btnAdminExportAudit" class="btn btn-sm btn-ghost">导出 JSON</button>
             </div>
-            <div class="admin-toolbar">
-              <input id="adminAuditBy" type="search" placeholder="操作者" />
-              <select id="adminAuditAction">
-                <option value="">全部动作</option>
-                <option value="user.disable">user.disable</option>
-                <option value="user.enable">user.enable</option>
-                <option value="share.disable">share.disable</option>
-                <option value="share.enable">share.enable</option>
-                <option value="share.force_delete">share.force_delete</option>
-                <option value="token.revoke">token.revoke</option>
-                <option value="token.purge_expired">token.purge_expired</option>
-                <option value="backup.run">backup.run</option>
-              </select>
-              <button type="button" id="btnAdminLoadAudit" class="btn btn-sm btn-fetch">刷新</button>
-            </div>
+            <form class="admin-query">
+              <label>操作者
+                <input id="adminAuditBy" type="search" />
+              </label>
+              <label>动作
+                <select id="adminAuditAction">
+                  <option value="">全部动作</option>
+                  <option value="user.disable">禁用用户</option>
+                  <option value="user.enable">启用用户</option>
+                  <option value="content.card.disable">下架卡</option>
+                  <option value="share.disable">停用分享</option>
+                  <option value="share.force_delete">删除分享映射</option>
+                  <option value="token.revoke">撤销 Token</option>
+                  <option value="backup.run">备份</option>
+                </select>
+              </label>
+              <label>对象用户
+                <input id="adminAuditUser" type="search" placeholder="userId" />
+              </label>
+              <button type="submit" id="btnAdminLoadAudit" class="btn btn-primary">查询</button>
+              <button type="button" class="btn btn-ghost" data-admin-reset>重置</button>
+            </form>
             <div id="adminAuditTable"></div>
           </section>
 
@@ -248,23 +289,38 @@ import Layout from '../layouts/Layout.astro';
           <section class="admin-panel" data-admin-view="oplog" hidden>
             <div class="admin-panel-head">
               <h2>操作日志</h2>
-              <button type="button" id="btnAdminLoadOpLog" class="btn btn-sm btn-fetch">刷新</button>
             </div>
-            <div class="admin-toolbar">
-              <input id="adminOpLogWho" type="search" placeholder="操作者" />
-              <input id="adminOpLogAction" type="search" placeholder="动作关键字" />
-            </div>
+            <form class="admin-query">
+              <label>操作者
+                <input id="adminOpLogWho" type="search" />
+              </label>
+              <label>路径
+                <input id="adminOpLogAction" type="search" placeholder="路径或动作" />
+              </label>
+              <button type="submit" id="btnAdminLoadOpLog" class="btn btn-primary">查询</button>
+              <button type="button" class="btn btn-ghost" data-admin-reset>重置</button>
+            </form>
             <div id="adminOpLogTable"></div>
           </section>
 
           <section class="admin-panel" data-admin-view="loginlog" hidden>
             <div class="admin-panel-head">
               <h2>登录日志</h2>
-              <button type="button" id="btnAdminLoadLoginLog" class="btn btn-sm btn-fetch">刷新</button>
             </div>
-            <div class="admin-toolbar">
-              <input id="adminLoginLogWho" type="search" placeholder="用户 / 邮箱" />
-            </div>
+            <form class="admin-query">
+              <label>谁
+                <input id="adminLoginLogWho" type="search" placeholder="用户或邮箱" />
+              </label>
+              <label>结果
+                <select id="adminLoginLogOk">
+                  <option value="all">全部</option>
+                  <option value="ok">成功</option>
+                  <option value="fail">失败</option>
+                </select>
+              </label>
+              <button type="submit" id="btnAdminLoadLoginLog" class="btn btn-primary">查询</button>
+              <button type="button" class="btn btn-ghost" data-admin-reset>重置</button>
+            </form>
             <div id="adminLoginLogTable"></div>
           </section>
 
@@ -287,35 +343,84 @@ import Layout from '../layouts/Layout.astro';
           <section class="admin-panel" data-admin-view="invites" hidden>
             <div class="admin-panel-head">
               <h2>邀请码</h2>
-              <button type="button" id="btnAdminLoadInvites" class="btn btn-sm btn-fetch">刷新</button>
             </div>
-            <div class="admin-toolbar">
-              <input id="adminInviteNote" type="search" placeholder="备注" style="max-width:200px" />
-              <input id="adminInviteCount" type="number" value="1" style="max-width:70px" />
-              <button type="button" id="btnAdminGenInvites" class="btn btn-sm btn-primary">生成</button>
+            <div class="admin-query-row">
+              <form class="admin-query">
+                <label>状态
+                  <select id="adminInviteStatus">
+                    <option value="all">全部</option>
+                    <option value="valid">有效</option>
+                    <option value="used">已用</option>
+                    <option value="revoked">已作废</option>
+                  </select>
+                </label>
+                <button type="submit" id="btnAdminLoadInvites" class="btn btn-primary">查询</button>
+                <button type="button" class="btn btn-ghost" data-admin-reset>重置</button>
+              </form>
+              <form class="admin-query">
+                <label>备注
+                  <input id="adminInviteNote" type="search" />
+                </label>
+                <label>数量
+                  <input id="adminInviteCount" type="number" value="1" min="1" />
+                </label>
+                <label>过期天数
+                  <input id="adminInviteDays" type="number" value="7" min="0" />
+                </label>
+                <button type="button" id="btnAdminGenInvites" class="btn btn-primary">生成</button>
+              </form>
             </div>
             <div id="adminInviteTable"></div>
           </section>
 
           <section class="admin-panel" data-admin-view="quota" hidden>
             <div class="admin-panel-head">
-              <h2>配额概览</h2>
-              <button type="button" id="btnAdminLoadQuota" class="btn btn-sm btn-fetch">刷新</button>
+              <h2>配额</h2>
             </div>
+            <form class="admin-query">
+              <label>档位
+                <select id="adminQuotaTier">
+                  <option value="all">全部</option>
+                  <option value="registered">registered</option>
+                  <option value="member">member</option>
+                  <option value="admin">admin</option>
+                </select>
+              </label>
+              <label>范围
+                <select id="adminQuotaOver">
+                  <option value="">全部</option>
+                  <option value="1">只看超限</option>
+                </select>
+              </label>
+              <button type="submit" id="btnAdminLoadQuota" class="btn btn-primary">查询</button>
+              <button type="button" class="btn btn-ghost" data-admin-reset>重置</button>
+            </form>
             <div id="adminQuotaTiers"></div>
             <div id="adminQuotaTable"></div>
           </section>
 
           <section class="admin-panel" data-admin-view="files" hidden>
             <div class="admin-panel-head">
-              <h2>文件管理</h2>
-              <button type="button" id="btnAdminLoadFiles" class="btn btn-sm btn-fetch">刷新</button>
+              <h2>文件</h2>
             </div>
-            <div class="admin-toolbar">
-              <input id="adminFileName" type="search" placeholder="文件名" style="max-width:180px" />
-              <input id="adminFileData" type="file" />
-              <button type="button" id="btnAdminUploadFile" class="btn btn-sm btn-primary">上传</button>
-            </div>
+            <form class="admin-query">
+              <label>来源
+                <select id="adminFileSource">
+                  <option value="all">全部</option>
+                  <option value="backup">备份</option>
+                  <option value="export">导出</option>
+                  <option value="upload">上传</option>
+                </select>
+              </label>
+              <label>文件名
+                <input id="adminFileName" type="search" />
+              </label>
+              <label>上传
+                <input id="adminFileData" type="file" />
+              </label>
+              <button type="submit" id="btnAdminLoadFiles" class="btn btn-primary">查询</button>
+              <button type="button" id="btnAdminUploadFile" class="btn btn-ghost">上传</button>
+            </form>
             <div id="adminFileTable"></div>
           </section>
         </div>

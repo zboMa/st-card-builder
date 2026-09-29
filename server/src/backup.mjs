@@ -79,21 +79,27 @@ export async function runBackup(triggeredBy) {
   var stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
   var outDir = path.join(outBase, stamp);
   var result = await runScript(outDir);
-  var rec = await appendBackupRun({
-    status: 'ok',
-    outDir: outDir,
-    triggeredBy: triggeredBy || 'manual',
-    log: String(result.stdout || '').slice(-2000),
-  });
+  var fileId = '';
+  var fileSize = 0;
   try {
-    await recordAdminFile({
+    var file = await recordAdminFile({
       name: 'backup-' + stamp + '.txt',
       source: 'backup',
       by: triggeredBy || '',
       contentType: 'text/plain',
       text: '目录：' + outDir + '\n' + String(result.stdout || '').slice(-4000),
     });
+    fileId = file && file.id || '';
+    fileSize = file && file.size || 0;
   } catch (eFile) { /* 备份目录已写成，文件页缺行时仍可看备份历史 */ }
+  var rec = await appendBackupRun({
+    status: 'ok',
+    outDir: outDir,
+    triggeredBy: triggeredBy || 'manual',
+    log: String(result.stdout || '').slice(-2000),
+    fileId: fileId,
+    size: fileSize,
+  });
   try {
     await appendAdminAudit({ action: 'backup.run', outDir: outDir, by: triggeredBy || '' });
   } catch (e) { /* ignore */ }

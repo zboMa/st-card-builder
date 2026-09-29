@@ -70,6 +70,21 @@ export var PERM_LABELS = {
   'sys.user.manage': '重置密码与角色',
 };
 
+export var DICT_TYPES = [
+  { type: 'user.status', label: '用户状态' },
+  { type: 'share.type', label: '分享类型' },
+  { type: 'share.status', label: '分享状态' },
+  { type: 'moderation.status', label: '审核状态' },
+  { type: 'audit.action', label: '审计动作' },
+];
+
+export var MENU_LOCKED = [
+  'dashboard', 'users', 'cards', 'novels', 'shares', 'tokens', 'databases',
+  'moderation', 'audit', 'system', 'roles', 'menus', 'oplog', 'loginlog',
+  'params', 'dicts', 'invites', 'quota', 'files', 'tasks', 'backup',
+  'group-people', 'group-content', 'group-run',
+];
+
 export function dictOptions(type, items) {
   var fallback = DICT_FALLBACK[type] || [];
   var list = (items || []).filter(function(it) {

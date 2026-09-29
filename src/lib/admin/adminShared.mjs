@@ -59,9 +59,12 @@ var state = {
   perms: [],
   view: 'dashboard',
   usersOffset: 0,
+  cardsOffset: 0,
+  novelsOffset: 0,
   sharesOffset: 0,
   tokensOffset: 0,
   auditOffset: 0,
+  modTab: 'flags',
   pageSize: 30,
 };
 
