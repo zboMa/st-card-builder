@@ -8,6 +8,7 @@ import {
   toStExportEntry,
   normalizeWorldbookEntriesForDraft,
 } from '../worldbook/worldbookEntryBridge.mjs';
+import { positionToSpecString } from '../worldbook/entryPosition.mjs';
 import {
   baselineLeavesFromEntries,
   composeGreetingText,
@@ -207,7 +208,29 @@ export function buildCardJSONFromDraft(d) {
   d = d || {};
   var entries = Array.isArray(d.worldbookEntries) ? d.worldbookEntries : [];
   var fe = entries.map(function(e, i) {
-    var st = toStExportEntry(e);
+    var src = normalizeDraftEntry(e);
+    var st = toStExportEntry(src);
+    var stcb = {};
+    if (src.job) stcb.job = src.job;
+    if (src.reads) stcb.reads = src.reads;
+    var extensions = {
+      position: st.position,
+      exclude_recursion: src.excludeRecursion === true,
+      display_index: i,
+      probability: st.prob || 100,
+      useProbability: true,
+      depth: st.depth || 4,
+      selectiveLogic: 0,
+      outlet_name: '',
+      group: src.group || '',
+      group_override: false,
+      group_weight: 100,
+      prevent_recursion: src.preventRecursion === true,
+      delay_until_recursion: false,
+      role: st.role || 0,
+      vectorized: st.strategy === 'vectorized',
+    };
+    if (Object.keys(stcb).length) extensions.stcb = stcb;
     return {
       id: i,
       keys: st.keys || [],
@@ -218,25 +241,9 @@ export function buildCardJSONFromDraft(d) {
       selective: st.strategy === 'selective' || st.strategy === 'vectorized',
       insertion_order: st.order || 100,
       enabled: st.enabled !== false,
-      position: 'before_char',
+      position: positionToSpecString(st.position),
       use_regex: false,
-      extensions: {
-        position: st.position,
-        exclude_recursion: false,
-        display_index: i,
-        probability: st.prob || 100,
-        useProbability: true,
-        depth: st.depth || 4,
-        selectiveLogic: 0,
-        outlet_name: '',
-        group: '',
-        group_override: false,
-        group_weight: 100,
-        prevent_recursion: false,
-        delay_until_recursion: false,
-        role: st.role || 0,
-        vectorized: st.strategy === 'vectorized',
-      },
+      extensions: extensions,
     };
   });
   var cn = String(d.charName || '').trim() || '无名角色';

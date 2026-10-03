@@ -145,11 +145,11 @@ import AiEngineModal from './AiEngineModal.astro';
         </div>
 
         <div style="display: flex; gap: 8px; align-items: center;">
-          <button id="btnTestSearch" class="btn btn-fetch" style="width: auto; padding: 6px 14px; font-size: 0.78rem; margin: 0;">🔍 测试搜索</button>
+          <button id="btnTestSearch" class="btn btn-ghost btn-inline">测试搜索</button>
           <span id="searchTestStatus" style="font-size: 0.72rem; color: var(--color-text-muted);"></span>
         </div>
 
-        <div id="searchPreview" style="display: none; margin-top: 10px; max-height: 200px; overflow-y: auto; background: rgba(0,0,0,0.3); border-radius: 8px; padding: 10px; font-size: 0.72rem;"></div>
+        <div id="searchPreview" style="display: none; margin-top: 10px; max-height: 200px; overflow-y: auto; background: var(--color-surface-inset); border-radius: 8px; padding: 10px; font-size: 0.72rem;"></div>
       </div>
     </div>
   </div>
@@ -160,7 +160,7 @@ import AiEngineModal from './AiEngineModal.astro';
       <label class="preset-import-label">导入酒馆原生预设 (.json)</label>
       <input type="file" id="presetInput" accept=".json" />
       <!-- 预设勾选列表：在 360px 基础上再增高一半，便于一次看到更多规则 -->
-      <div id="presetListContainer" style="display: none; max-height: 540px; overflow-y: auto; margin-top: 10px; background: rgba(0,0,0,0.3); border-radius: 8px; padding: 8px;"></div>
+      <div id="presetListContainer" style="display: none; max-height: 540px; overflow-y: auto; margin-top: 10px; background: var(--color-surface-inset); border-radius: 8px; padding: 8px;"></div>
       <div id="presetStatus" style="font-size: 0.75rem; margin-top: 8px; color: var(--color-text-muted);">
         导入预设后，可勾选要注入的文风和规则
       </div>
@@ -324,7 +324,7 @@ import AiEngineModal from './AiEngineModal.astro';
         </div>
         <div class="form-group" style="margin-bottom:10px;">
           <label for="imgComfyWorkflow">工作流 JSON</label>
-          <textarea id="imgComfyWorkflow" rows="8" placeholder='粘贴 ComfyUI 导出的 workflow.json（API 格式，可在 ComfyUI 界面「Save (API Format)」导出）' style="width:100%;resize:vertical;font-family:ui-monospace,monospace;font-size:0.7rem;"></textarea>
+          <textarea id="imgComfyWorkflow" rows="8" placeholder='粘贴 ComfyUI 导出的 workflow.json（API 格式，可在 ComfyUI 界面「Save (API Format)」导出）'></textarea>
           <p class="ai-config-field-hint">提交时会把提示词节点文本替换为生成请求的提示词。请填对节点 id。</p>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%;margin-bottom:10px;">
@@ -398,7 +398,7 @@ import AiEngineModal from './AiEngineModal.astro';
     padding: 12px 14px;
     border-radius: var(--radius-md);
     border: 1px solid var(--color-accent-border);
-    background: rgba(99, 102, 241, 0.06);
+    background: var(--color-accent-soft);
   }
   .ai-embed-rag-heading {
     margin: 0 0 8px;
@@ -510,7 +510,7 @@ import AiEngineModal from './AiEngineModal.astro';
   }
   #searchConfigBlock.active {
     border-color: var(--color-accent-border);
-    background: oklch(72% 0.14 305 / 0.06);
+    background: var(--color-accent-soft);
   }
   /* 放大镜扫描动画覆盖层 */
   .search-scan-overlay {

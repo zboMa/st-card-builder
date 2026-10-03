@@ -53,6 +53,7 @@ export function initStatusBarPanel() {
   var state = normalizeDesign({});
   var samples = { activeFloor: 1, floors: null };
   var floorToastSent = false;
+  var boundCardId = '';
 
   var extraEl = document.getElementById('sbExtra');
   var layoutEl = document.getElementById('sbLayoutPrompt');

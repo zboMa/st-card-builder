@@ -2,6 +2,7 @@
  * 世界书审计面板 boot（从 WorldbookAuditor.astro 外提）
  */
 import { entryExportComment } from '../worldbook/worldbookEntryBridge.mjs';
+import { auditWorldbookAdmission } from './worldbookAdmissionAudit.mjs';
 import { appFeedback } from '../ui/appMessage.mjs';
 
 export function initWorldbookAuditor() {
@@ -57,20 +58,24 @@ export function initWorldbookAuditor() {
     if (totalEntries === 0) {
       issues.push({ level: 'critical', icon: '🚫', title: '世界书为空', desc: '还没有任何条目，请先生成或手动添加。' });
     }
-    if (skeletonCount > 0) {
-      issues.push({ level: 'warning', icon: '🦴', title: skeletonCount + ' 条骨架未展开', desc: '内容过短（<60字），建议用「✨ AI重写」展开为完整设定。' });
-    }
-    if (noKeysCount > 0) {
-      issues.push({ level: 'critical', icon: '🔑', title: noKeysCount + ' 条缺少触发词', desc: '策略为 selective 但没有触发词，这些条目永远不会被激活！' });
-    }
     if (emptyContentCount > 0) {
       issues.push({ level: 'critical', icon: '📭', title: emptyContentCount + ' 条内容为空', desc: '这些条目几乎没有内容，注入也没有意义。' });
     }
-    if (constantCount > 5) {
-      issues.push({ level: 'warning', icon: '📌', title: '常驻条目过多 (' + constantCount + ')', desc: '太多常驻条目占用大量 token，建议控制在 3-5 条。' });
-    }
-
-    
+    var scriptList = (typeof window.__getTavernHelperScripts__ === 'function')
+      ? (window.__getTavernHelperScripts__() || [])
+      : [];
+    auditWorldbookAdmission({
+      entries: entries,
+      description: char.description || '',
+      hasScripts: scriptList.length > 0,
+    }).forEach(function(item) {
+      issues.push({
+        level: item.level === 'warn' ? 'warning' : (item.level === 'hint' ? 'info' : 'info'),
+        icon: item.level === 'warn' ? '⚠' : '·',
+        title: item.name || '准入',
+        desc: item.message,
+      });
+    });
     var allKeys = {};
     entries.forEach(function(e, idx) {
       (e.keys || []).forEach(function(k) {
@@ -86,26 +91,10 @@ export function initWorldbookAuditor() {
     }
 
     
-    if (char.name && totalEntries > 0) {
-      var nameInKeys = entries.some(function(e) {
-        return (e.keys || []).some(function(k) { return k.toLowerCase().indexOf(char.name.toLowerCase()) >= 0; });
-      });
-      if (!nameInKeys) {
-        issues.push({ level: 'info', icon: '💡', title: '角色名未作为触发词', desc: '「' + char.name + '」不在任何触发词中，考虑添加核心设定条目。' });
-      }
-    }
-
-    if (totalEntries > 0 && totalContentLen < 200) {
-      issues.push({ level: 'warning', icon: '📏', title: '总内容量偏少', desc: '所有条目仅 ' + totalContentLen + ' 字，可能不足以支撑世界观。' });
-    }
-
     if (issues.length === 0) {
       issues.push({ level: 'tip', icon: '✅', title: '快速自检通过', desc: '没有明显问题！可进行 AI 深度审计获取更详细建议。' });
     }
 
-    var dimensions = detectDimensionCoverage(entries);
-
-    
     quickCheckResult.style.display = 'block';
 
     var statsHtml = '<div class="qc-section-title">📊 基础统计</div>'
@@ -118,22 +107,10 @@ export function initWorldbookAuditor() {
       + statCard(issues.length, '问题', issues[0].level === 'tip' ? 'var(--color-success)' : '#ef4444')
       + '</div>';
 
-    var dimHtml = '<div class="qc-section-title">🧭 维度覆盖</div>'
-      + '<div class="qc-dim-tags">' + renderDimTags(dimensions) + '</div>';
+    var dimHtml = '';
 
-    // 自动生成快速建议
     var quickSuggestions = [];
-    if (totalEntries < 5) quickSuggestions.push('📝 条目数量较少，建议至少创建 5-10 条条目来丰富世界观');
-    if (constantCount === 0 && totalEntries > 0) quickSuggestions.push('📌 没有常驻条目，建议将重要设定设为常驻以确保始终生效');
-    if (selectiveCount === 0 && totalEntries > 0) quickSuggestions.push('🎯 没有触发式条目，建议添加具有触发词的条目以增加交互性');
-    if (skeletonCount > totalEntries * 0.3) quickSuggestions.push('✨ 超过30%的条目内容较短，建议用「AI重写」展开为300+字的完整设定');
-    if (totalContentLen < 100 && totalEntries > 0) quickSuggestions.push('📖 总内容非常精简，建议补充更详细的世界背景和设定细节');
-    if (dupKeys.length > 0) quickSuggestions.push('🔑 发现重复触发词，这会导致多个条目同时激活，考虑调整词汇避免冲突');
-    if (char.name && !nameInKeys && totalEntries > 0) quickSuggestions.push('💬 角色名未出现在任何触发词中，建议创建包含「' + char.name + '」的核心设定条目');
-    if (totalEntries > 0) {
-      var avgLen = Math.round(totalContentLen / totalEntries);
-      if (avgLen < 100) quickSuggestions.push('📏 条目平均长度 ' + avgLen + ' 字，建议每条至少 150+ 字以提供足够信息');
-    }
+    if (dupKeys.length > 0) quickSuggestions.push('发现重复触发词。同一词会让多条一起进来，按作者要不要同时出现来留或改。');
 
     var suggestionsHtml = '';
     if (quickSuggestions.length > 0) {
@@ -167,7 +144,6 @@ export function initWorldbookAuditor() {
       totalContentLen: totalContentLen,
       issues: issues,
       suggestions: quickSuggestions,
-      dimensions: dimensions,
     };
   }
 
@@ -177,49 +153,6 @@ export function initWorldbookAuditor() {
 
   function statCard(num, label, color) {
     return '<div class="qc-stat"><div class="qc-stat-num" style="color:' + color + ';">' + num + '</div><div class="qc-stat-label">' + label + '</div></div>';
-  }
-
-  
-  
-  
-  var DIMENSION_KEYWORDS = {
-    '🗺️ 地点': ['地点', '城市', '村庄', '建筑', '区域', '领地', '世界', '国家', '城堡', '森林', '山脉', '海洋', '街道', '酒馆', '学院', '废墟', 'location', 'city', 'place'],
-    '👥 人物': ['人物', 'NPC', '角色', '同伴', '敌人', '领袖', '商人', '老师', '朋友', '家人', '师傅', '国王', '女王', 'character', 'person'],
-    '⚔️ 势力': ['组织', '势力', '帮派', '公会', '军团', '教会', '政府', '企业', '家族', '联盟', '阵营', 'faction', 'guild', 'organization'],
-    '🔮 物品': ['物品', '武器', '装备', '道具', '药水', '宝物', '魔法', '科技', '材料', '货币', 'item', 'weapon', 'equipment'],
-    '📜 规则': ['规则', '系统', '法则', '魔法体系', '等级', '技能', '属性', '机制', '禁忌', '法律', 'rule', 'system', 'magic'],
-    '📖 历史': ['历史', '事件', '战争', '传说', '起源', '灾难', '革命', '预言', '纪元', '过去', 'history', 'event', 'lore'],
-    '🌍 文化': ['文化', '风俗', '语言', '宗教', '信仰', '节日', '习俗', '种族', '民族', '传统', 'culture', 'religion', 'tradition'],
-    '🎭 关系': ['关系', '社交', '恋爱', '友谊', '仇恨', '忠诚', '背叛', '秘密', '情感', 'relationship', 'social'],
-  };
-
-  function detectDimensionCoverage(entries) {
-    var allText = entries.map(function(e) {
-      return entryExportComment(e) + ' ' + (e.content || '') + ' ' + (e.keys || []).join(' ');
-    }).join(' ').toLowerCase();
-
-    var results = {};
-    Object.keys(DIMENSION_KEYWORDS).forEach(function(dim) {
-      var keywords = DIMENSION_KEYWORDS[dim];
-      var matchCount = 0;
-      keywords.forEach(function(kw) {
-        if (allText.indexOf(kw.toLowerCase()) >= 0) matchCount++;
-      });
-      results[dim] = Math.min(100, Math.round((matchCount / Math.min(keywords.length, 5)) * 100));
-    });
-    return results;
-  }
-
-  function renderDimTags(dimensions) {
-    return Object.keys(dimensions).map(function(dim) {
-      var cov = dimensions[dim];
-      var color, bg;
-      if (cov >= 60)      { color = 'var(--color-success)'; bg = 'rgba(16,185,129,0.1)'; }
-      else if (cov >= 30) { color = 'var(--color-warning)'; bg = 'rgba(245,158,11,0.1)'; }
-      else if (cov > 0)   { color = 'var(--color-danger)'; bg = 'rgba(239,68,68,0.1)'; }
-      else                { color = 'var(--color-text-muted)'; bg = 'rgba(51,65,85,0.2)'; }
-      return '<span class="qc-dim-tag" style="color:' + color + ';background:' + bg + ';border:1px solid ' + color + '22;">' + dim + ' ' + cov + '%</span>';
-    }).join('');
   }
 
   
@@ -277,9 +210,8 @@ export function initWorldbookAuditor() {
       + '  ],\n'
       + '  "suggestions": ["建议1", "建议2", "建议3"]\n'
       + '}\n\n'
-      + '审计维度必须包括：\n'
-      + '1. 覆盖完整度 2. 内容质量 3. 触发词设计 4. 策略配置\n'
-      + '5. 内部一致性 6. 与角色契合度 7. Token 效率 8. 可玩性\n';
+      + '只报告准入问题：常驻却带触发词、开着的可选没有触发词也不在同组、同组开了几条、读取路径对不上、Description 为空或和常驻开头重复。\n'
+      + '不要因为缺了某种类型、人物太少或太多、条数不像某张样本而扣分。不要要求每条写满固定字数。\n';
 
     try {
       var headers = { 'Content-Type': 'application/json' };

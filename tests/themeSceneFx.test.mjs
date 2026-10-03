@@ -15,9 +15,7 @@ var SCENE_FX_MODULES = {
   'sumi-ink': 'sumiInk.mjs',
   'frost-shard': 'frostShard.mjs',
   'ember-blaze': 'emberBlaze.mjs',
-  'bamboo-edge': 'bambooEdge.mjs',
   'water-wave': 'waterWave.mjs',
-  'fresh-lime': 'freshLime.mjs',
   'cloud-pavilion': 'cloudPavilion.mjs',
   'morning-drizzle': 'morningDrizzle.mjs',
   'doom-carrion': 'doomCarrion.mjs',
@@ -25,9 +23,9 @@ var SCENE_FX_MODULES = {
 };
 
 var SCENE_CSS = [
-  'sumi-ink', 'frost-shard', 'ember-blaze', 'bamboo-edge',
-  'water-wave', 'fresh-lime', 'cloud-pavilion', 'morning-drizzle',
-  'doom-carrion', 'moon-haze',
+  'sumi-ink', 'frost-shard', 'ember-blaze', 'water-wave',
+  'cloud-pavilion', 'morning-drizzle', 'doom-carrion', 'moon-haze',
+  'journal',
 ];
 
 describe('scene tier & fx', function() {

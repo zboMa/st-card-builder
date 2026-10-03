@@ -390,6 +390,23 @@ describe('assistant executor', function() {
     assert.equal(r.data.charName, '测试');
   });
 
+  it('长正文调用改成生成工具，短字段先写入，正文不落卡', async function() {
+    var bridge = mockBridge();
+    var ex = createToolExecutor(bridge);
+    var prose = '契'.repeat(180);
+    var r = await ex.invoke('update_character_fields', {
+      fields: { charName: '青云', tags: ['奇幻'], charDesc: prose },
+    });
+    assert.equal(r.pendingConfirm, true);
+    assert.equal(r.tool, 'expand_character_field');
+    assert.equal(r.args.field, 'charDesc');
+    assert.match(r.args.instruction, /不要原样存成正文/);
+    assert.match(r.preview, /重写\/扩写角色字段|重写/);
+    assert.equal(bridge.state.character.charName, '青云');
+    assert.deepEqual(bridge.state.character.tags, ['奇幻']);
+    assert.equal(bridge.state.character.charDesc, '短');
+  });
+
   it('小改自动应用', async function() {
     var bridge = mockBridge();
     var stack = [];
@@ -769,12 +786,29 @@ describe('assistant prompts & UI wiring', function() {
     assert.match(DEFAULT_PROMPTS.assistantSystem, /需要工具时/);
     assert.doesNotMatch(DEFAULT_PROMPTS.assistantSystem, /严格输出一个 JSON 对象，不要其它文字/);
     assert.match(DEFAULT_PROMPTS.assistantSystem, /长文生成/);
+    assert.match(DEFAULT_PROMPTS.assistantSystem, /只接受 charName、wbName、tags/);
+    var updateTool = getToolByName('update_character_fields');
+    assert.doesNotMatch(updateTool.argsHint, /charDesc/);
+    assert.match(formatToolsForPrompt(), /expand_character_field/);
     ['assistantCharField', 'assistantGreeting'].forEach(function(id) {
       assert.ok(DEFAULT_PROMPTS[id]);
       assert.ok(PROMPT_META.some(function(m) { return m.id === id; }));
     });
-    assert.match(DEFAULT_PROMPTS.assistantGreeting, /300/);
-    assert.match(DEFAULT_PROMPTS.wbSingle, /200/);
+    assert.match(DEFAULT_PROMPTS.assistantGreeting, /只写用户指定的这一场/);
+    assert.doesNotMatch(DEFAULT_PROMPTS.assistantGreeting, /至少 300/);
+    assert.match(DEFAULT_PROMPTS.wbSingle, /短事实就短/);
+    assert.doesNotMatch(DEFAULT_PROMPTS.wbSingle, /至少 200/);
+    ['wbSingle', 'wbEnrichFromOutline', 'wbRewrite'].forEach(function(id) {
+      assert.match(DEFAULT_PROMPTS[id], /人物条目·情欲节/);
+      assert.match(DEFAULT_PROMPTS[id], /一个人只写一条/);
+      assert.match(DEFAULT_PROMPTS[id], /NSFW_information/);
+    });
+    assert.doesNotMatch(DEFAULT_PROMPTS.charGen, /人物条目·情欲节/);
+    assert.match(DEFAULT_PROMPTS.assistantCharField, /不写人物情欲小传/);
+    assert.doesNotMatch(DEFAULT_PROMPTS.assistantCharField, /开启时按 NSFW 描述体系写/);
+    assert.match(readFileSync(join(root, 'src/lib/card-builder/panels/worldbookShared.mjs'), 'utf8'), /adultHints\.gate/);
+    assert.match(readFileSync(join(root, 'src/lib/card-builder/panels/aiEngineShared.mjs'), 'utf8'), /adultHints\.gate/);
+    assert.match(readFileSync(join(root, 'src/lib/card-builder/panels/adultConfigBind.mjs'), 'utf8'), /formatAdultModeLine/);
     assert.match(DEFAULT_PROMPTS.assistantReactHint, /勿强制|跳步/);
     assert.match(DEFAULT_PROMPTS.assistantReactHint, /自然语言/);
     assert.match(DEFAULT_PROMPTS.assistantChatFeedback, /fixes/);

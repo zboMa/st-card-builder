@@ -13,18 +13,6 @@ export { OUTLINE_TYPES, OUTLINE_TYPE_LABELS };
 export var ENGINE_GEN_MODE_FULL = 'full';
 export var ENGINE_GEN_MODE_SKELETON = 'skeleton';
 
-/** 默认类型配额（合计 13；可被总条数缩放） */
-export var DEFAULT_OUTLINE_QUOTA = {
-  worldview: 2,
-  location: 2,
-  faction: 2,
-  person: 3,
-  event: 2,
-  item: 1,
-  ability: 1,
-  other: 0,
-};
-
 export function normalizeEngineGenMode(mode) {
   var m = String(mode || '').trim();
   if (m === ENGINE_GEN_MODE_SKELETON) return ENGINE_GEN_MODE_SKELETON;
@@ -38,47 +26,36 @@ export function clampSlotCount(n) {
   return v;
 }
 
-/**
- * 按总条数缩放默认配额，保证至少覆盖主要类型
- */
-export function buildScaledQuota(totalSlots) {
-  var total = clampSlotCount(totalSlots);
-  var base = DEFAULT_OUTLINE_QUOTA;
-  var baseSum = Object.keys(base).reduce(function(s, k) { return s + (base[k] || 0); }, 0) || 1;
-  var out = {};
-  var assigned = 0;
-  var keys = OUTLINE_TYPES.filter(function(k) { return (base[k] || 0) > 0; });
-  keys.forEach(function(k, idx) {
-    if (idx === keys.length - 1) {
-      out[k] = Math.max(1, total - assigned);
-    } else {
-      var n = Math.max(1, Math.round((base[k] / baseSum) * total));
-      out[k] = n;
-      assigned += n;
-    }
+var CARD_SNAPSHOT_KEYS = [
+  'charName', 'wbName', 'charDesc', 'creatorNotes', 'charTags',
+  'firstMes', 'altGreetings', 'worldbookEntries',
+  'regexScripts', 'tavernHelperScripts',
+];
+
+/** 生成前记下整张卡。失败或取消时用 restoreCardDraft 写回。 */
+export function snapshotCardDraft(state) {
+  var snap = {};
+  CARD_SNAPSHOT_KEYS.forEach(function(key) {
+    if (!state || state[key] == null) return;
+    snap[key] = JSON.parse(JSON.stringify(state[key]));
   });
-  // 修正溢出
-  var sum = Object.keys(out).reduce(function(s, k) { return s + out[k]; }, 0);
-  if (sum > total) {
-    var over = sum - total;
-    var shrinkOrder = ['other', 'ability', 'item', 'event', 'faction', 'location', 'person', 'worldview'];
-    shrinkOrder.forEach(function(k) {
-      if (over <= 0 || !out[k]) return;
-      var cut = Math.min(over, Math.max(0, out[k] - 1));
-      out[k] -= cut;
-      over -= cut;
-    });
-  } else if (sum < total) {
-    out.person = (out.person || 0) + (total - sum);
-  }
-  return out;
+  return snap;
 }
 
-export function formatQuotaForPrompt(quota) {
-  var q = quota || buildScaledQuota(13);
-  return OUTLINE_TYPES.filter(function(t) { return (q[t] || 0) > 0; }).map(function(t) {
-    return OUTLINE_TYPE_LABELS[t] + '×' + q[t];
-  }).join('、');
+export function restoreCardDraft(state, snap) {
+  if (!state || !snap) return state;
+  Object.keys(snap).forEach(function(key) {
+    state[key] = JSON.parse(JSON.stringify(snap[key]));
+  });
+  return state;
+}
+
+/** 已有标题或正文时，生成前必须由作者点一次替换。 */
+export function worldbookReplaceNeedsConfirm(entries) {
+  return (entries || []).some(function(entry) {
+    if (!entry) return false;
+    return !!(String(entry.content || '').trim() || String(entry.displayName || entry.comment || '').trim());
+  });
 }
 
 export function normalizeOutlineSlot(raw, index) {
@@ -99,13 +76,17 @@ export function normalizeOutlineSlot(raw, index) {
   }
   var comment = String(raw.comment || raw.title || raw.name || '').trim();
   if (!comment) comment = (OUTLINE_TYPE_LABELS[type] || '条目') + (index + 1);
-  var blurb = String(raw.blurb || raw.content || raw.summary || '').trim();
+  var job = String(raw.job != null ? raw.job : '').trim();
+  var blurb = String(raw.blurb || raw.summary || '').trim();
+  if (!job && raw.content) job = String(raw.content).trim();
   if (!blurb) blurb = '（待展开）';
+  var strategy = raw.strategy === 'constant' ? 'constant' : (raw.strategy === 'vectorized' ? 'vectorized' : 'selective');
   var keys = Array.isArray(raw.keys) ? raw.keys.map(String).filter(Boolean) : [];
-  if (!keys.length) keys = [comment.replace(/^=+|\[.*?\]|=+$/g, '').trim().slice(0, 12)].filter(Boolean);
+  if (!keys.length && strategy !== 'constant') {
+    keys = [comment.replace(/^=+|\[.*?\]|=+$/g, '').trim().slice(0, 12)].filter(Boolean);
+  }
   var links = Array.isArray(raw.links) ? raw.links.map(String).filter(Boolean)
     : (Array.isArray(raw.related) ? raw.related.map(String).filter(Boolean) : []);
-  var strategy = raw.strategy === 'constant' ? 'constant' : 'selective';
   return {
     type: type,
     comment: comment,
@@ -113,6 +94,11 @@ export function normalizeOutlineSlot(raw, index) {
     keys: keys.slice(0, 6),
     links: links.slice(0, 8),
     strategy: strategy,
+    job: job,
+    group: String(raw.group || '').trim(),
+    reads: String(raw.reads || '').trim(),
+    enabled: raw.enabled !== false,
+    position: raw.position != null && raw.position !== '' ? raw.position : null,
   };
 }
 
@@ -144,7 +130,11 @@ export function slotToWorldbookEntry(slot, orderBase) {
     content: slot.blurb || '（待展开）',
     keys: (slot.keys || []).slice(),
     strategy: slot.strategy || 'selective',
-    position: slot.type === 'worldview' ? 0 : 4,
+    position: slot.position != null ? slot.position : (slot.strategy === 'constant' ? 0 : 1),
+    job: slot.job || '',
+    group: slot.group || '',
+    reads: slot.reads || '',
+    enabled: slot.enabled !== false,
     depth: 4,
     role: 0,
     order: (orderBase || 100) + (slot._i || 0),
@@ -159,11 +149,12 @@ export function slotToWorldbookEntry(slot, orderBase) {
 export function formatOutlineRef(slots) {
   if (!slots || !slots.length) return '';
   var lines = slots.map(function(s, i) {
-    var lab = OUTLINE_TYPE_LABELS[s.type] || s.type;
+    var lab = OUTLINE_TYPE_LABELS[s.type] || s.type || '条目';
     var link = (s.links && s.links.length) ? ('｜关联：' + s.links.join('、')) : '';
-    return (i + 1) + '. [' + lab + '] ' + s.comment + ' — ' + (s.blurb || '') + link;
+    var job = s.job ? ('｜职责：' + s.job) : '';
+    return (i + 1) + '. [' + lab + '] ' + s.comment + job + link;
   });
-  return '\n【世界书大纲（须遵守类型职责与关联，勿另起炉灶）】\n' + lines.join('\n');
+  return '\n【世界书大纲（须遵守各条职责与关联，勿另起炉灶）】\n' + lines.join('\n');
 }
 
 export function formatEnrichedEntriesRef(entries, opts) {

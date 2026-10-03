@@ -70,16 +70,16 @@
     display: block;
     margin: 0 0 12px;
     padding: 10px 12px;
-    border: 1px solid rgba(248, 113, 113, 0.45);
+    border: 1px solid var(--color-danger-fill-border);
     border-radius: 8px;
-    background: linear-gradient(90deg, rgba(127, 29, 29, 0.55), rgba(15, 23, 42, 0.9));
-    color: #fecaca;
+    background: var(--color-danger-soft);
+    color: var(--color-danger);
     font-size: 0.78rem;
     line-height: 1.45;
   }
   .vc-corruption-gap[hidden] { display: none !important; }
   .vc-corruption-gap strong {
-    color: #fee2e2;
+    color: var(--color-text);
     letter-spacing: 0.02em;
     margin-right: 0.35em;
   }
@@ -88,8 +88,8 @@
     width: auto !important;
     margin: 0 0 0 0.35em !important;
     vertical-align: baseline;
-    color: #fde68a !important;
-    border-color: rgba(253, 230, 138, 0.35) !important;
+    color: var(--color-warning) !important;
+    border-color: var(--color-warning-border) !important;
   }
   .vc-workbench-head p .adult-btn-compact,
   .vc-workbench-head p #btnVcInfer {
@@ -107,9 +107,9 @@
   .vc-infer-panel {
     margin: 0 0 14px;
     padding: 12px;
-    border: 1px solid rgba(56, 189, 248, 0.28);
+    border: 1px solid var(--color-border);
     border-radius: 8px;
-    background: rgba(15, 23, 42, 0.88);
+    background: var(--color-surface-inset);
   }
   .vc-infer-panel[hidden] { display: none !important; }
   .vc-infer-head {
@@ -126,8 +126,8 @@
   .vc-infer-count {
     padding: 2px 7px;
     border-radius: 999px;
-    border: 1px solid rgba(56, 189, 248, 0.3);
-    color: #7dd3fc;
+    border: 1px solid var(--color-accent-border);
+    color: var(--color-accent);
     font-size: 0.62rem;
   }
   .vc-infer-head-actions {
@@ -157,14 +157,14 @@
     align-items: start;
     padding: 6px 8px;
     border-radius: 6px;
-    border: 1px solid rgba(51, 65, 85, 0.8);
-    background: rgba(2, 6, 23, 0.55);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface-input);
     font-size: 0.72rem;
   }
   .vc-infer-row.is-present { opacity: 0.72; }
   .vc-infer-row-main { min-width: 0; }
   .vc-infer-path {
-    color: #e2e8f0;
+    color: var(--color-text);
     font-family: var(--font-mono, ui-monospace, monospace);
     word-break: break-all;
   }
@@ -241,9 +241,9 @@
     align-items: center;
     gap: 6px;
     padding: 5px;
-    border: 1px solid rgba(71,85,105,0.72);
+    border: 1px solid var(--color-border);
     border-radius: 8px;
-    background: rgba(2,6,23,0.72);
+    background: var(--color-surface-elevated);
     backdrop-filter: blur(10px);
   }
   .vc-graph-btn {
@@ -251,22 +251,22 @@
     min-width: 28px;
     padding: 0 8px;
     border-radius: 6px;
-    border: 1px solid rgba(56,189,248,0.2);
-    background: rgba(8,47,73,0.35);
-    color: var(--color-accent-hover);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface-input);
+    color: var(--color-text);
     cursor: pointer;
     font-size: 0.68rem;
     font-weight: 700;
   }
-  .vc-graph-btn:hover { background: rgba(14,116,144,0.42); }
+  .vc-graph-btn:hover { background: var(--color-accent-soft); }
   .vc-graph-btn-arrange {
-    border-color: rgba(52,211,153,0.24);
-    background: rgba(6,95,70,0.34);
-    color: #bbf7d0;
+    border-color: var(--color-success);
+    background: var(--color-success-soft);
+    color: var(--color-text);
   }
   .vc-graph-btn-arrange:hover {
-    background: rgba(5,150,105,0.42);
-    border-color: rgba(52,211,153,0.46);
+    background: var(--color-success-soft);
+    border-color: var(--color-success);
   }
   .vc-graph-hint {
     color: var(--color-text-muted);
@@ -354,9 +354,9 @@
     position: absolute;
     width: 280px;
     z-index: 1;
-    border: 1px solid rgba(71,85,105,0.9);
+    border: 1px solid var(--color-border);
     border-radius: 8px;
-    background: rgba(15,23,42,0.92);
+    background: var(--color-surface-elevated);
     box-shadow: 0 12px 28px rgba(0,0,0,0.24), inset 0 1px 0 rgba(255,255,255,0.05);
     overflow: hidden;
     cursor: default;
@@ -399,8 +399,8 @@
     gap: 8px;
     min-height: 32px;
     padding: 7px 10px;
-    background: linear-gradient(90deg, rgba(30,41,59,0.98), rgba(51,65,85,0.82));
-    border-bottom: 1px solid rgba(71,85,105,0.75);
+    background: var(--color-surface-inset);
+    border-bottom: 1px solid var(--color-border);
     cursor: move;
   }
   .vc-node-title {
@@ -421,8 +421,8 @@
   }
   .vc-node-code-panel {
     padding: 8px 10px 10px;
-    border-top: 1px solid rgba(71,85,105,0.4);
-    background: rgba(2,6,23,0.18);
+    border-top: 1px solid var(--color-border);
+    background: var(--color-surface);
   }
   .vc-node-code-toggle {
     display: inline-flex;
@@ -431,17 +431,17 @@
     height: 22px;
     padding: 0 8px;
     border-radius: 5px;
-    border: 1px solid rgba(56,189,248,0.2);
-    background: rgba(8,47,73,0.32);
-    color: var(--color-accent-hover);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface-input);
+    color: var(--color-text);
     cursor: pointer;
     font-family: inherit;
-    font-size: 0.58rem;
+    font-size: 0.72rem;
     font-weight: 800;
   }
   .vc-node-code-toggle:hover {
-    background: rgba(14,116,144,0.4);
-    border-color: rgba(56,189,248,0.46);
+    background: var(--color-accent-soft);
+    border-color: var(--color-accent-border);
   }
   .vc-node-code-body {
     display: none;
@@ -456,11 +456,11 @@
     resize: vertical;
     padding: 7px;
     border-radius: 6px;
-    border: 1px solid rgba(71,85,105,0.74);
-    background: rgba(2,6,23,0.72);
-    color: var(--color-text-secondary);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface-input);
+    color: var(--color-text);
     font-family: 'JetBrains Mono','Fira Code','Consolas',monospace;
-    font-size: 0.56rem;
+    font-size: 0.8rem;
     line-height: 1.45;
   }
   .vc-node-code-hint {
@@ -605,7 +605,7 @@
   .vc-check-badge {
     font-size: 0.56rem; padding: 1px 6px; border-radius: 99px;
     background: rgba(139,92,246,0.1); color: var(--color-accent-hover);
-    border: 1px solid rgba(139,92,246,0.2);
+    border: 1px solid var(--color-border);
   }
 
   .vc-variable-preview {
@@ -789,21 +789,21 @@
 
   .vc-detail-block {
     border: 1px solid var(--color-surface); border-radius: 6px;
-    background: rgba(2,6,23,0.4); overflow: hidden;
+    background: var(--color-surface-inset); overflow: hidden;
   }
   .vc-detail-head {
     display: flex; align-items: center; gap: 8px;
-    padding: 8px 10px; background: rgba(15,23,42,0.6);
+    padding: 8px 10px; background: var(--color-surface-elevated);
     border-bottom: 1px solid var(--color-surface); flex-wrap: wrap;
   }
   .vc-detail-head strong { font-size: 0.72rem; color: var(--color-text-secondary); }
   .vc-badge {
     font-size: 0.54rem; padding: 1px 6px; border-radius: 99px; font-weight: 700; display: inline-block;
   }
-  .vc-badge.script { background: rgba(245,158,11,0.12); color: var(--color-warning); border: 1px solid rgba(245,158,11,0.25); }
-  .vc-badge.wb-off { background: rgba(239,68,68,0.1);   color: var(--color-danger); border: 1px solid rgba(239,68,68,0.2); }
-  .vc-badge.wb-on  { background: rgba(56,189,248,0.1);  color: var(--color-accent-hover);  border: 1px solid rgba(56,189,248,0.2); }
-  .vc-badge.regex  { background: rgba(244,114,182,0.1); color: #f9a8d4; border: 1px solid rgba(244,114,182,0.2); }
+  .vc-badge.script { background: var(--color-warning-soft); color: var(--color-text); border: 1px solid var(--color-warning-border); }
+  .vc-badge.wb-off { background: var(--color-danger-soft); color: var(--color-danger); border: 1px solid var(--color-danger-fill-border); }
+  .vc-badge.wb-on  { background: var(--color-accent-soft); color: var(--color-text); border: 1px solid var(--color-accent-border); }
+  .vc-badge.regex  { background: var(--color-chip-bg); color: var(--color-text); border: 1px solid var(--color-chip-border); }
 
   .vc-copy-btn {
     margin-left: auto; font-size: 0.66rem; padding: 2px 8px;
@@ -811,7 +811,7 @@
     background: var(--color-accent-soft); color: var(--color-accent-hover);
     cursor: pointer; transition: all 0.2s; font-family: inherit;
   }
-  .vc-copy-btn:hover { background: rgba(139,92,246,0.18); border-color: rgba(139,92,246,0.4); }
+  .vc-copy-btn:hover { background: var(--color-accent-soft-hover); border-color: var(--color-accent-border); color: var(--color-text); }
 
   .vc-pre {
     margin: 0; padding: 10px; overflow-x: auto;
@@ -827,19 +827,19 @@
   }
   .vc-summary { font-size: 0.7rem; color: var(--color-text-muted); flex: 1; min-width: 0; line-height: 1.5; word-break: break-word; }
   .vc-export-btn {
-    background: rgba(56,189,248,0.08) !important; color: var(--color-accent-hover) !important;
-    border: 1px solid rgba(56,189,248,0.2) !important;
+    background: var(--color-accent-soft) !important; color: var(--color-text) !important;
+    border: 1px solid var(--color-accent-border) !important;
     font-weight: 600; padding: 7px 14px !important; font-size: 0.72rem !important;
     border-radius: 7px; cursor: pointer; transition: all 0.2s;
   }
-  .vc-export-btn:hover { background: rgba(56,189,248,0.18) !important; border-color: rgba(56,189,248,0.45) !important; }
+  .vc-export-btn:hover { background: var(--color-accent-soft-hover) !important; border-color: var(--color-accent) !important; }
   .vc-clear-btn {
-    background: rgba(239,68,68,0.08) !important; color: var(--color-danger) !important;
-    border: 1px solid rgba(239,68,68,0.22) !important;
+    background: var(--color-danger-soft) !important; color: var(--color-danger) !important;
+    border: 1px solid var(--color-danger-fill-border) !important;
     font-weight: 600; padding: 7px 14px !important; font-size: 0.72rem !important;
     border-radius: 7px; cursor: pointer; transition: all 0.2s;
   }
-  .vc-clear-btn:hover { background: rgba(239,68,68,0.16) !important; border-color: rgba(239,68,68,0.45) !important; }
+  .vc-clear-btn:hover { background: var(--color-danger-fill) !important; color: var(--color-on-accent) !important; border-color: var(--color-danger-fill) !important; }
   .vc-delete-btn {
     flex-shrink: 0;
   }

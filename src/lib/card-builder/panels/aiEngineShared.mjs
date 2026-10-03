@@ -18,8 +18,6 @@ import {
   ENGINE_GEN_MODE_SKELETON,
   normalizeEngineGenMode,
   clampSlotCount,
-  buildScaledQuota,
-  formatQuotaForPrompt,
   normalizeOutlineSlots,
   slotToWorldbookEntry,
   formatOutlineRef,
@@ -28,6 +26,7 @@ import {
   OUTLINE_TYPE_LABELS,
 } from '../enginePipeline.mjs';
 import { entryExportComment } from '../../worldbook/worldbookEntryBridge.mjs';
+import { formatAdultModeLine } from '../../assistant/generationContext.mjs';
 
 const AI_KEY = 'st_v3_builder_ai_config';
 const PENDING_OUTLINE_KEY = 'st_v3_ai_pending_outline';
@@ -63,7 +62,7 @@ export function createAiEngineShared(ctx) {
     if (hint) {
       hint.textContent = mode === ENGINE_GEN_MODE_SKELETON
         ? '仅骨架：快速产出短条目，需稍后用「AI重写」展开。'
-        : '完整生成：先出分类型大纲，再自动逐条写满（可勾选大纲后暂停）。';
+        : '完整生成：先按方向列大纲，再逐条写满。条数不是类型配额。可在大纲后暂停。';
     }
     if (btn) {
       btn.textContent = mode === ENGINE_GEN_MODE_SKELETON
@@ -80,14 +79,19 @@ export function createAiEngineShared(ctx) {
     var adultHints = (typeof window.__buildAdultPromptHints__ === 'function')
       ? (window.__buildAdultPromptHints__() || {})
       : { nsfw: buildNsfwFlavorHint(), ntl: buildNtlHintForPrompt(), vessel: '', canon: buildAdultCanonHint() };
+    if (!adultHints.gate) {
+      var cfg = (typeof window.__getNsfwConfig__ === 'function') ? (window.__getNsfwConfig__() || {}) : {};
+      adultHints = Object.assign({ gate: formatAdultModeLine(!!cfg.enabled, !!cfg.ntlEnabled) }, adultHints);
+    }
     // 人物/物品/能力更需要成人与载体；规则地点少灌
+    var gate = adultHints.gate || '';
     if (type === 'person' || type === 'item' || type === 'ability') {
-      return (adultHints.nsfw || '') + (adultHints.ntl || '') + (adultHints.vessel || '') + (adultHints.canon || '');
+      return gate + (adultHints.nsfw || '') + (adultHints.ntl || '') + (adultHints.vessel || '') + (adultHints.canon || '');
     }
     if (type === 'faction' || type === 'location' || type === 'event') {
-      return (adultHints.vessel || '') + (adultHints.canon || '');
+      return gate + (adultHints.vessel || '') + (adultHints.canon || '');
     }
-    return adultHints.canon || '';
+    return gate + (adultHints.canon || '');
   }
 
   function buildNsfwFlavorHint() {

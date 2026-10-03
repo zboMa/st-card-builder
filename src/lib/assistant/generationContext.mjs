@@ -54,6 +54,192 @@ function longProseMessage(toolName) {
   return '这是长正文，不要写进 ' + toolName + ' 的参数。请改用生成工具，并在 instruction 里写清这次的生成提示：角色字段用 expand_character_field，开场白用 rewrite_greeting 或 expand_greeting，世界书用 generate_worldbook_entry、expand_worldbook_entry 或 rewrite_worldbook_entry。';
 }
 
+/** 执行器拦住的长文错误。这类失败应回到规划改调用，而不是结束本轮。 */
+export function isLongFormGuardError(text) {
+  var s = String(text || '');
+  return s.indexOf('这是长正文') >= 0
+    || s.indexOf('长文要逐篇生成') >= 0
+    || s.indexOf('instruction 必须写清') >= 0;
+}
+
+function directionFromDraft(text, extra) {
+  var body = String(text || '').trim();
+  if (body.length > 1500) body = body.slice(0, 1500);
+  var instruction = '按本轮已经确认的设定写这一篇。下面只是方向，不要原样存成正文：\n'
+    + (extra ? String(extra).trim() + '\n' : '')
+    + body;
+  if (instruction.trim().length < MIN_GENERATION_INSTRUCTION) {
+    instruction += '\n写清和已有人物、地点、物品的关系，保留已经确认的事实，不要另起一套互不认识的名字。';
+  }
+  return instruction;
+}
+
+var LONG_CHARACTER_FIELDS = {
+  charDesc: true,
+  creatorNotes: true,
+  firstMes: true,
+  post_history_instructions: true,
+  postHistoryInstructions: true,
+};
+
+function characterLongPlan(item) {
+  if (item.kind === 'alt') {
+    return {
+      tool: 'rewrite_greeting',
+      args: {
+        target: { alternate: item.index },
+        mode: 'rewrite',
+        instruction: directionFromDraft(item.text, '这一篇是备选开场白第 ' + (item.index + 1) + ' 条。'),
+      },
+      label: '备选开场白第 ' + (item.index + 1) + ' 条',
+    };
+  }
+  var key = item.key === 'post_history_instructions' || item.key === 'postHistoryInstructions'
+    ? 'creatorNotes'
+    : item.key;
+  if (key === 'firstMes') {
+    return {
+      tool: 'rewrite_greeting',
+      args: {
+        target: 'main',
+        mode: 'rewrite',
+        instruction: directionFromDraft(item.text, '这一篇是主开场白。'),
+      },
+      label: '主开场白',
+    };
+  }
+  var label = key === 'creatorNotes' ? '作者注释' : '场景契约';
+  return {
+    tool: 'expand_character_field',
+    args: {
+      field: key,
+      mode: 'rewrite',
+      instruction: directionFromDraft(item.text, '这一篇是' + label + '。'),
+    },
+    label: label,
+  };
+}
+
+function collectCharacterLongs(fields) {
+  var shorts = {};
+  var longs = [];
+  var altLong = false;
+  Object.keys(fields || {}).forEach(function(k) {
+    var v = fields[k];
+    if (k === 'altGreetings' && Array.isArray(v)) {
+      v.forEach(function(item, i) {
+        if (tooLong(item)) {
+          altLong = true;
+          longs.push({ kind: 'alt', index: i, text: String(item), order: 30 + i });
+        }
+      });
+      if (!altLong) shorts.altGreetings = v;
+      return;
+    }
+    if (LONG_CHARACTER_FIELDS[k] && tooLong(v)) {
+      var order = k === 'charDesc' ? 0 : (k === 'creatorNotes' || k === 'post_history_instructions' || k === 'postHistoryInstructions' ? 1 : 2);
+      longs.push({ kind: 'field', key: k, text: String(v), order: order });
+      return;
+    }
+    shorts[k] = v;
+  });
+  longs.sort(function(a, b) { return a.order - b.order; });
+  return { shorts: shorts, longs: longs };
+}
+
+function followupFromRest(rest) {
+  if (!rest.length) return '';
+  return '这些还没写，下一篇再各调一次对应的生成工具：' + rest.map(function(item) {
+    return item.label;
+  }).join('、') + '。';
+}
+
+/**
+ * 长正文误走写入工具时，改成对应的生成工具。
+ * 短字段留在 shortCall，由调用方先写入。没有长正文时返回 null。
+ * @returns {null | { tool: string, args: object, shortCall: null | { tool: string, args: object }, followup: string }}
+ */
+export function redirectLongFormCall(toolName, args) {
+  args = args || {};
+  if (toolName === 'update_character_fields') {
+    var split = collectCharacterLongs(args.fields || {});
+    if (!split.longs.length) return null;
+    var first = characterLongPlan(split.longs[0]);
+    var rest = split.longs.slice(1).map(characterLongPlan);
+    var shortKeys = Object.keys(split.shorts);
+    return {
+      tool: first.tool,
+      args: first.args,
+      shortCall: shortKeys.length
+        ? { tool: 'update_character_fields', args: { fields: split.shorts } }
+        : null,
+      followup: followupFromRest(rest),
+    };
+  }
+  if (toolName === 'replace_character_section' && LONG_CHARACTER_FIELDS[args.field] && tooLong(args.content)) {
+    var replaced = characterLongPlan({ kind: 'field', key: args.field, text: String(args.content) });
+    return { tool: replaced.tool, args: replaced.args, shortCall: null, followup: '' };
+  }
+  if (toolName === 'update_alternate_greeting' && tooLong(args.content)) {
+    var alt = characterLongPlan({ kind: 'alt', index: Number(args.index) || 0, text: String(args.content) });
+    return { tool: alt.tool, args: alt.args, shortCall: null, followup: '' };
+  }
+  if (toolName === 'update_worldbook_entry') {
+    var patch = args.patch || {};
+    if (!tooLong(patch.content)) return null;
+    var shortPatch = {};
+    Object.keys(patch).forEach(function(k) {
+      if (k !== 'content') shortPatch[k] = patch[k];
+    });
+    var target = args.target && typeof args.target === 'object' ? args.target : {};
+    if (!args.target || typeof args.target !== 'object') {
+      if (args.index != null) target.index = args.index;
+      if (args.comment) target.comment = args.comment;
+      if (args.id) target.id = args.id;
+      if (args.titleMatch) target.titleMatch = args.titleMatch;
+    }
+    var titleHint = patch.comment || args.comment || (target && target.comment) || '';
+    return {
+      tool: 'rewrite_worldbook_entry',
+      args: {
+        target: target,
+        mode: 'rewrite',
+        instruction: directionFromDraft(patch.content, titleHint ? '这一篇是世界书条目「' + titleHint + '」。' : '这一篇是已有的世界书条目。'),
+      },
+      shortCall: Object.keys(shortPatch).length
+        ? { tool: 'update_worldbook_entry', args: { target: target, patch: shortPatch } }
+        : null,
+      followup: '',
+    };
+  }
+  if (toolName === 'create_worldbook_entry') {
+    var list = Array.isArray(args.entries) ? args.entries.slice() : [];
+    if (args.entry && typeof args.entry === 'object') list.push(args.entry);
+    if (args.content) list.push(args);
+    var longEntries = [];
+    for (var e = 0; e < list.length; e++) {
+      if (tooLong(entryContentOf(list[e]))) longEntries.push(list[e]);
+    }
+    if (!longEntries.length) return null;
+    var entry = longEntries[0] || {};
+    var title = String(entry.comment || entry.displayName || entry.name || '').trim();
+    var keys = Array.isArray(entry.keys) ? entry.keys.map(function(k) { return String(k || '').trim(); }).filter(Boolean) : [];
+    var extra = '这一篇是新的世界书条目'
+      + (title ? '，标题用「' + title + '」' : '')
+      + (keys.length ? '，触发词：' + keys.join('、') : '')
+      + '。';
+    return {
+      tool: 'generate_worldbook_entry',
+      args: { instruction: directionFromDraft(entryContentOf(entry), extra) },
+      shortCall: null,
+      followup: longEntries.length > 1
+        ? '还有 ' + (longEntries.length - 1) + ' 条长正文没写，下一篇再各调一次 generate_worldbook_entry。'
+        : '',
+    };
+  }
+  return null;
+}
+
 function entryContentOf(entry) {
   if (!entry || typeof entry !== 'object') return '';
   if (entry.content != null) return String(entry.content);
@@ -214,12 +400,18 @@ export function formatRelationBlock(entries, focusText) {
   return rel.indexText + (rel.relatedText ? '\n' + rel.relatedText : '') + '\n' + rel.rule;
 }
 
+/** 当前卡的成人开关。写进世界与限定，供人物条决定要不要写「情欲」一节。 */
+export function formatAdultModeLine(nsfwOn, ntlOn) {
+  return '【当前开关】AdultMode=' + (nsfwOn ? 'true' : 'false')
+    + '；NtlMode=' + (ntlOn ? 'true' : 'false') + '。';
+}
+
 export function buildWorldConstraintBlock(worldviewHint, adultHints) {
   var parts = [];
   var wv = String(worldviewHint || '').trim();
   if (wv) parts.push(wv);
   var hints = adultHints || {};
-  ['nsfw', 'posture', 'speech', 'ntl', 'canon', 'vessel'].forEach(function(k) {
+  ['gate', 'nsfw', 'posture', 'speech', 'ntl', 'canon', 'vessel'].forEach(function(k) {
     var block = String(hints[k] || '').trim();
     if (block) parts.push(block);
   });

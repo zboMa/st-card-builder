@@ -11,7 +11,7 @@ import {
 import { resolveWorldbookIndex, normalizeTarget } from './executorResolve.mjs';
 import { fromAiJsonEntry, toAiJsonEntry, entryExportComment } from '../worldbook/worldbookEntryBridge.mjs';
 import { getDefaultWBEntry } from '../card-builder/state.mjs';
-import { longFormToolError } from './generationContext.mjs';
+import { longFormToolError, redirectLongFormCall } from './generationContext.mjs';
 
 export function createExecutorExecute(bridge, snaps, helpers) {
   var ok = helpers.ok;
@@ -673,16 +673,39 @@ export function createExecutorExecute(bridge, snaps, helpers) {
   /**
    * 入口：分级后返回 applied / pending_confirm / result
    */
+  function withFollowup(result, followup) {
+    if (!followup || !result || !result.ok) return result;
+    var data = result.data && typeof result.data === 'object' && !Array.isArray(result.data)
+      ? Object.assign({}, result.data)
+      : { value: result.data };
+    data.followup = followup;
+    return Object.assign({}, result, { data: data });
+  }
+
   async function invoke(toolName, args, options) {
     var opts = options || {};
+    var redirected = redirectLongFormCall(toolName, args);
+    var followup = '';
+    if (redirected) {
+      if (redirected.shortCall) {
+        var shortResult = await executeConfirmed(redirected.shortCall.tool, redirected.shortCall.args);
+        if (!shortResult.ok) {
+          return Object.assign({}, shortResult, { risk: 'auto', applied: false, preview: '' });
+        }
+      }
+      followup = redirected.followup || '';
+      toolName = redirected.tool;
+      args = redirected.args;
+    }
     var meta = getToolByName(toolName);
     if (!meta) return fail('未注册工具: ' + toolName);
 
     var risk = classifyToolRisk(toolName, args);
     var preview = buildChangePreview(toolName, args);
+    if (followup) preview += '\n随后：' + followup;
 
     if (risk === 'none' || risk === 'auto' || opts.forceApply) {
-      var result = await executeConfirmed(toolName, args);
+      var result = withFollowup(await executeConfirmed(toolName, args), followup);
       return Object.assign({}, result, {
         risk: risk,
         applied: !!result.ok && risk !== 'none',
@@ -697,6 +720,7 @@ export function createExecutorExecute(bridge, snaps, helpers) {
       tool: toolName,
       args: args || {},
       preview: preview,
+      followup: followup,
       message: '此操作为大改，需用户确认后再应用。',
     };
   }

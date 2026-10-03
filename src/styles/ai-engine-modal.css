@@ -114,11 +114,10 @@
   }
   .ai-engine-field-hint--tight { margin: 0; }
   .ai-engine-skeleton-box {
-    background: rgba(16, 185, 129, 0.05);
-    border: 1px dashed rgba(16, 185, 129, 0.28);
+    background: var(--color-success-soft);
+    border: 1px dashed var(--color-success);
     border-radius: 8px;
     padding: 8px 10px;
-    border-bottom: 1px dashed rgba(16, 185, 129, 0.28);
   }
   .ai-engine-mode-row {
     display: flex;
@@ -128,12 +127,6 @@
   }
   .ai-engine-mode-row select {
     width: 100%;
-    padding: 4px 8px;
-    border-radius: 6px;
-    border: 1px solid rgba(16, 185, 129, 0.35);
-    background: var(--color-surface, #0f1419);
-    color: var(--color-text);
-    font-size: 0.78rem;
   }
   .ai-engine-pause-row {
     display: flex;
@@ -158,13 +151,13 @@
     flex-shrink: 0;
   }
   .ai-engine-skeleton-count input[type="number"] {
-    width: 44px;
+    width: 4.5rem;
     text-align: center;
-    padding: 3px 4px;
-    font-size: 0.8rem;
     font-weight: 600;
-    border-radius: 6px;
-    border: 1px solid rgba(16, 185, 129, 0.3);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface-input);
+    color: var(--color-text);
   }
   .ai-engine-skeleton-pills {
     display: flex;
@@ -194,34 +187,13 @@
     display: none !important;
   }
 
-  .ai-engine-modal__body textarea,
-  .ai-engine-modal__body input[type="number"] {
-    color: var(--color-text);
-    background-color: var(--color-surface-elevated);
-    border-color: var(--color-border);
-  }
-  .ai-engine-modal__body textarea {
-    min-height: 0;
-    font-size: 0.78rem;
-    padding: 6px 8px;
-    border-radius: 6px;
-  }
-  .ai-engine-modal__body textarea::placeholder {
-    color: var(--color-text-muted);
-    opacity: 1;
-  }
-  .ai-engine-modal__body textarea:focus,
-  .ai-engine-modal__body input[type="number"]:focus {
-    background-color: oklch(28% 0.024 288);
-  }
-
   #hackerOverlay {
     position: relative;
     margin-top: 10px;
     border-radius: 8px;
     overflow: hidden;
     border: 1px solid var(--color-accent-border);
-    background: #050510;
+    background: var(--color-surface-inset);
     min-height: 140px;
   }
   #hackerCanvas {
@@ -252,7 +224,7 @@
     font-size: 0.88rem;
     font-weight: 700;
     color: var(--color-accent-hover);
-    text-shadow: 0 0 20px rgba(139, 92, 246, 0.5);
+    text-shadow: 0 0 20px var(--color-accent-glow);
     text-align: center;
     animation: hackerGlow 1.5s ease-in-out infinite;
   }
@@ -274,7 +246,7 @@
     background: var(--color-accent-strong);
     border-radius: 99px;
     transition: width 0.4s ease;
-    box-shadow: 0 0 12px rgba(139, 92, 246, 0.5);
+    box-shadow: 0 0 12px var(--color-accent-glow);
   }
   #hackerDetail {
     font-size: 0.68rem;
@@ -284,15 +256,15 @@
     min-height: 1.2em;
   }
   @keyframes hackerGlow {
-    0%, 100% { text-shadow: 0 0 20px rgba(139, 92, 246, 0.5); }
-    50% { text-shadow: 0 0 40px rgba(139, 92, 246, 0.8), 0 0 80px var(--color-accent-border); }
+    0%, 100% { text-shadow: 0 0 20px var(--color-accent-glow); }
+    50% { text-shadow: 0 0 40px var(--color-accent-glow), 0 0 80px var(--color-accent-border); }
   }
   #hackerOverlay::after {
     content: '';
     position: absolute;
     top: 0; left: 0; right: 0;
     height: 2px;
-    background: linear-gradient(90deg, transparent, rgba(139, 92, 246, 0.5), transparent);
+    background: linear-gradient(90deg, transparent, var(--color-accent-glow), transparent);
     animation: hackerScan 2s linear infinite;
     pointer-events: none;
     z-index: 3;

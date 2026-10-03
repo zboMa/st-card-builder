@@ -43,7 +43,7 @@ body.admin-locked .admin-app {
   margin: 0;
   padding: 10px 16px;
   border-bottom: 1px solid var(--color-border-subtle);
-  background: var(--color-bg);
+  background: var(--color-surface);
   flex: 0 0 auto;
 }
 
@@ -184,12 +184,12 @@ body.admin-locked .admin-app {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: oklch(0% 0 0 / 0.45);
+  background: var(--color-scrim);
 }
 
 .admin-dialog form {
   width: min(420px, calc(100% - 32px));
-  background: var(--color-surface, var(--color-bg));
+  background: var(--color-surface);
   border-radius: 12px;
   padding: 16px;
   display: flex;

@@ -3,21 +3,23 @@
  */
 
 export var STORAGE_KEY = 'st_v3_app_theme';
-export var DEFAULT_THEME_ID = 'nocturne';
+export var DEFAULT_THEME_ID = 'warm-paper';
 
 /** v1 → v2 迁移 */
 export var LEGACY_THEME_MAP = Object.freeze({
   ink: 'sumi-ink',
   frost: 'frost-shard',
-  jade: 'bamboo-edge',
+  jade: 'nocturne',
   rose: 'nocturne',
   neon: 'nocturne',
   slate: 'nocturne',
   daybreak: 'nocturne',
+  'bamboo-edge': 'nocturne',
+  'fresh-lime': 'nocturne',
 });
 
 /**
- * @typedef {'none'|'sumi-ink'|'frost-shard'|'ember-blaze'|'bamboo-edge'|'water-wave'|'fresh-lime'|'cloud-pavilion'|'morning-drizzle'|'doom-carrion'|'moon-haze'} SceneId
+ * @typedef {'none'|'sumi-ink'|'frost-shard'|'ember-blaze'|'water-wave'|'cloud-pavilion'|'morning-drizzle'|'doom-carrion'|'moon-haze'|'journal'} SceneId
  */
 
 /** @type {readonly { id: string, label: string, tagline: string, blurb: string, previewClass: string, scene: SceneId, mode: 'dark'|'light', themeColor: string }[]} */
@@ -25,12 +27,32 @@ export var APP_THEMES = Object.freeze([
   {
     id: 'nocturne',
     label: '夜庭',
-    tagline: '默认',
+    tagline: '深色',
     blurb: '雾紫玻璃 · 制卡器原生',
     previewClass: 'theme-preview--nocturne',
     scene: 'none',
     mode: 'dark',
     themeColor: '#1e1c24',
+  },
+  {
+    id: 'warm-paper',
+    label: '暖纸',
+    tagline: '默认',
+    blurb: '午后窗光 · 米杏纸 · 赤陶',
+    previewClass: 'theme-preview--warm-paper',
+    scene: 'none',
+    mode: 'light',
+    themeColor: '#f6efe4',
+  },
+  {
+    id: 'journal',
+    label: '手账',
+    tagline: '亮色',
+    blurb: '点阵纸 · 红线 · 印章朱',
+    previewClass: 'theme-preview--journal',
+    scene: 'journal',
+    mode: 'light',
+    themeColor: '#f3ead4',
   },
   {
     id: 'sumi-ink',
@@ -63,16 +85,6 @@ export var APP_THEMES = Object.freeze([
     themeColor: '#1a1210',
   },
   {
-    id: 'bamboo-edge',
-    label: '翠竹风刀',
-    tagline: '精品',
-    blurb: '竹影风纹 · 剑意翠青',
-    previewClass: 'theme-preview--bamboo-edge',
-    scene: 'bamboo-edge',
-    mode: 'dark',
-    themeColor: '#101a14',
-  },
-  {
     id: 'water-wave',
     label: '水浪',
     tagline: '精品',
@@ -81,16 +93,6 @@ export var APP_THEMES = Object.freeze([
     scene: 'water-wave',
     mode: 'dark',
     themeColor: '#0c1820',
-  },
-  {
-    id: 'fresh-lime',
-    label: '鲜果青柠',
-    tagline: '精品',
-    blurb: '青柠切片 · 果香跃动',
-    previewClass: 'theme-preview--fresh-lime',
-    scene: 'fresh-lime',
-    mode: 'dark',
-    themeColor: '#121a10',
   },
   {
     id: 'cloud-pavilion',
@@ -106,7 +108,7 @@ export var APP_THEMES = Object.freeze([
     id: 'morning-drizzle',
     label: '清晨细雨',
     tagline: '精品',
-    blurb: '密雨丝落 · 晓色微蓝',
+    blurb: '窗上水珠 · 晓色微蓝',
     previewClass: 'theme-preview--morning-drizzle',
     scene: 'morning-drizzle',
     mode: 'dark',

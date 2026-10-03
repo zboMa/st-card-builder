@@ -14,9 +14,7 @@ var LOADERS = {
   'sumi-ink': function() { return import('./sumiInk.mjs'); },
   'frost-shard': function() { return import('./frostShard.mjs'); },
   'ember-blaze': function() { return import('./emberBlaze.mjs'); },
-  'bamboo-edge': function() { return import('./bambooEdge.mjs'); },
   'water-wave': function() { return import('./waterWave.mjs'); },
-  'fresh-lime': function() { return import('./freshLime.mjs'); },
   'cloud-pavilion': function() { return import('./cloudPavilion.mjs'); },
   'morning-drizzle': function() { return import('./morningDrizzle.mjs'); },
   'doom-carrion': function() { return import('./doomCarrion.mjs'); },
@@ -119,7 +117,8 @@ async function syncModule() {
 
   var tier = getEffectiveTier();
   var scene = document.documentElement.getAttribute('data-app-scene') || 'none';
-  if (tier !== 'immersive' || !scene || scene === 'none') {
+  var glassStill = scene === 'morning-drizzle' && tier === 'scene';
+  if ((!glassStill && tier !== 'immersive') || !scene || scene === 'none') {
     setCanvasVisible(false);
     return;
   }
@@ -138,7 +137,11 @@ async function syncModule() {
     canvasAmbient: canvasAmbient,
   });
   resize();
-  if (mod.mount) mod.mount();
+  if (mod.mount) mod.mount(glassStill ? { animate: false } : undefined);
+  if (glassStill) {
+    setCanvasVisible(false);
+    return;
+  }
   setCanvasVisible(true);
   startLoop();
   if (mod.playIntro) mod.playIntro();

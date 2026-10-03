@@ -10,6 +10,9 @@ import {
   tagsFromImportJson,
 } from '../state.mjs';
 import { fromStImportEntry } from '../../worldbook/worldbookEntryBridge.mjs';
+import { resolveEntryPosition } from '../../worldbook/entryPosition.mjs';
+import { suggestContractLift } from '../worldbookAdmissionAudit.mjs';
+import { showConfirmDialog } from '../../ui/confirmDialog.mjs';
 import { applyGreetingTexts } from '../../mvu/greetingInit.mjs';
 import { crc32, createTextChunk, embedTextChunkIntoPng } from '../../utils.mjs';
 import { dataUrlToPngDataUrl } from '../../avatarIdb.mjs';
@@ -212,7 +215,8 @@ export function registerExport(ctx) {
           strategy: e.constant
             ? 'constant'
             : (e.extensions && e.extensions.vectorized ? 'vectorized' : 'selective'),
-          position: (e.extensions && e.extensions.position !== undefined) ? e.extensions.position : 4,
+          position: resolveEntryPosition(e),
+          extensions: e.extensions,
           depth: (e.extensions && e.extensions.depth !== undefined) ? e.extensions.depth : 4,
           role: (e.extensions && e.extensions.role !== undefined) ? e.extensions.role : 0,
           order: e.insertion_order || 100,
@@ -265,6 +269,27 @@ export function registerExport(ctx) {
     var adultSnap = ctx.state.cardBuilderExtensions && ctx.state.cardBuilderExtensions['st-builder.adultConfig'];
     if (adultSnap && typeof window.__setNsfwConfig__ === 'function') {
       try { window.__setNsfwConfig__(adultSnap); } catch (e) { /* 忽略：面板未就绪时下次水合 */ }
+    }
+
+    var lift = suggestContractLift({
+      description: ctx.state.charDesc || (charDesc && charDesc.value) || '',
+      systemPrompt: json.data.system_prompt || '',
+      entries: ctx.state.worldbookEntries,
+    });
+    if (lift && !opts.skipContractLift) {
+      showConfirmDialog({
+        title: '把契约放到描述？',
+        message: 'Description 是空的。可以从「' + lift.name + '」复制一段到描述，作为总在场的契约。原条目保留，取消则保持描述为空。',
+        okText: '放到描述',
+        cancelText: '保持原样',
+        danger: false,
+      }).then(function(ok) {
+        if (!ok) return;
+        ctx.state.charDesc = lift.text;
+        if (charDesc) charDesc.value = lift.text;
+        if (ctx.save) ctx.save();
+        window.dispatchEvent(new CustomEvent('card-builder-data-changed'));
+      });
     }
 
     if (ctx.panels.cardManager && ctx.panels.cardManager.saveCurrentDraft) {

@@ -2,6 +2,7 @@
 
 > **状态：M1+M2 已实施**（tier 基建 + 水墨 L2/L3 标杆）。**M3–M5 未实施，不是契约。**  
 > 已实施部分以 [`design-system.md`](./design-system.md) 与 `src/lib/theme/` 为准。v2 规划在 [`../archive/theme-scenes-v2.md`](../archive/theme-scenes-v2.md)，不是现行依据。  
+> 翠竹 `bamboo-edge`、鲜果 `fresh-lime` 已从主题馆移除，这些旧 id 打开后仍回到夜庭。未保存过主题时默认是暖纸 `warm-paper`（无场景层）；手账 `journal` 是另一套亮色（点阵纸）。细雨是窗玻璃水珠，不是斜线底图。  
 > 关联：[`design-system.md`](./design-system.md) · `src/lib/theme/` · `src/styles/theme/`
 
 ---
@@ -118,7 +119,7 @@ L0  none     ─  夜庭 nocturne（无 scene 层，保留现有雾紫粒子可�
 | 面板 | inner warm highlight；活跃侧栏项背后余烬光斑 |
 | 禁止 | 冷蓝冰裂、水墨山形 |
 
-### 3.5 翠竹风刀 · `bamboo-edge`
+### 3.5 翠竹风刀 · `bamboo-edge`（已移除，不再进主题馆）
 
 | 项 | 内容 |
 |---|---|

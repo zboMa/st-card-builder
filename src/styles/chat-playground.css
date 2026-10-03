@@ -72,7 +72,7 @@
   .chat-config-drawer__backdrop {
     position: absolute;
     inset: 0;
-    background: rgba(8, 10, 18, 0.45);
+    background: var(--color-scrim);
     opacity: 0;
     transition: opacity 0.22s ease;
   }
@@ -183,7 +183,7 @@
   .setting-divider {
     width: 100%;
     height: 1px;
-    background: var(--color-accent-soft);
+    background: var(--color-border-subtle);
     align-self: stretch;
     flex-shrink: 0;
   }

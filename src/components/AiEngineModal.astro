@@ -55,10 +55,10 @@
           <input type="checkbox" id="aiEnginePauseAfterOutline" />
           <span>大纲完成后暂停（再点「继续丰满」）</span>
         </label>
-        <div class="ai-engine-wb-count-row" role="group" aria-label="世界书条数">
-          <span class="ai-engine-field-hint ai-engine-field-hint--tight">世界书条数</span>
+        <div class="ai-engine-wb-count-row" role="group" aria-label="这一次草稿条数">
+          <span class="ai-engine-field-hint ai-engine-field-hint--tight">这一次草稿条数</span>
           <div class="ai-engine-skeleton-count">
-            <input type="number" id="wbSkeletonCount" value="10" min="1" max="30" aria-label="世界书条数" />
+            <input type="number" id="wbSkeletonCount" value="10" min="1" max="30" aria-label="这一次草稿条数" />
             <span class="ai-engine-field-hint">条</span>
           </div>
           <div class="ai-engine-skeleton-pills">
@@ -69,6 +69,7 @@
             <button type="button" class="ui-pill-btn wb-count-btn" data-count="20">20</button>
           </div>
         </div>
+        <p class="ai-engine-field-hint ai-engine-field-hint--tight">只决定这一次草稿写几条，不是每种必须有一条，也不是整库容量。</p>
       </div>
 
       <div class="ai-engine-actions">
@@ -91,6 +92,7 @@
 </div>
 
 <style is:global>
+  /* 字段走壳层，颜色只读主题变量 */
   @import '../styles/ai-engine-modal.css';
 </style>
 

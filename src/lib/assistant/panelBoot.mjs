@@ -1990,7 +1990,12 @@ export function initAssistantPanelMain() {
       }
       if (result && result.pendingConfirm) {
         if (runningIndex >= 0) removeUiAt(runningIndex);
-        showPending({ tool: toolName, args: effectiveArgs, preview: result.preview });
+        showPending({
+          tool: result.tool || toolName,
+          args: result.args || effectiveArgs,
+          preview: result.preview,
+          followup: result.followup || '',
+        });
         return result;
       }
       var done = buildToolUiMessage(toolName, displayArgs, result);
@@ -2519,7 +2524,7 @@ export function initAssistantPanelMain() {
         pushUi({ role: 'assistant', content: '已停止。' });
         return;
       }
-      var outcome = planApplyOutcome({ threw: !!threw, ok: !!(r && r.ok) });
+      var outcome = planApplyOutcome({ threw: !!threw, ok: !!(r && r.ok), error: r && r.error });
       if (outcome === 'reopen') {
         var throwMsg = threw && threw.message ? threw.message : String(threw || '应用未完成');
         pushUi({
@@ -2541,6 +2546,30 @@ export function initAssistantPanelMain() {
         });
         releaseConfirmWait({ failMessage: errText });
         return;
+      }
+      if (r && !r.ok) {
+        reactResume = null;
+        if (resume) {
+          setStatus('正在思考…');
+          setPendingHint('正在继续…');
+          resume();
+        } else {
+          clearPendingHint();
+          busy = false;
+          syncActionBtn();
+          setStatus('');
+        }
+        return;
+      }
+      if (p.followup) {
+        var lastTool = uiMessages[uiMessages.length - 1];
+        if (lastTool && lastTool.role === 'tool') {
+          var followLine = '\nfollowup: ' + p.followup;
+          lastTool.detail = String(lastTool.detail || '') + followLine;
+          lastTool.modelDetail = String(lastTool.modelDetail || '') + followLine;
+          sessionStore.setMessages(uiMessages);
+          renderMessages();
+        }
       }
       reactResume = null;
       if (resume) {

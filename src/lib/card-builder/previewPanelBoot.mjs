@@ -37,7 +37,7 @@ export function initPreviewPanel() {
 
       '.inline-edit-input { background: rgba(245, 158, 11, 0.08) !important; border: 1px solid rgba(245, 158, 11, 0.35) !important; border-radius: 3px !important; color: var(--color-warning) !important; font-family: "JetBrains Mono", "Fira Code", "Courier New", monospace !important; font-size: 0.82rem !important; padding: 0px 3px !important; outline: none !important; min-width: 40px; box-shadow: 0 0 6px rgba(245, 158, 11, 0.15); line-height: 1.7; height: 1.7em; }',
 
-      '.line-num { color: var(--color-surface-elevated); font-size: 0.72rem; min-width: 32px; text-align: right; padding-right: 10px; flex-shrink: 0; user-select: none; font-family: "JetBrains Mono", "Fira Code", "Courier New", monospace; order: -1; }',
+      '.line-num { color: var(--color-text-muted); font-size: 0.72rem; min-width: 32px; text-align: right; padding-right: 10px; flex-shrink: 0; user-select: none; font-family: "JetBrains Mono", "Fira Code", "Courier New", monospace; order: -1; }',
 
       '.fold-btn { width: 14px; height: 14px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.6rem; color: var(--color-text-muted); cursor: pointer; border-radius: 3px; flex-shrink: 0; margin-right: 2px; transition: all 0.15s ease; user-select: none; background: transparent; border: none; padding: 0; font-family: monospace; order: 0; }',
       '.fold-btn:hover { color: var(--color-accent-hover); background: rgba(56, 189, 248, 0.1); }',

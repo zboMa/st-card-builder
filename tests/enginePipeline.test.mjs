@@ -5,15 +5,15 @@ import {
   ENGINE_GEN_MODE_SKELETON,
   normalizeEngineGenMode,
   clampSlotCount,
-  buildScaledQuota,
-  formatQuotaForPrompt,
   normalizeOutlineSlot,
   normalizeOutlineSlots,
   slotToWorldbookEntry,
   formatOutlineRef,
   formatEnrichedEntriesRef,
   isSkeletonEntry,
-  DEFAULT_OUTLINE_QUOTA,
+  snapshotCardDraft,
+  restoreCardDraft,
+  worldbookReplaceNeedsConfirm,
 } from '../src/lib/card-builder/enginePipeline.mjs';
 import { DEFAULT_PROMPTS } from '../src/lib/promptCanon.mjs';
 import { PROMPT_META } from '../src/lib/promptStore.mjs';
@@ -32,28 +32,42 @@ describe('enginePipeline', function() {
     assert.equal(clampSlotCount(99), 30);
   });
 
-  it('buildScaledQuota 总和等于目标条数且覆盖主类型', function() {
-    var q10 = buildScaledQuota(10);
-    var sum10 = Object.keys(q10).reduce(function(s, k) { return s + q10[k]; }, 0);
-    assert.equal(sum10, 10);
-    assert.ok(q10.person >= 1);
-    assert.ok(q10.worldview >= 1);
-    assert.ok(q10.location >= 1);
-
-    var q13 = buildScaledQuota(13);
-    var sum13 = Object.keys(q13).reduce(function(s, k) { return s + q13[k]; }, 0);
-    assert.equal(sum13, 13);
-
-    var baseSum = Object.keys(DEFAULT_OUTLINE_QUOTA).reduce(function(s, k) {
-      return s + DEFAULT_OUTLINE_QUOTA[k];
-    }, 0);
-    assert.equal(baseSum, 13);
+  it('两人加一条禁令不会被补上物品或能力', function() {
+    var slots = normalizeOutlineSlots([
+      { comment: '甲', job: '在场的人', strategy: 'selective', keys: ['甲'] },
+      { comment: '乙', job: '在场的人', strategy: 'selective', keys: ['乙'] },
+      { comment: '不许替用户行动', job: '禁令', strategy: 'constant', keys: [] },
+    ], 10);
+    assert.equal(slots.length, 3);
+    assert.ok(slots.every(function(s) { return s.type !== 'item' && s.type !== 'ability'; }));
+    assert.equal(slots[2].strategy, 'constant');
+    assert.equal(slots[2].keys.length, 0);
+    var ban = slotToWorldbookEntry(slots[2], 100);
+    assert.equal(ban.job, '禁令');
+    assert.equal(ban.position, 0);
+    assert.equal(ban.content, '（待展开）');
+    assert.doesNotMatch(DEFAULT_PROMPTS.wbOutline, /人物×|世界观×|配额/);
+    assert.doesNotMatch(DEFAULT_PROMPTS.greetingGen, /固定 2|altGreetings 固定/);
   });
 
-  it('formatQuotaForPrompt 可读', function() {
-    var text = formatQuotaForPrompt(buildScaledQuota(10));
-    assert.ok(text.indexOf('人物') >= 0);
-    assert.ok(text.indexOf('×') >= 0);
+  it('已有世界书要先确认，失败能写回快照', function() {
+    assert.equal(worldbookReplaceNeedsConfirm([]), false);
+    assert.equal(worldbookReplaceNeedsConfirm([{ content: '旧规则' }]), true);
+    var state = {
+      charName: '旧名',
+      worldbookEntries: [{ content: '旧规则' }],
+      regexScripts: [{ id: 'r1' }],
+      tavernHelperScripts: [{ name: 's1' }],
+    };
+    var snap = snapshotCardDraft(state);
+    state.charName = '新名';
+    state.worldbookEntries = [];
+    state.regexScripts = [];
+    restoreCardDraft(state, snap);
+    assert.equal(state.charName, '旧名');
+    assert.equal(state.worldbookEntries[0].content, '旧规则');
+    assert.equal(state.regexScripts[0].id, 'r1');
+    assert.equal(state.tavernHelperScripts[0].name, 's1');
   });
 
   it('normalizeOutlineSlots 去重并截断', function() {

@@ -16,6 +16,17 @@ export function normalizeTags(input) {
   return out;
 }
 
+function copyOverrideMap(map) {
+  var out = {};
+  if (!map || typeof map !== 'object' || Array.isArray(map)) return out;
+  Object.keys(map).forEach(function(k) {
+    var path = String(k || '').trim();
+    if (!path || map[k] === undefined) return;
+    out[path] = map[k];
+  });
+  return out;
+}
+
 /** @param {object|null|undefined} state */
 export function buildDraftSnapshot(state) {
   var s = state || {};
@@ -32,6 +43,10 @@ export function buildDraftSnapshot(state) {
     cardBuilderExtensions: Object.assign({}, s.cardBuilderExtensions || {}),
     activeAvatarId: String(s.activeAvatarId || '').trim(),
     altGreetings: s.altGreetings || [],
+    greetingInitMain: copyOverrideMap(s.greetingInitMain),
+    greetingInitAlts: Array.isArray(s.greetingInitAlts)
+      ? s.greetingInitAlts.map(function(item) { return copyOverrideMap(item); })
+      : [],
     nsfwEnabled: !!s.nsfwEnabled,
     nsfwFlavor: s.nsfwFlavor || '',
     nsfwFlavorItems: Array.isArray(s.nsfwFlavorItems)

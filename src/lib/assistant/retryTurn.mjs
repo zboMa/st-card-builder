@@ -4,6 +4,7 @@
  * - 最后一条用户消息之后没有工具轨迹：去掉可重试错误，从 step 0 重跑
  * - 已有工具轨迹：保留轨迹与非错误气泡，去掉可重试错误，从工具结果续接
  */
+import { isLongFormGuardError } from './generationContext.mjs';
 
 /**
  * 失败红条是否可重试。
@@ -35,16 +36,17 @@ export function isRetryableAssistantError(msg) {
  */
 /**
  * 确认后点「应用」的收场。
- * resume：应用成功，叫醒规划写下一步。
+ * resume：应用成功，或长文守卫拦住后要规划重选工具。叫醒规划写下一步。
  * reopen：请求没到达，确认卡留着，不叫模型。
  * stop：工具返回业务失败，结束本轮，不叫模型。
- * @param {{ threw?: boolean, ok?: boolean }} outcome
+ * @param {{ threw?: boolean, ok?: boolean, error?: string }} outcome
  * @returns {'resume'|'reopen'|'stop'}
  */
 export function planApplyOutcome(outcome) {
   var o = outcome || {};
   if (o.threw) return 'reopen';
   if (o.ok) return 'resume';
+  if (isLongFormGuardError(o.error)) return 'resume';
   return 'stop';
 }
 

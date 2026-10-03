@@ -28,11 +28,20 @@
     oklch(17% 0.028 35);
 }
 
-.theme-preview--bamboo-edge {
+.theme-preview--warm-paper {
   background:
-    linear-gradient(90deg, transparent 70%, oklch(55% 0.08 155 / 0.45) 70%, oklch(48% 0.06 155 / 0.35) 85%, transparent 100%),
-    repeating-linear-gradient(125deg, oklch(70% 0.06 155 / 0.06) 0 1px, transparent 1px 10px),
-    oklch(17% 0.02 165);
+    radial-gradient(ellipse 80% 60% at 12% 0%, oklch(88% 0.06 75 / 0.7) 0%, transparent 55%),
+    oklch(96.5% 0.018 80);
+}
+
+.theme-preview--journal {
+  background-color: oklch(95% 0.028 92);
+  background-image:
+    linear-gradient(90deg, oklch(52% 0.14 28 / 0.65) 0 1px, transparent 1px),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12'%3E%3Ccircle cx='1' cy='1' r='0.7' fill='%238a7560'/%3E%3C/svg%3E");
+  background-size: auto, 12px 12px;
+  background-position: 10px 0, 0 0;
+  background-repeat: no-repeat, repeat;
 }
 
 .theme-preview--water-wave {
@@ -40,13 +49,6 @@
     radial-gradient(ellipse 90% 50% at 50% 100%, oklch(45% 0.1 210 / 0.4) 0%, transparent 55%),
     linear-gradient(180deg, oklch(38% 0.08 215 / 0.15) 0%, transparent 40%),
     oklch(16% 0.024 215);
-}
-
-.theme-preview--fresh-lime {
-  background:
-    radial-gradient(circle at 70% 30%, oklch(78% 0.16 130 / 0.5) 0%, oklch(65% 0.12 125 / 0.3) 35%, transparent 55%),
-    radial-gradient(circle at 25% 75%, oklch(82% 0.14 128 / 0.35) 0%, transparent 40%),
-    oklch(17% 0.028 135);
 }
 
 .theme-preview--cloud-pavilion {

@@ -3,6 +3,7 @@
  * 业务层禁止持久化 comment；对外 JSON 键名仍为 comment 时仅经本模块转换。
  */
 
+import { resolveEntryPosition } from './entryPosition.mjs';
 import {
   WB_OWNER,
   kindToFamily,
@@ -126,6 +127,11 @@ export function normalizeDraftEntry(raw) {
     if (raw.outlineType != null) out.outlineType = String(raw.outlineType);
     if (raw.outlineLinks != null) out.outlineLinks = Array.isArray(raw.outlineLinks) ? raw.outlineLinks.slice() : [];
     if (raw.outlineBlurb != null) out.outlineBlurb = String(raw.outlineBlurb);
+    if (raw.job != null && String(raw.job).trim()) out.job = String(raw.job).trim();
+    if (raw.group != null && String(raw.group).trim()) out.group = String(raw.group).trim();
+    if (raw.reads != null && String(raw.reads).trim()) out.reads = String(raw.reads).trim();
+    if (raw.preventRecursion === true) out.preventRecursion = true;
+    if (raw.excludeRecursion === true) out.excludeRecursion = true;
     if (!out.ownerSlot && out.owner === WB_OWNER.user) out.ownerSlot = out.id;
     if (out.id === 'wb-mvu-varlist' || out.ownerSlot === 'mvu_varlist' || out.ownerSlot === 'varlist') {
       out.kind = 'mvu_varlist';
@@ -296,12 +302,42 @@ export function toStExportEntry(entry) {
   };
 }
 
+function admissionExtras(stRow) {
+  var ext = stRow.extensions && typeof stRow.extensions === 'object' ? stRow.extensions : {};
+  var stcb = ext.stcb && typeof ext.stcb === 'object' ? ext.stcb : {};
+  var extras = {};
+  var job = stRow.job != null ? stRow.job : stcb.job;
+  var reads = stRow.reads != null ? stRow.reads : stcb.reads;
+  var group = stRow.group != null ? stRow.group : ext.group;
+  if (job) extras.job = String(job);
+  if (reads) extras.reads = String(reads);
+  if (group) extras.group = String(group);
+  if (stRow.preventRecursion === true || ext.prevent_recursion === true) extras.preventRecursion = true;
+  if (stRow.excludeRecursion === true || ext.exclude_recursion === true) extras.excludeRecursion = true;
+  return extras;
+}
+
+/** 正文里的模板块被模型写掉时，整段正文留在原条目上。 */
+export function preserveLiveTemplate(original, next) {
+  var blocks = String(original || '').match(/<%[\s\S]*?%>|\{\{[^{}]+\}\}/g) || [];
+  if (!blocks.length) return { content: next, kept: false };
+  var out = String(next || '');
+  for (var i = 0; i < blocks.length; i++) {
+    if (out.indexOf(blocks[i]) < 0) return { content: String(original || ''), kept: true };
+  }
+  return { content: out, kept: false };
+}
+
 export function fromStImportEntry(stRow) {
   stRow = stRow || {};
+  if (typeof stRow.position === 'string' || (stRow.extensions && typeof stRow.extensions === 'object')) {
+    stRow = Object.assign({}, stRow, { position: resolveEntryPosition(stRow) });
+  }
   var comment = String(stRow.comment || '').trim();
   var reg = matchRegistryImportByComment(comment);
   var dyn = reg ? null : matchDynamicImportByComment(comment);
   var stParams = normalizeStParams(stRow, {});
+  var extras = admissionExtras(stRow);
   if (reg) {
     return normalizeDraftEntry(Object.assign({
       id: reg.id,
@@ -309,7 +345,7 @@ export function fromStImportEntry(stRow) {
       owner: reg.owner,
       ownerSlot: reg.ownerSlot,
       displayName: reg.defaultDisplayName,
-    }, stParams));
+    }, stParams, extras));
   }
   if (dyn) {
     return normalizeDraftEntry(Object.assign({
@@ -318,7 +354,7 @@ export function fromStImportEntry(stRow) {
       owner: dyn.owner,
       ownerSlot: dyn.ownerSlot,
       displayName: dyn.displayName || comment,
-    }, stParams));
+    }, stParams, extras));
   }
   var uid = newWorldbookEntryId();
   return normalizeDraftEntry(Object.assign({
@@ -327,7 +363,7 @@ export function fromStImportEntry(stRow) {
     owner: WB_OWNER.user,
     ownerSlot: uid,
     displayName: comment,
-  }, stParams));
+  }, stParams, extras));
 }
 
 export function toAiJsonEntry(entry) {
@@ -392,19 +428,27 @@ export function fromAiJsonEntry(aiRow, defaults) {
   var displayName = aiCommentFromRow(aiRow);
   var stParams = normalizeStParams(aiRow, {});
   var classPatch = classificationPatchFromAi(aiRow, defaults);
+  var entry;
   if (defaults.id && defaults.owner) {
-    return normalizeDraftEntry(Object.assign({}, defaults, stParams, classPatch, {
+    entry = normalizeDraftEntry(Object.assign({}, defaults, stParams, classPatch, {
       displayName: isSystemEntry(defaults) ? defaults.displayName : displayName,
     }));
+  } else {
+    var uid = newWorldbookEntryId();
+    entry = normalizeDraftEntry(Object.assign({
+      id: uid,
+      kind: classPatch.kind || defaults.kind || 'user',
+      owner: defaults.owner || WB_OWNER.user,
+      ownerSlot: defaults.ownerSlot || uid,
+      displayName: displayName,
+    }, stParams, classPatch));
   }
-  var uid = newWorldbookEntryId();
-  return normalizeDraftEntry(Object.assign({
-    id: uid,
-    kind: classPatch.kind || defaults.kind || 'user',
-    owner: defaults.owner || WB_OWNER.user,
-    ownerSlot: defaults.ownerSlot || uid,
-    displayName: displayName,
-  }, stParams, classPatch));
+  var kept = preserveLiveTemplate(defaults.content, entry.content);
+  if (kept.kept) entry.content = kept.content;
+  if (defaults.job && !entry.job) entry.job = defaults.job;
+  if (defaults.group && !entry.group) entry.group = defaults.group;
+  if (defaults.reads && !entry.reads) entry.reads = defaults.reads;
+  return entry;
 }
 
 export function toRuntimeEntry(entry) {
@@ -459,13 +503,16 @@ export function buildNovelEntryPatch(kind, name, stFields) {
   var n = String(name || '').trim() || '未命名';
   var slot = novelOwnerSlotForKind(k, n);
   var display = stCommentForNovelKind(k, n);
-  return Object.assign({
+  var patch = Object.assign({
     id: newWorldbookEntryId(),
     kind: k,
     owner: WB_OWNER.novel,
     ownerSlot: slot,
     displayName: display,
   }, normalizeStParams(stFields, stFields));
+  if (k === 'novel_person') patch.job = String(stFields.job || '').trim() || '身份与经历';
+  else if (stFields.job) patch.job = String(stFields.job).trim();
+  return patch;
 }
 
 export function buildCorruptionArchivePatch(charName, stFields) {
@@ -503,6 +550,9 @@ export function buildEngineOutlinePatch(slotId, outlineType, displayName, stFiel
     outlineType: ot,
     outlineLinks: Array.isArray(stFields.outlineLinks) ? stFields.outlineLinks.slice() : [],
     outlineBlurb: stFields.outlineBlurb != null ? String(stFields.outlineBlurb) : '',
+    job: stFields.job != null ? String(stFields.job) : '',
+    group: stFields.group != null ? String(stFields.group) : '',
+    reads: stFields.reads != null ? String(stFields.reads) : '',
   }, normalizeStParams(stFields, stFields));
 }
 

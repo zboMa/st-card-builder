@@ -7,8 +7,11 @@ import {
   STOCK_GREETING,
   STOCK_WB,
   longFormToolError,
+  isLongFormGuardError,
+  redirectLongFormCall,
   buildRelationIndex,
   buildGenerationPack,
+  formatAdultModeLine,
   relationMentionWarning,
 } from '../src/lib/assistant/generationContext.mjs';
 
@@ -46,6 +49,44 @@ describe('generation context', function() {
     }), '');
   });
 
+  it('长正文在调用时改成生成工具，短字段单独留下', function() {
+    var prose = '场'.repeat(LONG_PROSE_CHARS);
+    var redirected = redirectLongFormCall('update_character_fields', {
+      fields: { charName: '青云', charDesc: prose, creatorNotes: prose + '注' },
+    });
+    assert.equal(redirected.tool, 'expand_character_field');
+    assert.equal(redirected.args.field, 'charDesc');
+    assert.match(redirected.args.instruction, /不要原样存成正文/);
+    assert.ok(redirected.args.instruction.length >= MIN_GENERATION_INSTRUCTION);
+    assert.equal(redirected.shortCall.tool, 'update_character_fields');
+    assert.deepEqual(redirected.shortCall.args.fields, { charName: '青云' });
+    assert.match(redirected.followup, /作者注释/);
+    assert.equal(redirectLongFormCall('update_character_fields', {
+      fields: { charName: '青云', tags: ['奇幻'] },
+    }), null);
+  });
+
+  it('世界书长正文改去生成或重写，不把正文当已写入的 content', function() {
+    var prose = '条'.repeat(LONG_PROSE_CHARS);
+    var created = redirectLongFormCall('create_worldbook_entry', {
+      entry: { comment: '顾清辞', content: prose, keys: ['顾清辞'] },
+    });
+    assert.equal(created.tool, 'generate_worldbook_entry');
+    assert.match(created.args.instruction, /顾清辞/);
+    assert.equal(created.args.content, undefined);
+    var rewritten = redirectLongFormCall('update_worldbook_entry', {
+      target: { index: 2 },
+      patch: { keys: ['顾清辞'], content: prose },
+    });
+    assert.equal(rewritten.tool, 'rewrite_worldbook_entry');
+    assert.equal(rewritten.args.target.index, 2);
+    assert.deepEqual(rewritten.shortCall.args.patch, { keys: ['顾清辞'] });
+    assert.equal(isLongFormGuardError(longFormToolError('update_character_fields', {
+      fields: { charDesc: prose },
+    })), true);
+    assert.equal(isLongFormGuardError('条目未找到'), false);
+  });
+
   it('关联索引按类型分组，并抽出被点名的正文', function() {
     var rel = buildRelationIndex([
       { comment: '林月', content: '外门剑修，持有青霜剑。', keys: ['林月', '师姐'], outlineType: 'person' },
@@ -75,6 +116,17 @@ describe('generation context', function() {
     assert.match(pack, /NTL/);
     assert.match(pack, /已有关联/);
     assert.match(pack, /场景契约摘要/);
+  });
+
+  it('生成包带上当前成人开关', function() {
+    var pack = buildGenerationPack({
+      instruction: STOCK_WB,
+      adultHints: { gate: formatAdultModeLine(true, false) },
+    });
+    assert.match(pack, /AdultMode=true/);
+    assert.match(pack, /NtlMode=false/);
+    assert.match(formatAdultModeLine(false, true), /AdultMode=false/);
+    assert.match(formatAdultModeLine(false, true), /NtlMode=true/);
   });
 
   it('未点名已有人物时给出 linkWarning', function() {

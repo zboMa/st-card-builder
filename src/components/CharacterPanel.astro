@@ -163,8 +163,8 @@ import PreviewPanel from './PreviewPanel.astro';
     position: sticky;
     top: calc(-1 * var(--space-5));
     z-index: 6;
-    margin: calc(-1 * var(--space-5)) calc(-1 * var(--space-5)) 0;
-    padding: var(--space-5) var(--space-5) 6px;
+    margin: calc(-1 * var(--space-5)) calc(-1 * var(--space-5)) var(--space-4);
+    padding: var(--space-5) var(--space-5) var(--space-3);
     background: color-mix(in srgb, var(--color-glass, var(--color-surface)) 92%, var(--color-bg, #0a0d12) 8%);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
@@ -173,8 +173,8 @@ import PreviewPanel from './PreviewPanel.astro';
     margin: 0;
     padding: 0 0 4px;
   }
-  .character-config-lead {
-    margin: -4px 0 10px;
+  .area-character .character-config-lead {
+    margin: var(--space-2) 0 0;
     font-size: 0.78rem;
     line-height: 1.5;
   }
@@ -343,7 +343,7 @@ import PreviewPanel from './PreviewPanel.astro';
     padding: 1px 4px;
     border-radius: 3px;
     line-height: 1.2;
-    background: color-mix(in srgb, var(--color-bg) 72%, transparent);
+    background: var(--color-surface-elevated);
     color: var(--color-text);
   }
   .avatar-gallery__mark.is-published {
@@ -360,19 +360,23 @@ import PreviewPanel from './PreviewPanel.astro';
     right: 2px;
     z-index: 2;
     min-width: 0;
-    width: 1.25rem;
-    height: 1.25rem;
+    width: 1.35rem;
+    height: 1.35rem;
     padding: 0;
     line-height: 1;
     font-size: 0.85rem;
-    border-radius: var(--radius-sm);
-    background: color-mix(in srgb, var(--color-bg) 80%, transparent);
-    opacity: 0;
-    transition: opacity var(--dur-fast) var(--ease-out);
-  }
-  .avatar-gallery__tile-wrap:hover .avatar-gallery__remove,
-  .avatar-gallery__tile-wrap:focus-within .avatar-gallery__remove {
+    border-radius: 999px;
+    border: 1px solid var(--color-danger-fill-border);
+    background: var(--color-surface-elevated);
+    color: var(--color-danger);
     opacity: 1;
+    box-shadow: var(--shadow-panel);
+  }
+  .avatar-gallery__remove:hover,
+  .avatar-gallery__remove:focus-visible {
+    background: var(--color-danger-fill);
+    color: var(--color-on-accent);
+    border-color: var(--color-danger-fill);
   }
   .avatar-gallery__tip {
     margin: 4px 0 0;
@@ -442,7 +446,7 @@ import PreviewPanel from './PreviewPanel.astro';
     color: var(--color-accent-hover);
   }
   .btn-ai-tag:hover {
-    background: oklch(76% 0.095 310 / 0.16);
+    background: var(--color-accent-soft-hover);
     border-color: var(--color-accent);
     color: var(--color-text);
   }

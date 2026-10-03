@@ -33,20 +33,32 @@ export function createSceneFx(env) {
     if (introT < 1) introT = Math.min(1, introT + 0.012);
     for (var i = 0; i < waves.length; i++) {
       var wv = waves[i];
-      ctxB.beginPath();
-      ctxB.moveTo(0, wv.y);
-      for (var x = 0; x <= W; x += 8) {
+      var pts = [];
+      var x;
+      for (x = 0; x <= W; x += 8) {
         var y = wv.y
           + Math.sin(x * wv.freq + t * wv.speed * 2000 + wv.phase) * wv.amp * introT
           + fbm1d(x * 0.02 + i, t * 0.0005, 2) * 4 * introT;
-        ctxB.lineTo(x, y);
+        pts.push(x, y);
       }
-      ctxB.lineTo(W, H);
-      ctxB.lineTo(0, H);
+      if (pts.length < 4) continue;
+      var band = 22 + i * 8;
+      ctxB.beginPath();
+      ctxB.moveTo(pts[0], pts[1]);
+      var p;
+      for (p = 2; p < pts.length; p += 2) ctxB.lineTo(pts[p], pts[p + 1]);
+      for (p = pts.length - 2; p >= 0; p -= 2) ctxB.lineTo(pts[p], pts[p + 1] + band);
       ctxB.closePath();
-      var a = introT * (0.07 + i * 0.025);
+      var a = introT * (0.05 + i * 0.02);
       ctxB.fillStyle = WAVE + a.toFixed(3) + ')';
       ctxB.fill();
+      ctxB.beginPath();
+      ctxB.moveTo(pts[0], pts[1]);
+      for (p = 2; p < pts.length; p += 2) ctxB.lineTo(pts[p], pts[p + 1]);
+      ctxB.strokeStyle = 'rgba(214, 240, 255, ' + (introT * (0.28 - i * 0.06)).toFixed(3) + ')';
+      ctxB.lineWidth = 1.5;
+      ctxB.lineJoin = 'round';
+      ctxB.stroke();
     }
   }
 

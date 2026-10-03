@@ -81,11 +81,11 @@ export function initAiConfigPanel() {
 
     if (isHttps && isHttp) {
       apiUrlHint.innerHTML =
-        '<div class="hint-bar" style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);color:var(--color-warning);">' +
+        '<div class="hint-bar">' +
           '⚠️ <span>HTTP 地址在 HTTPS 页面下会被浏览器拦截</span>' +
-          '<span style="margin-left:auto;font-size:0.65rem;opacity:0.6;">悬停查看解决方法 ▾</span>' +
+          '<span style="margin-left:auto;font-size:0.72rem;color:var(--color-text-muted);">悬停查看解决方法 ▾</span>' +
         '</div>' +
-        '<div class="hint-detail" style="background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.2);border-top:none;color:var(--color-warning);">' +
+        '<div class="hint-detail">' +
           '解决方法（任选一种）：<br/>' +
           '① 🔗 改用本工具的 HTTP 版本访问：' +
           '<a href="http://zmer.xyz:11450" target="_blank" style="color:var(--color-accent-hover);text-decoration:underline;">http://zmer.xyz:11450</a><br/>' +
@@ -94,12 +94,12 @@ export function initAiConfigPanel() {
         '</div>';
     } else if (!isHttps && isHttp) {
       apiUrlHint.innerHTML =
-        '<div class="hint-bar" style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);color:var(--color-success);">' +
+        '<div class="hint-bar is-ok">' +
           '✅ <span>HTTP 地址，当前页面也是 HTTP，可以正常请求。</span>' +
         '</div>';
     } else {
       apiUrlHint.innerHTML =
-        '<div class="hint-bar" style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);color:var(--color-success);">' +
+        '<div class="hint-bar is-ok">' +
           '✅ <span>HTTPS 地址，可以正常请求。</span>' +
         '</div>';
     }

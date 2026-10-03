@@ -69,7 +69,7 @@ describe('design tokens (Nocturne Atelier)', function() {
     assert.match(css, /theme\/scenes\.css/);
   });
 
-  it('tokens-themes.css 含关键语义变量（默认 nocturne / :root）', function() {
+  it('tokens-themes.css 含关键语义变量（默认暖纸 / :root）', function() {
     assert.ok(existsSync(tokensThemesPath), 'missing src/styles/tokens-themes.css');
     const css = readFileSync(tokensThemesPath, 'utf8');
     REQUIRED_THEME_TOKENS.forEach(function(name) {

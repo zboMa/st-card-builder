@@ -74,18 +74,8 @@ html[data-app-scene="ember-blaze"][data-scene-tier="immersive"] #sceneFxCanvasAm
   opacity: 1;
 }
 
-html[data-app-scene="bamboo-edge"][data-scene-tier="immersive"] #sceneFxCanvasAmbient {
-  mix-blend-mode: soft-light;
-  opacity: 1;
-}
-
 html[data-app-scene="water-wave"][data-scene-tier="immersive"] #sceneFxCanvasAmbient {
   mix-blend-mode: soft-light;
-  opacity: 1;
-}
-
-html[data-app-scene="fresh-lime"][data-scene-tier="immersive"] #sceneFxCanvasAmbient {
-  mix-blend-mode: screen;
   opacity: 1;
 }
 
@@ -95,8 +85,12 @@ html[data-app-scene="cloud-pavilion"][data-scene-tier="immersive"] #sceneFxCanva
 }
 
 html[data-app-scene="morning-drizzle"][data-scene-tier="immersive"] #sceneFxCanvasAmbient {
-  mix-blend-mode: overlay;
-  opacity: 0.92;
+  mix-blend-mode: normal;
+  opacity: 1;
+}
+
+html[data-app-scene="journal"][data-scene-tier="immersive"] #sceneFxCanvasAmbient {
+  opacity: 0;
 }
 
 html[data-app-scene="doom-carrion"][data-scene-tier="immersive"] #sceneFxCanvasAmbient {
@@ -115,12 +109,10 @@ html[data-app-scene="frost-shard"] body::before,
 html[data-app-scene="frost-shard"] body::after,
 html[data-app-scene="ember-blaze"] body::before,
 html[data-app-scene="ember-blaze"] body::after,
-html[data-app-scene="bamboo-edge"] body::before,
-html[data-app-scene="bamboo-edge"] body::after,
 html[data-app-scene="water-wave"] body::before,
 html[data-app-scene="water-wave"] body::after,
-html[data-app-scene="fresh-lime"] body::before,
-html[data-app-scene="fresh-lime"] body::after,
+html[data-app-scene="journal"] body::before,
+html[data-app-scene="journal"] body::after,
 html[data-app-scene="cloud-pavilion"] body::before,
 html[data-app-scene="cloud-pavilion"] body::after,
 html[data-app-scene="morning-drizzle"] body::before,

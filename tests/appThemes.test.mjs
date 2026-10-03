@@ -35,9 +35,9 @@ var THEME_COLOR_TOKENS = [
 ];
 
 var SCENE_THEMES = [
-  'sumi-ink', 'frost-shard', 'ember-blaze', 'bamboo-edge',
-  'water-wave', 'fresh-lime', 'cloud-pavilion', 'morning-drizzle',
-  'doom-carrion', 'moon-haze',
+  'sumi-ink', 'frost-shard', 'ember-blaze', 'water-wave',
+  'cloud-pavilion', 'morning-drizzle', 'doom-carrion', 'moon-haze',
+  'journal',
 ];
 
 describe('app shell themes', function() {
@@ -49,8 +49,8 @@ describe('app shell themes', function() {
     assert.equal(APP_THEMES.length, 11);
     assert.deepEqual(
       APP_THEMES.map(function(t) { return t.id; }),
-      ['nocturne', 'sumi-ink', 'frost-shard', 'ember-blaze', 'bamboo-edge',
-        'water-wave', 'fresh-lime', 'cloud-pavilion', 'morning-drizzle',
+      ['nocturne', 'warm-paper', 'journal', 'sumi-ink', 'frost-shard', 'ember-blaze',
+        'water-wave', 'cloud-pavilion', 'morning-drizzle',
         'doom-carrion', 'moon-haze'],
     );
   });
@@ -74,20 +74,22 @@ describe('app shell themes', function() {
     });
   });
 
-  it('默认 nocturne + :root 别名', function() {
+  it('默认暖纸 + :root 别名', function() {
     var css = readFileSync(themesPath, 'utf8');
-    assert.match(css, /:root,\s*\n\[data-app-theme="nocturne"\]/);
-    assert.equal(DEFAULT_THEME_ID, 'nocturne');
+    assert.match(css, /:root,\s*\n\[data-app-theme="warm-paper"\]/);
+    assert.equal(DEFAULT_THEME_ID, 'warm-paper');
   });
 
   it('v1 → v2 迁移 map', function() {
     assert.equal(migrateThemeId('ink'), 'sumi-ink');
     assert.equal(migrateThemeId('frost'), 'frost-shard');
-    assert.equal(migrateThemeId('jade'), 'bamboo-edge');
+    assert.equal(migrateThemeId('jade'), 'nocturne');
+    assert.equal(migrateThemeId('bamboo-edge'), 'nocturne');
+    assert.equal(migrateThemeId('fresh-lime'), 'nocturne');
     assert.equal(migrateThemeId('rose'), 'nocturne');
     assert.equal(migrateThemeId('neon'), 'nocturne');
-    assert.equal(migrateThemeId('unknown'), 'nocturne');
-    assert.equal(migrateThemeId(''), 'nocturne');
+    assert.equal(migrateThemeId('unknown'), 'warm-paper');
+    assert.equal(migrateThemeId(''), 'warm-paper');
     Object.keys(LEGACY_THEME_MAP).forEach(function(oldId) {
       assert.equal(migrateThemeId(oldId), LEGACY_THEME_MAP[oldId]);
     });
@@ -117,6 +119,8 @@ describe('app shell themes', function() {
     assert.match(layout, /ThemeGallery/);
     assert.match(layout, /doom-carrion/);
     assert.match(layout, /moon-haze/);
+    assert.match(layout, /warm-paper/);
+    assert.match(layout, /journal/);
   });
 
   it('侧栏单行入口，无 v1 swatch 网格', function() {

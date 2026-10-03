@@ -329,8 +329,8 @@ export function initPromptConfigPanel() {
         + '</div>'
         + '<textarea data-prompt-ta="' + escapeHtml(meta.id) + '">' + escapeHtml(val) + '</textarea>'
         + '<div class="prompt-config-item-actions">'
-        + '<button type="button" class="btn btn-fetch btn-prompt-reset-one" data-id="'
-        + escapeHtml(meta.id) + '" style="width:auto;margin:0;padding:5px 10px;font-size:0.72rem;">↺ 恢复默认</button>'
+        + '<button type="button" class="btn btn-ghost btn-inline btn-prompt-reset-one" data-id="'
+        + escapeHtml(meta.id) + '">↺ 恢复默认</button>'
         + '</div></div>';
     });
     listEl.innerHTML = html;

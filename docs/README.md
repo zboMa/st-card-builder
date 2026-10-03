@@ -34,6 +34,7 @@
 | 生产部署 / Nginx | [`ops/production.md`](./ops/production.md)、[`ops/nginx.md`](./ops/nginx.md) |
 | 发版前手测 | [`ops/regression-checklist.md`](./ops/regression-checklist.md)（自动化以 `npm test` 为准） |
 | 写卡教程 / 目录扩写质量 | [`guides/`](./guides/)（**§2.0 多人卡原生**） |
+| 精品卡写法（样本，不搬原文） | [`guides/card-craft-samples.md`](./guides/card-craft-samples.md) |
 
 ## 真相源（SoT）
 

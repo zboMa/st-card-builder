@@ -6,7 +6,7 @@
     <h2>开场白</h2>
     <span id="greetingsTokenCount" class="tok-text" title="开场白总 token" aria-live="polite"></span>
   </div>
-  <p class="greetings-tip ui-panel-lead">编辑时只写场景。每条开场可以另附初始值，导出和试聊时再拼进 <code>first_mes</code>。</p>
+  <p class="greetings-tip ui-panel-lead">这里只写开场场景。每条开场可以另有变量起点，不填就用世界书保底，填了的在导出和试聊时接到这条开场后面。</p>
   <p id="greetingsFlavorTip" class="greetings-flavor-tip" hidden></p>
 
   <!-- 主开场白 → data.first_mes / 顶层 first_mes -->
@@ -18,12 +18,15 @@
     </div>
     <textarea id="firstMes" style="min-height: 160px;" placeholder="角色的开场白（首次对话发送的第一条消息）..."></textarea>
     <div class="greeting-init-row">
-      <button type="button" id="btnGreetingInitGenerate" class="btn-inline">生成</button>
-      <button type="button" id="btnGreetingInitMain" class="btn-inline">初始值</button>
+      <span class="greeting-init-label">变量起点</span>
       <span id="greetingInitMainHint" class="ui-hint ui-hint--inline"></span>
+      <button type="button" id="btnGreetingInitGenerate" class="btn-inline btn-ghost">从正文填写</button>
+      <button type="button" id="btnGreetingInitMain" class="btn-text btn-inline" aria-expanded="false">手动修改</button>
     </div>
-    <textarea id="greetingInitMain" class="greeting-init-ta" hidden rows="3" placeholder="每行一条：路径=值。留空则这个开局用世界书保底。"></textarea>
+    <textarea id="greetingInitMain" class="greeting-init-ta" hidden rows="3" placeholder="每行一条：路径=值。留空则这条开场沿用世界书保底。"></textarea>
   </div>
+
+  <hr class="divider" />
 
   <!-- 备选开场 → data.alternate_greetings；内存态 window.__altGreetings__ -->
   <div class="alt-greetings-section">
@@ -37,10 +40,10 @@
 </div>
 
 <style is:global>
-  .greetings-tip {
+  .area-greetings .greetings-tip {
     font-size: 0.78rem;
     color: var(--color-text-muted);
-    margin: -4px 0 8px 0;
+    margin: var(--space-2) 0 var(--space-4);
     line-height: 1.45;
   }
   .greetings-head {
@@ -56,7 +59,7 @@
     top: calc(-1 * var(--space-5));
     z-index: 6;
     margin: calc(-1 * var(--space-5)) calc(-1 * var(--space-5)) 0;
-    padding: var(--space-5) var(--space-5) 6px;
+    padding: var(--space-5) var(--space-5) var(--space-2);
     background: color-mix(in srgb, var(--color-glass, var(--color-surface)) 92%, var(--color-bg, #0a0d12) 8%);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
@@ -137,14 +140,14 @@
     padding: 0;
   }
   .btn-alt-add:hover {
-    background: oklch(76% 0.095 310 / 0.16);
+    background: var(--color-accent-soft-hover);
     border-color: var(--color-accent);
     transform: scale(1.06);
   }
 
   .alt-greeting-item {
     position: relative;
-    margin-bottom: 8px;
+    margin-bottom: 0;
     animation: altIn 0.25s ease;
   }
   @keyframes altIn {
@@ -206,36 +209,36 @@
     color: var(--color-accent-hover);
   }
   .btn-alt-action[data-action="up"]:hover {
-    background: rgba(56, 189, 248, 0.18);
-    border-color: rgba(56, 189, 248, 0.5);
-    color: var(--color-accent-hover);
-    box-shadow: 0 3px 8px rgba(56, 189, 248, 0.2);
+    background: var(--color-accent-soft-hover);
+    border-color: var(--color-accent-border);
+    color: var(--color-text);
+    box-shadow: none;
     transform: translateY(-1px);
   }
 
   .btn-alt-action[data-action="down"] {
-    border-color: rgba(16, 185, 129, 0.25);
-    background: rgba(16, 185, 129, 0.08);
-    color: var(--color-success);
+    border-color: var(--color-success);
+    background: var(--color-success-soft);
+    color: var(--color-text);
   }
   .btn-alt-action[data-action="down"]:hover {
-    background: rgba(16, 185, 129, 0.18);
-    border-color: rgba(16, 185, 129, 0.5);
-    color: var(--color-success);
-    box-shadow: 0 3px 8px rgba(16, 185, 129, 0.2);
+    background: var(--color-success-soft);
+    border-color: var(--color-success);
+    color: var(--color-text);
+    box-shadow: none;
     transform: translateY(-1px);
   }
 
   .btn-alt-action.btn-alt-del {
-    border-color: rgba(239, 68, 68, 0.25);
-    background: rgba(239, 68, 68, 0.08);
+    border-color: var(--color-danger-fill-border);
+    background: var(--color-danger-soft);
     color: var(--color-danger);
   }
   .btn-alt-action.btn-alt-del:hover {
-    background: rgba(239, 68, 68, 0.18);
-    border-color: rgba(239, 68, 68, 0.5);
-    color: var(--color-danger);
-    box-shadow: 0 3px 8px rgba(239, 68, 68, 0.2);
+    background: var(--color-danger-fill);
+    border-color: var(--color-danger-fill);
+    color: var(--color-on-accent);
+    box-shadow: none;
     transform: translateY(-1px);
   }
 
@@ -259,6 +262,12 @@
     align-items: center;
     gap: 8px;
     margin-top: 6px;
+  }
+  .greeting-init-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    flex-shrink: 0;
   }
   .greeting-init-ta {
     margin-top: 6px;
@@ -304,22 +313,43 @@
   if (!window.__greetingInitMain__ || typeof window.__greetingInitMain__ !== 'object') window.__greetingInitMain__ = {};
   if (!Array.isArray(window.__greetingInitAlts__)) window.__greetingInitAlts__ = [];
 
+  function hasBaseline() {
+    var entries = window.__getWorldbookEntries__ ? window.__getWorldbookEntries__() : [];
+    return Object.keys(baselineLeavesFromEntries(entries)).length > 0;
+  }
+
   function hintText(map) {
+    if (!hasBaseline()) return '还没有保底，先到状态栏生成变量';
     var n = map && typeof map === 'object' ? Object.keys(map).length : 0;
-    return n ? (n + ' 项与保底不同') : '与保底相同';
+    return n ? (n + ' 项和保底不同') : '沿用世界书保底';
   }
 
   function initGenerateLabel(map) {
     var n = map && typeof map === 'object' ? Object.keys(map).length : 0;
-    return n ? '重新生成' : '生成';
+    return n ? '按正文重填' : '从正文填写';
+  }
+
+  function applyInitRow(map, prose, hintEl, genBtn) {
+    if (hintEl) hintEl.textContent = hintText(map);
+    if (!genBtn) return;
+    genBtn.textContent = initGenerateLabel(map);
+    var noBase = !hasBaseline();
+    var empty = !String(prose || '').trim();
+    genBtn.disabled = noBase || empty;
+    genBtn.title = noBase
+      ? '先到状态栏生成变量'
+      : (empty ? '先写这一条开场白' : '按这一条正文重算，会换掉已有差异');
   }
 
   function syncMainInitField() {
     var ta = document.getElementById('greetingInitMain');
-    var hint = document.getElementById('greetingInitMainHint');
-    var gen = document.getElementById('btnGreetingInitGenerate');
-    if (hint) hint.textContent = hintText(window.__greetingInitMain__);
-    if (gen) gen.textContent = initGenerateLabel(window.__greetingInitMain__);
+    var prose = (document.getElementById('firstMes') || {}).value || '';
+    applyInitRow(
+      window.__greetingInitMain__,
+      prose,
+      document.getElementById('greetingInitMainHint'),
+      document.getElementById('btnGreetingInitGenerate')
+    );
     if (ta && document.activeElement !== ta) ta.value = formatOverrideLines(window.__greetingInitMain__);
   }
 
@@ -440,6 +470,11 @@
     }
     listEl.innerHTML = '';
     greetings.forEach(function(text, i) {
+      if (i > 0) {
+        var rule = document.createElement('hr');
+        rule.className = 'divider';
+        listEl.appendChild(rule);
+      }
       var item = document.createElement('div');
       item.className = 'alt-greeting-item';
       item.innerHTML =
@@ -467,24 +502,33 @@
           escapeHTML(text) +
         '</textarea>' +
         '<div class="greeting-init-row">' +
-          '<button type="button" class="btn-inline" data-action="generate-init" data-idx="' + i + '">' +
-            escapeHTML(initGenerateLabel(window.__greetingInitAlts__[i])) +
-          '</button>' +
-          '<button type="button" class="btn-inline" data-action="init" data-idx="' + i + '">初始值</button>' +
-          '<span class="ui-hint ui-hint--inline greeting-init-hint" data-idx="' + i + '">' +
-            escapeHTML(hintText(window.__greetingInitAlts__[i])) +
-          '</span>' +
+          '<span class="greeting-init-label">变量起点</span>' +
+          '<span class="ui-hint ui-hint--inline greeting-init-hint" data-idx="' + i + '"></span>' +
+          '<button type="button" class="btn-inline btn-ghost" data-action="generate-init" data-idx="' + i + '"></button>' +
+          '<button type="button" class="btn-text btn-inline" data-action="init" data-idx="' + i + '" aria-expanded="false">手动修改</button>' +
         '</div>' +
-        '<textarea class="greeting-init-ta" data-idx="' + i + '" hidden rows="3" placeholder="每行一条：路径=值。留空则这个开局用世界书保底。">' +
+        '<textarea class="greeting-init-ta" data-idx="' + i + '" hidden rows="3" placeholder="每行一条：路径=值。留空则这条开场沿用世界书保底。">' +
           escapeHTML(formatOverrideLines(window.__greetingInitAlts__[i])) +
         '</textarea>';
       listEl.appendChild(item);
+      applyInitRow(
+        window.__greetingInitAlts__[i],
+        text,
+        item.querySelector('.greeting-init-hint'),
+        item.querySelector('[data-action="generate-init"]')
+      );
     });
 
     listEl.querySelectorAll('.alt-greeting-ta').forEach(function(ta) {
       ta.addEventListener('input', function(e) {
         var idx = parseInt(e.target.getAttribute('data-idx'));
         window.__altGreetings__[idx] = e.target.value;
+        applyInitRow(
+          window.__greetingInitAlts__[idx],
+          e.target.value,
+          listEl.querySelector('.greeting-init-hint[data-idx="' + idx + '"]'),
+          listEl.querySelector('[data-action="generate-init"][data-idx="' + idx + '"]')
+        );
         notifyChange();
       });
     });
@@ -492,10 +536,12 @@
       ta.addEventListener('input', function(e) {
         var idx = parseInt(e.target.getAttribute('data-idx'), 10);
         window.__greetingInitAlts__[idx] = parseOverrideLines(e.target.value);
-        var hint = listEl.querySelector('.greeting-init-hint[data-idx="' + idx + '"]');
-        if (hint) hint.textContent = hintText(window.__greetingInitAlts__[idx]);
-        var genBtn = listEl.querySelector('.btn-inline[data-action="generate-init"][data-idx="' + idx + '"]');
-        if (genBtn) genBtn.textContent = initGenerateLabel(window.__greetingInitAlts__[idx]);
+        applyInitRow(
+          window.__greetingInitAlts__[idx],
+          (window.__altGreetings__ || [])[idx],
+          listEl.querySelector('.greeting-init-hint[data-idx="' + idx + '"]'),
+          listEl.querySelector('[data-action="generate-init"][data-idx="' + idx + '"]')
+        );
         notifyChange();
       });
     });
@@ -512,10 +558,12 @@
         if (!box) return;
         if (box.hasAttribute('hidden')) {
           box.removeAttribute('hidden');
+          e.currentTarget.setAttribute('aria-expanded', 'true');
           warnIfNoBaseline();
           box.focus();
         } else {
           box.setAttribute('hidden', '');
+          e.currentTarget.setAttribute('aria-expanded', 'false');
         }
       });
     });
@@ -632,10 +680,12 @@
     btnInitMain.addEventListener('click', function() {
       if (initMainTa.hasAttribute('hidden')) {
         initMainTa.removeAttribute('hidden');
+        btnInitMain.setAttribute('aria-expanded', 'true');
         warnIfNoBaseline();
         initMainTa.focus();
       } else {
         initMainTa.setAttribute('hidden', '');
+        btnInitMain.setAttribute('aria-expanded', 'false');
       }
     });
     initMainTa.addEventListener('input', function() {
@@ -692,12 +742,28 @@
     render();
   };
   window.addEventListener('nsfw-config-changed', refreshFlavorTip);
+  function refreshAltInitRows() {
+    (window.__altGreetings__ || []).forEach(function(text, i) {
+      applyInitRow(
+        (window.__greetingInitAlts__ || [])[i],
+        text,
+        listEl.querySelector('.greeting-init-hint[data-idx="' + i + '"]'),
+        listEl.querySelector('[data-action="generate-init"][data-idx="' + i + '"]')
+      );
+    });
+  }
+
   window.addEventListener('app-view-changed', function() {
     refreshFlavorTip();
     scheduleGreetingTokens();
+    syncMainInitField();
+    refreshAltInitRows();
   });
   var firstMesEl = document.getElementById('firstMes');
-  if (firstMesEl) firstMesEl.addEventListener('input', scheduleGreetingTokens);
+  if (firstMesEl) firstMesEl.addEventListener('input', function() {
+    scheduleGreetingTokens();
+    syncMainInitField();
+  });
   refreshFlavorTip();
   syncMainInitField();
   render();

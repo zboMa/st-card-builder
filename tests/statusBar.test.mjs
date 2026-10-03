@@ -746,6 +746,7 @@ describe('statusBar wiring', function() {
     assert.match(bootAi, /window\.__getActivePresetsStr__/);
     const wb = readFileSync(join(root, 'src/lib/card-builder/panels/worldbookShared.mjs'), 'utf8');
     assert.match(wb, /window\.__getActivePresetsStr__/);
+    assert.match(boot, /var boundCardId/);
     assert.match(boot, /generateVariables/);
     assert.match(boot, /generateLayout/);
     assert.match(boot, /card\.statusbar\.layout/);

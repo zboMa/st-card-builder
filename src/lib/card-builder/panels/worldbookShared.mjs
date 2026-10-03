@@ -21,7 +21,7 @@ import {
   entryExportComment,
 } from '../../worldbook/worldbookUi.mjs';
 import { fromAiJsonEntry, normalizeDraftEntry } from '../../worldbook/worldbookEntryBridge.mjs';
-import { buildGenerationPack, relationMentionWarning } from '../../assistant/generationContext.mjs';
+import { buildGenerationPack, formatAdultModeLine, relationMentionWarning } from '../../assistant/generationContext.mjs';
 
 /** 世界书行估算高度（TanStack estimateSize + measure） */
 export var WB_VL_ROW_HEIGHT = 72;
@@ -187,6 +187,20 @@ export function createWorldbookShared(ctx) {
       +     '<label>\u89E6\u53D1\u8BCD \u2014 \u591A\u4E2A\u7528\u82F1\u6587\u9017\u53F7\u9694\u5F00</label>'
       +     '<input type="text" data-field="keys" placeholder="\u7A7A\u4E3A\u5E38\u9A7B\uFF0C\u6709\u8BCD\u4E3A\u89E6\u53D1" value="' + escapeHtml((entry.keys || []).join(', ')) + '" />'
       +   '</div>'
+      +   '<div class="form-group">'
+      +     '<label>职责</label>'
+      +     '<input type="text" data-field="job" placeholder="这条进上下文时要完成的事，可空" value="' + escapeHtml(entry.job || '') + '" />'
+      +   '</div>'
+      +   '<div class="grid-2">'
+      +     '<div class="form-group">'
+      +       '<label>同组名</label>'
+      +       '<input type="text" data-field="group" placeholder="可空" value="' + escapeHtml(entry.group || '') + '" />'
+      +     '</div>'
+      +     '<div class="form-group">'
+      +       '<label>读取路径</label>'
+      +       '<input type="text" data-field="reads" placeholder="变量路径，可空" value="' + escapeHtml(entry.reads || '') + '" />'
+      +     '</div>'
+      +   '</div>'
       +   '<div class="grid-2">'
       +     '<div class="form-group">'
       +       '<label>\u89E6\u53D1\u7B56\u7565</label>'
@@ -233,6 +247,9 @@ export function createWorldbookShared(ctx) {
       displayName: readInlineEditorValue(root, 'displayName').trim(),
       content: readInlineEditorValue(root, 'content').trim(),
       keys: readInlineEditorValue(root, 'keys').split(/[,，]/).map(function(k) { return k.trim(); }).filter(function(k) { return k; }),
+      job: readInlineEditorValue(root, 'job').trim(),
+      group: readInlineEditorValue(root, 'group').trim(),
+      reads: readInlineEditorValue(root, 'reads').trim(),
       strategy: readInlineEditorValue(root, 'strategy') || base.strategy,
       position: clampInt(readInlineEditorValue(root, 'position'), base.position, 0, 6),
       depth: clampInt(readInlineEditorValue(root, 'depth'), base.depth, 0, 999),
@@ -474,6 +491,7 @@ export function createWorldbookShared(ctx) {
       character: { charName: ctx.val('charName'), charDesc: ctx.val('charDesc') },
       worldviewHint: wvHint,
       adultHints: {
+        gate: adultHints.gate || formatAdultModeLine(!!ctx.state.nsfwEnabled, !!ctx.state.ntlEnabled),
         nsfw: buildNsfwFlavorHint(),
         ntl: buildNtlHintForPrompt(),
         canon: buildAdultCanonHint(),
@@ -486,7 +504,7 @@ export function createWorldbookShared(ctx) {
     var sysPrompt = ctx.promptText('wbSingle', '') + stepInfo + '\n' + pack + presetBlock
       + '\n【冲突处理】若「本次任务」与「世界观预设」冲突，以本次任务为准，已确认的 Limits 仍优先。'
       + searchInjection
-      + '\n【输出】：1个JSON对象 { "comment": "标题", "type": "worldview|location|...", "content": "详细设定(至少200字)", "keys": ["触发词"], "strategy": "selective 或 constant", "position": 4 }';
+      + '\n【输出】：1个JSON对象 { "comment": "标题", "content": "按职责写完", "keys": ["触发词"], "strategy": "selective 或 constant" }。短事实保持短。已有的 <% %> 与 {{ }} 原样保留。';
     var userPrompt = customDirection
       ? '按【本次任务】生成仅仅 1 条，不要重复索引里已有条目，并写清和它们的关系。'
       : '自由发挥一条，拒绝重复已有条目；有世界观预设则紧贴其语汇，并写清和已有人物、物品、地点的关系。';
@@ -531,7 +549,7 @@ export function createWorldbookShared(ctx) {
         target: wbEntryTitle(old) || ('#' + index),
       }, async function(task) {
         var presetsStr = getActivePresetsStr();
-        var expandHint = isSkeleton ? '\n\n【重要】：原条目是骨架概要，请展开为完整详细的世界书设定（至少300字），保留方向但大幅扩充，并写清与已有条目的关系。' : '';
+        var expandHint = isSkeleton ? '\n\n【重要】：原条目还是占位。按它的职责写完，短事实保持短，并写清与已有条目的关系。' : '';
         var searchInjection = '';
         if (window.__searchConfig__ && window.__searchConfig__.isEnabled()) {
           var sq = entryExportComment(old) + ' ' + (req || '');
@@ -549,6 +567,7 @@ export function createWorldbookShared(ctx) {
           character: { charName: ctx.val('charName'), charDesc: ctx.val('charDesc') },
           worldviewHint: getWorldviewHintBlock(),
           adultHints: {
+            gate: adultHints.gate || formatAdultModeLine(!!ctx.state.nsfwEnabled, !!ctx.state.ntlEnabled),
             nsfw: buildNsfwFlavorHint(),
             ntl: buildNtlHintForPrompt(),
             canon: buildAdultCanonHint(),
@@ -564,7 +583,7 @@ export function createWorldbookShared(ctx) {
           + expandHint
           + '\n【冲突处理】若「本次任务」与「世界观预设」冲突，以本次任务为准，已确认的 Limits 仍优先。'
           + searchInjection
-          + '\n【任务】：重写。输出JSON：{ "comment": "标题", "type": "worldview|location|...", "content": "详细设定", "keys": ["触发词"], "strategy": "selective 或 constant", "position": ' + old.position + ' }';
+          + '\n【任务】：重写。输出JSON：{ "comment": "标题", "content": "按职责写完", "keys": ["触发词"], "strategy": "selective 或 constant", "position": ' + old.position + ' }。已有的 <% %> 与 {{ }} 原样保留。';
         var h = { 'Content-Type': 'application/json' };
         if (key) h['Authorization'] = 'Bearer ' + key;
         var aiResp = await ctx.fetchAIContent({

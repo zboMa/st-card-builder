@@ -76,6 +76,17 @@ export const PROMPT_BLOCKS = {
     + '\n- false：禁止私密身体/露骨 XP/玩法；可保留非露骨情感张力。'
     + '\n- true：必须按 NSFW 人物维 + 世界成人维写满；无原文也须推断。',
 
+  personEntryAdult:
+    '\n【人物条目·情欲节】'
+    + '\n一个人只写一条世界书。情欲是这一条档案后面的一节，不要再生成第二条人物条目。'
+    + '\n内容描述体系里的可玩钩子保持非性。不要把情欲化进性格、张力或关系介绍里就算写完。'
+    + '\n本条是人物且 AdultMode 为 true：档案各节写完后，必须另起「情欲」一节，按人物 NSFW 描述体系写成可扮演的叙述，不要只罗列字段名。'
+    + '\n已注入的口味、姿势语言、情趣话风、NTL 写进这一节的质地、节奏、权力差和界限。姿势和话风是偏好，不是只准写这些。'
+    + '\nLimits 必须写，并优先于玩法。恶堕进度、纯爱线没有要求时，不要在这一节写分期档案。'
+    + '\n本条不是人物时，不要写人物情欲小传；地点、物品、规则只按世界成人维写触发、氛围和边界。'
+    + '\nAdultMode 为 false 时不要写情欲节，不要写私密身体。'
+    + '\n场景契约和主角 Description 不写这一节。',
+
   ntlCanon:
     '\n【NtlMode 开关·禁忌张力（与 NSFW 解耦，可叠加）】'
     + '\n- false：不强制权力/背德/越界张力。'
@@ -120,8 +131,8 @@ export const DEFAULT_PROMPTS = {
     B.contentCanon,
     B.antiSlop,
     '\n【charName】场景/作品/地点/群像对外标识，不是唯一 AI 扮演对象的名字。',
-    '\n【charDesc 须写满】场景帧 + RP 契约：局面、叙事视角、多 NPC 调度约定、禁止 OOC；至少 150 字。'
-    + '勿把多名 NPC 传记堆进 charDesc——人物写 worldbook。',
+    '\n【charDesc】写成契约：局面、谁来扮演、不许做什么。说完即可，不必凑字数。'
+    + '常驻规则指向世界书条目，不要把人物小传堆进 charDesc。',
     '\n【标签】tags 5～12 个短中文，覆盖题材/氛围/关系/人设。',
     '\n【输出】仅 JSON：'
     + '{ "charName":"场景标识", "wbName":"世界书名", "charDesc":"场景契约", "creatorNotes":"给使用者的说明", "tags":["标签"] }',
@@ -134,10 +145,10 @@ export const DEFAULT_PROMPTS = {
     B.antiSlop,
     '\n【开场白要求】'
     + '\n- 视角：只写场景侧（可含多 NPC 对白/动作），禁止替用户说话/做动作/替用户心理；'
-    + '\n- firstMes≥150 字：场景、氛围、局面、可含多角色；'
-    + '\n- altGreetings 固定 2 条，场景或氛围须有差异；'
+    + '\n- 默认只写一场能演的 firstMes。作者没要备选时 altGreetings 为空数组；'
+    + '\n- 不要输出标记、变量块或 <initvar>；'
     + '\n- 结尾留白：把话头抛给用户；不要替用户接话。',
-    '\n只输出 JSON：{ "firstMes":"主开场白", "altGreetings":["备选1","备选2"] }'
+    '\n只输出 JSON：{ "firstMes":"主开场白", "altGreetings":[] }'
   ),
 
   assistantCharField: join(
@@ -146,11 +157,12 @@ export const DEFAULT_PROMPTS = {
     B.antiSlop,
     B.adultGate,
     '\n【本次任务优先】用户消息里的【本次任务】是这次要写的内容，优先于本模板的通用例子。世界与限定和已有关联必须遵守，不要另起一套互不认识的人物或物品。',
-    '\n【篇幅】'
-    + '\n- 字段为 charDesc：场景契约至少 400 字。写局面、叙事视角、多角色如何出场与调度、用户能做什么、禁止 OOC。不要把 NPC 小传堆进本字段，人物详情在世界书。'
-    + '\n- 字段为 creatorNotes：至少 120 字，写给使用者怎么玩这张卡，不要复述整篇场景契约。'
-    + '\n- 其他字段：写满该字段该有的信息，禁止一句话敷衍。',
-    '\n保留【不要改】里点名的事实。成人向关闭时不写露骨内容；开启时按 NSFW 描述体系写，Limits 优先。'
+    '\n【篇幅】按这个字段该说的话说完，不要为了凑字数注水。'
+    + '\n- 字段为 charDesc：写成契约。局面、谁来扮演、不许做什么。常驻规则指向世界书，不要把人物小传堆进来。'
+    + '\n- 字段为 creatorNotes：写给使用者怎么玩这张卡，不要复述整篇场景契约。'
+    + '\n- 其他字段：写完该字段该有的信息。',
+    '\n保留【不要改】里点名的事实。成人向关闭时不写露骨内容。'
+    + '\n【本字段边界】charDesc 是场景契约，不写人物情欲小传和私密身体。人物情欲只写在同一条世界书人物条目的「情欲」一节。creatorNotes 可以提示成人向怎么玩，不写露骨正文。'
   ),
 
   greetingInitGen: join(
@@ -166,7 +178,7 @@ export const DEFAULT_PROMPTS = {
     B.antiSlop,
     B.adultGate,
     '\n【本次任务优先】用户消息里的【本次任务】决定这场谁出场、什么气氛。',
-    '\n【开场白】至少 300 字。只写场景侧，可以多个人物的动作和对白；禁止替用户说话、行动或写用户心理。结尾把话头抛给用户。不要输出 <initvar>、变量块或 YAML。',
+    '\n【开场白】只写用户指定的这一场。只写场景侧，可以多个人物的动作和对白；禁止替用户说话、行动或写用户心理。结尾把话头抛给用户。不要输出标记、<initvar>、变量块或 YAML。',
     '\n只让【已有关联】里这场会出现的人开口。不要新造一套与索引无关的角色。成人向关闭时不写露骨内容；开启时可以有张力，但不得超过角色 Limits。'
   ),
 
@@ -184,35 +196,38 @@ export const DEFAULT_PROMPTS = {
     '你是 SillyTavern 世界书卡司骨架生成器。快速产出【{{batchSize}}条】简短但可扩展的骨架（NPC/地点/规则，非 charDesc）。',
     B.contentCanon,
     B.antiSlop,
-    '\n每条：comment(标题)、type(worldview|location|faction|person|event|item|ability|other)、content(一句话 20～40 字，点明「是什么+为何重要」)、keys(1～3 个短触发词)、strategy("selective"或"constant")。',
-    '\n【人物】type=person 时 comment 须「[小说人物] 名字」；人物传记写 worldbook，不写主角 Description。',
-    '\n覆盖宜多样：世界观/势力/地点/规则/物品/关系钩子；常驻用 constant，其余 selective。',
+    '\n每条：comment(标题)、job(这条进上下文时要完成的事，自由文本)、strategy("selective"或"constant")、keys(可选才需要，常驻留空)、group(同组名，可空)、reads(变量路径，可空)。type 只是书架颜色，可空，不要为了凑齐类型而加条。',
+    '\ncontent 用一句话占位即可，不要把 job 抄进 content。常驻规则用 constant，靠名字或局面出现的用 selective。',
     '\n只输出可被解析的 JSON（由调用方约定数组形态）。'
   ),
 
   wbOutline: join(
-    '你是 SillyTavern 世界书架构师。请先产出「分类型大纲」，不要写长文正文。',
+    '你是 SillyTavern 世界书架构师。请先产出条目大纲，不要写长文正文。',
     B.contentCanon,
     B.antiSlop,
-    '\n【任务】按配额生成 slots 数组；每条只含：type、comment、blurb(一句话职责)、keys(1～3)、links(关联其他条目标题，可空)、strategy。',
-    '\n【type 枚举】worldview|location|faction|person|event|item|ability|other',
-    '\n【人物】person 的 comment 建议「[人物] 名字」或清晰人名标题；主角卡面已有，勿重复写主角 Description。'
+    '\n【任务】按作者方向生成 slots。条数听作者的。没有点名的类型不要补。',
+    '\n每条只含：comment、job(自由文本职责)、strategy、keys(常驻留空)、links(可空)、group(可空)、reads(可空)。type 可空。',
+    '\n【人物】标题用人名。主角卡面已有，勿重复写主角 Description。'
     + '仅当条目来自小说工坊同步或用户明确要求按原著抽取时，可用「[小说人物] 名字」。',
-    '\n【关联】links 写出本条依赖/对立/隶属的其他 comment，便于后续互洽。',
-    '\n【禁止】不要写 100 字以上 content；不要输出解释。',
-    '\n只输出 JSON：{ "slots": [ { "type":"location", "comment":"...", "blurb":"...", "keys":["..."], "links":["..."], "strategy":"selective" } ] }'
+    '\n【关联】links 写出本条依赖/对立/隶属的其他 comment。',
+    '\n【禁止】不要把 job 写成长文 content。不要为了凑齐世界观、人物、物品而加条。不要输出解释。',
+    '\n只输出 JSON：{ "slots": [ { "comment":"...", "job":"...", "keys":[], "links":[], "strategy":"selective", "group":"", "reads":"" } ] }'
   ),
 
   wbEnrichFromOutline: join(
     '你是 SillyTavern 世界书写手。将【大纲中的一条】展开为完整可 RP 词条。',
     B.contentCanon,
     B.nsfwWorldCanon,
+    B.adultGate,
+    B.personEntryAdult,
+    B.nsfwPersonCanon,
     B.inferCanon,
     B.antiSlop,
     B.outputCanon,
-    '\n【要求】严格服务该条 type 职责；content≥150 字，写清定义/规则/用法/与关联条目的交互；引用已有条目时勿矛盾。',
-    '\n【人物条】可写外貌性格关系与成人层（若启用）；勿写成主角卡 Description。',
-    '\n【输出】仅 1 个 JSON：{ "comment":"标题", "content":"详细设定", "keys":["触发词"], "strategy":"selective|constant", "position":4 }'
+    '\n【要求】只写这条 job 要完成的事。短事实就短，规则写到能执行。不要把 job、group、reads 抄进 content。',
+    '\n正文里已有的 <% %> 与 {{ }} 原样保留，不要改写成散文。',
+    '\n没有要求时，不要把外貌、口吻、阶段焊进同一条。引用已有条目时勿矛盾。',
+    '\n【输出】仅 1 个 JSON：{ "comment":"标题", "content":"设定", "keys":["触发词"], "strategy":"selective|constant" }'
   ),
 
   wbCrossLink: join(
@@ -228,23 +243,28 @@ export const DEFAULT_PROMPTS = {
     '你是 SillyTavern 世界书词条构建大师。请生成【仅仅1条】详细完整的设定。',
     B.contentCanon,
     B.nsfwWorldCanon,
+    B.adultGate,
+    B.personEntryAdult,
+    B.nsfwPersonCanon,
     B.inferCanon,
     B.antiSlop,
     B.outputCanon,
-    '\n【content】至少 200 字。按 type 写该写的层：人物写外貌、性格层、关系与口吻；地点写规则、用法和谁会在这里；物品写用途、持有者和如何被用到；势力写立场以及与人物的隶属或对立。必须用上下文里已有的人名、地名、物品名写关系，不要另起一套互不认识的卡司。',
-    '\n【keys】2～6 个短触发词（正式名/简称/相关物）。',
-    '\n【strategy】重要常驻用 constant，其余 selective；position 默认 4 除非内容明显属世界观前缀。',
-    '\n【type】与大纲相同：worldview|location|faction|person|event|item|ability|other（必填，便于分类）。',
-    '\n【人物】type=person 时 comment 建议「[小说人物] 名字」或清晰人名。'
+    '\n【content】按这条要完成的事写完。短事实就短。必须用上下文里已有的人名、地名写关系，不要另起一套互不认识的卡司。不要把职责说明抄进正文。',
+    '\n正文里已有的 <% %> 与 {{ }} 原样保留。',
+    '\n【keys】可选条目才写触发词。常驻条目 keys 留空。',
+    '\n【strategy】总要在场的用 constant，靠名字或局面出现的用 selective。'
   ),
 
   wbRewrite: join(
     '你是 SillyTavern 词条润色大师。修改一个【已存在的词条】。',
     B.contentCanon,
     B.nsfwWorldCanon,
+    B.adultGate,
+    B.personEntryAdult,
+    B.nsfwPersonCanon,
     B.inferCanon,
     B.antiSlop,
-    '\n保留可靠事实；按【本次任务】或原文检索结果补全细节。改写后 content 至少 200 字；原内容不足 60 字的骨架，展开后至少 300 字。',
+    '\n保留可靠事实，以及正文里已有的 <% %> 与 {{ }}。按【本次任务】补全。短事实保持短，不要为了变长而注水。',
     '\n写明与已有人物、地点、物品、势力的关系（认识、对立、持有、位于、隶属）。不要另起一套互不认识的名字。',
     '\n若属成人/情欲设定：写清规则、敏感触发、禁忌边界、氛围与玩法。',
     '\n输出完整 JSON 词条字段（comment/type/content/keys/strategy/position 等，与调用方要求一致）。'
@@ -389,7 +409,7 @@ export const DEFAULT_PROMPTS = {
     '\nAdultMode=true：无论是否 category=nsfw，都须补全成人向用法；content 可含【成人向用法】；'
     + '返回 attrs.adult（lastPass:"expand"）；nsfw 条目填满 kind 字段。',
     '\nNtlMode=true：content 须含禁忌/权力张力要点，可附 attrs.ntl。',
-    '\n【篇幅】content 至少 200 字，写明与已有人物、地点、物品的关系（认识、对立、持有、位于、隶属）。若有【本次任务】，以它为准。',
+    '\n【篇幅】按这条该说的话说完。若有【本次任务】，以它为准。短事实保持短。已有的 <% %> 与 {{ }} 原样保留。',
     '\n只输出 JSON：{ "name": "...", "content": "扩写后的设定正文", "keys": ["触发词"], "attrs": {} }'
   ),
 
@@ -491,7 +511,7 @@ export const DEFAULT_PROMPTS = {
     B.adultGate,
     B.antiSlop,
     B.outputCanon,
-    '\n【charDesc】至少 200 字：外貌、性格、背景、能力、关系钩子、口吻；AdultMode 时自然融入可 RP 的情欲倾向与界限（勿整段 NSFW JSON，用可读叙述）。',
+    '\n【charDesc】写这个人在场景里要被知道的事。说完即可，不必凑字数。AdultMode 时可以写情欲倾向与界限（勿整段 NSFW JSON，用可读叙述）。',
     '\n只输出 JSON：'
     + '{ "charName":"角色名", "wbName":"世界书名", "charDesc":"详细角色描述", "creatorNotes":"给使用者的简短说明" }'
   ),
@@ -517,8 +537,8 @@ export const DEFAULT_PROMPTS = {
     B.contentCanon,
     B.nsfwWorldCanon,
     B.antiSlop,
-    '\n审计维度：空壳/过短、keys 质量、常驻与可选是否合理、冲突与重复、人物与世界是否脱节、'
-    + '成人条目是否缺 Limits/用法、是否缺少可玩钩子。',
+    '\n审计只报告：常驻却带触发词、开着的可选没有触发词也不在同组、同组开了几条、读取路径对不上状态栏、Description 为空或和常驻开头重复。',
+    '\n不要因为缺了某种类型、人物太少或太多、条数不像某张样本而扣分。不要要求每条写满固定字数。',
     '\n按调用方要求的 JSON schema 输出问题与修复建议。'
   ),
 
@@ -727,6 +747,7 @@ export const DEFAULT_PROMPTS = {
     '13. 【长文生成】角色长文、开场白、世界书正文、小说人物档案、小说世界书，每次只调用一个生成工具处理一篇。'
     + 'args.instruction 必填，写成这次的生成提示：对话里已经确认的设定、这篇要写什么、不要写什么、和已有人物/物品/地点的关系。'
     + '不要把写好的正文放进参数。'
+    + 'update_character_fields 只接受 charName、wbName、tags。场景契约和作者注释用 expand_character_field，参数是 field 和 instruction。'
     + '禁止用 update_character_fields、replace_character_section、create_worldbook_entry、update_worldbook_entry、update_alternate_greeting 写入长正文；'
     + '禁止用 generate_character_draft、generate_worldbook_skeleton 代替逐篇生成。'
     + '工具会自行带上世界与限定和已有条目索引。信息还不够、仍在商量时，先在对话里确认，再调用工具。'

@@ -4,7 +4,7 @@
 
 SillyTavern 卡片构建器壳层设计 token。状态栏面板用壳层 token 与 `.ui-step-pill`；`src/lib/statusBarThemes/` 不再进入面板。
 
-**壳层换肤**：5 套精品场景主题；**实施 SoT 见 [`theme-scenes-v3-final.md`](./theme-scenes-v3-final.md)**（v2 Phase 1 已落地）。`html[data-app-theme]` + `html[data-app-scene]` + 分级 `data-scene-tier`；侧栏「外观」→ 主题馆 Modal；持久化 `st_v3_app_theme` / `st_v3_scene_fx`。
+**壳层换肤**：11 套主题（含亮色「暖纸」「手账」；翠竹、鲜果已移除）。**实施 SoT 见 [`theme-scenes-v3-final.md`](./theme-scenes-v3-final.md)** 与 `src/lib/theme/`。`html[data-app-theme]` + `html[data-app-scene]` + 分级 `data-scene-tier`；侧栏「外观」→ 主题馆 Modal；持久化 `st_v3_app_theme` / `st_v3_scene_fx`。未保存过主题时默认是暖纸；已经选过的主题保持原选择。夜庭仍在主题馆里。
 
 **所有 UI 变更须遵循本文档。** 新增控件优先复用 `ui-patterns.css` 共享类，禁止在局部再发明一套 tip / 搜索 / 行内按钮。
 
@@ -99,7 +99,7 @@ SillyTavern 卡片构建器壳层设计 token。状态栏面板用壳层 token �
 同一区域 **仅一个** `.btn-primary`。  
 卡片底栏 **禁止** 再用大块 `.btn` / `.btn-sm` 做发布/分享。
 
-`.adult-btn-compact` 作为 `.btn-inline` 的别名保留，旧面板可渐进替换。
+`.adult-btn-compact` 作为 `.btn-inline` 的别名保留，旧面板可渐进替换。单独的 `.btn-inline`（不带 `.btn` / `.btn-primary` / `.btn-text`）用强调色浅底、字色和边，避免掉回浏览器默认按钮。
 
 ### 封面卡信息叠放
 
@@ -112,7 +112,7 @@ SillyTavern 卡片构建器壳层设计 token。状态栏面板用壳层 token �
 5. 标签筛选浮层：竖排可滚动列表，挂 body（高 z-index），避免被卡片网格盖住。
 6. 操作反馈：**统一走 `appFeedback`**（SoT：`src/lib/ui/appMessage.mjs`）；禁止新增 `#*Tip` / 面板底栏写操作结果。普通成功/短警告 → **message toast**；失败/需阅读/长文/进行中（非 AI 任务）→ **notification**；**禁止** `alert` / `confirm` / `prompt`（角色卡管理走自定义对话框）。管理端原因用页内对话框，不用 `confirm`。
 
-管理端是全视口：顶栏和左菜单留在视口里，只滚右侧内容。禁止把 `html` / `body` 改成整页滚动。列表是带标签的查询、一个主按钮「查询」、表格和「共 N 条」。查询用普通 input，但必须走壳层字段（表面、边、圆角、焦点环），`search` / `email` 与 `text` 同一套。主按钮跟标题或查询放在一起，不甩到宽屏另一头。行内操作用 `.btn-inline`。空态用 `.ui-empty-tip`。没有权限的按钮不出现。
+管理端是全视口：顶栏和左菜单留在视口里，只滚右侧内容。禁止把 `html` / `body` 改成整页滚动。列表是带标签的查询、一个主按钮「查询」、表格和「共 N 条」。查询用普通 input，但必须走壳层字段（表面、边、圆角、焦点环），`search` / `email` 与 `text` 同一套。主按钮跟标题或查询放在一起，不甩到宽屏另一头。行内操作用 `.btn-inline`。列表空行用 `.admin-empty`（虚线居中的 `.ui-empty-tip` 不放进表格）。没有权限的按钮不出现。
 
 #### 操作反馈路由（强制）
 
@@ -150,8 +150,8 @@ SillyTavern 卡片构建器壳层设计 token。状态栏面板用壳层 token �
 |------|------|
 | `src/styles/tokens.css` | 入口：`tokens-base.css` + `tokens-themes.css` + `theme/scenes.css` |
 | `src/styles/tokens-base.css` | 间距、圆角、字体、动效 |
-| `src/styles/tokens-themes.css` | 5 套 `[data-app-theme]` 语义色 |
-| `src/styles/theme/scenes/*.css` | 4 套 `[data-app-scene]` 装饰层（纸纹 / 冰裂 / 焰纹 / 竹影） |
+| `src/styles/tokens-themes.css` | 11 套 `[data-app-theme]` 语义色（暖纸、手账为亮色） |
+| `src/styles/theme/scenes/*.css` | `[data-app-scene]` 装饰层。暖纸无场景层；手账为点阵纸 |
 | `src/styles/ui-patterns.css` | 共享 UI 类（chip、工具条、按钮层级、搜索、空态、文本分层） |
 | `src/styles/layout-chrome.css` | 壳层布局、三栏、移动端抽屉、`.panel` / `.btn` 基线（从 Layout 外提） |
 
@@ -194,6 +194,49 @@ SillyTavern 卡片构建器壳层设计 token。状态栏面板用壳层 token �
 | `.btn-icon` / `.btn-icon--sm` | 图标按钮 |
 | `.ui-hint` / `.ui-hint--inline` / `.ui-status-tip` | 说明 / 行内 / 状态 |
 | `.ui-tabs` / `.ui-slider` / `.ui-pill-btn` | Tab / 滑条 / pill |
+| `.btn-danger` / `.btn-text` / `.btn-warning` | 危险填充 / 文字按钮 / 警告 |
+| `.ui-icon-btn` | 方图标按钮；`.entry-icon-btn`、`.novel-icon-btn` 同色 |
+| `.ui-segmented` | 分段切换；`.assistant-mode-switch` 用同一套表面 |
+| `.ui-menu` | 菜单面；`.card-more-popover`、`.card-version-popover` 同色 |
+| `.ui-timeline` | 版本/事件流；版本浮层条目带圆点 |
+| `.ui-tag` | 标签；`.wb-scope-tag`、`.ui-chip`、`.card-manager-tag-chip` 同色 |
+
+---
+
+## 通用控件
+
+页面不另装组件库。类名就是控件。颜色只读主题变量（`--color-surface*`、`--color-accent*`、`--color-danger*`、`--color-scrim`、`--color-border`、`--color-on-accent`）。两种尺寸：行内、封面、工具条用紧凑；表单和对话框用壳层字段（padding 10px）。不另做大号按钮。一个区域仍然只有一个 `.btn-primary`。
+
+旧类名是别名，已有 HTML 直接吃到新颜色。
+
+| 控件 | 类 | 用法 |
+|------|----|------|
+| 按钮 | `.btn-primary` / `.btn-ghost` / `.btn-text` / `.btn-danger` / `.btn-warning` / `.btn-inline` | 悬停用 `--color-accent-soft-hover`。危险用 `--color-danger-fill` |
+| 图标按钮 | `.btn-icon`、`.ui-icon-btn`、`.entry-icon-btn`、`.novel-icon-btn` | 方或圆。危险态 `.is-danger`：常显，悬停填危险色、字用 `--color-on-accent` |
+| 输入 | `input` / `textarea` / `number` | 壳层字段。错误态靠边框危险色 |
+| 搜索 | `.ui-search-bar`（`.wb-search-bar` 同控件） | 底 `--color-surface-input`，带清除 |
+| 下拉 | 壳层 `select`，可搜索走 `chromeBoot` | 面板 `--color-surface-elevated` |
+| 勾选 / 开关 | `checkbox` / `radio` | `accent-color: var(--color-accent)` |
+| 滑条 | `.ui-slider` | 轨道 `--color-slider-track` |
+| 上传 | `.avatar-upload`、`.novel-dropzone` | 按钮或拖放区 |
+| 标签 | `.ui-chip`、`.ui-tag`、`.wb-scope-tag` | 只读 / 可勾 / 可关。选中 `--color-accent-soft` |
+| 徽标 | `.novel-sync-badge` 等 | 成功 / 警告 / 默认走语义浅底 |
+| 空态 | `.ui-empty-tip` | 面板空。管理端表格用 `.admin-empty` |
+| 菜单 | `.ui-menu`、`.card-more-popover`、`.card-version-popover` | 一项一悬停，悬停 `--color-accent-soft` |
+| 时间线 | `.ui-timeline`、版本浮层条目 | 圆点 + 行，不是另一套菜单皮 |
+| 树 | 管理端菜单表 | 缩进行，仍是表 |
+| 折叠 | 世界书条目展开 | 行内图标按钮 |
+| 表格 + 分页 | 管理端列表 | 结构不动，颜色走变量 |
+| 分段 | `.assistant-mode-switch` | 轨道 `--color-surface-inset`，选中 `--color-accent-soft` |
+| 步骤 | `.ui-step-pill` | 状态栏四步 |
+| 提示 | `.ui-pref-tip` | 不另做横幅体系 |
+| 对话框 | `.ui-modal-dialog`、`.wb-modal-dialog`、`.novel-modal-dialog`、`.code-window` | 面 `--color-surface` / `--color-surface-elevated`，遮罩 `--color-scrim` |
+| 抽屉 | 移动侧栏、助手栏 | 已有 |
+| 反馈 | `appFeedback` | toast / notification / 任务中心。不另做第三套 |
+
+不做日期、时间、日历、级联、穿梭、提及、评分、取色、引导、锚点、回到顶部、水印、二维码、悬浮按钮。产品没有这些交互。
+
+状态栏右侧「时辰 / 天象」预览是导出皮，不跟着应用主题改色。壳上的按钮和表单仍走上面这套。
 
 ---
 

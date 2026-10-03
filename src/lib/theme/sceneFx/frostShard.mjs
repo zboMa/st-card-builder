@@ -55,25 +55,51 @@ export function createSceneFx(env) {
       b.life -= 1;
       if (b.life <= 0) { bursts.splice(j, 1); continue; }
       var ba = b.life / b.maxLife;
-      ctxA.strokeStyle = ICE + (ba * 0.7).toFixed(3) + ')';
-      ctxA.lineWidth = 1.2;
-      ctxA.beginPath();
-      for (var k = 0; k < b.lines; k++) {
-        var ang = (Math.PI * 2 * k) / b.lines + b.rot;
-        ctxA.moveTo(b.x, b.y);
-        ctxA.lineTo(b.x + Math.cos(ang) * b.r * ba, b.y + Math.sin(ang) * b.r * ba);
+      var grow = 0.4 + 0.6 * (1 - ba);
+      ctxA.lineCap = 'round';
+      ctxA.lineJoin = 'round';
+      for (var s = 0; s < b.segs.length; s++) {
+        var seg = b.segs[s];
+        ctxA.strokeStyle = ICE + (ba * 0.75).toFixed(3) + ')';
+        ctxA.lineWidth = seg.w;
+        ctxA.beginPath();
+        ctxA.moveTo(b.x + (seg.x0 - b.x) * grow, b.y + (seg.y0 - b.y) * grow);
+        ctxA.lineTo(b.x + (seg.x1 - b.x) * grow, b.y + (seg.y1 - b.y) * grow);
+        ctxA.stroke();
       }
-      ctxA.stroke();
-      b.r += 0.6;
     }
   }
 
-  function burst(x, y, kind) {
+  function crackSegments(x, y) {
+    var segs = [];
+    function walk(x0, y0, ang, len, depth) {
+      if (depth <= 0 || len < 6) return;
+      var ang2 = ang + (Math.random() - 0.5) * 0.55;
+      var x1 = x0 + Math.cos(ang2) * len;
+      var y1 = y0 + Math.sin(ang2) * len;
+      segs.push({ x0: x0, y0: y0, x1: x1, y1: y1, w: 0.6 + depth * 0.35 });
+      walk(x1, y1, ang2, len * 0.62, depth - 1);
+      if (depth > 1) {
+        walk(
+          x0 + (x1 - x0) * 0.55,
+          y0 + (y1 - y0) * 0.55,
+          ang2 + (Math.random() < 0.5 ? 0.85 : -0.85),
+          len * 0.45,
+          depth - 1,
+        );
+      }
+    }
+    walk(x, y, -Math.PI / 2 + (Math.random() - 0.5) * 0.5, 26 + Math.random() * 14, 4);
+    return segs;
+  }
+
+  function burst(x, y) {
     bursts.push({
-      x: x, y: y, r: 8 + Math.random() * 6,
-      lines: kind === 'crystal' ? 10 : 8,
-      rot: Math.random() * 0.5,
-      life: 28, maxLife: 28,
+      x: x,
+      y: y,
+      segs: crackSegments(x, y),
+      life: 36,
+      maxLife: 36,
     });
   }
 

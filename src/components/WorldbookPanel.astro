@@ -184,8 +184,8 @@ import WorldbookAuditor from './WorldbookAuditor.astro';
     display: flex;
     align-items: center;
     gap: 6px;
-    background: rgba(8, 12, 28, 0.55);
-    border: 1px solid rgba(71, 85, 105, 0.4);
+    background: var(--color-surface-input);
+    border: 1px solid var(--color-border);
     border-radius: 8px;
     padding: 0 8px;
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
@@ -210,7 +210,7 @@ import WorldbookAuditor from './WorldbookAuditor.astro';
   }
   .wb-search-input::placeholder { color: var(--color-text-muted); }
   .wb-search-clear {
-    background: rgba(71, 85, 105, 0.4);
+    background: var(--color-surface-inset);
     border: none;
     color: var(--color-text-muted);
     width: 20px;
@@ -225,7 +225,7 @@ import WorldbookAuditor from './WorldbookAuditor.astro';
     flex-shrink: 0;
   }
   .wb-search-clear:hover {
-    background: rgba(100, 116, 139, 0.6);
+    background: var(--color-accent-soft-hover);
     color: var(--color-text);
   }
   .wb-search-scope {
@@ -241,8 +241,8 @@ import WorldbookAuditor from './WorldbookAuditor.astro';
     gap: 4px;
     padding: 2px 8px;
     border-radius: 6px;
-    background: rgba(30, 41, 59, 0.6);
-    border: 1px solid rgba(71, 85, 105, 0.4);
+    background: var(--color-chip-bg);
+    border: 1px solid var(--color-chip-border);
     font-size: 0.68rem;
     color: var(--color-text-muted);
     cursor: pointer;
@@ -259,7 +259,7 @@ import WorldbookAuditor from './WorldbookAuditor.astro';
   .wb-scope-tag:has(input:checked) {
     background: var(--color-accent-soft);
     border-color: var(--color-accent-border);
-    color: #c7d2fe;
+    color: var(--color-text);
   }
   .wb-search-count {
     margin-left: auto;
@@ -276,8 +276,8 @@ import WorldbookAuditor from './WorldbookAuditor.astro';
     font-size: 0.68rem;
     padding: 2px 6px;
     border-radius: 6px;
-    border: 1px solid rgba(71, 85, 105, 0.4);
-    background: rgba(30, 41, 59, 0.6);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface-input);
     color: var(--color-text-secondary);
     max-width: 7rem;
   }
@@ -313,7 +313,7 @@ import WorldbookAuditor from './WorldbookAuditor.astro';
   .wb-search-hit:hover,
   .wb-search-hit:focus-visible {
     border-color: var(--color-accent-border);
-    background: rgba(30, 41, 59, 0.85);
+    background: var(--color-accent-soft);
     outline: none;
   }
   .wb-search-hit-main {
@@ -351,8 +351,8 @@ import WorldbookAuditor from './WorldbookAuditor.astro';
     white-space: nowrap;
   }
   .wb-search-hit mark {
-    background: rgba(251, 191, 36, 0.28);
-    color: #fde68a;
+    background: var(--color-warning-soft);
+    color: var(--color-text);
     padding: 0 2px;
     border-radius: 3px;
     font-weight: 600;
@@ -374,7 +374,7 @@ import WorldbookAuditor from './WorldbookAuditor.astro';
   .wb-modal-backdrop {
     position: absolute;
     inset: 0;
-    background: rgba(2, 6, 23, 0.66);
+    background: var(--color-scrim);
     backdrop-filter: blur(6px);
   }
   .wb-modal-dialog {
@@ -383,8 +383,8 @@ import WorldbookAuditor from './WorldbookAuditor.astro';
     width: min(480px, 100%);
     border-radius: 12px;
     border: 1px solid var(--color-accent-border);
-    background: linear-gradient(145deg, rgba(15, 23, 42, 0.98), rgba(7, 12, 24, 0.98));
-    box-shadow: 0 20px 56px rgba(0, 0, 0, 0.45);
+    background: var(--color-surface-elevated);
+    box-shadow: var(--shadow-panel);
     overflow: hidden;
   }
   .wb-modal-dialog-lg { width: min(640px, 100%); }
@@ -424,14 +424,21 @@ import WorldbookAuditor from './WorldbookAuditor.astro';
     justify-content: flex-end;
     gap: 8px;
     padding: 12px 16px 14px;
-    border-top: 1px solid rgba(51, 65, 85, 0.45);
+    border-top: 1px solid var(--color-border);
   }
   .wb-modal-cancel {
     width: auto !important;
     margin: 0 !important;
-    padding: 8px 12px !important;
-    font-size: 0.78rem !important;
-    background: linear-gradient(135deg, var(--color-surface-elevated), var(--color-surface));
+    background: var(--color-surface-elevated);
+    color: var(--color-text);
+    border-color: var(--color-border);
+    box-shadow: none;
+  }
+  .wb-modal-cancel:hover {
+    background: var(--color-accent-soft);
+    color: var(--color-text);
+    border-color: var(--color-accent-border);
+    box-shadow: none;
   }
   .wb-ai-row {
     display: flex;
@@ -445,8 +452,6 @@ import WorldbookAuditor from './WorldbookAuditor.astro';
   .wb-ai-action {
     width: auto !important;
     margin: 0 !important;
-    padding: 8px 12px !important;
-    font-size: 0.78rem !important;
     white-space: nowrap;
     flex-shrink: 0;
   }

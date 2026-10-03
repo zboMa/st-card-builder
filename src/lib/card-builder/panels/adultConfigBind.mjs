@@ -15,6 +15,7 @@ import {
   resolveAffectionStageNames,
 } from '../../affectionProgress.mjs';
 import { buildAdultCanonDigest } from '../../adult/canon.mjs';
+import { formatAdultModeLine } from '../../assistant/generationContext.mjs';
 import { enhanceSelectMini, syncEnhancedSelectLabel } from '../../ui/enhanceSelectMini.mjs';
 import {
   normalizeWorldviewPresetItems,
@@ -240,6 +241,7 @@ export function attachAdultConfigBind(ctx, s, panel) {
           }
         }
         return {
+          gate: formatAdultModeLine(!!ctx.state.nsfwEnabled, !!ctx.state.ntlEnabled),
           nsfw: flavor + posture + speech,
           posture: posture,
           speech: speech,

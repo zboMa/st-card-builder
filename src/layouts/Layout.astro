@@ -17,10 +17,10 @@ const { title } = Astro.props;
         var K = 'st_v3_app_theme';
         var FX = 'st_v3_scene_fx';
         var FXL = 'st_v3_fx_enabled';
-        var D = 'nocturne';
-        var M = { ink: 'sumi-ink', frost: 'frost-shard', jade: 'bamboo-edge', rose: 'nocturne', neon: 'nocturne', slate: 'nocturne', daybreak: 'nocturne' };
-        var ids = ['nocturne', 'sumi-ink', 'frost-shard', 'ember-blaze', 'bamboo-edge', 'water-wave', 'fresh-lime', 'cloud-pavilion', 'morning-drizzle', 'doom-carrion', 'moon-haze'];
-        function sceneFor(t) { return t === 'nocturne' ? 'none' : t; }
+        var D = 'warm-paper';
+        var M = { ink: 'sumi-ink', frost: 'frost-shard', jade: 'nocturne', rose: 'nocturne', neon: 'nocturne', slate: 'nocturne', daybreak: 'nocturne', 'bamboo-edge': 'nocturne', 'fresh-lime': 'nocturne' };
+        var ids = ['nocturne', 'warm-paper', 'journal', 'sumi-ink', 'frost-shard', 'ember-blaze', 'water-wave', 'cloud-pavilion', 'morning-drizzle', 'doom-carrion', 'moon-haze'];
+        function sceneFor(t) { return (t === 'nocturne' || t === 'warm-paper') ? 'none' : t; }
         function tierFor(scene, fxOn) {
           if (!scene || scene === 'none') return 'none';
           try {
@@ -52,7 +52,7 @@ const { title } = Astro.props;
       })();
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#1e1c24" />
+    <meta name="theme-color" content="#f6efe4" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <title>{title}</title>
     <script is:inline src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>

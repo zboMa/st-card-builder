@@ -464,7 +464,7 @@ Give extra narrative weight to {focusName} in this turn, without excluding other
 | **metric** | 计数仅供展示/助手描述 | `worldbookPersonCount`、`entitySelectedCount` | **不设达标线** — 1 人与 20 人皆可发布；助手说「当前 3 名人物条目」，不说「还差 7 人」 |
 | **dirty** | 与云/投影是否一致 | `novelUnsyncedCount`、`cloudDirty` | **无** — 计数或布尔 |
 
-**原则**：**卡司人数、世界书条数、工坊 entity 数** 一律 **metric**，**永不**作为「能否进入下一阶段」的硬条件。用户要 1 个 NPC 或 20 个都合法。
+**原则**：**卡司人数、世界书条数、工坊 entity 数** 一律 **metric**，**永不**作为「能否进入下一阶段」的硬条件。用户要 1 个 NPC 或 20 个都合法。引擎不得按世界观、人物、地点、物品等类型配额生成世界书。
 
 #### 6.1.3 状态对象（目标契约 · 实现 `cardProgress.mjs` 或扩 `cardJourney`）
 

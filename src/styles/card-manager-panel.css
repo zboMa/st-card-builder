@@ -267,7 +267,7 @@
     overflow-y: auto;
     border: 1px solid var(--color-border-subtle);
     border-radius: 12px;
-    background: rgba(8, 12, 24, 0.96);
+    background: var(--color-surface-elevated);
     box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
     padding: 6px 0;
     backdrop-filter: blur(10px);
@@ -287,8 +287,8 @@
     cursor: pointer;
   }
   .card-version-item:hover {
-    background: rgba(99, 102, 241, 0.12);
-    color: #f8fafc;
+  background: var(--color-accent-soft);
+  color: var(--color-text);
   }
   .card-version-item.is-active {
     background: var(--color-accent-soft);
@@ -348,7 +348,7 @@
     font: inherit;
     font-size: 0.88rem;
     font-weight: 650;
-    color: #f8fafc;
+    color: var(--color-on-accent);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -440,7 +440,7 @@
     overflow-y: auto;
     border: 1px solid var(--color-border-subtle);
     border-radius: 12px;
-    background: rgba(8, 12, 24, 0.96);
+    background: var(--color-surface-elevated);
     box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
     padding: 6px 0;
     backdrop-filter: blur(10px);
@@ -473,8 +473,8 @@
     cursor: pointer;
   }
   .card-more-item:hover:not(:disabled) {
-    background: rgba(99, 102, 241, 0.12);
-    color: #f8fafc;
+  background: var(--color-accent-soft);
+  color: var(--color-text);
   }
   .card-more-item:disabled {
     opacity: 0.42;
@@ -484,7 +484,7 @@
   .card-more-divider {
     height: 1px;
     margin: 4px 0;
-    background: rgba(51, 65, 85, 0.7);
+    background: var(--color-border-subtle);
   }
 
   .card-more-hint {
@@ -615,8 +615,8 @@
     text-overflow: ellipsis;
   }
   .card-manager-tag-option:hover {
-    background: rgba(99, 102, 241, 0.12);
-    color: #f8fafc;
+  background: var(--color-accent-soft);
+  color: var(--color-text);
   }
   .card-manager-tag-option.is-active {
     background: var(--color-accent-soft);

@@ -16,9 +16,10 @@ import { engineBegin, engineEnd, engineTryAllowed } from '../../actionEngine/hel
 import {
   normalizeEngineGenMode,
   clampSlotCount,
-  buildScaledQuota,
-  formatQuotaForPrompt,
   normalizeOutlineSlots,
+  snapshotCardDraft,
+  restoreCardDraft,
+  worldbookReplaceNeedsConfirm,
   slotToWorldbookEntry,
   formatOutlineRef,
   formatEnrichedEntriesRef,
@@ -35,6 +36,8 @@ import {
   aiCommentFromRow,
 } from '../../worldbook/worldbookEntryBridge.mjs';
 import { getDefaultWBEntry } from '../state.mjs';
+import { showConfirmDialog } from '../../ui/confirmDialog.mjs';
+import { formatAdultModeLine } from '../../assistant/generationContext.mjs';
 
 /** @param {object} ctx @param {object} s @param {object} panel */
 export function attachAiEnginePanel(ctx, s, panel) {
@@ -56,11 +59,11 @@ export function attachAiEnginePanel(ctx, s, panel) {
         var typeBadge = '';
         var nm = (it.name || '').toLowerCase();
         if (nm.indexOf('example') >= 0 || nm.indexOf('dialogue') >= 0 || nm.indexOf('\u793a\u4f8b') >= 0) {
-          typeBadge = ' <span style="font-size:0.6rem;color:#34d399;background:rgba(16,185,129,0.1);padding:1px 5px;border-radius:4px;">\u793a\u4f8b\u5bf9\u8bdd</span>';
+          typeBadge = ' <span class="ui-tag preset-kind preset-kind--example">\u793a\u4f8b\u5bf9\u8bdd</span>';
         } else if (nm.indexOf('jailbreak') >= 0 || nm.indexOf('nsfw') >= 0 || nm.indexOf('\u8d8a\u72f1') >= 0) {
-          typeBadge = ' <span style="font-size:0.6rem;color:#f59e0b;background:rgba(245,158,11,0.1);padding:1px 5px;border-radius:4px;">JB</span>';
+          typeBadge = ' <span class="ui-tag preset-kind preset-kind--jb">JB</span>';
         } else {
-          typeBadge = ' <span style="font-size:0.6rem;color:var(--color-text-muted);background:rgba(100,116,139,0.1);padding:1px 5px;border-radius:4px;">system</span>';
+          typeBadge = ' <span class="ui-tag preset-kind">system</span>';
         }
         return '<div class="preset-item"><input type="checkbox" id="preset_chk_' + i + '" data-index="' + i + '"' + (it.enabled ? ' checked' : '') + ' /><label for="preset_chk_' + i + '">' + it.name + typeBadge + '</label></div>';
       }).join('');
@@ -254,7 +257,16 @@ export function attachAiEnginePanel(ctx, s, panel) {
 
       var slotCount = window.__getSkeletonCount__ ? window.__getSkeletonCount__() : 10;
       slotCount = clampSlotCount(slotCount);
-      var quota = buildScaledQuota(slotCount);
+      if (worldbookReplaceNeedsConfirm(ctx.state.worldbookEntries)) {
+        var overwrite = await showConfirmDialog({
+          title: '替换已有世界书？',
+          message: '这张卡已经有世界书。继续会先记下整张卡，再用这次大纲替换世界书。取消则保持原卡不动。',
+          okText: '替换并生成',
+          cancelText: '保持原卡',
+          danger: true,
+        });
+        if (!overwrite) return;
+      }
       var searchEnabled = window.__searchConfig__ && window.__searchConfig__.isEnabled();
       // steps: search? + char + outlineOrSkeletonBatches + enrich?(slots) + cross? + greet
       var enrichSteps = genMode === ENGINE_GEN_MODE_FULL && !pauseOutline ? slotCount + 1 : 0;
@@ -279,7 +291,9 @@ export function attachAiEnginePanel(ctx, s, panel) {
       }) : null;
       var engineSignal = engineTask && engineTask.signal;
 
+      var cardSnap = null;
       try {
+        cardSnap = snapshotCardDraft(ctx.state);
         var headers = { 'Content-Type': 'application/json' };
         if (key) headers['Authorization'] = 'Bearer ' + key;
         var presetsStr = ctx.panels.aiEngine.getActivePresetsStr();
@@ -348,11 +362,11 @@ export function attachAiEnginePanel(ctx, s, panel) {
           currentStep++;
           if (aiCenter && engineTask) aiCenter.setProgress(engineTask.id, currentStep / totalSteps, '世界书大纲');
           if (hacker) { hacker.setPhase('\ud83d\uddd2\ufe0f 世界书大纲...'); hacker.setProgress(currentStep, totalSteps); }
-          if (statusEl) statusEl.textContent = '\u23f3 生成分类型大纲（' + formatQuotaForPrompt(quota) + '）...';
+          if (statusEl) statusEl.textContent = '\u23f3 按方向列大纲（' + slotCount + ' 条）...';
 
           var outlineSys = ctx.promptText('wbOutline')
             + charRef
-            + '\n【配额】共 ' + slotCount + ' 条：' + formatQuotaForPrompt(quota)
+            + '\n【这一次】写 ' + slotCount + ' 条。只写方向里点到的事，没有点名的类型不要补。'
             + (wbGoal ? '\n【方向·优先】：' + wbGoal : '')
             + (presetsStr ? '\n【文风】：' + presetsStr.substring(0, 200) : '')
             + (wvWbHint || '')
@@ -482,6 +496,11 @@ export function attachAiEnginePanel(ctx, s, panel) {
           statusEl.style.color = '#10b981';
         }
       } catch (err) {
+        if (cardSnap) {
+          restoreCardDraft(ctx.state, cardSnap);
+          ctx.save();
+          if (ctx.renderAll) ctx.renderAll();
+        }
         if (ctx.isTrackedAbort(err)) {
           if (aiCenter && engineTask && engineTask.status !== 'cancelled') aiCenter.cancel(engineTask.id);
           if (hacker) { hacker.stop(); hacker.setPhase('\u23f9 已取消'); setTimeout(function() { if (hacker) hacker.hide(); }, 2000); }
@@ -540,12 +559,13 @@ export function attachAiEnginePanel(ctx, s, panel) {
           + (o.wvWbHint || '')
           + (o.presetsStr ? '\n【文风】：' + String(o.presetsStr).substring(0, 200) : '')
           + (o.searchInjection || '');
-        var enrichUser = [
-          '【本条大纲】type=' + slot.type + '（' + typeLab + '）',
-          '标题：' + slot.comment,
-          '职责：' + slot.blurb,
+          var enrichUser = [
+          '【本条】' + slot.comment + (typeLab ? '（' + typeLab + '）' : ''),
+          '职责：' + (slot.job || slot.blurb || ''),
+          '同组：' + (slot.group || '无'),
+          '读取：' + (slot.reads || '无'),
           '关联：' + ((slot.links && slot.links.length) ? slot.links.join('、') : '无'),
-          '请展开为完整词条 JSON。',
+          '按职责写正文。不要把职责、同组、读取抄进正文。正文里已有的 <% %> 和 {{ }} 原样保留。',
         ].join('\n');
 
         var ok = false;
@@ -562,6 +582,9 @@ export function attachAiEnginePanel(ctx, s, panel) {
             var ed = ctx.extractJsonObj(aiEn.content, '大纲丰满/' + slot.comment);
             var base = ctx.state.worldbookEntries[entryIdx] || slotToWorldbookEntry(slot, 100 + i);
             ctx.state.worldbookEntries[entryIdx] = fromAiJsonEntry(ed, base);
+            if (slot.job) ctx.state.worldbookEntries[entryIdx].job = slot.job;
+            if (slot.group) ctx.state.worldbookEntries[entryIdx].group = slot.group;
+            if (slot.reads) ctx.state.worldbookEntries[entryIdx].reads = slot.reads;
             ctx.state.worldbookEntries[entryIdx].outlineType = slot.type;
             ctx.state.worldbookEntries[entryIdx].outlineLinks = (slot.links || []).slice();
             ctx.renderAll();
@@ -789,11 +812,16 @@ export function attachAiEnginePanel(ctx, s, panel) {
         ? '\n【高级·主角背景参考（勿写入本条为角色设定）】：' + ctx.state.charName + ' | ' + String(ctx.state.charDesc || '').slice(0, 2000) + '\n'
         : '\n【管道】世界书生成与主角角色设定分离；默认不读取主角 Description。\n';
       var adultHints = (typeof window.__buildAdultPromptHints__ === 'function')
-        ? window.__buildAdultPromptHints__()
+        ? (window.__buildAdultPromptHints__() || {})
         : { nsfw: s.buildNsfwFlavorHint(), ntl: s.buildNtlHintForPrompt(), canon: s.buildAdultCanonHint() };
+      if (!adultHints.gate) {
+        var nsfwCfg = (typeof window.__getNsfwConfig__ === 'function') ? (window.__getNsfwConfig__() || {}) : {};
+        adultHints.gate = formatAdultModeLine(!!nsfwCfg.enabled, !!nsfwCfg.ntlEnabled);
+      }
       var wvWbSingle = s.buildActiveWorldviewHint('worldbook');
       var sysPrompt   = (ctx.promptText('wbSingle') || '')
         + stepInfo + charBlock + '\n' + ctxStr + '\n' + presetBlock
+        + (adultHints.gate || '')
         + (adultHints.nsfw || '') + (adultHints.ntl || '') + (adultHints.vessel || '')
         + (adultHints.canon || '')
         + (wvWbSingle || '')

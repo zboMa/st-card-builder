@@ -5,6 +5,8 @@
  *   AND_ANY: 0, NOT_ALL: 1, NOT_ANY: 2, AND_ALL: 3
  */
 
+import { resolveEntryPosition } from '../../worldbook/entryPosition.mjs';
+
 export var SELECTIVE_LOGIC = {
   AND_ANY: 0,
   NOT_ALL: 1,
@@ -62,14 +64,7 @@ export function normalizeWorldInfoEntry(raw, index) {
   var order = e.order != null ? e.order
     : (e.insertion_order != null ? e.insertion_order : 100);
 
-  var position = e.position;
-  if (typeof position === 'string') {
-    // ST 导出偶发字符串槽名；本仓库 UI 用 0–6
-    position = ext.position != null ? ext.position : 4;
-  }
-  if (ext.position != null && (e.position === 'before_char' || position == null)) {
-    position = ext.position;
-  }
+  var position = resolveEntryPosition(e);
 
   var selectiveLogic = e.selectiveLogic != null ? e.selectiveLogic
     : (ext.selectiveLogic != null ? ext.selectiveLogic : 0);

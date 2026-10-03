@@ -49,18 +49,18 @@ export const ASSISTANT_TOOLS = [
   { name: 'novel_list_outputs', title: '小说产出摘要', kind: 'read', risk: 'none', summary: '小说各模块产出摘要（人物/世界书/文风/实体）', argsHint: '{}' },
 
   // —— 写入（小改 auto / 大改 confirm）——
-  { name: 'update_character_fields', title: '更新角色字段', kind: 'write', risk: 'auto', summary: '更新部分角色字段', argsHint: '{ fields:{charName?,wbName?,charDesc?,firstMes?,creatorNotes?,tags?,altGreetings?} }' },
-  { name: 'replace_character_section', title: '覆盖角色字段', kind: 'write', risk: 'confirm', summary: '整段覆盖角色字段', argsHint: '{ field: charDesc|firstMes|creatorNotes|..., content }' },
+  { name: 'update_character_fields', title: '更新角色字段', kind: 'write', risk: 'auto', summary: '只改角色名、世界书名、标签等短字段；场景契约和作者注释用 expand_character_field', argsHint: '{ fields:{charName?,wbName?,tags?} }' },
+  { name: 'replace_character_section', title: '覆盖角色字段', kind: 'write', risk: 'confirm', summary: '不要用来写长文；场景契约和作者注释用 expand_character_field', argsHint: '{ field, content(短) }' },
   { name: 'expand_character_field', title: '重写/扩写角色字段', kind: 'generate', risk: 'confirm', summary: '按字段重写/扩写一篇角色长文；instruction 为本次生成提示', argsHint: '{ field: charDesc|creatorNotes|..., mode?, instruction }' },
   { name: 'set_adult_config', title: '更新世界与限定', kind: 'write', risk: 'confirm', summary: '更新卡级「世界与限定」（worldviewPresetItems/框架/口味/表达层/NTL/恶堕等）', argsHint: '{ worldviewPresetItems?, enabled?, flavorItems?, postureItems?, speechItems?, ntlEnabled?, ntlTabooTypes?, adultWorldframeForced?, corruptionEnabled?, ... }' },
-  { name: 'create_worldbook_entry', title: '新建世界书', kind: 'write', risk: 'auto', summary: '新建一条世界书', argsHint: '{ entry: { comment, content, type?, keys?, strategy? } }' },
-  { name: 'update_worldbook_entry', title: '更新世界书', kind: 'write', risk: 'auto', summary: '更新一条世界书', argsHint: '{ target|{index|comment}, patch: { comment?, type?, content?, keys? } }' },
+  { name: 'create_worldbook_entry', title: '新建世界书', kind: 'write', risk: 'auto', summary: '新建短条目；长正文用 generate_worldbook_entry', argsHint: '{ entry:{ comment, content(短), keys?, strategy? } }' },
+  { name: 'update_worldbook_entry', title: '更新世界书', kind: 'write', risk: 'auto', summary: '改标题、触发词等短字段；长正文用 rewrite_worldbook_entry 或 expand_worldbook_entry', argsHint: '{ target|{index|comment}, patch:{ comment?, keys?, strategy? } }' },
   { name: 'delete_worldbook_entry', title: '删除世界书', kind: 'write', risk: 'confirm', summary: '删除世界书条目（含清空全部）', argsHint: '{ index|indices|target|{all:true} }' },
 
   // —— 开场白定向 ——
   { name: 'rewrite_greeting', title: '重写开场白', kind: 'generate', risk: 'confirm', summary: '重写一条开场白；instruction 为本次生成提示', argsHint: '{ target: main|{alternate:n}|index, mode?, instruction }' },
   { name: 'expand_greeting', title: '扩写开场白', kind: 'generate', risk: 'confirm', summary: '扩写一条开场白；instruction 为本次生成提示', argsHint: '{ target: main|{alternate:n}|index, instruction }' },
-  { name: 'update_alternate_greeting', title: '更新备选开场白', kind: 'write', risk: 'auto', summary: '更新备选开场白第 N 条', argsHint: '{ index, content }' },
+  { name: 'update_alternate_greeting', title: '更新备选开场白', kind: 'write', risk: 'auto', summary: '只改很短的措辞；整段用 rewrite_greeting 或 expand_greeting', argsHint: '{ index, content(短) }' },
   { name: 'set_greeting_init', title: '设置开场初始值', kind: 'write', risk: 'auto', summary: '设置某一条开场相对世界书保底的初始值差异；target 与开场白工具相同', argsHint: '{ target: main|{alternate:n}|index, overrides:{路径:值}, clear? }' },
 
   // —— 生成（对接现有引擎/面板）——
