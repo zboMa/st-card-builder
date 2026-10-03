@@ -67,6 +67,17 @@ export async function buildSyncCenterSnapshot(opts) {
   };
 }
 
+/**
+ * 配额和设备列表只在已登录时拉，且不跟倒计时 tick、页面启动绑在一起。
+ * @param {boolean} loggedIn
+ * @param {'login'|'view'|'sync'|'tick'|'boot'} reason
+ * @returns {boolean}
+ */
+export function shouldFetchAccountCloud(loggedIn, reason) {
+  if (!loggedIn) return false;
+  return reason === 'login' || reason === 'view' || reason === 'sync';
+}
+
 export function navigateToCardManagerBatch() {
   try {
     location.hash = 'card-manager';

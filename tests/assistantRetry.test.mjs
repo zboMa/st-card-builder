@@ -3,7 +3,7 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { planAssistantRetry, isRetryableAssistantError, planApplyOutcome } from '../src/lib/assistant/retryTurn.mjs';
+import { planAssistantRetry, isRetryableAssistantError, isTailRetryTarget, planApplyOutcome } from '../src/lib/assistant/retryTurn.mjs';
 
 describe('planAssistantRetry', function() {
   it('该用户消息之后只有可重试错误：删错误，从 step 0', function() {
@@ -105,6 +105,23 @@ describe('planAssistantRetry', function() {
     assert.equal(plan.toolCount, 1);
     assert.equal(plan.startStep, 1);
     assert.equal(plan.mode, 'continue');
+  });
+});
+
+describe('isTailRetryTarget', function() {
+  it('只有最后一条可重试错误能重试', function() {
+    var earlier = { role: 'assistant', content: '错误：请求失败 HTTP 400', error: true, retryable: true };
+    var laterUser = { role: 'user', content: '用户要求重新检查' };
+    var list = [
+      { role: 'user', content: '写开场白' },
+      earlier,
+      laterUser,
+    ];
+    assert.equal(isTailRetryTarget(list, 1), false);
+    assert.equal(isTailRetryTarget(list, 2), false);
+    var tail = list.concat([{ role: 'assistant', content: '错误：请求失败 HTTP 400', error: true, retryable: true }]);
+    assert.equal(isTailRetryTarget(tail, 1), false);
+    assert.equal(isTailRetryTarget(tail, tail.length - 1), true);
   });
 });
 

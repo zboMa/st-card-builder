@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { waitForLazyPromise } from '../src/lib/idbReady.mjs';
+import { waitForLazyPromise, runWhenIdbReady, markIdbReady, IDB_READY_FLAG } from '../src/lib/idbReady.mjs';
 
 describe('waitForLazyPromise', function() {
   it('已有 Promise 时直接等待其结果', async function() {
@@ -35,5 +35,40 @@ describe('waitForLazyPromise', function() {
       intervalMs: 10,
     });
     assert.equal(out, null);
+  });
+});
+
+describe('runWhenIdbReady', function() {
+  it('旗标已置位时立刻跑，不再听事件', function() {
+    var n = 0;
+    var listened = false;
+    var win = { addEventListener: function() { listened = true; } };
+    win[IDB_READY_FLAG] = true;
+    runWhenIdbReady(function() { n += 1; }, win);
+    assert.equal(n, 1);
+    assert.equal(listened, false);
+  });
+
+  it('句柄已挂上时立刻跑', function() {
+    var n = 0;
+    runWhenIdbReady(function() { n += 1; }, { __idbReady__: Promise.resolve(null) });
+    assert.equal(n, 1);
+  });
+
+  it('尚未就绪时等事件，同一轮只跑一次', function() {
+    var n = 0;
+    var listeners = [];
+    var win = {
+      addEventListener: function(type, fn) { listeners.push(fn); },
+      dispatchEvent: function(ev) {
+        listeners.slice().forEach(function(fn) { fn(ev); });
+      },
+    };
+    runWhenIdbReady(function() { n += 1; }, win);
+    assert.equal(n, 0);
+    markIdbReady(win);
+    markIdbReady(win);
+    assert.equal(n, 1);
+    assert.equal(win[IDB_READY_FLAG], true);
   });
 });

@@ -960,7 +960,7 @@ describe('assistant prompts & UI wiring', function() {
     assert.match(panel, /level: 'info'/);
     assert.match(panel, /已切换到 /);
     assert.match(panel, /retryable: true/);
-    assert.match(panel, /isRetryableAssistantError/);
+    assert.match(panel, /isTailRetryTarget\(uiMessages, index\)/);
     assert.match(panel, /notifyError\(errText, '助手'\)/);
     assert.match(panel, /class="assistant-panel__sub ui-panel-lead"/);
     assert.match(panel, /ui-empty-tip/);

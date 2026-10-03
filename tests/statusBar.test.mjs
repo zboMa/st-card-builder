@@ -773,6 +773,8 @@ describe('statusBar wiring', function() {
     assert.match(mvu, /__assistantMvuApi__/);
     assert.match(mvu, /btnVcInfer|从卡推定变量/);
     assert.match(mvu, /vcCorruptionGap/);
+    assert.match(mvu, /statusEl\.textContent = '未检测到角色数据，请先在角色面板填写'/);
+    assert.doesNotMatch(mvu, /setStatus\('⚠️ 未检测到角色数据/);
   });
 
   it('提示词与任务类型已登记', function() {

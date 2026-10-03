@@ -858,7 +858,10 @@ export function initVariableCardPanelCore() {
     lastSyncFingerprint = fingerprint;
 
     if (!name.trim() && !desc.trim()) {
-      setStatus('⚠️ 未检测到角色数据，请先在角色面板填写', 'var(--color-warning)');
+      if (statusEl) {
+        statusEl.textContent = '未检测到角色数据，请先在角色面板填写';
+        statusEl.style.color = 'var(--color-warning)';
+      }
       clearMvuPreview();
       return false;
     }
@@ -1647,7 +1650,10 @@ export function initVariableCardPanelCore() {
 
   if (btnAddOne) {
     btnAddOne.addEventListener('click', async function() {
-      if (!refreshSync()) return;
+      if (!refreshSync()) {
+        appFeedback(null, { message: '未检测到角色数据，请先在角色面板填写', level: 'warn', channel: 'toast' });
+        return;
+      }
       var requirement = (singleRequirement && singleRequirement.value || '').trim();
       if (!requirement) return alert('先写一下你想单独生成什么变量。');
       if (!gen.design) gen.design = { variables: [], summary:'手动追加变量' };

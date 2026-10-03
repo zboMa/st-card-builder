@@ -59,7 +59,7 @@ import { inferMvuCandidatesFromCard, corruptionProgressGap } from '../mvu/inferF
 import { STATUS_BAR_EXT_KEY } from '../statusBar.mjs';
 import { engineTryAllowed } from '../actionEngine/helpers.mjs';
 import { appFeedback } from '../ui/appMessage.mjs';
-import { planAssistantRetry, isRetryableAssistantError, planApplyOutcome } from './retryTurn.mjs';
+import { planAssistantRetry, isTailRetryTarget, planApplyOutcome } from './retryTurn.mjs';
 import { buildLocationBlock } from './locationBlock.mjs';
 import { computeCardProgress } from '../card-builder/cardProgress.mjs';
 
@@ -786,7 +786,7 @@ export function initAssistantPanelMain() {
       return btn;
     }
 
-    function renderAssistantMessageNode(m) {
+    function renderAssistantMessageNode(m, index) {
       var wrap = el('div', 'assistant-msg-wrap assistant-msg-wrap--assistant');
       var cls = 'assistant-msg assistant-msg--assistant';
       if (m.error) cls += ' assistant-msg--error';
@@ -797,7 +797,7 @@ export function initAssistantPanelMain() {
         ? escapeAssistantHtml(messageContentForDisplay(m))
         : renderAssistantMarkdown(messageContentForDisplay(m));
       wrap.appendChild(node);
-      if (isRetryableAssistantError(m)) {
+      if (isTailRetryTarget(uiMessages, index)) {
         var actions = el('div', 'assistant-msg-actions');
         var retryBtn = makeMsgIconBtn('重试', retryIconSvg);
         retryBtn.addEventListener('click', function() { retryLastTurn(); });
@@ -809,7 +809,7 @@ export function initAssistantPanelMain() {
 
     function renderMessages() {
       messagesEl.innerHTML = '';
-      uiMessages.forEach(function(m) {
+      uiMessages.forEach(function(m, index) {
         if (m.compaction) {
           messagesEl.appendChild(renderCompactionNode(m));
           return;
@@ -822,7 +822,7 @@ export function initAssistantPanelMain() {
           messagesEl.appendChild(renderUserMessageNode(m));
           return;
         }
-        messagesEl.appendChild(renderAssistantMessageNode(m));
+        messagesEl.appendChild(renderAssistantMessageNode(m, index));
       });
       if (pendingHintText) {
         messagesEl.appendChild(buildPendingHintNode(pendingHintText));

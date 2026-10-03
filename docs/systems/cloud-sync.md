@@ -101,7 +101,7 @@ npm run dev            # Astro :18826（127.0.0.1），/api 代理到 8787
 
 ## 离线
 
-- 未登录 / 断网：业务照常读写 LS/IDB
+- 未登录 / 断网：业务照常读写 LS/IDB。不请求 `/api/data/quota` 与 `/api/auth/tokens`。账户页倒计时只改本地文案；这两个接口在登录成功、进入账户页、同步结束时拉。
 - 意图写云端时写入 `localStorage` outbox（`st_v3_cloud_outbox_v1`）
 - 重新登录或「刷新云端列表」时 `flushOutbox`
 

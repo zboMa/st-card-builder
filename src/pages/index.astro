@@ -212,7 +212,7 @@ import AccountSyncPanel from '../components/AccountSyncPanel.astro';
   <!-- IndexedDB：头像高清图 + 小说大文本（草稿 JSON 仅存轻量标记） -->
   <script>
     import { openIdbDatabase } from '../lib/idbStore.mjs';
-    import { waitForLazyPromise } from '../lib/idbReady.mjs';
+    import { waitForLazyPromise, markIdbReady } from '../lib/idbReady.mjs';
     import * as avatarIdb from '../lib/avatarIdb.mjs';
     import { removeNovelBucketIdb, copyNovelBucketIdb } from '../lib/novel/state.mjs';
 
@@ -228,7 +228,7 @@ import AccountSyncPanel from '../components/AccountSyncPanel.astro';
       removeNovelBucketIdb: removeNovelBucketIdb,
       copyNovelBucketIdb: copyNovelBucketIdb,
     };
-    window.dispatchEvent(new CustomEvent('st-idb-ready'));
+    markIdbReady();
   </script>
 
   <style is:global>

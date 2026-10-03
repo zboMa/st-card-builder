@@ -7,6 +7,19 @@
 import { isLongFormGuardError } from './generationContext.mjs';
 
 /**
+ * 重试按钮只属于会话最后一条，且这条必须是可重试错误。
+ * 前面的红条不提供重试：按钮一律重发最后一条用户输入，点早先的失败会把后面已经继续的对话一起改掉。
+ * @param {object[]} messages
+ * @param {number} index
+ * @returns {boolean}
+ */
+export function isTailRetryTarget(messages, index) {
+  var list = Array.isArray(messages) ? messages : [];
+  if (index !== list.length - 1) return false;
+  return isRetryableAssistantError(list[index]);
+}
+
+/**
  * 失败红条是否可重试。
  * 新消息带 retryable；旧会话只有 error，正文可能是半角「错误:」或全角「错误：」。
  * 撤销失败 / 应用失败永远不可重试。

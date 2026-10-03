@@ -34,9 +34,9 @@ import {
     pullUserPrefsFromCloud,
     pushUserPrefsToCloudNow,
   } from './userPrefsMirror.mjs';
-  import { buildSyncCenterSnapshot } from './syncCenter.mjs';
+  import { buildSyncCenterSnapshot, shouldFetchAccountCloud, countDirtyCloudCards, getOutboxSummary } from './syncCenter.mjs';
   import { hasAuthSessionHint, setAuthSessionHint } from './authSessionHint.mjs';
-  import { fetchCloudQuota, quotaUsageHtml, invalidateQuotaCache } from './quotaClient.mjs';
+  import { quotaUsageHtml, invalidateQuotaCache } from './quotaClient.mjs';
   import { fetchCloudExport, fetchAuthTokens, revokeAuthToken } from './cloudApi.mjs';
   import { getDraftsMapSync } from '../draftsStore.mjs';
 
@@ -44,6 +44,7 @@ export function initAccountSyncPanel() {
   window.__scheduleUserPrefsCloudPush__ = scheduleUserPrefsCloudPush;
 
   var panelCountdownTimer = null;
+  var sessionOpen = false;
 
   function setAuthTab(mode) {
     var loginForm = document.getElementById('formEmailLogin');
@@ -125,12 +126,14 @@ export function initAccountSyncPanel() {
         channel: o.err ? 'notify' : 'toast',
       });
     }
+    sessionOpen = false;
     stopAutoSync();
     stopPanelCountdown();
     syncAutoSyncToggle(false);
     setUserPrefsSyncEnabled(false);
     setCloudEnabled(false);
     setSidebarAuth(false);
+    clearAccountCloudPanels();
   }
 
   function showLoggedIn(st) {
@@ -157,6 +160,7 @@ export function initAccountSyncPanel() {
       }
     }
     if (!st.disabled) {
+      sessionOpen = true;
       setAuthSessionHint(true);
       setCloudEnabled(true);
       setUserPrefsSyncEnabled(true);
@@ -172,6 +176,10 @@ export function initAccountSyncPanel() {
         });
       });
       applyAutoSyncPref().then(function(on) {
+        if (!sessionOpen) {
+          stopPanelCountdown();
+          return;
+        }
         syncAutoSyncToggle(on);
         if (on) startPanelCountdown();
         else stopPanelCountdown();
@@ -182,13 +190,15 @@ export function initAccountSyncPanel() {
         stopPanelCountdown();
       });
       setSidebarAuth(true);
-      refreshAccountPanelExtras();
+      refreshAccountPanelExtras('login');
     } else {
+      sessionOpen = false;
       setUserPrefsSyncEnabled(false);
       syncAutoSyncToggle(false);
       stopAutoSync();
       stopPanelCountdown();
       setSidebarAuth(false);
+      clearAccountCloudPanels();
     }
   }
 
@@ -278,7 +288,6 @@ export function initAccountSyncPanel() {
         eta.textContent = '下次 ' + formatSyncCountdown(ms);
       }
     }
-    refreshAccountPanelExtras();
   }
 
   function readLocalDraftsForSyncCenter() {
@@ -289,32 +298,62 @@ export function initAccountSyncPanel() {
     }
   }
 
-  async function refreshAccountPanelExtras() {
+  function clearAccountCloudPanels() {
     var centerEl = document.getElementById('syncCenterBlock');
     var quotaEl = document.getElementById('quotaUsageBlock');
-    if (!centerEl && !quotaEl) return;
+    var ul = document.getElementById('deviceTokensList');
+    if (centerEl) centerEl.textContent = '';
+    if (quotaEl) quotaEl.textContent = '—';
+    if (ul) ul.innerHTML = '';
+  }
+
+  function paintLocalSyncSummary() {
+    var centerEl = document.getElementById('syncCenterBlock');
+    if (!centerEl || !sessionOpen) return;
+    var drafts = readLocalDraftsForSyncCenter();
+    var pending = countDirtyCloudCards(drafts);
+    var outbox = getOutboxSummary();
+    centerEl.textContent = '待上云 ' + pending + ' 张'
+      + (outbox.total ? ' · 离线队列 ' + outbox.total + ' 条' : '')
+      + (outbox.failed ? ' · 其中失败 ' + outbox.failed + ' 条' : '');
+  }
+
+  async function refreshAccountPanelExtras(reason) {
+    if (!shouldFetchAccountCloud(sessionOpen, reason)) {
+      if (!sessionOpen) clearAccountCloudPanels();
+      return;
+    }
+    var centerEl = document.getElementById('syncCenterBlock');
+    var quotaEl = document.getElementById('quotaUsageBlock');
+    if (!centerEl && !quotaEl) {
+      refreshDeviceTokensList();
+      return;
+    }
     try {
       var snap = await buildSyncCenterSnapshot({
         getDrafts: readLocalDraftsForSyncCenter,
       });
+      if (!sessionOpen) {
+        clearAccountCloudPanels();
+        return;
+      }
       if (centerEl) {
         centerEl.textContent = snap.loggedIn
           ? (snap.summaryLine + (snap.outbox.failed ? ' · 其中失败 ' + snap.outbox.failed + ' 条' : ''))
           : '';
       }
       if (quotaEl) {
-        var q = snap.quota || await fetchCloudQuota(false);
-        quotaEl.textContent = quotaUsageHtml(q) || '—';
+        quotaEl.textContent = quotaUsageHtml(snap.quota) || '—';
       }
     } catch (e) {
-      if (centerEl) centerEl.textContent = '';
+      if (centerEl && sessionOpen) centerEl.textContent = '';
     }
     refreshDeviceTokensList();
   }
 
   async function refreshDeviceTokensList() {
     var ul = document.getElementById('deviceTokensList');
-    if (!ul) return;
+    if (!ul || !sessionOpen) return;
     try {
       var res = await fetchAuthTokens();
       var tokens = (res && res.tokens) || [];
@@ -483,6 +522,8 @@ export function initAccountSyncPanel() {
   });
 
   document.getElementById('btnAuthLogout')?.addEventListener('click', async function() {
+    sessionOpen = false;
+    stopPanelCountdown();
     await apiLogout();
     setAuthSessionHint(false);
     setCloudEnabled(false);
@@ -503,11 +544,12 @@ export function initAccountSyncPanel() {
   });
 
   window.addEventListener('card-local-saved', function() {
-    refreshAccountPanelExtras();
+    paintLocalSyncSummary();
   });
-  onSyncEvent(function() {
+  onSyncEvent(function(ev) {
+    if (!ev || ev.type !== 'complete') return;
     invalidateQuotaCache();
-    refreshAccountPanelExtras();
+    refreshAccountPanelExtras('sync');
   });
 
   document.getElementById('autoSyncToggle')?.addEventListener('change', async function(e) {

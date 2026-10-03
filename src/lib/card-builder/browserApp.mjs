@@ -4,6 +4,7 @@
 import { createDefaultCardState } from './state.mjs';
 import { createCardStateMachine } from './stateMachine.mjs';
 import { hydrateDraftsStore } from '../draftsStore.mjs';
+import { runWhenIdbReady } from '../idbReady.mjs';
 import { createCardBuilderContext } from './shared/context.mjs';
 import { registerCardManager } from './panels/cardManager.mjs';
 import { registerCharacter } from './panels/character.mjs';
@@ -99,7 +100,7 @@ export function bootCardBuilder() {
   engineRefresh();
   installCardJourneyRefresh(ctx);
 
-  window.addEventListener('st-idb-ready', async function() {
+  runWhenIdbReady(async function() {
     var ensureFn = window.__ensureIdbReady__ || function() { return Promise.resolve(); };
     await ensureFn();
     try {
