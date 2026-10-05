@@ -96,7 +96,7 @@ export const PROMPT_BLOCKS = {
 
   buildGuideCanon:
     '\n【建卡引导·多人卡原生】'
-    + '\ncharName=场景标识；charDesc=场景契约（局面+多 NPC 调度）；NPC 传记一律写 worldbook（[小说人物]）。'
+    + '\ncharName=场景标识；charDesc=场景契约（局面+多 NPC 调度）；NPC 传记一律写 worldbook，类型用 person，标题用人名。不要加 [小说人物] 前缀，那只留给小说同步。'
     + '\n建卡是主职。角色定位：帮用户想清楚，而不是替用户想。'
     + '结构引导（字段怎么填、怎么写得具体可扮演、缺口在哪）是默认职责；'
     + '创意补全（角色的过去/场景/事件等设定内容）只在你被明确委托（如「你来设计」「你看着办」）时才进入，'
@@ -196,7 +196,7 @@ export const DEFAULT_PROMPTS = {
     '你是 SillyTavern 世界书卡司骨架生成器。快速产出【{{batchSize}}条】简短但可扩展的骨架（NPC/地点/规则，非 charDesc）。',
     B.contentCanon,
     B.antiSlop,
-    '\n每条：comment(标题)、job(这条进上下文时要完成的事，自由文本)、strategy("selective"或"constant")、keys(可选才需要，常驻留空)、group(同组名，可空)、reads(变量路径，可空)。type 只是书架颜色，可空，不要为了凑齐类型而加条。',
+    '\n每条必须含 type：worldview|location|faction|person|event|item|ability|other。人物用 person。type 只标这条是什么，不要为了凑齐类型而加条。',
     '\ncontent 用一句话占位即可，不要把 job 抄进 content。常驻规则用 constant，靠名字或局面出现的用 selective。',
     '\n只输出可被解析的 JSON（由调用方约定数组形态）。'
   ),
@@ -206,12 +206,12 @@ export const DEFAULT_PROMPTS = {
     B.contentCanon,
     B.antiSlop,
     '\n【任务】按作者方向生成 slots。条数听作者的。没有点名的类型不要补。',
-    '\n每条只含：comment、job(自由文本职责)、strategy、keys(常驻留空)、links(可空)、group(可空)、reads(可空)。type 可空。',
-    '\n【人物】标题用人名。主角卡面已有，勿重复写主角 Description。'
-    + '仅当条目来自小说工坊同步或用户明确要求按原著抽取时，可用「[小说人物] 名字」。',
+    '\n每条必须含：comment、type、job(自由文本职责)、strategy、keys(常驻留空)、links(可空)、group(可空)、reads(可空)。',
+    '\ntype 取 worldview|location|faction|person|event|item|ability|other。人物必须是 person。不要为了凑齐类型而加条。',
+    '\n【人物】标题用人名。主角卡面已有，勿重复写主角 Description。不要加 [小说人物] 或 [人物] 前缀。',
     '\n【关联】links 写出本条依赖/对立/隶属的其他 comment。',
     '\n【禁止】不要把 job 写成长文 content。不要为了凑齐世界观、人物、物品而加条。不要输出解释。',
-    '\n只输出 JSON：{ "slots": [ { "comment":"...", "job":"...", "keys":[], "links":[], "strategy":"selective", "group":"", "reads":"" } ] }'
+    '\n只输出 JSON：{ "slots": [ { "comment":"...", "type":"person", "job":"...", "keys":[], "links":[], "strategy":"selective", "group":"", "reads":"" } ] }'
   ),
 
   wbEnrichFromOutline: join(
@@ -227,7 +227,7 @@ export const DEFAULT_PROMPTS = {
     '\n【要求】只写这条 job 要完成的事。短事实就短，规则写到能执行。不要把 job、group、reads 抄进 content。',
     '\n正文里已有的 <% %> 与 {{ }} 原样保留，不要改写成散文。',
     '\n没有要求时，不要把外貌、口吻、阶段焊进同一条。引用已有条目时勿矛盾。',
-    '\n【输出】仅 1 个 JSON：{ "comment":"标题", "content":"设定", "keys":["触发词"], "strategy":"selective|constant" }'
+    '\n【输出】仅 1 个 JSON：{ "comment":"标题", "type":"与本条大纲相同", "content":"设定", "keys":["触发词"], "strategy":"selective|constant" }。type 与大纲本条一致，不要改类型。标题不要加 [小说人物]。'
   ),
 
   wbCrossLink: join(
@@ -252,7 +252,8 @@ export const DEFAULT_PROMPTS = {
     '\n【content】按这条要完成的事写完。短事实就短。必须用上下文里已有的人名、地名写关系，不要另起一套互不认识的卡司。不要把职责说明抄进正文。',
     '\n正文里已有的 <% %> 与 {{ }} 原样保留。',
     '\n【keys】可选条目才写触发词。常驻条目 keys 留空。',
-    '\n【strategy】总要在场的用 constant，靠名字或局面出现的用 selective。'
+    '\n【strategy】总要在场的用 constant，靠名字或局面出现的用 selective。',
+    '\n【type】必填：worldview|location|faction|person|event|item|ability|other。写的是人物就用 person。标题用人名或条目名，不要加 [小说人物] 或 [人物]。'
   ),
 
   wbRewrite: join(
@@ -267,6 +268,7 @@ export const DEFAULT_PROMPTS = {
     '\n保留可靠事实，以及正文里已有的 <% %> 与 {{ }}。按【本次任务】补全。短事实保持短，不要为了变长而注水。',
     '\n写明与已有人物、地点、物品、势力的关系（认识、对立、持有、位于、隶属）。不要另起一套互不认识的名字。',
     '\n若属成人/情欲设定：写清规则、敏感触发、禁忌边界、氛围与玩法。',
+    '\n【type】必填，沿用原条目的 type；原来没有就按这条是什么补上。人物用 person。标题不要加 [小说人物] 或 [人物]。',
     '\n输出完整 JSON 词条字段（comment/type/content/keys/strategy/position 等，与调用方要求一致）。'
   ),
 
@@ -604,7 +606,7 @@ export const DEFAULT_PROMPTS = {
     '【结构】\n',
     '1. 全局字段一块。路径用完整路径，例如 data-zb-path="世界.当前时间"。\n',
     '2. 主角一块。路径用 角色.字段。\n',
-    '3. 女角色只写一套，放在 <template data-zb-repeat="npc"> 里。路径写成 NPC.{{name}}.字段，不要写出具体姓名。\n',
+    '3. 角色只写一套，放在 <template data-zb-repeat="npc"> 里。路径写成 NPC.{{name}}.字段，不要写出具体姓名。\n',
     '4. 文本用 data-zb-path。数值才加 data-zb-meter。\n',
     '5. 禁止 script、内联事件、外部 CDN。CSS 类名用 zb- 前缀。\n',
     '6. 只输出 JSON：{"css":"...","bodyHtml":"<div class=\\"zb-custom-root\\">...</div>"}。\n'
@@ -626,9 +628,9 @@ export const DEFAULT_PROMPTS = {
     '1. variables 只能覆盖「开启模块」；「禁止模块」中的路径一律不要输出；NSFW=否时禁止一切身体私密字段。\n',
     '2. 全局字段整卡一份：世界.当前时间、世界.天气、世界.当前地点、任务.当前、事件.标签，仅当对应模块开启。\n',
     '3. 勾了主角时，字段前缀固定为「角色.」，不要用卡角色名当第一段，禁止写成 NPC.卡角色名。\n',
-    '4. 勾了女角色时，每人用「NPC.姓名.字段」。卡角色本人不得出现在 characters 或 NPC 路径中。两套前缀可以同时存在，禁止把女角色收成「角色.字段」，禁止把主角改写成 NPC。\n',
+    '4. 勾了角色时，每人用「NPC.姓名.字段」。卡角色本人不得出现在 characters 或 NPC 路径中。两套前缀可以同时存在，禁止把这些角色收成「角色.字段」，禁止把主角改写成 NPC。\n',
     '5. 只勾一边时，只生成那一边，外加开启的全局字段。\n',
-    '6. 恶堕进度、亲密度：主角是 角色.恶堕进度 / 角色.亲密度；女角色是 NPC.姓名.恶堕进度 / NPC.姓名.亲密度。\n',
+    '6. 恶堕进度、亲密度：主角是 角色.恶堕进度 / 角色.亲密度；勾选的角色是 NPC.姓名.恶堕进度 / NPC.姓名.亲密度。\n',
     '7. type 仅 string/number/boolean/enum/array/object；enum 必给 options。check 为数组。\n',
     '8. 变量须可被剧情更新；不要为未开启模块凑字段。NSFW=是时身体字段须可更新且与角色 Limits 不冲突。\n',
     '9. default 会写成世界书变量初始化，表示还没选开场时这张卡已经成立的状态。设定里写明的身份、关系、常驻地、身体事实照写。设定没写死、但按这个世界的常理推得出的，给一个说得通的值，不要套示例数字。设定和常理都推不出的，关系用未结识、数值关系用 0、人不在场则写未在场或其日常所在，物品和记忆留空。关系阶段的 options 必须包含未结识，default 必须是 options 里的一项。\n',
@@ -650,7 +652,7 @@ export const DEFAULT_PROMPTS = {
     '2. 数值字段才加 data-zb-meter，写在用来表示宽度的元素上，例如 <span data-zb-meter="完整路径" style="width:40%"></span>。非数值字段不要加 data-zb-meter。\n',
     '3. 禁止 script，禁止内联事件（onclick 等），禁止外部 CDN。\n',
     '4. 不要引用任何预置主题样式；CSS 写在本次输出里，类名用 zb- 前缀。\n',
-    '5. 主角路径保持「角色.字段」，女角色路径保持「NPC.姓名.字段」，不要改写前缀。\n',
+    '5. 主角路径保持「角色.字段」，勾选角色的路径保持「NPC.姓名.字段」，不要改写前缀。\n',
     '\n【输出】仅 JSON，不要解释：\n',
     '{ "css": "/* CSS */", "bodyHtml": "<div class=\\"zb-custom-root\\">...</div>" }\n'
   ),
@@ -741,7 +743,7 @@ export const DEFAULT_PROMPTS = {
     + '目录 id 以本提示下方注入的目录块或 get_adult_catalog 返回为准；选口味与 NTL 只用合法 id，禁止编造。'
     + '单条世界书「生成」属 confirm，直写 create/update 多为 auto。\n',
     '12b. 【世界书 V2】工具读写条目时用 AI 形字段：comment=标题（勿与 ST 内部 displayName 混用）；'
-    + '可选 type=worldview|location|faction|person|event|item|ability|other（与引擎骨架同一枚举）。'
+    + '新建和生成必须带 type=worldview|location|faction|person|event|item|ability|other。人物用 person，标题用人名，不要加 [小说人物] 或 [人物]。'
     + 'create/update 的 patch 只改目标条，禁止用 comment 当合并键批量覆盖多条；'
     + '定位用 get_worldbook_list / get_worldbook_entry 的 index 或 titleMatch；系统 owner 条目勿改。\n',
     '13. 【长文生成】角色长文、开场白、世界书正文、小说人物档案、小说世界书，每次只调用一个生成工具处理一篇。'

@@ -20,6 +20,7 @@ import {
   AFFECTION_STATUS_LABEL,
   normalizeAffectionConfig,
 } from '../affectionProgress.mjs';
+import { meterCheckLines } from './meterUpdateRules.mjs';
 
 /** @typedef {'string'|'number'|'boolean'|'enum'|'array'|'object'} MvuVarType */
 
@@ -225,12 +226,8 @@ export function inferTypeForPath(path, label, ctx) {
 
 function defaultUpdateHint(path, type) {
   var leaf = leafName(path);
-  if (leaf === CORRUPTION_STATUS_LABEL) {
-    return '0-100 单向递增；仅在剧情有事件锚点（破窗/合理化/共犯/污名/沉溺）与心理代价时按「恶堕进度总则」推进，禁止凭空上涨';
-  }
-  if (leaf === AFFECTION_STATUS_LABEL) {
-    return '0-100 可双向波动；升档需里程碑事件（深谈/共历/告白/守护/交托），降档需冲突/背叛/冷落，禁止凭空增减';
-  }
+  var lines = meterCheckLines(leaf);
+  if (lines) return lines.join('');
   if (leaf === '同意边界') {
     return '对方明确表态、安全词或场景切换时更新；未确认前不得推进亲密情节';
   }
@@ -294,8 +291,13 @@ function resolveInferContext(n) {
   var charName = String(n.name || '').trim();
   if (sb) sb = reconcileDesignWithCharName(sb, charName);
   var includeProtagonist = sb ? !!sb.includeProtagonist : true;
-  var includeFemales = sb ? !!sb.includeFemales : false;
   var characters = sb && Array.isArray(sb.characters) ? sb.characters.slice() : [];
+  var anyNpc = characters.some(function(c) {
+    return c && c.selected !== false && c.name && c.name !== charName;
+  });
+  var includeFemales = sb
+    ? (sb.includeFemales != null ? !!sb.includeFemales : anyNpc)
+    : false;
   var nsfw = !!(sb && sb.nsfw) || adultEnabled(n.adult);
   var moduleFlags;
 
@@ -530,7 +532,7 @@ export function candidatesToVariables(candidates) {
       type: c.type || 'string',
       default: c.initial,
       description: String(c.name || leafName(c.path)),
-      check: c.updateHint ? [String(c.updateHint)] : [],
+      check: meterCheckLines(leafName(c.path)) || (c.updateHint ? [String(c.updateHint)] : []),
     };
     if (c.type === 'enum' && Array.isArray(c.options) && c.options.length) {
       item.options = c.options.slice();

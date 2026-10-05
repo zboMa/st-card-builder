@@ -48,6 +48,14 @@ export const TASK_STATUS = Object.freeze({
 });
 
 var ACTIVE = { queued: 1, running: 1 };
+var STEP_BODY_CAP = 12000;
+var STEP_FULL_KEEP = 40;
+
+function clipBody(text) {
+  var s = text == null ? '' : String(text);
+  if (s.length <= STEP_BODY_CAP) return { text: s, truncated: false };
+  return { text: s.slice(0, STEP_BODY_CAP), truncated: true };
+}
 
 function now() {
   return Date.now();
@@ -154,6 +162,7 @@ export function createAiTaskCenter(options) {
       status: TASK_STATUS.queued,
       progress: null,
       progressText: '',
+      steps: [],
       error: '',
       createdAt: now(),
       startedAt: null,
@@ -187,6 +196,50 @@ export function createAiTaskCenter(options) {
       t.progress = Math.max(0, Math.min(1, Number(progress)));
     }
     if (text != null) t.progressText = String(text);
+    emit();
+    return true;
+  }
+
+  /**
+   * 追加一步。列表用 line 作当前摘要；详情保留输入/输出。
+   * 全文只留最近 STEP_FULL_KEEP 步，更早的只留摘要。
+   * @param {string} id
+   * @param {{ line?: string, input?: string, output?: string, error?: string, status?: string, progress?: number }} step
+   */
+  function appendStep(id, step) {
+    var t = tasks.get(id);
+    if (!t || !ACTIVE[t.status]) return false;
+    var s = step || {};
+    if (!Array.isArray(t.steps)) t.steps = [];
+    var input = clipBody(s.input);
+    var output = clipBody(s.output);
+    t.steps.push({
+      at: now(),
+      line: s.line != null ? String(s.line) : '',
+      input: input.text,
+      inputTruncated: input.truncated,
+      output: output.text,
+      outputTruncated: output.truncated,
+      error: s.error != null ? String(s.error) : '',
+      status: s.status != null ? String(s.status) : '',
+      bodyOmitted: false,
+    });
+    var fullFrom = Math.max(0, t.steps.length - STEP_FULL_KEEP);
+    for (var i = 0; i < fullFrom; i++) {
+      var old = t.steps[i];
+      if (!old || old.bodyOmitted) continue;
+      if (old.input || old.output) {
+        old.input = '';
+        old.output = '';
+        old.inputTruncated = false;
+        old.outputTruncated = false;
+        old.bodyOmitted = true;
+      }
+    }
+    if (s.line != null) t.progressText = String(s.line);
+    if (s.progress != null && Number.isFinite(Number(s.progress))) {
+      t.progress = Math.max(0, Math.min(1, Number(s.progress)));
+    }
     emit();
     return true;
   }
@@ -292,6 +345,7 @@ export function createAiTaskCenter(options) {
     get: get,
     start: start,
     setProgress: setProgress,
+    appendStep: appendStep,
     setDetail: setDetail,
     succeed: succeed,
     fail: fail,

@@ -48,9 +48,9 @@
     flex-shrink: 0;
     padding: 4px 8px;
     border-radius: 999px;
-    border: 1px solid rgba(52,211,153,0.28);
-    background: rgba(6,78,59,0.28);
-    color: #86efac;
+    border: 1px solid var(--color-success);
+    background: var(--color-success-soft);
+    color: var(--color-success);
     font-size: 0.62rem;
     font-weight: 700;
     white-space: nowrap;
@@ -178,14 +178,16 @@
     flex-shrink: 0;
     padding: 2px 6px;
     border-radius: 4px;
-    border: 1px solid rgba(148, 163, 184, 0.35);
-    color: #94a3b8;
+    border: 1px solid var(--color-border);
+    background: var(--color-chip-bg);
+    color: var(--color-text-muted);
     font-size: 0.58rem;
     white-space: nowrap;
   }
   .vc-infer-badge.is-new {
-    border-color: rgba(52, 211, 153, 0.4);
-    color: #86efac;
+    border-color: var(--color-success);
+    background: var(--color-success-soft);
+    color: var(--color-success);
   }
   .vc-infer-actions {
     display: flex;
@@ -529,21 +531,21 @@
     line-height: 1.45;
     padding: 8px;
     border-radius: 6px;
-    border: 1px dashed rgba(100,116,139,0.28);
+    border: 1px dashed var(--color-border);
   }
   .vc-varnode-body {
     display: grid;
     gap: 4px;
     padding: 7px;
-    background: rgba(2,6,23,0.2);
+    background: var(--color-surface-inset);
   }
   .vc-varmap-item {
     display: grid;
     gap: 4px;
     padding: 7px;
     border-radius: 6px;
-    border: 1px solid rgba(34,211,238,0.14);
-    background: linear-gradient(135deg, rgba(8,47,73,0.32), rgba(15,23,42,0.52));
+    border: 1px solid var(--color-border);
+    background: var(--color-surface-inset);
   }
   .vc-varmap-path {
     color: var(--color-text-secondary);
@@ -558,7 +560,7 @@
   }
   .vc-varmap-desc {
     margin-top: 6px;
-    color: #dbeafe;
+    color: var(--color-text-secondary);
     font-size: 0.64rem;
     line-height: 1.45;
     word-break: break-word;
@@ -689,9 +691,9 @@
     overflow: auto;
   }
   .vc-var-group {
-    border: 1px solid rgba(71,85,105,0.72);
+    border: 1px solid var(--color-border);
     border-radius: 7px;
-    background: rgba(15,23,42,0.72);
+    background: var(--color-surface-inset);
     overflow: hidden;
   }
   .vc-var-group-title {
@@ -699,10 +701,10 @@
     justify-content: space-between;
     gap: 8px;
     padding: 7px 9px;
-    color: #f8fafc;
+    color: var(--color-text);
     font-size: 0.72rem;
     font-weight: 800;
-    background: rgba(51,65,85,0.62);
+    background: var(--color-surface-elevated);
   }
   .vc-var-group-title span {
     color: var(--color-accent-hover);
@@ -721,8 +723,8 @@
     gap: 4px 8px;
     padding: 7px;
     border-radius: 6px;
-    background: rgba(2,6,23,0.44);
-    border: 1px solid rgba(148,163,184,0.1);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border-subtle);
   }
   .vc-var-path {
     color: var(--color-text-secondary);
@@ -734,9 +736,9 @@
     align-self: start;
     padding: 1px 6px;
     border-radius: 999px;
-    border: 1px solid rgba(52,211,153,0.2);
-    color: #86efac;
-    background: rgba(6,78,59,0.16);
+    border: 1px solid var(--color-success);
+    color: var(--color-success);
+    background: var(--color-success-soft);
     font-size: 0.54rem;
     font-weight: 800;
   }
@@ -839,7 +841,7 @@
     font-weight: 600; padding: 7px 14px !important; font-size: 0.72rem !important;
     border-radius: 7px; cursor: pointer; transition: all 0.2s;
   }
-  .vc-clear-btn:hover { background: var(--color-danger-fill) !important; color: var(--color-on-accent) !important; border-color: var(--color-danger-fill) !important; }
+  .vc-clear-btn:hover { background: var(--color-danger-fill) !important; color: var(--color-on-danger-fill) !important; border-color: var(--color-danger-fill) !important; }
   .vc-delete-btn {
     flex-shrink: 0;
   }

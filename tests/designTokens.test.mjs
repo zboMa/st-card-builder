@@ -38,6 +38,9 @@ const REQUIRED_BASE_TOKENS = [
   '--font-sans',
   '--radius-md',
   '--ease-out',
+  '--color-on-media',
+  '--color-on-danger-fill',
+  '--color-on-warning',
 ];
 
 /** ui-patterns 共享类（全站复用） */
@@ -136,6 +139,8 @@ describe('design tokens (Nocturne Atelier)', function() {
     assert.match(css, /\.btn-icon/);
     assert.match(css, /\.composer-bar/);
     assert.match(css, /\.ui-step-pill/);
+    assert.match(css, /\.btn-danger[\s\S]*--color-on-danger-fill/);
+    assert.match(css, /\.btn-warning[\s\S]*--color-on-warning/);
   });
 
   it('未扩展 AI 按钮金色 token 与 btn-ai-expand', function() {
@@ -154,11 +159,8 @@ describe('design tokens (Nocturne Atelier)', function() {
 
   it('人物行操作：同步世界书在左、AI 扩展紧贴编辑', function() {
     const app = readNovelCharactersPanelSources(root);
-    // 在 novel-list-actions 片段内断言顺序（人物只同步世界书，不再同步主角设定）
-    const start = app.indexOf("'+ '<div class=\"novel-list-actions\">'");
-    const alt = app.indexOf("novel-list-actions");
-    const from = start > 0 ? start : alt;
-    const block = app.slice(from, from + 800);
+    const start = app.indexOf('class="entry-actions"');
+    const block = app.slice(start, start + 800);
     const syncIdx = block.indexOf('data-char-sync-wb');
     const expandIdx = block.indexOf('data-char-expand');
     const editIdx = block.indexOf("data-char-edit=\"' + c.id");

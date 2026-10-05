@@ -33,6 +33,8 @@ import {
   ensureProtagonistEntity,
   buildProtagonistHintBlock,
 } from '../protagonist.mjs';
+import { runWithAutoRetry } from '../autoRetry.mjs';
+import { noteTaskStep } from '../taskStep.mjs';
 
 /**
  * attachNovelAnalyzeRun（拆自原模块）
@@ -78,6 +80,36 @@ export function attachNovelAnalyzeRun(ctx, panel) {
     ctx.setBtnBusy(btn, busy, loadingText);
   }
 
+  function shardLabel(shard) {
+    return (shard && shard.chapterTitle ? shard.chapterTitle : '章')
+      + (shard && shard.part > 1 ? '#' + shard.part : '');
+  }
+
+  async function callNoted(task, signal, user, line, progress) {
+    var text = await runWithAutoRetry(function() {
+      return ctx.callAI(user, null, signal);
+    }, {
+      signal: signal,
+      onRetry: function(n, err) {
+        noteTaskStep(task, {
+          line: line + ' · 第' + n + '次失败，自动重试',
+          input: user,
+          error: String(err && (err.message || err)),
+          status: 'retry',
+          progress: progress,
+        });
+      },
+    });
+    noteTaskStep(task, {
+      line: line,
+      input: user,
+      output: text,
+      status: 'ok',
+      progress: progress,
+    });
+    return text;
+  }
+
   function prepareProtagonistForAnalyze(state) {
     var p = resolveProtagonistName(state);
     if (p.name) {
@@ -121,9 +153,23 @@ export function attachNovelAnalyzeRun(ctx, panel) {
           keywordOnly: !!opts.keywordOnly,
           onProgress: function(ratio, label) {
             if (ctx.setStatus) ctx.setStatus('novelAnalyzeStatus', label || '建索引…');
-            if (window.__aiTaskCenter__ && task.id) {
-              window.__aiTaskCenter__.setProgress(task.id, ratio, label || '');
+            if (label && String(label).indexOf('仅关键词') >= 0) {
+              noteTaskStep(task, { line: label, progress: ratio, status: 'ok' });
             }
+          },
+          onBatch: function(info) {
+            var line = '索引 第' + info.batchNo + '/' + info.batchCount + '批 · ' + info.count + ' 段';
+            if (info.retrying) line += ' · 第' + info.attempt + '次失败，自动重试';
+            else if (info.error) line += ' · 失败';
+            else line += ' · ' + info.vectors + ' 条向量';
+            noteTaskStep(task, {
+              line: line,
+              input: '第 ' + info.batchNo + ' 批，' + info.count + ' 段文本',
+              output: info.error ? '' : (info.vectors + ' 条向量'),
+              error: info.error || '',
+              status: info.retrying ? 'retry' : (info.error ? 'failed' : 'ok'),
+              progress: info.total ? info.done / info.total : null,
+            });
           },
         });
         state.rag.indexStatus = 'ready';
@@ -212,8 +258,10 @@ export function attachNovelAnalyzeRun(ctx, panel) {
             + '\nMode: ' + state.narrativeMode
             + '\nContext: ' + (state.contextText || '')
             + '\n【章节 ' + shard.chapterTitle + (shard.part > 1 ? ' · 片' + shard.part : '') + '】\n' + shard.text;
+          var skLine = '骨架 ' + (ri + 1) + '/' + runList.length + ' · ' + shardLabel(shard);
+          var skProgress = (ri + 1) / runList.length;
           try {
-            var text = await ctx.callAI(user, null, task.signal);
+            var text = await callNoted(task, task.signal, user, skLine, skProgress);
             var parsed = parseJsonLoose(text);
             var st = applySkeletonResult(state, parsed);
             totals.add += st.add;
@@ -224,20 +272,29 @@ export function attachNovelAnalyzeRun(ctx, panel) {
             state.failedShards = (state.failedShards || []).filter(function(f) {
               return !(f.phase === 'skeleton' && f.shardIndex === idx);
             });
+            noteTaskStep(task, {
+              line: skLine + ' · 实体 +' + st.add + '/合' + st.merge + ' · 关系 +' + st.relAdd,
+              status: 'ok',
+              progress: skProgress,
+            });
           } catch (e) {
             if (ctx.isTrackedAbort(e)) throw e;
             totals.failed++;
             pushFailedShard({
               phase: 'skeleton',
               shardIndex: idx,
-              label: (shard.chapterTitle || '章') + (shard.part > 1 ? '#' + shard.part : ''),
+              label: shardLabel(shard),
               error: String(e.message || e),
+            });
+            noteTaskStep(task, {
+              line: skLine + ' · 已自动重试仍失败',
+              input: user,
+              error: String(e.message || e),
+              status: 'failed',
+              progress: skProgress,
             });
           }
           panel.flushAnalyzePreview();
-          if (window.__aiTaskCenter__ && task.id) {
-            window.__aiTaskCenter__.setProgress(task.id, (ri + 1) / runList.length, (ri + 1) + '/' + runList.length);
-          }
           if (ctx.setStatus) ctx.setStatus('novelAnalyzeStatus', '骨架 ' + (ri + 1) + '/' + runList.length
             + ' | 实体 ' + (state.entities || []).length
             + (totals.failed ? ' | 失败 ' + totals.failed : ''));
@@ -397,7 +454,9 @@ export function attachNovelAnalyzeRun(ctx, panel) {
                   + vessels.slice(0, 8).map(function(v) { return v.name; }).join('、');
               }
             }
-            var text = await ctx.callAI(user, null, task.signal);
+            var enLine = '丰满 ' + (i + 1) + '/' + queue.length + ' · ' + (live.name || '未命名');
+            var enProgress = (i + 1) / queue.length;
+            var text = await callNoted(task, task.signal, user, enLine, enProgress);
             var parsed = parseJsonLoose(text);
             if (needFlavor) {
               var richness = evaluateFlavorRichness(parsed, flavorItems, { presets: NSFW_FLAVOR_PRESETS });
@@ -411,7 +470,7 @@ export function attachNovelAnalyzeRun(ctx, panel) {
                     text: JSON.stringify(parsed),
                   })
                   + '\n请输出加厚后的完整 JSON 实体（保持 type/name）。';
-                var expandText = await ctx.callAI(expandPrompt, null, task.signal);
+                var expandText = await callNoted(task, task.signal, expandPrompt, enLine + ' · 情欲加厚', enProgress);
                 var expanded = parseJsonLoose(expandText);
                 var richness2 = evaluateFlavorRichness(expanded, flavorItems, { presets: NSFW_FLAVOR_PRESETS });
                 if (richness2.total >= richness.total) parsed = expanded;
@@ -429,7 +488,7 @@ export function attachNovelAnalyzeRun(ctx, panel) {
                     text: JSON.stringify(parsed),
                   })
                   + '\n请输出加厚后的完整 JSON 实体，写满 attrs.ntl。';
-                var ntlExpandText = await ctx.callAI(ntlExpandPrompt, null, task.signal);
+                var ntlExpandText = await callNoted(task, task.signal, ntlExpandPrompt, enLine + ' · 禁忌加厚', enProgress);
                 var ntlExpanded = parseJsonLoose(ntlExpandText);
                 var ntlRich2 = evaluateNtlRichness(ntlExpanded, ntlTypes, { tabooTypes: NTL_TABOO_TYPES });
                 if (ntlRich2.total >= ntlRich.total) parsed = ntlExpanded;
@@ -447,7 +506,7 @@ export function attachNovelAnalyzeRun(ctx, panel) {
                     text: JSON.stringify(parsed),
                   })
                   + '\n请输出加厚后的完整 JSON 实体，写满 attrs.adult（含 powerLogic/vesselKind/costOrRisk/relatedPersons）。';
-                var vExpandText = await ctx.callAI(vExpandPrompt, null, task.signal);
+                var vExpandText = await callNoted(task, task.signal, vExpandPrompt, enLine + ' · 载体加厚', enProgress);
                 var vExpanded = parseJsonLoose(vExpandText);
                 var vRich2 = evaluateVesselRichness(vExpanded, vOpts);
                 if (vRich2.total >= vRich.total) parsed = vExpanded;
@@ -462,7 +521,7 @@ export function attachNovelAnalyzeRun(ctx, panel) {
                   + '可用载体：' + avail
                   + '\n\n' + JSON.stringify(parsed);
                 try {
-                  var hookText = await ctx.callAI(hookPrompt, null, task.signal);
+                  var hookText = await callNoted(task, task.signal, hookPrompt, enLine + ' · 载体点名', enProgress);
                   var hooked = parseJsonLoose(hookText);
                   if (hooked && (hooked.name || hooked.type || hooked.attrs || hooked.NSFW_information)) {
                     parsed = hooked;
@@ -477,6 +536,12 @@ export function attachNovelAnalyzeRun(ctx, panel) {
             state.failedShards = (state.failedShards || []).filter(function(f) {
               return !(f.phase === 'enrich' && f.entityId === live.id);
             });
+            noteTaskStep(task, {
+              line: '丰满 ' + (i + 1) + '/' + queue.length + ' · ' + (live.name || '未命名') + ' · 已写入',
+              output: JSON.stringify(parsed),
+              status: 'ok',
+              progress: (i + 1) / queue.length,
+            });
           } catch (e) {
             if (ctx.isTrackedAbort(e)) throw e;
             failed++;
@@ -486,11 +551,14 @@ export function attachNovelAnalyzeRun(ctx, panel) {
               label: live.name,
               error: String(e.message || e),
             });
+            noteTaskStep(task, {
+              line: '丰满 ' + (i + 1) + '/' + queue.length + ' · ' + (live.name || '未命名') + ' · 已自动重试仍失败',
+              error: String(e.message || e),
+              status: 'failed',
+              progress: (i + 1) / queue.length,
+            });
           }
           panel.flushAnalyzePreview();
-          if (window.__aiTaskCenter__ && task.id) {
-            window.__aiTaskCenter__.setProgress(task.id, (i + 1) / queue.length, (i + 1) + '/' + queue.length);
-          }
           if (ctx.setStatus) ctx.setStatus('novelAnalyzeStatus', '丰满 ' + (i + 1) + '/' + queue.length + ' | ' + live.name
             + (failed ? ' | 失败 ' + failed : ''));
         }
@@ -572,15 +640,28 @@ export function attachNovelAnalyzeRun(ctx, panel) {
         var sampleNames = Object.keys(byType).map(function(t) {
           return byType[t].join(' ');
         }).join(' ').trim();
-        var search = await hybridSearch({
-          chapters: state.chapters,
-          query: boostAdultSearchQuery(sampleNames || '关系 事件 地点', adultOn, ntlOn),
-          cardId: cardId,
-          budget: state.expandBudget || 12000,
-          apiUrl: api.apiUrl,
-          apiKey: api.apiKey,
-          embedModel: api.embedModel,
+        var relQuery = sampleNames || '关系 事件 地点';
+        var search = await runWithAutoRetry(function() {
+          return hybridSearch({
+            chapters: state.chapters,
+            query: boostAdultSearchQuery(relQuery, adultOn, ntlOn),
+            cardId: cardId,
+            budget: state.expandBudget || 12000,
+            apiUrl: api.apiUrl,
+            apiKey: api.apiKey,
+            embedModel: api.embedModel,
+            signal: task.signal,
+          });
+        }, {
           signal: task.signal,
+          onRetry: function(n, err) {
+            noteTaskStep(task, {
+              line: '关系补全 · 检索 · 第' + n + '次失败，自动重试',
+              input: relQuery,
+              error: String(err && (err.message || err)),
+              status: 'retry',
+            });
+          },
         });
         var prior = buildSkeletonPriorBlock(state);
         var inject = buildRagInjectBlock(search, state.entities.slice(0, 40), { entityBudget: RAG_ENTITY_BUDGET });
@@ -596,9 +677,17 @@ export function attachNovelAnalyzeRun(ctx, panel) {
           + '\n\n' + inject
           + buildContentModeFlags(state)
           + '\nContext: ' + (state.contextText || '');
-        var text = await ctx.callAI(user, null, task.signal);
+        var relLine = '关系补全 · ' + relQuery.slice(0, 40);
+        var text = await callNoted(task, task.signal, user, relLine, 0.5);
         var parsed = parseJsonLoose(text);
         var st = applySkeletonResult(state, { relations: parsed.relations || parsed.edges || [] });
+        noteTaskStep(task, {
+          line: '关系补全 · +' + st.relAdd
+            + (st.relProjected ? ' · 结构边 +' + st.relProjected : '')
+            + (st.relSkipped ? ' · 未解析 ' + st.relSkipped : ''),
+          status: 'ok',
+          progress: 1,
+        });
         panel.flushAnalyzePreview();
         if (ctx.setStatus) {
           ctx.setStatus(

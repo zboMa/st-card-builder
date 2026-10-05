@@ -2,6 +2,7 @@
  * 人物面板：渲染、绑定、扫描、扩展、档案编辑
  */
 import { buildExtractShards } from '../chapters.mjs';
+import { noteTaskStep } from '../taskStep.mjs';
 import { buildRecallPayload, DEFAULT_EXPAND_BUDGET } from '../recall.mjs';
 import {
   normalizeCharacterProfile,
@@ -162,17 +163,31 @@ export function attachNovelCharactersScanBind(ctx, panel) {
             + '\n按阶段拆分: ' + (!!state.splitByStage)
             + '\nContext: ' + (state.contextText || '')
             + '\n【章节 ' + shard.chapterTitle + (shard.part > 1 ? ' · 片' + shard.part : '') + '】\n' + shard.text;
+          var scanLabel = (shard.chapterTitle || '章') + (shard.part > 1 ? '#' + shard.part : '');
+          var scanLine = '扫描 ' + (idx + 1) + '/' + shards.length + ' · ' + scanLabel;
+          var scanProgress = (idx + 1) / shards.length;
           try {
             var text = await ctx.callAI(user, null, task.signal);
             var parsed = parseJsonLoose(text);
             (parsed.characters || []).forEach(upsertScanHit);
+            noteTaskStep(task, {
+              line: scanLine + ' · 已发现 ' + state.characters.length + ' 人',
+              input: user,
+              output: text,
+              status: 'ok',
+              progress: scanProgress,
+            });
           } catch (e) {
             if (ctx.isTrackedAbort(e)) throw e;
+            noteTaskStep(task, {
+              line: scanLine + ' · 失败',
+              input: user,
+              error: String(e.message || e),
+              status: 'failed',
+              progress: scanProgress,
+            });
           }
           flushScanPreview();
-          if (window.__aiTaskCenter__ && task.id) {
-            window.__aiTaskCenter__.setProgress(task.id, (idx + 1) / shards.length, (idx + 1) + '/' + shards.length);
-          }
           ctx.setStatus('novelCharStatus', '扫描中 ' + (idx + 1) + '/' + shards.length + ' · 已发现 ' + state.characters.length + ' 人');
         }
 

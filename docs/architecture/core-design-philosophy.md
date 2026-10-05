@@ -58,7 +58,7 @@ flowchart LR
 |------|----------------|-------------------------------|
 | `name` / `charName` | 角色名 | **卡/场景对外标识名**（作品名、地点、群像名等）；**不是**「唯一扮演对象的名字」 |
 | `description` / `charDesc` | 单一角色人设 | **场景帧 + RP 契约 + 全局交互规则**（局面、叙事视角、多 NPC 调度约定、禁止 OOC 等）；**不是**某一个 NPC 的完整传记 |
-| `character_book` | 世界与触发 lore | **卡司与世界的真相源**：`[小说人物]` 人物条目、地点/规则/关系、成人层等 |
+| `character_book` | 世界与触发 lore | **卡司与世界的真相源**：类型为人物的条目（标题用人名）、小说同步的 `[小说人物]`、地点/规则/关系、成人层等 |
 | `first_mes` | 开场白 | **多角色可共用的场景开场**（可出现多人、环境、局面） |
 | `creator_notes` | 作者注 | 游玩/meta 指令（与 ST 一致） |
 | MVU / 状态栏（扩展） | — | **运行时状态**：主角固定 `角色.字段`，女角色 `NPC.姓名.字段`，两套独立路径 |
@@ -759,7 +759,7 @@ Give extra narrative weight to {focusName} in this turn, without excluding other
 
 | 禁止 | 理由 |
 |------|------|
-| `upsert_mvu_*` / `patch_mvu_node` 写 **运行时终值** | 卡无状态 |
+| `upsert_mvu_*` / `patch_mvu_node` / `clear_mvu`，以及 `set_statusbar` / `generate_statusbar_*` / `edit_statusbar_variables` | 卡无状态；状态栏不从试聊回流写入 |
 | `create_worldbook_entry` 且 content 像 ** transcript 摘要 / 本局剧情** | 归档走 Story |
 | `replace_character_section` 整段灌入对话摘录 | 同上 |
 | `expand_character_field` **charDesc** 且 instruction 要求写 **NPC 传记** | §2.1 → worldbook person |

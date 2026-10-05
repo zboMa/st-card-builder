@@ -16,6 +16,8 @@ import {
   VALID_VIEWS,
 } from '../src/lib/assistant/tools.mjs';
 import { classifyToolRisk, buildChangePreview } from '../src/lib/assistant/risk.mjs';
+import { assistantConfirmDisposition } from '../src/lib/assistant/confirmPolicy.mjs';
+import { resolveAlternateGreetingSlot } from '../src/lib/assistant/greetingSlot.mjs';
 import { STOCK_CHAR_DESC, STOCK_GREETING, STOCK_WB } from '../src/lib/assistant/generationContext.mjs';
 import { parseReactStep, extractJsonObject } from '../src/lib/assistant/reactParse.mjs';
 import {
@@ -237,7 +239,10 @@ function mockBridge(seed) {
         return { target: 'main', mode: mode };
       }
       var ai = typeof opts.target === 'object' ? opts.target.alternate : opts.target;
-      state.character.altGreetings[ai] = mode + '-备选' + ai;
+      var slot = resolveAlternateGreetingSlot((state.character.altGreetings || []).length, ai, true);
+      if (!slot.ok) return slot;
+      if (slot.create) state.character.altGreetings.push(mode + '-新备选');
+      else state.character.altGreetings[ai] = mode + '-备选' + ai;
       return { target: { alternate: ai }, mode: mode };
     },
     captureSnapshot: function() {
@@ -264,7 +269,8 @@ describe('assistant tools registry', function() {
       'rewrite_worldbook_entry', 'fix_from_lint',
       'novel_split_chapters', 'novel_patch_chapters', 'novel_expand_character',
       'novel_rewrite_character', 'novel_expand_worldbook', 'novel_sync_outputs',
-      'list_cards', 'switch_card', 'create_card', 'clear_mvu', 'patch_mvu_node',
+      'list_cards', 'switch_card', 'create_card', 'get_statusbar', 'set_statusbar',
+      'generate_statusbar_variables', 'edit_statusbar_variables', 'generate_statusbar_layout',
       'rewrite_greeting', 'expand_greeting', 'set_greeting_init', 'expand_character_field',
       'get_engine_options', 'set_engine_options', 'export_card_check',
     ].forEach(function(n) {
@@ -319,6 +325,35 @@ describe('assistant targeting', function() {
     assert.equal(resolveWorldbookIndex(entries, { target: { titleMatch: '剑宗' } }), 0);
     assert.equal(resolveWorldbookIndex(entries, { target: { id: 'wb_2' } }), 1);
     assert.equal(normalizeTarget({ target: 'main' }).name, 'main');
+    assert.equal(resolveWorldbookIndex(
+      [{ id: 'p1', kind: 'user', owner: 'user', ownerSlot: 'p1', displayName: '顾清辞', content: '档案', keys: [] }],
+      { target: { comment: '顾清辞' } }
+    ), 0);
+    assert.equal(resolveWorldbookIndex(
+      [{ id: 'p2', kind: 'user', owner: 'user', ownerSlot: 'p2', displayName: '顾清辞（Gu Qingci）', content: '档案', keys: [] }],
+      { target: { comment: '顾清辞' } }
+    ), 0);
+  });
+});
+
+describe('assistantConfirmDisposition', function() {
+  it('自动应用只在第一次直接写入，确认卡重新弹出时停住', function() {
+    assert.equal(assistantConfirmDisposition(false, 'first'), 'ask');
+    assert.equal(assistantConfirmDisposition(true, 'first'), 'apply');
+    assert.equal(assistantConfirmDisposition(true, 'reopen'), 'ask');
+  });
+});
+
+describe('resolveAlternateGreetingSlot', function() {
+  it('下一号追加，跳号拒绝，短改不能造空位', function() {
+    assert.deepEqual(resolveAlternateGreetingSlot(0, 0, true), { ok: true, index: 0, create: true });
+    assert.deepEqual(resolveAlternateGreetingSlot(2, 1, true), { ok: true, index: 1, create: false });
+    var skip = resolveAlternateGreetingSlot(0, 1, true);
+    assert.equal(skip.ok, false);
+    assert.match(skip.error, /当前 0 条，下一号是 0/);
+    var short = resolveAlternateGreetingSlot(0, 0, false);
+    assert.equal(short.ok, false);
+    assert.match(short.error, /序号越界/);
   });
 });
 
@@ -524,6 +559,26 @@ describe('assistant executor', function() {
     var alt = await ex.invoke('expand_greeting', { target: { alternate: 1 }, instruction: STOCK_GREETING }, { forceApply: true });
     assert.equal(alt.ok, true);
     assert.match(bridge.state.character.altGreetings[1], /备选1/);
+    var empty = mockBridge({
+      character: { charName: '测', charDesc: '短', firstMes: '', creatorNotes: '', wbName: '', tags: [], altGreetings: [] },
+    });
+    var exEmpty = createToolExecutor(empty);
+    var created = await exEmpty.invoke('rewrite_greeting', {
+      target: { alternate: 0 },
+      instruction: STOCK_GREETING,
+    }, { forceApply: true });
+    assert.equal(created.ok, true);
+    assert.equal(empty.state.character.altGreetings.length, 1);
+    var skipped = await exEmpty.invoke('rewrite_greeting', {
+      target: { alternate: 2 },
+      instruction: STOCK_GREETING,
+    }, { forceApply: true });
+    assert.equal(skipped.ok, false);
+    assert.match(skipped.error, /当前 1 条，下一号是 1/);
+    assert.equal(empty.state.character.altGreetings.length, 1);
+    var shortCreate = await exEmpty.invoke('update_alternate_greeting', { index: 1, content: '短' }, { forceApply: true });
+    assert.equal(shortCreate.ok, false);
+    assert.match(shortCreate.error, /序号越界/);
   });
 
   it('小说真 await 与人物定向', async function() {
@@ -569,7 +624,10 @@ describe('assistant executor', function() {
     await ex.invoke('set_engine_options', { skeletonCount: 10 });
     assert.equal(bridge.state.engine.skeletonCount, 10);
     var patch = await ex.invoke('patch_mvu_node', { path: 'stat.hp', patch: { label: '生命' } });
-    assert.equal(patch.ok, true);
+    assert.equal(patch.ok, false);
+    assert.match(patch.error, /edit_statusbar_variables/);
+    assert.equal(getToolByName('patch_mvu_node'), null);
+    assert.equal(getToolByName('get_mvu_state'), null);
     var chk = await ex.invoke('export_card_check', {});
     assert.match(chk.data.note, /不触发下载/);
   });
@@ -845,10 +903,11 @@ describe('assistant prompts & UI wiring', function() {
     assert.match(panel, /reactResume/);
     assert.match(panel, /等待确认大改/);
     assert.match(panel, /if \(tr\.pendingConfirm\)[\s\S]*?reactPaused = true/);
-    assert.match(panel, /applyBtn\.addEventListener[\s\S]*?planApplyOutcome/);
+    assert.match(panel, /async function applyPendingConfirm[\s\S]*?planApplyOutcome/);
     assert.match(panel, /outcome === 'reopen'/);
     assert.match(panel, /outcome === 'stop'/);
-    assert.match(panel, /applyBtn\.addEventListener[\s\S]*?resume\(\)/);
+    assert.match(panel, /async function applyPendingConfirm[\s\S]*?resume\(\)/);
+    assert.match(panel, /applyBtn\.addEventListener[\s\S]*?applyPendingConfirm/);
     assert.match(panel, /已达单轮工具调用上限/);
     assert.match(panel, /最后一次工具调用机会/);
     assert.match(panel, /getNovelRagOptions[\s\S]*?enabled: false/);
@@ -961,6 +1020,14 @@ describe('assistant prompts & UI wiring', function() {
     assert.match(panel, /已切换到 /);
     assert.match(panel, /retryable: true/);
     assert.match(panel, /isTailRetryTarget\(uiMessages, index\)/);
+    assert.match(panel, /assistantConfirmDisposition/);
+    assert.match(panel, /resolveWorldbookIndex\(getWorldbook\(\)/);
+    assert.match(panel, /getElementById\('assistantAutoApply'\)/);
+    assert.match(panel, /开启自动应用/);
+    assert.match(panel, /function syncAutoApplyBtn/);
+    assert.match(panel, /addEventListener\('change', syncAutoApplyBtn\)/);
+    assert.match(panel, /resolveAlternateGreetingSlot/);
+    assert.match(panel, /#assistantAutoApplyBtn\[hidden\]/);
     assert.match(panel, /notifyError\(errText, '助手'\)/);
     assert.match(panel, /class="assistant-panel__sub ui-panel-lead"/);
     assert.match(panel, /ui-empty-tip/);

@@ -51,6 +51,8 @@ import {
   buildStatusBarRegex,
   normalizeDesign,
   rejectStatusBarGenerate,
+  applyStatusBarVariableEdits,
+  collectPersonCharactersFromWorldbook,
   appendStylePreset,
   reconcileDesignWithCharName,
   validateSampleFloors,
@@ -652,11 +654,12 @@ describe('statusBar core', function() {
     assert.equal(d.mode, 'mvu');
     assert.equal(d.presetId, 'romance');
     assert.equal(d.includeProtagonist, false);
-    assert.equal(d.includeFemales, true);
+    assert.equal(d.includeFemales, undefined);
     assert.equal(d.designId, undefined);
     assert.equal(d.mainName, undefined);
-    assert.equal(d.femaleOnly, true);
+    assert.equal(d.femaleOnly, undefined);
     assert.equal(d.characters[0].name, 'A');
+    assert.equal(d.characters[0].selected, true);
     assert.equal(d.characters[1].selected, false);
     assert.equal(d.paths[0].path, 'a');
     assert.equal(d.paths[0].set, 'global');
@@ -669,7 +672,7 @@ describe('statusBar core', function() {
     // 单人误选多人方案 → 回落默认（旧 multi id 先 migrate 再校验 cast）
     var bad = normalizeDesign({ castMode: 'single', layoutId: 'multi_pill_sheet' });
     assert.equal(bad.includeProtagonist, true);
-    assert.equal(bad.includeFemales, false);
+    assert.equal(bad.includeFemales, undefined);
     assert.equal(bad.designId, undefined);
 
     var badM = normalizeDesign({
@@ -680,8 +683,9 @@ describe('statusBar core', function() {
     assert.equal(badM.includeProtagonist, true);
     assert.deepEqual(badM.characters.map(function(c) { return c.name; }), ['女配']);
 
-    var off = normalizeDesign({ femaleOnly: false });
-    assert.equal(off.femaleOnly, false);
+    var off = normalizeDesign({});
+    assert.equal(off.includeProtagonist, false);
+    assert.equal(off.femaleOnly, undefined);
 
     // designId 直读
     var direct = normalizeDesign({
@@ -693,7 +697,8 @@ describe('statusBar core', function() {
     });
     assert.equal(direct.layoutPrompt, '细线');
     assert.equal(direct.floors, undefined);
-    assert.equal(direct.includeFemales, false);
+    assert.equal(direct.includeFemales, undefined);
+    assert.equal(direct.includeProtagonist, true);
   });
 });
 
@@ -719,7 +724,7 @@ describe('statusBar wiring', function() {
     const boot = readFileSync(join(root, 'src/lib/statusBar/panelBoot.mjs'), 'utf8');
     assert.match(astro, /人物/);
     assert.match(astro, /主角/);
-    assert.match(astro, /女角色/);
+    assert.doesNotMatch(astro, /女角色|只识别女|AI 识别|sbIncludeFemales|sbFemaleOnly|sbBtnScanChars/);
     assert.match(astro, /id="sbBtnVars"/);
     assert.match(astro, /id="sbBtnLayoutRegen"/);
     assert.match(astro, /id="sbBtnLayoutRevise"/);
@@ -754,13 +759,18 @@ describe('statusBar wiring', function() {
     assert.match(boot, /fillStatusBarVariables/);
     assert.match(boot, /statusBarMvuFill/);
     assert.match(boot, /expandStatusBarTemplate/);
+    var commitFn = boot.slice(boot.indexOf('function commitVariableDesign'), boot.indexOf('async function generateVariables'));
     var genFn = boot.slice(boot.indexOf('async function generateVariables'), boot.indexOf('async function generateLayout'));
-    assert.ok(genFn.indexOf('upsertVariables') > genFn.indexOf('await fillStatusBarVariables'));
+    assert.match(commitFn, /upsertVariables/);
+    assert.ok(genFn.indexOf('commitVariableDesign') > genFn.indexOf('await fillStatusBarVariables'));
+    assert.match(genFn, /fromAssistant/);
+    assert.ok(genFn.indexOf("engineTryAllowed('card.statusbar.generate')") > genFn.indexOf('!opts.fromAssistant'));
     assert.match(panel, /validateSampleFloors/);
     assert.match(panel, /keepMarkupPaths/);
     assert.match(panel, /getCurrentMessageId|buildStatusBarRegex/);
     assert.doesNotMatch(astro + boot, /designCss\(|layoutsForCast|statusBarThemes/);
-    assert.match(panel, /请勾选主角或女角色|rejectStatusBarGenerate/);
+    assert.match(panel, /请勾选主角或至少一名角色/);
+    assert.doesNotMatch(boot, /sbBtnScanChars|scanCharacters|sbIncludeFemales/);
     assert.doesNotMatch(panel, /btn\.disabled\s*=\s*true/);
     assert.doesNotMatch(panel, /正在生成|正在识别/);
   });
@@ -875,11 +885,11 @@ describe('statusBar wiring', function() {
 
   it('文档同步状态栏两套路径', function() {
     const doc = readFileSync(join(root, 'docs/guides/card-writing-guide.md'), 'utf8');
-    assert.match(doc, /只识别女/);
-    assert.match(doc, /AI 识别/);
+    assert.doesNotMatch(doc, /只识别女/);
+    assert.doesNotMatch(doc, /AI 识别/);
     assert.match(doc, /角色\.字段/);
     assert.match(doc, /NPC\.姓名/);
-    assert.match(doc, /请勾选主角或女角色/);
+    assert.match(doc, /请勾选主角或至少一名角色/);
     assert.match(doc, /getCurrentMessageId/);
     assert.doesNotMatch(doc, /15 美学族|30 套预览主题/);
     const readme = readFileSync(join(root, 'README.md'), 'utf8');
@@ -947,7 +957,7 @@ describe('statusBar two path sets', function() {
       characters: [],
       moduleFlags: { emotion: true },
       layoutPrompt: '细线',
-    }), '请勾选主角或女角色');
+    }), '请勾选主角或至少一名角色');
     var ready = {
       includeProtagonist: true,
       includeFemales: false,
@@ -981,7 +991,8 @@ describe('statusBar two path sets', function() {
       customPrompt: '旧描述',
     });
     assert.equal(d.includeProtagonist, true);
-    assert.equal(d.includeFemales, true);
+    assert.equal(d.includeFemales, undefined);
+    assert.equal(d.characters[0].selected, true);
     assert.deepEqual(d.characters.map(function(c) { return c.name; }), ['秦玥']);
     assert.equal(d.presetId, 'daily');
     assert.equal(d.layoutPrompt, '旧描述');
@@ -1099,6 +1110,11 @@ describe('statusBar two path sets', function() {
     var affection = filled.find(function(v) { return v.path === 'NPC.小龙女.好感度'; });
     assert.equal(affection.default, 12);
     assert.equal(affection.type, 'number');
+    assert.equal(affection.min, 0);
+    assert.equal(affection.max, 100);
+    assert.equal(affection.check.length, 3);
+    assert.match(affection.check[0], /对着此人/);
+    assert.doesNotMatch(affection.check.join('\n'), /被剧情改变时更新/);
     var stage = filled.find(function(v) { return v.path === 'NPC.小龙女.关系阶段'; });
     assert.equal(stage.options[0], '未结识');
     assert.equal(stage.default, '未结识');
@@ -1164,5 +1180,80 @@ describe('statusBar two path sets', function() {
     assert.match(rules, /只输出本轮真正变化的路径/);
     var mvu = readVariableCardPanelSources(root);
     assert.match(mvu, /buildGroupedUpdateRules/);
+  });
+
+  it('人物条目默认不勾，非人物不进名单', function() {
+    var list = collectPersonCharactersFromWorldbook([
+      { comment: '[人物] 秦玥', content: '档案' },
+      { comment: '地点', content: '归云庄' },
+      { comment: '[人物] 林雾', content: '主角' },
+    ], { excludeName: '林雾' });
+    assert.deepEqual(list.map(function(c) { return c.name; }), ['秦玥']);
+    assert.equal(list[0].selected, false);
+  });
+
+  it('旧总开关关掉时全部不勾，已保存的勾选在没有总开关时保留', function() {
+    var forced = normalizeDesign({
+      includeProtagonist: false,
+      includeFemales: false,
+      characters: [{ name: '秦玥', selected: true }, { name: '黄蓉' }],
+    });
+    assert.equal(forced.characters[0].selected, false);
+    assert.equal(forced.characters[1].selected, false);
+    var kept = normalizeDesign({
+      includeProtagonist: true,
+      characters: [{ name: '秦玥', selected: true }, { name: '黄蓉', selected: false }],
+    });
+    assert.equal(kept.characters[0].selected, true);
+    assert.equal(kept.characters[1].selected, false);
+  });
+
+  it('不传 includeFemales 时只有明确勾选的人进入路径', function() {
+    var paths = buildPlaceholderPaths({
+      includeProtagonist: false,
+      charName: '林雾',
+      characters: [
+        { name: '秦玥', selected: true },
+        { name: '路人', selected: false },
+        { name: '未标' },
+      ],
+      moduleFlags: flags,
+    });
+    assert.ok(paths.some(function(p) { return p.path === 'NPC.秦玥.情绪'; }));
+    assert.ok(paths.every(function(p) { return p.path.indexOf('NPC.路人') !== 0 && p.path.indexOf('NPC.未标') !== 0; }));
+  });
+
+  it('按路径改变量整批成功或整批不写', function() {
+    var design = {
+      variables: [{ path: '角色.情绪', type: 'string', default: '平静', description: '情绪' }],
+    };
+    var dup = applyStatusBarVariableEdits(design, [
+      { op: 'set', path: '角色.情绪', variable: { default: '紧张' } },
+      { op: 'remove', path: '角色.情绪' },
+    ]);
+    assert.equal(dup.ok, false);
+    assert.match(dup.error, /多次/);
+    assert.equal(design.variables[0].default, '平静');
+    var rename = applyStatusBarVariableEdits(design, [
+      { op: 'set', path: '角色.情绪', variable: { path: '角色.心情', default: '紧张' } },
+    ]);
+    assert.equal(rename.ok, false);
+    assert.match(rename.error, /不能修改路径名/);
+    var missing = applyStatusBarVariableEdits(design, [{ op: 'remove', path: '没有' }]);
+    assert.equal(missing.ok, false);
+    var bare = applyStatusBarVariableEdits(design, [{ op: 'add', path: '世界.天气', variable: { type: 'string' } }]);
+    assert.equal(bare.ok, false);
+    var edited = applyStatusBarVariableEdits(design, [
+      { op: 'set', path: '角色.情绪', variable: { default: '紧张' } },
+      { op: 'add', path: '世界.天气', variable: { type: 'string', default: '晴', description: '天气' } },
+    ]);
+    assert.equal(edited.ok, true);
+    assert.equal(edited.design.variables[0].default, '紧张');
+    assert.equal(edited.design.variables[0].type, 'string');
+    assert.equal(edited.design.variables[1].path, '世界.天气');
+    assert.equal(design.variables.length, 1);
+    var removed = applyStatusBarVariableEdits(edited.design, [{ op: 'remove', path: '世界.天气' }]);
+    assert.equal(removed.ok, true);
+    assert.equal(removed.design.variables.length, 1);
   });
 });

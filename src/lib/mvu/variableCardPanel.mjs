@@ -9,6 +9,7 @@ import {
   } from './inferFromCard.mjs';
 import { STATUS_BAR_EXT_KEY } from '../statusBar.mjs';
 import { buildGroupedUpdateRules } from '../statusBarBuild.mjs';
+import { meterCheckLines } from './meterUpdateRules.mjs';
 import { patchForRegistrySlot } from '../worldbook/worldbookEntryBridge.mjs';
 import { WB_OWNER } from '../worldbook/worldbookRegistry.mjs';
 import { appFeedback } from '../ui/appMessage.mjs';
@@ -1195,8 +1196,8 @@ export function initVariableCardPanelCore() {
       { path:'世界.当前场景', type:'string', default:'开局', description:'当前剧情场景概括', check:['每轮用短语概括当前场面'] },
       { path:'世界.剧情阶段', type:'string', default:'开局', description:'整体剧情阶段', check:['根据主线进展、关系推进和关键事件更新'] },
       { path:'主角.当前状态', type:'string', default:'正常', description:'主角身体与精神状态', check:['根据疲劳、受伤、疾病、情绪压力更新'] },
-      { path:'主角.体力', type:'number', default:100, min:0, max:100, description:'主角可行动体力', check:['行动消耗体力，休息恢复体力'] },
-      { path:'主角.金钱', type:'number', default:0, min:0, description:'主角当前可用金钱', check:['收入增加，消费减少，不得低于0'] },
+      { path:'主角.体力', type:'number', default:100, min:0, max:100, description:'主角可行动体力', check: meterCheckLines('体力') },
+      { path:'主角.金钱', type:'number', default:0, min:0, description:'主角当前可用金钱', check: meterCheckLines('金钱') },
       { path:'主角.持有物', type:'object', default:{}, description:'主角持有的重要物品表', check:['获得、消耗、赠送、丢失物品时更新'] },
       { path:'记忆.本轮摘要', type:'string', default:'', description:'本轮剧情摘要', check:['每轮用100字以内记录关键变化'] },
       { path:'记忆.重要线索', type:'object', default:{}, description:'长期保存的重要线索、伏笔、承诺', check:['出现长期影响信息时插入或更新'] },
@@ -1209,7 +1210,7 @@ export function initVariableCardPanelCore() {
         { path:'NPC.' + name + '.当前情绪', type:'string', default:'平静', description:name + '当前情绪', check:['根据本轮互动、处境和内心压力更新'] },
         { path:'NPC.' + name + '.当前行动', type:'string', default:'按自己的日程行动', description:name + '当前行动', check:['即使不在场，也根据时间和日程独立更新'] },
         { path:'NPC.' + name + '.关系状态', type:'string', default:'陌生', description:'与主角的关系状态', check:['根据长期互动和关键事件更新'] },
-        { path:'NPC.' + name + '.好感度', type:'number', default:0, min:-100, max:100, description:'对主角的好感/信任变化', check:['有效正向互动增加，冒犯、伤害或失约降低'] },
+        { path:'NPC.' + name + '.好感度', type:'number', default:0, min:-100, max:100, description:'对主角的好感/信任变化', check: meterCheckLines('好感度') },
         { path:'NPC.' + name + '.印象', type:'string', default:'陌生人-中', description:'对主角的主观印象', check:['根据主角持续行为形成更具体印象，后缀可用正/中/负'] }
       );
     });

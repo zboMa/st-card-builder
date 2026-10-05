@@ -54,6 +54,16 @@ function longProseMessage(toolName) {
   return '这是长正文，不要写进 ' + toolName + ' 的参数。请改用生成工具，并在 instruction 里写清这次的生成提示：角色字段用 expand_character_field，开场白用 rewrite_greeting 或 expand_greeting，世界书用 generate_worldbook_entry、expand_worldbook_entry 或 rewrite_worldbook_entry。';
 }
 
+/** 状态栏生成前的门槛。模型可以先改勾选再重试，不结束本轮。 */
+export function isStatusBarGateError(text) {
+  var s = String(text || '');
+  return s.indexOf('请勾选主角或至少一名角色') >= 0
+    || s.indexOf('请至少开启一个模块') >= 0
+    || s.indexOf('请先生成变量') >= 0
+    || s.indexOf('请填写排版风格说明') >= 0
+    || s.indexOf('还没有排版') >= 0;
+}
+
 /** 执行器拦住的长文错误。这类失败应回到规划改调用，而不是结束本轮。 */
 export function isLongFormGuardError(text) {
   var s = String(text || '');
@@ -224,10 +234,12 @@ export function redirectLongFormCall(toolName, args) {
     var entry = longEntries[0] || {};
     var title = String(entry.comment || entry.displayName || entry.name || '').trim();
     var keys = Array.isArray(entry.keys) ? entry.keys.map(function(k) { return String(k || '').trim(); }).filter(Boolean) : [];
+    var entryType = String(entry.type || entry.outlineType || '').trim();
     var extra = '这一篇是新的世界书条目'
       + (title ? '，标题用「' + title + '」' : '')
+      + (entryType ? '，类型用 ' + entryType : '，类型按这条是什么来写，人物用 person')
       + (keys.length ? '，触发词：' + keys.join('、') : '')
-      + '。';
+      + '。标题不要加 [小说人物]。';
     return {
       tool: 'generate_worldbook_entry',
       args: { instruction: directionFromDraft(entryContentOf(entry), extra) },

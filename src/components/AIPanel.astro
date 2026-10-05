@@ -82,6 +82,14 @@ import AiEngineModal from './AiEngineModal.astro';
       <div id="aiDebugStatus" class="ai-debug-status">关闭：仅显示常规错误。开启后可在 F12 Console 查看请求摘要、原始响应和 JSON 解析失败细节。</div>
     </div>
 
+    <div class="ai-debug-box">
+      <label class="ai-debug-toggle" for="assistantAutoApply">
+        <input type="checkbox" id="assistantAutoApply" />
+        <span>自动应用</span>
+      </label>
+      <div class="ai-debug-status">关闭：助手里需要确认的改动会停下来等你点应用。开启后这些改动直接写入并继续。</div>
+    </div>
+
     <hr class="divider" />
 
     <!-- 联网搜索配置 -->

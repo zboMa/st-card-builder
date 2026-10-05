@@ -12,6 +12,16 @@ import { resolveWorldbookIndex, normalizeTarget } from './executorResolve.mjs';
 import { fromAiJsonEntry, toAiJsonEntry, entryExportComment } from '../worldbook/worldbookEntryBridge.mjs';
 import { getDefaultWBEntry } from '../card-builder/state.mjs';
 import { longFormToolError, redirectLongFormCall } from './generationContext.mjs';
+import { resolveAlternateGreetingSlot } from './greetingSlot.mjs';
+
+function retiredStatusBarTool(name) {
+  if (name === 'get_mvu_state' || name === 'infer_mvu_variables') return '请改用 get_statusbar';
+  if (name === 'upsert_mvu_design' || name === 'upsert_mvu_variables' || name === 'clear_mvu') {
+    return '请改用 generate_statusbar_variables 或 edit_statusbar_variables';
+  }
+  if (name === 'patch_mvu_node') return '请改用 edit_statusbar_variables';
+  return '';
+}
 
 export function createExecutorExecute(bridge, snaps, helpers) {
   var ok = helpers.ok;
@@ -84,10 +94,11 @@ export function createExecutorExecute(bridge, snaps, helpers) {
         return ok({ index: idx, entry: toAiJsonEntry(entries[idx]) });
       }
       case 'get_mvu_state':
-        return ok(bridge.getMvu());
-      case 'infer_mvu_variables': {
-        if (bridge.inferMvuVariables) return ok(bridge.inferMvuVariables(a));
-        return fail('MVU 推定桥接未就绪');
+      case 'infer_mvu_variables':
+        return fail('请改用 get_statusbar');
+      case 'get_statusbar': {
+        if (!bridge.getStatusBar) return fail('状态栏未就绪');
+        return ok(bridge.getStatusBar());
       }
       case 'get_novel_workspace':
         return ok(bridge.getNovel());
@@ -319,18 +330,21 @@ export function createExecutorExecute(bridge, snaps, helpers) {
       case 'expand_greeting': {
         if (!bridge.mutateGreeting) return fail('开场白桥接未就绪');
         maybeSnap();
-        return ok(await bridge.mutateGreeting({
+        var greet = await bridge.mutateGreeting({
           target: a.target != null ? a.target : (a.index != null ? { alternate: a.index } : 'main'),
           mode: a.mode || (toolName === 'expand_greeting' ? 'expand' : 'rewrite'),
           instruction: a.instruction || a.direction || '',
-        }));
+        });
+        if (greet && greet.ok === false) return fail(greet.error || '开场白写入失败');
+        return ok(greet);
       }
       case 'update_alternate_greeting': {
         if (typeof a.index !== 'number') return fail('缺少备选 index');
         maybeSnap();
         var ch = bridge.getCharacter() || {};
         var alts = Array.isArray(ch.altGreetings) ? ch.altGreetings.slice() : [];
-        if (a.index < 0 || a.index >= alts.length) return fail('备选开场白序号越界');
+        var altSlot = resolveAlternateGreetingSlot(alts.length, a.index, false);
+        if (!altSlot.ok) return fail(altSlot.error);
         alts[a.index] = a.content != null ? String(a.content) : alts[a.index];
         bridge.setCharacter({ altGreetings: alts });
         return ok({ index: a.index, length: alts[a.index].length });
@@ -604,30 +618,41 @@ export function createExecutorExecute(bridge, snaps, helpers) {
         }
         return ok(bridge.applyNovel(a));
       }
-      case 'upsert_mvu_design': {
+      case 'upsert_mvu_design':
+      case 'upsert_mvu_variables':
+      case 'clear_mvu':
+        return fail('请改用 generate_statusbar_variables 或 edit_statusbar_variables');
+      case 'patch_mvu_node':
+        return fail('请改用 edit_statusbar_variables');
+      case 'set_statusbar': {
+        if (!bridge.setStatusBar) return fail('状态栏未就绪');
         maybeSnap();
-        if (bridge.upsertMvuDesign) {
-          return ok(bridge.upsertMvuDesign(Object.assign({}, a, { inject: a.inject === true })));
-        }
-        return ok(bridge.upsertMvu(Object.assign({}, a.design || a, { __inject: a.inject === true })));
+        var setSb = bridge.setStatusBar(a);
+        if (setSb && setSb.ok === false) return fail(setSb.error || '状态栏设置失败');
+        return ok(setSb || { ok: true });
       }
-      case 'upsert_mvu_variables': {
+      case 'generate_statusbar_variables': {
+        if (!bridge.generateStatusBarVariables) return fail('状态栏未就绪');
         maybeSnap();
-        if (bridge.upsertMvuVariables) {
-          return ok(bridge.upsertMvuVariables(Object.assign({}, a, { inject: a.inject !== false })));
-        }
-        return ok(bridge.upsertMvu(a.design || a));
+        var genSb = await bridge.generateStatusBarVariables(a);
+        if (genSb && genSb.ok === false) return fail(genSb.error || '变量生成失败');
+        return ok(genSb || { ok: true });
       }
-      case 'clear_mvu': {
-        if (!bridge.clearMvu) return fail('MVU 清空桥接未就绪');
+      case 'edit_statusbar_variables': {
+        if (!bridge.editStatusBarVariables) return fail('状态栏未就绪');
+        var changes = Array.isArray(a.changes) ? a.changes : [];
+        if (!changes.length) return fail('没有要改的变量');
         maybeSnap();
-        return ok(bridge.clearMvu(a));
+        var editSb = bridge.editStatusBarVariables(changes);
+        if (editSb && editSb.ok === false) return fail(editSb.error || '变量编辑失败');
+        return ok(editSb || { ok: true });
       }
-      case 'patch_mvu_node': {
-        if (!bridge.patchMvuNode) return fail('MVU 节点补丁桥接未就绪');
-        if (!a.path) return fail('缺少 path');
+      case 'generate_statusbar_layout': {
+        if (!bridge.generateStatusBarLayout) return fail('状态栏未就绪');
         maybeSnap();
-        return ok(bridge.patchMvuNode(a));
+        var laySb = await bridge.generateStatusBarLayout(a.revise === true, a);
+        if (laySb && laySb.ok === false) return fail(laySb.error || '排版生成失败');
+        return ok(laySb || { ok: true });
       }
       case 'apply_chat_feedback_fixes': {
         var fixes = Array.isArray(a.fixes) ? a.fixes : [];
@@ -697,6 +722,8 @@ export function createExecutorExecute(bridge, snaps, helpers) {
       toolName = redirected.tool;
       args = redirected.args;
     }
+    var retired = retiredStatusBarTool(toolName);
+    if (retired) return fail(retired);
     var meta = getToolByName(toolName);
     if (!meta) return fail('未注册工具: ' + toolName);
 

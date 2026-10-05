@@ -36,6 +36,7 @@ import {
   aiCommentFromRow,
 } from '../../worldbook/worldbookEntryBridge.mjs';
 import { getDefaultWBEntry } from '../state.mjs';
+import { outlineKindFromType } from '../../worldbook/worldbookRegistry.mjs';
 import { showConfirmDialog } from '../../ui/confirmDialog.mjs';
 import { formatAdultModeLine } from '../../assistant/generationContext.mjs';
 
@@ -444,7 +445,7 @@ export function attachAiEnginePanel(ctx, s, panel) {
               + (presetsStr ? '\n【文风】：' + presetsStr.substring(0, 200) : '')
               + (wvWbHint || '')
               + searchInjection
-              + '\n【输出】：JSON数组 [{ "comment":"标题", "type":"location|...", "content":"一句话", "keys":["词"], "strategy":"selective" }, ...]';
+              + '\n【输出】：JSON数组 [{ "comment":"标题", "type":"worldview|location|faction|person|event|item|ability|other", "content":"一句话", "keys":["词"], "strategy":"selective" }, ...]。type 必填，人物用 person。标题用人名，不要加 [小说人物]。';
             try {
               var aiResp2 = await ctx.fetchAIContent({
                 context: '世界书骨架/批次' + batchIndex,
@@ -585,6 +586,7 @@ export function attachAiEnginePanel(ctx, s, panel) {
             if (slot.job) ctx.state.worldbookEntries[entryIdx].job = slot.job;
             if (slot.group) ctx.state.worldbookEntries[entryIdx].group = slot.group;
             if (slot.reads) ctx.state.worldbookEntries[entryIdx].reads = slot.reads;
+            ctx.state.worldbookEntries[entryIdx].kind = outlineKindFromType(slot.type);
             ctx.state.worldbookEntries[entryIdx].outlineType = slot.type;
             ctx.state.worldbookEntries[entryIdx].outlineLinks = (slot.links || []).slice();
             ctx.renderAll();
@@ -826,9 +828,9 @@ export function attachAiEnginePanel(ctx, s, panel) {
         + (adultHints.canon || '')
         + (wvWbSingle || '')
         + searchInjection
-        + '\n【说明】人物类条目标题建议「[小说人物] 名字」；成人内容只写世界书，勿写主角卡面。'
+        + '\n【说明】人物条 type 用 person，标题用人名，不要加 [小说人物]；成人内容只写世界书，勿写主角卡面。'
         + '\n【冲突处理】若「用户额外要求」与「世界观预设」冲突，以用户额外要求为准。'
-        + '\n【输出】：1个JSON对象 { "comment": "标题", "type": "worldview|location|...", "content": "详细设定(至少100字)", "keys": ["触发词"], "strategy": "selective 或 constant", "position": 4 }';
+        + '\n【输出】：1个JSON对象 { "comment": "标题", "type": "worldview|location|faction|person|event|item|ability|other", "content": "详细设定", "keys": ["触发词"], "strategy": "selective 或 constant", "position": 4 }。type 必填。';
       var userPrompt  = customDirection ? '【方向·优先】：' + customDirection : '【自由发挥，拒绝重复；有世界观预设则紧贴预设语汇】';
       var headers     = { 'Content-Type': 'application/json' };
       if (key) headers['Authorization'] = 'Bearer ' + key;

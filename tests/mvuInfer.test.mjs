@@ -105,7 +105,13 @@ describe('mvu inferFromCard', function() {
     assert.equal(aff.type, 'number');
     assert.equal(aff.source.indexOf('statusbar'), 0);
     assert.ok(aff.name);
-    assert.ok(aff.updateHint);
+    assert.match(aff.updateHint, /平常往来/);
+    assert.doesNotMatch(aff.updateHint, /被剧情改变时更新/);
+    var trust = cands.find(function(c) { return c.path === '角色.信任'; });
+    assert.match(trust.updateHint, /单轮不超过 15/);
+    var vars = candidatesToVariables([aff]);
+    assert.equal(vars[0].check.length, 3);
+    assert.match(vars[0].check[1], /±4～8/);
   });
 
   it('corruption enabled adds 恶堕进度; gap when MVU missing it', function() {
@@ -135,6 +141,8 @@ describe('mvu inferFromCard', function() {
     assert.equal(corr.type, 'number');
     assert.equal(corr.min, 0);
     assert.equal(corr.max, 100);
+    assert.match(corr.updateHint, /次一级/);
+    assert.doesNotMatch(corr.updateHint, /破窗|共犯|告白/);
 
     var gap = corruptionProgressGap(card);
     assert.equal(gap.gap, true);
@@ -227,7 +235,13 @@ describe('mvu inferFromCard', function() {
     var vars = candidatesToVariables([cands[1]]);
     assert.equal(vars[0].type, 'enum');
     assert.ok(vars[0].options.length >= 2);
-    assert.deepEqual(vars[0].check, ['递进']);
+    assert.equal(vars[0].check.length, 3);
+    assert.match(vars[0].check[1], /次一级/);
+    var custom = candidatesToVariables([{
+      name: '线索', path: '记忆.重要线索', type: 'string', initial: '',
+      updateHint: '递进',
+    }]);
+    assert.deepEqual(custom[0].check, ['递进']);
   });
 
   it('alreadyPresent candidates default unselected', function() {

@@ -73,8 +73,9 @@ export function resolveWorldbookIndex(entries, args) {
       if (entryExportComment(list[j]) === t.comment || wbTitleForMatch(list[j]) === t.comment) return j;
     }
   }
-  if (t.titleMatch) {
-    var q = t.titleMatch.toLowerCase();
+  var fuzzy = t.titleMatch || (!t.titleMatch && t.comment ? t.comment : '');
+  if (fuzzy) {
+    var q = String(fuzzy).toLowerCase();
     var hits = [];
     for (var k = 0; k < list.length; k++) {
       if (wbTitleForMatch(list[k]).toLowerCase().indexOf(q) >= 0) hits.push(k);

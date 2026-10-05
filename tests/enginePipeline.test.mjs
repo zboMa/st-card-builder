@@ -16,6 +16,7 @@ import {
   worldbookReplaceNeedsConfirm,
 } from '../src/lib/card-builder/enginePipeline.mjs';
 import { DEFAULT_PROMPTS } from '../src/lib/promptCanon.mjs';
+import { isPersonWorldbookEntry, personNameFromWorldbookEntry } from '../src/lib/novel/sync.mjs';
 import { PROMPT_META } from '../src/lib/promptStore.mjs';
 
 describe('enginePipeline', function() {
@@ -47,6 +48,10 @@ describe('enginePipeline', function() {
     assert.equal(ban.position, 0);
     assert.equal(ban.content, '（待展开）');
     assert.doesNotMatch(DEFAULT_PROMPTS.wbOutline, /人物×|世界观×|配额/);
+    assert.doesNotMatch(DEFAULT_PROMPTS.wbOutline, /type 可空/);
+    assert.match(DEFAULT_PROMPTS.wbOutline, /人物必须是 person/);
+    assert.match(DEFAULT_PROMPTS.wbSingle, /写的是人物就用 person/);
+    assert.doesNotMatch(DEFAULT_PROMPTS.wbSkeleton, /type 只是书架颜色，可空/);
     assert.doesNotMatch(DEFAULT_PROMPTS.greetingGen, /固定 2|altGreetings 固定/);
   });
 
@@ -84,6 +89,18 @@ describe('enginePipeline', function() {
     assert.equal(slots[1].type, 'location');
     assert.equal(slots[2].type, 'other');
     assert.ok(slots[0].links.indexOf('青城') >= 0);
+  });
+
+  it('人物大纲不写小说前缀，引擎 owner 也能被认出', function() {
+    var slot = normalizeOutlineSlot({ type: '人物', comment: '顾清辞', job: '室友' }, 0);
+    assert.equal(slot.type, 'person');
+    var entry = slotToWorldbookEntry(slot, 100);
+    assert.equal(entry.kind, 'outline_person');
+    assert.equal(entry.outlineType, 'person');
+    assert.equal(entry.displayName, '顾清辞');
+    assert.equal(entry.owner, 'aiEngine');
+    assert.equal(isPersonWorldbookEntry(entry), true);
+    assert.equal(personNameFromWorldbookEntry(entry), '顾清辞');
   });
 
   it('slotToWorldbookEntry 写入 outline 元数据', function() {

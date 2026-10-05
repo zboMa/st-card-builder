@@ -20,6 +20,7 @@ import {
   relationMentionWarning,
 } from '../../assistant/generationContext.mjs';
 import { PRIOR_WB_EXTRACT_PER, RAG_ENTITY_BUDGET, ENTITY_SUMMARY_STORE } from '../contextBudgets.mjs';
+import { noteTaskStep } from '../taskStep.mjs';
 
 /**
  * attachNovelWorldbookAi（拆自原模块）
@@ -410,17 +411,31 @@ export function attachNovelWorldbookAi(ctx, panel) {
             + '\nMode: ' + state.narrativeMode
             + '\nContext: ' + (state.contextText || '')
             + '\n【章节 ' + shard.chapterTitle + (shard.part > 1 ? ' · 片' + shard.part : '') + '】\n' + shard.text;
+          var wbLabel = (shard.chapterTitle || '章') + (shard.part > 1 ? '#' + shard.part : '');
+          var wbLine = '抽取 ' + (idx + 1) + '/' + shards.length + ' · ' + wbLabel;
+          var wbProgress = (idx + 1) / shards.length;
           try {
             var text = await ctx.callAI(user, null, task.signal);
             var json = parseJsonLoose(text);
             (json.entries || []).forEach(function(e) { mergeWbExtractEntry(all, e); });
+            noteTaskStep(task, {
+              line: wbLine + ' · 已 ' + all.length + ' 条',
+              input: user,
+              output: text,
+              status: 'ok',
+              progress: wbProgress,
+            });
           } catch (e) {
             if (ctx.isTrackedAbort(e)) throw e;
+            noteTaskStep(task, {
+              line: wbLine + ' · 失败',
+              input: user,
+              error: String(e.message || e),
+              status: 'failed',
+              progress: wbProgress,
+            });
           }
           flushWbPreview();
-          if (window.__aiTaskCenter__ && task.id) {
-            window.__aiTaskCenter__.setProgress(task.id, (idx + 1) / shards.length, (idx + 1) + '/' + shards.length);
-          }
           if (ctx.setStatus) ctx.setStatus('novelWbStatus', '抽取中 ' + (idx + 1) + '/' + shards.length + ' · 已 ' + state.wbEntries.length + ' 条');
         }
         if (ctx.setStatus) ctx.setStatus('novelWbStatus', '已生成 ' + state.wbEntries.length + ' 条草稿（' + shards.length + ' 步）');

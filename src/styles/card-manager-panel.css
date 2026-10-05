@@ -106,12 +106,12 @@
     background: rgba(148, 163, 184, 0.08);
   }
   .export-checklist-items li.is-critical {
-    background: rgba(239, 68, 68, 0.1);
-    color: #fecaca;
+    background: var(--color-danger-soft);
+    color: var(--color-danger);
   }
   .export-checklist-items li.is-warning {
-    background: rgba(245, 158, 11, 0.1);
-    color: #fde68a;
+    background: var(--color-warning-soft);
+    color: var(--color-warning);
   }
   .export-checklist-items .export-checklist-jump {
     flex-shrink: 0;
@@ -304,15 +304,15 @@
 
   .card-manager-check-badge {
     cursor: pointer;
-    border: 1px solid rgba(248, 113, 113, 0.45);
-    color: #fecaca;
-    background: rgba(127, 29, 29, 0.72);
+    border: 1px solid var(--color-danger-fill-border);
+    color: var(--color-on-danger-fill);
+    background: var(--color-danger-fill);
     font-variant-numeric: tabular-nums;
   }
   .card-manager-check-badge.is-warning {
-    border-color: rgba(245, 158, 11, 0.45);
-    color: #fde68a;
-    background: rgba(120, 53, 15, 0.72);
+    border-color: var(--color-warning-border);
+    color: var(--color-on-warning);
+    background: var(--color-warning);
   }
   .card-manager-check-badge:hover {
     filter: brightness(1.08);
@@ -348,7 +348,7 @@
     font: inherit;
     font-size: 0.88rem;
     font-weight: 650;
-    color: var(--color-on-accent);
+    color: var(--color-on-media);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -356,13 +356,13 @@
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
   }
   .card-manager-item-name:hover {
-    color: var(--color-accent-hover);
+    color: var(--color-on-media);
   }
 
   .card-manager-item-meta {
     margin-top: 3px;
     font-size: 0.68rem;
-    color: rgba(226, 232, 240, 0.82);
+    color: color-mix(in oklch, var(--color-on-media) 82%, transparent);
     line-height: 1.35;
   }
 

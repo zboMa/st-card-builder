@@ -132,6 +132,9 @@ describe('planApplyOutcome', function() {
     assert.equal(planApplyOutcome({ threw: true, ok: true }), 'reopen');
     assert.equal(planApplyOutcome({ threw: false, ok: false }), 'stop');
     assert.equal(planApplyOutcome({ threw: false, ok: false, error: '这是长正文，不要写进 update_character_fields 的参数。' }), 'resume');
+    assert.equal(planApplyOutcome({ threw: false, ok: false, error: '请勾选主角或至少一名角色' }), 'resume');
+    assert.equal(planApplyOutcome({ threw: false, ok: false, error: '请先生成变量' }), 'resume');
+    assert.equal(planApplyOutcome({ threw: true, ok: false, error: 'API HTTP 400' }), 'reopen');
     assert.equal(planApplyOutcome(null), 'stop');
   });
 });

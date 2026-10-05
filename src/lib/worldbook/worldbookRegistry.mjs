@@ -295,10 +295,33 @@ export var OUTLINE_TYPE_LABELS = {
   other: '其他',
 };
 
+var OUTLINE_TYPE_ALIASES = {
+  '世界观': 'worldview',
+  '规则': 'worldview',
+  '设定': 'worldview',
+  '地点': 'location',
+  '场所': 'location',
+  '势力': 'faction',
+  '组织': 'faction',
+  '人物': 'person',
+  '角色': 'person',
+  'npc': 'person',
+  '事件': 'event',
+  '剧情': 'event',
+  '物品': 'item',
+  '道具': 'item',
+  '载体': 'item',
+  '能力': 'ability',
+  '功法': 'ability',
+  '异能': 'ability',
+  '其他': 'other',
+};
+
 export function normalizeOutlineType(raw) {
   var t = String(raw || '').trim().toLowerCase();
   if (t.indexOf('outline_') === 0) t = t.slice('outline_'.length);
   if (OUTLINE_TYPES.indexOf(t) >= 0) return t;
+  if (OUTLINE_TYPE_ALIASES[t]) return OUTLINE_TYPE_ALIASES[t];
   return '';
 }
 

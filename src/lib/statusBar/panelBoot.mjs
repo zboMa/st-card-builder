@@ -7,7 +7,6 @@ import {
   STATUS_BAR_EXT_KEY,
   STATUS_BAR_PRESETS,
   STATUS_BAR_REGEX_NAME,
-  STATUS_BAR_CHAR_SCAN_PROMPT,
   STATUS_BAR_MVU_FILL_PROMPT,
   STATUS_BAR_LAYOUT_SHELL_PROMPT,
   getPresetById,
@@ -15,8 +14,6 @@ import {
   resolveModuleFlags,
   describeEnabledModules,
   describeForbiddenModules,
-  describeFemaleOnlyRule,
-  normalizeCastCharacter,
   collectPersonCharactersFromWorldbook,
   excludeCardNameFromCharacters,
   pathsFromMvuDesign,
@@ -27,6 +24,7 @@ import {
   normalizeDesign,
   reconcileDesignWithCharName,
   rejectStatusBarGenerate,
+  applyStatusBarVariableEdits,
   validateSampleFloors,
   readFloorValue,
   keepMarkupPaths,
@@ -59,8 +57,6 @@ export function initStatusBarPanel() {
   var layoutEl = document.getElementById('sbLayoutPrompt');
   var nsfwEl = document.getElementById('sbNsfw');
   var protagEl = document.getElementById('sbIncludeProtagonist');
-  var femalesEl = document.getElementById('sbIncludeFemales');
-  var femaleOnlyBtn = document.getElementById('sbFemaleOnly');
   var presetGrid = document.getElementById('sbPresetGrid');
   var moduleGrid = document.getElementById('sbModuleGrid');
   var charList = document.getElementById('sbCharList');
@@ -87,7 +83,7 @@ export function initStatusBarPanel() {
 
   function selectedFemales() {
     return excludeCardNameFromCharacters(state.characters, currentCharName()).filter(function(c) {
-      return c.selected !== false;
+      return c.selected === true;
     });
   }
 
@@ -112,7 +108,7 @@ export function initStatusBarPanel() {
     var flags = state.moduleFlags || {};
     var anyMod = Object.keys(flags).some(function(k) { return !!flags[k]; });
     var done = {
-      1: !!(state.includeProtagonist || (state.includeFemales && selectedFemales().length)),
+      1: !!(state.includeProtagonist || selectedFemales().length),
       2: anyMod,
       3: pathsForPreview().length > 0,
       4: !!String(state.layoutPrompt || '').trim(),
@@ -125,7 +121,6 @@ export function initStatusBarPanel() {
 
   function readFormIntoState() {
     state.includeProtagonist = !!(protagEl && protagEl.checked);
-    state.includeFemales = !!(femalesEl && femalesEl.checked);
     state.nsfw = !!(nsfwEl && nsfwEl.checked);
     state.extra = extraEl ? extraEl.value.trim() : state.extra;
     state.layoutPrompt = layoutEl ? layoutEl.value.trim() : state.layoutPrompt;
@@ -142,7 +137,6 @@ export function initStatusBarPanel() {
   function livePaths() {
     return buildPlaceholderPaths({
       includeProtagonist: state.includeProtagonist,
-      includeFemales: state.includeFemales,
       charName: currentCharName(),
       characters: state.characters,
       moduleFlags: state.moduleFlags,
@@ -249,14 +243,14 @@ export function initStatusBarPanel() {
     var list = excludeCardNameFromCharacters(state.characters, currentCharName());
     state.characters = list;
     if (!list.length) {
-      charList.innerHTML = '<p class="ui-hint">世界书暂无其他人物。可点「AI 识别」补充。</p>';
+      charList.innerHTML = '<p class="ui-hint">世界书里还没有人物条目。</p>';
       return;
     }
     list.forEach(function(c, idx) {
       var lab = document.createElement('label');
       lab.className = 'sb-check';
       lab.innerHTML = '<input type="checkbox" data-ci="' + idx + '"'
-        + (c.selected !== false ? ' checked' : '') + ' /><span>' + escHtml(c.name) + '</span>';
+        + (c.selected === true ? ' checked' : '') + ' /><span>' + escHtml(c.name) + '</span>';
       charList.appendChild(lab);
     });
   }
@@ -333,7 +327,7 @@ export function initStatusBarPanel() {
     if (!keys.length) {
       var empty = document.createElement('p');
       empty.className = 'ui-hint';
-      empty.textContent = '勾选主角或女角色并开启模块后，这里显示变量结构。';
+      empty.textContent = '勾选主角或至少一名角色并开启模块后，这里显示变量结构。';
       varTree.appendChild(empty);
       return;
     }
@@ -360,8 +354,9 @@ export function initStatusBarPanel() {
   function hintText() {
     var parts = [];
     if (state.includeProtagonist) parts.push('主角');
-    if (state.includeFemales) parts.push('女角色');
-    var who = parts.length ? ('已勾 ' + parts.join('、')) : '未勾选主角或女角色';
+    var picked = selectedFemales().length;
+    if (picked) parts.push(picked + ' 名角色');
+    var who = parts.length ? ('已勾 ' + parts.join('、')) : '未勾选主角或角色';
     var floor = samples.floors
       ? ('样例第 ' + samples.activeFloor + ' / 3 楼')
       : '尚无样例';
@@ -371,7 +366,6 @@ export function initStatusBarPanel() {
   function refreshPreview() {
     readFormIntoState();
     refreshCharName();
-    if (femaleOnlyBtn) femaleOnlyBtn.setAttribute('aria-pressed', state.femaleOnly !== false ? 'true' : 'false');
     var paths = pathsForPreview();
     var values = previewValueMap(paths);
     var body = state.customBodyHtml
@@ -418,11 +412,9 @@ export function initStatusBarPanel() {
 
   function paintFromState() {
     if (protagEl) protagEl.checked = !!state.includeProtagonist;
-    if (femalesEl) femalesEl.checked = !!state.includeFemales;
     if (nsfwEl) nsfwEl.checked = !!state.nsfw;
     if (extraEl) extraEl.value = state.extra || '';
     if (layoutEl) layoutEl.value = state.layoutPrompt || '';
-    if (femaleOnlyBtn) femaleOnlyBtn.setAttribute('aria-pressed', state.femaleOnly !== false ? 'true' : 'false');
     loadCharactersFromWorldbook();
     renderPresets();
     renderModules();
@@ -436,12 +428,8 @@ export function initStatusBarPanel() {
     (state.characters || []).forEach(function(c) {
       if (c && c.name) prevSel[c.name] = c.selected;
     });
-    var aiOnly = (state.characters || []).filter(function(c) {
-      return c && c.name && c.source && c.source !== 'worldbook';
-    });
     state.characters = collectPersonCharactersFromWorldbook(wb, {
       excludeName: currentCharName(),
-      merge: aiOnly,
     });
     state.characters.forEach(function(c) {
       if (c && c.name && prevSel[c.name] !== undefined) c.selected = prevSel[c.name];
@@ -579,7 +567,7 @@ export function initStatusBarPanel() {
         ? fillUserForBatch(sampleBatch, card, worldbookEntries)
         : '没有可填的字段。',
       layoutSys: applyTemplate(layoutTpl, layoutVars),
-      layoutUser: '请按排版风格说明输出 JSON。女角色只写一套 <template data-zb-repeat="npc">，路径用 NPC.{{name}}.字段。',
+      layoutUser: '请按排版风格说明输出 JSON。角色只写一套 <template data-zb-repeat="npc">，路径用 NPC.{{name}}.字段。',
       mvuTpl: mvuTpl,
       layoutTpl: layoutTpl,
       mvuVars: mvuVars,
@@ -617,7 +605,6 @@ export function initStatusBarPanel() {
     readFormIntoState();
     return rejectStatusBarGenerate({
       includeProtagonist: state.includeProtagonist,
-      includeFemales: state.includeFemales,
       characters: state.characters,
       charName: currentCharName(),
       moduleFlags: state.moduleFlags,
@@ -643,151 +630,241 @@ export function initStatusBarPanel() {
     window.__injectMvuEntries__([], [rx]);
   }
 
-  async function generateVariables() {
+  function isTransportError(err) {
+    if (window.__isAiAbortError__ && window.__isAiAbortError__(err)) return true;
+    if (err && (err.name === 'AbortError' || err.name === 'TimeoutError')) return true;
+    var msg = String((err && err.message) || err || '');
+    return msg.indexOf('API HTTP') >= 0
+      || msg.indexOf('请求失败') >= 0
+      || msg.indexOf('Failed to fetch') >= 0
+      || msg.indexOf('NetworkError') >= 0
+      || msg.indexOf('网络') >= 0;
+  }
+
+  function finishGenerate(opts, okToast, result) {
+    refreshPreview();
+    if (window.triggerGlobalUpdate) window.triggerGlobalUpdate();
+    if (!opts.fromAssistant && okToast) toast(okToast, 'success');
+    return result;
+  }
+
+  function failGenerate(opts, err) {
+    if (opts.fromAssistant && isTransportError(err)) throw err;
+    if (!opts.fromAssistant) reportError(err);
+    return { ok: false, code: 'failed', error: (err && err.message) || String(err) };
+  }
+
+  function commitVariableDesign(design) {
+    design.source = design.source || 'statusbar';
+    if (!window.__assistantMvuApi__ || !window.__assistantMvuApi__.upsertVariables) {
+      throw new Error('MVU 注入 API 不可用');
+    }
+    window.__assistantMvuApi__.upsertVariables({ design: design, inject: true });
+    state.paths = pathsFromMvuDesign(design, { charName: currentCharName() });
+    if (String(state.customBodyHtml || '').trim()) writeBoundSnippet();
+    saveDesignExt();
+    return {
+      ok: true,
+      variableCount: design.variables.length,
+      pathCount: state.paths.length,
+    };
+  }
+
+  async function generateVariables(opts) {
+    opts = opts || {};
     var reason = gateDesign({ requireLayout: false });
     if (reason) {
-      toast(reason, 'warn');
-      return;
+      if (!opts.fromAssistant) toast(reason, 'warn');
+      return { ok: false, code: 'gate', error: reason };
     }
-    var gate = engineTryAllowed('card.statusbar.generate');
-    if (!gate.ok) return;
+    if (!opts.fromAssistant) {
+      var gate = engineTryAllowed('card.statusbar.generate');
+      if (!gate.ok) return { ok: false, code: 'busy', error: gate.reason || '已有进行中的任务' };
+    }
     var bundle = promptBundle();
     if (!bundle.batches.length) {
-      toast('请至少开启一个模块', 'warn');
-      return;
+      var emptyMod = '请至少开启一个模块';
+      if (!opts.fromAssistant) toast(emptyMod, 'warn');
+      return { ok: false, code: 'gate', error: emptyMod };
+    }
+    async function run(signal, task) {
+      var design = await fillStatusBarVariables({
+        batches: bundle.batches,
+        signal: signal,
+        onProgress: function(progress, text) {
+          var center = window.__aiTaskCenter__;
+          if (center && task) center.setProgress(task.id, progress, text);
+        },
+        fetchBatch: function(batch) {
+          return fetchJson(
+            bundle.mvuSys,
+            fillUserForBatch(batch, bundle.card, bundle.worldbookEntries),
+            signal
+          );
+        },
+      });
+      if (!design.variables.length) throw new Error('没有可写入的变量');
+      clearSamples();
+      return commitVariableDesign(design);
     }
     try {
-      await runInCenter('statusbar_generate', '状态栏变量', async function(task) {
-        var signal = task && task.signal;
-        var design = await fillStatusBarVariables({
-          batches: bundle.batches,
-          signal: signal,
-          onProgress: function(progress, text) {
-            var center = window.__aiTaskCenter__;
-            if (center && task) center.setProgress(task.id, progress, text);
-          },
-          fetchBatch: function(batch) {
-            return fetchJson(
-              bundle.mvuSys,
-              fillUserForBatch(batch, bundle.card, bundle.worldbookEntries),
-              signal
-            );
-          },
+      var result = opts.fromAssistant
+        ? await run(opts.signal || null, null)
+        : await runInCenter('statusbar_generate', '状态栏变量', function(task) {
+          return run(task && task.signal, task);
         });
-        if (!design.variables.length) throw new Error('没有可写入的变量');
-        design.source = 'statusbar';
-        if (!window.__assistantMvuApi__ || !window.__assistantMvuApi__.upsertVariables) {
-          throw new Error('MVU 注入 API 不可用');
-        }
-        window.__assistantMvuApi__.upsertVariables({ design: design, inject: true });
-        state.paths = pathsFromMvuDesign(design, { charName: currentCharName() });
-        clearSamples();
-        if (String(state.customBodyHtml || '').trim()) writeBoundSnippet();
-        saveDesignExt();
-      });
-      refreshPreview();
-      if (window.triggerGlobalUpdate) window.triggerGlobalUpdate();
-      toast('已生成变量', 'success');
+      return finishGenerate(opts, '已生成变量', result);
     } catch (err) {
-      reportError(err);
+      return failGenerate(opts, err);
     }
   }
 
-  async function generateLayout(revise) {
+  async function generateLayout(revise, opts) {
+    opts = opts || {};
     var reason = gateDesign(revise
       ? { requirePaths: true, requireMarkup: true }
       : { requirePaths: true });
     if (reason) {
-      toast(reason, 'warn');
-      return;
+      if (!opts.fromAssistant) toast(reason, 'warn');
+      return { ok: false, code: 'gate', error: reason };
     }
-    var gate = engineTryAllowed('card.statusbar.layout');
-    if (!gate.ok) return;
+    if (!opts.fromAssistant) {
+      var gate = engineTryAllowed('card.statusbar.layout');
+      if (!gate.ok) return { ok: false, code: 'busy', error: gate.reason || '已有进行中的任务' };
+    }
     var bundle = promptBundle();
     var user = bundle.layoutUser;
     if (revise) {
       var source = layoutReviseSource(state.customBodyHtml, selectedFemaleNames());
       user = '在现有排版上修改，不要另起一套。保留没要求改的结构。补上字段清单里还没有的字段，去掉已关闭的字段。\n'
-        + '女角色只保留一套 <template data-zb-repeat="npc">，路径用 NPC.{{name}}.字段，不要把每个人展开。\n'
+        + '角色只保留一套 <template data-zb-repeat="npc">，路径用 NPC.{{name}}.字段，不要把每个人展开。\n'
         + '姓名：' + (source.names.join('、') || '（无）') + '\n\n'
         + '【当前 CSS】\n' + String(state.customCss || '')
         + '\n\n【当前 HTML】\n' + source.html
         + '\n\n请输出 JSON。只用 data-zb-path 与 data-zb-meter。';
     }
+    async function run(signal) {
+      var layout = await fetchJson(bundle.layoutSys, user, signal);
+      var css = stripUnsafe(String(layout.css || '').trim());
+      var bodyHtml = stripUnsafe(String(layout.bodyHtml || layout.html || '').trim());
+      if (!css || !bodyHtml) throw new Error('排版未生成');
+      state.customCss = css;
+      state.customBodyHtml = bodyHtml;
+      writeBoundSnippet();
+      saveDesignExt();
+      return { ok: true, revise: !!revise };
+    }
     try {
-      await runInCenter('statusbar_custom_layout', revise ? '状态栏排版修改' : '状态栏排版', async function(task) {
-        var signal = task && task.signal;
-        var layout = await fetchJson(bundle.layoutSys, user, signal);
-        var css = stripUnsafe(String(layout.css || '').trim());
-        var bodyHtml = stripUnsafe(String(layout.bodyHtml || layout.html || '').trim());
-        if (!css || !bodyHtml) throw new Error('排版未生成');
-        state.customCss = css;
-        state.customBodyHtml = bodyHtml;
-        writeBoundSnippet();
-        saveDesignExt();
-      });
+      var result = opts.fromAssistant
+        ? await run(opts.signal || null)
+        : await runInCenter('statusbar_custom_layout', revise ? '状态栏排版修改' : '状态栏排版', function(task) {
+          return run(task && task.signal);
+        });
+      return finishGenerate(opts, revise ? '已按现有排版修改' : '已重新生成排版', result);
+    } catch (err) {
+      return failGenerate(opts, err);
+    }
+  }
+
+  function currentMvuDesign() {
+    return window.__getCardExtension__ ? window.__getCardExtension__('zmer_mvu_design') : null;
+  }
+
+  function editVariables(changes) {
+    var edited = applyStatusBarVariableEdits(currentMvuDesign(), changes);
+    if (!edited.ok) return edited;
+    try {
+      var committed = commitVariableDesign(edited.design);
       refreshPreview();
       if (window.triggerGlobalUpdate) window.triggerGlobalUpdate();
-      toast(revise ? '已按现有排版修改' : '已重新生成排版', 'success');
+      return committed;
     } catch (err) {
-      reportError(err);
+      return { ok: false, error: (err && err.message) || String(err) };
     }
   }
 
-  function buildWbBlock() {
-    var wb = window.__getWorldbookEntries__ ? window.__getWorldbookEntries__() : [];
-    return (wb || []).map(function(e, i) {
-      var title = e.comment || e.name || '?';
-      return (i + 1) + '. 「' + title + '」\n' + String(e.content || '');
-    }).join('\n\n') || '（世界书为空）';
-  }
-
-  async function scanCharacters() {
+  function getSnapshot() {
     readFormIntoState();
-    var gate = engineTryAllowed('card.statusbar.charScan');
-    if (!gate.ok) return;
-    var ps = window.__promptStore__;
-    var tpl = (ps && ps.get('statusBarCharScan')) || STATUS_BAR_CHAR_SCAN_PROMPT;
-    var sys = applyTemplate(tpl, {
-      wbBlock: buildWbBlock(),
-      charName: currentCharName() || '未知',
-      femaleOnlyRule: describeFemaleOnlyRule(state.femaleOnly !== false),
-    });
-    try {
-      var data = await runInCenter('statusbar_char_scan', '状态栏人物识别', function(task) {
-        return fetchJson(sys, '请输出人物 JSON。不要包含当前卡角色本人。', task && task.signal);
+    loadCharactersFromWorldbook();
+    var design = currentMvuDesign();
+    var vars = design && Array.isArray(design.variables) ? design.variables : [];
+    return {
+      includeProtagonist: !!state.includeProtagonist,
+      characters: (state.characters || []).map(function(c) {
+        return { name: c.name, selected: c.selected === true };
+      }),
+      moduleFlags: state.moduleFlags,
+      extra: state.extra || '',
+      layoutPrompt: state.layoutPrompt || '',
+      hasLayout: !!String(state.customBodyHtml || '').trim(),
+      variables: vars.map(function(v) {
+        return {
+          path: String((v && (v.path || v.name)) || ''),
+          type: v && v.type,
+          default: v && v.default,
+          description: v && v.description,
+        };
+      }),
+    };
+  }
+
+  function applyOptions(patch) {
+    patch = patch || {};
+    readFormIntoState();
+    loadCharactersFromWorldbook();
+    if (patch.includeProtagonist != null) state.includeProtagonist = !!patch.includeProtagonist;
+    if (Array.isArray(patch.selectedNames)) {
+      var known = Object.create(null);
+      (state.characters || []).forEach(function(c) {
+        if (c && c.name) known[c.name] = true;
       });
-      var cardName = currentCharName();
-      var list = (Array.isArray(data.characters) ? data.characters : []).map(function(raw) {
-        return normalizeCastCharacter(Object.assign({}, raw, { selected: true, source: 'ai' }));
-      }).filter(function(c) { return c && c.name !== cardName; });
-      var seen = Object.create(null);
-      state.characters.forEach(function(c) { if (c && c.name) seen[c.name] = c; });
-      list.forEach(function(c) {
-        if (seen[c.name]) seen[c.name].selected = true;
-        else state.characters.push(c);
+      var unknown = [];
+      var want = Object.create(null);
+      patch.selectedNames.forEach(function(raw) {
+        var name = String(raw || '').trim();
+        if (!name) return;
+        if (!known[name]) unknown.push(name);
+        else want[name] = true;
       });
-      state.characters = excludeCardNameFromCharacters(state.characters, cardName);
-      renderCharList();
-      saveDesignExt();
-      refreshPreview();
-    } catch (err) {
-      reportError(err);
+      if (unknown.length) return { ok: false, error: '不是当前人物条目：' + unknown.join('、') };
+      state.characters.forEach(function(c) {
+        c.selected = !!want[c.name];
+      });
     }
+    if (patch.moduleFlags && typeof patch.moduleFlags === 'object') {
+      var flags = state.moduleFlags || {};
+      var bad = Object.keys(patch.moduleFlags).filter(function(k) {
+        return !Object.prototype.hasOwnProperty.call(flags, k);
+      });
+      if (bad.length) return { ok: false, error: '不认识的模块：' + bad.join('、') };
+      Object.keys(patch.moduleFlags).forEach(function(k) {
+        flags[k] = !!patch.moduleFlags[k];
+      });
+      state.moduleFlags = flags;
+    }
+    if (patch.extra != null) state.extra = String(patch.extra);
+    if (patch.layoutPrompt != null) state.layoutPrompt = String(patch.layoutPrompt);
+    if (protagEl) protagEl.checked = !!state.includeProtagonist;
+    if (extraEl) extraEl.value = state.extra || '';
+    if (layoutEl) layoutEl.value = state.layoutPrompt || '';
+    renderModules();
+    renderCharList();
+    saveDesignExt();
+    refreshPreview();
+    return { ok: true };
   }
 
   async function generateSampleFloors() {
     readFormIntoState();
     var reason = rejectStatusBarGenerate({
       includeProtagonist: state.includeProtagonist,
-      includeFemales: state.includeFemales,
       characters: state.characters,
       charName: currentCharName(),
       moduleFlags: state.moduleFlags,
       layoutPrompt: state.layoutPrompt || '样例',
     });
-    if (!state.includeProtagonist && !state.includeFemales) {
-      toast('请勾选主角或女角色', 'warn');
+    if (!state.includeProtagonist && !selectedFemales().length) {
+      toast('请勾选主角或至少一名角色', 'warn');
       return;
     }
     if (reason === '请至少开启一个模块') {
@@ -869,20 +946,12 @@ export function initStatusBarPanel() {
   }
 
   if (protagEl) protagEl.addEventListener('change', function() { refreshPreview(); saveDesignExt(); });
-  if (femalesEl) femalesEl.addEventListener('change', function() { refreshPreview(); saveDesignExt(); });
   if (nsfwEl) nsfwEl.addEventListener('change', function() {
     state.nsfw = !!nsfwEl.checked;
     state.moduleFlags = resolveModuleFlags(state.presetId, state.moduleFlags, state.nsfw);
     renderModules();
     refreshPreview();
   });
-  if (femaleOnlyBtn) {
-    femaleOnlyBtn.addEventListener('click', function() {
-      state.femaleOnly = femaleOnlyBtn.getAttribute('aria-pressed') !== 'true';
-      femaleOnlyBtn.setAttribute('aria-pressed', state.femaleOnly ? 'true' : 'false');
-      saveDesignExt();
-    });
-  }
   if (charList) {
     charList.addEventListener('change', function(e) {
       var inp = e.target;
@@ -907,8 +976,6 @@ export function initStatusBarPanel() {
     state.layoutPrompt = layoutEl.value.trim();
     syncStepMarks();
   });
-  var scanBtn = document.getElementById('sbBtnScanChars');
-  if (scanBtn) scanBtn.addEventListener('click', function() { scanCharacters(); });
   var previewBtn = document.getElementById('sbBtnPreviewPrompt');
   if (previewBtn) previewBtn.addEventListener('click', openPromptPreview);
   if (varsBtn) varsBtn.addEventListener('click', function() { generateVariables(); });
@@ -974,5 +1041,10 @@ export function initStatusBarPanel() {
       paintFromState();
       return state;
     },
+    getSnapshot: getSnapshot,
+    applyOptions: applyOptions,
+    generateVariables: generateVariables,
+    generateLayout: generateLayout,
+    editVariables: editVariables,
   };
 }

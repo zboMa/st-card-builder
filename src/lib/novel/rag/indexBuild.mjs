@@ -50,6 +50,7 @@ export async function buildNovelRagIndex(opts) {
         opts.onProgress(0.05 + 0.9 * (done / total), '向量 ' + done + '/' + total);
       }
     },
+    onBatch: opts.onBatch,
   });
 
   index.chunks = chunks.map(function(c, i) {

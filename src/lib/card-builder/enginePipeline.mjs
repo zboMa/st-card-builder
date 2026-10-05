@@ -6,7 +6,7 @@ import {
   normalizeDraftEntry,
   entryExportComment,
 } from '../worldbook/worldbookEntryBridge.mjs';
-import { OUTLINE_TYPES, OUTLINE_TYPE_LABELS } from '../worldbook/worldbookRegistry.mjs';
+import { OUTLINE_TYPES, OUTLINE_TYPE_LABELS, normalizeOutlineType } from '../worldbook/worldbookRegistry.mjs';
 
 export { OUTLINE_TYPES, OUTLINE_TYPE_LABELS };
 
@@ -60,20 +60,7 @@ export function worldbookReplaceNeedsConfirm(entries) {
 
 export function normalizeOutlineSlot(raw, index) {
   if (!raw || typeof raw !== 'object') return null;
-  var type = String(raw.type || raw.category || 'other').trim().toLowerCase();
-  if (OUTLINE_TYPES.indexOf(type) < 0) {
-    // 中文/别名兜底
-    var map = {
-      '世界观': 'worldview', '规则': 'worldview', '设定': 'worldview',
-      '地点': 'location', '场所': 'location',
-      '势力': 'faction', '组织': 'faction',
-      '人物': 'person', '角色': 'person', 'npc': 'person',
-      '事件': 'event', '剧情': 'event',
-      '物品': 'item', '道具': 'item', '载体': 'item',
-      '能力': 'ability', '功法': 'ability', '异能': 'ability',
-    };
-    type = map[type] || map[String(raw.type || '')] || 'other';
-  }
+  var type = normalizeOutlineType(raw.type || raw.category) || 'other';
   var comment = String(raw.comment || raw.title || raw.name || '').trim();
   if (!comment) comment = (OUTLINE_TYPE_LABELS[type] || '条目') + (index + 1);
   var job = String(raw.job != null ? raw.job : '').trim();
@@ -122,9 +109,6 @@ export function normalizeOutlineSlots(rawList, expectedCount) {
 
 export function slotToWorldbookEntry(slot, orderBase) {
   var displayName = String(slot.comment || '').trim();
-  if (displayName.indexOf('[') !== 0 && slot.type === 'person') {
-    displayName = '[小说人物] ' + displayName.replace(/^\[.*?\]\s*/, '');
-  }
   var slotId = slot._slotId || ('outline-' + String(slot.type || 'other') + '-' + (slot._i != null ? slot._i : displayName));
   var patch = buildEngineOutlinePatch(slotId, slot.type, displayName, {
     content: slot.blurb || '（待展开）',

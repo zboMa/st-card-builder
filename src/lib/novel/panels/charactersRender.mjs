@@ -3,11 +3,7 @@
  */
 import { buildExtractShards } from '../chapters.mjs';
 import { buildRecallPayload, DEFAULT_EXPAND_BUDGET } from '../recall.mjs';
-import {
-  normalizeCharacterProfile,
-  emptyCharacterProfile,
-  profileContentDigest,
-} from '../schema.mjs';
+import { emptyCharacterProfile } from '../schema.mjs';
 import {
   profileToCharacterFields,
   entityPersonToCharacterFields,
@@ -226,19 +222,24 @@ export function attachNovelCharactersRender(ctx, panel) {
       var note = c.note || (c.profile ? '已扩展' : '待扩展');
       var canSync = !!(c.profile || (ent && String(ent.content || ent.summary || '').trim()));
       var needExpand = !c.profile;
-      return '<div class="novel-list-row" data-char-id="' + c.id + '">'
+      return '<div class="entry-item" data-char-id="' + c.id + '">'
+        + '<div class="entry-item-header">'
         + '<input type="checkbox" data-char-sel="' + c.id + '"' + (c.selected ? ' checked' : '') + ' />'
-        + '<div class="novel-list-main">'
-        + '<button type="button" class="novel-list-title" data-char-edit="' + c.id + '" title="查看/编辑档案">'
+        + '<div class="entry-info">'
+        + '<div class="entry-info-title-row">'
+        + '<span class="entry-title-group">'
+        + '<button type="button" class="entry-title-btn" data-char-edit="' + c.id + '" title="查看/编辑档案">'
         + escapeHtml(c.name) + '</button>'
-        + '<div>' + panel.syncBadge(c.syncStatus)
+        + '</span>'
+        + '<span class="entry-title-badges">' + panel.syncBadge(c.syncStatus)
         + (enriched ? '' : ' <span class="novel-sync-badge unsynced">待丰满</span>')
+        + '</span>'
         + '</div>'
-        + '<div class="novel-list-meta">' + escapeHtml(note).slice(0, 80)
+        + '<p class="entry-meta-line">' + escapeHtml(note).slice(0, 80)
         + ' · 出现约 ' + (c.hits || 0) + ' 段'
         + (c.aliases && c.aliases.length ? ' · 别名 ' + escapeHtml(c.aliases.join('、')) : '')
-        + '</div></div>'
-        + '<div class="novel-list-actions">'
+        + '</p></div>'
+        + '<div class="entry-actions">'
         + (canSync
           ? ctx.iconBtn('data-char-sync-wb="' + c.id + '"', '📖', '同步到世界书人物条')
           : '')
@@ -257,7 +258,7 @@ export function attachNovelCharactersRender(ctx, panel) {
           ))
         + ctx.iconBtn('data-char-edit="' + c.id + '"', '✎', '编辑档案')
         + ctx.iconBtn('data-char-del="' + c.id + '"', '×', '删除', 'is-danger')
-        + '</div></div>';
+        + '</div></div></div>';
     }).join('');
 
     grid.querySelectorAll('[data-char-sel]').forEach(function(cb) {
@@ -305,7 +306,7 @@ export function attachNovelCharactersRender(ctx, panel) {
     var title = ctx.$('novelModalProfileTitle');
     var aliases = ctx.$('novelCharAliases');
     var jsonEl = ctx.$('novelCharProfileJson');
-    if (title) title.textContent = '人物档案 · ' + ch.name;
+    if (title) title.textContent = ch.name || '未命名';
     if (aliases) aliases.value = (ch.aliases || []).join(', ');
     if (jsonEl) jsonEl.value = JSON.stringify(ch.profile || emptyCharacterProfile(ch.name), null, 2);
     ctx.openNovelModal('novelModalProfile');

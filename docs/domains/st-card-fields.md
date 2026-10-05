@@ -38,7 +38,7 @@
   - **草稿内不持久化 `comment`**；导出 ST / 试聊 / AI JSON 仍使用键名 **`comment`**，由 `src/lib/worldbook/worldbookEntryBridge.mjs` 映射  
   - 系统条 upsert：`owner + ownerSlot`（或 registry `id`）；用户条 `owner: user`  
   - 旧草稿（无 V2 字段）加载时整表清空并提示重新生成/导入（不自动迁移）  
-  - AI 返回 JSON 仍写 `comment`；可选 **`type`**（与引擎大纲同一枚举）→ 落盘 `kind: outline_*`、`owner: user`；无 `type` 则为 `kind: user`  
+  - AI 返回 JSON 仍写 `comment`。生成、大纲、骨架、新建必须带 **`type`**（`worldview|location|faction|person|event|item|ability|other`，中文别名如「人物」同样收下）→ 落盘 `kind: outline_*`。人物用 `person`，标题用人名。无 `type` 的旧条目或手写条目仍是 `kind: user`。`[小说人物]` 前缀只用于小说工坊同步，制卡生成不要加。状态栏和成人配置认 `outline_person`（不论 `owner` 是用户还是引擎）以及该前缀。  
   - 侧栏 **family 唯一入口** `entryFamily(entry)`：`outline_*` 仅据 `owner` 分 `engine` / `user`，禁止用裸 `kindToFamily(outline_*)`  
   - 解析时映射为 `displayName`，禁止用 `comment` 当合并键
 - 导出 JSON/PNG：**不含** 小说工坊 IndexedDB 桶、RAG 索引

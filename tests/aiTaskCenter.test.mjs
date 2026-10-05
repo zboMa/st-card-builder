@@ -83,6 +83,39 @@ describe('aiTaskCenter core', function() {
     assert.equal(list[1].status, 'success');
   });
 
+  it('appendStep 写入摘要、输入输出，并只保留最近全文', function() {
+    const center = createAiTaskCenter();
+    const t = center.create({ type: 'novel_analyze_skeleton', title: '骨架' });
+    assert.equal(center.appendStep(t.id, {
+      line: '骨架 1/2 · 第一章',
+      input: '章节正文',
+      output: '{"entities":[]}',
+      progress: 0.5,
+    }), true);
+    const big = 'x'.repeat(12001);
+    center.appendStep(t.id, {
+      line: '骨架 2/2 · 第二章 · 实体 +1',
+      input: big,
+      output: 'ok',
+      progress: 1,
+    });
+    const live = center.get(t.id);
+    assert.equal(live.progressText, '骨架 2/2 · 第二章 · 实体 +1');
+    assert.equal(live.steps.length, 2);
+    assert.equal(live.steps[1].inputTruncated, true);
+    assert.equal(live.steps[1].input.length, 12000);
+    assert.equal(center.snapshot().tasks[0].progressText, live.progressText);
+    for (var i = 0; i < 40; i++) {
+      center.appendStep(t.id, { line: '步 ' + i, input: 'in' + i, output: 'out' + i });
+    }
+    const after = center.get(t.id);
+    assert.equal(after.steps[0].bodyOmitted, true);
+    assert.equal(after.steps[0].input, '');
+    assert.ok(after.steps[after.steps.length - 1].input);
+    center.succeed(t.id);
+    assert.equal(center.get(t.id).steps.length, after.steps.length);
+  });
+
   it('isAbortError 识别取消', function() {
     const e = new Error('The user aborted a request.');
     e.name = 'AbortError';
@@ -119,6 +152,8 @@ describe('aiTaskCenter UI wiring', function() {
     assert.match(src, /id="aiTaskModal"/);
     assert.match(src, /id="aiTaskStopAll"/);
     assert.match(src, /id="aiTaskClearDone"/);
+    assert.match(src, /t\.steps/);
+    assert.match(src, /输入/);
     assert.match(src, /createAiTaskCenter/);
     assert.match(src, /__aiTaskCenter__/);
   });

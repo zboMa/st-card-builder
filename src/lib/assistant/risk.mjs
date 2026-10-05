@@ -71,12 +71,7 @@ export function classifyToolRisk(toolName, args) {
     return 'auto';
   }
 
-  if (toolName === 'patch_mvu_node') {
-    if (String((a.patch && a.patch.description) || a.patch || '').length > 2000) return 'confirm';
-    return 'auto';
-  }
-
-  if (toolName === 'rename_card' || toolName === 'set_engine_options') return 'auto';
+  if (toolName === 'rename_card' || toolName === 'set_engine_options' || toolName === 'set_statusbar') return 'auto';
 
   if (toolName === 'apply_patch_bundle' || toolName === 'fix_from_lint') {
     var ops = Array.isArray(a.ops) ? a.ops : [];

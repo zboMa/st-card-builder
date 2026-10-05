@@ -28,8 +28,7 @@ export const ASSISTANT_TOOLS = [
   { name: 'get_character_summary', title: '角色摘要', kind: 'read', risk: 'none', summary: '角色摘要（截断长文本）', argsHint: '{ maxLen? }' },
   { name: 'get_worldbook_list', title: '世界书列表', kind: 'read', risk: 'none', summary: '世界书条目列表', argsHint: '{ query? }' },
   { name: 'get_worldbook_entry', title: '世界书详情', kind: 'read', risk: 'none', summary: '单条世界书详情', argsHint: '{ target|{index|id|titleMatch|comment} }' },
-  { name: 'get_mvu_state', title: 'MVU 状态', kind: 'read', risk: 'none', summary: '读取 MVU 设计/扩展状态', argsHint: '{}' },
-  { name: 'infer_mvu_variables', title: '推定 MVU 变量', kind: 'read', risk: 'none', summary: '从卡规则推定 MVU 候选变量（只读预览，不写入）', argsHint: '{}' },
+  { name: 'get_statusbar', title: '读取状态栏', kind: 'read', risk: 'none', summary: '读取状态栏勾选、模块、额外要求、排版说明、是否已有排版，以及变量的路径/类型/默认值/说明（不含对局运行值）', argsHint: '{}' },
   { name: 'get_novel_workspace', title: '小说工坊摘要', kind: 'read', risk: 'none', summary: '小说工坊状态摘要（含实体/RAG）', argsHint: '{}' },
   { name: 'get_export_preview', title: '导出预览', kind: 'read', risk: 'none', summary: '导出 JSON 结构预览（不下载）', argsHint: '{ maxChars? }' },
   { name: 'export_card_check', title: '导出结构校验', kind: 'read', risk: 'none', summary: '校验当前卡可导出结构（不触发下载）', argsHint: '{}' },
@@ -53,14 +52,14 @@ export const ASSISTANT_TOOLS = [
   { name: 'replace_character_section', title: '覆盖角色字段', kind: 'write', risk: 'confirm', summary: '不要用来写长文；场景契约和作者注释用 expand_character_field', argsHint: '{ field, content(短) }' },
   { name: 'expand_character_field', title: '重写/扩写角色字段', kind: 'generate', risk: 'confirm', summary: '按字段重写/扩写一篇角色长文；instruction 为本次生成提示', argsHint: '{ field: charDesc|creatorNotes|..., mode?, instruction }' },
   { name: 'set_adult_config', title: '更新世界与限定', kind: 'write', risk: 'confirm', summary: '更新卡级「世界与限定」（worldviewPresetItems/框架/口味/表达层/NTL/恶堕等）', argsHint: '{ worldviewPresetItems?, enabled?, flavorItems?, postureItems?, speechItems?, ntlEnabled?, ntlTabooTypes?, adultWorldframeForced?, corruptionEnabled?, ... }' },
-  { name: 'create_worldbook_entry', title: '新建世界书', kind: 'write', risk: 'auto', summary: '新建短条目；长正文用 generate_worldbook_entry', argsHint: '{ entry:{ comment, content(短), keys?, strategy? } }' },
-  { name: 'update_worldbook_entry', title: '更新世界书', kind: 'write', risk: 'auto', summary: '改标题、触发词等短字段；长正文用 rewrite_worldbook_entry 或 expand_worldbook_entry', argsHint: '{ target|{index|comment}, patch:{ comment?, keys?, strategy? } }' },
+  { name: 'create_worldbook_entry', title: '新建世界书', kind: 'write', risk: 'auto', summary: '新建短条目；长正文用 generate_worldbook_entry', argsHint: '{ entry:{ comment, type, content(短), keys?, strategy? } }' },
+  { name: 'update_worldbook_entry', title: '更新世界书', kind: 'write', risk: 'auto', summary: '改标题、触发词等短字段；长正文用 rewrite_worldbook_entry 或 expand_worldbook_entry', argsHint: '{ target|{index|comment}, patch:{ comment?, type?, keys?, strategy? } }' },
   { name: 'delete_worldbook_entry', title: '删除世界书', kind: 'write', risk: 'confirm', summary: '删除世界书条目（含清空全部）', argsHint: '{ index|indices|target|{all:true} }' },
 
   // —— 开场白定向 ——
-  { name: 'rewrite_greeting', title: '重写开场白', kind: 'generate', risk: 'confirm', summary: '重写一条开场白；instruction 为本次生成提示', argsHint: '{ target: main|{alternate:n}|index, mode?, instruction }' },
-  { name: 'expand_greeting', title: '扩写开场白', kind: 'generate', risk: 'confirm', summary: '扩写一条开场白；instruction 为本次生成提示', argsHint: '{ target: main|{alternate:n}|index, instruction }' },
-  { name: 'update_alternate_greeting', title: '更新备选开场白', kind: 'write', risk: 'auto', summary: '只改很短的措辞；整段用 rewrite_greeting 或 expand_greeting', argsHint: '{ index, content(短) }' },
+  { name: 'rewrite_greeting', title: '重写开场白', kind: 'generate', risk: 'confirm', summary: '重写一条开场白；instruction 为本次生成提示。alternate 等于当前备选条数时追加一条', argsHint: '{ target: main|{alternate:n}|index, mode?, instruction }' },
+  { name: 'expand_greeting', title: '扩写开场白', kind: 'generate', risk: 'confirm', summary: '扩写一条开场白；instruction 为本次生成提示。alternate 等于当前备选条数时追加一条', argsHint: '{ target: main|{alternate:n}|index, instruction }' },
+  { name: 'update_alternate_greeting', title: '更新备选开场白', kind: 'write', risk: 'auto', summary: '只改已有备选的很短措辞，不能追加；整段用 rewrite_greeting 或 expand_greeting', argsHint: '{ index, content(短) }' },
   { name: 'set_greeting_init', title: '设置开场初始值', kind: 'write', risk: 'auto', summary: '设置某一条开场相对世界书保底的初始值差异；target 与开场白工具相同', argsHint: '{ target: main|{alternate:n}|index, overrides:{路径:值}, clear? }' },
 
   // —— 生成（对接现有引擎/面板）——
@@ -112,10 +111,10 @@ export const ASSISTANT_TOOLS = [
   { name: 'novel_expand_worldbook', title: '扩写世界书条目', kind: 'generate', risk: 'confirm', summary: '按草稿扩写一条世界书；instruction 为本次生成提示', argsHint: '{ target|{index|name}, mode?, instruction }' },
   { name: 'novel_sync_outputs', title: '同步到世界书管道', kind: 'write', risk: 'confirm', summary: '同步到世界书管道（character 会重定向为 character_worldbook；写主角需 asProtagonist:true）', argsHint: '{ target?, selected?, policy?, ids?, names?, asProtagonist? }' },
   { name: 'apply_novel_result_to_card', title: '同步到主世界书', kind: 'write', risk: 'confirm', summary: '同步小说产出到主世界书（人物默认不进主角设定；文风→「文风」条目）', argsHint: '{ target?, policy? }' },
-  { name: 'upsert_mvu_design', title: '写入 MVU 设计', kind: 'write', risk: 'confirm', summary: '仅写入 MVU 设计 JSON（不强制注入）', argsHint: '{ design, inject?: false }' },
-  { name: 'upsert_mvu_variables', title: '生成 MVU 变量卡', kind: 'write', risk: 'confirm', summary: '按变量设计生成并注入变量卡', argsHint: '{ design?, inject?: true }' },
-  { name: 'clear_mvu', title: '清空 MVU', kind: 'write', risk: 'confirm', summary: '清空 MVU 设计/产物', argsHint: '{}' },
-  { name: 'patch_mvu_node', title: '补丁 MVU 节点', kind: 'write', risk: 'auto', summary: '按 path 补丁单个 MVU 变量节点', argsHint: '{ path, patch }' },
+  { name: 'set_statusbar', title: '设置状态栏', kind: 'write', risk: 'auto', summary: '设置主角勾选、要跟踪的人物全集、模块开关、额外要求和排版说明。不调模型。selectedNames 是勾选全集，名字必须是当前人物条目', argsHint: '{ includeProtagonist?, selectedNames?, moduleFlags?, extra?, layoutPrompt? }' },
+  { name: 'generate_statusbar_variables', title: '生成状态栏变量', kind: 'generate', risk: 'confirm', summary: '按状态栏已勾选的人和模块生成变量。不改已有排版 HTML', argsHint: '{}' },
+  { name: 'edit_statusbar_variables', title: '编辑状态栏变量', kind: 'write', risk: 'confirm', summary: '按路径整批增删改变量。不调模型，不重新生成排版。同一批里路径重复则整批失败', argsHint: '{ changes:[{ op:set|add|remove, path, variable? }] }' },
+  { name: 'generate_statusbar_layout', title: '生成状态栏排版', kind: 'generate', risk: 'confirm', summary: '按当前变量和排版风格说明重新生成或修改排版', argsHint: '{ revise?: boolean }' },
 
   // —— 引擎选项（非密钥）——
   { name: 'set_engine_options', title: '设置引擎选项', kind: 'write', risk: 'auto', summary: '设置骨架条数等非密钥引擎选项', argsHint: '{ skeletonCount?, tagContextChars? }' },

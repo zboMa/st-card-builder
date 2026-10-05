@@ -504,7 +504,7 @@ export function createWorldbookShared(ctx) {
     var sysPrompt = ctx.promptText('wbSingle', '') + stepInfo + '\n' + pack + presetBlock
       + '\n【冲突处理】若「本次任务」与「世界观预设」冲突，以本次任务为准，已确认的 Limits 仍优先。'
       + searchInjection
-      + '\n【输出】：1个JSON对象 { "comment": "标题", "content": "按职责写完", "keys": ["触发词"], "strategy": "selective 或 constant" }。短事实保持短。已有的 <% %> 与 {{ }} 原样保留。';
+      + '\n【输出】：1个JSON对象 { "comment": "标题", "type": "worldview|location|faction|person|event|item|ability|other", "content": "按职责写完", "keys": ["触发词"], "strategy": "selective 或 constant" }。type 必填，人物用 person。标题用人名，不要加 [小说人物]。短事实保持短。已有的 <% %> 与 {{ }} 原样保留。';
     var userPrompt = customDirection
       ? '按【本次任务】生成仅仅 1 条，不要重复索引里已有条目，并写清和它们的关系。'
       : '自由发挥一条，拒绝重复已有条目；有世界观预设则紧贴其语汇，并写清和已有人物、物品、地点的关系。';
@@ -583,7 +583,7 @@ export function createWorldbookShared(ctx) {
           + expandHint
           + '\n【冲突处理】若「本次任务」与「世界观预设」冲突，以本次任务为准，已确认的 Limits 仍优先。'
           + searchInjection
-          + '\n【任务】：重写。输出JSON：{ "comment": "标题", "content": "按职责写完", "keys": ["触发词"], "strategy": "selective 或 constant", "position": ' + old.position + ' }。已有的 <% %> 与 {{ }} 原样保留。';
+          + '\n【任务】：重写。输出JSON：{ "comment": "标题", "type": "worldview|location|faction|person|event|item|ability|other", "content": "按职责写完", "keys": ["触发词"], "strategy": "selective 或 constant", "position": ' + old.position + ' }。type 必填：原条目已有类型就沿用，没有则按这条是什么补上，人物用 person。标题用人名，不要加 [小说人物]。已有的 <% %> 与 {{ }} 原样保留。';
         var h = { 'Content-Type': 'application/json' };
         if (key) h['Authorization'] = 'Bearer ' + key;
         var aiResp = await ctx.fetchAIContent({

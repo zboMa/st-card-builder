@@ -15,8 +15,7 @@ const TOOL_MIN_ARGS = {
   get_character_summary: {},
   get_worldbook_list: {},
   get_worldbook_entry: { index: 0 },
-  get_mvu_state: {},
-  infer_mvu_variables: {},
+  get_statusbar: {},
   get_novel_workspace: {},
   get_export_preview: {},
   export_card_check: {},
@@ -86,10 +85,10 @@ const TOOL_MIN_ARGS = {
   novel_expand_worldbook: { target: { index: 0 }, instruction: STOCK_WB },
   novel_sync_outputs: { target: 'worldbook' },
   apply_novel_result_to_card: {},
-  upsert_mvu_design: { design: { variables: [] } },
-  upsert_mvu_variables: { design: { variables: [] } },
-  clear_mvu: {},
-  patch_mvu_node: { path: 'stat.hp', patch: { label: '生命' } },
+  set_statusbar: { includeProtagonist: true, selectedNames: [] },
+  generate_statusbar_variables: {},
+  edit_statusbar_variables: { changes: [{ op: 'set', path: '角色.情绪', variable: { default: '平静' } }] },
+  generate_statusbar_layout: { revise: false },
   set_engine_options: { skeletonCount: 8 },
   analyze_chat_feedback: {},
   apply_chat_feedback_fixes: { fixes: [{ tool: 'update_character_fields', args: { fields: { charDesc: '试聊反馈补句' } } }] },
@@ -111,7 +110,7 @@ const EMPTY_ARGS_SHOULD_FAIL = new Set([
   'update_alternate_greeting',
   'set_greeting_init',
   'open_module',
-  'patch_mvu_node',
+  'edit_statusbar_variables',
   'novel_patch_chapters',
   'merge_novel_entities',
   'import_card',
@@ -198,6 +197,31 @@ function createFullMockBridge(seed) {
       if (i < 0) throw new Error('no node');
       vars[i] = Object.assign({}, vars[i], opts.patch || {});
       return { path: opts.path };
+    },
+    getStatusBar: function() {
+      return {
+        includeProtagonist: false,
+        characters: [{ name: '秦玥', selected: false }],
+        moduleFlags: { emotion: true },
+        extra: '',
+        layoutPrompt: '',
+        hasLayout: false,
+        variables: [{ path: '角色.情绪', type: 'string', default: '平静', description: '情绪' }],
+      };
+    },
+    setStatusBar: function(patch) {
+      state.statusbar = patch;
+      return { ok: true };
+    },
+    generateStatusBarVariables: async function() {
+      return { ok: true, variableCount: 1, pathCount: 1 };
+    },
+    editStatusBarVariables: function(changes) {
+      state.edits = changes;
+      return { ok: true, variableCount: 1, pathCount: 1 };
+    },
+    generateStatusBarLayout: async function(revise) {
+      return { ok: true, revise: !!revise };
     },
     getNovel: function() { return state.novel; },
     listNovelOutputs: function() {

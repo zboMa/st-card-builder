@@ -14,6 +14,7 @@ import {
   normalizeDraftEntry,
 } from '../src/lib/worldbook/worldbookEntryBridge.mjs';
 import { kindToFamily, entryFamily, isSystemEntry } from '../src/lib/worldbook/worldbookRegistry.mjs';
+import { wbNovelDraftType } from '../src/lib/worldbook/worldbookUi.mjs';
 
 test('upsert adult digest slot 幂等', function() {
   var patch = patchForRegistrySlot('adult', 'flavor', {
@@ -99,6 +100,13 @@ test('fromAiJsonEntry type → outline_* + owner user', function() {
   assert.equal(entryFamily(e), 'user');
   var ai = toAiJsonEntry(e);
   assert.equal(ai.type, 'location');
+  var person = fromAiJsonEntry(
+    { comment: '顾清辞', type: '人物', content: '档案', keys: ['顾清辞'] },
+    getDefaultWBEntryV2(),
+  );
+  assert.equal(person.kind, 'outline_person');
+  assert.equal(person.outlineType, 'person');
+  assert.equal(person.displayName, '顾清辞');
 });
 
 test('entryFamily outline 仅看 owner', function() {
@@ -116,4 +124,16 @@ test('kindToFamily 非 outline', function() {
   assert.equal(kindToFamily('mvu_initvar'), 'mvu');
   assert.equal(kindToFamily('user'), 'user');
   assert.throws(function() { kindToFamily('outline_person'); });
+});
+
+test('工坊世界书类型章用中文，不泄漏 novel_ kind', function() {
+  assert.deepEqual(wbNovelDraftType({ category: 'item', kind: 'novel_setting' }), {
+    label: '物品',
+    className: 'wb-type-tag wb-type--item',
+  });
+  assert.equal(wbNovelDraftType({ category: 'event', kind: 'novel_event' }).label, '事件');
+  assert.equal(wbNovelDraftType({ kind: 'novel_relation' }).label, '关系');
+  assert.equal(wbNovelDraftType({ kind: 'novel_person' }).label, '人物');
+  assert.equal(wbNovelDraftType({ category: 'style', kind: 'novel_style' }).label, '文风');
+  assert.equal(wbNovelDraftType({ kind: 'novel_setting' }).label, '设定');
 });

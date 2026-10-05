@@ -120,7 +120,7 @@ SillyTavern 卡片构建器壳层设计 token。状态栏面板用壳层 token �
 |------|-----|--------|
 | Toast | `ctx.showAppMessage` / `appFeedback({ channel:'toast' })` | 短句成功、轻量 warn |
 | Notification | `ctx.showAppNotification` / `appFeedback({ channel:'notify' })` | `level:'error'`、`important:true`、长文案、账户登录失败、进行中（导入/同步等） |
-| 任务中心 | `ctx.runTracked` / `__aiTaskCenter__` | 可取消 AI/长任务；**开始时** `notifyAiTaskStarted`（已实现于 `aiTaskCenter.run`）+ 列表进度 |
+| 任务中心 | `ctx.runTracked` / `__aiTaskCenter__` | 可取消 AI/长任务；**开始时** `notifyAiTaskStarted`（已实现于 `aiTaskCenter.run`）+ 列表进度。列表一行是当前步骤摘要（阶段、对象、结果）。点标题看每步输入和输出；单侧过长会截断，更早步骤只留摘要 |
 | Inline 白名单 | `FEEDBACK_INLINE_IDS` | 仅上下文态：`syncStatusLine`、`vcStatus` 基线、弹窗内 `aiStatus`/`imgGenStatus`/`auditStatus` 等。助手标题 `#assistantStatusTip` **不是**反馈通道：只在进行中显示「正在思考…」「等待确认大改…」，闲置隐藏，绿点表示就绪/忙碌 |
 
 **调用约定**
@@ -205,14 +205,14 @@ SillyTavern 卡片构建器壳层设计 token。状态栏面板用壳层 token �
 
 ## 通用控件
 
-页面不另装组件库。类名就是控件。颜色只读主题变量（`--color-surface*`、`--color-accent*`、`--color-danger*`、`--color-scrim`、`--color-border`、`--color-on-accent`）。两种尺寸：行内、封面、工具条用紧凑；表单和对话框用壳层字段（padding 10px）。不另做大号按钮。一个区域仍然只有一个 `.btn-primary`。
+页面不另装组件库。类名就是控件。颜色只读主题变量（`--color-surface*`、`--color-accent*`、`--color-danger*`、`--color-scrim`、`--color-border`、`--color-on-accent`）。浅底危险/警告用 `--color-danger-soft` / `--color-warning-soft` 配 `--color-danger` / `--color-warning`。实心危险钮、失败计数用 `--color-on-danger-fill`；实心警告钮用 `--color-on-warning`。封面深色遮罩上的字只用 `--color-on-media`（不跟主题翻转）。两种尺寸：行内、封面、工具条用紧凑；表单和对话框用壳层字段（padding 10px）。不另做大号按钮。一个区域仍然只有一个 `.btn-primary`。
 
 旧类名是别名，已有 HTML 直接吃到新颜色。
 
 | 控件 | 类 | 用法 |
 |------|----|------|
-| 按钮 | `.btn-primary` / `.btn-ghost` / `.btn-text` / `.btn-danger` / `.btn-warning` / `.btn-inline` | 悬停用 `--color-accent-soft-hover`。危险用 `--color-danger-fill` |
-| 图标按钮 | `.btn-icon`、`.ui-icon-btn`、`.entry-icon-btn`、`.novel-icon-btn` | 方或圆。危险态 `.is-danger`：常显，悬停填危险色、字用 `--color-on-accent` |
+| 按钮 | `.btn-primary` / `.btn-ghost` / `.btn-text` / `.btn-danger` / `.btn-warning` / `.btn-inline` | 悬停用 `--color-accent-soft-hover`。危险填色配 `--color-on-danger-fill`；警告填色配 `--color-on-warning` |
+| 图标按钮 | `.btn-icon`、`.ui-icon-btn`、`.entry-icon-btn`、`.novel-icon-btn` | 方或圆。危险态 `.is-danger`：常显浅底，悬停填危险色、字用 `--color-on-danger-fill` |
 | 输入 | `input` / `textarea` / `number` | 壳层字段。错误态靠边框危险色 |
 | 搜索 | `.ui-search-bar`（`.wb-search-bar` 同控件） | 底 `--color-surface-input`，带清除 |
 | 下拉 | 壳层 `select`，可搜索走 `chromeBoot` | 面板 `--color-surface-elevated` |

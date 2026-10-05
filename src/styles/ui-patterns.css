@@ -437,22 +437,27 @@
   border-color: var(--color-accent-border);
   box-shadow: 0 4px 16px var(--color-accent-glow);
 }
-.btn-warning {
+.btn-warning,
+.btn.btn-warning {
   background: var(--color-warning);
   border-color: var(--color-warning-border);
-  color: var(--color-on-accent);
+  color: var(--color-on-warning);
 }
-.btn-warning:hover {
+.btn-warning:hover,
+.btn.btn-warning:hover {
   filter: brightness(1.06);
   box-shadow: 0 4px 16px var(--color-warning-soft);
 }
-.btn-danger {
+.btn-danger,
+.btn.btn-danger {
   background: var(--color-danger-fill);
-  color: var(--color-on-accent);
+  color: var(--color-on-danger-fill);
   border-color: var(--color-danger-fill-border);
 }
-.btn-danger:hover {
+.btn-danger:hover,
+.btn.btn-danger:hover {
   background: var(--color-danger-fill-hover);
+  color: var(--color-on-danger-fill);
   box-shadow: 0 4px 16px var(--color-danger-fill-shadow);
 }
 .btn-text {
@@ -1328,7 +1333,7 @@
 .entry-actions .entry-icon-btn.is-danger:hover,
 .entry-actions .novel-icon-btn.is-danger:hover {
   background: var(--color-danger-fill);
-  color: var(--color-on-accent);
+  color: var(--color-on-danger-fill);
   border-color: var(--color-danger-fill);
 }
 

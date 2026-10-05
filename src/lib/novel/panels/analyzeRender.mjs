@@ -7,6 +7,7 @@ import { getAdultMode } from '../nsfwSupport.mjs';
 import { escapeHtml } from '../../utils.mjs';
 import { getEmbeddingConfig, EMBEDDING_API_URL_KEY, EMBEDDING_API_KEY_KEY, EMBEDDING_MODEL_KEY } from '../rag/embeddingConfig.mjs';
 import { ENTITY_TYPE_ZH } from './analyzeShared.mjs';
+import { upsertFailedShard } from '../failedShards.mjs';
 import { isProtagonistEntity, resolveProtagonistName, matchesProtagonist } from '../protagonist.mjs';
 
 /**
@@ -203,8 +204,7 @@ export function attachNovelAnalyzeRender(ctx, panel, graphRef) {
 
   function pushFailedShard(rec) {
     var state = ctx.state;
-    if (!Array.isArray(state.failedShards)) state.failedShards = [];
-    state.failedShards.push(Object.assign({ at: new Date().toISOString() }, rec || {}));
+    state.failedShards = upsertFailedShard(state.failedShards, rec);
   }
 
   function clearFailedShards(phase) {
@@ -330,7 +330,7 @@ export function attachNovelAnalyzeRender(ctx, panel, graphRef) {
     var list = $('novelAnalyzeFailsList');
     if (summary) {
       summary.textContent = failed.length
-        ? ('共 ' + failed.length + ' 项失败。可关闭后点标题旁徽章再次打开，或直接「重跑失败」。')
+        ? ('共 ' + failed.length + ' 项失败（已自动重试仍失败）。可关闭后点标题旁徽章再次打开，或直接「重跑失败」。')
         : '暂无失败项';
     }
     if (!list) return;

@@ -22,6 +22,13 @@
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --dur-fast: 150ms;
   --dur-normal: 240ms;
+
+  /* 字色跟所在底走，不跟主题翻转。封面遮罩是固定深色渐变。 */
+  --color-on-media: oklch(96% 0.01 250);
+  /* danger-fill 在现有主题里都是中深色，上面的字保持浅色。 */
+  --color-on-danger-fill: oklch(98% 0.01 25);
+  /* warning 在现有主题里都是浅色，上面的字保持深色。 */
+  --color-on-warning: oklch(22% 0.04 55);
 }
 
 @media (prefers-reduced-transparency: reduce) {

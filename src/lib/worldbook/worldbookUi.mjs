@@ -73,6 +73,40 @@ export function wbKindLabel(kind) {
   return String(kind || 'user').replace(/^outline_/, '大纲·').replace(/^novel_/, '小说·').replace(/^adult_/, '').replace(/^mvu_/, 'MVU·');
 }
 
+/** 工坊世界书行的中文类型章。category 优先于 kind；导出注释不走这里。 */
+var NOVEL_DRAFT_TYPE = {
+  item: ['物品', 'item'],
+  location: ['地点', 'location'],
+  place: ['地点', 'location'],
+  faction: ['势力', 'faction'],
+  event: ['事件', 'event'],
+  person: ['人物', 'person'],
+  character: ['人物', 'person'],
+  relation: ['关系', 'other'],
+  style: ['文风', 'novel'],
+  setting: ['设定', 'other'],
+  lore: ['设定', 'other'],
+  concept: ['设定', 'other'],
+  worldview: ['设定', 'worldview'],
+  history: ['设定', 'other'],
+  nsfw: ['设定', 'adult'],
+};
+
+export function wbNovelDraftType(entry) {
+  entry = entry || {};
+  var cat = String(entry.category || '').trim().toLowerCase();
+  var kind = String(entry.kind || '').trim();
+  var pair = NOVEL_DRAFT_TYPE[cat];
+  if (!pair) {
+    if (kind === 'novel_event') pair = NOVEL_DRAFT_TYPE.event;
+    else if (kind === 'novel_relation') pair = NOVEL_DRAFT_TYPE.relation;
+    else if (kind === 'novel_person') pair = NOVEL_DRAFT_TYPE.person;
+    else if (kind === 'novel_style') pair = NOVEL_DRAFT_TYPE.style;
+    else pair = NOVEL_DRAFT_TYPE.setting;
+  }
+  return { label: pair[0], className: 'wb-type-tag wb-type--' + pair[1] };
+}
+
 export function wbKindLabelForEntry(entry) {
   entry = entry || {};
   var t = String(entry.outlineType || '').trim() || outlineTypeFromKind(entry.kind);

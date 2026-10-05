@@ -15,6 +15,7 @@ import {
   isPersonWorldbookEntry,
   personNameFromWorldbookEntry,
 } from './novel/sync.mjs';
+import { meterCheckLines } from './mvu/meterUpdateRules.mjs';
 
 export function collectPersonCharactersFromWorldbook(entries, opts) {
   var o = opts || {};
@@ -32,7 +33,7 @@ export function collectPersonCharactersFromWorldbook(entries, opts) {
       name: name,
       identity: identity,
       aliases: Array.isArray(e.keys) ? e.keys : [],
-      selected: true,
+      selected: false,
       source: 'worldbook',
     });
     if (c) out.push(c);
@@ -97,11 +98,7 @@ export function buildCastProfileBlock(opts) {
   var card = o.card || {};
   var cardName = String(card.name || '').trim();
   var includeProtagonist = !!o.includeProtagonist;
-  var includeFemales = !!o.includeFemales;
-  var females = (Array.isArray(o.selected) ? o.selected : []).filter(function(c) {
-    var name = c && String(c.name || '').trim();
-    return c && c.selected !== false && name && name !== cardName;
-  });
+  var females = trackedNpcCharacters(o.selected, cardName, o.includeFemales);
 
   var wbIndex = Object.create(null);
   (o.worldbookEntries || []).forEach(function(e) {
@@ -110,7 +107,7 @@ export function buildCastProfileBlock(opts) {
     if (n && !wbIndex[n]) wbIndex[n] = e;
   });
 
-  var lines = ['【追踪对象】两套路径互不改写。禁止把主角写成 NPC.' + (cardName || '卡角色名') + '，禁止把女角色收成 角色.字段。'];
+  var lines = ['【追踪对象】两套路径互不改写。禁止把主角写成 NPC.' + (cardName || '卡角色名') + '，禁止把勾选的角色收成 角色.字段。'];
   if (includeProtagonist) {
     lines.push('');
     lines.push('■ 主角（路径前缀固定为「角色.」，第一段不要用卡角色名）');
@@ -118,11 +115,11 @@ export function buildCastProfileBlock(opts) {
     if (card.desc) lines.push('描述：' + String(card.desc));
     if (card.creatorNotes) lines.push('作者注释：' + String(card.creatorNotes));
   }
-  if (includeFemales) {
+  if (females.length || o.includeFemales === true) {
     lines.push('');
-    lines.push('■ 女角色（路径前缀 NPC.姓名.；不要包含卡角色本人）');
+    lines.push('■ 角色（路径前缀 NPC.姓名.；不要包含卡角色本人）');
     if (!females.length) {
-      lines.push('（尚未勾选女角色）');
+      lines.push('（尚未勾选角色）');
     }
     females.forEach(function(c) {
       var name = String(c.name || '').trim();
@@ -135,7 +132,7 @@ export function buildCastProfileBlock(opts) {
       else lines.push('档案：（暂无正文）');
     });
   }
-  if (!includeProtagonist && !includeFemales) return '（未勾选主角或女角色）';
+  if (!includeProtagonist && !females.length && o.includeFemales !== true) return '（未勾选主角或至少一名角色）';
   var greetings = Array.isArray(card.greetings) ? card.greetings : [];
   if (!greetings.length && card.firstMes) greetings = [{ label: '主开场', text: card.firstMes }];
   lines.push('');
@@ -150,7 +147,21 @@ export function buildCastProfileBlock(opts) {
   return lines.join('\n');
 }
 
-/** 女角色名单去掉卡角色名 */
+/**
+ * 要写进 NPC 路径的人。selected 为 true 才算勾选。
+ * includeFemales === false 表示旧档总开关关闭，整组不算勾选。
+ * selected 没写、且旧调用把 includeFemales 设为 true 时，仍算勾选。
+ */
+export function trackedNpcCharacters(characters, cardName, includeFemales) {
+  return excludeCardNameFromCharacters(characters, cardName).filter(function(c) {
+    if (includeFemales === false) return false;
+    if (c.selected === true) return true;
+    if (c.selected === false) return false;
+    return includeFemales === true;
+  });
+}
+
+/** 角色名单去掉卡角色名 */
 export function excludeCardNameFromCharacters(characters, cardName) {
   var ban = String(cardName || '').trim();
   return (Array.isArray(characters) ? characters : []).filter(function(c) {
@@ -490,6 +501,15 @@ export function buildStatusBarRegex(opts) {
  * 设计对象持久化形状
  * @param {any} partial
  */
+function stampNpcSelected(chars, masterOn) {
+  return chars.map(function(c) {
+    if (masterOn === false) return Object.assign({}, c, { selected: false });
+    if (masterOn === true && c.selected !== false) return Object.assign({}, c, { selected: true });
+    if (c.selected == null) return Object.assign({}, c, { selected: false });
+    return c;
+  });
+}
+
 function migrateCastSelection(p) {
   var chars = Array.isArray(p.characters)
     ? p.characters.map(normalizeCastCharacter).filter(Boolean)
@@ -498,8 +518,7 @@ function migrateCastSelection(p) {
   if (hasNew) {
     return {
       includeProtagonist: !!p.includeProtagonist,
-      includeFemales: !!p.includeFemales,
-      characters: chars,
+      characters: stampNpcSelected(chars, p.includeFemales),
     };
   }
   if (p.castMode === 'multi') {
@@ -513,11 +532,11 @@ function migrateCastSelection(p) {
     });
     return {
       includeProtagonist: includeProtagonist,
-      includeFemales: females.length > 0,
-      characters: females,
+      characters: stampNpcSelected(females, females.length > 0),
     };
   }
-  return { includeProtagonist: true, includeFemales: false, characters: [] };
+  if (p.castMode === 'single') return { includeProtagonist: true, characters: [] };
+  return { includeProtagonist: false, characters: [] };
 }
 
 /**
@@ -534,7 +553,6 @@ export function reconcileDesignWithCharName(design, charName) {
   var rest = chars.filter(function(c) { return c && c.name !== name; });
   return Object.assign({}, d, {
     includeProtagonist: true,
-    includeFemales: rest.some(function(c) { return c.selected !== false; }),
     characters: rest,
   });
 }
@@ -553,8 +571,6 @@ export function normalizeDesign(partial) {
   return {
     mode: 'mvu',
     includeProtagonist: cast.includeProtagonist,
-    includeFemales: cast.includeFemales,
-    femaleOnly: p.femaleOnly !== false,
     presetId: presetId,
     nsfw: nsfw,
     moduleFlags: moduleFlags,
@@ -579,12 +595,9 @@ export function normalizeDesign(partial) {
 export function rejectStatusBarGenerate(design, opts) {
   var d = design || {};
   var cardName = String(d.charName || '').trim();
-  var females = excludeCardNameFromCharacters(d.characters, cardName).filter(function(c) {
-    return c.selected !== false;
-  });
   var hasProtag = !!d.includeProtagonist;
-  var hasFemales = !!d.includeFemales && females.length > 0;
-  if (!hasProtag && !hasFemales) return '请勾选主角或女角色';
+  var tracked = trackedNpcCharacters(d.characters, cardName, d.includeFemales);
+  if (!hasProtag && !tracked.length) return '请勾选主角或至少一名角色';
   var flags = d.moduleFlags || {};
   var any = Object.keys(flags).some(function(k) { return !!flags[k]; });
   if (!any) return '请至少开启一个模块';
@@ -593,6 +606,70 @@ export function rejectStatusBarGenerate(design, opts) {
   if (o.requireLayout !== false && !String(d.layoutPrompt || '').trim()) return '请填写排版风格说明';
   if (o.requireMarkup && !String(d.customBodyHtml || '').trim()) return '还没有排版，请先重新生成';
   return '';
+}
+
+var STATUS_BAR_VARIABLE_FIELDS = ['type', 'default', 'description', 'check', 'format', 'min', 'max', 'options', 'label'];
+
+/**
+ * 按路径改已有变量设计。整批校验通过才写入；不调模型，不改排版 HTML。
+ * @param {{ variables?: any[] }} design
+ * @param {Array<{ op?: string, path?: string, variable?: object, patch?: object }>} changes
+ * @returns {{ ok: true, design: object } | { ok: false, error: string }}
+ */
+export function applyStatusBarVariableEdits(design, changes) {
+  var src = design && Array.isArray(design.variables) ? design.variables : null;
+  if (!src) return { ok: false, error: '当前没有变量设计' };
+  var list = Array.isArray(changes) ? changes : [];
+  if (!list.length) return { ok: false, error: '没有要改的变量' };
+  var vars = src.map(function(v) { return Object.assign({}, v); });
+  var seen = Object.create(null);
+  var planned = [];
+  for (var i = 0; i < list.length; i++) {
+    var ch = list[i] || {};
+    var op = String(ch.op || 'set').trim();
+    var body = ch.variable || ch.patch || {};
+    var path = String(ch.path || body.path || '').trim();
+    if (!path) return { ok: false, error: '第 ' + (i + 1) + ' 条缺少 path' };
+    if (op !== 'set' && op !== 'add' && op !== 'remove') return { ok: false, error: '不认识的操作 ' + op };
+    if (seen[path]) return { ok: false, error: '同一路径出现了多次：' + path };
+    seen[path] = true;
+    var idx = -1;
+    for (var j = 0; j < vars.length; j++) {
+      if (String((vars[j] && (vars[j].path || vars[j].name)) || '') === path) { idx = j; break; }
+    }
+    if (op === 'remove') {
+      if (idx < 0) return { ok: false, error: '未找到变量 ' + path };
+      planned.push({ op: op, index: idx });
+      continue;
+    }
+    if (op === 'add') {
+      if (idx >= 0) return { ok: false, error: '变量已存在 ' + path };
+      if (body.type == null || body.default === undefined) return { ok: false, error: '新增 ' + path + ' 需要 type 和 default' };
+      var item = { path: path, type: body.type, default: body.default };
+      STATUS_BAR_VARIABLE_FIELDS.forEach(function(k) {
+        if (k === 'type' || k === 'default') return;
+        if (body[k] !== undefined) item[k] = body[k];
+      });
+      planned.push({ op: 'add', item: item });
+      continue;
+    }
+    if (idx < 0) return { ok: false, error: '未找到变量 ' + path };
+    if (body.path && String(body.path).trim() !== path) return { ok: false, error: '不能修改路径名 ' + path };
+    planned.push({ op: 'set', index: idx, patch: body });
+  }
+  planned.forEach(function(step) {
+    if (step.op !== 'set') return;
+    STATUS_BAR_VARIABLE_FIELDS.forEach(function(k) {
+      if (step.patch[k] !== undefined) vars[step.index][k] = step.patch[k];
+    });
+  });
+  planned.filter(function(step) { return step.op === 'remove'; })
+    .sort(function(a, b) { return b.index - a.index; })
+    .forEach(function(step) { vars.splice(step.index, 1); });
+  planned.forEach(function(step) {
+    if (step.op === 'add') vars.push(step.item);
+  });
+  return { ok: true, design: Object.assign({}, design, { variables: vars, source: design.source || 'statusbar' }) };
 }
 
 /**
@@ -606,8 +683,11 @@ export function buildPlaceholderPaths(opts) {
   var flags = o.moduleFlags || {};
   var cardName = String(o.charName || o.protagonistName || o.mainName || '').trim();
   var includeProtagonist = o.includeProtagonist != null ? !!o.includeProtagonist : o.castMode !== 'multi';
-  var includeFemales = o.includeFemales != null ? !!o.includeFemales : o.castMode === 'multi';
-  if (!includeProtagonist && !includeFemales) return [];
+  var includeFemales = o.includeFemales != null
+    ? !!o.includeFemales
+    : (o.castMode === 'multi' ? true : undefined);
+  var trackedNpcs = trackedNpcCharacters(o.characters, cardName, includeFemales);
+  if (!includeProtagonist && !trackedNpcs.length) return [];
 
   var base = [];
   function push(path, label, group, sample, role, set) {
@@ -674,14 +754,10 @@ export function buildPlaceholderPaths(opts) {
   }
 
   if (includeProtagonist) pushCharFields('角色', 'protagonist', cardName, '角色');
-  if (includeFemales) {
-    (Array.isArray(o.characters) ? o.characters : []).forEach(function(c) {
-      if (!c || c.selected === false) return;
-      var name = String(c.name || '').trim();
-      if (!name || name === cardName) return;
-      pushCharFields('NPC.' + name, 'npc', name, 'NPC');
-    });
-  }
+  trackedNpcs.forEach(function(c) {
+    var name = String(c.name || '').trim();
+    pushCharFields('NPC.' + name, 'npc', name, 'NPC');
+  });
   return base;
 }
 
@@ -706,8 +782,8 @@ export function describeMvuPathLayoutSpec(opts) {
   if (o.includeProtagonist) {
     lines.push('主角字段固定「角色.字段名」，不要用卡角色名当第一段，不要写成 NPC.' + (o.charName || '卡角色名') + '。');
   }
-  if (o.includeFemales) {
-    lines.push('女角色字段用「NPC.姓名.字段名」。卡角色本人不得出现在 NPC 路径里。');
+  if (trackedNpcCharacters(o.characters, o.charName || o.mainName || '', o.includeFemales).length || o.includeFemales === true) {
+    lines.push('角色字段用「NPC.姓名.字段名」。卡角色本人不得出现在 NPC 路径里。');
   }
   var globalPaths = paths.filter(function(p) { return p.set === 'global'; });
   if (globalPaths.length) lines.push('全局：' + globalPaths.map(function(p) { return p.path; }).join('、'));
@@ -910,10 +986,11 @@ function specForFillPath(p) {
     };
   }
   if (NUMBER_LEAVES[leaf] || (p && p.meter)) {
+    var meterLines = meterCheckLines(leaf);
     var spec = {
       type: 'number',
       description: leaf,
-      check: [leaf + '被剧情改变时更新，无变化不要输出'],
+      check: meterLines || [leaf + '被剧情改变时更新，无变化不要输出'],
       fallback: 0,
       min: 0,
     };
@@ -1151,7 +1228,7 @@ export function describeLayoutFields(paths) {
   var lines = [];
   if (globals.length) lines.push('全局：\n' + globals.map(function(p) { return '- ' + p; }).join('\n'));
   if (protag.length) lines.push('主角：\n' + protag.map(function(p) { return '- ' + p; }).join('\n'));
-  if (npc.length) lines.push('女角色模板（路径写成 NPC.{{name}}.字段）：\n' + npc.map(function(p) { return '- ' + p; }).join('\n'));
+  if (npc.length) lines.push('角色模板（路径写成 NPC.{{name}}.字段）：\n' + npc.map(function(p) { return '- ' + p; }).join('\n'));
   return lines.join('\n\n') || '（无）';
 }
 
@@ -1327,9 +1404,9 @@ export const STATUS_BAR_MVU_DESIGN_PROMPT =
   + '1. variables 只能覆盖「开启模块」；「禁止模块」中的路径一律不要输出；NSFW=否时禁止一切身体私密字段。\n'
   + '2. 全局字段整卡一份：世界.当前时间、世界.天气、世界.当前地点、任务.当前、事件.标签，仅当对应模块开启。\n'
   + '3. 勾了主角时，字段前缀固定为「角色.」，不要用卡角色名当第一段，禁止写成 NPC.卡角色名。\n'
-  + '4. 勾了女角色时，每人用「NPC.姓名.字段」。卡角色本人不得出现在 characters 或 NPC 路径中。两套前缀可以同时存在，禁止把女角色收成「角色.字段」，禁止把主角改写成 NPC。\n'
+  + '4. 勾了角色时，每人用「NPC.姓名.字段」。卡角色本人不得出现在 characters 或 NPC 路径中。两套前缀可以同时存在，禁止把这些角色收成「角色.字段」，禁止把主角改写成 NPC。\n'
   + '5. 只勾一边时，只生成那一边，外加开启的全局字段。\n'
-  + '6. 恶堕进度、亲密度：主角是 角色.恶堕进度 / 角色.亲密度；女角色是 NPC.姓名.恶堕进度 / NPC.姓名.亲密度。\n'
+  + '6. 恶堕进度、亲密度：主角是 角色.恶堕进度 / 角色.亲密度；勾选的角色是 NPC.姓名.恶堕进度 / NPC.姓名.亲密度。\n'
   + '7. type 仅 string/number/boolean/enum/array/object；enum 必给 options。check 为数组。\n'
   + '8. 变量须可被剧情更新；不要为未开启模块凑字段。\n'
   + '9. default 会写成世界书变量初始化，表示还没选开场时这张卡已经成立的状态。设定里写明的身份、关系、常驻地、身体事实照写。设定没写死、但按这个世界的常理推得出的，给一个说得通的值，不要套示例数字。设定和常理都推不出的，关系用未结识、数值关系用 0、人不在场则写未在场或其日常所在，物品和记忆留空。关系阶段的 options 必须包含未结识，default 必须是 options 里的一项。\n'
@@ -1366,7 +1443,7 @@ export const STATUS_BAR_CUSTOM_LAYOUT_PROMPT =
   + '2. 数值字段才加 data-zb-meter，写在用来表示宽度的元素上，例如 <span data-zb-meter="完整路径" style="width:40%"></span>。非数值字段不要加 data-zb-meter。\n'
   + '3. 禁止 script，禁止内联事件（onclick 等），禁止外部 CDN。\n'
   + '4. 不要引用任何预置主题样式；CSS 写在本次输出里，类名用 zb- 前缀。\n'
-  + '5. 主角路径保持「角色.字段」，女角色路径保持「NPC.姓名.字段」，不要改写前缀。\n'
+  + '5. 主角路径保持「角色.字段」，勾选角色的路径保持「NPC.姓名.字段」，不要改写前缀。\n'
   + '\n【输出】仅 JSON，不要解释：\n'
   + '{ "css": "/* CSS */", "bodyHtml": "<div class=\\"zb-custom-root\\">...</div>" }\n';
 
@@ -1380,7 +1457,7 @@ export const STATUS_BAR_LAYOUT_SHELL_PROMPT =
   + '【结构】\n'
   + '1. 全局字段一块。路径用完整路径，例如 data-zb-path="世界.当前时间"。\n'
   + '2. 主角一块。路径用 角色.字段。\n'
-  + '3. 女角色只写一套，放在 <template data-zb-repeat="npc"> 里。路径写成 NPC.{{name}}.字段，不要写出具体姓名。\n'
+  + '3. 角色只写一套，放在 <template data-zb-repeat="npc"> 里。路径写成 NPC.{{name}}.字段，不要写出具体姓名。\n'
   + '4. 文本用 data-zb-path。数值才加 data-zb-meter。\n'
   + '5. 禁止 script、内联事件、外部 CDN。CSS 类名用 zb- 前缀。\n'
   + '6. 只输出 JSON：{"css":"...","bodyHtml":"<div class=\\"zb-custom-root\\">...</div>"}。\n';

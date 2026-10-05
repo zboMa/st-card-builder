@@ -1,6 +1,7 @@
 /**
  * OpenAI 兼容 /embeddings 客户端
  */
+import { runWithAutoRetry } from '../autoRetry.mjs';
 
 export var DEFAULT_EMBED_MODEL = 'text-embedding-3-small';
 
@@ -46,19 +47,74 @@ export async function fetchEmbeddingsBatched(opts) {
   opts = opts || {};
   var texts = opts.texts || [];
   var batch = Math.max(1, Math.min(64, opts.batchSize || 32));
+  var batchCount = Math.max(1, Math.ceil(texts.length / batch));
   var out = [];
+  var batchNo = 0;
   for (var i = 0; i < texts.length; i += batch) {
     if (opts.signal && opts.signal.aborted) throw new DOMException('已取消', 'AbortError');
+    batchNo++;
     var part = texts.slice(i, i + batch);
-    var vecs = await fetchEmbeddings({
-      apiUrl: opts.apiUrl,
-      apiKey: opts.apiKey,
-      model: opts.model,
-      texts: part,
-      signal: opts.signal,
-    });
+    var vecs;
+    try {
+      vecs = await runWithAutoRetry(function() {
+        return fetchEmbeddings({
+          apiUrl: opts.apiUrl,
+          apiKey: opts.apiKey,
+          model: opts.model,
+          texts: part,
+          signal: opts.signal,
+        });
+      }, {
+        signal: opts.signal,
+        onRetry: function(n, err) {
+          if (typeof opts.onBatch !== 'function') return;
+          opts.onBatch({
+            batchNo: batchNo,
+            batchCount: batchCount,
+            count: part.length,
+            done: i,
+            total: texts.length,
+            vectors: 0,
+            error: String(err && (err.message || err)),
+            retrying: true,
+            attempt: n,
+          });
+        },
+      });
+    } catch (e) {
+      if (e && e.name === 'AbortError') throw e;
+      if (opts.signal && opts.signal.aborted) throw e;
+      if (typeof opts.onBatch === 'function') {
+        opts.onBatch({
+          batchNo: batchNo,
+          batchCount: batchCount,
+          count: part.length,
+          done: i,
+          total: texts.length,
+          vectors: 0,
+          error: String(e && (e.message || e)),
+          retrying: false,
+          attempt: 0,
+        });
+      }
+      throw e;
+    }
     out = out.concat(vecs);
-    if (typeof opts.onProgress === 'function') opts.onProgress(Math.min(texts.length, i + part.length), texts.length);
+    var done = Math.min(texts.length, i + part.length);
+    if (typeof opts.onBatch === 'function') {
+      opts.onBatch({
+        batchNo: batchNo,
+        batchCount: batchCount,
+        count: part.length,
+        done: done,
+        total: texts.length,
+        vectors: vecs.length,
+        error: '',
+        retrying: false,
+        attempt: 0,
+      });
+    }
+    if (typeof opts.onProgress === 'function') opts.onProgress(done, texts.length);
   }
   return out;
 }

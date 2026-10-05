@@ -1191,18 +1191,18 @@
         flex-shrink: 0;
       }
       .wb-strategy-tag.is-constant {
-        color: #93c5fd;
-        background: rgba(59, 130, 246, 0.12);
-        border-color: rgba(59, 130, 246, 0.28);
+        color: var(--color-text);
+        background: color-mix(in oklch, #3b82f6 16%, transparent);
+        border-color: color-mix(in oklch, #3b82f6 32%, transparent);
       }
       .wb-strategy-tag.is-constant .wb-strategy-dot {
         background: #3b82f6;
         box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.22);
       }
       .wb-strategy-tag.is-selective {
-        color: #86efac;
-        background: rgba(34, 197, 94, 0.12);
-        border-color: rgba(34, 197, 94, 0.28);
+        color: var(--color-text);
+        background: color-mix(in oklch, #22c55e 16%, transparent);
+        border-color: color-mix(in oklch, #22c55e 32%, transparent);
       }
       .wb-strategy-tag.is-selective .wb-strategy-dot {
         background: #22c55e;
@@ -1227,61 +1227,65 @@
         line-height: 1.35;
         letter-spacing: 0.01em;
       }
+      .wb-type-tag,
+      .wb-type--worldview,
+      .wb-type--location,
+      .wb-type--faction,
+      .wb-type--person,
+      .wb-type--event,
+      .wb-type--item,
+      .wb-type--ability,
+      .wb-type--other,
+      .wb-type--novel,
+      .wb-type--mvu,
+      .wb-type--adult,
+      .wb-type--system-lore {
+        color: var(--color-text);
+      }
       .wb-type--worldview {
-        background: rgba(139, 92, 246, 0.14);
-        color: #c4b5fd;
-        border-color: rgba(139, 92, 246, 0.32);
+        background: color-mix(in oklch, #8b5cf6 16%, transparent);
+        border-color: color-mix(in oklch, #8b5cf6 32%, transparent);
       }
       .wb-type--location {
-        background: rgba(45, 212, 191, 0.12);
-        color: #5eead4;
-        border-color: rgba(45, 212, 191, 0.28);
+        background: color-mix(in oklch, #2dd4bf 16%, transparent);
+        border-color: color-mix(in oklch, #2dd4bf 32%, transparent);
       }
       .wb-type--faction {
-        background: rgba(244, 63, 94, 0.12);
-        color: #fda4af;
-        border-color: rgba(244, 63, 94, 0.28);
+        background: color-mix(in oklch, #f43f5e 16%, transparent);
+        border-color: color-mix(in oklch, #f43f5e 32%, transparent);
       }
       .wb-type--person {
-        background: rgba(251, 191, 36, 0.12);
-        color: #fcd34d;
-        border-color: rgba(251, 191, 36, 0.3);
+        background: color-mix(in oklch, #fbbf24 18%, transparent);
+        border-color: color-mix(in oklch, #fbbf24 34%, transparent);
       }
       .wb-type--event {
-        background: rgba(249, 115, 22, 0.12);
-        color: #fdba74;
-        border-color: rgba(249, 115, 22, 0.28);
+        background: color-mix(in oklch, #f97316 16%, transparent);
+        border-color: color-mix(in oklch, #f97316 32%, transparent);
       }
       .wb-type--item {
-        background: rgba(52, 211, 153, 0.12);
-        color: #6ee7b7;
-        border-color: rgba(52, 211, 153, 0.28);
+        background: color-mix(in oklch, #34d399 16%, transparent);
+        border-color: color-mix(in oklch, #34d399 32%, transparent);
       }
       .wb-type--ability {
-        background: rgba(56, 189, 248, 0.12);
-        color: #7dd3fc;
-        border-color: rgba(56, 189, 248, 0.28);
+        background: color-mix(in oklch, #38bdf8 16%, transparent);
+        border-color: color-mix(in oklch, #38bdf8 32%, transparent);
       }
       .wb-type--other {
-        background: rgba(161, 161, 170, 0.12);
-        color: #d4d4d8;
-        border-color: rgba(161, 161, 170, 0.28);
+        background: color-mix(in oklch, #a1a1aa 16%, transparent);
+        border-color: color-mix(in oklch, #a1a1aa 32%, transparent);
       }
       .wb-type--novel {
-        background: rgba(167, 139, 250, 0.1);
-        color: #ddd6fe;
-        border-color: rgba(167, 139, 250, 0.25);
+        background: color-mix(in oklch, #a78bfa 16%, transparent);
+        border-color: color-mix(in oklch, #a78bfa 32%, transparent);
       }
       .wb-type--mvu {
-        background: rgba(34, 211, 238, 0.1);
-        color: #a5f3fc;
-        border-color: rgba(34, 211, 238, 0.25);
+        background: color-mix(in oklch, #22d3ee 16%, transparent);
+        border-color: color-mix(in oklch, #22d3ee 32%, transparent);
       }
       .wb-type--adult,
       .wb-type--system-lore {
-        background: rgba(236, 72, 153, 0.1);
-        color: #f9a8d4;
-        border-color: rgba(236, 72, 153, 0.25);
+        background: color-mix(in oklch, #ec4899 16%, transparent);
+        border-color: color-mix(in oklch, #ec4899 32%, transparent);
       }
       .entry-meta-line {
         overflow: hidden;
@@ -1299,32 +1303,21 @@
       }
       .wb-skel-badge {
         font-size: 0.6rem;
-        background: rgba(245, 158, 11, 0.15);
-        color: #f59e0b;
+        background: var(--color-warning-soft);
+        color: var(--color-warning);
         padding: 1px 6px;
         border-radius: 99px;
-        border: 1px solid rgba(245, 158, 11, 0.25);
+        border: 1px solid var(--color-warning-border);
         flex-shrink: 0;
       }
       .wb-sys-badge {
         font-size: 0.6rem;
-        background: rgba(56, 189, 248, 0.15);
+        background: color-mix(in oklch, #38bdf8 16%, transparent);
         color: var(--color-text);
         padding: 1px 6px;
         border-radius: 99px;
-        border: 1px solid rgba(56, 189, 248, 0.25);
+        border: 1px solid color-mix(in oklch, #38bdf8 32%, transparent);
         flex-shrink: 0;
-      }
-      .wb-strategy-tag,
-      .wb-strategy-tag.is-constant,
-      .wb-strategy-tag.is-selective,
-      .wb-strategy-tag.is-vectorized,
-      .wb-type-tag,
-      .wb-skel-badge,
-      .wb-sys-badge {
-        background: var(--color-chip-bg);
-        border-color: var(--color-chip-border);
-        color: var(--color-text);
       }
       .entry-expand-hint {
         font-size: 0.64rem;

@@ -74,10 +74,10 @@
     cursor: pointer;
   }
   .novel-graph-ctx-menu button:hover {
-    background: rgba(255, 255, 255, 0.08);
+    background: var(--color-accent-soft);
   }
   .novel-graph-ctx-menu button.is-danger {
-    color: #fca5a5;
+    color: var(--color-danger);
   }
   .novel-graph-ctx-menu .novel-graph-ctx-hint {
     padding: 7px 10px;
@@ -93,9 +93,9 @@
     margin: 0;
     padding: 2px 7px;
     border-radius: 999px;
-    border: 1px solid rgba(248, 113, 113, 0.45);
-    color: #fecaca;
-    background: rgba(127, 29, 29, 0.72);
+    border: 1px solid var(--color-danger-fill-border);
+    color: var(--color-on-danger-fill);
+    background: var(--color-danger-fill);
     font-size: 0.68rem;
     font-weight: 600;
     font-variant-numeric: tabular-nums;
@@ -128,14 +128,14 @@
     margin: 0;
     padding: 8px 10px;
     border-radius: 8px;
-    border: 1px solid rgba(248, 113, 113, 0.28);
-    background: rgba(127, 29, 29, 0.18);
+    border: 1px solid var(--color-danger-fill-border);
+    background: var(--color-danger-soft);
   }
   .novel-fail-list .novel-fail-phase {
     display: block;
     font-size: 0.72rem;
     font-weight: 600;
-    color: #fecaca;
+    color: var(--color-danger);
     margin-bottom: 2px;
   }
   .novel-fail-list .novel-fail-label {
@@ -533,8 +533,8 @@
   }
   /* 禁用章：浅红底/边标识 */
   .novel-chapter-row.is-disabled {
-    border-color: rgba(248, 113, 113, 0.45);
-    background: rgba(127, 29, 29, 0.22);
+    border-color: var(--color-danger-fill-border);
+    background: var(--color-danger-soft);
   }
   .novel-list-main,
   .novel-chapter-main {
@@ -611,7 +611,7 @@
   }
   .novel-icon-btn.is-danger:hover {
     background: var(--color-danger-fill);
-    color: var(--color-on-accent);
+    color: var(--color-on-danger-fill);
   }
 
   /* 兼容旧类名钩子（测试 / 遗留引用） */
@@ -876,10 +876,10 @@
     border-top: 1px solid var(--color-border);
     flex-shrink: 0;
   }
-  /* 弹窗底栏：取消在左、主操作在右；同高同字号（压住 .btn-ai） */
   .novel-modal-actions .btn,
   .novel-modal-actions .btn-ai,
   .novel-modal-actions .btn-add,
+  .novel-modal-actions .btn-primary,
   .novel-modal-actions .btn-fetch,
   .novel-modal-actions .novel-modal-cancel {
     width: auto !important;
@@ -893,13 +893,13 @@
     box-sizing: border-box;
     border-radius: 8px;
   }
-  .novel-modal-cancel {
+  .btn.novel-modal-cancel {
     background: var(--color-surface-elevated);
     color: var(--color-text);
     border-color: var(--color-border);
     box-shadow: none;
   }
-  .novel-modal-cancel:hover {
+  .btn.novel-modal-cancel:hover {
     background: var(--color-accent-soft);
     color: var(--color-text);
     border-color: var(--color-accent-border);
@@ -928,7 +928,6 @@
     min-height: 280px;
     resize: vertical;
   }
-
   /* 小说分析：配置紧凑，图谱占满剩余高度 */
   .novel-analyze-panel > .novel-panel-tip {
     margin: -2px 0 8px 0;

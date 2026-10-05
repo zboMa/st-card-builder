@@ -779,6 +779,10 @@ describe('novel panel visual contract', function() {
   it('人物档案弹窗；世界书弹窗编辑；无产出浏览面板', function() {
     const chars = readFileSync(join(novelRoot, 'src/components/novel/NovelCharactersPanel.astro'), 'utf8');
     assert.match(chars, /novelModalProfile/);
+    assert.match(chars, /novelCharAliases/);
+    assert.match(chars, /novelCharProfileJson/);
+    assert.doesNotMatch(chars, /novelCharProfileCard/);
+    assert.doesNotMatch(chars, /novelCharProfileSource/);
     assert.match(chars, /novelModalExpandConfirm/);
     assert.doesNotMatch(chars, /novelCharProfileEditor/);
     assert.match(chars, /novel-entity-list|novelCharGrid/);
@@ -808,7 +812,7 @@ describe('novel panel visual contract', function() {
     assert.match(app, /updateExtractCallEstimates|estimateExtractCalls|buildExtractShards/);
     assert.match(app, /charShardOpts|wbShardOpts|syncShardModeUi/);
     assert.match(app, /openWbEditModal|editWbEntry|saveWbInline/);
-    assert.match(app, /novel-list-title[\s\S]*data-wb-edit/);
+    assert.match(app, /entry-title-btn[\s\S]*data-wb-act="edit"/);
     assert.match(app, /truncatePreviewLine|entry-preview-line/);
     assert.doesNotMatch(app, /data-wb-toggle|entry-expand-hint|expandedWbEntries/);
     assert.match(app, /renderStrategyTag|wb-strategy-tag/);
@@ -821,7 +825,7 @@ describe('novel panel visual contract', function() {
     assert.match(app, /novel-modal-open/);
     assert.match(app, /Escape/);
     assert.doesNotMatch(app, /formatProfileYaml\(c\.profile/);
-    assert.match(app, /novel-list-row/);
+    assert.match(app, /entry-item" data-char-id/);
     assert.match(app, /novel-list-actions|entry-item/);
     assert.match(app, /charChunkSize|wbChunkSize|styleChunkSize|charShardMode|wbShardMode/);
     assert.match(app, /renderGraph|bindGraphControls/);

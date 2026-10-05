@@ -97,21 +97,20 @@
   <div class="novel-modal-dialog novel-modal-dialog-lg" role="dialog" aria-modal="true" aria-labelledby="novelModalProfileTitle">
     <div class="novel-modal-head">
       <strong id="novelModalProfileTitle">人物档案</strong>
-      <span class="novel-modal-tip">附录1 JSON 可编辑 · Esc / 遮罩关闭</span>
     </div>
     <div class="novel-modal-body">
       <div class="form-group">
-        <label for="novelCharAliases">别名（逗号分隔，用于原文召回）</label>
-        <input id="novelCharAliases" type="text" />
+        <label for="novelCharAliases">别名（逗号分隔）</label>
+        <input id="novelCharAliases" type="text" autocomplete="off" placeholder="用于原文召回" />
       </div>
       <div class="form-group">
         <label for="novelCharProfileJson">档案 JSON</label>
-        <textarea id="novelCharProfileJson" class="novel-modal-textarea" rows="16"></textarea>
+        <textarea id="novelCharProfileJson" class="novel-modal-textarea" rows="16" spellcheck="false"></textarea>
       </div>
     </div>
     <div class="novel-modal-actions">
       <button type="button" class="btn novel-modal-cancel" data-novel-modal-close="novelModalProfile">取消</button>
-      <button type="button" class="btn btn-add" id="btnNovelProfileSave">保存</button>
+      <button type="button" class="btn btn-primary" id="btnNovelProfileSave">保存</button>
     </div>
   </div>
 </div>

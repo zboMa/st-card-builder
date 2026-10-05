@@ -513,7 +513,7 @@ export function findWorldbookPersonContext(entries, charName) {
     var content = String(e.content || '').trim();
     if (!content) return -1;
     var isPerson = isNovelPersonEntry(e)
-      || (e.kind === 'outline_person' && String(e.owner || '') === WB_OWNER.user)
+      || e.kind === 'outline_person'
       || comment.indexOf('[小说人物]') === 0
       || comment.indexOf('[人物]') === 0;
     var keys = Array.isArray(e.keys) ? e.keys.map(function(k) { return String(k || '').trim(); }) : [];

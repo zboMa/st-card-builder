@@ -73,6 +73,7 @@ describe('generation context', function() {
     });
     assert.equal(created.tool, 'generate_worldbook_entry');
     assert.match(created.args.instruction, /顾清辞/);
+    assert.match(created.args.instruction, /人物用 person/);
     assert.equal(created.args.content, undefined);
     var rewritten = redirectLongFormCall('update_worldbook_entry', {
       target: { index: 2 },

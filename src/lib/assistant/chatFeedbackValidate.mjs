@@ -17,6 +17,11 @@ var MVU_WRITE_TOOLS = [
   'upsert_mvu_design',
   'upsert_mvu_variables',
   'patch_mvu_node',
+  'clear_mvu',
+  'set_statusbar',
+  'generate_statusbar_variables',
+  'edit_statusbar_variables',
+  'generate_statusbar_layout',
 ];
 
 /**

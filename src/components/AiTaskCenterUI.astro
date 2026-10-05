@@ -408,10 +408,29 @@
       ].filter(function(r) { return r[1] != null && String(r[1]).length; }).map(function(r) {
         return '<div class="ai-task-detail-field"><b>' + escapeHtml(r[0]) + '</b><span class="ai-task-detail-value">' + escapeHtml(r[1]) + '</span></div>';
       }).join('');
-      var detailHtml = t.detail
-        ? '<pre class="ai-task-detail-pre">' + escapeHtml(t.detail) + '</pre>'
-        : '<div class="ai-task-empty">该任务未记录详情（暂无 prompt 信息）</div>';
+      var detailHtml = '';
+      if (t.steps && t.steps.length) {
+        detailHtml = t.steps.map(function(s) {
+          var bits = '<div class="ai-task-detail-field"><b>' + escapeHtml(s.line || '步骤') + '</b>';
+          if (s.error) bits += '<span class="ai-task-detail-value">' + escapeHtml(s.error) + '</span>';
+          if (s.bodyOmitted) bits += '<span class="ai-task-detail-value">正文已省略</span>';
+          if (s.input) {
+            bits += '<span class="ai-task-detail-value">输入' + (s.inputTruncated ? '（已截断）' : '') + '</span>'
+              + '<pre class="ai-task-detail-pre">' + escapeHtml(s.input) + '</pre>';
+          }
+          if (s.output) {
+            bits += '<span class="ai-task-detail-value">输出' + (s.outputTruncated ? '（已截断）' : '') + '</span>'
+              + '<pre class="ai-task-detail-pre">' + escapeHtml(s.output) + '</pre>';
+          }
+          return bits + '</div>';
+        }).join('');
+      } else if (t.detail) {
+        detailHtml = '<pre class="ai-task-detail-pre">' + escapeHtml(t.detail) + '</pre>';
+      } else {
+        detailHtml = '<div class="ai-task-empty">该任务未记录详情（暂无 prompt 信息）</div>';
+      }
       bodyEl.innerHTML = meta + detailHtml;
+      modal._taskId = id;
       modal.hidden = false;
       modal.setAttribute('aria-hidden', 'false');
     }
@@ -483,6 +502,8 @@
       syncBadge(snap);
       var modal = $('aiTaskModal');
       if (modal && !modal.hidden) renderList();
+      var detailModal = $('aiTaskDetailModal');
+      if (detailModal && !detailModal.hidden && detailModal._taskId) openDetail(detailModal._taskId);
     });
 
     function init() {

@@ -4,6 +4,7 @@
  */
 
 import { DEFAULT_EXPAND_BUDGET } from './recall.mjs';
+import { collapseFailedShards } from './failedShards.mjs';
 import {
   idbGetJson,
   idbSetJson,
@@ -253,6 +254,7 @@ export function hydrateNovelState(raw) {
     base.rag.sourceFingerprint = String(base.rag.sourceFingerprint || '');
   }
   if (!Array.isArray(base.failedShards)) base.failedShards = [];
+  base.failedShards = collapseFailedShards(base.failedShards);
   // NSFW：显式 adultMode 优先；旧桶用任一子开关推断
   if (raw.adultMode != null) {
     base.adultMode = !!raw.adultMode;

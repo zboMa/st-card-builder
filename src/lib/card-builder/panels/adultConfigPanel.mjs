@@ -234,7 +234,7 @@ export function attachAdultConfigPanel(ctx, s, panel) {
       }
 
       var wb = Array.isArray(ctx.state.worldbookEntries) ? ctx.state.worldbookEntries : [];
-      // 只认世界书人物条（[小说人物]/[人物]），与主角管道隔离
+      // 只认世界书人物条（outline_person / [小说人物] / [人物]），与主角管道隔离
       wb.forEach(function(e) {
         if (!e || !isPersonWorldbookEntry(e)) return;
         var name = personNameFromWorldbookEntry(e);
@@ -302,7 +302,7 @@ export function attachAdultConfigPanel(ctx, s, panel) {
       }
       s.corruptionTargetsCache = picks;
       if (!picks.length) {
-        box.innerHTML = '<span class="char-nsfw-subtitle">暂无世界书人物条——请先同步/创建「[小说人物] 名字」类条目（主角设定不在此列）</span>';
+        box.innerHTML = '<span class="char-nsfw-subtitle">暂无世界书人物条——请先生成类型为人物的条目，或同步小说人物（主角设定不在此列）</span>';
         return;
       }
       box.innerHTML = picks.map(function(p, i) {

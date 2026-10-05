@@ -4,7 +4,7 @@
  * - 最后一条用户消息之后没有工具轨迹：去掉可重试错误，从 step 0 重跑
  * - 已有工具轨迹：保留轨迹与非错误气泡，去掉可重试错误，从工具结果续接
  */
-import { isLongFormGuardError } from './generationContext.mjs';
+import { isLongFormGuardError, isStatusBarGateError } from './generationContext.mjs';
 
 /**
  * 重试按钮只属于会话最后一条，且这条必须是可重试错误。
@@ -59,7 +59,7 @@ export function planApplyOutcome(outcome) {
   var o = outcome || {};
   if (o.threw) return 'reopen';
   if (o.ok) return 'resume';
-  if (isLongFormGuardError(o.error)) return 'resume';
+  if (isLongFormGuardError(o.error) || isStatusBarGateError(o.error)) return 'resume';
   return 'stop';
 }
 

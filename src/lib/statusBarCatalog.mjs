@@ -45,7 +45,7 @@ export const STATUS_BAR_STYLES = STATUS_BAR_LAYOUTS;
 
 export const STATUS_BAR_CAST_MODES = Object.freeze([
   { id: 'single', label: '单人', hint: '使用当前卡角色设定' },
-  { id: 'multi', label: '多人', hint: '世界书人物条目自动加载；AI 识别可补充' },
+  { id: 'multi', label: '多人', hint: '世界书人物条目自动加载，勾选要跟踪的人' },
 ]);
 
 /** 旧模块 id → 新模块（normalizeDesign 迁移） */

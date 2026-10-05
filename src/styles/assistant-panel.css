@@ -637,7 +637,13 @@
   }
   .assistant-panel__pending-actions {
     display: flex;
+    flex-wrap: wrap;
+    align-items: center;
     gap: 8px;
+  }
+  /* .btn-inline 的 display 会盖过 hidden，开关已开时必须收掉 */
+  #assistantAutoApplyBtn[hidden] {
+    display: none !important;
   }
   .assistant-panel__composer {
     padding: 10px var(--space-3) var(--space-3);

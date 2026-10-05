@@ -60,6 +60,9 @@ import { STATUS_BAR_EXT_KEY } from '../statusBar.mjs';
 import { engineTryAllowed } from '../actionEngine/helpers.mjs';
 import { appFeedback } from '../ui/appMessage.mjs';
 import { planAssistantRetry, isTailRetryTarget, planApplyOutcome } from './retryTurn.mjs';
+import { assistantConfirmDisposition } from './confirmPolicy.mjs';
+import { resolveAlternateGreetingSlot } from './greetingSlot.mjs';
+import { resolveWorldbookIndex } from './executorResolve.mjs';
 import { buildLocationBlock } from './locationBlock.mjs';
 import { computeCardProgress } from '../card-builder/cardProgress.mjs';
 
@@ -286,6 +289,7 @@ export function initAssistantPanelMain() {
     var pendingPreview = document.getElementById('assistantPendingPreview');
     var applyBtn = document.getElementById('assistantApplyBtn');
     var rejectBtn = document.getElementById('assistantRejectBtn');
+    var autoApplyBtn = document.getElementById('assistantAutoApplyBtn');
     var tokenCountEl = document.getElementById('assistantTokenCount');
     var tokenCountTimer = null;
 
@@ -305,6 +309,7 @@ export function initAssistantPanelMain() {
     var ragPreviewBusy = false;
     var MAX_REACT_STEPS = 20;
     var reactTask = null;      // 当前 react 运行的任务中心任务
+    var assistantRunSignal = null;
     var reactPaused = false;   // 大改等待用户确认中（暂停续接）
     var reactApplying = false; // 已点应用，工具还在执行
     var applyTaskIdsBefore = null;
@@ -1026,27 +1031,22 @@ export function initAssistantPanelMain() {
     }
 
     function resolveWbIndex(args) {
-      var entries = getWorldbook();
-      var t = args && args.target != null ? args.target : args;
-      if (typeof t === 'number') return t;
-      if (t && typeof t.index === 'number') return t.index;
-      if (t && t.id) {
-        for (var i = 0; i < entries.length; i++) {
-          if (String(entries[i].uid || entries[i].id || '') === String(t.id)) return i;
-        }
-      }
-      var comment = (t && (t.comment || t.titleMatch || t.title)) || (args && args.comment);
-      if (comment) {
-        for (var j = 0; j < entries.length; j++) {
-          if ((entries[j].comment || '') === comment) return j;
-        }
-        var q = String(comment).toLowerCase();
-        for (var k = 0; k < entries.length; k++) {
-          if (String(entries[k].comment || '').toLowerCase().indexOf(q) >= 0) return k;
-        }
-      }
-      if (typeof args.index === 'number') return args.index;
-      return -1;
+      return resolveWorldbookIndex(getWorldbook(), args || {});
+    }
+
+    function isAssistantAutoApply() {
+      var el = document.getElementById('assistantAutoApply');
+      return !!(el && el.checked);
+    }
+
+    function syncAutoApplyBtn() {
+      if (autoApplyBtn) autoApplyBtn.hidden = isAssistantAutoApply();
+    }
+
+    function setAssistantAutoApply(on) {
+      var el = document.getElementById('assistantAutoApply');
+      if (el) el.checked = !!on;
+      if (typeof window.__persistAiConfig__ === 'function') window.__persistAiConfig__();
     }
 
     function getAiConfig() {
@@ -1275,6 +1275,31 @@ export function initAssistantPanelMain() {
       patchMvuNode: function(opts) {
         if (!window.__assistantMvuApi__) throw new Error('MVU 面板未就绪');
         return window.__assistantMvuApi__.patchNode(opts || {});
+      },
+      getStatusBar: function() {
+        var api = window.__statusBarApi__;
+        if (!api || !api.getSnapshot) throw new Error('状态栏未就绪');
+        return api.getSnapshot();
+      },
+      setStatusBar: function(patch) {
+        var api = window.__statusBarApi__;
+        if (!api || !api.applyOptions) throw new Error('状态栏未就绪');
+        return api.applyOptions(patch || {});
+      },
+      generateStatusBarVariables: function() {
+        var api = window.__statusBarApi__;
+        if (!api || !api.generateVariables) throw new Error('状态栏未就绪');
+        return api.generateVariables({ fromAssistant: true, signal: assistantRunSignal });
+      },
+      editStatusBarVariables: function(changes) {
+        var api = window.__statusBarApi__;
+        if (!api || !api.editVariables) throw new Error('状态栏未就绪');
+        return api.editVariables(changes);
+      },
+      generateStatusBarLayout: function(revise) {
+        var api = window.__statusBarApi__;
+        if (!api || !api.generateLayout) throw new Error('状态栏未就绪');
+        return api.generateLayout(!!revise, { fromAssistant: true, signal: assistantRunSignal });
       },
       getNovel: function() {
         return window.__novelWorkshopBridge__ ? window.__novelWorkshopBridge__.getState() : { available: false };
@@ -1643,7 +1668,7 @@ export function initAssistantPanelMain() {
         var sys = promptText('wbSkeleton', { batchSize: count })
           + '\n【角色】：' + c.charName + ' | ' + String(c.charDesc || '').slice(0, 300)
           + (direction ? '\n【方向】：' + direction : '')
-          + '\n【输出】：JSON数组 [{ "comment","type","content","keys","strategy" }, ...]';
+          + '\n【输出】：JSON数组 [{ "comment","type","content","keys","strategy" }, ...]。type 必填：worldview|location|faction|person|event|item|ability|other。人物用 person。标题用人名，不要加 [小说人物]。';
         var content = await callChat([
           { role: 'system', content: sys },
           { role: 'user', content: '生成' + count + '条骨架' },
@@ -1722,7 +1747,7 @@ export function initAssistantPanelMain() {
         var sys = (promptText('wbRewrite') || DEFAULT_PROMPTS.wbRewrite)
           + '\n' + pack
           + '\n【原条目】：' + JSON.stringify(toAiJsonEntry(target))
-          + '\n【输出】：JSON对象 { comment, type(worldview|location|faction|person|event|item|ability|other 可选), content, keys, strategy, position }';
+          + '\n【输出】：JSON对象 { comment, type(worldview|location|faction|person|event|item|ability|other，必填), content, keys, strategy, position }。人物用 person。标题用人名，不要加 [小说人物]。';
         var content = await callChat([
           { role: 'system', content: sys },
           { role: 'user', content: '请按本次任务展开或重写该条目，只输出 JSON。' },
@@ -1794,9 +1819,14 @@ export function initAssistantPanelMain() {
           else if (typeof opts.index === 'number') altIndex = opts.index;
           else isMain = true;
         }
-        var cur = isMain ? String(c.firstMes || '') : String((c.altGreetings || [])[altIndex] || '');
-        if (!isMain && (altIndex < 0 || altIndex >= (c.altGreetings || []).length)) {
-          throw new Error('备选开场白序号越界');
+        var cur = '';
+        if (isMain) {
+          cur = String(c.firstMes || '');
+        } else {
+          var slot = resolveAlternateGreetingSlot((c.altGreetings || []).length, altIndex, true);
+          if (!slot.ok) return slot;
+          altIndex = slot.index;
+          cur = slot.create ? '' : String((c.altGreetings || [])[altIndex] || '');
         }
         var instruction = String(opts.instruction || opts.direction || '').trim();
         var sys = promptText('assistantGreeting', { mode: mode === 'expand' ? '扩写' : '重写' })
@@ -1917,6 +1947,7 @@ export function initAssistantPanelMain() {
           pendingSummary.textContent = summarizePendingConfirm(p.tool, p.args, p.preview);
         }
         pendingPreview.textContent = p.preview || JSON.stringify(p, null, 2);
+        syncAutoApplyBtn();
       } else {
         if (pendingSummary) pendingSummary.textContent = '待确认变更';
         pendingPreview.textContent = '';
@@ -1990,12 +2021,18 @@ export function initAssistantPanelMain() {
       }
       if (result && result.pendingConfirm) {
         if (runningIndex >= 0) removeUiAt(runningIndex);
-        showPending({
+        var pendingPayload = {
           tool: result.tool || toolName,
           args: result.args || effectiveArgs,
           preview: result.preview,
           followup: result.followup || '',
-        });
+        };
+        pending = pendingPayload;
+        if (assistantConfirmDisposition(isAssistantAutoApply(), 'first') === 'apply') {
+          if (pendingBox) pendingBox.hidden = true;
+          return result;
+        }
+        showPending(pendingPayload);
         return result;
       }
       var done = buildToolUiMessage(toolName, displayArgs, result);
@@ -2175,6 +2212,7 @@ export function initAssistantPanelMain() {
       }
       var task = reactTask;
       var reactSignal = task && task.signal;
+      assistantRunSignal = reactSignal || null;
       var gotFinal = false;
 
       try {
@@ -2236,6 +2274,10 @@ export function initAssistantPanelMain() {
               // 暂停等待确认；任务保持 running、busy 保持 true
               reactPaused = true;
               reactResume = function() { reactSteps(step + 1, true, extra); };
+              if (assistantConfirmDisposition(isAssistantAutoApply(), 'first') === 'apply') {
+                applyPendingConfirm();
+                return;
+              }
               setStatus('等待确认大改…');
               return;
             }
@@ -2296,6 +2338,7 @@ export function initAssistantPanelMain() {
         }
         reactTask = null;
       } finally {
+        if (!reactPaused) assistantRunSignal = null;
         // 等待确认时保持「等待确认大改…」与 busy；回合真正结束才回到闲置绿点
         if (!reactPaused) {
           clearPendingHint();
@@ -2480,6 +2523,7 @@ export function initAssistantPanelMain() {
 
     function releaseConfirmWait(opts) {
       opts = opts || {};
+      assistantRunSignal = null;
       reactPaused = false;
       reactApplying = false;
       reactResume = null;
@@ -2495,7 +2539,7 @@ export function initAssistantPanelMain() {
       setStatus('');
     }
 
-    applyBtn.addEventListener('click', async function() {
+    async function applyPendingConfirm() {
       if (!pending) return;
       var p = pending;
       var resume = reactResume;
@@ -2513,6 +2557,7 @@ export function initAssistantPanelMain() {
       }
       reactApplying = false;
       if (abortFlag) {
+        assistantRunSignal = null;
         reactResume = null;
         clearPendingHint();
         busy = false;
@@ -2582,7 +2627,14 @@ export function initAssistantPanelMain() {
         syncActionBtn();
         setStatus('');
       }
+    }
+    if (applyBtn) applyBtn.addEventListener('click', function() { applyPendingConfirm(); });
+    if (autoApplyBtn) autoApplyBtn.addEventListener('click', function() {
+      setAssistantAutoApply(true);
+      applyPendingConfirm();
     });
+    var autoApplyToggle = document.getElementById('assistantAutoApply');
+    if (autoApplyToggle) autoApplyToggle.addEventListener('change', syncAutoApplyBtn);
     rejectBtn.addEventListener('click', function() {
       showPending(null);
       pushUi({ role: 'assistant', content: '已拒绝本次大改。' });

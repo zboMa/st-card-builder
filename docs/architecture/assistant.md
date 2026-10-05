@@ -63,7 +63,8 @@ SoT 论述见 [`core-design-philosophy.md`](./core-design-philosophy.md) **§2.1
 3. `risk.mjs` 分级 → `executor.mjs` 执行工具  
 4. 小改自动应用；大改预览确认；`session.mjs` 存会话与撤销快照（**按卡隔离**，切卡重载对应会话；随卡 bundle 上云）
 5. **大改确认后续接**：确认弹窗期间任务保持运行、`busy` 保持 true（防并行/切卡）。点「应用」后确认卡收起，对话里立刻出现同一张工具卡，摘要为「执行中」；工具返回后就地换成结果，不另起一行打字提示。成功后从该步下一步续接。请求没到达（抛错）时确认卡回来，红字说明原因，不叫模型，用户可再点「应用」。工具返回业务失败时结束本轮并标任务失败，不续接；失败写成工具结果，下一句用户消息里模型才看得到。执行中点停止会取消这次拉起的生成任务，不续接。点「拒绝」则取消任务复位。
-6. **单轮步数上限**（`MAX_REACT_STEPS=20`）：最后一轮提示模型用自然语言收尾；到顶仍未收尾时给出「回复『继续』」提示  
+6. **自动应用**（AI 配置勾选，默认关，存在 `st_v3_builder_ai_config.assistantAutoApply`）：打开后，助手里需要确认的改动直接走「应用」并继续这一轮，确认卡不出现。关掉时，确认卡上有「开启自动应用」：点它会打开开关，并立刻应用当前这一条。开关已经打开时，这颗按钮不显示。请求没到达、确认卡重新弹出时不再自动提交。写之前就能判定的失败（例如备选开场白跳号）按业务失败结束本轮，确认卡不留下。删除、清空、成人配置也走这个开关。卡管理的删除确认框和引擎「大纲后暂停」不走。撤销仍可用。
+7. **单轮步数上限**（`MAX_REACT_STEPS=20`）：最后一轮提示模型用自然语言收尾；到顶仍未收尾时给出「回复『继续』」提示  
 
 **对话契约**：像现代智能体——能直接答就直接答；工具按需调用。气泡展示人读文案；送模保留该步原文（`modelContent`）。等待模型时对话区显示「正在…」提示条（`assistant-msg--pending`）。工具执行中用工具卡上的「执行中」，不用这条提示代替。
 
@@ -168,14 +169,32 @@ SoT 论述见 [`core-design-philosophy.md`](./core-design-philosophy.md) **§2.1
 |------|--------|------|
 | `expand_character_field` | `assistantCharField` | 按这个字段该说的话说完 |
 | `rewrite_greeting` / `expand_greeting` | `assistantGreeting` | 只写用户指定的这一场；正文不含 `<initvar>` |
-| `generate_worldbook_entry` | `wbSingle` | 短事实就短。人物条在 NSFW 开启时，同一条档案后另写「情欲」 |
+| `generate_worldbook_entry` | `wbSingle` | 短事实就短。输出必须带 `type`，人物为 `person`，标题用人名。人物条在 NSFW 开启时，同一条档案后另写「情欲」 |
 | `expand_worldbook_entry` / `rewrite_worldbook_entry` | `wbRewrite` | 按本次任务补全。人物条同样在同一条里写「情欲」 |
 | `novel_expand_character` / `novel_rewrite_character` | `novelCharExpand` | 附录 1 字段写满，关系点名已有条目 |
 | `novel_expand_worldbook` | `novelWbExpand` | 至少 200 字 |
 
 `update_character_fields` 只接受角色名、世界书名和标签。场景契约、作者注释、开场白、世界书长正文如果被塞进写入工具，调用时就改成对应的生成工具：`expand_character_field`、`rewrite_greeting`、`generate_worldbook_entry` 或 `rewrite_worldbook_entry`。同一调用里的短字段先写入。确认卡上的工具是生成工具，`instruction` 是已确认设定的方向，不是把草稿原样存成正文。`instruction` 过短时仍拒绝。若守卫仍拦住，错误回到规划让模型重选工具，不显示「应用失败」，也不结束本轮。`generate_character_draft` 与 `generate_worldbook_skeleton` 不再作为助手的长文入口。世界书单条生成/重写与面板共用 `worldbookShared` 的上下文拼装。引擎面板的分阶段生成不走这条改道。生成结果若未点名已有人物或物品，工具返回 `linkWarning`，不阻断写入。
 
+`rewrite_greeting` / `expand_greeting` 的 `alternate` 小于当前备选条数时改这一条；等于当前条数时追加一条再生成。跳号拒绝，错误写明当前条数和下一号，这一轮结束，确认卡不留下。`update_alternate_greeting` 只改已有条目，不能追加。
+
 开场初始值走 `set_greeting_init`，`target` 与 `rewrite_greeting` / `expand_greeting` 相同（`main`、`{ alternate: n }` 或序号）。`overrides` 只写和世界书 `[initvar]` 保底不同的路径和值；`clear: true` 从空表开始，值为 `null` 删掉一条。没有保底时拒绝，提示先生成变量。`rewrite_greeting` 写完正文后清掉这一条的旧初始值，返回 `initCleared`；`expand_greeting`、`update_alternate_greeting`、`update_character_fields` 保留。`get_character_fields` 带回 `greetingInitMain` 与 `greetingInitAlts`。
+
+## 状态栏
+
+助手不自己拼设计 JSON。状态栏只有这五件工具，都走面板已有的生成和写入：
+
+| 工具 | 做什么 |
+|------|--------|
+| `get_statusbar` | 读主角勾选、每个人名和是否勾选、模块、额外要求、排版说明、是否已有排版、变量的路径/类型/默认值/说明。不含对局运行值 |
+| `set_statusbar` | 不调模型。`selectedNames` 是勾选全集，名字必须是当前人物条目，名单外的人变为不勾。可同时改主角、模块、额外要求和排版说明。小改，自动应用 |
+| `generate_statusbar_variables` | 与面板「生成」同一条路。不改已有排版 HTML |
+| `edit_statusbar_variables` | 按路径整批 `set` / `add` / `remove`。不调模型，不重新生成排版。同一批路径重复、改路径名、新增缺 type/default、删不存在的路径，整批不写 |
+| `generate_statusbar_layout` | `revise: false` 重新生成，`revise: true` 修改。与面板两个按钮同一条路 |
+
+旧的 `get_mvu_state`、`infer_mvu_variables`、`upsert_mvu_design`、`upsert_mvu_variables`、`clear_mvu`、`patch_mvu_node` 不再出现在工具列表里。若仍被调用，返回失败并指出改用哪一个新工具，不写入。`draft_nsfw_statusbar` 仍是小说只读草案，不写这屏。这五件也不进试聊回流允许列表。
+
+助手这一轮已经占着 `card.assistant.react`。生成和排版从助手进来时不再另开 `card.statusbar.generate` / `card.statusbar.layout`，停止会取消这次请求。门槛没过（没勾人、没开模块、没有变量、没有排版说明、还没有排版）时错误回到规划，同一轮里可以先 `set_statusbar` 再生成。请求没到达仍把确认卡打开，不自动再提交。
 
 ## 相关
 

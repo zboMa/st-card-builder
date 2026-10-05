@@ -8,7 +8,7 @@ import { showConfirmDialog } from '../../ui/confirmDialog.mjs';
 import { createVirtualList } from '../../ui/virtualList.mjs';
 import { wbCategoryToEntityType } from './worldbookExtractUtil.mjs';
 import { projectNovelWorldbookMeta } from '../../worldbook/novelEntityProjection.mjs';
-import { wbKindLabel } from '../../worldbook/worldbookUi.mjs';
+import { wbNovelDraftType } from '../../worldbook/worldbookUi.mjs';
 
 /** 与主卡世界书一致：估算行高 */
 var NOVEL_WB_VL_ROW_HEIGHT = 72;
@@ -301,21 +301,24 @@ export function attachNovelWorldbookRender(ctx, panel) {
     var previewLine = truncatePreviewLine(e.content, 80);
     var syncBadge = row.syncBadge;
     var meta = projectNovelWorldbookMeta(e);
-    var kindChip = meta.kind
-      ? '<span class="wb-kind-tag">' + escapeHtml(wbKindLabel(meta.kind)) + '</span>'
-      : '';
+    var typeTag = wbNovelDraftType({ category: e.category, kind: meta.kind });
+    var kindChip = '<span class="' + typeTag.className + '">' + escapeHtml(typeTag.label) + '</span>';
     return '<div class="entry-item" data-wb-index="' + i + '">'
       + '<div class="entry-item-header">'
       + '<input type="checkbox" data-wb-act="sel" data-wb-index="' + i + '"' + (e.selected !== false ? ' checked' : '') + ' />'
       + '<div class="entry-info">'
-      + '<div class="entry-info-title-row"><button type="button" class="novel-list-title" data-wb-act="edit" data-wb-index="' + i + '" title="编辑条目">'
+      + '<div class="entry-info-title-row">'
+      + '<span class="entry-title-group">'
+      + '<button type="button" class="entry-title-btn" data-wb-act="edit" data-wb-index="' + i + '" title="编辑条目">'
       + escapeHtml(e.name || meta.displayName || '未命名') + '</button>'
-      + kindChip + strategyBadge + syncBadge(e.syncStatus)
+      + kindChip
+      + '</span>'
+      + '<span class="entry-title-badges">' + strategyBadge + syncBadge(e.syncStatus)
       + (enriched ? '' : ' <span class="novel-sync-badge unsynced">待丰满</span>')
+      + '</span>'
       + '</div>'
       + (previewLine ? '<p class="entry-preview-line">' + escapeHtml(previewLine) + '</p>' : '')
-      + '<p class="entry-meta-line">' + escapeHtml(e.category || '')
-      + ' · ' + String(e.content || '').length + ' 字'
+      + '<p class="entry-meta-line">' + String(e.content || '').length + ' 字'
       + ((e.keys || []).length ? ' · 触发词 ' + escapeHtml((e.keys || []).slice(0, 4).join(', ')) : '')
       + '</p>'
       + '</div>'

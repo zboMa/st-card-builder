@@ -25,6 +25,7 @@ export function attachBootAiConfig(ctx) {
       key: (document.getElementById('apiKey') || {}).value || '',
       model: (document.getElementById('modelSelect') || {}).value || '',
       debug: !!(document.getElementById('aiDebugEnable') && document.getElementById('aiDebugEnable').checked),
+      assistantAutoApply: !!(document.getElementById('assistantAutoApply') && document.getElementById('assistantAutoApply').checked),
       tagContextChars: document.getElementById('tagContextChars')
         ? (parseInt(document.getElementById('tagContextChars').value, 10) || 12000)
         : 12000,
@@ -157,6 +158,8 @@ export function attachBootAiConfig(ctx) {
       }
       var dbg = document.getElementById('aiDebugEnable');
       if (dbg) dbg.checked = !!c.debug;
+      var autoApplyEl = document.getElementById('assistantAutoApply');
+      if (autoApplyEl) autoApplyEl.checked = c.assistantAutoApply === true;
       if (c.tagContextChars != null && window.__setTagContextChars__) {
         window.__setTagContextChars__(c.tagContextChars);
       }
@@ -288,6 +291,8 @@ export function attachBootAiConfig(ctx) {
     ctx.updateAIDebugStatus();
     saveAIConfig();
   });
+  var autoApplyEl = document.getElementById('assistantAutoApply');
+  if (autoApplyEl) autoApplyEl.addEventListener('change', saveAIConfig);
   var genModeSel = document.getElementById('aiEngineGenMode');
   var pauseOutlineEl = document.getElementById('aiEnginePauseAfterOutline');
   var skCountInput = document.getElementById('wbSkeletonCount');

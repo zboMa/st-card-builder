@@ -31,7 +31,7 @@ export function isPersonWorldbookComment(comment) {
 export function isPersonWorldbookEntry(entry) {
   if (!entry) return false;
   if (isNovelPersonEntry(entry)) return true;
-  if (entry.kind === 'outline_person' && String(entry.owner || '') === WB_OWNER.user) return true;
+  if (entry.kind === 'outline_person') return true;
   return isPersonWorldbookComment(entryExportComment(entry));
 }
 
@@ -62,7 +62,7 @@ export function personNameFromWorldbookEntry(entry) {
   if (!entry) return '';
   var fromPrefix = personNameFromWorldbookComment(entryExportComment(entry));
   if (fromPrefix) return fromPrefix;
-  if (entry.kind === 'outline_person' && String(entry.owner || '') === WB_OWNER.user) {
+  if (entry.kind === 'outline_person') {
     return String(entry.displayName || '').trim();
   }
   return '';

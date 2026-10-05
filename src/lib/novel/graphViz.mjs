@@ -1,6 +1,7 @@
 /**
  * 知识图谱 G6 可视化（浏览器端）
- * 主角锚点居中放大；节点按度数加权；暗色下贴近「圆内白字 + 细曲边」风格
+ * 主角锚点居中放大；节点按度数加权。
+ * 圆内短标签保持白字（压在类型色上）；节点下方名称和边标签读当前主题字色。
  */
 import { Graph, NodeEvent, EdgeEvent, CanvasEvent } from "@antv/g6";
 
@@ -37,6 +38,64 @@ var COLLIDE_BASE = 44;
 var MIN_CENTER_DIST = 56;
 /** 孤立点相对主簇外沿的额外间距 */
 var ISOLATE_RING_PAD = 80;
+
+var liveGraphs = [];
+var themeHooked = false;
+var inkCache = null;
+
+function graphInk() {
+  if (inkCache) return inkCache;
+  var fallback = {
+    label: "#292524",
+    edge: "#44403c",
+    warning: "#a16207",
+    edgeStroke: "#a8a29e",
+  };
+  if (typeof document === "undefined" || !document.documentElement) {
+    inkCache = fallback;
+    return inkCache;
+  }
+  var cs = getComputedStyle(document.documentElement);
+  function pick(name, fb) {
+    var v = (cs.getPropertyValue(name) || "").trim();
+    return v || fb;
+  }
+  inkCache = {
+    label: pick("--color-text", fallback.label),
+    edge: pick("--color-text-secondary", fallback.edge),
+    warning: pick("--color-warning", fallback.warning),
+    edgeStroke: pick("--color-border", fallback.edgeStroke),
+  };
+  return inkCache;
+}
+
+function untrackGraph(graph) {
+  var i = liveGraphs.indexOf(graph);
+  if (i >= 0) liveGraphs.splice(i, 1);
+}
+
+function redrawLiveGraphs() {
+  inkCache = null;
+  liveGraphs = liveGraphs.filter(function (g) {
+    return g && !g.destroyed;
+  });
+  liveGraphs.forEach(function (g) {
+    try {
+      if (typeof g.draw === "function") g.draw();
+      else if (typeof g.render === "function") g.render();
+    } catch (e) {
+      /* ignore */
+    }
+  });
+}
+
+function trackGraph(graph) {
+  if (!graph) return;
+  if (liveGraphs.indexOf(graph) < 0) liveGraphs.push(graph);
+  if (themeHooked || typeof window === "undefined") return;
+  themeHooked = true;
+  window.addEventListener("app-theme-changed", redrawLiveGraphs);
+}
 
 var FORCE_LAYOUT = {
   type: "d3-force",
@@ -874,6 +933,7 @@ export function mountOrUpdateGraph(container, graphData, existing, opts) {
       existing.__novelHighlightDegree !== highlightDegree ||
       existing.__novelLabelPlacement !== labelPlacement;
     if (needRebuild) {
+      untrackGraph(existing);
       try {
         existing.destroy();
       } catch (e) {
@@ -916,6 +976,7 @@ export function mountOrUpdateGraph(container, graphData, existing, opts) {
     existing.__novelGraphMode = mode;
     existing.__novelGraphReadOnly = readOnly;
     existing.__novelLabelPlacement = labelPlacement;
+    trackGraph(existing);
     layoutAndFit(existing);
     return existing;
   }
@@ -966,8 +1027,8 @@ export function mountOrUpdateGraph(container, graphData, existing, opts) {
           );
         },
         labelPlacement: labelPlacement,
-        labelFill: function (d) {
-          if (labelPlacement === "bottom") return "rgba(226, 232, 240, 0.92)";
+        labelFill: function () {
+          if (labelPlacement === "bottom") return graphInk().label;
           return "#ffffff";
         },
         labelFontSize: function (d) {
@@ -1007,7 +1068,9 @@ export function mountOrUpdateGraph(container, graphData, existing, opts) {
     edge: {
       type: "quadratic",
       style: {
-        stroke: "rgba(148, 163, 184, 0.45)",
+        stroke: function () {
+          return graphInk().edgeStroke;
+        },
         lineWidth: 1.1,
         opacity: 1,
         endArrow: true,
@@ -1015,7 +1078,9 @@ export function mountOrUpdateGraph(container, graphData, existing, opts) {
         labelText: function (d) {
           return (d.data && d.data.label) || "";
         },
-        labelFill: "rgba(203, 213, 225, 0.78)",
+        labelFill: function () {
+          return graphInk().edge;
+        },
         labelFontSize: 9,
         labelBackground: false,
         labelAutoRotate: true,
@@ -1024,13 +1089,17 @@ export function mountOrUpdateGraph(container, graphData, existing, opts) {
         selected: {
           stroke: "#fbbf24",
           lineWidth: 2.2,
-          labelFill: "#fde68a",
+          labelFill: function () {
+            return graphInk().warning;
+          },
           opacity: 1,
         },
         active: {
           stroke: "rgba(251, 191, 36, 0.75)",
           lineWidth: 1.6,
-          labelFill: "rgba(253, 230, 138, 0.9)",
+          labelFill: function () {
+            return graphInk().warning;
+          },
           opacity: 1,
         },
         inactive: {
@@ -1050,6 +1119,7 @@ export function mountOrUpdateGraph(container, graphData, existing, opts) {
   graph.__novelGraphMode = mode;
   graph.__novelGraphReadOnly = readOnly;
   graph.__novelLabelPlacement = labelPlacement;
+  trackGraph(graph);
   graph
     .render()
     .then(function () {
@@ -1066,6 +1136,7 @@ export function relayoutGraph(graph) {
 }
 
 export function destroyGraph(graph) {
+  untrackGraph(graph);
   if (graph && typeof graph.destroy === "function" && !graph.destroyed) {
     try {
       graph.destroy();
