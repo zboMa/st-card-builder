@@ -56,8 +56,8 @@ describe('split import regression', function() {
     assert.match(src, /import \{ buildRagInjectBlock, pickRelatedEntities \} from '\.\/rag\/inject\.mjs'/);
   });
 
-  it('adultConfigBind 桥接写入做一致性归一', function() {
-    var src = readFileSync(join(root, 'src/lib/card-builder/panels/adultConfigBind.mjs'), 'utf8');
+  it('adultConfigBridge 桥接写入做一致性归一', function() {
+    var src = readFileSync(join(root, 'src/lib/card-builder/panels/adultConfigBridge.mjs'), 'utf8');
     assert.match(src, /CORRUPTION_PRESETS\[ctx\.state\.corruptionPreset\]/);
     assert.match(src, /resolveStageNames\(/);
     assert.match(src, /ensureNtlItemsOnState\(\)/);

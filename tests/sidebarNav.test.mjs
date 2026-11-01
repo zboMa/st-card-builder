@@ -20,9 +20,24 @@ function readCardManagerSources(base) {
     'cardManagerCloud.mjs',
     'cardManagerExport.mjs',
     'cardManagerBind.mjs',
+    'cardManagerViewModel.mjs',
+    'cardManagerBridge.mjs',
   ].map(function (f) {
     return readFileSync(join(base, 'src/lib/card-builder/panels', f), 'utf8');
-  }).join('');
+  }).concat([
+    'CardManagerPanel.vue',
+    'CardManagerToolbar.vue',
+    'CardManagerFilters.vue',
+    'CardManagerGrid.vue',
+    'CardManagerCard.vue',
+    'CardCloudStatus.vue',
+    'CardPopover.vue',
+    'CardMoreMenu.vue',
+    'CardVersionMenu.vue',
+    'ExportChecklistModal.vue',
+  ].map(function (f) {
+    return readFileSync(join(base, 'src/components/cardManager', f), 'utf8');
+  })).join('');
 }
 
 /** 数据驱动侧栏在前端 matter 中的 view 契约 */
@@ -146,17 +161,17 @@ describe('sidebar navigation contract', function() {
     const exSrc = readFileSync(join(root, 'src/lib/card-builder/panels/export.mjs'), 'utf8');
     assert.match(cmSrc, /card-manager-cover/);
     assert.match(cmSrc, /avatarInIdb/);
-    assert.match(chSrc, /hydrateManagerCoverThumb/);
+    assert.match(cmSrc, /hydrateManagerCoverThumb/);
     assert.match(chSrc, /applyAvatarFromImage/);
     assert.match(cmSrc, /getDraftsForDisplay/);
     assert.match(stSrc, /buildDraftSnapshot/);
     assert.match(cmSrc, /card-manager-item-actions__group--end/);
-    assert.match(cmSrc, /document\.body\.appendChild\(pop\)/);
-    assert.match(cmSrc, /is-fixed-portal/);
-    assert.match(cmSrc, /handleCardMoreAction/);
+    assert.match(cmSrc, /Teleport to="body"/);
+    assert.match(cmSrc, /position = 'fixed'/);
+    assert.match(cmSrc, /cardMoreAction/);
     assert.match(mgr, /card-manager-item-actions__group--end/);
     assert.match(mgr, /position:\s*fixed/);
-    assert.match(cmSrc, /buildCardManagerActionsHtml/);
+    assert.match(cmSrc, /cardManagerApi/);
     assert.match(cmSrc, /btn-icon--sm card-mgr-icon/);
     assert.match(cmSrc, /card-manager-item-actions__group/);
     assert.doesNotMatch(cmSrc, /btn-fetch.*export-json/);

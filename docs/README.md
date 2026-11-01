@@ -31,6 +31,7 @@
 | 小说创作（story studio） | [`architecture/story-studio.md`](./architecture/story-studio.md) |
 | Story 千章规模（Spine/Body/Memory · L1） | [`architecture/story-scale.md`](./architecture/story-scale.md) |
 | 试聊运行时 | [`architecture/chat-runtime.md`](./architecture/chat-runtime.md) |
+| Vue 迁移 / 重构规范（单一数据源、面板迁移 SOP） | [`architecture/vue-migration.md`](./architecture/vue-migration.md) |
 | 生产部署 / Nginx | [`ops/production.md`](./ops/production.md)、[`ops/nginx.md`](./ops/nginx.md) |
 | 发版前手测 | [`ops/regression-checklist.md`](./ops/regression-checklist.md)（自动化以 `npm test` 为准） |
 | 写卡教程 / 目录扩写质量 | [`guides/`](./guides/)（**§2.0 多人卡原生**） |
@@ -46,6 +47,7 @@
 | ST 卡字段 | `docs/domains/st-card-fields.md` + `src/lib/assistant/characterFields.mjs` | 随手猜的 ST 字段名 |
 | NSFW / NTL | **代码** `src/lib/adult/**`；规则见 `domains/nsfw-ntl.md`（**禁止文档写死口味数量**） | README / 旧架构里的数量 |
 | 部署 | `docs/ops/production.md` + `deploy/` + `.github/workflows/deploy.yml` | 「没有 CI/Docker」类传言 |
+| 前端 Vue 迁移 | `docs/architecture/vue-migration.md` + `src/lib/store/**` | 各面板私有的迁移约定 |
 | 产品级设计思想 | `docs/architecture/core-design-philosophy.md`（§1–§7、§10；§5.3、§6） | `archive/philosophy-tracker-2026-08.md` 的快照和票表 |
 | 主题场景 | `src/lib/theme/` + `docs/ui/design-system.md` | v3 文内未实施的 M3–M5 |
 

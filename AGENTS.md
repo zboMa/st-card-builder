@@ -16,6 +16,7 @@ Agent / 贡献者契约。**详细规则只维护在 `docs/` 真相源（SoT）*
 | 架构总览 | [`docs/architecture/overview.md`](docs/architecture/overview.md) |
 | Story 千章规模 | [`docs/architecture/story-scale.md`](docs/architecture/story-scale.md) |
 | 核心设计思想 | [`docs/architecture/core-design-philosophy.md`](docs/architecture/core-design-philosophy.md) |
+| Vue 迁移规范 | [`docs/architecture/vue-migration.md`](docs/architecture/vue-migration.md) |
 | 部署 | [`docs/ops/production.md`](docs/ops/production.md) |
 
 ## Quick commands

@@ -206,10 +206,11 @@ describe('corruptionProgress', function() {
   });
 
   it('UI and assistant wiring present on adult-config module', function() {
-    var panel = readFileSync(join(root, 'src/components/AdultConfigPanel.astro'), 'utf8');
+    var astro = readFileSync(join(root, 'src/components/AdultConfigPanel.astro'), 'utf8');
+    assert.doesNotMatch(astro, /btnGenCorruptionLore/);
+    var panel = readAdultConfigPanelSources(root);
     assert.match(panel, /adultCorruptionEnabled/);
     assert.match(panel, /btnGenSystemDigest/);
-    assert.doesNotMatch(panel, /btnGenCorruptionLore/);
     var adult = readAdultConfigPanelSources(root);
     assert.match(adult, /runGenerateCorruptionLore/);
     assert.match(adult, /findWorldbookPersonContext/);
@@ -242,7 +243,7 @@ describe('corruptionProgress', function() {
   });
 
   it('pipeline docs: adult config separate; worldbook person prefix', function() {
-    var adult = readFileSync(join(root, 'src/components/AdultConfigPanel.astro'), 'utf8');
+    var adult = readAdultConfigPanelSources(root);
     assert.match(adult, /仅世界书管道|世界书管道/);
     // Astro 壳 + 渲染逻辑：同步目标为世界书人物条，禁止「→ 角色设定」
     var chars = [

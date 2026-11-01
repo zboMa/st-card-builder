@@ -1,212 +1,19 @@
 /**
- * 卡片管理：Bind（拆自 cardManager）
+ * 角色卡管理：非 DOM 的生命周期与全局桥接。
+ * 列表/筛选/工具栏/菜单的 DOM 交互已迁到 Vue，这里只保留事件、助手 API、保存冲刷。
  */
 
 import { buildExportChecklist } from '../exportChecklist.mjs';
 import { buildCardJSONFromDraft, draftDisplayName } from '../state.mjs';
-import { getCardShareMeta } from '../cardShareClient.mjs';
 import { engineTryAllowed } from '../../actionEngine/helpers.mjs';
 import { hydrateDraftsStore } from '../../draftsStore.mjs';
+import { installCardManagerBridge } from './cardManagerBridge.mjs';
 
 /** @param {object} ctx @param {object} s @param {object} panel */
 export function attachCardManagerBind(ctx, s, panel) {
-  function handleCardMoreAction(action, id) {
-    if (!action || !id) return;
-    panel.closeCardMoreMenu();
-    if (action === 'export-check') panel.openExportChecklistModal();
-    else if (action === 'export-json') panel.exportDraftAsJson(id);
-    else if (action === 'export-png') panel.exportDraftAsPng(id);
-    else if (action === 'publish') panel.publishDraft(id);
-    else if (action === 'share') panel.shareDraft(id);
-    else if (action === 'reset-share') panel.shareDraft(id, { resetToken: true });
-    else if (action === 'copy-share') panel.copyShareLink(id);
-    else if (action === 'unshare') panel.unshareDraft(id);
-    else if (action === 'cloud-upload') panel.cloudUploadOverwrite(id);
-    else if (action === 'cloud-download') panel.cloudDownloadOverwrite(id);
-    else if (action === 'cloud-delete') panel.cloudDeleteRemote(id);
-  }
-
-  // ---- Event bindings ----
+  // ---- Event bindings（DOM 部分已迁移到 Vue） ----
   panel.bind = function () {
-    panel.bindExportChecklistUi();
-
-    var searchEl = ctx.$('cardManagerSearch');
-    var searchClear = ctx.$('cardManagerSearchClear');
-    function syncSearchClear() {
-      if (!searchClear) return;
-      searchClear.hidden = !(searchEl && String(searchEl.value || '').length);
-    }
-    if (searchEl && !searchEl._cardMgrBound) {
-      searchEl._cardMgrBound = true;
-      searchEl.addEventListener('input', function() {
-        s.cardManagerSearchQuery = searchEl.value || '';
-        syncSearchClear();
-        panel.updateCardManagerUI();
-      });
-      syncSearchClear();
-    }
-    if (searchClear && !searchClear._cardMgrBound) {
-      searchClear._cardMgrBound = true;
-      searchClear.addEventListener('click', function() {
-        if (searchEl) searchEl.value = '';
-        s.cardManagerSearchQuery = '';
-        syncSearchClear();
-        panel.updateCardManagerUI();
-        if (searchEl) searchEl.focus();
-      });
-    }
-
-    var tagBar = ctx.$('cardManagerTagBar');
-    if (tagBar && !tagBar._cardMgrBound) {
-      tagBar._cardMgrBound = true;
-      tagBar.addEventListener('click', function(e) {
-        var chip = e.target.closest('[data-card-tag]');
-        if (chip) {
-          e.preventDefault();
-          s.toggleFilterTag(chip.getAttribute('data-card-tag'));
-          return;
-        }
-        if (e.target.closest('#btnCardTagClear')) {
-          e.preventDefault();
-          s.selectedFilterTags.clear();
-          panel.updateCardManagerUI();
-        }
-      });
-    }
-
-    var pickerBtn = ctx.$('btnCardTagPicker');
-    if (pickerBtn && !pickerBtn._cardMgrBound) {
-      pickerBtn._cardMgrBound = true;
-      pickerBtn.addEventListener('click', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        s.setTagPopupOpen(!s.tagPopupOpen);
-        if (s.tagPopupOpen) {
-          s.renderTagFilters(s.collectAllTags(s.getDraftsForDisplay()));
-        }
-      });
-    }
-
-    var tagPopup = ctx.$('cardManagerTagPopup');
-    if (tagPopup && !tagPopup._cardMgrBound) {
-      tagPopup._cardMgrBound = true;
-      tagPopup.addEventListener('click', function(e) {
-        var chip = e.target.closest('[data-card-tag]');
-        if (!chip) return;
-        e.preventDefault();
-        e.stopPropagation();
-        s.toggleFilterTag(chip.getAttribute('data-card-tag'));
-      });
-    }
-
-    document.addEventListener('click', function(e) {
-      if (!s.tagPopupOpen) return;
-      var filters = ctx.$('cardManagerFilters');
-      var popup = ctx.$('cardManagerTagPopup');
-      var picker = ctx.$('btnCardTagPicker');
-      if (filters && filters.contains(e.target)) return;
-      if (popup && popup.contains(e.target)) return;
-      if (picker && (e.target === picker || picker.contains(e.target))) return;
-      s.setTagPopupOpen(false);
-    });
-    document.addEventListener('keydown', function(e) {
-      if (e.key === 'Escape') {
-        if (s.tagPopupOpen) s.setTagPopupOpen(false);
-        panel.closeCardMoreMenu();
-        panel.closeCardVersionMenu();
-      }
-    });
-
-    if (!document._cardMoreMenuBound) {
-      document._cardMoreMenuBound = true;
-      document.addEventListener('click', function(e) {
-        var pop = e.target.closest('.card-more-popover');
-        if (!pop) return;
-        var actionEl = e.target.closest('[data-card-action]');
-        if (!actionEl) return;
-        var action = actionEl.getAttribute('data-card-action');
-        var id = pop.getAttribute('data-card-id');
-        if (!id || !action) return;
-        e.preventDefault();
-        e.stopPropagation();
-        handleCardMoreAction(action, id);
-      });
-    }
-
-    var btnNewDraft = ctx.$('btnNewDraft');
-    if (btnNewDraft) {
-      btnNewDraft.addEventListener('click', function () {
-        panel.createBlankDraft({ jumpToCharacter: true });
-      });
-    }
-
-    var btnCloudSyncAll = ctx.$('btnCloudSyncAllDirty');
-    if (btnCloudSyncAll && !btnCloudSyncAll._cardMgrBound) {
-      btnCloudSyncAll._cardMgrBound = true;
-      btnCloudSyncAll.addEventListener('click', function(e) {
-        e.preventDefault();
-        if (panel.cloudUploadAllDirty) panel.cloudUploadAllDirty();
-      });
-    }
-
-    var listEl = ctx.$('cardManagerList');
-    if (listEl) {
-      listEl.addEventListener('click', function (e) {
-        var actionEl = e.target.closest('[data-card-action]');
-        var row = e.target.closest('.card-manager-item[data-draft-id]');
-        if (!row) return;
-        var id = row.getAttribute('data-draft-id');
-        var action = actionEl ? actionEl.getAttribute('data-card-action') : 'open';
-        if (action === 'delete') {
-          e.preventDefault();
-          e.stopPropagation();
-          panel.deleteDraft(id);
-          return;
-        }
-        if (action === 'dup') {
-          e.preventDefault();
-          e.stopPropagation();
-          panel.duplicateDraft(id);
-          return;
-        }
-        if (action === 'more') {
-          e.preventDefault();
-          e.stopPropagation();
-          var shareMetaMore = getCardShareMeta(id) || {};
-          panel.openCardMoreMenu(e.target.closest('[data-card-action="more"]'), id, shareMetaMore);
-          return;
-        }
-        if (action === 'cloud-upload' || action === 'cloud-download' || action === 'cloud-delete') {
-          e.preventDefault();
-          e.stopPropagation();
-          handleCardMoreAction(action, id);
-          return;
-        }
-        if (action === 'versions') {
-          e.preventDefault();
-          e.stopPropagation();
-          panel.openCardVersionMenu(e.target.closest('[data-card-action="versions"]'), id);
-          return;
-        }
-        if (action === 'rename') {
-          e.preventDefault();
-          e.stopPropagation();
-          panel.renameDraft(id);
-          return;
-        }
-        if (action === 'export-check') {
-          e.preventDefault();
-          e.stopPropagation();
-          panel.closeCardMoreMenu();
-          panel.openExportChecklistModal();
-          return;
-        }
-        // Click cover/name area: switch to that draft and go to character view
-        panel.closeCardMoreMenu();
-        panel.loadDraft(id);
-        s.goToView('character');
-      });
-    }
+    installCardManagerBridge(ctx, s, panel);
 
     // 进入角色卡管理：唯一入口单流程。
     // 数据在 boot 时已就绪（browserApp st-idb-ready 已 hydrate 本地 + 拉云端索引）：
@@ -251,7 +58,7 @@ export function attachCardManagerBind(ctx, s, panel) {
       } catch (eFlush) { /* ignore */ }
     }
     window.addEventListener('pagehide', flushPendingCardSaves);
-    document.addEventListener('visibilitychange', function() {
+    document.addEventListener('visibilitychange', function () {
       if (document.visibilityState === 'hidden') flushPendingCardSaves();
     });
 
@@ -354,7 +161,7 @@ export function attachCardManagerBind(ctx, s, panel) {
           firstMes: ctx.state.firstMes || (ctx.$('firstMes') || {}).value || '',
           hasAvatar: !!(ctx.state.avatarInIdb || ctx.state.avatarBase64),
           worldbookCount: wb.length,
-          worldbookNoKeys: wb.filter(function(e) {
+          worldbookNoKeys: wb.filter(function (e) {
             return e && e.enabled !== false && (!e.keys || !e.keys.length);
           }).length,
           altGreetingCount: Array.isArray(window.__altGreetings__) ? window.__altGreetings__.length : 0,
@@ -362,32 +169,24 @@ export function attachCardManagerBind(ctx, s, panel) {
       },
     };
 
-    var btnRefreshChecklist = ctx.$('btnRefreshExportChecklist');
-    if (btnRefreshChecklist) {
-      btnRefreshChecklist.addEventListener('click', function() {
-        panel.refreshExportChecklist();
-      });
-    }
-    if (s.getCurrentAppView() === 'card-manager') panel.refreshExportChecklist();
-
-    ctx.sm.on(function(result) {
+    ctx.sm.on(function (result) {
       panel.updateCardManagerUI(result && result.drafts);
     });
 
-    window.addEventListener('card-builder-data-changed', function() {
+    window.addEventListener('card-builder-data-changed', function () {
       if (s.getCurrentAppView() === 'card-manager') panel.updateCardManagerUI();
     });
 
-    import('../../sync/cloudStore.mjs').then(function(cloudMod) {
+    import('../../sync/cloudStore.mjs').then(function (cloudMod) {
       if (!cloudMod.onCloudEvent) return;
-      cloudMod.onCloudEvent(function(ev) {
+      cloudMod.onCloudEvent(function (ev) {
         if (!ev || ev.type !== 'index-merged') return;
         if (s.getCurrentAppView() === 'card-manager') panel.updateCardManagerUI();
       });
-    }).catch(function() { /* ignore */ });
+    }).catch(function () { /* ignore */ });
 
-    window.addEventListener('card-local-saved', function() {
-      import('../../sync/index.mjs').then(function(sync) {
+    window.addEventListener('card-local-saved', function () {
+      import('../../sync/index.mjs').then(function (sync) {
         if (!sync.isCloudEnabled || !sync.isCloudEnabled()) return;
         ctx.appFeedback({
           message: '已本地保存；改完请到卡管理点「同步上云」',
@@ -395,11 +194,11 @@ export function attachCardManagerBind(ctx, s, panel) {
           channel: 'toast',
           duration: 5000,
         });
-      }).catch(function() { /* ignore */ });
+      }).catch(function () { /* ignore */ });
     });
 
-    window.addEventListener('assistant-change-summary', function() {
-      import('../../sync/index.mjs').then(function(sync) {
+    window.addEventListener('assistant-change-summary', function () {
+      import('../../sync/index.mjs').then(function (sync) {
         if (!sync.isCloudEnabled || !sync.isCloudEnabled()) return;
         ctx.appFeedback({
           message: '助手已修改卡片；请到卡管理点「同步上云」',
@@ -407,8 +206,11 @@ export function attachCardManagerBind(ctx, s, panel) {
           channel: 'toast',
           duration: 5000,
         });
-      }).catch(function() { /* ignore */ });
+      }).catch(function () { /* ignore */ });
     });
+
+    // 首屏若已在卡管理视图，主动渲染一次
+    if (s.getCurrentAppView() === 'card-manager') panel.updateCardManagerUI();
   };
   return panel;
 }

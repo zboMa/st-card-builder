@@ -419,16 +419,15 @@ describe('novel nsfwSupport', function() {
   });
 
   it('UI/桥接/助手工具接线：卡级 NSFW/NTL 在世界与限定', function() {
-    const adultPanel = readFileSync(join(root, 'src/components/AdultConfigPanel.astro'), 'utf8');
-    assert.match(adultPanel, /世界与限定/);
-    assert.match(adultPanel, /data-adult-add="worldview"/);
-    assert.match(adultPanel, /adultNsfwEnabled/);
-    assert.match(adultPanel, /adultNtlEnabled/);
-    assert.match(adultPanel, /adultNsfwFlavor/);
-    assert.match(adultPanel, /情欲|NSFW/);
-    assert.match(adultPanel, /重新推断/);
-    assert.match(adultPanel, /清掉手动覆盖|按主预设/);
     const adultLogic = readAdultConfigPanelSources(root);
+    assert.match(adultLogic, /世界与限定/);
+    assert.match(adultLogic, /data-adult-add="worldview"/);
+    assert.match(adultLogic, /adultNsfwEnabled/);
+    assert.match(adultLogic, /adultNtlEnabled/);
+    assert.match(adultLogic, /adultNsfwFlavor/);
+    assert.match(adultLogic, /情欲|NSFW/);
+    assert.match(adultLogic, /重新推断/);
+    assert.match(adultLogic, /清掉手动覆盖|按主预设/);
     assert.match(adultLogic, /data-flavor-up/);
     assert.match(adultLogic, /moveFlavorItem/);
     const charPanel = readCharacterPanelSources(root);

@@ -18,9 +18,24 @@ function readCardManagerSources(base) {
     'cardManagerCloud.mjs',
     'cardManagerExport.mjs',
     'cardManagerBind.mjs',
+    'cardManagerViewModel.mjs',
+    'cardManagerBridge.mjs',
   ].map(function (f) {
     return readFileSync(join(base, 'src/lib/card-builder/panels', f), 'utf8');
-  }).join('');
+  }).concat([
+    'CardManagerPanel.vue',
+    'CardManagerToolbar.vue',
+    'CardManagerFilters.vue',
+    'CardManagerGrid.vue',
+    'CardManagerCard.vue',
+    'CardCloudStatus.vue',
+    'CardPopover.vue',
+    'CardMoreMenu.vue',
+    'CardVersionMenu.vue',
+    'ExportChecklistModal.vue',
+  ].map(function (f) {
+    return readFileSync(join(base, 'src/components/cardManager', f), 'utf8');
+  })).join('');
 }
 
 describe('exportChecklist', function() {
@@ -108,7 +123,7 @@ describe('exportChecklist', function() {
     assert.match(panel, /ui-search-bar|wb-search-bar/);
     assert.match(panel, /card-manager-cover-overlay|cover-overlay/);
     var mgr = readCardManagerSources(root);
-    assert.match(mgr, /bindExportChecklistUi/);
+    assert.match(mgr, /ExportChecklistModal/);
     assert.match(mgr, /openExportChecklistModal/);
     assert.match(mgr, /card-manager-check-badge/);
     assert.match(mgr, /export-check/);

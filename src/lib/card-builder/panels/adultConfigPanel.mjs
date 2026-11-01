@@ -1,5 +1,9 @@
 /**
  * 成人配置：面板 API（拆自 adultConfig）
+ *
+ * Vue 迁移后：本文件的 DOM 渲染/读值/同步方法（render* / read*FromUi / sync*FromUi /
+ * openAddModal 等）已由 adultConfigState.mjs 覆盖为 state 操作，实际不再执行；
+ * AI 生成 / 目标候选 / 目录 / 状态栏同步逻辑继续保留。
  */
 import {
   normalizeCorruptionConfig,

@@ -26,6 +26,16 @@ export function readAssistantPanelSources(base) {
     readFileSync(join(base, 'src/components/AssistantPanel.astro'), 'utf8'),
     readFileSync(join(base, 'src/styles/assistant-panel.css'), 'utf8'),
     readFileSync(join(base, 'src/lib/assistant/panelBoot.mjs'), 'utf8'),
+    readFileSync(join(base, 'src/lib/assistant/assistantViewModel.mjs'), 'utf8'),
+    readFileSync(join(base, 'src/lib/assistant/assistantBridge.mjs'), 'utf8'),
+    readFileSync(join(base, 'src/components/assistant/AssistantHeader.vue'), 'utf8'),
+    readFileSync(join(base, 'src/components/assistant/AssistantStage.vue'), 'utf8'),
+    readFileSync(join(base, 'src/components/assistant/AssistantMessage.vue'), 'utf8'),
+    readFileSync(join(base, 'src/components/assistant/AssistantToolCard.vue'), 'utf8'),
+    readFileSync(join(base, 'src/components/assistant/AssistantCompaction.vue'), 'utf8'),
+    readFileSync(join(base, 'src/components/assistant/AssistantPending.vue'), 'utf8'),
+    readFileSync(join(base, 'src/components/assistant/AssistantComposer.vue'), 'utf8'),
+    readFileSync(join(base, 'src/components/assistant/AssistantModals.vue'), 'utf8'),
   ].join('');
 }
 
@@ -95,6 +105,18 @@ export function readCardManagerPanelSources(base) {
     readFileSync(join(base, 'src/lib/card-builder/cardManagerPanelBoot.mjs'), 'utf8'),
     readFileSync(join(base, 'src/lib/card-builder/panels/cardManager.mjs'), 'utf8'),
     readFileSync(join(base, 'src/lib/card-builder/panels/cardManagerBind.mjs'), 'utf8'),
+    readFileSync(join(base, 'src/components/cardManager/CardManagerPanel.vue'), 'utf8'),
+    readFileSync(join(base, 'src/components/cardManager/CardManagerToolbar.vue'), 'utf8'),
+    readFileSync(join(base, 'src/components/cardManager/CardManagerFilters.vue'), 'utf8'),
+    readFileSync(join(base, 'src/components/cardManager/CardManagerGrid.vue'), 'utf8'),
+    readFileSync(join(base, 'src/components/cardManager/CardManagerCard.vue'), 'utf8'),
+    readFileSync(join(base, 'src/components/cardManager/CardCloudStatus.vue'), 'utf8'),
+    readFileSync(join(base, 'src/components/cardManager/CardPopover.vue'), 'utf8'),
+    readFileSync(join(base, 'src/components/cardManager/CardMoreMenu.vue'), 'utf8'),
+    readFileSync(join(base, 'src/components/cardManager/CardVersionMenu.vue'), 'utf8'),
+    readFileSync(join(base, 'src/components/cardManager/ExportChecklistModal.vue'), 'utf8'),
+    readFileSync(join(base, 'src/lib/card-builder/panels/cardManagerViewModel.mjs'), 'utf8'),
+    readFileSync(join(base, 'src/lib/card-builder/panels/cardManagerBridge.mjs'), 'utf8'),
   ].join('');
 }
 
@@ -102,7 +124,17 @@ export function readCardManagerPanelSources(base) {
 export function readCharacterPanelSources(base) {
   return [
     readFileSync(join(base, 'src/components/CharacterPanel.astro'), 'utf8'),
-    readFileSync(join(base, 'src/lib/card-builder/characterPanelBoot.mjs'), 'utf8'),
+    readFileSync(join(base, 'src/components/character/CharacterPanel.vue'), 'utf8'),
+    readFileSync(join(base, 'src/components/character/CharacterTags.vue'), 'utf8'),
+    readFileSync(join(base, 'src/components/character/CharacterVersionBar.vue'), 'utf8'),
+    readFileSync(join(base, 'src/components/character/CharacterAvatarAside.vue'), 'utf8'),
+    readFileSync(join(base, 'src/components/character/CharacterAvatarGallery.vue'), 'utf8'),
+    readFileSync(join(base, 'src/components/character/CharacterAvatarGenModal.vue'), 'utf8'),
+    readFileSync(join(base, 'src/lib/card-builder/panels/character.mjs'), 'utf8'),
+    readFileSync(join(base, 'src/lib/card-builder/panels/characterViewModel.mjs'), 'utf8'),
+    readFileSync(join(base, 'src/lib/card-builder/panels/characterBridge.mjs'), 'utf8'),
+    readFileSync(join(base, 'src/lib/card-builder/panels/characterAvatar.mjs'), 'utf8'),
+    readFileSync(join(base, 'src/lib/store/characterStore.mjs'), 'utf8'),
   ].join('');
 }
 
@@ -190,14 +222,31 @@ export function readAiEnginePanelSources(base) {
 
 /** 卡侧成人配置面板（register + 拆分模块） */
 export function readAdultConfigPanelSources(base) {
-  return [
+  var lib = [
     'adultConfig.mjs',
     'adultConfigShared.mjs',
     'adultConfigPanel.mjs',
-    'adultConfigBind.mjs',
+    'adultConfigState.mjs',
+    'adultConfigBridge.mjs',
+    'adultViewModel.mjs',
   ].map(function (f) {
     return readFileSync(join(base, 'src/lib/card-builder/panels', f), 'utf8');
-  }).join('');
+  });
+  var store = [
+    'adultActions.mjs',
+    'adultStore.mjs',
+  ].map(function (f) {
+    return readFileSync(join(base, 'src/lib/store', f), 'utf8');
+  });
+  var view = [
+    'AdultConfigPanel.vue',
+    'AdultDashedList.vue',
+    'AdultAddModal.vue',
+    'AdultSelect.vue',
+  ].map(function (f) {
+    return readFileSync(join(base, 'src/components/adultConfig', f), 'utf8');
+  });
+  return lib.concat(store).concat(view).join('');
 }
 
 /** 小说工坊 worldbook 面板（register + 拆分模块） */

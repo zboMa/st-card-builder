@@ -866,7 +866,7 @@ describe('assistant prompts & UI wiring', function() {
     assert.doesNotMatch(DEFAULT_PROMPTS.assistantCharField, /开启时按 NSFW 描述体系写/);
     assert.match(readFileSync(join(root, 'src/lib/card-builder/panels/worldbookShared.mjs'), 'utf8'), /adultHints\.gate/);
     assert.match(readFileSync(join(root, 'src/lib/card-builder/panels/aiEngineShared.mjs'), 'utf8'), /adultHints\.gate/);
-    assert.match(readFileSync(join(root, 'src/lib/card-builder/panels/adultConfigBind.mjs'), 'utf8'), /formatAdultModeLine/);
+    assert.match(readFileSync(join(root, 'src/lib/card-builder/panels/adultConfigBridge.mjs'), 'utf8'), /formatAdultModeLine/);
     assert.match(DEFAULT_PROMPTS.assistantReactHint, /勿强制|跳步/);
     assert.match(DEFAULT_PROMPTS.assistantReactHint, /自然语言/);
     assert.match(DEFAULT_PROMPTS.assistantChatFeedback, /fixes/);
@@ -894,7 +894,7 @@ describe('assistant prompts & UI wiring', function() {
     assert.match(panel, /assistant-panel__messages[\s\S]*?overflow-y:\s*auto/);
     assert.match(panel, /assistant-tool-card/);
     assert.match(panel, /buildToolUiMessage/);
-    assert.match(panel, /renderToolTraceNode/);
+    assert.match(panel, /AssistantToolCard/);
   });
 
   it('确认大改后续接：暂停保持 busy，应用后继续；到步数上限有收尾提示；RAG 默认关', function() {
@@ -907,7 +907,7 @@ describe('assistant prompts & UI wiring', function() {
     assert.match(panel, /outcome === 'reopen'/);
     assert.match(panel, /outcome === 'stop'/);
     assert.match(panel, /async function applyPendingConfirm[\s\S]*?resume\(\)/);
-    assert.match(panel, /applyBtn\.addEventListener[\s\S]*?applyPendingConfirm/);
+    assert.match(panel, /applyPendingConfirm/);
     assert.match(panel, /已达单轮工具调用上限/);
     assert.match(panel, /最后一次工具调用机会/);
     assert.match(panel, /getNovelRagOptions[\s\S]*?enabled: false/);
@@ -932,7 +932,7 @@ describe('assistant prompts & UI wiring', function() {
     assert.doesNotMatch(panel, /assistantChips/);
     assert.match(panel, /assistantQuickBtn/);
     assert.match(panel, /assistantQuickMenu/);
-    assert.match(panel, /inputEl\.value\s*=\s*text/);
+    assert.match(panel, /patchAssistantView\(\{\s*input: text/);
     assert.match(panel, /data-tool/);
     assert.match(panel, /assistantReadyDot/);
     assert.match(panel, /ensureAiConfigured/);
@@ -943,13 +943,13 @@ describe('assistant prompts & UI wiring', function() {
     assert.match(panel, /assistant-tool-card__header-row/);
     assert.match(panel, /assistant-tool-card__summary/);
     assert.match(panel, /assistant-tool-card__detail/);
-    assert.match(panel, /renderToolTraceNode[\s\S]*?assistant-tool-card__header-row[\s\S]*?assistant-tool-card__summary[\s\S]*?assistant-tool-card__detail/);
+    assert.match(panel, /assistant-tool-card__header-row[\s\S]*?assistant-tool-card__summary[\s\S]*?assistant-tool-card__detail/);
     assert.match(panel, /<div class="assistant-panel__pending" id="assistantPendingBox"/);
     assert.match(panel, /assistant-panel__preview-wrap/);
     assert.doesNotMatch(panel, /pendingBox\.open/);
     assert.doesNotMatch(panel, /已准备大改预览/);
     assert.match(panel, /result\.pendingConfirm[\s\S]*?return result;/);
-    assert.match(panel, /if \(m\.pendingConfirm\) card\.open = true/);
+    assert.match(panel, /:open="tool\.pendingConfirm/);
     assert.match(panel, /id="assistantTokenCount"/);
     assert.match(panel, /assistant-token-count/);
     assert.match(panel, /updateTokenCount/);
@@ -973,7 +973,7 @@ describe('assistant prompts & UI wiring', function() {
     assert.match(panel, /id="assistantRagModal"/);
     assert.match(panel, /assistant-rag-modal/);
     assert.match(panel, /assistant-msg-rag-btn/);
-    assert.match(panel, /renderUserMessageNode/);
+    assert.match(panel, /AssistantMessage/);
     assert.match(panel, /openComposerRagPreview/);
     assert.match(panel, /openRagPreviewForMessage/);
     assert.match(panel, /ragPreview/);
@@ -993,12 +993,12 @@ describe('assistant prompts & UI wiring', function() {
   it('快捷浮层：默认 hidden，展开受控，选中后关闭', function() {
     const panel = readAssistantPanelSources(root);
     assert.match(panel, /id="assistantQuickMenu"[^>]*\bhidden\b/);
-    assert.match(panel, /aria-expanded="false"/);
+    assert.match(panel, /aria-expanded/);
     assert.match(panel, /\.assistant-quick-menu:not\(\[hidden\]\)\s*\{[^}]*display:\s*flex/s);
     assert.match(panel, /\.assistant-quick-menu\[hidden\]\s*\{[^}]*display:\s*none\s*!important/s);
-    assert.match(panel, /setQuickOpen\(false\)/);
-    assert.match(panel, /setQuickOpen\(quickMenu\.hidden\)/);
-    assert.match(panel, /!quickMenu\.contains\(e\.target\)/);
+    assert.match(panel, /quickOpen\.value = false/);
+    assert.match(panel, /quickOpen\.value = !quickOpen\.value/);
+    assert.match(panel, /!quickWrap\.value\.contains\(e\.target\)/);
   });
 
   it('标题只留思考与确认；门控与结果走 appFeedback；错误可重试、回复不复制', function() {
@@ -1019,7 +1019,7 @@ describe('assistant prompts & UI wiring', function() {
     assert.match(panel, /level: 'info'/);
     assert.match(panel, /已切换到 /);
     assert.match(panel, /retryable: true/);
-    assert.match(panel, /isTailRetryTarget\(uiMessages, index\)/);
+    assert.match(panel, /isTailRetryTarget\(list, index\)/);
     assert.match(panel, /assistantConfirmDisposition/);
     assert.match(panel, /resolveWorldbookIndex\(getWorldbook\(\)/);
     assert.match(panel, /getElementById\('assistantAutoApply'\)/);
@@ -1033,9 +1033,13 @@ describe('assistant prompts & UI wiring', function() {
     assert.match(panel, /ui-empty-tip/);
     assert.match(panel, /ui-meta/);
     assert.match(panel, /planAssistantRetry/);
+    assert.match(panel, /isTailRegenerateTarget\(list, index\)/);
+    assert.match(panel, /planAssistantReroll/);
+    assert.match(panel, /title="重新生成"/);
+    assert.match(panel, /function rerollLastTurn/);
     assert.match(panel, /reuseExisting/);
-    assert.match(panel, /node\.innerHTML = m\.error/);
-    assert.match(panel, /makeMsgIconBtn\('重试'/);
+    assert.match(panel, /escapeAssistantHtml/);
+    assert.match(panel, /title="重试"/);
     assert.doesNotMatch(panel, /makeMsgIconBtn\('复制'/);
     assert.doesNotMatch(panel, /copyPlainText/);
     assert.match(panel, /btn-icon btn-icon--sm/);

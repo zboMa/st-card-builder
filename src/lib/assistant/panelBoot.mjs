@@ -27,9 +27,6 @@ import {
     buildRunningToolMessage,
     buildToolUiMessage,
     summarizePendingConfirm,
-    toolMessageSummary,
-    parseToolNameFromLegacy,
-    parseRiskFromLegacy,
   } from './toolTraceSummary.mjs';
 import {
     estimateAssistantContext,
@@ -44,14 +41,15 @@ import {
     makeCheckpointMessage,
   } from './contextManager.mjs';
 import { isCatalogRelevantText, buildCatalogBlocks } from '../catalogSummaries.mjs';
-import { renderAssistantMarkdown, escapeAssistantHtml } from './markdownRender.mjs';
+import { buildAssistantMessages, toContextModalView } from './assistantViewModel.mjs';
+import { installAssistantBridge } from './assistantBridge.mjs';
+import { patchAssistantView, assistantStore } from '../store/assistantStore.mjs';
 import {
     buildRagPreviewPayload,
     buildUserModelContent,
     collectSnippetKeys,
     filterNewSnippets,
     formatRagPreviewMeta,
-    messageContentForDisplay,
     pickRelatedEntities,
     formatRelationContextLines,
   } from './ragInject.mjs';
@@ -59,7 +57,7 @@ import { inferMvuCandidatesFromCard, corruptionProgressGap } from '../mvu/inferF
 import { STATUS_BAR_EXT_KEY } from '../statusBar.mjs';
 import { engineTryAllowed } from '../actionEngine/helpers.mjs';
 import { appFeedback } from '../ui/appMessage.mjs';
-import { planAssistantRetry, isTailRetryTarget, planApplyOutcome } from './retryTurn.mjs';
+import { planAssistantRetry, planAssistantReroll, planApplyOutcome } from './retryTurn.mjs';
 import { assistantConfirmDisposition } from './confirmPolicy.mjs';
 import { resolveAlternateGreetingSlot } from './greetingSlot.mjs';
 import { resolveWorldbookIndex } from './executorResolve.mjs';
@@ -69,15 +67,13 @@ import { computeCardProgress } from '../card-builder/cardProgress.mjs';
 export function initAssistantPanelShellMode() {
 function initAssistantModeSwitch() {
     var panel = document.getElementById('assistantPanel');
-    var switchEl = document.getElementById('assistantModeSwitch');
-    var titleEl = document.getElementById('assistantPanelTitle');
-    var subEl = document.getElementById('assistantPanelSub');
     var stageAssistant = document.getElementById('assistantStageAssistant');
     var stageChat = document.getElementById('assistantStageChat');
-    if (!panel || !switchEl || !stageAssistant || !stageChat) return;
+    if (!panel || !stageAssistant || !stageChat) return;
 
     var current = 'assistant';
     var busy = false;
+    patchAssistantView({ mode: current });
 
     function setMode(next, opts) {
       opts = opts || {};
@@ -88,19 +84,7 @@ function initAssistantModeSwitch() {
       current = next;
       busy = true;
 
-      switchEl.setAttribute('data-mode', next);
-      switchEl.querySelectorAll('[data-assistant-mode]').forEach(function(btn) {
-        var on = btn.getAttribute('data-assistant-mode') === next;
-        btn.classList.toggle('is-active', on);
-        btn.setAttribute('aria-selected', on ? 'true' : 'false');
-      });
-
-      if (titleEl) titleEl.textContent = next === 'chat' ? 'AI 试聊' : 'AI 助手';
-      if (subEl) {
-        subEl.textContent = next === 'chat'
-          ? '按当前卡设定试聊 · 世界书/正则试运行'
-          : '智能体对话 · 需要时调用工具';
-      }
+      patchAssistantView({ mode: next });
       panel.classList.toggle('is-chat-mode', next === 'chat');
       panel.setAttribute('aria-label', next === 'chat' ? 'AI 试聊' : 'AI 辅助助手');
 
@@ -131,12 +115,6 @@ function initAssistantModeSwitch() {
       }
     }
 
-    switchEl.querySelectorAll('[data-assistant-mode]').forEach(function(btn) {
-      btn.addEventListener('click', function() {
-        setMode(btn.getAttribute('data-assistant-mode'));
-      });
-    });
-
     window.__setAssistantPanelMode__ = function(mode) {
       setMode(mode, { force: false });
       if (mode === 'chat' && typeof window.__openAssistantSheet__ === 'function') {
@@ -144,8 +122,6 @@ function initAssistantModeSwitch() {
       }
     };
     window.__getAssistantPanelMode__ = function() { return current; };
-
-    switchEl.setAttribute('data-mode', 'assistant');
   }
 
   if (document.readyState === 'loading') {
@@ -184,6 +160,7 @@ function initAssistantSheet() {
 
     function setOpen(open) {
       var on = !!open && isMobileShell();
+      patchAssistantView({ sheetOpen: on });
       panel.classList.toggle('is-assistant-open', on);
       document.body.classList.toggle('is-mobile-assistant-open', on);
       fab.setAttribute('aria-expanded', on ? 'true' : 'false');
@@ -237,6 +214,7 @@ function initAssistantSheet() {
 
     window.addEventListener('resize', function() {
       if (!isMobileShell()) {
+        patchAssistantView({ sheetOpen: false });
         panel.classList.remove('is-assistant-open');
         document.body.classList.remove('is-mobile-assistant-open');
         fab.setAttribute('aria-expanded', 'false');
@@ -266,34 +244,9 @@ export function initAssistantPanelMain() {
     } catch (e) {}
 
     var panel = document.getElementById('assistantPanel');
-    var messagesEl = document.getElementById('assistantMessages');
-    var inputEl = document.getElementById('assistantInput');
-    var actionBtn = document.getElementById('assistantActionBtn');
-    var clearBtn = document.getElementById('assistantClearBtn');
-    var undoBtn = document.getElementById('assistantUndoBtn');
-    var readyDot = document.getElementById('assistantReadyDot');
-    var statusTip = document.getElementById('assistantStatusTip');
-    var quickBtn = document.getElementById('assistantQuickBtn');
-    var quickMenu = document.getElementById('assistantQuickMenu');
-    var ragPreviewBtn = document.getElementById('assistantRagPreviewBtn');
-    var ragModal = document.getElementById('assistantRagModal');
-    var ragModalMeta = document.getElementById('assistantRagModalMeta');
-    var ragModalPreview = document.getElementById('assistantRagModalPreview');
-    var ragModalClose = document.getElementById('assistantRagModalClose');
-    var contextModal = document.getElementById('assistantContextModal');
-    var contextModalMeta = document.getElementById('assistantContextModalMeta');
-    var contextModalBody = document.getElementById('assistantContextModalBody');
-    var contextModalClose = document.getElementById('assistantContextModalClose');
-    var pendingBox = document.getElementById('assistantPendingBox');
-    var pendingSummary = document.getElementById('assistantPendingSummary');
-    var pendingPreview = document.getElementById('assistantPendingPreview');
-    var applyBtn = document.getElementById('assistantApplyBtn');
-    var rejectBtn = document.getElementById('assistantRejectBtn');
-    var autoApplyBtn = document.getElementById('assistantAutoApplyBtn');
-    var tokenCountEl = document.getElementById('assistantTokenCount');
     var tokenCountTimer = null;
 
-    if (!panel || !messagesEl || !inputEl) return;
+    if (!panel) return;
 
     var sessionStore = createAssistantSessionStore(window.localStorage, function() {
       return assistantSessionKeyFor(currentCardId());
@@ -318,26 +271,17 @@ export function initAssistantPanelMain() {
     var catalogLocked = false;   // 本会话一旦注入过完整 overview 即锁定，不再降级 index（省缓存重写）；切卡/清空会话重置
     var catalogDataParsed = null; // get_adult_catalog 懒解析结果
 
-    var ragSearchIconSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/><path d="M8 11h6M11 8v6"/></svg>';
-    var retryIconSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>';
+    function currentInput() {
+      return String(assistantStore.get().input || '');
+    }
 
-    /** 发送/停止同一按钮切换（最右圆形主操作） */
+    /** 发送/停止/清空/撤销/预览按钮状态 → store，供 Vue 渲染 */
     function syncActionBtn() {
-      if (!actionBtn) return;
-      if (busy) {
-        actionBtn.classList.add('is-stop');
-        actionBtn.setAttribute('aria-label', '停止');
-        actionBtn.title = '停止';
-      } else {
-        actionBtn.classList.remove('is-stop');
-        actionBtn.setAttribute('aria-label', '发送');
-        actionBtn.title = '发送';
-      }
-      var canSend = !busy && !!(inputEl.value || '').trim();
-      actionBtn.disabled = busy ? false : !canSend;
-      if (clearBtn) clearBtn.disabled = busy;
-      if (undoBtn) undoBtn.disabled = busy;
-      if (ragPreviewBtn) ragPreviewBtn.disabled = ragPreviewBusy;
+      patchAssistantView({
+        busy: !!busy,
+        canSend: !busy && !!currentInput().trim(),
+        ragPreviewBusy: !!ragPreviewBusy,
+      });
     }
 
     /**
@@ -349,27 +293,7 @@ export function initAssistantPanelMain() {
       var tip = text || '';
       var showTitle = tip === '正在思考…' || tip === '等待确认大改…';
       if (!showTitle && reactPaused) return;
-      if (readyDot) {
-        readyDot.classList.remove('is-ready', 'is-busy', 'is-warn');
-        if (busy) {
-          readyDot.classList.add('is-busy');
-          readyDot.title = showTitle ? tip : '处理中';
-        } else {
-          readyDot.classList.add('is-ready');
-          readyDot.title = '就绪';
-        }
-        readyDot.setAttribute('aria-label', readyDot.title);
-      }
-      if (statusTip) {
-        statusTip.classList.remove('is-warn');
-        if (!showTitle) {
-          statusTip.hidden = true;
-          statusTip.textContent = '';
-        } else {
-          statusTip.hidden = false;
-          statusTip.textContent = tip;
-        }
-      }
+      patchAssistantView({ status: showTitle ? tip : '' });
     }
 
     function warnToast(message) {
@@ -391,132 +315,20 @@ export function initAssistantPanelMain() {
       else notifyError(msg, 'RAG 预览');
     }
 
-    function el(tag, cls, text) {
-      var n = document.createElement(tag);
-      if (cls) n.className = cls;
-      if (text != null) n.textContent = text;
-      return n;
-    }
-
-    function riskBadgeClass(risk) {
-      if (risk === 'auto') return 'assistant-tool-card__risk--auto';
-      if (risk === 'confirm') return 'assistant-tool-card__risk--confirm';
-      if (risk === 'none') return 'assistant-tool-card__risk--none';
-      return '';
-    }
-
     function fmtCacheTokens(n) {
       var v = Number(n) || 0;
       if (v >= 1000) return (v / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
       return String(v);
     }
 
-    function formatToolArgs(args) {      if (!args || typeof args !== 'object') return '';
-      var keys = Object.keys(args);
-      if (!keys.length) return '';
-      try {
-        var json = JSON.stringify(args, null, 2);
-        return json.length > 900 ? json.slice(0, 900) + '\n…(参数过长已截断)' : json;
-      } catch (e) {
-        return '';
-      }
-    }
-
-    function renderToolTraceNode(m) {
-      var toolName = m.toolName || parseToolNameFromLegacy(m.content) || 'tool';
-      var toolMeta = getToolByName(toolName);
-      var displayName = (toolMeta && toolMeta.title) || toolName;
-      var risk = m.risk || parseRiskFromLegacy(m.content) || '?';
-      var summaryText = toolMessageSummary(m);
-      var detailText = m.detail || m.content || '';
-
-      var cardCls = 'assistant-tool-card';
-      if (m.running) cardCls += ' assistant-tool-card--running';
-      else if (m.error) cardCls += ' assistant-tool-card--error';
-      else if (m.pendingConfirm) cardCls += ' assistant-tool-card--pending';
-
-      var card = document.createElement('details');
-      card.className = cardCls;
-
-      var head = document.createElement('summary');
-      head.className = 'assistant-tool-card__head';
-
-      var headerRow = el('div', 'assistant-tool-card__header-row');
-      var nameEl = el('span', 'assistant-tool-card__name', displayName);
-      var riskEl = el('span', 'assistant-tool-card__risk ' + riskBadgeClass(risk), risk);
-      headerRow.appendChild(nameEl);
-      headerRow.appendChild(riskEl);
-
-      var sumEl = el('div', 'assistant-tool-card__summary');
-      if (m.running) {
-        var dots = el('span', 'assistant-typing-dots');
-        dots.innerHTML = '<span></span><span></span><span></span>';
-        sumEl.appendChild(dots);
-        sumEl.appendChild(document.createTextNode(' 执行中…'));
-      } else {
-        sumEl.textContent = summaryText;
-      }
-
-      head.appendChild(headerRow);
-      head.appendChild(sumEl);
-
-      var detail = el('div', 'assistant-tool-card__detail');
-      var argsText = formatToolArgs(m.toolArgs);
-      if (argsText) {
-        var argsPre = el('pre', 'assistant-tool-card__args');
-        argsPre.textContent = '执行参数: ' + argsText;
-        detail.appendChild(argsPre);
-      }
-      var body = el('pre', 'assistant-tool-card__body');
-      body.textContent = detailText;
-      detail.appendChild(body);
-
-      card.appendChild(head);
-      card.appendChild(detail);
-      if (m.pendingConfirm) card.open = true;
-      return card;
-    }
-
-    function renderUserMessageNode(m) {
-      var wrap = el('div', 'assistant-msg-wrap assistant-msg-wrap--user');
-      var node = el('div', 'assistant-msg assistant-msg--user', messageContentForDisplay(m));
-      wrap.appendChild(node);
-      var actions = el('div', 'assistant-msg-actions');
-      var ragBtn = el('button', 'btn-icon btn-icon--sm assistant-msg-rag-btn');
-      ragBtn.type = 'button';
-      ragBtn.title = '查看本回合 RAG';
-      ragBtn.setAttribute('aria-label', '查看本回合 RAG');
-      ragBtn.innerHTML = ragSearchIconSvg;
-      ragBtn.addEventListener('click', function() {
-        openRagPreviewForMessage(m);
-      });
-      actions.appendChild(ragBtn);
-      wrap.appendChild(actions);
-      return wrap;
-    }
-
     function setRagModalOpen(open) {
-      if (!ragModal) return;
-      ragModal.hidden = !open;
-      ragModal.setAttribute('aria-hidden', open ? 'false' : 'true');
-      document.body.classList.toggle('assistant-rag-modal-open', open);
-      if (open && ragModalClose) ragModalClose.focus();
+      var cur = assistantStore.get().ragModal || {};
+      patchAssistantView({ ragModal: Object.assign({}, cur, { open: !!open }) });
     }
 
     function setContextModalOpen(open) {
-      if (!contextModal) return;
-      contextModal.hidden = !open;
-      contextModal.setAttribute('aria-hidden', open ? 'false' : 'true');
-      document.body.classList.toggle('assistant-rag-modal-open', open);
-      if (open && contextModalClose) contextModalClose.focus();
-    }
-
-    function escapeHtmlLite(s) {
-      return String(s == null ? '' : s)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
+      var cur = assistantStore.get().contextModal || {};
+      patchAssistantView({ contextModal: Object.assign({}, cur, { open: !!open }) });
     }
 
     function latestRagInfo() {
@@ -535,13 +347,13 @@ export function initAssistantPanelMain() {
       var prepared = prepareAssistantMessages({
         systemPrompt: buildSystemPrompt(''),
         uiMessages: uiMessages,
-        pendingInput: (inputEl && inputEl.value || '').trim(),
+        pendingInput: currentInput().trim(),
       });
       var history = prepared.historyForUi;
-      var pending = (inputEl && inputEl.value || '').trim();
+      var pendingInput = currentInput().trim();
       var breakdown = prepared.breakdown;
       breakdown.level = prepared.level;
-      var relevant = catalogRelevant || (inputEl && isCatalogRelevantText(String(inputEl.value || '')));
+      var relevant = catalogRelevant || isCatalogRelevantText(currentInput());
       var catalogData = parseCatalogData();
       var catalogBlocks = catalogData
         ? buildCatalogBlocks(catalogData, relevant ? 'overview' : 'index')
@@ -573,89 +385,28 @@ export function initAssistantPanelMain() {
         guideNote: '经变量 {{buildGuide}} 并入系统提示，此处独立展示便于审阅；可在「提示词配置 → AI 助手」单独编辑。',
         historyMessages: history,
         historyNote: histNote + '（原始 ' + histCount + ' 条 · 送模 ' + history.length + ' 条）',
-        pendingInput: pending,
+        pendingInput: pendingInput,
         ragBody: ragInfo.body,
         ragNote: ragInfo.index >= 0
           ? '已绑定到历史第 ' + (ragInfo.index + 1) + ' 条 user 消息的送模内容（modelContent），非独立注入段。'
           : '',
       });
-      if (contextModalMeta) {
-        var cacheLine = '';
-        var lastCache = window.__aiLastPromptCacheUsage__;
-        if (lastCache && (lastCache.hit || lastCache.miss)) {
-          cacheLine = ' · 最近请求缓存命中 ' + fmtCacheTokens(lastCache.hit)
-            + ' / ' + fmtCacheTokens(lastCache.hit + lastCache.miss);
-        }
-        contextModalMeta.textContent = formatAssistantContextLabel(breakdown.total)
-          + ' · 系统 ' + breakdown.system
-          + ' · 历史 ' + breakdown.history
-          + ' · 待发送 ' + breakdown.pending
-          + (prepared.level && prepared.level !== 'none'
-            ? ' · ' + (prepared.level === 'hard' ? '激进压缩后' : '已启动压缩')
-            : '')
-          + cacheLine
-          + '（tiktoken）';
+      var cacheLine = '';
+      var lastCache = window.__aiLastPromptCacheUsage__;
+      if (lastCache && (lastCache.hit || lastCache.miss)) {
+        cacheLine = ' · 最近请求缓存命中 ' + fmtCacheTokens(lastCache.hit)
+          + ' / ' + fmtCacheTokens(lastCache.hit + lastCache.miss);
       }
-      if (contextModalBody) {
-        var tabsEl = document.getElementById('assistantContextTabs');
-        if (!sections.length) {
-          if (tabsEl) tabsEl.innerHTML = '';
-          contextModalBody.innerHTML = '<p class="assistant-context-empty ui-empty-tip">当前无可展示上下文</p>';
-        } else {
-          var shortTitle = function(title) {
-            return String(title || '')
-              .replace(/（[^）]*）/g, '')
-              .replace(/\([^)]*\)/g, '')
-              .trim()
-              .slice(0, 8) || '段';
-          };
-          if (tabsEl) {
-            tabsEl.innerHTML = sections.map(function(sec, i) {
-              return '<button type="button" class="ui-tabs__tab' + (i === 0 ? ' is-active' : '')
-                + '" role="tab" aria-selected="' + (i === 0 ? 'true' : 'false')
-                + '" data-context-tab="' + escapeHtmlLite(sec.id) + '" title="'
-                + escapeHtmlLite(sec.title) + ' ≈ ' + sec.tokens + ' tok">'
-                + escapeHtmlLite(shortTitle(sec.title))
-                + '</button>';
-            }).join('');
-          }
-          contextModalBody.innerHTML = sections.map(function(sec, i) {
-            var childrenHtml = (sec.children && sec.children.length)
-              ? '<div class="assistant-context-section__scroll">' + sec.children.map(function(ch) {
-                  return '<div class="assistant-context-sub">'
-                    + '<div class="assistant-context-sub__head">'
-                    + '<span class="assistant-context-sub__title">' + escapeHtmlLite(ch.title) + '</span>'
-                    + '<span class="assistant-context-sub__tokens ui-meta">≈ ' + ch.tokens + ' tok</span></div>'
-                    + '<pre class="assistant-context-sub__pre">' + escapeHtmlLite(ch.body) + '</pre>'
-                    + '</div>';
-                }).join('') + '</div>'
-              : '<pre class="assistant-context-section__pre">' + escapeHtmlLite(sec.body) + '</pre>';
-            return '<section class="assistant-context-section' + (i === 0 ? ' is-active' : '')
-              + '" data-section="' + escapeHtmlLite(sec.id) + '" role="tabpanel">'
-              + '<div class="assistant-context-section__head"><span>' + escapeHtmlLite(sec.title) + '</span>'
-              + '<span class="assistant-context-section__tokens ui-meta">≈ ' + sec.tokens + ' tok</span></div>'
-              + (sec.note ? '<p class="assistant-context-section__note">' + escapeHtmlLite(sec.note) + '</p>' : '')
-              + childrenHtml
-              + '</section>';
-          }).join('');
-          if (tabsEl) {
-            tabsEl.querySelectorAll('[data-context-tab]').forEach(function(tab) {
-              tab.addEventListener('click', function() {
-                var id = tab.getAttribute('data-context-tab');
-                tabsEl.querySelectorAll('[data-context-tab]').forEach(function(t) {
-                  var on = t === tab;
-                  t.classList.toggle('is-active', on);
-                  t.setAttribute('aria-selected', on ? 'true' : 'false');
-                });
-                contextModalBody.querySelectorAll('.assistant-context-section').forEach(function(sec) {
-                  sec.classList.toggle('is-active', sec.getAttribute('data-section') === id);
-                });
-              });
-            });
-          }
-        }
-      }
-      setContextModalOpen(true);
+      var meta = formatAssistantContextLabel(breakdown.total)
+        + ' · 系统 ' + breakdown.system
+        + ' · 历史 ' + breakdown.history
+        + ' · 待发送 ' + breakdown.pending
+        + (prepared.level && prepared.level !== 'none'
+          ? ' · ' + (prepared.level === 'hard' ? '激进压缩后' : '已启动压缩')
+          : '')
+        + cacheLine
+        + '（tiktoken）';
+      patchAssistantView({ contextModal: toContextModalView(sections, meta) });
     }
 
     function showRagPreviewPayload(payload) {
@@ -663,13 +414,17 @@ export function initAssistantPanelMain() {
         warnToast('无 RAG 预览数据');
         return;
       }
-      if (ragModalMeta) ragModalMeta.textContent = formatRagPreviewMeta(payload);
-      if (ragModalPreview) ragModalPreview.textContent = payload.ragBody || '（未命中）';
-      setRagModalOpen(true);
+      patchAssistantView({
+        ragModal: {
+          open: true,
+          meta: formatRagPreviewMeta(payload),
+          body: payload.ragBody || '（未命中）',
+        },
+      });
     }
 
     function getComposerRagQuery() {
-      var text = (inputEl.value || '').trim();
+      var text = currentInput().trim();
       if (text) return text;
       for (var i = uiMessages.length - 1; i >= 0; i--) {
         if (uiMessages[i].role === 'user') {
@@ -781,90 +536,15 @@ export function initAssistantPanelMain() {
       }
     }
 
-    function makeMsgIconBtn(label, svg) {
-      var btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'btn-icon btn-icon--sm';
-      btn.title = label;
-      btn.setAttribute('aria-label', label);
-      btn.innerHTML = svg;
-      return btn;
-    }
-
-    function renderAssistantMessageNode(m, index) {
-      var wrap = el('div', 'assistant-msg-wrap assistant-msg-wrap--assistant');
-      var cls = 'assistant-msg assistant-msg--assistant';
-      if (m.error) cls += ' assistant-msg--error';
-      var node = document.createElement('div');
-      node.className = cls;
-      // 错误按纯文本转义；正常回复走 markdown。按钮用 DOM API，不拼进消息 innerHTML。
-      node.innerHTML = m.error
-        ? escapeAssistantHtml(messageContentForDisplay(m))
-        : renderAssistantMarkdown(messageContentForDisplay(m));
-      wrap.appendChild(node);
-      if (isTailRetryTarget(uiMessages, index)) {
-        var actions = el('div', 'assistant-msg-actions');
-        var retryBtn = makeMsgIconBtn('重试', retryIconSvg);
-        retryBtn.addEventListener('click', function() { retryLastTurn(); });
-        actions.appendChild(retryBtn);
-        wrap.appendChild(actions);
-      }
-      return wrap;
-    }
-
     function renderMessages() {
-      messagesEl.innerHTML = '';
-      uiMessages.forEach(function(m, index) {
-        if (m.compaction) {
-          messagesEl.appendChild(renderCompactionNode(m));
-          return;
-        }
-        if (m.role === 'tool') {
-          messagesEl.appendChild(renderToolTraceNode(m));
-          return;
-        }
-        if (m.role === 'user') {
-          messagesEl.appendChild(renderUserMessageNode(m));
-          return;
-        }
-        messagesEl.appendChild(renderAssistantMessageNode(m, index));
+      patchAssistantView({
+        messages: buildAssistantMessages(uiMessages),
+        pendingHint: pendingHintText ? String(pendingHintText) : '',
       });
-      if (pendingHintText) {
-        messagesEl.appendChild(buildPendingHintNode(pendingHintText));
-      }
-      messagesEl.scrollTop = messagesEl.scrollHeight;
       updateTokenCount();
     }
 
     var pendingHintText = '';
-
-    function renderCompactionNode(m) {
-      var card = document.createElement('details');
-      card.className = 'assistant-tool-card assistant-compaction';
-      var head = document.createElement('summary');
-      head.className = 'assistant-tool-card__head';
-      var row = el('div', 'assistant-tool-card__header-row');
-      row.appendChild(el('span', 'assistant-tool-card__name', '上下文已压缩'));
-      head.appendChild(row);
-      var sumEl = el('div', 'assistant-tool-card__summary', '更早的对话已收成检查点，之后从这里接着送模');
-      head.appendChild(sumEl);
-      var detail = el('div', 'assistant-tool-card__detail');
-      var body = el('pre', 'assistant-tool-card__body', m.modelContent || '');
-      detail.appendChild(body);
-      card.appendChild(head);
-      card.appendChild(detail);
-      return card;
-    }
-
-    function buildPendingHintNode(text) {
-      var wrap = el('div', 'assistant-msg assistant-msg--pending');
-      var dots = el('span', 'assistant-typing-dots');
-      dots.innerHTML = '<span></span><span></span><span></span>';
-      wrap.appendChild(dots);
-      wrap.appendChild(document.createTextNode(' ' + String(text || '处理中…')));
-      wrap.setAttribute('aria-live', 'polite');
-      return wrap;
-    }
 
     function setPendingHint(text) {
       pendingHintText = text ? String(text) : '';
@@ -1040,7 +720,7 @@ export function initAssistantPanelMain() {
     }
 
     function syncAutoApplyBtn() {
-      if (autoApplyBtn) autoApplyBtn.hidden = isAssistantAutoApply();
+      patchAssistantView({ showAutoApplyButton: !isAssistantAutoApply() });
     }
 
     function setAssistantAutoApply(on) {
@@ -1940,18 +1620,17 @@ export function initAssistantPanelMain() {
 
     function showPending(p) {
       pending = p;
-      if (!pendingBox) return;
-      pendingBox.hidden = !p;
-      if (p) {
-        if (pendingSummary) {
-          pendingSummary.textContent = summarizePendingConfirm(p.tool, p.args, p.preview);
-        }
-        pendingPreview.textContent = p.preview || JSON.stringify(p, null, 2);
-        syncAutoApplyBtn();
-      } else {
-        if (pendingSummary) pendingSummary.textContent = '待确认变更';
-        pendingPreview.textContent = '';
+      if (!p) {
+        patchAssistantView({ pending: null });
+        return;
       }
+      patchAssistantView({
+        pending: {
+          summary: summarizePendingConfirm(p.tool, p.args, p.preview),
+          preview: p.preview || JSON.stringify(p, null, 2),
+        },
+      });
+      syncAutoApplyBtn();
     }
 
     function toolWillExecute(toolName, args, force) {
@@ -2029,7 +1708,7 @@ export function initAssistantPanelMain() {
         };
         pending = pendingPayload;
         if (assistantConfirmDisposition(isAssistantAutoApply(), 'first') === 'apply') {
-          if (pendingBox) pendingBox.hidden = true;
+          patchAssistantView({ pending: null });
           return result;
         }
         showPending(pendingPayload);
@@ -2051,7 +1730,7 @@ export function initAssistantPanelMain() {
     function buildSystemPrompt(userExtra) {
       // 方案 B 混合注入：目录相关时给完整概览（识别不退化），否则给紧凑索引省 token
       var relevant = catalogRelevant;
-      if (!relevant && inputEl) relevant = isCatalogRelevantText(String(inputEl.value || ''));
+      if (!relevant) relevant = isCatalogRelevantText(currentInput());
       var overview = relevant ? catalogOverviewText : catalogIndexText;
       var guide = promptText('assistantBuildGuide') || '';
       var viewId = String((location.hash || '').replace(/^#/, '') || 'character');
@@ -2085,15 +1764,16 @@ export function initAssistantPanelMain() {
     }
 
     function updateTokenCount() {
-      if (!tokenCountEl) return;
       var breakdown = estimateAssistantContext({
         systemPrompt: buildSystemPrompt(''),
         uiMessages: uiMessages,
-        pendingInput: (inputEl.value || '').trim(),
+        pendingInput: currentInput().trim(),
       });
-      tokenCountEl.textContent = formatAssistantContextLabel(breakdown.total)
-        + (breakdown.compacted ? ' · 已压缩' : '');
-      tokenCountEl.title = formatAssistantContextTitle(breakdown);
+      patchAssistantView({
+        tokenLabel: formatAssistantContextLabel(breakdown.total)
+          + (breakdown.compacted ? ' · 已压缩' : ''),
+        tokenTitle: formatAssistantContextTitle(breakdown),
+      });
     }
 
     function scheduleTokenCountUpdate() {
@@ -2136,6 +1816,9 @@ export function initAssistantPanelMain() {
       var extra = '';
       if (/试聊|回流|反馈/.test(userText)) {
         extra = promptText('assistantChatFeedback') || '';
+      }
+      if (opts.extraSystem) {
+        extra = (extra ? extra + '\n\n' : '') + String(opts.extraSystem);
       }
       // 小说 RAG：仅新发送时检索；重试复用该用户消息上已有的 modelContent
       if (!opts.reuseExisting) {
@@ -2185,6 +1868,28 @@ export function initAssistantPanelMain() {
         userText: plan.userText,
         startStep: plan.startStep,
         isContinuation: false,
+      });
+    }
+
+    /** 重新生成最后一条正常回复：丢掉这条最终回复，保留已执行的工具轨迹。 */
+    async function rerollLastTurn() {
+      if (busy) return;
+      if (!engineTryAllowed('card.assistant.react').ok) return;
+      if (!ensureAiConfigured()) return;
+      var plan = planAssistantReroll(uiMessages);
+      if (!plan || !plan.userText) return;
+      uiMessages = plan.nextMessages;
+      sessionStore.setMessages(uiMessages);
+      renderMessages();
+      await startReact({
+        skipGuards: true,
+        reuseExisting: true,
+        userText: plan.userText,
+        startStep: plan.startStep,
+        isContinuation: plan.mode === 'continue',
+        extraSystem: plan.mode === 'continue'
+          ? '用户要求重新生成本轮最终回复；工具已经执行过，不要重复调用写工具，直接给出新的自然语言回复。'
+          : '',
       });
     }
 
@@ -2351,141 +2056,90 @@ export function initAssistantPanelMain() {
 
     function sendCurrent() {
       if (busy) return;
-      var text = (inputEl.value || '').trim();
+      var text = currentInput().trim();
       if (!text) return;
       if (!ensureAiConfigured()) return;
-      inputEl.value = '';
+      patchAssistantView({ input: '' });
       updateTokenCount();
+      syncActionBtn();
       reactLoop(text);
     }
 
-    function setQuickOpen(open) {
-      if (!quickBtn || !quickMenu) return;
-      quickMenu.hidden = !open;
-      quickBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
-    }
-
-    // 快捷：默认收起；点击展开；选中/点外/再点按钮关闭
-    if (quickBtn && quickMenu) {
-      setQuickOpen(false);
-      quickMenu.innerHTML = '';
-      chips.forEach(function(chip) {
-        var b = el('button', 'assistant-quick-item', chip.label);
-        b.type = 'button';
-        b.setAttribute('role', 'option');
-        if (chip.tool) b.setAttribute('data-tool', chip.tool);
-        b.addEventListener('click', function() {
-          // 挂真实工具：prompt 已点名；附带 preferredTool 供 ReAct 优先
-          var text = chip.prompt || '';
-          if (chip.tool && text.indexOf(chip.tool) < 0) {
-            text += '\n（请优先调用工具 ' + chip.tool
-              + (chip.args ? '，args=' + JSON.stringify(chip.args) : '') + '）';
-          }
-          inputEl.value = text;
-          inputEl.focus();
-          scheduleTokenCountUpdate();
-          setQuickOpen(false);
-        });
-        quickMenu.appendChild(b);
-      });
-      quickBtn.addEventListener('click', function(e) {
-        e.stopPropagation();
-        setQuickOpen(quickMenu.hidden);
-      });
-      document.addEventListener('click', function(e) {
-        if (!quickMenu.hidden && !quickMenu.contains(e.target) && e.target !== quickBtn) {
-          setQuickOpen(false);
-        }
+    function publishQuickChips() {
+      patchAssistantView({
+        quickChips: (chips || []).map(function (chip) {
+          return {
+            label: chip.label || '',
+            tool: chip.tool || '',
+            prompt: chip.prompt || '',
+            args: chip.args || null,
+          };
+        }),
       });
     }
 
-    if (ragPreviewBtn) {
-      ragPreviewBtn.addEventListener('click', function() {
-        openComposerRagPreview();
-      });
-    }
-    if (ragModal) {
-      ragModal.querySelectorAll('[data-assistant-rag-close]').forEach(function(el) {
-        el.addEventListener('click', function() { setRagModalOpen(false); });
-      });
-      if (ragModalClose) {
-        ragModalClose.addEventListener('click', function() { setRagModalOpen(false); });
+    function quickInsert(index) {
+      var chip = chips[Number(index)];
+      if (!chip) return;
+      // 挂真实工具：prompt 已点名；附带 preferredTool 供 ReAct 优先
+      var text = chip.prompt || '';
+      if (chip.tool && text.indexOf(chip.tool) < 0) {
+        text += '\n（请优先调用工具 ' + chip.tool
+          + (chip.args ? '，args=' + JSON.stringify(chip.args) : '') + '）';
       }
-    }
-    if (contextModal) {
-      contextModal.querySelectorAll('[data-assistant-context-close]').forEach(function(el) {
-        el.addEventListener('click', function() { setContextModalOpen(false); });
+      patchAssistantView({
+        input: text,
+        focusNonce: (assistantStore.get().focusNonce || 0) + 1,
       });
-      if (contextModalClose) {
-        contextModalClose.addEventListener('click', function() { setContextModalOpen(false); });
-      }
+      scheduleTokenCountUpdate();
+      syncActionBtn();
     }
-    if (tokenCountEl) {
-      tokenCountEl.addEventListener('click', function() { openContextModal(); });
-      tokenCountEl.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          openContextModal();
-        }
-      });
-    }
-    document.addEventListener('keydown', function(e) {
-      if (e.key !== 'Escape') return;
-      if (contextModal && !contextModal.hidden) {
-        setContextModalOpen(false);
+
+    publishQuickChips();
+
+    function primaryAction() {
+      if (!busy) {
+        sendCurrent();
         return;
       }
-      if (ragModal && !ragModal.hidden) setRagModalOpen(false);
-    });
-
-    if (actionBtn) {
-      actionBtn.addEventListener('click', function() {
-        if (busy) {
-          abortFlag = true;
-          if (reactApplying) {
-            cancelSpawnedTasks(applyTaskIdsBefore);
-            return;
+      abortFlag = true;
+      if (reactApplying) {
+        cancelSpawnedTasks(applyTaskIdsBefore);
+        return;
+      }
+      if (reactPaused) {
+        // 确认等待中停止：清空待确认并复位
+        showPending(null);
+        reactPaused = false;
+        reactResume = null;
+        var cp = window.__aiTaskCenter__;
+        if (cp && reactTask && reactTask.status !== 'cancelled') cp.cancel(reactTask.id);
+        reactTask = null;
+        clearPendingHint();
+        busy = false;
+        syncActionBtn();
+        setStatus('');
+        pushUi({ role: 'assistant', content: '已停止。' });
+        return;
+      }
+      var center = window.__aiTaskCenter__;
+      if (center) {
+        var snap = center.snapshot();
+        (snap.tasks || []).forEach(function(t) {
+          if (t.type === 'assistant_react' && (t.status === 'running' || t.status === 'queued')) {
+            center.cancel(t.id);
           }
-          if (reactPaused) {
-            // 确认等待中停止：清空待确认并复位
-            showPending(null);
-            reactPaused = false;
-            reactResume = null;
-            var cp = window.__aiTaskCenter__;
-            if (cp && reactTask && reactTask.status !== 'cancelled') cp.cancel(reactTask.id);
-            reactTask = null;
-            clearPendingHint();
-            busy = false;
-            syncActionBtn();
-            setStatus('');
-            pushUi({ role: 'assistant', content: '已停止。' });
-            return;
-          }
-          var center = window.__aiTaskCenter__;
-          if (center) {
-            var snap = center.snapshot();
-            (snap.tasks || []).forEach(function(t) {
-              if (t.type === 'assistant_react' && (t.status === 'running' || t.status === 'queued')) {
-                center.cancel(t.id);
-              }
-            });
-          }
-          return;
-        }
-        sendCurrent();
-      });
+        });
+      }
     }
-    inputEl.addEventListener('input', function() {
+
+    function setAssistantInput(value) {
+      patchAssistantView({ input: String(value == null ? '' : value) });
       syncActionBtn();
       scheduleTokenCountUpdate();
-    });
-    inputEl.addEventListener('keydown', function(e) {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        if (!busy) sendCurrent();
-      }
-    });
-    if (clearBtn) clearBtn.addEventListener('click', function() {
+    }
+
+    function clearSession() {
       uiMessages = [];
       sessionRagInjected = new Set();
       catalogLocked = false; // 清空会话：目录形态锁定一并复位
@@ -2493,8 +2147,9 @@ export function initAssistantPanelMain() {
       showPending(null);
       renderMessages();
       appFeedback(null, { message: '会话已清空', level: 'success', channel: 'toast' });
-    });
-    if (undoBtn) undoBtn.addEventListener('click', function() {
+    }
+
+    function undoLastBundle() {
       runTool('undo_last_bundle', {}, true).then(function(r) {
         pushUi({
           role: 'assistant',
@@ -2502,7 +2157,7 @@ export function initAssistantPanelMain() {
           error: !r.ok,
         });
       });
-    });
+    }
     function runningTaskIds() {
       var center = window.__aiTaskCenter__;
       if (!center || !center.snapshot) return [];
@@ -2628,18 +2283,19 @@ export function initAssistantPanelMain() {
         setStatus('');
       }
     }
-    if (applyBtn) applyBtn.addEventListener('click', function() { applyPendingConfirm(); });
-    if (autoApplyBtn) autoApplyBtn.addEventListener('click', function() {
-      setAssistantAutoApply(true);
-      applyPendingConfirm();
-    });
-    var autoApplyToggle = document.getElementById('assistantAutoApply');
-    if (autoApplyToggle) autoApplyToggle.addEventListener('change', syncAutoApplyBtn);
-    rejectBtn.addEventListener('click', function() {
+    function rejectPending() {
       showPending(null);
       pushUi({ role: 'assistant', content: '已拒绝本次大改。' });
       if (reactPaused) releaseConfirmWait({ cancelTask: true });
-    });
+    }
+
+    function enableAutoApply() {
+      setAssistantAutoApply(true);
+      applyPendingConfirm();
+    }
+
+    var autoApplyToggle = document.getElementById('assistantAutoApply');
+    if (autoApplyToggle) autoApplyToggle.addEventListener('change', syncAutoApplyBtn);
 
     /** 从当前卡会话恢复 UI（卡片切换 / 初始恢复共用） */
     function loadSessionIntoView() {
@@ -2673,6 +2329,35 @@ export function initAssistantPanelMain() {
     loadSessionIntoView();
     setStatus('');
     syncActionBtn();
+
+    installAssistantBridge({
+      setMode: function(mode) {
+        if (typeof window.__setAssistantPanelMode__ === 'function') window.__setAssistantPanelMode__(mode);
+      },
+      closeSheet: function() {
+        if (typeof window.__closeAssistantSheet__ === 'function') window.__closeAssistantSheet__();
+      },
+      setInput: setAssistantInput,
+      primaryAction: primaryAction,
+      clearSession: clearSession,
+      undoLastBundle: undoLastBundle,
+      applyPending: applyPendingConfirm,
+      rejectPending: rejectPending,
+      enableAutoApply: enableAutoApply,
+      quickInsert: quickInsert,
+      ragPreview: openComposerRagPreview,
+      ragPreviewForMessage: function(index) {
+        var msg = uiMessages[Number(index)];
+        if (!msg) return;
+        return openRagPreviewForMessage(msg);
+      },
+      openContext: openContextModal,
+      closeRagModal: function() { setRagModalOpen(false); },
+      closeContextModal: function() { setContextModalOpen(false); },
+      retry: retryLastTurn,
+      reroll: rerollLastTurn,
+    });
+    patchAssistantView({ showAutoApplyButton: !isAssistantAutoApply() });
 
     // 切卡 → 重载该卡会话；进行中任务对切卡已硬禁，此处再兜底
     window.addEventListener('card-draft-changed', function() {

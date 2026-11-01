@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { defineConfig } from 'astro/config';
+import vue from '@astrojs/vue';
 
 /**
  * 开发时代理目标。
@@ -24,6 +25,7 @@ function devApiProxyTarget() {
 }
 
 export default defineConfig({
+  integrations: [vue()],
   server: {
     host: '127.0.0.1',
     port: 18826,

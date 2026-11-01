@@ -20,6 +20,30 @@ export function isTailRetryTarget(messages, index) {
 }
 
 /**
+ * 「重新生成」按钮只属于会话最后一条正常 assistant 文本回复。
+ * 错误红条走重试（isTailRetryTarget）；工具轨迹 / 压缩卡不算回复。
+ * @param {object[]} messages
+ * @param {number} index
+ * @returns {boolean}
+ */
+export function isTailRegenerateTarget(messages, index) {
+  var list = Array.isArray(messages) ? messages : [];
+  if (index !== list.length - 1) return false;
+  return isRegenerableAssistantReply(list[index]);
+}
+
+/**
+ * 正常（非错误）assistant 文本回复，可被丢弃重生成。
+ * @param {object} msg
+ * @returns {boolean}
+ */
+export function isRegenerableAssistantReply(msg) {
+  if (!msg || msg.role !== 'assistant' || msg.error || msg.compaction) return false;
+  var text = String(msg.displayContent != null ? msg.displayContent : (msg.content || '')).trim();
+  return text !== '';
+}
+
+/**
  * 失败红条是否可重试。
  * 新消息带 retryable；旧会话只有 error，正文可能是半角「错误:」或全角「错误：」。
  * 撤销失败 / 应用失败永远不可重试。
@@ -100,5 +124,69 @@ export function planAssistantRetry(uiMessages) {
     mode: continueTurn ? 'continue' : 'restart',
     startStep: continueTurn ? Math.max(1, toolCount) : 0,
     nextMessages: next,
+  };
+}
+
+/**
+ * 重新生成规划：丢掉最后一条用户消息之后的最后一条正常 assistant 文本回复，
+ * 保留已执行的 tool 轨迹 / 压缩卡 / 更早的 thought，再决定 restart 或 continue。
+ * 有工具轨迹走 continue（从工具结果续写，不重跑已应用的写工具）；没有则从 step 0 重跑。
+ * @param {object[]} uiMessages
+ * @returns {null | {
+ *   userIndex: number,
+ *   userText: string,
+ *   toolCount: number,
+ *   mode: 'restart' | 'continue',
+ *   startStep: number,
+ *   nextMessages: object[],
+ *   droppedReply: boolean,
+ * }}
+ */
+export function planAssistantReroll(uiMessages) {
+  var list = Array.isArray(uiMessages) ? uiMessages : [];
+  var userIndex = -1;
+  for (var i = list.length - 1; i >= 0; i--) {
+    if (list[i] && list[i].role === 'user') {
+      userIndex = i;
+      break;
+    }
+  }
+  if (userIndex < 0) return null;
+  var userText = String(list[userIndex].content || '').trim();
+  if (!userText) return null;
+
+  var replyIndex = -1;
+  for (var r = list.length - 1; r > userIndex; r--) {
+    if (isRegenerableAssistantReply(list[r])) {
+      replyIndex = r;
+      break;
+    }
+  }
+
+  var floor = userIndex;
+  for (var c = list.length - 1; c > userIndex; c--) {
+    if (list[c] && list[c].compaction && list[c].ok) {
+      floor = c;
+      break;
+    }
+  }
+  var toolCount = 0;
+  var next = [];
+  for (var j = 0; j < list.length; j++) {
+    var m = list[j];
+    if (j === replyIndex) continue;
+    if (j > floor && m && m.role === 'tool' && !m.running) toolCount += 1;
+    next.push(m);
+  }
+
+  var continueTurn = toolCount > 0;
+  return {
+    userIndex: userIndex,
+    userText: userText,
+    toolCount: toolCount,
+    mode: continueTurn ? 'continue' : 'restart',
+    startStep: continueTurn ? Math.max(1, toolCount) : 0,
+    nextMessages: next,
+    droppedReply: replyIndex >= 0,
   };
 }

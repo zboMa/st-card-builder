@@ -213,11 +213,19 @@ export function createNovelAppContext(sm, opts) {
     // ===== 卡片写回 =====
     setCharacterFields: function(opts) {
       if (!opts) return;
-      var $charName = $('charName'), $wbName = $('wbName'), $desc = $('charDesc'), $notes = $('creatorNotes');
-      if (opts.charName != null && $charName) $charName.value = opts.charName;
-      if (opts.wbName != null && $wbName) $wbName.value = opts.wbName;
-      if (opts.charDesc != null && $desc) $desc.value = opts.charDesc;
-      if (opts.creatorNotes != null && $notes) $notes.value = opts.creatorNotes;
+      var api = window.__characterPanelApi__;
+      if (api && typeof api.setField === 'function') {
+        if (opts.charName != null) api.setField('charName', opts.charName);
+        if (opts.wbName != null) api.setField('wbName', opts.wbName);
+        if (opts.charDesc != null) api.setField('charDesc', opts.charDesc);
+        if (opts.creatorNotes != null) api.setField('creatorNotes', opts.creatorNotes);
+      } else {
+        var $charName = $('charName'), $wbName = $('wbName'), $desc = $('charDesc'), $notes = $('creatorNotes');
+        if (opts.charName != null && $charName) $charName.value = opts.charName;
+        if (opts.wbName != null && $wbName) $wbName.value = opts.wbName;
+        if (opts.charDesc != null && $desc) $desc.value = opts.charDesc;
+        if (opts.creatorNotes != null && $notes) $notes.value = opts.creatorNotes;
+      }
       window.dispatchEvent(new CustomEvent('card-builder-data-changed'));
     },
 

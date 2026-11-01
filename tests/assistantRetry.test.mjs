@@ -3,7 +3,7 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { planAssistantRetry, isRetryableAssistantError, isTailRetryTarget, planApplyOutcome } from '../src/lib/assistant/retryTurn.mjs';
+import { planAssistantRetry, isRetryableAssistantError, isTailRetryTarget, isTailRegenerateTarget, planAssistantReroll, planApplyOutcome } from '../src/lib/assistant/retryTurn.mjs';
 
 describe('planAssistantRetry', function() {
   it('该用户消息之后只有可重试错误：删错误，从 step 0', function() {
@@ -122,6 +122,78 @@ describe('isTailRetryTarget', function() {
     var tail = list.concat([{ role: 'assistant', content: '错误：请求失败 HTTP 400', error: true, retryable: true }]);
     assert.equal(isTailRetryTarget(tail, 1), false);
     assert.equal(isTailRetryTarget(tail, tail.length - 1), true);
+  });
+});
+
+describe('isTailRegenerateTarget', function() {
+  it('只有最后一条正常回复可重新生成', function() {
+    var list = [
+      { role: 'user', content: '写开场白' },
+      { role: 'assistant', content: '这是最终回复' },
+    ];
+    assert.equal(isTailRegenerateTarget(list, 1), true);
+    assert.equal(isTailRegenerateTarget(list, 0), false);
+    // 错误红条走重试，不显示重新生成
+    assert.equal(isTailRegenerateTarget([
+      { role: 'user', content: '写开场白' },
+      { role: 'assistant', content: '错误：Failed to fetch', error: true, retryable: true },
+    ], 1), false);
+    // 工具轨迹 / 空文本不算
+    assert.equal(isTailRegenerateTarget([
+      { role: 'user', content: 'x' },
+      { role: 'tool', toolName: 'get_worldbook_list' },
+    ], 1), false);
+    assert.equal(isTailRegenerateTarget([
+      { role: 'user', content: 'x' },
+      { role: 'assistant', content: '' },
+    ], 1), false);
+  });
+});
+
+describe('planAssistantReroll', function() {
+  it('无工具：丢掉最后一条正常回复，从 step 0 重跑', function() {
+    var plan = planAssistantReroll([
+      { role: 'user', content: '上一轮' },
+      { role: 'assistant', content: '旧回复' },
+      { role: 'user', content: '写开场白' },
+      { role: 'assistant', content: '内容不对的回复' },
+    ]);
+    assert.ok(plan);
+    assert.equal(plan.mode, 'restart');
+    assert.equal(plan.startStep, 0);
+    assert.equal(plan.userText, '写开场白');
+    assert.equal(plan.droppedReply, true);
+    assert.ok(!plan.nextMessages.some(function(m) { return m.content === '内容不对的回复'; }));
+    assert.ok(plan.nextMessages.some(function(m) { return m.content === '旧回复'; }));
+    assert.equal(plan.nextMessages[plan.nextMessages.length - 1].content, '写开场白');
+  });
+
+  it('有工具轨迹：保留轨迹与 thought，只丢最终回复，从工具结果续写', function() {
+    var tool = { role: 'tool', toolName: 'rewrite_greeting', summary: '已写入' };
+    var plan = planAssistantReroll([
+      { role: 'user', content: '重写开场白' },
+      { role: 'assistant', content: '💭 调用工具 rewrite_greeting' },
+      tool,
+      { role: 'assistant', content: '不理想的最终回复' },
+    ]);
+    assert.equal(plan.mode, 'continue');
+    assert.equal(plan.startStep, 1);
+    assert.equal(plan.toolCount, 1);
+    assert.equal(plan.droppedReply, true);
+    assert.ok(!plan.nextMessages.some(function(m) { return m.content === '不理想的最终回复'; }));
+    assert.ok(plan.nextMessages.some(function(m) { return m === tool; }));
+    assert.ok(plan.nextMessages.some(function(m) { return m.content === '💭 调用工具 rewrite_greeting'; }));
+  });
+
+  it('没有可丢的回复 / 没有用户消息时降级', function() {
+    var onlyUser = planAssistantReroll([
+      { role: 'user', content: '写开场白' },
+    ]);
+    assert.equal(onlyUser.mode, 'restart');
+    assert.equal(onlyUser.droppedReply, false);
+    assert.equal(onlyUser.userText, '写开场白');
+    assert.equal(planAssistantReroll([]), null);
+    assert.equal(planAssistantReroll([{ role: 'assistant', content: '只有助手' }]), null);
   });
 });
 

@@ -6,6 +6,7 @@ import { createDefaultCardState, CURRENT_KEY } from '../src/lib/card-builder/sta
 import { createCardStateMachine } from '../src/lib/card-builder/stateMachine.mjs';
 import { createCardBuilderContext } from '../src/lib/card-builder/shared/context.mjs';
 import { registerCardManager } from '../src/lib/card-builder/panels/cardManager.mjs';
+import { getCardList, resetCardList } from '../src/lib/store/cardListStore.mjs';
 import { resetDraftsStoreForTests } from '../src/lib/draftsStore.mjs';
 
 function createDomStub() {
@@ -64,42 +65,51 @@ function createDomStub() {
   };
 }
 
+function installGlobals(dom) {
+  global.document = dom.document;
+  global.window = {
+    addEventListener() {},
+    removeEventListener() {},
+    dispatchEvent() {},
+    innerWidth: 1280,
+    innerHeight: 800,
+  };
+  global.location = { hash: '#card-manager' };
+  global.localStorage = {
+    store: Object.create(null),
+    getItem(key) { return this.store[key] || null; },
+    setItem(key, val) { this.store[key] = String(val); },
+    removeItem(key) { delete this.store[key]; },
+  };
+}
+
 describe('cardManager render after split', function() {
-  it('cardManagerRender 导入 draftDisplayName / 版本函数（无 DRAFTS_KEY）', function() {
+  it('cardManagerRender 用视图模型 + store，不再直接拼列表 DOM', function() {
     var src = readFileSync(join(process.cwd(), 'src/lib/card-builder/panels/cardManagerRender.mjs'), 'utf8');
-    assert.match(src, /import \{[^}]+\bdraftDisplayName\b[^}]+\} from '\.\.\/state\.mjs'/);
-    assert.doesNotMatch(src, /\bDRAFTS_KEY\b/);
+    assert.match(src, /buildCardListSnapshot/);
+    assert.match(src, /setCardList/);
+    assert.doesNotMatch(src, /DRAFTS_KEY/);
+    assert.doesNotMatch(src, /listEl\.innerHTML/);
     assert.match(src, /import \{[^}]+\bbumpCardDraftVersion\b[^}]+\} from '\.\.\/cardVersions\.mjs'/);
     assert.match(src, /import \{[^}]+\bswitchCardDraftVersion\b[^}]+\} from '\.\.\/cardVersions\.mjs'/);
   });
 
-  it('cardManagerBind 通过 panel 调用菜单/弹窗方法', function() {
+  it('cardManagerBind 注册 Vue 桥并按 panel 调用业务方法', function() {
     var src = readFileSync(join(process.cwd(), 'src/lib/card-builder/panels/cardManagerBind.mjs'), 'utf8');
-    assert.doesNotMatch(src, /(?<!\.)\bcloseCardMoreMenu\(\)/);
-    assert.match(src, /panel\.closeCardMoreMenu\(\)/);
-    assert.match(src, /panel\.openExportChecklistModal\(\)/);
-    assert.match(src, /panel\.openCardMoreMenu\(/);
-    assert.match(src, /panel\.openCardVersionMenu\(/);
+    assert.match(src, /installCardManagerBridge/);
+    assert.match(src, /__assistantCardApi__/);
+    assert.doesNotMatch(src, /cardManagerSearch/);
+    var bridge = readFileSync(join(process.cwd(), 'src/lib/card-builder/panels/cardManagerBridge.mjs'), 'utf8');
+    assert.match(bridge, /panel\.openExportChecklistModal\(\)/);
+    assert.match(bridge, /panel\.exportDraftAsJson\(/);
+    assert.match(bridge, /panel\.loadDraft\(/);
   });
 
-  it('updateCardManagerUI 渲染草稿卡片到 #cardManagerList', function() {
+  it('render 生成卡片快照到 cardListStore', function() {
     resetDraftsStoreForTests();
+    resetCardList();
     var dom = createDomStub();
-    var listEl = dom.ensure('cardManagerList');
-    global.document = dom.document;
-    global.window = {
-      addEventListener() {},
-      removeEventListener() {},
-      dispatchEvent() {},
-      innerWidth: 1280,
-      innerHeight: 800,
-    };
-    global.location = { hash: '#card-manager' };
-    global.localStorage = {
-      store: Object.create(null),
-      getItem(key) { return this.store[key] || null; },
-      setItem(key, val) { this.store[key] = String(val); },
-    };
+    installGlobals(dom);
 
     try {
       var state = createDefaultCardState();
@@ -117,35 +127,28 @@ describe('cardManager render after split', function() {
 
       registerCardManager(ctx);
       assert.equal(typeof ctx.panels.cardManager.render, 'function');
-      assert.equal(typeof ctx.panels.cardManager.closeCardMoreMenu, 'function');
+      assert.equal(typeof ctx.panels.cardManager.getCardVersions, 'function');
 
       ctx.panels.cardManager.bind();
       ctx.panels.cardManager.render();
 
-      assert.equal(listEl.children.length, 1);
-      assert.match(listEl.children[0].className, /card-manager-item/);
-      var html = '';
-      (function walk(el) {
-        html += el.innerHTML || '';
-        el.children.forEach(walk);
-      })(listEl.children[0]);
-      assert.match(html, /测试角色/);
+      var list = getCardList();
+      assert.equal(list.cards.length, 1);
+      assert.equal(list.cards[0].name, '测试角色');
+      assert.equal(list.cards[0].id, 'draft-test-1');
+      assert.equal(list.cards[0].active, true);
+      assert.equal(list.empty, false);
     } finally {
       resetDraftsStoreForTests();
+      resetCardList();
     }
   });
 
   it('getDraftsForDisplay 渲染前同步 DOM 字段到当前卡快照', function() {
     resetDraftsStoreForTests();
+    resetCardList();
     var dom = createDomStub();
-    global.document = dom.document;
-    global.window = { addEventListener() {}, removeEventListener() {}, dispatchEvent() {} };
-    global.location = { hash: '#card-manager' };
-    global.localStorage = {
-      store: Object.create(null),
-      getItem(key) { return this.store[key] || null; },
-      setItem(key, val) { this.store[key] = String(val); },
-    };
+    installGlobals(dom);
 
     try {
       var state = createDefaultCardState();
@@ -155,25 +158,19 @@ describe('cardManager render after split', function() {
       sm.saveDraft();
 
       var ctx = createCardBuilderContext(sm);
-      ctx.$ = function(id) {
-        if (id === 'charName') return dom.ensure('charName');
-        return dom.ensure(id);
-      };
+      ctx.$ = function(id) { return dom.ensure(id); };
       ctx.escapeHtml = function(v) { return String(v || ''); };
       dom.ensure('charName').value = '新名字';
 
       registerCardManager(ctx);
       ctx.panels.cardManager.render();
 
-      var html = '';
-      (function walk(el) {
-        html += el.innerHTML || '';
-        el.children.forEach(walk);
-      })(dom.ensure('cardManagerList').children[0]);
-      assert.match(html, /新名字/);
-      assert.doesNotMatch(html, /旧名字/);
+      var list = getCardList();
+      assert.equal(list.cards.length, 1);
+      assert.equal(list.cards[0].name, '新名字');
     } finally {
       resetDraftsStoreForTests();
+      resetCardList();
     }
   });
 

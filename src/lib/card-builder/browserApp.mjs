@@ -6,6 +6,7 @@ import { createCardStateMachine } from './stateMachine.mjs';
 import { hydrateDraftsStore } from '../draftsStore.mjs';
 import { runWhenIdbReady } from '../idbReady.mjs';
 import { createCardBuilderContext } from './shared/context.mjs';
+import { initCardStore, installCardStoreShim } from '../store/cardStore.mjs';
 import { registerCardManager } from './panels/cardManager.mjs';
 import { registerCharacter } from './panels/character.mjs';
 import { registerAdultConfig } from './panels/adultConfig.mjs';
@@ -28,9 +29,10 @@ export function bootCardBuilder() {
   bootMainActionEngine();
   window.__fieldDict__ = { getFieldInfo: getFieldInfo, validateFullJSON: validateFullJSON };
 
-  var state = createDefaultCardState();
+  var state = initCardStore(createDefaultCardState());
   var sm = createCardStateMachine(state);
   var ctx = createCardBuilderContext(sm);
+  installCardStoreShim(ctx);
 
   registerCardManager(ctx);
   registerCharacter(ctx);

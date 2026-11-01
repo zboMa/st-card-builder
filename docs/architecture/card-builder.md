@@ -29,7 +29,12 @@
 | `panels/cardManagerCloud.mjs` | 云端上传/拉取/删除 |
 | `panels/cardManagerExport.mjs` | JSON/PNG 导出 |
 | `panels/cardManagerBind.mjs` | 事件绑定、`__assistantCardApi__` |
-| `panels/character.mjs` | 角色设定（**不含** NSFW 配置 UI） |
+| `panels/character.mjs` | 角色设定逻辑 API（字段/标签/版本/头像；**不含** NSFW 配置 UI） |
+| `panels/characterViewModel.mjs` | 角色设定纯函数视图快照（字段/token/版本/头像/生成弹窗） |
+| `panels/characterBridge.mjs` | `__characterPanelApi__` + 标签/头像/JSON 预览旧桥 |
+| `panels/characterAvatar.mjs` | 头像主图、画廊 manifest、缩略图 objectURL、上传/选主图/删除 |
+| `components/character/*.vue` | 角色设定 Vue 视图（面板/标签/版本/头像/生成弹窗） |
+| `store/characterStore.mjs` | 角色设定瞬时 UI 状态（版本基线/token tick/头像/生成弹窗） |
 | `panels/worldbook.mjs` | 世界书 boot（`registerWorldbook`） |
 | `panels/worldbookShared.mjs` | 列表/搜索/编辑/AI（虚拟列表 `virtualList` + 委托） |
 | `panels/worldbookBind.mjs` | DOM 绑定 + `__assistantWbAi__` |
@@ -40,8 +45,11 @@
 | `panels/export.mjs` | JSON/PNG 导入导出 |
 | `panels/adultConfig.mjs` | 成人配置 boot（`registerAdultConfig`） |
 | `panels/adultConfigShared.mjs` | 口味/表达/世界观 helpers |
-| `panels/adultConfigPanel.mjs` | NSFW/NTL/恶堕 UI 与生成 |
-| `panels/adultConfigBind.mjs` | `__getNsfwConfig__` 桥 + DOM 绑定 |
+| `panels/adultConfigPanel.mjs` | NSFW/NTL/恶堕生成与目录逻辑（Vue 化后不再写 DOM） |
+| `panels/adultConfigState.mjs` | 覆盖旧 DOM 方法：state 读写 / 同步 |
+| `panels/adultConfigBridge.mjs` | `__adultConfigApi__` + `__getNsfwConfig__` 等旧桥 |
+| `panels/adultViewModel.mjs` | 纯函数视图快照（列表/框架/目标/添加目录） |
+| `components/adultConfig/*.vue` | 世界与限定 Vue 视图 |
 
 ## UI
 

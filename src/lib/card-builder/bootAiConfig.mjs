@@ -6,6 +6,7 @@ import { buildExportChecklist } from './exportChecklist.mjs';
 import { countNovelUnsynced } from './fieldValidation.mjs';
 import { upsertWorldbookEntry, normalizeDraftEntry, entryExportComment } from '../worldbook/worldbookEntryBridge.mjs';
 import { baselineLeavesFromEntries, composeGreetingText } from '../mvu/greetingInit.mjs';
+import { setWorldbookEntries, setRegexScripts, setTavernHelperScripts, setCardExtensionField } from '../store/cardActions.mjs';
 
 export function attachBootAiConfig(ctx) {
   var AI_KEY = 'st_v3_builder_ai_config';
@@ -340,9 +341,9 @@ export function attachBootAiConfig(ctx) {
   };
   window.__setWorldbookEntries__ = function(entries) {
     if (!Array.isArray(entries)) return;
-    ctx.state.worldbookEntries = entries.map(function(e) {
+    setWorldbookEntries(entries.map(function(e) {
       return normalizeDraftEntry(e || {});
-    });
+    }));
     if (ctx.panels.worldbook && ctx.panels.worldbook.renderEntriesList) {
       ctx.panels.worldbook.renderEntriesList();
     }
@@ -353,7 +354,7 @@ export function attachBootAiConfig(ctx) {
   };
   window.__setRegexScripts__ = function(list, opts) {
     opts = opts || {};
-    ctx.state.regexScripts = Array.isArray(list) ? list.slice() : [];
+    setRegexScripts(list);
     ctx.save();
     if (!opts.silent) window.dispatchEvent(new CustomEvent('card-builder-data-changed'));
   };
@@ -362,7 +363,7 @@ export function attachBootAiConfig(ctx) {
   };
   window.__setTavernHelperScripts__ = function(list, opts) {
     opts = opts || {};
-    ctx.state.tavernHelperScripts = Array.isArray(list) ? list.slice() : [];
+    setTavernHelperScripts(list);
     ctx.save();
     if (!opts.silent) window.dispatchEvent(new CustomEvent('card-builder-data-changed'));
   };
@@ -374,16 +375,18 @@ export function attachBootAiConfig(ctx) {
       var key = { id: e.id, owner: e.owner, ownerSlot: e.ownerSlot };
       list = upsertWorldbookEntry(list, e, key);
     });
-    ctx.state.worldbookEntries = list;
+    setWorldbookEntries(list);
     if (Array.isArray(newRegexScripts)) {
+      var rxList = Array.isArray(ctx.state.regexScripts) ? ctx.state.regexScripts.slice() : [];
       newRegexScripts.forEach(function(rx) {
         var rxIdx = -1;
-        for (var j = 0; j < ctx.state.regexScripts.length; j++) {
-          if (ctx.state.regexScripts[j].scriptName === rx.scriptName) { rxIdx = j; break; }
+        for (var j = 0; j < rxList.length; j++) {
+          if (rxList[j].scriptName === rx.scriptName) { rxIdx = j; break; }
         }
-        if (rxIdx >= 0) ctx.state.regexScripts[rxIdx] = rx;
-        else ctx.state.regexScripts.push(rx);
+        if (rxIdx >= 0) rxList[rxIdx] = rx;
+        else rxList.push(rx);
       });
+      setRegexScripts(rxList);
     }
     if (ctx.panels.worldbook && ctx.panels.worldbook.renderEntriesList) {
       ctx.panels.worldbook.renderEntriesList();
@@ -394,18 +397,17 @@ export function attachBootAiConfig(ctx) {
   window.__setTavernHelperScript__ = function(name, code, enabled) {
     if (!name) return;
     var isEnabled = enabled !== false;
-    if (!Array.isArray(ctx.state.tavernHelperScripts)) ctx.state.tavernHelperScripts = [];
+    var list = Array.isArray(ctx.state.tavernHelperScripts) ? ctx.state.tavernHelperScripts.slice() : [];
     var found = false;
-    for (var i = 0; i < ctx.state.tavernHelperScripts.length; i++) {
-      if (ctx.state.tavernHelperScripts[i].name === name) {
-        ctx.state.tavernHelperScripts[i].content = code;
-        ctx.state.tavernHelperScripts[i].enabled = isEnabled;
+    for (var i = 0; i < list.length; i++) {
+      if (list[i].name === name) {
+        list[i] = Object.assign({}, list[i], { content: code, enabled: isEnabled });
         found = true;
         break;
       }
     }
     if (!found && isEnabled) {
-      ctx.state.tavernHelperScripts.push({
+      list.push({
         type: 'script',
         enabled: true,
         name: name,
@@ -418,6 +420,7 @@ export function attachBootAiConfig(ctx) {
         data: {},
       });
     }
+    setTavernHelperScripts(list);
     ctx.save();
     window.dispatchEvent(new CustomEvent('card-builder-data-changed'));
   };
@@ -427,19 +430,19 @@ export function attachBootAiConfig(ctx) {
     var regexNames = Array.isArray(options.regexNames) ? options.regexNames : [];
     var helperNames = Array.isArray(options.helperNames) ? options.helperNames : [];
     if (comments.length) {
-      ctx.state.worldbookEntries = ctx.state.worldbookEntries.filter(function(entry) {
+      setWorldbookEntries(ctx.state.worldbookEntries.filter(function(entry) {
         return comments.indexOf(entry && entryExportComment(entry)) < 0;
-      });
+      }));
     }
     if (regexNames.length && Array.isArray(ctx.state.regexScripts)) {
-      ctx.state.regexScripts = ctx.state.regexScripts.filter(function(script) {
+      setRegexScripts(ctx.state.regexScripts.filter(function(script) {
         return regexNames.indexOf(script && script.scriptName) < 0;
-      });
+      }));
     }
     if (helperNames.length && Array.isArray(ctx.state.tavernHelperScripts)) {
-      ctx.state.tavernHelperScripts = ctx.state.tavernHelperScripts.filter(function(script) {
+      setTavernHelperScripts(ctx.state.tavernHelperScripts.filter(function(script) {
         return helperNames.indexOf(script && script.name) < 0;
-      });
+      }));
     }
     if (ctx.panels.worldbook && ctx.panels.worldbook.renderEntriesList) {
       ctx.panels.worldbook.renderEntriesList();
@@ -454,11 +457,7 @@ export function attachBootAiConfig(ctx) {
   window.__setCardExtension__ = function(key, value, opts) {
     opts = opts || {};
     if (!key) return;
-    if (!ctx.state.cardBuilderExtensions || typeof ctx.state.cardBuilderExtensions !== 'object') {
-      ctx.state.cardBuilderExtensions = {};
-    }
-    if (value === undefined || value === null) delete ctx.state.cardBuilderExtensions[key];
-    else ctx.state.cardBuilderExtensions[key] = value;
+    setCardExtensionField(key, value);
     ctx.save();
     if (!opts.silent) window.dispatchEvent(new CustomEvent('card-builder-data-changed'));
   };

@@ -1,68 +1,9 @@
 ---
-/** 角色卡管理：预览卡片网格 / 新建 / 导入导出 / 切换 / 删除（存储逻辑仍在 index 草稿系统） */
+/** 角色卡管理：Vue 岛（列表 / 筛选 / 工具栏 / 菜单 / 导出检查）；业务逻辑仍在 cardManager*.mjs */
+import CardManagerPanel from './cardManager/CardManagerPanel.vue';
 ---
-<div class="panel area-card-manager">
-  <div class="card-manager-header">
-    <div class="card-manager-heading">
-      <h2>角色卡管理</h2>
-      <p class="ui-panel-lead card-manager-tip">本地多卡草稿箱；编辑仅保存在本机，不会自动上云。时间旁云标表示未上云 / 未同步 / 已同步；未同步时可点「同步上云」，或在「⋯」里从云端覆盖拉取最新。</p>
-      <div id="cardJourneyHost"></div>
-    </div>
-    <!-- 右上角：仅新建 + 导入；导出在每张预览卡底部 -->
-    <div class="card-manager-toolbar">
-      <button type="button" id="btnCloudSyncAllDirty" class="btn btn-fetch btn-sm">同步未上云</button>
-      <button type="button" id="btnNewDraft" class="btn btn-add btn-sm">新建</button>
-      <button type="button" id="btnImportCard" class="btn btn-fetch btn-sm">导入</button>
-      <input type="file" id="importCardInput" accept=".json,.png" style="display:none;" />
-    </div>
-  </div>
-
-  <div class="card-manager-filters" id="cardManagerFilters">
-    <div class="card-manager-filter-search">
-      <div class="ui-search-bar wb-search-bar">
-        <span class="ui-search-icon wb-search-icon" aria-hidden="true">🔍</span>
-        <input type="search" id="cardManagerSearch" class="ui-search-input wb-search-input" placeholder="搜索角色名…" autocomplete="off" aria-label="搜索角色卡" />
-        <button type="button" id="cardManagerSearchClear" class="ui-search-clear wb-search-clear" hidden title="清空" aria-label="清空搜索">✕</button>
-      </div>
-    </div>
-    <div class="card-manager-tag-bar" id="cardManagerTagBar">
-      <button type="button" id="btnCardTagPicker" class="card-manager-tag-picker-btn" title="多选标签筛选" aria-label="打开标签筛选" aria-haspopup="listbox" aria-expanded="false">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M20.6 13.1 12.7 21a2 2 0 0 1-2.8 0L3 14.1V4h10.1l7.5 7.5a2 2 0 0 1 0 1.6z"/><circle cx="7.5" cy="8.5" r="1.2"/></svg>
-      </button>
-      <div class="card-manager-tag-scroll" id="cardManagerTagScroll" aria-label="标签筛选"></div>
-      <button type="button" id="btnCardTagClear" class="card-manager-tag-clear" hidden>清除筛选</button>
-    </div>
-    <div id="cardManagerTagPopup" class="card-manager-tag-popup" hidden role="listbox" aria-multiselectable="true" aria-label="全部标签"></div>
-  </div>
-
-  <!-- 检查结果缓存节点（视觉已迁到卡片角标，此处保持隐藏供逻辑/测试） -->
-  <div id="exportChecklistBox" class="export-checklist-bar" hidden aria-hidden="true">
-    <span id="exportChecklistSummary" class="export-checklist-bar__summary"></span>
-  </div>
-
-  <div id="exportChecklistModal" class="export-checklist-modal" hidden aria-hidden="true">
-    <div class="export-checklist-modal__backdrop ui-modal-backdrop" data-export-checklist-close></div>
-    <div class="ui-modal-dialog export-checklist-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="exportChecklistModalTitle">
-      <div class="export-checklist-modal__head">
-        <h3 id="exportChecklistModalTitle">导出前检查</h3>
-        <div class="export-checklist-modal__head-actions">
-          <button type="button" id="btnRefreshExportChecklist" class="btn btn-ghost btn-inline">刷新</button>
-          <button type="button" class="btn-icon btn-icon--sm" data-export-checklist-close aria-label="关闭">×</button>
-        </div>
-      </div>
-      <p id="exportChecklistModalSummary" class="ui-hint export-checklist-modal__lead"></p>
-      <ul id="exportChecklistItems" class="export-checklist-items"></ul>
-    </div>
-  </div>
-
-  <div id="cardManagerList" class="card-manager-list" aria-live="polite"></div>
-</div>
+<CardManagerPanel client:only="vue" />
 
 <style is:global>
   @import '../styles/card-manager-panel.css';
 </style>
-
-<script>
-  import { initCardManagerPanelImport } from '../lib/card-builder/cardManagerPanelBoot.mjs';
-  initCardManagerPanelImport();
-</script>

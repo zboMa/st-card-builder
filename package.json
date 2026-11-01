@@ -19,10 +19,14 @@
   "dependencies": {
     "@antv/g-camera-api": "^2.0.45",
     "@antv/g6": "^5.1.1",
+    "@astrojs/vue": "^5.1.4",
+    "@nanostores/vue": "^1.1.0",
     "@tanstack/virtual-core": "^3.17.6",
     "astro": "^5.17.1",
     "events": "^3.3.0",
     "js-tiktoken": "^1.0.21",
-    "marked": "^18.0.7"
+    "marked": "^18.0.7",
+    "nanostores": "^1.5.5",
+    "vue": "^3.5.44"
   }
 }

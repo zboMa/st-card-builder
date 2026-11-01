@@ -152,23 +152,15 @@ export function createAiEngineShared(ctx) {
   }
 
   function renderCharTags() {
-    var charTagsList = ctx.$('charTagsList');
-    if (!charTagsList) return;
-    var tags = normalizeCharTags(ctx.state.charTags);
-    ctx.state.charTags = tags;
-    charTagsList.innerHTML = tags.map(function(tag, i) {
-      return (
-        '<span class="char-tag-chip" data-tag-index="' + i + '">' +
-          '<span class="char-tag-chip-text">' + ctx.escapeHtml(tag) + '</span>' +
-          '<button type="button" class="char-tag-chip-remove" data-tag-action="remove" data-tag-index="' + i + '" title="移除" aria-label="移除标签">×</button>' +
-        '</span>'
-      );
-    }).join('');
+    ctx.state.charTags = normalizeCharTags(ctx.state.charTags);
   }
 
   function setCharTags(next, opts) {
+    if (ctx.panels.character && typeof ctx.panels.character.setCharTags === 'function') {
+      ctx.panels.character.setCharTags(next, opts);
+      return;
+    }
     ctx.state.charTags = normalizeCharTags(next);
-    renderCharTags();
     if (!opts || opts.save !== false) ctx.save();
   }
 
