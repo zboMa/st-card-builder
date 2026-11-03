@@ -1,153 +1,138 @@
 /**
- * 原始资料面板：渲染、绑定、输入同步
+ * 原始资料面板：快照发布 + 无 DOM API
  * 注意：NSFW/NTL/worldframe 由卡侧 AdultConfig 经 nsfw-config-changed 下推；
  * 本面板 render 不得回写口味（避免冲掉多选 note）。
  */
-import { escapeHtml } from '../../utils.mjs';
 import { DEFAULT_EXPAND_BUDGET } from '../recall.mjs';
 import { createDefaultNovelState } from '../state.mjs';
 import { engineTryAllowed } from '../../actionEngine/helpers.mjs';
+import { novelSourceStore, patchNovelSource } from '../../store/novelSourceStore.mjs';
+import { buildSourceView } from './sourceViewModel.mjs';
 
 /**
- * @param {object} ctx — 小说工坊上下文（由 shared/context.mjs 创建，含 $、save、busyFlags 等）
+ * @param {object} ctx — 小说工坊上下文
  */
 export function registerSource(ctx) {
   var panel = {};
 
+  function publish() {
+    var gates = typeof ctx.gates === 'function' ? ctx.gates() : null;
+    patchNovelSource(buildSourceView(ctx.state, gates, novelSourceStore.get()));
+  }
+
+  function setStatus(msg) {
+    patchNovelSource({ status: String(msg || '') });
+  }
+
+  function refreshAfterWrite() {
+    if (ctx.save) ctx.save();
+    if (ctx.renderGatesFn) ctx.renderGatesFn();
+    publish();
+  }
+
   panel.render = function() {
-    var state = ctx.state;
-    var src = ctx.$('novelSourceText');
-    var ctxEl = ctx.$('novelContextText');
-    if (src) src.value = state.sourceText || '';
-    if (ctxEl) ctxEl.value = state.contextText || '';
-    var mode = ctx.$('novelNarrativeMode');
-    var conc = ctx.$('novelConcurrency');
-    var budget = ctx.$('novelExpandBudget');
-    var strict = ctx.$('novelStrictQuality');
-    if (mode) mode.value = state.narrativeMode || 'story';
-    if (conc) conc.value = String(state.concurrency || 3);
-    if (budget) budget.value = String(state.expandBudget || DEFAULT_EXPAND_BUDGET);
-    if (strict) strict.checked = !!state.strictQuality;
+    publish();
+  };
 
-    var summary = ctx.$('novelFileSummary');
-    var clearBtn = ctx.$('btnNovelClearFile');
-    if (state.fileText && state.fileMeta) {
-      if (summary) {
-        summary.style.display = 'inline-block';
-        summary.innerHTML = '<strong>' + escapeHtml(state.fileMeta.name) + '</strong> · ' + state.fileText.length + ' 字';
-      }
-      if (clearBtn) clearBtn.style.display = 'inline-block';
+  /**
+   * 单字段更新；Vue 输入直接走这里，不再读写 DOM。
+   * @param {string} key
+   * @param {any} value
+   */
+  function setField(key, value) {
+    var state = ctx.state;
+    if (key === 'sourceText' || key === 'contextText') {
+      state[key] = String(value != null ? value : '');
+    } else if (key === 'narrativeMode') {
+      state.narrativeMode = String(value || 'story');
+    } else if (key === 'concurrency') {
+      state.concurrency = Math.max(1, parseInt(value, 10) || 3);
+    } else if (key === 'expandBudget') {
+      state.expandBudget = Math.max(1000, parseInt(value, 10) || DEFAULT_EXPAND_BUDGET);
+    } else if (key === 'strictQuality') {
+      state.strictQuality = value === true || value === 'true';
     } else {
-      if (summary) summary.style.display = 'none';
-      if (clearBtn) clearBtn.style.display = 'none';
+      return false;
     }
+    refreshAfterWrite();
+    return true;
+  }
 
-    var bar = ctx.$('novelStatsBar');
-    if (bar) {
-      var g = ctx.gates();
-      bar.innerHTML = [
-        '<span class="novel-stat-chip">' + (g.sourceLen ? (g.sourceLen + ' 字') : '等待导入文本') + '</span>',
-        '<span class="novel-stat-chip">章节 ' + g.enabledChapterCount + '/' + g.chapterCount + '</span>',
-        '<span class="novel-stat-chip">人物 ' + g.characterCount + '</span>',
-        '<span class="novel-stat-chip">世界书草稿 ' + g.wbEntryCount + '</span>',
-      ].join('');
-    }
-  };
+  function renderAllAfterWrite() {
+    if (ctx.renderAll) ctx.renderAll();
+    else refreshAfterWrite();
+  }
 
-  panel.syncInputs = function() {
+  function loadFile(file) {
+    if (!file) return false;
+    if (!engineTryAllowed('lifecycle.novel.source.upload').ok) return false;
+    var reader = new FileReader();
+    reader.onload = function(ev) {
+      ctx.state.fileText = String(ev.target.result || '');
+      ctx.state.fileMeta = { name: file.name };
+      renderAllAfterWrite();
+      setStatus('已导入 ' + file.name);
+      publish();
+    };
+    reader.readAsText(file);
+    return true;
+  }
+
+  function clearFile() {
+    if (!engineTryAllowed('lifecycle.novel.source.clear').ok) return false;
+    ctx.state.fileText = '';
+    ctx.state.fileMeta = null;
+    renderAllAfterWrite();
+    return true;
+  }
+
+  function resetAll() {
+    if (!engineTryAllowed('lifecycle.novel.source.reset').ok) return false;
+    if (!confirm('重置并清空结果：清空章节/人物/世界书草稿/知识图谱/文风等产出，保留原文与分片等配置？')) return false;
     var state = ctx.state;
-    var src = ctx.$('novelSourceText');
-    var ctxEl = ctx.$('novelContextText');
-    if (src) state.sourceText = src.value;
-    if (ctxEl) state.contextText = ctxEl.value;
-    var mode = ctx.$('novelNarrativeMode');
-    var conc = ctx.$('novelConcurrency');
-    var budget = ctx.$('novelExpandBudget');
-    var strict = ctx.$('novelStrictQuality');
-    if (mode) state.narrativeMode = mode.value;
-    if (conc) state.concurrency = Math.max(1, parseInt(conc.value, 10) || 3);
-    if (budget) state.expandBudget = Math.max(1000, parseInt(budget.value, 10) || DEFAULT_EXPAND_BUDGET);
-    if (strict) state.strictQuality = !!strict.checked;
-    ctx.save();
-    ctx.renderGatesFn();
-    panel.render();
-  };
+    var keep = {
+      sourceText: state.sourceText,
+      fileText: state.fileText,
+      fileMeta: state.fileMeta,
+      contextText: state.contextText,
+      narrativeMode: state.narrativeMode,
+      chunkSize: state.chunkSize,
+      charShardMode: state.charShardMode,
+      wbShardMode: state.wbShardMode,
+      graphShardMode: state.graphShardMode,
+      charChunkSize: state.charChunkSize,
+      wbChunkSize: state.wbChunkSize,
+      graphChunkSize: state.graphChunkSize,
+      charChaptersPerShard: state.charChaptersPerShard,
+      wbChaptersPerShard: state.wbChaptersPerShard,
+      graphChaptersPerShard: state.graphChaptersPerShard,
+      styleChunkSize: state.styleChunkSize,
+      concurrency: state.concurrency,
+      expandBudget: state.expandBudget,
+      strictQuality: state.strictQuality,
+    };
+    var next = Object.assign(createDefaultNovelState(), keep);
+    Object.keys(state).forEach(function(key) { delete state[key]; });
+    Object.assign(state, next);
+    renderAllAfterWrite();
+    publish();
+    return true;
+  }
+
+  function setDragging(dragging) {
+    patchNovelSource({ dragging: !!dragging });
+  }
 
   panel.bind = function() {
-    var state = ctx.state;
-
-    ['novelSourceText', 'novelContextText', 'novelNarrativeMode', 'novelConcurrency', 'novelExpandBudget', 'novelStrictQuality']
-      .forEach(function(id) {
-        var el = ctx.$(id);
-        if (!el) return;
-        el.addEventListener('change', panel.syncInputs);
-        el.addEventListener('input', panel.syncInputs);
-      });
-
-    var fileEl = ctx.$('novelSourceFile');
-    var drop = ctx.$('novelDropzone');
-    function loadFile(f) {
-      if (!f) return;
-      if (!engineTryAllowed('lifecycle.novel.source.upload').ok) return;
-      var reader = new FileReader();
-      reader.onload = function(ev) {
-        state.fileText = String(ev.target.result || '');
-        state.fileMeta = { name: f.name };
-        ctx.save();
-        ctx.renderAll();
-        ctx.setStatus('novelSourceStatus', '已导入 ' + f.name);
-      };
-      reader.readAsText(f);
-    }
-    if (fileEl) fileEl.addEventListener('change', function(e) { loadFile(e.target.files && e.target.files[0]); });
-    if (drop) {
-      drop.addEventListener('dragover', function(e) { e.preventDefault(); drop.classList.add('is-dragover'); });
-      drop.addEventListener('dragleave', function() { drop.classList.remove('is-dragover'); });
-      drop.addEventListener('drop', function(e) {
-        e.preventDefault();
-        drop.classList.remove('is-dragover');
-        loadFile(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]);
-      });
-    }
-    var clearBtn = ctx.$('btnNovelClearFile');
-    if (clearBtn) clearBtn.addEventListener('click', function() {
-      if (!engineTryAllowed('lifecycle.novel.source.clear').ok) return;
-      state.fileText = '';
-      state.fileMeta = null;
-      if (fileEl) fileEl.value = '';
-      ctx.save();
-      ctx.renderAll();
-    });
-    var reset = ctx.$('btnNovelResetAll');
-    if (reset) reset.addEventListener('click', function() {
-      if (!engineTryAllowed('lifecycle.novel.source.reset').ok) return;
-      if (!confirm('重置并清空结果：清空章节/人物/世界书草稿/知识图谱/文风等产出，保留原文与分片等配置？')) return;
-      var keep = {
-        sourceText: state.sourceText,
-        fileText: state.fileText,
-        fileMeta: state.fileMeta,
-        contextText: state.contextText,
-        narrativeMode: state.narrativeMode,
-        chunkSize: state.chunkSize,
-        charShardMode: state.charShardMode,
-        wbShardMode: state.wbShardMode,
-        graphShardMode: state.graphShardMode,
-        charChunkSize: state.charChunkSize,
-        wbChunkSize: state.wbChunkSize,
-        graphChunkSize: state.graphChunkSize,
-        charChaptersPerShard: state.charChaptersPerShard,
-        wbChaptersPerShard: state.wbChaptersPerShard,
-        graphChaptersPerShard: state.graphChaptersPerShard,
-        styleChunkSize: state.styleChunkSize,
-        concurrency: state.concurrency,
-        expandBudget: state.expandBudget,
-        strictQuality: state.strictQuality,
-      };
-      state = Object.assign(createDefaultNovelState(), keep);
-      ctx.state = state;
-      ctx.save();
-      ctx.renderAll();
-    });
+    window.__novelSourceApi__ = {
+      refresh: function() { publish(); },
+      setField: setField,
+      loadFile: loadFile,
+      clearFile: clearFile,
+      resetAll: resetAll,
+      setDragging: setDragging,
+    };
+    publish();
   };
 
   ctx.panels.source = panel;

@@ -109,8 +109,8 @@ describe('tavernScripts wiring', function() {
     assert.match(panel, /__setTavernHelperScripts__/);
     assert.match(panel, /lastRefreshFp/);
     assert.match(panel, /refreshFingerprint/);
-    assert.match(panel, /createElement\('div'\)/);
-    assert.match(panel, /addEventListener\('change'/);
+    assert.match(panel, /v-for="item in items"/);
+    assert.match(panel, /@change="onToggle/);
   });
 
   it('MVU 注入仍走 __setTavernHelperScript__；状态栏只写正则', function() {

@@ -15,7 +15,8 @@
 |---|---|---|
 | 主站卡侧 | `src/lib/card-builder/browserApp.mjs` → `initCardBuilder()` | `index.astro` 调用；卡侧唯一 boot |
 | AI 配置 | `AIPanel.astro` → `aiConfig/panelBoot.mjs`（生图：`aiConfig/imageConfig.mjs`） | 侧栏「配置」 |
-| 状态栏 | `StatusBarPanel.astro` → `statusBar/panelBoot.mjs` | 设计/预览/注入 |
+| 状态栏 | `browserApp.mjs` → `registerStatusBar` → `statusBar/panelBoot.mjs`；`StatusBarPanel.vue` | 设计/预览/注入 |
+| MVU 变量卡 | `browserApp.mjs` → `registerMvu` → `mvu/variableCardPanel.mjs`；`VariableCardPanel.vue` | 节点/变量/推断 |
 | 试聊 | `ChatPlayground.astro` → `chatRuntime/playgroundBoot.mjs` | 助手内嵌 |
 | 动效 | `GsapAnimations.astro` → `layout/gsapAnimationsBoot.mjs` | 面板入场 / 视图切换 |
 | 小说工坊 | `NovelWorkshopApp` → `initNovelWorkshop()` | `src/lib/novel/browserApp.mjs` |
@@ -48,7 +49,7 @@ src/lib/
 ├── aiConfig/         AI 配置面板 boot + AiEngineModal boot
 ├── chatRuntime/      试聊与 ST 运行时对齐（含 `playgroundBoot.mjs`；D15/D12 待：`episodeStore`）
 ├── promotionLog.mjs  （D16 待建）跨层 Promote L0 append-only
-├── mvu/              MVU 相关（`variableCardPanel.mjs` 变量节点 UI boot）
+├── mvu/              MVU 设计/变量节点桥与视图（`variableCardPanel.mjs` + `variableCardViewModel.mjs`）
 ├── aiTaskCenter.mjs  全局 AI 任务队列
 ├── actionEngine/     全站操作注册 / 策略互斥 / apply
 └── promptCanon.mjs / promptStore.mjs

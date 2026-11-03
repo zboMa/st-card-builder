@@ -133,8 +133,9 @@ describe('regex wiring', function() {
     assert.match(panel, /id="rxBtnTest"/);
     assert.match(panel, /id="rxTestModal"/);
     assert.match(panel, /id="rxBtnParse"/);
-    // 真弹窗：挂 body + Esc/遮罩/取消关闭
-    assert.match(panel, /document\.body\.appendChild\(testModal\)/);
+    // 真弹窗：Teleport body + Esc/遮罩/取消关闭
+    assert.match(panel, /<Teleport/);
+    assert.match(panel, /to="body"/);
     assert.match(panel, /rx-modal-open/);
     assert.match(panel, /data-rx-modal-close/);
     assert.match(panel, /Escape/);
@@ -159,9 +160,9 @@ describe('regex wiring', function() {
     assert.match(panel, /refreshFingerprint/);
     assert.match(panel, /data-del/);
     // 列表行须为 div，禁止 button 嵌套 checkbox/子 button
-    assert.match(panel, /createElement\('div'\)/);
-    assert.match(panel, /role', 'button'/);
-    assert.match(panel, /addEventListener\('change'/);
+    assert.match(panel, /v-for/);
+    assert.match(panel, /role="button"/);
+    assert.match(panel, /@change/);
   });
 
   it('MVU/状态栏注入路径仍按 scriptName upsert', function() {
@@ -172,7 +173,7 @@ describe('regex wiring', function() {
     assert.match(mvu, /REGEX_SCRIPTS/);
     assert.match(mvu, /scheduleRefreshSync\(false\)/);
     assert.match(mvu, /extChanged/);
-    assert.match(mvu, /silent: true/);
+    assert.match(mvu, /setCardExtensionField/);
     const sb = readStatusBarSources(root);
     assert.match(sb, /STATUS_BAR_REGEX_NAME/);
   });

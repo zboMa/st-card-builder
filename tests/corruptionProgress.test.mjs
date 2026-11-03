@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { readAdultConfigPanelSources, readNovelBridgeSources, readAssistantExecutorSources, readCharacterPanelSources, readNovelCharactersPanelSources } from './helpers/uiSources.mjs';
+import { readAdultConfigPanelSources, readNovelBridgeSources, readAssistantExecutorSources, readCharacterPanelSources, readNovelCharactersPanelSources, readWorldbookPanelSources } from './helpers/uiSources.mjs';
 import {
   CORRUPTION_PRESETS,
   CORRUPTION_ARC_BRIEFS,
@@ -252,7 +252,7 @@ describe('corruptionProgress', function() {
     ].join('');
     assert.match(chars, /世界书人物条/);
     assert.doesNotMatch(chars, /同步所选 → 角色设定/);
-    var wb = readFileSync(join(root, 'src/components/WorldbookPanel.astro'), 'utf8');
+    var wb = readWorldbookPanelSources(root);
     assert.match(wb, /wbIncludeCharData/);
     assert.doesNotMatch(wb, /id="wbIncludeCharData" checked/);
     var bridge = readNovelBridgeSources(root);

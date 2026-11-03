@@ -1,6 +1,6 @@
 # Vue 迁移重构指南
 
-> **状态**：进行中（试点阶段）。本文件是全项目「Astro 外壳 + Vue 岛 + Nanostores 单一数据源」迁移的唯一规范。
+> **状态**：暂停（2026-11-03）。已完成状态栏 + MVU 变量卡；后续批次未开始，进度见 §11。本文件是全项目「Astro 外壳 + Vue 岛 + Nanostores 单一数据源」迁移的唯一规范。
 > 任何迁移动作都必须对照本指南；行为或约定变更须同步改本文件。
 
 ---
@@ -167,7 +167,17 @@ export function setCardKey(key, value) {
 - [x] 试点：角色卡管理整页 Vue 化（列表/筛选/工具栏/更多菜单/版本菜单/导出检查/导入）。
 - [x] AI 助手：标题栏 + 「助手」stage（消息/工具卡/待确认/输入区）+ RAG/上下文弹窗 Vue 化；试聊 / FAB / 移动端 sheet 仍留 Astro。
 - [x] 世界与限定（adult-config）：整面板 Vue 化（世界观预设 / 载体框架 / NSFW / 口味 / 表达 / NTL / 恶堕 / 纯爱 / 体系总纲 + 添加弹窗）。
-- [ ] 后续批次见 §7。
+- [x] 小说原始资料（novel-source）：原始资料 / 全局处理配置 / 文件导入 / 重置 Vue 岛化。
+- [x] 世界书条目（worldbook）：列表 / 搜索 / 筛选 / 编辑 / AI 单条·整理·触发词 / 整理预览 Vue 化；审计器保留共享弹窗。
+- [x] 开场白（greetings）：主开场 / 备选列表 / 排序删除 / 变量起点 / AI 填写 Vue 化；`window.__*` 降级为 cardStore 兼容镜像。
+- [x] 状态栏（statusbar）：四步表单 / 预设模块 / 人物勾选 / 变量树 / 预览 / 注入脚本 Vue 化；生成与提示词仍走 panelBoot。
+- [x] MVU 变量卡（variable-card）：节点画布 / 推断候选 / 变量预览 / 详情 / 底部操作 Vue 化；设计/注入/助手 API 走桥。
+- [ ] 后续批次见 §7；当前暂停，未开始。
+
+> 暂停记录（2026-11-03）：本轮停在状态栏与 MVU 变量卡完成；恢复时先补浏览器手测，再从 §7 第 4 批剩余项（NovelAnalyze）及 AI 配置/引擎等候选继续。
+
+- 验收：`npm test` 958 通过 / 170 suites；`npm run build` 成功；状态栏/MVU 静态 DOM 已从 `dist/index.html` 移除。
+- 未完成：状态栏/MVU 真实浏览器手测（变量生成/预览、节点拖拽/连线/缩放/展开大屏）。
 
 ### 角色卡管理落地记录（参考实现）
 
@@ -196,6 +206,65 @@ export function setCardKey(key, value) {
 - 桥：`characterBridge.mjs` 暴露 `window.__characterPanelApi__`，保留 `__get/__setCharTags__`、`__characterApplyAvatarDataUrl__`、`__open/closeJsonPreviewModal__`；JSON 预览继续使用共享 Astro `PreviewPanel` 外壳。
 - 删除：`characterPanelBoot.mjs`、`avatarGalleryPanel.mjs`、`imageGen/avatarModal.mjs`。
 - 测试：`readCharacterPanelSources` 纳入 Vue/VM/bridge/avatar/store；新增 `tests/characterViewModel.test.mjs`。
+
+### 世界书面板落地记录
+
+- 视图：`src/components/worldbook/WorldbookPanel.vue`（标题/搜索/条目列表/编辑与 AI 弹窗/整理预览）；`WorldbookPanel.astro` 改薄壳并保留共享审计器弹窗。
+- 快照：`worldbookViewModel.mjs`（行/搜索/编辑/整理预览）+ `store/worldbookStore.mjs`；权威数据仍是 `cardStore.worldbookEntries`。
+- 桥：`worldbookBridge.mjs` 暴露 `window.__worldbookPanelApi__` 与 `__assistantWbAi__`；条目 CRUD/搜索/AI 单条/整理/触发词走桥。
+- 共享逻辑：`worldbookShared.mjs` 的 `renderEntriesList` 支持发布快照；AI 生成/重写/触发词逻辑复用。
+- 例外：世界书审计器（`WorldbookAuditor.astro`）与关系图仍为共享 Astro/外部弹窗。
+- 测试：`readWorldbookPanelSources` 纳入 Astro/Vue/store/VM/bridge；新增 `tests/worldbookViewModel.test.mjs`；更新 sidebar/design/assistant 相关源码断言。
+
+### 开场白落地记录
+
+- 视图：`src/components/greeting/GreetingPanel.vue` + `GreetingAltItem.vue`；`GreetingPanel.astro` 改 Vue 薄壳，保留原 DOM id（`firstMes` / `altGreetingsList` / `btnAddGreeting` 等）与全局样式。
+- 快照：`greetingViewModel.mjs`（主开场/备选行/token/变量起点提示）+ `store/greetingStore.mjs`；权威数据仍是 `cardStore` 的 `firstMes` / `altGreetings` / `greetingInitMain` / `greetingInitAlts`。
+- 桥：`greetingBridge.mjs` 暴露 `window.__greetingPanelApi__`，保留 `__acceptGreetingTexts__` / `__setGreetingInit__` / `__renderAltGreetings__`；`window.__altGreetings__` 等改为 cardStore 的 getter/setter 兼容镜像。
+- 行为：输入走 `setGreetingFields`，token 文本 200ms 防抖；AI 初始值复用 `ctx.fetchAIContent` + `ctx.runTracked` + `greetingInit` 纯函数。
+- 测试：`readGreetingPanelSources` 纳入 Astro/Vue/store/VM/bridge；新增 `tests/greetingViewModel.test.mjs`；sidebar 开场白 DOM 断言改读聚合源码。
+
+### 状态栏落地记录
+
+- 视图：`src/components/statusBar/StatusBarPanel.vue` + `StatusBarTree.vue`；`StatusBarPanel.astro` 改 `client:only="vue"` 薄壳，保留四步/预览/变量/注入脚本 DOM id。
+- 快照：`panels/statusBarViewModel.mjs`（预设/模块/人物/步骤标记/树）+ `store/statusBarStore.mjs`（视图/预览 HTML/脚本/忙态）；权威设计仍是 `cardBuilderExtensions[STATUS_BAR_EXT_KEY]`。
+- 桥：`statusBar/panelBoot.mjs` 改为无 DOM API，经 `registerStatusBar` 在 `browserApp` 启动；保留 `window.__statusBarApi__` 的 `getDesign` / `setDesign` / `getSnapshot` / `applyOptions` / `generateVariables` / `generateLayout` / `editVariables`，另暴露 `__statusBarPanelApi__`。
+- 行为：表单写入经 `setCardExtensionField` + `ctx.save()`；生成仍走 `engineTryAllowed` + `ctx.runTracked`，保留预览 iframe / 变量树 / 三楼样例 / 提示词预览。
+- 测试：`readStatusBarPanelSources` 纳入 Astro/Vue/store/VM/boot；新增 `tests/statusBarViewModel.test.mjs`，状态栏 DOM 断言改读聚合源码。
+
+### MVU 变量卡落地记录
+
+- 视图：`src/components/mvu/VariableCardPanel.vue` + `MvuGraph.vue` + `MvuInferPanel.vue` + `MvuVariablePreview.vue`；`VariableCardPanel.astro` 改 `client:only="vue"` 薄壳。
+- 快照：`variableCardViewModel.mjs`（变量分组/结果清单/固定与动态节点/连线/尺码）+ `store/mvuStore.mjs`（状态/预览/代码/推断/图布局/忙态）；设计权威仍是 `cardBuilderExtensions[zmer_mvu_design]`，图布局写 `zmer_mvu_runtime_graph`。
+- 桥：`variableCardPanel.mjs` 改为无 DOM API，经 `registerMvu` 在 `browserApp` 启动；保留 `__applyExternalVariableDesign__` / `__assistantMvuApi__` / `__mvuInferApi__`，另暴露 `window.__mvuPanelApi__`。
+- 画布：Vue 渲染节点/连线/端口/代码编辑器，保留拖拽、连线、滚轮缩放、适应、整理、展开大屏；动态变量节点与断线状态由布局扩展驱动。
+- 行为：单条生成/重写/删除、推断合并、清除/删除、导出、世界书条目与正则/助手脚本注入均复用原逻辑。
+- 测试：`readVariableCardPanelSources` 纳入 Astro/Vue/store/VM/boot；新增 `tests/variableCardViewModel.test.mjs`，更新状态栏与正则相关源码断言。
+
+### 小说原始资料落地记录
+
+- 视图：`src/components/novel/NovelSourcePanel.vue`；`NovelSourcePanel.astro` 改薄壳 `client:only="vue"`。
+- 快照：`sourceViewModel.mjs`（表单/文件摘要/统计 chips）+ `store/novelSourceStore.mjs`（状态、拖拽、提示）；`sm.state` 仍是小说权威状态。
+- 逻辑：`panels/source.mjs` 的 `render()` 只发布快照，`bind()` 安装 `window.__novelSourceApi__`；字段更新、文件导入/清空、重置、拖拽均走 API，不再读写 DOM。
+- 修复：重置改为原地清空/赋值，保持 `ctx.state === sm.state`。
+- 测试：`readNovelSourcePanelSources` 纳入 Astro/Vue/source/VM/store；`novelCore.test.mjs` 的源码断言改读聚合源码；新增 `tests/novelSourceViewModel.test.mjs`。
+
+### 正则落地记录
+
+- 视图：`src/components/regex/*.vue`（`RegexPanel` + `RegexList` + `RegexEditor` + `RegexTestModal`）。
+- 逻辑：`regexPanelBoot.mjs` 改为纯 API（无 DOM），保留 `window.__regexPanelApi__`、`persistEditor` 与 180ms 自动保存。
+- 快照：`regexViewModel.mjs`（列表/自动徽标/placement 摘要/编辑器草稿）；UI 态 `regexStore.mjs`（选中 id、编辑草稿、提示、测试弹窗）。
+- 测试弹窗：Vue `Teleport to="body"`，保留 `body.rx-modal-open`、Esc/遮罩/取消关闭；解析仍走 `applyRegexScript` 与当前编辑区。
+- 状态：仍通过 `__get/__setRegexScripts__` 写 `regexScripts`；保留 `silent`、`lastRefreshFp`/`refreshFingerprint` 防自刷。
+- 测试：`readRegexPanelSources` 纳入 Vue/VM/store；`tests/regexScripts.test.mjs` 的 DOM 断言改为 Vue/API；新增 `tests/regexViewModel.test.mjs`。
+
+### 酒馆脚本落地记录
+
+- 视图：`src/components/tavernScripts/*.vue`（`TavernScriptsPanel` + `TavernScriptList` + `TavernScriptEditor`）。
+- 逻辑：`tavernPanelBoot.mjs` 改为纯 API（无 DOM），保留 `window.__tavernScriptsPanelApi__`、`persistEditor` 与 180ms 自动保存。
+- 快照：`tavernViewModel.mjs`（列表/自动徽标/编辑器草稿）；UI 态 `tavernScriptsStore.mjs`（选中 id、JSON 文本、提示）。
+- 状态：仍通过 `__get/__setTavernHelperScripts__` 写 `tavernHelperScripts`；监听 data/draft/view 事件刷新。
+- 测试：`readTavernScriptsPanelSources` 纳入 Vue/VM/store；`tests/tavernScripts.test.mjs` 的 DOM 断言改为 Vue/API；新增 `tests/tavernViewModel.test.mjs`。
 
 ### 世界与限定落地记录
 

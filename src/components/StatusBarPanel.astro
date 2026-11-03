@@ -1,104 +1,10 @@
 ---
 /**
- * 状态栏：左四步同屏，右预览。变量与排版在各自标题行生成。
+ * 状态栏：Vue 岛负责 UI；设计与生成由 panelBoot 桥接 cardStore。
  */
+import StatusBarPanelVue from './statusBar/StatusBarPanel.vue';
 ---
-<div class="panel statusbar-panel" id="statusbarPanel">
-  <div class="panel-header statusbar-panel-head">
-    <h2>状态栏</h2>
-  </div>
-  <div class="sb-toolbar">
-    <button type="button" class="btn btn-ghost btn-inline btn-expand-preview" id="sbBtnPreviewPrompt" title="查看提示词" aria-label="查看提示词"><svg class="icon-expand-corners" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button>
-    <button type="button" class="btn btn-inline" id="sbBtnSampleFloors">生成3楼样例变量数据</button>
-  </div>
-
-  <div class="sb-layout">
-    <ol class="sb-rail">
-      <li class="sb-step" data-sb-step="1">
-        <span class="ui-step-pill sb-step-mark" data-sb-mark="1"><span>1</span></span>
-        <div class="sb-step-body">
-          <h3>人物</h3>
-          <div class="sb-line">
-            <label class="sb-check" for="sbIncludeProtagonist">
-              <input type="checkbox" id="sbIncludeProtagonist" />
-              <span>主角</span>
-            </label>
-            <span class="ui-hint ui-hint--inline" id="sbCharName">#</span>
-          </div>
-          <div id="sbCharList" class="sb-char-list"></div>
-        </div>
-      </li>
-
-      <li class="sb-step" data-sb-step="2">
-        <span class="ui-step-pill sb-step-mark" data-sb-mark="2"><span>2</span></span>
-        <div class="sb-step-body">
-          <h3>预设</h3>
-          <label class="sb-check" for="sbNsfw">
-            <input type="checkbox" id="sbNsfw" />
-            <span>NSFW</span>
-          </label>
-          <div id="sbPresetGrid" class="sb-presets"></div>
-          <div class="sb-line">
-            <span class="sb-k">模块</span>
-            <button type="button" class="btn btn-inline" id="sbBtnResetModules">重置</button>
-          </div>
-          <div id="sbModuleGrid" class="sb-modules"></div>
-        </div>
-      </li>
-
-      <li class="sb-step" data-sb-step="3">
-        <span class="ui-step-pill sb-step-mark" data-sb-mark="3"><span>3</span></span>
-        <div class="sb-step-body">
-          <div class="sb-step-head">
-            <h3>变量</h3>
-            <button type="button" class="btn btn-inline" id="sbBtnVars">生成</button>
-          </div>
-          <label class="sb-k" for="sbExtra">额外要求</label>
-          <textarea id="sbExtra" rows="2" placeholder="如：强调契约进度"></textarea>
-        </div>
-      </li>
-
-      <li class="sb-step" data-sb-step="4">
-        <span class="ui-step-pill sb-step-mark" data-sb-mark="4"><span>4</span></span>
-        <div class="sb-step-body">
-          <div class="sb-step-head">
-            <h3>排版</h3>
-            <div class="sb-step-actions">
-              <button type="button" class="btn btn-inline" id="sbBtnLayoutRegen">重新生成</button>
-              <button type="button" class="btn btn-inline" id="sbBtnLayoutRevise">修改</button>
-            </div>
-          </div>
-          <label class="sb-k" for="sbLayoutPrompt">排版风格说明</label>
-          <textarea id="sbLayoutPrompt" rows="4" placeholder="如：窄条清单，数值用细进度条"></textarea>
-        </div>
-      </li>
-    </ol>
-
-    <section class="sb-preview-pane">
-      <div class="assistant-mode-switch" id="sbViewSwitch" data-mode="preview" role="tablist" aria-label="预览、变量与注入脚本">
-        <span class="assistant-mode-switch__thumb" aria-hidden="true"></span>
-        <button type="button" class="assistant-mode-switch__btn is-active" role="tab" aria-selected="true" data-sb-view="preview">预览</button>
-        <button type="button" class="assistant-mode-switch__btn" role="tab" aria-selected="false" data-sb-view="vars">变量</button>
-        <button type="button" class="assistant-mode-switch__btn" role="tab" aria-selected="false" data-sb-view="script">注入脚本</button>
-      </div>
-      <div class="sb-view-pane" data-sb-view-pane="preview">
-        <p class="ui-hint" id="sbPreviewHint">尚无样例</p>
-        <iframe id="sbPreviewFrame" class="sb-preview-frame" title="状态栏预览" sandbox="allow-same-origin"></iframe>
-        <div class="sb-floor-nav">
-          <button type="button" class="btn btn-inline" id="sbFloorPrev">上一楼</button>
-          <span id="sbFloorLabel">尚无样例</span>
-          <button type="button" class="btn btn-inline" id="sbFloorNext">下一楼</button>
-        </div>
-      </div>
-      <div class="sb-view-pane" data-sb-view-pane="vars" hidden>
-        <div id="sbVarTree" class="sb-tree"></div>
-      </div>
-      <div class="sb-view-pane" data-sb-view-pane="script" hidden>
-        <pre id="sbSnippetCode" class="sb-code"></pre>
-      </div>
-    </section>
-  </div>
-</div>
+<StatusBarPanelVue client:only="vue" />
 
 <style is:global>
   .statusbar-panel-head h2 { margin: 0; }
@@ -297,8 +203,3 @@
     font-family: var(--font-mono);
   }
 </style>
-
-<script>
-  import { initStatusBarPanel } from '../lib/statusBar/panelBoot.mjs';
-  initStatusBarPanel();
-</script>

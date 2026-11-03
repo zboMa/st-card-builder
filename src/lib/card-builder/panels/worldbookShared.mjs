@@ -44,6 +44,7 @@ export function createWorldbookShared(ctx) {
   var wbFamilyFilter = 'all';
   var wbVl = null;
   var wbDelegated = false;
+  var publishView = null;
 
   function entryPassesFamilyFilter(rawEntry) {
     if (wbFamilyFilter === 'all') return true;
@@ -476,11 +477,15 @@ export function createWorldbookShared(ctx) {
       searchInjection = sr.searchText || '';
     }
     var wbIncludeOtherEntries = ctx.$('wbIncludeOtherEntries');
-    var includeOthers = !!(contextOpts.forceLinks) || !wbIncludeOtherEntries || wbIncludeOtherEntries.checked;
+    var includeOthers = contextOpts.includeOtherEntries != null
+      ? !!contextOpts.includeOtherEntries
+      : (!!(contextOpts.forceLinks) || !wbIncludeOtherEntries || wbIncludeOtherEntries.checked);
     var presetsStr = getActivePresetsStr();
     var presetBlock = presetsStr ? '\n\n【文风约束】：\n' + presetsStr : '';
     var wbIncludeCharData = ctx.$('wbIncludeCharData');
-    var includeChar = !!(contextOpts.forceScene) || (wbIncludeCharData && wbIncludeCharData.checked);
+    var includeChar = contextOpts.includeCharData != null
+      ? !!contextOpts.includeCharData
+      : (!!(contextOpts.forceScene) || (wbIncludeCharData && wbIncludeCharData.checked));
     var adultHints = (typeof window.__buildAdultPromptHints__ === 'function')
       ? (window.__buildAdultPromptHints__() || {})
       : {};
@@ -791,6 +796,7 @@ export function createWorldbookShared(ctx) {
   }
 
   function renderEntriesList() {
+    if (publishView) { publishView(); return; }
     if (!entriesList) return;
     entriesList.style.display = '';
     ensureWbDelegation();
@@ -1262,6 +1268,7 @@ export function createWorldbookShared(ctx) {
 
   return {
     bindPanel,
+    setPublisher: function(fn) { publishView = typeof fn === 'function' ? fn : null; },
     getWorldviewHintBlock: getWorldviewHintBlock,
     truncatePreviewLine: truncatePreviewLine,
     setStatusBar: setStatusBar,

@@ -42,8 +42,14 @@ export function readAssistantPanelSources(base) {
 export function readVariableCardPanelSources(base) {
   return [
     readFileSync(join(base, 'src/components/VariableCardPanel.astro'), 'utf8'),
+    readFileSync(join(base, 'src/components/mvu/VariableCardPanel.vue'), 'utf8'),
+    readFileSync(join(base, 'src/components/mvu/MvuGraph.vue'), 'utf8'),
+    readFileSync(join(base, 'src/components/mvu/MvuInferPanel.vue'), 'utf8'),
+    readFileSync(join(base, 'src/components/mvu/MvuVariablePreview.vue'), 'utf8'),
     readFileSync(join(base, 'src/styles/variable-card-panel.css'), 'utf8'),
     readFileSync(join(base, 'src/lib/mvu/variableCardPanel.mjs'), 'utf8'),
+    readFileSync(join(base, 'src/lib/mvu/variableCardViewModel.mjs'), 'utf8'),
+    readFileSync(join(base, 'src/lib/store/mvuStore.mjs'), 'utf8'),
   ].join('');
 }
 
@@ -51,7 +57,11 @@ export function readVariableCardPanelSources(base) {
 export function readStatusBarPanelSources(base) {
   return [
     readFileSync(join(base, 'src/components/StatusBarPanel.astro'), 'utf8'),
+    readFileSync(join(base, 'src/components/statusBar/StatusBarPanel.vue'), 'utf8'),
+    readFileSync(join(base, 'src/components/statusBar/StatusBarTree.vue'), 'utf8'),
     readFileSync(join(base, 'src/lib/statusBar/panelBoot.mjs'), 'utf8'),
+    readFileSync(join(base, 'src/lib/store/statusBarStore.mjs'), 'utf8'),
+    readFileSync(join(base, 'src/lib/card-builder/panels/statusBarViewModel.mjs'), 'utf8'),
     readStatusBarSources(base),
   ].join('');
 }
@@ -85,7 +95,26 @@ export function readAccountSyncPanelSources(base) {
 export function readRegexPanelSources(base) {
   return [
     readFileSync(join(base, 'src/components/RegexPanel.astro'), 'utf8'),
+    readFileSync(join(base, 'src/components/regex/RegexPanel.vue'), 'utf8'),
+    readFileSync(join(base, 'src/components/regex/RegexList.vue'), 'utf8'),
+    readFileSync(join(base, 'src/components/regex/RegexEditor.vue'), 'utf8'),
+    readFileSync(join(base, 'src/components/regex/RegexTestModal.vue'), 'utf8'),
     readFileSync(join(base, 'src/lib/regexPanelBoot.mjs'), 'utf8'),
+    readFileSync(join(base, 'src/lib/card-builder/panels/regexViewModel.mjs'), 'utf8'),
+    readFileSync(join(base, 'src/lib/store/regexStore.mjs'), 'utf8'),
+  ].join('');
+}
+
+/** 开场白面板 */
+export function readGreetingPanelSources(base) {
+  return [
+    readFileSync(join(base, 'src/components/GreetingPanel.astro'), 'utf8'),
+    readFileSync(join(base, 'src/components/greeting/GreetingPanel.vue'), 'utf8'),
+    readFileSync(join(base, 'src/components/greeting/GreetingAltItem.vue'), 'utf8'),
+    readFileSync(join(base, 'src/lib/store/greetingStore.mjs'), 'utf8'),
+    readFileSync(join(base, 'src/lib/card-builder/panels/greetingViewModel.mjs'), 'utf8'),
+    readFileSync(join(base, 'src/lib/card-builder/panels/greetingBridge.mjs'), 'utf8'),
+    readFileSync(join(base, 'src/lib/card-builder/panels/greeting.mjs'), 'utf8'),
   ].join('');
 }
 
@@ -93,7 +122,12 @@ export function readRegexPanelSources(base) {
 export function readTavernScriptsPanelSources(base) {
   return [
     readFileSync(join(base, 'src/components/TavernScriptsPanel.astro'), 'utf8'),
+    readFileSync(join(base, 'src/components/tavernScripts/TavernScriptsPanel.vue'), 'utf8'),
+    readFileSync(join(base, 'src/components/tavernScripts/TavernScriptList.vue'), 'utf8'),
+    readFileSync(join(base, 'src/components/tavernScripts/TavernScriptEditor.vue'), 'utf8'),
     readFileSync(join(base, 'src/lib/tavernPanelBoot.mjs'), 'utf8'),
+    readFileSync(join(base, 'src/lib/card-builder/panels/tavernViewModel.mjs'), 'utf8'),
+    readFileSync(join(base, 'src/lib/store/tavernScriptsStore.mjs'), 'utf8'),
   ].join('');
 }
 
@@ -199,13 +233,15 @@ export function readStoryStudioStylesSources(base) {
 
 /** 卡侧世界书面板（register + 拆分模块） */
 export function readWorldbookPanelSources(base) {
+  var libs = ['worldbook.mjs', 'worldbookShared.mjs', 'worldbookBind.mjs', 'worldbookBridge.mjs', 'worldbookViewModel.mjs']
+    .map(function (f) {
+      return readFileSync(join(base, 'src/lib/card-builder/panels', f), 'utf8');
+    });
   return [
-    'worldbook.mjs',
-    'worldbookShared.mjs',
-    'worldbookBind.mjs',
-  ].map(function (f) {
-    return readFileSync(join(base, 'src/lib/card-builder/panels', f), 'utf8');
-  }).join('');
+    readFileSync(join(base, 'src/components/WorldbookPanel.astro'), 'utf8'),
+    readFileSync(join(base, 'src/components/worldbook/WorldbookPanel.vue'), 'utf8'),
+    readFileSync(join(base, 'src/lib/store/worldbookStore.mjs'), 'utf8'),
+  ].concat(libs).join('');
 }
 
 /** 卡侧 AI 引擎面板（register + 拆分模块） */
@@ -247,6 +283,17 @@ export function readAdultConfigPanelSources(base) {
     return readFileSync(join(base, 'src/components/adultConfig', f), 'utf8');
   });
   return lib.concat(store).concat(view).join('');
+}
+
+/** 小说工坊 source 面板（Astro + Vue + VM + store + register） */
+export function readNovelSourcePanelSources(base) {
+  return [
+    readFileSync(join(base, 'src/components/novel/NovelSourcePanel.astro'), 'utf8'),
+    readFileSync(join(base, 'src/components/novel/NovelSourcePanel.vue'), 'utf8'),
+    readFileSync(join(base, 'src/lib/novel/panels/source.mjs'), 'utf8'),
+    readFileSync(join(base, 'src/lib/novel/panels/sourceViewModel.mjs'), 'utf8'),
+    readFileSync(join(base, 'src/lib/store/novelSourceStore.mjs'), 'utf8'),
+  ].join('');
 }
 
 /** 小说工坊 worldbook 面板（register + 拆分模块） */

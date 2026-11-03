@@ -11,6 +11,9 @@ import { registerCardManager } from './panels/cardManager.mjs';
 import { registerCharacter } from './panels/character.mjs';
 import { registerAdultConfig } from './panels/adultConfig.mjs';
 import { registerWorldbook } from './panels/worldbook.mjs';
+import { registerGreeting } from './panels/greeting.mjs';
+import { registerStatusBar } from './panels/statusBar.mjs';
+import { registerMvu } from './panels/mvu.mjs';
 import { registerAiEngine } from './panels/aiEngine.mjs';
 import { registerExport } from './panels/export.mjs';
 import { buildExportChecklist } from './exportChecklist.mjs';
@@ -38,6 +41,9 @@ export function bootCardBuilder() {
   registerCharacter(ctx);
   registerAdultConfig(ctx);
   registerWorldbook(ctx);
+  registerGreeting(ctx);
+  registerStatusBar(ctx);
+  registerMvu(ctx);
   registerAiEngine(ctx);
   registerExport(ctx);
 
@@ -50,6 +56,9 @@ export function bootCardBuilder() {
   safeBind('character', ctx.panels.character && ctx.panels.character.bind);
   safeBind('adultConfig', ctx.panels.adultConfig && ctx.panels.adultConfig.bind);
   safeBind('worldbook', ctx.panels.worldbook && ctx.panels.worldbook.bindModals);
+  safeBind('greeting', ctx.panels.greeting && ctx.panels.greeting.bind);
+  safeBind('statusBar', ctx.panels.statusBar && ctx.panels.statusBar.bind);
+  safeBind('mvu', ctx.panels.mvu && ctx.panels.mvu.bind);
   safeBind('aiEngine', ctx.panels.aiEngine && ctx.panels.aiEngine.bind);
   safeBind('cardManager', ctx.panels.cardManager && ctx.panels.cardManager.bind);
   try {

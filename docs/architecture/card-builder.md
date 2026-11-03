@@ -35,9 +35,36 @@
 | `panels/characterAvatar.mjs` | 头像主图、画廊 manifest、缩略图 objectURL、上传/选主图/删除 |
 | `components/character/*.vue` | 角色设定 Vue 视图（面板/标签/版本/头像/生成弹窗） |
 | `store/characterStore.mjs` | 角色设定瞬时 UI 状态（版本基线/token tick/头像/生成弹窗） |
+| `regexPanelBoot.mjs` | 正则逻辑 API（选择/新增/删除/移动/启停/测试/自动保存；无 DOM） |
+| `panels/regexViewModel.mjs` | 正则纯函数视图快照（列表/自动徽标/placement/编辑器） |
+| `store/regexStore.mjs` | 正则瞬时 UI 状态（选中项/编辑草稿/提示/测试弹窗） |
+| `components/regex/*.vue` | 正则 Vue 视图（列表/编辑器/测试弹窗） |
+| `tavernPanelBoot.mjs` | 酒馆脚本逻辑 API（选择/新增/删除/移动/启停/自动保存；无 DOM） |
+| `panels/tavernViewModel.mjs` | 酒馆脚本纯函数视图快照（列表/徽标/编辑器） |
+| `store/tavernScriptsStore.mjs` | 酒馆脚本瞬时 UI 状态（选中项/编辑器草稿/提示） |
+| `components/tavernScripts/*.vue` | 酒馆脚本 Vue 视图（列表/编辑器） |
 | `panels/worldbook.mjs` | 世界书 boot（`registerWorldbook`） |
-| `panels/worldbookShared.mjs` | 列表/搜索/编辑/AI（虚拟列表 `virtualList` + 委托） |
-| `panels/worldbookBind.mjs` | DOM 绑定 + `__assistantWbAi__` |
+| `panels/worldbookBridge.mjs` | 世界书 Vue 桥：CRUD/搜索/AI/`__assistantWbAi__` |
+| `panels/worldbookViewModel.mjs` | 世界书纯函数快照（行/搜索/编辑/整理预览） |
+| `store/worldbookStore.mjs` | 世界书瞬时 UI 状态（搜索/筛选/弹窗/状态） |
+| `components/worldbook/WorldbookPanel.vue` | 世界书面板 Vue 视图（列表/搜索/编辑/AI 弹窗） |
+| `panels/worldbookShared.mjs` | AI/旧渲染共享逻辑；`renderEntriesList` 可切换为快照发布 |
+| `panels/worldbookBind.mjs` | 旧 DOM 绑定（已不再由 boot 调用，保留兼容） |
+| `panels/greeting.mjs` | 开场白 boot（`registerGreeting`） |
+| `panels/greetingBridge.mjs` | 开场白 Vue 桥：字段/排序/变量起点/AI/旧 window API |
+| `panels/greetingViewModel.mjs` | 开场白纯函数快照（开场/token/变量起点提示） |
+| `store/greetingStore.mjs` | 开场白瞬时 UI 状态与发布快照 |
+| `components/greeting/*.vue` | 开场白 Vue 视图（主开场/备选行） |
+| `panels/statusBar.mjs` | 状态栏 boot（`registerStatusBar`） |
+| `statusBar/panelBoot.mjs` | 状态栏 Vue 桥：设计/生成/预览/提示词/样例楼层；无 DOM |
+| `panels/statusBarViewModel.mjs` | 状态栏纯函数快照（预设/模块/人物/步骤/变量树） |
+| `store/statusBarStore.mjs` | 状态栏瞬时 UI 状态与发布快照 |
+| `components/statusBar/*.vue` | 状态栏 Vue 视图（四步/预览/变量树/注入脚本） |
+| `panels/mvu.mjs` | MVU 变量卡 boot（`registerMvu`） |
+| `mvu/variableCardPanel.mjs` | MVU 设计与生成桥：同步/注入/单条变量/推断/导出；无 DOM |
+| `mvu/variableCardViewModel.mjs` | MVU 纯函数视图（变量分组/结果清单/节点画布） |
+| `store/mvuStore.mjs` | MVU 瞬时 UI 状态与图布局快照 |
+| `components/mvu/*.vue` | MVU Vue 视图（变量卡/节点画布/推断/变量预览） |
 | `panels/aiEngine.mjs` | AI 引擎 boot（`registerAiEngine`） |
 | `panels/aiEngineShared.mjs` | 预设/世界观/持久化 helpers |
 | `panels/aiEnginePanel.mjs` | 三阶段生成、Tag、模型拉取 |
@@ -81,6 +108,9 @@
 |---|---|
 | 角色设定 | 文本 `input` / 版本 `change` → `debouncedUpdateAndSave`；标签 → `saveCurrentDraft`；头像 → `saveDraft` |
 | 世界书 | 增删改 / AI 应用 → `ctx.save()`；删条目 → `ctx.flushSave()` |
+| 开场白 | 主开场/备选/变量起点 `input` → `ctx.save()`；token 快照 200ms 防抖 |
+| 状态栏 | 勾选/预设/模块/额外要求/排版说明 → `ctx.save()`；样例楼层仅内存 |
+| MVU 变量卡 | 设计/图布局/单条变量 → ctx.save()；推断候选仅内存 |
 | 成人配置 | 开关/表单 → `ctx.save()` |
 | AI 引擎 / MVU | 脚本与生成 → `ctx.save()` / `triggerGlobalUpdate` |
 | 导入导出 | `applyJSONFromEditor`、头像导入 → `saveCurrentDraft`；导出当前卡前 → `saveCurrentDraft` |

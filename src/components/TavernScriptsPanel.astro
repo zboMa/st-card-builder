@@ -3,86 +3,9 @@
  * 酒馆脚本模块：管理 data.extensions.tavern_helper.scripts[]（与 MVU/状态栏注入共存）
  * 编辑实时写入权威数组；交互对齐正则面板（不含测试功能）
  */
+import TavernScriptsPanel from './tavernScripts/TavernScriptsPanel.vue';
 ---
-<div class="panel tavern-scripts-panel" id="tavernScriptsPanel">
-  <div class="panel-header th-hero">
-    <div>
-      <h2>酒馆脚本</h2>
-      <p class="ui-hint ui-hint--inline th-hero__sub">管理 <code>tavern_helper.scripts</code>：列表选中编辑，修改即时保存。不改动 <code>variables</code> 等其它字段。</p>
-    </div>
-    <div class="th-hero-actions">
-      <button type="button" class="btn-primary btn-inline" id="thBtnAdd">新建</button>
-    </div>
-  </div>
-
-  <div class="th-layout">
-    <section class="th-list-card" aria-label="脚本列表">
-      <div class="th-list-head">
-        <span id="thListCount">0 条</span>
-        <span class="th-tip">按名称与现有注入对齐</span>
-      </div>
-      <div id="thList" class="th-list"></div>
-      <p id="thEmpty" class="th-empty" hidden>暂无脚本。MVU / 状态栏注入后会出现在此；也可手动新建。</p>
-    </section>
-
-    <section class="th-editor-card" id="thEditor" hidden>
-      <div class="th-editor-head">
-        <h3>编辑脚本</h3>
-        <span id="thLiveHint" class="th-live-hint">已实时保存</span>
-      </div>
-
-      <!-- id 仅内部保留，界面不展示 -->
-      <input type="hidden" id="thId" value="" />
-
-      <div class="th-field">
-        <label class="th-label" for="thName">名称</label>
-        <input type="text" id="thName" autocomplete="off" />
-      </div>
-      <div class="th-field">
-        <label class="th-label" for="thInfo">说明</label>
-        <input type="text" id="thInfo" placeholder="脚本用途说明" />
-      </div>
-      <div class="th-field">
-        <label class="th-label" for="thContent">脚本内容</label>
-        <textarea id="thContent" rows="12" spellcheck="false" placeholder="脚本源码…"></textarea>
-      </div>
-
-      <!-- 两栏：左基本选项，右按钮配置 -->
-      <div class="th-editor-cols">
-        <div class="th-col">
-          <div class="th-section-title">基本选项</div>
-          <div class="th-checks th-checks-stack">
-            <label class="th-check"><input type="checkbox" id="thEnabled" /><span>启用</span></label>
-          </div>
-          <div class="th-field th-field-tight" style="margin-top:12px">
-            <label class="th-label" for="thType">类型</label>
-            <input type="text" id="thType" placeholder="script" />
-          </div>
-        </div>
-        <div class="th-col">
-          <div class="th-section-title">按钮</div>
-          <div class="th-checks th-checks-stack">
-            <label class="th-check"><input type="checkbox" id="thButtonEnabled" /><span>启用按钮</span></label>
-          </div>
-          <div class="th-field th-field-tight" style="margin-top:12px">
-            <label class="th-label" for="thButtonJson">按钮列表（JSON）</label>
-            <textarea id="thButtonJson" rows="4" spellcheck="false" placeholder='[]'></textarea>
-          </div>
-        </div>
-      </div>
-
-      <details class="th-advanced">
-        <summary>高级：附加数据 data（JSON）</summary>
-        <div class="th-field">
-          <label class="th-label" for="thDataJson">附加数据</label>
-          <textarea id="thDataJson" rows="4" spellcheck="false"></textarea>
-        </div>
-      </details>
-
-      <div id="thStatus" class="th-status"></div>
-    </section>
-  </div>
-</div>
+<TavernScriptsPanel client:only="vue" />
 
 <style is:global>
   .th-hero {

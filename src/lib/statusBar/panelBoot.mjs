@@ -1,12 +1,11 @@
 /**
- * 状态栏面板：四步同屏。变量与排版分开生成。样例楼层只在内存。
+ * 状态栏桥：Vue 只读 store 快照；设计存 cardBuilderExtensions[STATUS_BAR_EXT_KEY]。
+ * 生成 / 预览 / 提示词 / 样例楼层仍在本模块，DOM 不再参与状态真相。
  */
 import {
   STATUS_BAR_MODULES,
   STATUS_BAR_MODULE_GROUPS,
   STATUS_BAR_EXT_KEY,
-  STATUS_BAR_PRESETS,
-  STATUS_BAR_REGEX_NAME,
   STATUS_BAR_MVU_FILL_PROMPT,
   STATUS_BAR_LAYOUT_SHELL_PROMPT,
   getPresetById,
@@ -38,47 +37,38 @@ import {
   layoutReviseSource,
   buildLocalSampleFloors,
 } from '../statusBar.mjs';
-import { appFeedback } from '../ui/appMessage.mjs';
 import { engineTryAllowed } from '../actionEngine/helpers.mjs';
 import { openTextPreview } from '../textPreviewModal.mjs';
+import { setCardExtensionField } from '../store/cardActions.mjs';
+import { cardState } from '../store/cardStore.mjs';
+import { patchStatusBarStore } from '../store/statusBarStore.mjs';
+import { buildStatusBarView } from '../card-builder/panels/statusBarViewModel.mjs';
 import {
   applyStatusBarPromptTemplate,
   composeStatusBarPromptPreview,
   formatStatusBarPromptSections,
 } from './statusBarPromptPreview.mjs';
 
-export function initStatusBarPanel() {
+export function initStatusBarPanel(ctx) {
+  if (!ctx) throw new Error('initStatusBarPanel: 缺少 ctx');
   var state = normalizeDesign({});
   var samples = { activeFloor: 1, floors: null };
   var floorToastSent = false;
-  var boundCardId = '';
-
-  var extraEl = document.getElementById('sbExtra');
-  var layoutEl = document.getElementById('sbLayoutPrompt');
-  var nsfwEl = document.getElementById('sbNsfw');
-  var protagEl = document.getElementById('sbIncludeProtagonist');
-  var presetGrid = document.getElementById('sbPresetGrid');
-  var moduleGrid = document.getElementById('sbModuleGrid');
-  var charList = document.getElementById('sbCharList');
-  var varTree = document.getElementById('sbVarTree');
-  var previewFrame = document.getElementById('sbPreviewFrame');
-  var snippetCode = document.getElementById('sbSnippetCode');
-  var varsBtn = document.getElementById('sbBtnVars');
-  var layoutRegenBtn = document.getElementById('sbBtnLayoutRegen');
-  var layoutReviseBtn = document.getElementById('sbBtnLayoutRevise');
-  var treeOpen = Object.create(null);
+  var boundCardId = ctx.getCurrentDraftId ? ctx.getCurrentDraftId() : '';
+  var view = 'preview';
+  var busy = { vars: false, layout: false, sample: false };
 
   function toast(message, level) {
-    appFeedback(null, { message: message, level: level || 'error', channel: 'toast' });
-  }
-
-  function escHtml(s) {
-    return String(s == null ? '' : s)
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+    ctx.appFeedback({ message: message, level: level || 'error', channel: 'toast' });
   }
 
   function currentCharName() {
-    return String((document.getElementById('charName') || {}).value || '').trim();
+    return String(ctx.state.charName || '').trim();
+  }
+
+  function worldbookEntries() {
+    if (Array.isArray(ctx.state.worldbookEntries)) return ctx.state.worldbookEntries;
+    return window.__getWorldbookEntries__ ? window.__getWorldbookEntries__() : [];
   }
 
   function selectedFemales() {
@@ -93,45 +83,34 @@ export function initStatusBarPanel() {
     floorToastSent = false;
   }
 
-  function syncGenerateLabel() {
-    if (!varsBtn) return;
-    var again = !!(state.paths && state.paths.length);
-    varsBtn.textContent = again ? '重新生成' : '生成';
+  function readDesign() {
+    var ext = cardState().cardBuilderExtensions;
+    var raw = ext && ext[STATUS_BAR_EXT_KEY];
+    return reconcileDesignWithCharName(normalizeDesign(raw || {}), currentCharName());
   }
 
-  function refreshCharName() {
-    var el = document.getElementById('sbCharName');
-    if (el) el.textContent = '#' + (currentCharName() || '');
+  function persist() {
+    state = normalizeDesign(state);
+    setCardExtensionField(STATUS_BAR_EXT_KEY, state);
+    if (ctx.save) ctx.save();
   }
 
-  function syncStepMarks() {
-    var flags = state.moduleFlags || {};
-    var anyMod = Object.keys(flags).some(function(k) { return !!flags[k]; });
-    var done = {
-      1: !!(state.includeProtagonist || selectedFemales().length),
-      2: anyMod,
-      3: pathsForPreview().length > 0,
-      4: !!String(state.layoutPrompt || '').trim(),
-    };
-    document.querySelectorAll('[data-sb-mark]').forEach(function(el) {
-      var n = Number(el.getAttribute('data-sb-mark'));
-      el.classList.toggle('is-done', !!done[n]);
+  function loadCharactersFromWorldbook() {
+    var prevSel = Object.create(null);
+    (state.characters || []).forEach(function(c) {
+      if (c && c.name) prevSel[c.name] = c.selected;
     });
+    state.characters = collectPersonCharactersFromWorldbook(worldbookEntries(), {
+      excludeName: currentCharName(),
+    });
+    state.characters.forEach(function(c) {
+      if (c && c.name && prevSel[c.name] !== undefined) c.selected = prevSel[c.name];
+    });
+    state.characters = excludeCardNameFromCharacters(state.characters, currentCharName());
   }
 
   function readFormIntoState() {
-    state.includeProtagonist = !!(protagEl && protagEl.checked);
-    state.nsfw = !!(nsfwEl && nsfwEl.checked);
-    state.extra = extraEl ? extraEl.value.trim() : state.extra;
-    state.layoutPrompt = layoutEl ? layoutEl.value.trim() : state.layoutPrompt;
-    if (moduleGrid) {
-      moduleGrid.querySelectorAll('input[data-mod]').forEach(function(input) {
-        var id = input.getAttribute('data-mod');
-        if (id) state.moduleFlags[id] = !!input.checked;
-      });
-    }
-    state.moduleFlags = resolveModuleFlags(state.presetId, state.moduleFlags, state.nsfw);
-    state.characters = excludeCardNameFromCharacters(state.characters, currentCharName());
+    state = normalizeDesign(state);
   }
 
   function livePaths() {
@@ -176,85 +155,6 @@ export function initStatusBarPanel() {
     return map;
   }
 
-  function renderPresets() {
-    if (!presetGrid) return;
-    presetGrid.innerHTML = '';
-    STATUS_BAR_PRESETS.forEach(function(p) {
-      var btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'btn btn-inline' + (p.id === state.presetId ? ' is-active' : '');
-      btn.textContent = p.label;
-      btn.addEventListener('click', function() {
-        state.presetId = p.id;
-        if (p.nsfw) {
-          state.nsfw = true;
-          if (nsfwEl) nsfwEl.checked = true;
-        }
-        state.moduleFlags = defaultModuleFlags(p.id, state.nsfw);
-        renderPresets();
-        renderModules();
-        refreshPreview();
-        saveDesignExt();
-      });
-      presetGrid.appendChild(btn);
-    });
-  }
-
-  function renderModules() {
-    if (!moduleGrid) return;
-    moduleGrid.innerHTML = '';
-    var flags = resolveModuleFlags(state.presetId, state.moduleFlags, state.nsfw);
-    state.moduleFlags = flags;
-    STATUS_BAR_MODULE_GROUPS.forEach(function(group) {
-      var mods = STATUS_BAR_MODULES.filter(function(m) {
-        if (m.group !== group.id) return false;
-        if (m.nsfw && !state.nsfw) return false;
-        return true;
-      });
-      if (!mods.length) return;
-      var block = document.createElement('div');
-      block.className = 'sb-module-group';
-      var title = document.createElement('div');
-      title.className = 'sb-k';
-      title.textContent = group.label;
-      var items = document.createElement('div');
-      items.className = 'sb-module-group__items';
-      mods.forEach(function(m) {
-        var lab = document.createElement('label');
-        lab.className = 'sb-check';
-        lab.innerHTML = '<input type="checkbox" data-mod="' + m.id + '"'
-          + (flags[m.id] ? ' checked' : '') + ' /><span>' + escHtml(m.label) + '</span>';
-        lab.title = m.hint || '';
-        lab.querySelector('input').addEventListener('change', function(e) {
-          state.moduleFlags[m.id] = !!e.target.checked;
-          refreshPreview();
-        });
-        items.appendChild(lab);
-      });
-      block.appendChild(title);
-      block.appendChild(items);
-      moduleGrid.appendChild(block);
-    });
-  }
-
-  function renderCharList() {
-    if (!charList) return;
-    charList.innerHTML = '';
-    var list = excludeCardNameFromCharacters(state.characters, currentCharName());
-    state.characters = list;
-    if (!list.length) {
-      charList.innerHTML = '<p class="ui-hint">世界书里还没有人物条目。</p>';
-      return;
-    }
-    list.forEach(function(c, idx) {
-      var lab = document.createElement('label');
-      lab.className = 'sb-check';
-      lab.innerHTML = '<input type="checkbox" data-ci="' + idx + '"'
-        + (c.selected === true ? ' checked' : '') + ' /><span>' + escHtml(c.name) + '</span>';
-      charList.appendChild(lab);
-    });
-  }
-
   function rawPathValue(p) {
     var floor = samples.floors ? samples.floors[samples.activeFloor - 1] : null;
     if (!floor) return (p.sample != null && p.sample !== '') ? p.sample : '—';
@@ -262,93 +162,8 @@ export function initStatusBarPanel() {
     return (v == null || v === '') ? '—' : v;
   }
 
-  function isTreeNumber(value) {
-    if (typeof value === 'number' && isFinite(value)) return true;
-    return typeof value === 'string' && /^-?\d+(\.\d+)?$/.test(value.trim());
-  }
-
-  function renderTreeValue(parent, key, value, pathKey, depth) {
-    var branch = value && typeof value === 'object';
-    if (!branch) {
-      var row = document.createElement('div');
-      row.className = 'sb-tree-row';
-      var label = document.createElement('span');
-      label.className = 'sb-tree-key';
-      label.textContent = key;
-      var sep = document.createElement('span');
-      sep.className = 'sb-tree-sep';
-      sep.textContent = ':';
-      var text = document.createElement('span');
-      text.className = isTreeNumber(value) ? 'sb-tree-num' : 'sb-tree-str';
-      text.textContent = value == null ? '—' : String(value);
-      row.appendChild(label);
-      row.appendChild(sep);
-      row.appendChild(text);
-      parent.appendChild(row);
-      return;
-    }
-    var node = document.createElement('details');
-    node.className = 'sb-tree-node';
-    if (treeOpen[pathKey] == null) treeOpen[pathKey] = depth < 1;
-    node.open = !!treeOpen[pathKey];
-    node.addEventListener('toggle', function() { treeOpen[pathKey] = node.open; });
-    var sum = document.createElement('summary');
-    var name = document.createElement('span');
-    name.className = 'sb-tree-key';
-    name.textContent = key;
-    sum.appendChild(name);
-    if (Array.isArray(value)) {
-      var meta = document.createElement('span');
-      meta.className = 'sb-tree-meta';
-      meta.textContent = value.length + ' 项';
-      sum.appendChild(meta);
-    }
-    node.appendChild(sum);
-    var body = document.createElement('div');
-    body.className = 'sb-tree-body';
-    if (Array.isArray(value)) {
-      value.forEach(function(item, index) {
-        renderTreeValue(body, String(index), item, pathKey + '.' + index, depth + 1);
-      });
-    } else {
-      Object.keys(value).forEach(function(child) {
-        renderTreeValue(body, child, value[child], pathKey + '.' + child, depth + 1);
-      });
-    }
-    node.appendChild(body);
-    parent.appendChild(node);
-  }
-
-  function renderVarTree() {
-    if (!varTree) return;
-    var tree = buildVariableTree(pathsForPreview(), rawPathValue);
-    varTree.textContent = '';
-    var keys = Object.keys(tree);
-    if (!keys.length) {
-      var empty = document.createElement('p');
-      empty.className = 'ui-hint';
-      empty.textContent = '勾选主角或至少一名角色并开启模块后，这里显示变量结构。';
-      varTree.appendChild(empty);
-      return;
-    }
-    keys.forEach(function(key) {
-      renderTreeValue(varTree, key, tree[key], key, 0);
-    });
-  }
-
-  function setStatusView(mode) {
-    var sw = document.getElementById('sbViewSwitch');
-    if (sw) sw.setAttribute('data-mode', mode);
-    if (sw) {
-      sw.querySelectorAll('[data-sb-view]').forEach(function(btn) {
-        var on = btn.getAttribute('data-sb-view') === mode;
-        btn.classList.toggle('is-active', on);
-        btn.setAttribute('aria-selected', on ? 'true' : 'false');
-      });
-    }
-    document.querySelectorAll('#statusbarPanel [data-sb-view-pane]').forEach(function(pane) {
-      pane.hidden = pane.getAttribute('data-sb-view-pane') !== mode;
-    });
+  function selectedFemaleNames() {
+    return selectedFemales().map(function(c) { return String(c.name || '').trim(); }).filter(Boolean);
   }
 
   function hintText() {
@@ -363,9 +178,18 @@ export function initStatusBarPanel() {
     return who + ' · ' + floor;
   }
 
-  function refreshPreview() {
-    readFormIntoState();
-    refreshCharName();
+  function snippetCode() {
+    if (!state.snippetHtml) return '';
+    var rx = buildStatusBarRegex({ snippetHtml: state.snippetHtml, mode: 'mvu' });
+    return JSON.stringify({
+      scriptName: rx.scriptName,
+      findRegex: rx.findRegex,
+      placement: rx.placement,
+      replaceString: String(rx.replaceString || '').slice(0, 2400),
+    }, null, 2);
+  }
+
+  function publish(extra) {
     var paths = pathsForPreview();
     var values = previewValueMap(paths);
     var body = state.customBodyHtml
@@ -377,64 +201,109 @@ export function initStatusBarPanel() {
       customCss: state.customCss,
       customBodyHtml: body,
     });
-    if (previewFrame) previewFrame.srcdoc = html;
-    var hint = document.getElementById('sbPreviewHint');
-    if (hint) hint.textContent = hintText();
-    var floorLabel = document.getElementById('sbFloorLabel');
-    if (floorLabel) {
-      floorLabel.textContent = samples.floors
-        ? ('第 ' + samples.activeFloor + ' / 3 楼')
-        : '尚无样例';
-    }
-    renderVarTree();
-    if (snippetCode) {
-      if (state.snippetHtml) {
-        var rx = buildStatusBarRegex({ snippetHtml: state.snippetHtml, mode: 'mvu' });
-        snippetCode.textContent = JSON.stringify({
-          scriptName: rx.scriptName,
-          findRegex: rx.findRegex,
-          placement: rx.placement,
-          replaceString: String(rx.replaceString || '').slice(0, 2400),
-        }, null, 2);
-      } else {
-        snippetCode.textContent = '';
-      }
-    }
-    syncStepMarks();
-    syncGenerateLabel();
+    var tree = buildVariableTree(paths, rawPathValue);
+    var floorLabel = samples.floors
+      ? ('第 ' + samples.activeFloor + ' / 3 楼')
+      : '尚无样例';
+    var snapshot = buildStatusBarView(state, {
+      charName: currentCharName(),
+      paths: paths,
+      tree: tree,
+      view: view,
+      busy: busy,
+      previewHtml: html,
+      snippetCode: snippetCode(),
+      hintText: hintText(),
+      floorLabel: floorLabel,
+      canPrev: !!samples.floors && samples.activeFloor > 1,
+      canNext: !!samples.floors && samples.activeFloor < 3,
+    });
+    patchStatusBarStore(Object.assign({}, snapshot, extra || {}));
+    return { paths: paths, tree: tree, html: html };
   }
 
-  function saveDesignExt() {
-    if (window.__setCardExtension__) {
-      window.__setCardExtension__(STATUS_BAR_EXT_KEY, normalizeDesign(state));
-    }
+  function refreshPreview() {
+    return publish();
   }
 
   function paintFromState() {
-    if (protagEl) protagEl.checked = !!state.includeProtagonist;
-    if (nsfwEl) nsfwEl.checked = !!state.nsfw;
-    if (extraEl) extraEl.value = state.extra || '';
-    if (layoutEl) layoutEl.value = state.layoutPrompt || '';
     loadCharactersFromWorldbook();
-    renderPresets();
-    renderModules();
-    renderCharList();
-    refreshPreview();
+    publish();
   }
 
-  function loadCharactersFromWorldbook() {
-    var wb = window.__getWorldbookEntries__ ? window.__getWorldbookEntries__() : [];
-    var prevSel = Object.create(null);
+  function applyDesignToPanel() {
+    state = readDesign();
+    loadCharactersFromWorldbook();
+    publish();
+    return true;
+  }
+
+  function setView(mode) {
+    view = mode === 'vars' || mode === 'script' ? mode : 'preview';
+    patchStatusBarStore({ view: view });
+  }
+
+  function setBusy(key, on) {
+    busy = Object.assign({}, busy);
+    busy[key] = !!on;
+    publish();
+  }
+
+  function selectPreset(id) {
+    var preset = getPresetById(id);
+    state.presetId = preset.id;
+    if (preset.nsfw) state.nsfw = true;
+    state.moduleFlags = defaultModuleFlags(preset.id, state.nsfw);
+    persist();
+    publish();
+  }
+
+  function toggleNsfw(on) {
+    state.nsfw = !!on;
+    state.moduleFlags = resolveModuleFlags(state.presetId, state.moduleFlags, state.nsfw);
+    persist();
+    publish();
+  }
+
+  function toggleModule(id, on) {
+    if (!id) return;
+    state.moduleFlags[id] = !!on;
+    state.moduleFlags = resolveModuleFlags(state.presetId, state.moduleFlags, state.nsfw);
+    persist();
+    publish();
+  }
+
+  function resetModules() {
+    state.moduleFlags = defaultModuleFlags(state.presetId, state.nsfw);
+    persist();
+    publish();
+  }
+
+  function toggleProtagonist(on) {
+    state.includeProtagonist = !!on;
+    persist();
+    publish();
+  }
+
+  function toggleCharacter(name, on) {
+    var target = String(name || '');
     (state.characters || []).forEach(function(c) {
-      if (c && c.name) prevSel[c.name] = c.selected;
+      if (c && c.name === target) c.selected = !!on;
     });
-    state.characters = collectPersonCharactersFromWorldbook(wb, {
-      excludeName: currentCharName(),
-    });
-    state.characters.forEach(function(c) {
-      if (c && c.name && prevSel[c.name] !== undefined) c.selected = prevSel[c.name];
-    });
-    state.characters = excludeCardNameFromCharacters(state.characters, currentCharName());
+    persist();
+    publish();
+  }
+
+  function setExtra(value) {
+    state.extra = String(value == null ? '' : value);
+    persist();
+    publish();
+  }
+
+  function setLayoutPrompt(value) {
+    state.layoutPrompt = String(value == null ? '' : value);
+    persist();
+    publish();
   }
 
   function extractJson(text) {
@@ -448,14 +317,14 @@ export function initStatusBarPanel() {
   }
 
   function getAiConfig() {
-    var apiUrl = document.getElementById('apiUrl');
-    var apiKey = document.getElementById('apiKey');
-    var modelSel = document.getElementById('modelSelect');
+    var apiUrl = ctx.$('apiUrl');
+    var apiKey = ctx.$('apiKey');
+    var modelSel = ctx.$('modelSelect');
     if (!apiUrl || !modelSel) throw new Error('找不到 AI 配置面板');
     var model = modelSel.value;
     if (!model) throw new Error('请先在 AI 配置拉取并选择模型');
     return {
-      url: apiUrl.value.replace(/\/$/, '') + '/chat/completions',
+      url: String(apiUrl.value || '').replace(/\/$/, '') + '/chat/completions',
       key: (apiKey && apiKey.value || '').trim(),
       model: model,
     };
@@ -500,10 +369,9 @@ export function initStatusBarPanel() {
 
   function collectGreetingTexts() {
     var list = [];
-    var main = String((document.getElementById('firstMes') || {}).value || '').trim();
+    var main = String(ctx.state.firstMes || '').trim();
     if (main) list.push({ label: '主开场', text: main });
-    var alts = window.__altGreetings__;
-    if (!Array.isArray(alts)) return list;
+    var alts = Array.isArray(ctx.state.altGreetings) ? ctx.state.altGreetings : [];
     alts.forEach(function(text, i) {
       var body = String(text || '').trim();
       if (!body) return;
@@ -512,21 +380,17 @@ export function initStatusBarPanel() {
     return list;
   }
 
-  function selectedFemaleNames() {
-    return selectedFemales().map(function(c) { return String(c.name || '').trim(); }).filter(Boolean);
-  }
-
   function fillCardSnapshot() {
     return {
       name: currentCharName(),
-      desc: (document.getElementById('charDesc') || {}).value || '',
-      creatorNotes: (document.getElementById('creatorNotes') || {}).value || '',
+      desc: ctx.state.charDesc || '',
+      creatorNotes: ctx.state.creatorNotes || '',
       greetings: collectGreetingTexts(),
     };
   }
 
-  function fillUserForBatch(batch, card, worldbookEntries) {
-    var profile = buildBatchProfileBlock(batch, card, worldbookEntries, state.characters);
+  function fillUserForBatch(batch, card, entries) {
+    var profile = buildBatchProfileBlock(batch, card, entries, state.characters);
     var fields = (batch.paths || []).map(function(p) {
       var leaf = String(p.path || '').split('.').pop();
       var note = leaf === '关系阶段' ? '（枚举，选项必须含未结识）' : (p.meter ? '（数字）' : '');
@@ -541,12 +405,12 @@ export function initStatusBarPanel() {
   function promptBundle() {
     readFormIntoState();
     var ps = window.__promptStore__;
-    var mvuTpl = (ps && ps.get('statusBarMvuFill')) || STATUS_BAR_MVU_FILL_PROMPT;
-    var layoutTpl = (ps && ps.get('statusBarLayoutShell')) || STATUS_BAR_LAYOUT_SHELL_PROMPT;
+    var mvuTpl = ctx.promptText('statusBarMvuFill', (ps && ps.get('statusBarMvuFill')) || STATUS_BAR_MVU_FILL_PROMPT);
+    var layoutTpl = ctx.promptText('statusBarLayoutShell', (ps && ps.get('statusBarLayoutShell')) || STATUS_BAR_LAYOUT_SHELL_PROMPT);
     var paths = pathsForPreview();
     var batches = planStatusBarBatches(paths);
     var card = fillCardSnapshot();
-    var worldbookEntries = window.__getWorldbookEntries__ ? window.__getWorldbookEntries__() : [];
+    var entries = worldbookEntries();
     var moduleBlock = describeEnabledModules(state.moduleFlags);
     var mvuVars = {
       moduleBlock: moduleBlock,
@@ -564,7 +428,7 @@ export function initStatusBarPanel() {
     return {
       mvuSys: applyTemplate(mvuTpl, mvuVars),
       mvuUser: sampleBatch
-        ? fillUserForBatch(sampleBatch, card, worldbookEntries)
+        ? fillUserForBatch(sampleBatch, card, entries)
         : '没有可填的字段。',
       layoutSys: applyTemplate(layoutTpl, layoutVars),
       layoutUser: '请按排版风格说明输出 JSON。角色只写一套 <template data-zb-repeat="npc">，路径用 NPC.{{name}}.字段。',
@@ -575,7 +439,7 @@ export function initStatusBarPanel() {
       paths: paths,
       batches: batches,
       card: card,
-      worldbookEntries: worldbookEntries,
+      worldbookEntries: entries,
     };
   }
 
@@ -585,16 +449,8 @@ export function initStatusBarPanel() {
       .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '');
   }
 
-  async function runInCenter(type, title, fn) {
-    var center = window.__aiTaskCenter__;
-    if (center && center.run) {
-      return center.run({ type: type, title: title, target: currentCharName() }, fn);
-    }
-    return fn(null);
-  }
-
   function reportError(err) {
-    if (window.__isAiAbortError__ && window.__isAiAbortError__(err)) {
+    if (ctx.isTrackedAbort && ctx.isTrackedAbort(err)) {
       toast('已取消', 'info');
       return;
     }
@@ -631,7 +487,7 @@ export function initStatusBarPanel() {
   }
 
   function isTransportError(err) {
-    if (window.__isAiAbortError__ && window.__isAiAbortError__(err)) return true;
+    if (ctx.isTrackedAbort && ctx.isTrackedAbort(err)) return true;
     if (err && (err.name === 'AbortError' || err.name === 'TimeoutError')) return true;
     var msg = String((err && err.message) || err || '');
     return msg.indexOf('API HTTP') >= 0
@@ -642,7 +498,7 @@ export function initStatusBarPanel() {
   }
 
   function finishGenerate(opts, okToast, result) {
-    refreshPreview();
+    publish();
     if (window.triggerGlobalUpdate) window.triggerGlobalUpdate();
     if (!opts.fromAssistant && okToast) toast(okToast, 'success');
     return result;
@@ -662,7 +518,7 @@ export function initStatusBarPanel() {
     window.__assistantMvuApi__.upsertVariables({ design: design, inject: true });
     state.paths = pathsFromMvuDesign(design, { charName: currentCharName() });
     if (String(state.customBodyHtml || '').trim()) writeBoundSnippet();
-    saveDesignExt();
+    persist();
     return {
       ok: true,
       variableCount: design.variables.length,
@@ -680,12 +536,15 @@ export function initStatusBarPanel() {
     if (!opts.fromAssistant) {
       var gate = engineTryAllowed('card.statusbar.generate');
       if (!gate.ok) return { ok: false, code: 'busy', error: gate.reason || '已有进行中的任务' };
+      setBusy('vars', true);
     }
     var bundle = promptBundle();
     if (!bundle.batches.length) {
-      var emptyMod = '请至少开启一个模块';
-      if (!opts.fromAssistant) toast(emptyMod, 'warn');
-      return { ok: false, code: 'gate', error: emptyMod };
+      if (!opts.fromAssistant) {
+        setBusy('vars', false);
+        toast('请至少开启一个模块', 'warn');
+      }
+      return { ok: false, code: 'gate', error: '请至少开启一个模块' };
     }
     async function run(signal, task) {
       var design = await fillStatusBarVariables({
@@ -710,12 +569,14 @@ export function initStatusBarPanel() {
     try {
       var result = opts.fromAssistant
         ? await run(opts.signal || null, null)
-        : await runInCenter('statusbar_generate', '状态栏变量', function(task) {
+        : await ctx.runTracked({ type: 'statusbar_generate', title: '状态栏变量', target: currentCharName() }, function(task) {
           return run(task && task.signal, task);
         });
       return finishGenerate(opts, '已生成变量', result);
     } catch (err) {
       return failGenerate(opts, err);
+    } finally {
+      if (!opts.fromAssistant) setBusy('vars', false);
     }
   }
 
@@ -731,6 +592,7 @@ export function initStatusBarPanel() {
     if (!opts.fromAssistant) {
       var gate = engineTryAllowed('card.statusbar.layout');
       if (!gate.ok) return { ok: false, code: 'busy', error: gate.reason || '已有进行中的任务' };
+      setBusy('layout', true);
     }
     var bundle = promptBundle();
     var user = bundle.layoutUser;
@@ -751,23 +613,26 @@ export function initStatusBarPanel() {
       state.customCss = css;
       state.customBodyHtml = bodyHtml;
       writeBoundSnippet();
-      saveDesignExt();
+      persist();
       return { ok: true, revise: !!revise };
     }
     try {
       var result = opts.fromAssistant
         ? await run(opts.signal || null)
-        : await runInCenter('statusbar_custom_layout', revise ? '状态栏排版修改' : '状态栏排版', function(task) {
+        : await ctx.runTracked({ type: 'statusbar_custom_layout', title: revise ? '状态栏排版修改' : '状态栏排版', target: currentCharName() }, function(task) {
           return run(task && task.signal);
         });
       return finishGenerate(opts, revise ? '已按现有排版修改' : '已重新生成排版', result);
     } catch (err) {
       return failGenerate(opts, err);
+    } finally {
+      if (!opts.fromAssistant) setBusy('layout', false);
     }
   }
 
   function currentMvuDesign() {
-    return window.__getCardExtension__ ? window.__getCardExtension__('zmer_mvu_design') : null;
+    var ext = cardState().cardBuilderExtensions;
+    return ext ? ext.zmer_mvu_design : null;
   }
 
   function editVariables(changes) {
@@ -775,7 +640,7 @@ export function initStatusBarPanel() {
     if (!edited.ok) return edited;
     try {
       var committed = commitVariableDesign(edited.design);
-      refreshPreview();
+      publish();
       if (window.triggerGlobalUpdate) window.triggerGlobalUpdate();
       return committed;
     } catch (err) {
@@ -784,7 +649,7 @@ export function initStatusBarPanel() {
   }
 
   function getSnapshot() {
-    readFormIntoState();
+    state = readDesign();
     loadCharactersFromWorldbook();
     var design = currentMvuDesign();
     var vars = design && Array.isArray(design.variables) ? design.variables : [];
@@ -810,7 +675,7 @@ export function initStatusBarPanel() {
 
   function applyOptions(patch) {
     patch = patch || {};
-    readFormIntoState();
+    state = readDesign();
     loadCharactersFromWorldbook();
     if (patch.includeProtagonist != null) state.includeProtagonist = !!patch.includeProtagonist;
     if (Array.isArray(patch.selectedNames)) {
@@ -844,13 +709,8 @@ export function initStatusBarPanel() {
     }
     if (patch.extra != null) state.extra = String(patch.extra);
     if (patch.layoutPrompt != null) state.layoutPrompt = String(patch.layoutPrompt);
-    if (protagEl) protagEl.checked = !!state.includeProtagonist;
-    if (extraEl) extraEl.value = state.extra || '';
-    if (layoutEl) layoutEl.value = state.layoutPrompt || '';
-    renderModules();
-    renderCharList();
-    saveDesignExt();
-    refreshPreview();
+    persist();
+    publish();
     return { ok: true };
   }
 
@@ -873,7 +733,9 @@ export function initStatusBarPanel() {
     }
     var gate = engineTryAllowed('card.statusbar.sampleFloors');
     if (!gate.ok) return;
+    setBusy('sample', true);
     var checked = validateSampleFloors(buildLocalSampleFloors(pathsForPreview()));
+    setBusy('sample', false);
     if (!checked.ok) {
       toast('样例楼层无效', 'error');
       return;
@@ -881,7 +743,7 @@ export function initStatusBarPanel() {
     samples.floors = checked.floors;
     samples.activeFloor = 1;
     floorToastSent = false;
-    refreshPreview();
+    publish();
     toast('已生成本地样例', 'success');
   }
 
@@ -897,7 +759,7 @@ export function initStatusBarPanel() {
     if (next < 1) next = 1;
     if (next > 3) next = 3;
     samples.activeFloor = next;
-    refreshPreview();
+    publish();
   }
 
   function openPromptPreview() {
@@ -937,77 +799,42 @@ export function initStatusBarPanel() {
     }
   }
 
-  function applyDesignToPanel() {
-    var raw = window.__getCardExtension__ ? window.__getCardExtension__(STATUS_BAR_EXT_KEY) : null;
-    if (!raw) return false;
-    state = reconcileDesignWithCharName(normalizeDesign(raw), currentCharName());
-    paintFromState();
-    return true;
-  }
+  var api = {
+    getDesign: function() {
+      state = readDesign();
+      return normalizeDesign(state);
+    },
+    setDesign: function(d) {
+      state = reconcileDesignWithCharName(normalizeDesign(d), currentCharName());
+      clearSamples();
+      persist();
+      paintFromState();
+      return normalizeDesign(state);
+    },
+    getSnapshot: getSnapshot,
+    applyOptions: applyOptions,
+    generateVariables: generateVariables,
+    generateLayout: generateLayout,
+    editVariables: editVariables,
+    refresh: applyDesignToPanel,
+    selectPreset: selectPreset,
+    toggleNsfw: toggleNsfw,
+    toggleModule: toggleModule,
+    resetModules: resetModules,
+    toggleProtagonist: toggleProtagonist,
+    toggleCharacter: toggleCharacter,
+    setExtra: setExtra,
+    setLayoutPrompt: setLayoutPrompt,
+    setView: setView,
+    generateSampleFloors: generateSampleFloors,
+    shiftFloor: shiftFloor,
+    previewPrompt: openPromptPreview,
+  };
+  window.__statusBarApi__ = api;
+  window.__statusBarPanelApi__ = api;
 
-  if (protagEl) protagEl.addEventListener('change', function() { refreshPreview(); saveDesignExt(); });
-  if (nsfwEl) nsfwEl.addEventListener('change', function() {
-    state.nsfw = !!nsfwEl.checked;
-    state.moduleFlags = resolveModuleFlags(state.presetId, state.moduleFlags, state.nsfw);
-    renderModules();
-    refreshPreview();
-  });
-  if (charList) {
-    charList.addEventListener('change', function(e) {
-      var inp = e.target;
-      if (!inp || !inp.hasAttribute('data-ci')) return;
-      var c = state.characters[Number(inp.getAttribute('data-ci'))];
-      if (c) c.selected = !!inp.checked;
-      refreshPreview();
-      saveDesignExt();
-    });
-  }
-  var resetBtn = document.getElementById('sbBtnResetModules');
-  if (resetBtn) {
-    resetBtn.addEventListener('click', function() {
-      state.moduleFlags = defaultModuleFlags(state.presetId, state.nsfw);
-      renderModules();
-      refreshPreview();
-      saveDesignExt();
-    });
-  }
-  if (extraEl) extraEl.addEventListener('input', function() { state.extra = extraEl.value.trim(); });
-  if (layoutEl) layoutEl.addEventListener('input', function() {
-    state.layoutPrompt = layoutEl.value.trim();
-    syncStepMarks();
-  });
-  var previewBtn = document.getElementById('sbBtnPreviewPrompt');
-  if (previewBtn) previewBtn.addEventListener('click', openPromptPreview);
-  if (varsBtn) varsBtn.addEventListener('click', function() { generateVariables(); });
-  if (layoutRegenBtn) layoutRegenBtn.addEventListener('click', function() { generateLayout(false); });
-  if (layoutReviseBtn) layoutReviseBtn.addEventListener('click', function() { generateLayout(true); });
-  var sampleBtn = document.getElementById('sbBtnSampleFloors');
-  if (sampleBtn) sampleBtn.addEventListener('click', function() { generateSampleFloors(); });
-  var prevFloor = document.getElementById('sbFloorPrev');
-  var nextFloor = document.getElementById('sbFloorNext');
-  if (prevFloor) prevFloor.addEventListener('click', function() { shiftFloor(-1); });
-  if (nextFloor) nextFloor.addEventListener('click', function() { shiftFloor(1); });
-  var viewSwitch = document.getElementById('sbViewSwitch');
-  if (viewSwitch) {
-    viewSwitch.addEventListener('click', function(ev) {
-      var btn = ev.target && ev.target.closest ? ev.target.closest('[data-sb-view]') : null;
-      if (!btn) return;
-      setStatusView(btn.getAttribute('data-sb-view'));
-    });
-  }
-
-  var charNameEl = document.getElementById('charName');
-  if (charNameEl) {
-    charNameEl.addEventListener('input', function() {
-      state = reconcileDesignWithCharName(state, currentCharName());
-      loadCharactersFromWorldbook();
-      renderCharList();
-      refreshPreview();
-    });
-  }
-
+  state = readDesign();
   paintFromState();
-  applyDesignToPanel();
 
   window.addEventListener('card-builder-data-changed', function onReady() {
     if (applyDesignToPanel()) window.removeEventListener('card-builder-data-changed', onReady);
@@ -1020,31 +847,20 @@ export function initStatusBarPanel() {
     applyDesignToPanel();
   });
   window.addEventListener('app-view-changed', function(ev) {
-    var view = ev && ev.detail && ev.detail.view;
-    if (view !== 'statusbar') return;
+    var next = ev && ev.detail && ev.detail.view;
+    if (next !== 'statusbar') return;
     loadCharactersFromWorldbook();
-    renderCharList();
-    refreshPreview();
+    publish();
   });
-
-  var host = document.getElementById('statusbarPanel');
-  if (host) {
-    host.addEventListener('change', function() { saveDesignExt(); });
+  var charNameEl = ctx.$('charName');
+  if (charNameEl) {
+    charNameEl.addEventListener('input', function() {
+      state = reconcileDesignWithCharName(state, currentCharName());
+      persist();
+      loadCharactersFromWorldbook();
+      publish();
+    });
   }
 
-  window.__statusBarApi__ = {
-    getDesign: function() { return normalizeDesign(state); },
-    setDesign: function(d) {
-      state = reconcileDesignWithCharName(normalizeDesign(d), currentCharName());
-      clearSamples();
-      saveDesignExt();
-      paintFromState();
-      return state;
-    },
-    getSnapshot: getSnapshot,
-    applyOptions: applyOptions,
-    generateVariables: generateVariables,
-    generateLayout: generateLayout,
-    editVariables: editVariables,
-  };
+  return api;
 }

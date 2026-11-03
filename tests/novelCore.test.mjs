@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { readLayoutSources, readAssistantPanelSources, readVariableCardPanelSources, readNovelBrowserAppSources, readNovelWorldbookPanelSources, readNovelCharactersPanelSources, readNovelAnalyzePanelSources, readNovelBridgeSources, readCardManagerPanelSources, readNovelWorkshopStylesSources } from './helpers/uiSources.mjs';
+import { readLayoutSources, readAssistantPanelSources, readVariableCardPanelSources, readNovelBrowserAppSources, readNovelSourcePanelSources, readNovelWorldbookPanelSources, readNovelCharactersPanelSources, readNovelAnalyzePanelSources, readNovelBridgeSources, readCardManagerPanelSources, readNovelWorkshopStylesSources } from './helpers/uiSources.mjs';
 import {
   CHARACTER_PROFILE_FIELDS,
   emptyCharacterProfile,
@@ -599,7 +599,9 @@ describe('novel panel visual contract', function() {
 
   it('小说面板对齐系统 panel/form-group，无 sb-panel/hero', function() {
     NOVEL_PANEL_FILES.forEach(function(name) {
-      const src = readFileSync(join(novelRoot, 'src/components/novel/' + name), 'utf8');
+      const src = name === 'NovelSourcePanel.astro'
+        ? readNovelSourcePanelSources(novelRoot)
+        : readFileSync(join(novelRoot, 'src/components/novel/' + name), 'utf8');
       assert.match(src, /class="panel novel-workshop-panel/, name + ' missing system panel');
       assert.doesNotMatch(src, /sb-panel/, name + ' still uses sb-panel');
       assert.doesNotMatch(src, /novel-hero|novel-gold-btn/, name + ' still uses gold/hero');
@@ -609,7 +611,7 @@ describe('novel panel visual contract', function() {
   });
 
   it('原始资料重置：危险按钮文案与 tip，确认弹窗同步', function() {
-    const src = readFileSync(join(novelRoot, 'src/components/novel/NovelSourcePanel.astro'), 'utf8');
+    const src = readNovelSourcePanelSources(novelRoot);
     assert.match(src, /btnNovelResetAll[\s\S]*btn-delete/);
     assert.match(src, /重置并清空结果/);
     assert.match(src, /清空章节\/人物\/世界书草稿\/知识图谱\/文风等产出，保留原文与分片等配置/);
@@ -620,7 +622,7 @@ describe('novel panel visual contract', function() {
   });
 
   it('分片配置下沉：原始资料无全局分片，拆章/人物/世界书/文风各自有', function() {
-    const src = readFileSync(join(novelRoot, 'src/components/novel/NovelSourcePanel.astro'), 'utf8');
+    const src = readNovelSourcePanelSources(novelRoot);
     assert.doesNotMatch(src, /novelChunkSize|单片字数/);
     const ch = readFileSync(join(novelRoot, 'src/components/novel/NovelChaptersPanel.astro'), 'utf8');
     assert.match(ch, /id="novelChunkSize"/);
@@ -982,7 +984,7 @@ describe('novel panel visual contract', function() {
     assert.match(wbRender, /isEntityEnriched/);
     assert.match(wbRender, /getAdultMode/);
 
-    const source = readFileSync(join(novelRoot, 'src/components/novel/NovelSourcePanel.astro'), 'utf8');
+    const source = readNovelSourcePanelSources(novelRoot);
     assert.doesNotMatch(source, /novelGlobalAdult|novelGlobalNtl/);
 
     const chars = readFileSync(join(novelRoot, 'src/components/novel/NovelCharactersPanel.astro'), 'utf8');

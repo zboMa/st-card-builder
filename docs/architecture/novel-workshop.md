@@ -31,6 +31,7 @@
 | `browserApp.mjs` | boot 入口 |
 | `bootSetupGreetings.mjs` / `bootEvents.mjs` | 角色设定/开场白生成与事件 |
 | `analyzePipeline.mjs` / `entityStore.mjs` / `rag/` | 分析与检索 |
+| `panels/source.mjs` + `sourceViewModel.mjs` + `store/novelSourceStore.mjs` | 原始资料快照/API（Vue 岛，无 DOM 绑定） |
 | `panels/characters.mjs` + `charactersRender/Expand/ScanBind.mjs` | 人物面板 |
 | `panels/analyze.mjs` + `analyzeShared/Render/Bind/Run.mjs` | 分析面板 |
 | `panels/worldbook.mjs` + `worldbookExtractUtil/Render/Ai.mjs` | 世界书面板 |

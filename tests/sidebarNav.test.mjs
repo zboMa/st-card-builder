@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { readLayoutSources, readAssistantPanelSources, readVariableCardPanelSources, readWorldbookPanelSources, readAiConfigPanelSources, readChatPlaygroundSources, readCardManagerPanelSources, readCharacterPanelSources, readPreviewPanelSources, readAiEngineModalSources } from './helpers/uiSources.mjs';
+import { readLayoutSources, readAssistantPanelSources, readVariableCardPanelSources, readWorldbookPanelSources, readAiConfigPanelSources, readChatPlaygroundSources, readCardManagerPanelSources, readCharacterPanelSources, readPreviewPanelSources, readAiEngineModalSources, readGreetingPanelSources } from './helpers/uiSources.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -226,7 +226,7 @@ describe('sidebar navigation contract', function() {
     // 折叠时隐藏详情；展开可点收起
     assert.match(layout, /\.entry-item:not\(\.is-expanded\):not\(\.is-creating\)\s+\.entry-detail/);
     assert.match(layout, /\.entry-collapse-btn/);
-    const wb = readFileSync(join(root, 'src/components/WorldbookPanel.astro'), 'utf8');
+    const wb = readWorldbookPanelSources(root);
     assert.match(wb, /id="entriesList"/);
     assert.match(wb, /wb-entries-list/);
     // 标题行右上操作；下方仅搜索筛选（非双列预览卡）
@@ -312,7 +312,7 @@ describe('sidebar navigation contract', function() {
     assert.match(asst, /assistant-mode-switch/);
     assert.match(asst, /data-assistant-mode="chat"/);
     assert.match(asst, /ChatPlayground/);
-    const wb = readFileSync(join(root, 'src/components/WorldbookPanel.astro'), 'utf8');
+    const wb = readWorldbookPanelSources(root);
     assert.match(wb, /id="btnOpenWbAuditor"/);
     assert.match(wb, /id="wbAuditorModal"/);
     assert.match(wb, /WorldbookAuditor/);
@@ -477,7 +477,7 @@ describe('sidebar navigation contract', function() {
   });
 
   it('开场白模块保留 firstMes 与备选开场 DOM', function() {
-    const src = readFileSync(join(root, 'src/components/GreetingPanel.astro'), 'utf8');
+    const src = readGreetingPanelSources(root);
     assert.match(src, /id="firstMes"/);
     assert.match(src, /id="altGreetingsList"/);
     assert.match(src, /id="btnAddGreeting"/);

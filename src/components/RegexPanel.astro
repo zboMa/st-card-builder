@@ -1,125 +1,11 @@
 ---
 /**
  * 正则模块：管理当前角色卡 data.extensions.regex_scripts（与 MVU/状态栏注入共存）
- * 编辑实时写入权威数组；测试弹窗按当前选中条目解析
+ * Vue 岛负责视图；boot 负责写入与测试解析。
  */
+import RegexPanelVue from './regex/RegexPanel.vue';
 ---
-<div class="panel regex-panel" id="regexPanel">
-  <div class="panel-header rx-hero">
-    <div>
-      <h2>正则</h2>
-      <p class="ui-hint ui-hint--inline rx-hero__sub">管理 SillyTavern <code>regex_scripts</code>：列表选中编辑，修改即时保存。导出仍写原字段。</p>
-    </div>
-    <div class="rx-hero-actions">
-      <button type="button" class="btn-inline btn-ghost" id="rxBtnTest">测试</button>
-      <button type="button" class="btn-primary btn-inline" id="rxBtnAdd">新建</button>
-    </div>
-  </div>
-
-  <div class="rx-layout">
-    <section class="rx-list-card" aria-label="正则列表">
-      <div class="rx-list-head">
-        <span id="rxListCount">0 条</span>
-        <span class="rx-tip">按脚本名与 MVU/状态栏注入对齐</span>
-      </div>
-      <div id="rxList" class="rx-list"></div>
-      <p id="rxEmpty" class="rx-empty" hidden>暂无正则。MVU / 状态栏注入后会出现在此；也可手动新建。</p>
-    </section>
-
-    <section class="rx-editor-card" id="rxEditor" hidden>
-      <div class="rx-editor-head">
-        <h3>编辑正则</h3>
-        <span id="rxLiveHint" class="rx-live-hint">已实时保存</span>
-      </div>
-
-      <!-- id 仅内部保留，界面不展示 -->
-      <input type="hidden" id="rxId" value="" />
-
-      <div class="rx-field">
-        <label class="rx-label" for="rxScriptName">脚本名称</label>
-        <input type="text" id="rxScriptName" autocomplete="off" />
-      </div>
-      <div class="rx-field">
-        <label class="rx-label" for="rxFind">匹配正则</label>
-        <textarea id="rxFind" rows="3" spellcheck="false" placeholder="如：&lt;StatusBar&gt;([\\s\\S]*?)&lt;/StatusBar&gt;"></textarea>
-      </div>
-      <div class="rx-field">
-        <label class="rx-label" for="rxReplace">替换内容</label>
-        <textarea id="rxReplace" rows="4" spellcheck="false" placeholder="可用 $1 引用捕获组"></textarea>
-      </div>
-
-      <!-- 两栏：左作用范围+深度，右其他选项/宏/表层替换 -->
-      <div class="rx-editor-cols">
-        <div class="rx-col">
-          <div class="rx-section-title">作用范围</div>
-          <div class="rx-checks rx-checks-stack">
-            <label class="rx-check"><input type="checkbox" id="rxPlaceUser" value="1" /><span>用户输入</span></label>
-            <label class="rx-check"><input type="checkbox" id="rxPlaceAi" value="2" /><span>AI输出</span></label>
-            <label class="rx-check"><input type="checkbox" id="rxPlaceSlash" value="3" /><span>快捷命令</span></label>
-            <label class="rx-check"><input type="checkbox" id="rxPlaceWorld" value="5" /><span>世界书</span></label>
-            <label class="rx-check"><input type="checkbox" id="rxPlaceReason" value="6" /><span>推理</span></label>
-          </div>
-          <div class="rx-depth-row">
-            <div class="rx-field rx-field-tight">
-              <label class="rx-label" for="rxMinDepth">最小深度</label>
-              <input type="number" id="rxMinDepth" placeholder="空=不限" />
-            </div>
-            <div class="rx-field rx-field-tight">
-              <label class="rx-label" for="rxMaxDepth">最大深度</label>
-              <input type="number" id="rxMaxDepth" placeholder="空=不限" />
-            </div>
-          </div>
-        </div>
-        <div class="rx-col">
-          <div class="rx-section-title">其他选项</div>
-          <div class="rx-checks rx-checks-stack">
-            <label class="rx-check"><input type="checkbox" id="rxDisabled" /><span>已禁用</span></label>
-            <label class="rx-check"><input type="checkbox" id="rxRunOnEdit" /><span>编辑时运行</span></label>
-          </div>
-          <div class="rx-section-title">宏</div>
-          <div class="rx-checks">
-            <label class="rx-check"><input type="checkbox" id="rxSubstitute" /><span>宏查找替换</span></label>
-          </div>
-          <div class="rx-section-title">表层替换</div>
-          <div class="rx-checks rx-checks-stack">
-            <label class="rx-check"><input type="checkbox" id="rxMarkdownOnly" /><span>仅显示</span></label>
-            <label class="rx-check"><input type="checkbox" id="rxPromptOnly" /><span>仅后端提示词</span></label>
-          </div>
-        </div>
-      </div>
-
-      <div id="rxStatus" class="rx-status"></div>
-    </section>
-  </div>
-
-  <!-- 测试弹窗：对当前选中正则解析文本 -->
-  <div id="rxTestModal" class="rx-modal ui-modal" hidden aria-hidden="true">
-    <div class="rx-modal-backdrop ui-modal-backdrop" data-rx-modal-close></div>
-    <div class="rx-modal-dialog ui-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="rxTestTitle">
-      <div class="rx-modal-head">
-        <strong id="rxTestTitle">测试正则</strong>
-        <span class="rx-modal-tip" id="rxTestTip">使用当前选中条目</span>
-      </div>
-      <div class="rx-modal-body">
-        <div class="rx-field">
-          <label class="rx-label" for="rxTestInput">测试文本</label>
-          <textarea id="rxTestInput" rows="6" spellcheck="false" placeholder="粘贴要解析的文本…"></textarea>
-        </div>
-        <div class="rx-modal-actions-inline">
-          <button type="button" class="btn-primary btn-inline" id="rxBtnParse">解析</button>
-        </div>
-        <div class="rx-field">
-          <label class="rx-label" for="rxTestOutput">解析结果</label>
-          <textarea id="rxTestOutput" rows="6" spellcheck="false" readonly placeholder="点击「解析」后显示"></textarea>
-        </div>
-        <p id="rxTestErr" class="rx-test-err" hidden></p>
-      </div>
-      <div class="rx-modal-actions">
-        <button type="button" class="btn-inline btn-ghost" data-rx-modal-close>取消</button>
-      </div>
-    </div>
-  </div>
-</div>
+<RegexPanelVue client:only="vue" />
 
 <style is:global>
   .rx-hero {
@@ -342,6 +228,7 @@
     font-size: 0.74rem;
     color: var(--color-success);
   }
+  .rx-status.is-err { color: var(--color-danger); }
   .rx-badge {
     display: inline-block;
     margin-left: 6px;
