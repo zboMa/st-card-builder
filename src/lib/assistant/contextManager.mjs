@@ -24,6 +24,8 @@ export var CONTEXT_BUDGET = {
 };
 
 var _enc = null;
+var _tokenCache = new Map();
+var TOKEN_CACHE_MAX = 512;
 /** 单段 encode 上限：js-tiktoken 纯 JS BPE 对长 CJK 近似 O(n²)，必须分块 */
 var ENCODE_CHUNK_CHARS = 240;
 
@@ -37,13 +39,27 @@ function encoder() {
  */
 export function countTokens(text) {
   if (text == null || text === '') return 0;
+  var s = String(text);
+  var cached = _tokenCache.get(s);
+  if (cached != null) {
+    _tokenCache.delete(s);
+    _tokenCache.set(s, cached);
+    return cached;
+  }
   try {
-    var s = String(text);
     var enc = encoder();
-    if (s.length <= ENCODE_CHUNK_CHARS) return enc.encode(s).length;
-    var total = 0;
-    for (var i = 0; i < s.length; i += ENCODE_CHUNK_CHARS) {
-      total += enc.encode(s.slice(i, i + ENCODE_CHUNK_CHARS)).length;
+    var total;
+    if (s.length <= ENCODE_CHUNK_CHARS) {
+      total = enc.encode(s).length;
+    } else {
+      total = 0;
+      for (var i = 0; i < s.length; i += ENCODE_CHUNK_CHARS) {
+        total += enc.encode(s.slice(i, i + ENCODE_CHUNK_CHARS)).length;
+      }
+    }
+    _tokenCache.set(s, total);
+    if (_tokenCache.size > TOKEN_CACHE_MAX) {
+      _tokenCache.delete(_tokenCache.keys().next().value);
     }
     return total;
   } catch (e) {

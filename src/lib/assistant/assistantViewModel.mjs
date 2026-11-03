@@ -63,52 +63,83 @@ export function toContextModalView(sections, meta) {
   };
 }
 
-export function buildAssistantMessages(uiMessages) {
+export function createAssistantMessageCache() {
+  return new WeakMap();
+}
+
+function buildBaseMessage(m) {
+  var id = (m && typeof m === 'object' && m.id) ? String(m.id) : '';
+
+  if (m && m.compaction) {
+    return {
+      kind: 'compaction',
+      id: id,
+      text: m.modelContent || '',
+      showRetry: false,
+      showReroll: false,
+    };
+  }
+
+  if (m && m.role === 'tool') {
+    var toolName = m.toolName || parseToolNameFromLegacy(m.content) || 'tool';
+    var meta = getToolByName(toolName);
+    var risk = m.risk || parseRiskFromLegacy(m.content) || '?';
+    return {
+      kind: 'tool',
+      id: id,
+      tool: {
+        displayName: (meta && meta.title) || toolName,
+        risk: risk,
+        riskClass: riskBadgeClass(risk),
+        summary: toolMessageSummary(m),
+        detail: m.detail || m.content || '',
+        argsText: formatToolArgs(m.toolArgs),
+        running: !!m.running,
+        error: !!m.error,
+        pendingConfirm: !!m.pendingConfirm,
+      },
+      showRetry: false,
+      showReroll: false,
+    };
+  }
+
+  if (m && m.role === 'user') {
+    return {
+      kind: 'user',
+      id: id,
+      text: messageContentForDisplay(m),
+      hasRag: !!(m.ragPreview && m.ragPreview.ragBody),
+      showRetry: false,
+      showReroll: false,
+    };
+  }
+
+  var text = messageContentForDisplay(m);
+  return {
+    kind: 'assistant',
+    id: id,
+    text: text,
+    error: !!(m && m.error),
+    html: (m && m.error) ? escapeAssistantHtml(text) : renderAssistantMarkdown(text),
+    showRetry: false,
+    showReroll: false,
+  };
+}
+
+export function buildAssistantMessages(uiMessages, cache) {
   var list = Array.isArray(uiMessages) ? uiMessages : [];
   return list.map(function (m, index) {
+    var base = null;
+    if (cache && m && typeof m === 'object') base = cache.get(m);
+    if (!base) {
+      base = buildBaseMessage(m);
+      if (cache && m && typeof m === 'object') cache.set(m, base);
+    }
+
     var showRetry = isTailRetryTarget(list, index);
     var showReroll = !showRetry && isTailRegenerateTarget(list, index);
 
-    if (m && m.compaction) {
-      return { kind: 'compaction', text: m.modelContent || '' };
-    }
-
-    if (m && m.role === 'tool') {
-      var toolName = m.toolName || parseToolNameFromLegacy(m.content) || 'tool';
-      var meta = getToolByName(toolName);
-      var risk = m.risk || parseRiskFromLegacy(m.content) || '?';
-      return {
-        kind: 'tool',
-        tool: {
-          displayName: (meta && meta.title) || toolName,
-          risk: risk,
-          riskClass: riskBadgeClass(risk),
-          summary: toolMessageSummary(m),
-          detail: m.detail || m.content || '',
-          argsText: formatToolArgs(m.toolArgs),
-          running: !!m.running,
-          error: !!m.error,
-          pendingConfirm: !!m.pendingConfirm,
-        },
-      };
-    }
-
-    if (m && m.role === 'user') {
-      return {
-        kind: 'user',
-        text: messageContentForDisplay(m),
-        hasRag: !!(m.ragPreview && m.ragPreview.ragBody),
-      };
-    }
-
-    var text = messageContentForDisplay(m);
-    return {
-      kind: 'assistant',
-      text: text,
-      error: !!(m && m.error),
-      html: (m && m.error) ? escapeAssistantHtml(text) : renderAssistantMarkdown(text),
-      showRetry: showRetry,
-      showReroll: showReroll,
-    };
+    if (base.showRetry === showRetry && base.showReroll === showReroll) return base;
+    return Object.assign({}, base, { showRetry: showRetry, showReroll: showReroll });
   });
 }

@@ -1,10 +1,8 @@
 /**
- * 右栏 AI 助手面板的视图快照（Nanostores）。
+ * 右栏 AI 助手的 UI 状态（Nanostores）。
  *
- * 注意：这是「视图快照」，不是权威数据。
- * 权威数据（uiMessages / pending / busy / 会话）仍在
- * `src/lib/assistant/panelBoot.mjs` 的闭包里；本 store 只服务 Vue 渲染，
- * 随时可由 `publishAssistantView()` 重建。
+ * 权威消息在 `assistantMessageStore.mjs`；本 store 只保存输入、状态、
+ * 弹窗等非消息视图，`assistantStageStore` 保存 pending 相关字段。
  */
 import { atom } from 'nanostores';
 
@@ -16,10 +14,6 @@ export function defaultAssistantView() {
     status: '',
     input: '',
     focusNonce: 0,
-    messages: [],
-    pendingHint: '',
-    pending: null,
-    showAutoApplyButton: true,
     tokenLabel: '',
     tokenTitle: '',
     ragPreviewBusy: false,
@@ -30,10 +24,38 @@ export function defaultAssistantView() {
   };
 }
 
+export function defaultAssistantStage() {
+  return {
+    pendingHint: '',
+    pending: null,
+    showAutoApplyButton: true,
+  };
+}
+
 export const assistantStore = atom(defaultAssistantView());
+export const assistantStageStore = atom(defaultAssistantStage());
+
+var STAGE_KEYS = ['pendingHint', 'pending', 'showAutoApplyButton'];
+
+export function patchAssistantStage(patch) {
+  assistantStageStore.set(Object.assign({}, assistantStageStore.get(), patch || {}));
+}
 
 export function patchAssistantView(patch) {
-  assistantStore.set(Object.assign({}, assistantStore.get(), patch || {}));
+  var changes = patch || {};
+  var next = Object.assign({}, assistantStore.get(), changes);
+  var stagePatch = {};
+  var uiChanged = false;
+  STAGE_KEYS.forEach(function(key) {
+    if (Object.prototype.hasOwnProperty.call(changes, key)) stagePatch[key] = changes[key];
+    if (!Object.prototype.hasOwnProperty.call(next, key)) return;
+    delete next[key];
+  });
+  Object.keys(changes).forEach(function(key) {
+    if (STAGE_KEYS.indexOf(key) < 0) uiChanged = true;
+  });
+  if (uiChanged) assistantStore.set(next);
+  if (Object.keys(stagePatch).length) patchAssistantStage(stagePatch);
 }
 
 export function getAssistantView() {
@@ -42,4 +64,5 @@ export function getAssistantView() {
 
 export function resetAssistantView() {
   assistantStore.set(defaultAssistantView());
+  assistantStageStore.set(defaultAssistantStage());
 }

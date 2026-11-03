@@ -91,13 +91,17 @@ SoT 论述见 [`core-design-philosophy.md`](./core-design-philosophy.md) **§2.1
 - 撤销失败、应用失败：没有重试。请求没到达时确认卡还在，再点「应用」；业务失败则本轮已结束，下一句用户消息再继续。
 - 重试重发会话里已有的最后一条用户输入，不读输入框，不再追加相同用户消息。`busy` 或任务中心占用 `card.assistant.react` 时不能再开一轮。该用户消息之后没有工具轨迹：删掉可重试错误后从 step 0 重跑。已有工具轨迹：保留轨迹，从工具结果续接（`startStep >= 1`），避免把已改过的卡再写一遍。检查点之前的工具不计入步数。
 - `uiMessagesToModelHistory` 跳过 `role === 'assistant' && error`。工具错误（`role === 'tool'`）仍送模。
-- 按钮用 DOM API 创建，图标不写进消息正文的 `innerHTML`。错误正文继续转义。用户气泡仍只有 RAG 图标。
+- 消息操作按钮由 Vue 组件渲染，图标不写进消息正文的 `innerHTML`。错误正文继续转义。用户气泡仍只有 RAG 图标。
 
-## 消息渲染
+## 消息渲染与状态
 
+- 权威消息在 `src/lib/store/assistantMessageStore.mjs`：`order` + `byId`，`panelBoot` 只通过 append / replace / remove / insert actions 写入；旧会话加载时补稳定 id。
+- `assistantMessageViewsStore` 保存可渲染快照，`AssistantStage` 用 `message.id` 作为 key；`assistantViewModel.mjs` 的 `createAssistantMessageCache()` 按消息对象复用 Markdown 结果，只重建变化的消息。
+- `assistantStore` 只保存输入、状态、弹窗等 UI；`assistantStageStore` 保存 pending / pendingHint / autoApply。输入和状态更新不会触发消息区重建。
+- token 统计从 `renderMessages` 解耦并防抖，`countTokens` 带 LRU 缓存；会话变化按捕获的 card key 防抖写 localStorage，切卡前 flush 旧 key，`pagehide` flush。
 - 助手回复按 **markdown** 渲染（`assistant/markdownRender.mjs`，marked 18 + 安全壳）：标题 / 列表 / 引用 / 表格 / 代码块 / 行内码 / 链接；换行保留（`breaks`）
 - **安全**：原始 HTML 一律转义为文本（`<script>` / `onerror=` 不可执行）；链接仅放行 `http/https/mailto`，其余 scheme 降级纯文本；图片不加载，降级为链接文本
-- 用户消息 / 工具卡 / 错误提示保持纯文本（`textContent` / 转义后 `innerHTML`）
+- 用户消息 / 工具卡 / 错误提示保持纯文本（Vue 文本插值 / 转义后 `v-html`）
 
 ## 模块
 

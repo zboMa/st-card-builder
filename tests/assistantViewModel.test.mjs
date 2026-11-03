@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildAssistantMessages, shortContextTitle, toContextModalView } from '../src/lib/assistant/assistantViewModel.mjs';
+import { buildAssistantMessages, createAssistantMessageCache, shortContextTitle, toContextModalView } from '../src/lib/assistant/assistantViewModel.mjs';
 
 describe('assistantViewModel', function () {
   it('user 消息输出纯文本与 RAG 标记', function () {
@@ -76,5 +76,22 @@ describe('assistantViewModel', function () {
     ]);
     assert.equal(err.showRetry, true);
     assert.equal(err.showReroll, false);
+  });
+
+  it('reuses cached message views until the message changes', function () {
+    const cache = createAssistantMessageCache();
+    const first = { id: 'a', role: 'assistant', content: '**x**' };
+    const second = { id: 'b', role: 'user', content: 'hello' };
+
+    const before = buildAssistantMessages([first, second], cache);
+    const after = buildAssistantMessages([first, second], cache);
+    assert.equal(before[0], after[0]);
+    assert.equal(before[1], after[1]);
+
+    const changed = Object.assign({}, first, { content: '**y**' });
+    const next = buildAssistantMessages([changed, second], cache);
+    assert.notEqual(before[0], next[0]);
+    assert.equal(before[1], next[1]);
+    assert.match(next[0].html, /<strong>y<\/strong>/);
   });
 });

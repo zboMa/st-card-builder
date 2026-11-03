@@ -41,9 +41,23 @@ import {
     makeCheckpointMessage,
   } from './contextManager.mjs';
 import { isCatalogRelevantText, buildCatalogBlocks } from '../catalogSummaries.mjs';
-import { buildAssistantMessages, toContextModalView } from './assistantViewModel.mjs';
+import { buildAssistantMessages, createAssistantMessageCache, toContextModalView } from './assistantViewModel.mjs';
 import { installAssistantBridge } from './assistantBridge.mjs';
 import { patchAssistantView, assistantStore } from '../store/assistantStore.mjs';
+import {
+    appendMessage,
+    assistantMessagesStore,
+    clearMessages,
+    getMessageAt,
+    getMessageById,
+    getMessages,
+    insertMessageAt,
+    patchMessageAt,
+    removeMessageAt,
+    replaceAllMessages,
+    replaceMessageAt,
+    setAssistantMessageViews,
+  } from '../store/assistantMessageStore.mjs';
 import {
     buildRagPreviewPayload,
     buildUserModelContent,
@@ -254,7 +268,9 @@ export function initAssistantPanelMain() {
     var snapStack = createSnapshotStack(window.localStorage, function() {
       return assistantSnapshotKeyFor(currentCardId());
     });
-    var uiMessages = [];
+    var messageViewCache = createAssistantMessageCache();
+    var sessionPersistTimer = null;
+    var sessionPersistPending = null;
     var sessionRagInjected = new Set();
     var busy = false;
     var abortFlag = false;
@@ -332,8 +348,9 @@ export function initAssistantPanelMain() {
     }
 
     function latestRagInfo() {
-      for (var i = uiMessages.length - 1; i >= 0; i--) {
-        var m = uiMessages[i];
+      var list = getMessages();
+      for (var i = list.length - 1; i >= 0; i--) {
+        var m = list[i];
         if (m && m.role === 'user' && m.ragPreview && m.ragPreview.ragBody) {
           return { body: String(m.ragPreview.ragBody), index: i };
         }
@@ -342,11 +359,12 @@ export function initAssistantPanelMain() {
     }
 
     function openContextModal() {
+      var currentMessages = getMessages();
       var systemRaw = promptText('assistantSystem')
         || '你是 SillyTavern 卡片构建器的 AI 辅助助手。\n【可用工具】\n{{toolList}}\n\n{{catalogOverview}}\n\n{{characterFieldHint}}';
       var prepared = prepareAssistantMessages({
         systemPrompt: buildSystemPrompt(''),
-        uiMessages: uiMessages,
+        uiMessages: currentMessages,
         pendingInput: currentInput().trim(),
       });
       var history = prepared.historyForUi;
@@ -361,7 +379,7 @@ export function initAssistantPanelMain() {
       // 模板中 {{catalogOverview}} 出现次数 → 真实送模份数（applyTemplate 全量替换）
       var catalogRepeat = Math.max(1, (String(systemRaw).match(/\{\{catalogOverview\}\}/g) || []).length);
       var ragInfo = latestRagInfo();
-      var histCount = uiMessages.length;
+      var histCount = currentMessages.length;
       var histNote = prepared.compacted
         ? '送模从最近一次上下文检查点开始。检查点之前的对话仍留在会话里。'
         : (prepared.needsCompaction
@@ -426,9 +444,10 @@ export function initAssistantPanelMain() {
     function getComposerRagQuery() {
       var text = currentInput().trim();
       if (text) return text;
-      for (var i = uiMessages.length - 1; i >= 0; i--) {
-        if (uiMessages[i].role === 'user') {
-          return String(uiMessages[i].content || '').trim();
+      var list = getMessages();
+      for (var i = list.length - 1; i >= 0; i--) {
+        if (list[i].role === 'user') {
+          return String(list[i].content || '').trim();
         }
       }
       return '';
@@ -536,25 +555,52 @@ export function initAssistantPanelMain() {
       }
     }
 
-    function renderMessages() {
-      patchAssistantView({
-        messages: buildAssistantMessages(uiMessages),
-        pendingHint: pendingHintText ? String(pendingHintText) : '',
-      });
-      updateTokenCount();
+    function scheduleSessionPersist() {
+      if (sessionPersistTimer) clearTimeout(sessionPersistTimer);
+      sessionPersistPending = {
+        key: sessionStore.currentKey(),
+        messages: getMessages(),
+      };
+      sessionPersistTimer = setTimeout(function() {
+        var pending = sessionPersistPending;
+        sessionPersistPending = null;
+        sessionPersistTimer = null;
+        if (pending) sessionStore.setMessages(pending.messages, pending.key);
+      }, 300);
     }
+
+    function flushSessionPersist(onlyPending) {
+      if (sessionPersistTimer) {
+        clearTimeout(sessionPersistTimer);
+        sessionPersistTimer = null;
+      }
+      var pending = sessionPersistPending;
+      sessionPersistPending = null;
+      if (pending) sessionStore.setMessages(pending.messages, pending.key);
+      else if (!onlyPending) sessionStore.setMessages(getMessages());
+    }
+
+    function renderMessages() {
+      setAssistantMessageViews(buildAssistantMessages(getMessages(), messageViewCache));
+      scheduleTokenCountUpdate();
+      scheduleSessionPersist();
+    }
+
+    assistantMessagesStore.subscribe(function() {
+      renderMessages();
+    });
 
     var pendingHintText = '';
 
     function setPendingHint(text) {
       pendingHintText = text ? String(text) : '';
-      renderMessages();
+      patchAssistantView({ pendingHint: pendingHintText });
     }
 
     function clearPendingHint() {
       if (!pendingHintText) return;
       pendingHintText = '';
-      renderMessages();
+      patchAssistantView({ pendingHint: '' });
     }
 
     function persistSessionRagInjected() {
@@ -562,9 +608,7 @@ export function initAssistantPanelMain() {
     }
 
     function pushUi(msg) {
-      uiMessages.push(msg);
-      sessionStore.setMessages(uiMessages);
-      renderMessages();
+      appendMessage(msg);
     }
 
     function val(id) {
@@ -1570,8 +1614,9 @@ export function initAssistantPanelMain() {
 
     function buildDialogBackground(maxLen) {      var parts = [];
       var max = maxLen || 20000;
-      for (var i = uiMessages.length - 1; i >= 0 && parts.length < 10; i--) {
-        var m = uiMessages[i];
+      var list = getMessages();
+      for (var i = list.length - 1; i >= 0 && parts.length < 10; i--) {
+        var m = list[i];
         if (!m) continue;
         if (m.role !== 'user' && m.role !== 'assistant') continue;
         var text = m.role === 'user'
@@ -1641,21 +1686,16 @@ export function initAssistantPanelMain() {
     }
 
     function replaceUiAt(index, msg) {
-      if (index >= 0 && index < uiMessages.length) uiMessages[index] = msg;
-      else uiMessages.push(msg);
-      sessionStore.setMessages(uiMessages);
-      renderMessages();
+      if (getMessageAt(index)) replaceMessageAt(index, msg);
+      else appendMessage(msg);
     }
 
     function removeUiAt(index) {
-      if (index < 0 || index >= uiMessages.length) return;
-      uiMessages.splice(index, 1);
-      sessionStore.setMessages(uiMessages);
-      renderMessages();
+      removeMessageAt(index);
     }
 
     async function writeCheckpointIfNeeded(signal) {
-      var span = planCompactionSpan(uiMessages);
+      var span = planCompactionSpan(getMessages());
       if (!span) return false;
       var summary;
       try {
@@ -1674,9 +1714,7 @@ export function initAssistantPanelMain() {
       }
       var text = String(summary || '').trim();
       if (!text || abortFlag) return false;
-      uiMessages.splice(span.insertAt, 0, makeCheckpointMessage(text));
-      sessionStore.setMessages(uiMessages);
-      renderMessages();
+      insertMessageAt(span.insertAt, makeCheckpointMessage(text));
       return true;
     }
 
@@ -1685,10 +1723,8 @@ export function initAssistantPanelMain() {
       var displayArgs = stripDialogBackground(effectiveArgs);
       var runningIndex = -1;
       if (toolWillExecute(toolName, effectiveArgs, force)) {
-        uiMessages.push(buildRunningToolMessage(toolName, displayArgs));
-        sessionStore.setMessages(uiMessages);
-        renderMessages();
-        runningIndex = uiMessages.length - 1;
+        appendMessage(buildRunningToolMessage(toolName, displayArgs));
+        runningIndex = getMessages().length - 1;
         setStatus('正在思考…');
       }
       var result;
@@ -1766,7 +1802,7 @@ export function initAssistantPanelMain() {
     function updateTokenCount() {
       var breakdown = estimateAssistantContext({
         systemPrompt: buildSystemPrompt(''),
-        uiMessages: uiMessages,
+        uiMessages: getMessages(),
         pendingInput: currentInput().trim(),
       });
       patchAssistantView({
@@ -1802,9 +1838,10 @@ export function initAssistantPanelMain() {
         // 方案 B：目录形态会话内锁定——一旦注入过完整 overview 即保持，避免反复切换打断前缀缓存
         catalogRelevant = catalogLocked || isCatalogRelevantText(userText);
         if (!catalogRelevant) {
-          var crStart = Math.max(0, uiMessages.length - 9);
-          for (var crIdx = uiMessages.length - 1; crIdx >= crStart; crIdx--) {
-            if (uiMessages[crIdx] && isCatalogRelevantText(String(uiMessages[crIdx].content || ''))) {
+          var currentMessages = getMessages();
+          var crStart = Math.max(0, currentMessages.length - 9);
+          for (var crIdx = currentMessages.length - 1; crIdx >= crStart; crIdx--) {
+            if (currentMessages[crIdx] && isCatalogRelevantText(String(currentMessages[crIdx].content || ''))) {
               catalogRelevant = true;
               break;
             }
@@ -1830,11 +1867,12 @@ export function initAssistantPanelMain() {
             if (ragPayload) {
               var ragBlock = ragPayload.ragBody;
               var modelContent = buildUserModelContent(userText, ragBlock);
-              uiMessages[uiMessages.length - 1].modelContent = modelContent;
-              uiMessages[uiMessages.length - 1].ragPreview = ragPayload;
-              uiMessages[uiMessages.length - 1].ragInjectedIds = ragPayload.injectedKeys.slice();
-              sessionStore.setMessages(uiMessages);
-              renderMessages();
+              var targetIndex = getMessages().length - 1;
+              patchMessageAt(targetIndex, {
+                modelContent: modelContent,
+                ragPreview: ragPayload,
+                ragInjectedIds: ragPayload.injectedKeys.slice(),
+              });
             }
           }
         } catch (ragErr) {
@@ -1857,11 +1895,9 @@ export function initAssistantPanelMain() {
       if (busy) return;
       if (!engineTryAllowed('card.assistant.react').ok) return;
       if (!ensureAiConfigured()) return;
-      var plan = planAssistantRetry(uiMessages);
+      var plan = planAssistantRetry(getMessages());
       if (!plan || !plan.userText) return;
-      uiMessages = plan.nextMessages;
-      sessionStore.setMessages(uiMessages);
-      renderMessages();
+      replaceAllMessages(plan.nextMessages);
       await startReact({
         skipGuards: true,
         reuseExisting: true,
@@ -1876,11 +1912,9 @@ export function initAssistantPanelMain() {
       if (busy) return;
       if (!engineTryAllowed('card.assistant.react').ok) return;
       if (!ensureAiConfigured()) return;
-      var plan = planAssistantReroll(uiMessages);
+      var plan = planAssistantReroll(getMessages());
       if (!plan || !plan.userText) return;
-      uiMessages = plan.nextMessages;
-      sessionStore.setMessages(uiMessages);
-      renderMessages();
+      replaceAllMessages(plan.nextMessages);
       await startReact({
         skipGuards: true,
         reuseExisting: true,
@@ -1903,9 +1937,10 @@ export function initAssistantPanelMain() {
         // 复用当前任务
       } else {
         var targetText = '';
-        for (var ti = uiMessages.length - 1; ti >= 0; ti--) {
-          if (uiMessages[ti].role === 'user') {
-            targetText = String(uiMessages[ti].content || '').slice(0, 40);
+        var targetMessages = getMessages();
+        for (var ti = targetMessages.length - 1; ti >= 0; ti--) {
+          if (targetMessages[ti].role === 'user') {
+            targetText = String(targetMessages[ti].content || '').slice(0, 40);
             break;
           }
         }
@@ -1941,7 +1976,7 @@ export function initAssistantPanelMain() {
           }
           var prepared = prepareAssistantMessages({
             systemPrompt: buildSystemPrompt(extra),
-            uiMessages: uiMessages,
+            uiMessages: getMessages(),
             extraSystem: stepHint,
           });
           if (prepared.needsCompaction) {
@@ -1950,7 +1985,7 @@ export function initAssistantPanelMain() {
             if (wroteCk) {
               prepared = prepareAssistantMessages({
                 systemPrompt: buildSystemPrompt(extra),
-                uiMessages: uiMessages,
+                uiMessages: getMessages(),
                 extraSystem: stepHint,
               });
             }
@@ -2140,12 +2175,11 @@ export function initAssistantPanelMain() {
     }
 
     function clearSession() {
-      uiMessages = [];
+      clearMessages();
       sessionRagInjected = new Set();
       catalogLocked = false; // 清空会话：目录形态锁定一并复位
       sessionStore.clear();
       showPending(null);
-      renderMessages();
       appFeedback(null, { message: '会话已清空', level: 'success', channel: 'toast' });
     }
 
@@ -2262,13 +2296,14 @@ export function initAssistantPanelMain() {
         return;
       }
       if (p.followup) {
-        var lastTool = uiMessages[uiMessages.length - 1];
+        var lastToolIndex = getMessages().length - 1;
+        var lastTool = getMessageAt(lastToolIndex);
         if (lastTool && lastTool.role === 'tool') {
           var followLine = '\nfollowup: ' + p.followup;
-          lastTool.detail = String(lastTool.detail || '') + followLine;
-          lastTool.modelDetail = String(lastTool.modelDetail || '') + followLine;
-          sessionStore.setMessages(uiMessages);
-          renderMessages();
+          replaceMessageAt(lastToolIndex, Object.assign({}, lastTool, {
+            detail: String(lastTool.detail || '') + followLine,
+            modelDetail: String(lastTool.modelDetail || '') + followLine,
+          }));
         }
       }
       reactResume = null;
@@ -2299,6 +2334,7 @@ export function initAssistantPanelMain() {
 
     /** 从当前卡会话恢复 UI（卡片切换 / 初始恢复共用） */
     function loadSessionIntoView() {
+      flushSessionPersist(true);
       catalogLocked = false; // 切卡/恢复会话 = 新起点，目录形态重新判定
       var saved = sessionStore.read();
       if (saved.ragInjectedIds && saved.ragInjectedIds.length) {
@@ -2306,9 +2342,13 @@ export function initAssistantPanelMain() {
       } else {
         sessionRagInjected = new Set();
       }
-      uiMessages = Array.isArray(saved.messages) ? saved.messages.slice() : [];
+      var loadedMessages = Array.isArray(saved.messages)
+        ? saved.messages.map(function(m) {
+          return m && typeof m === 'object' ? Object.assign({}, m) : m;
+        })
+        : [];
       var settled = false;
-      uiMessages.forEach(function(m) {
+      loadedMessages.forEach(function(m) {
         if (!m || !m.running) return;
         m.running = false;
         m.error = true;
@@ -2317,9 +2357,9 @@ export function initAssistantPanelMain() {
         m.modelDetail = '返回: 错误 — 执行未完成';
         settled = true;
       });
-      if (settled) sessionStore.setMessages(uiMessages);
+      replaceAllMessages(loadedMessages);
+      if (settled) sessionStore.setMessages(getMessages());
       showPending(null);
-      renderMessages();
     }
 
     // 恢复会话：旧全局会话一次性迁移到首张卡，再读当前卡会话
@@ -2346,8 +2386,8 @@ export function initAssistantPanelMain() {
       enableAutoApply: enableAutoApply,
       quickInsert: quickInsert,
       ragPreview: openComposerRagPreview,
-      ragPreviewForMessage: function(index) {
-        var msg = uiMessages[Number(index)];
+      ragPreviewForMessage: function(ref) {
+        var msg = typeof ref === 'string' ? getMessageById(ref) : getMessageAt(Number(ref));
         if (!msg) return;
         return openRagPreviewForMessage(msg);
       },
@@ -2360,6 +2400,7 @@ export function initAssistantPanelMain() {
     patchAssistantView({ showAutoApplyButton: !isAssistantAutoApply() });
 
     // 切卡 → 重载该卡会话；进行中任务对切卡已硬禁，此处再兜底
+    window.addEventListener('pagehide', flushSessionPersist);
     window.addEventListener('card-draft-changed', function() {
       if (busy) return;
       try { migrateLegacyAssistantSession(window.localStorage, currentCardId()); } catch (eM) { /* ignore */ }

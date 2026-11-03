@@ -28,6 +28,8 @@ export function readAssistantPanelSources(base) {
     readFileSync(join(base, 'src/lib/assistant/panelBoot.mjs'), 'utf8'),
     readFileSync(join(base, 'src/lib/assistant/assistantViewModel.mjs'), 'utf8'),
     readFileSync(join(base, 'src/lib/assistant/assistantBridge.mjs'), 'utf8'),
+    readFileSync(join(base, 'src/lib/store/assistantStore.mjs'), 'utf8'),
+    readFileSync(join(base, 'src/lib/store/assistantMessageStore.mjs'), 'utf8'),
     readFileSync(join(base, 'src/components/assistant/AssistantHeader.vue'), 'utf8'),
     readFileSync(join(base, 'src/components/assistant/AssistantStage.vue'), 'utf8'),
     readFileSync(join(base, 'src/components/assistant/AssistantMessage.vue'), 'utf8'),

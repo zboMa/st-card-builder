@@ -734,6 +734,18 @@ describe('assistant session', function() {
     assert.ok(storage.getItem('st_v3_builder_assistant_session:cardB'));
   });
 
+  it('setMessages can write a captured card key', function() {
+    var storage = memoryStorage();
+    var cur = 'cardA';
+    var store = createAssistantSessionStore(storage, function() { return assistantSessionKeyFor(cur); });
+    cur = 'cardB';
+    store.setMessages([{ role: 'user', content: 'captured' }], 'st_v3_builder_assistant_session:cardA');
+    var savedA = JSON.parse(storage.getItem('st_v3_builder_assistant_session:cardA'));
+    assert.equal(savedA.messages[0].content, 'captured');
+    cur = 'cardA';
+    assert.equal(store.read().messages[0].content, 'captured');
+  });
+
   it('旧全局会话一次性迁移到首张卡', function() {
     var storage = memoryStorage();
     storage.setItem(ASSISTANT_SESSION_KEY, JSON.stringify({ messages: [{ role: 'user', content: '旧会话' }], ragInjectedIds: ['k1'] }));

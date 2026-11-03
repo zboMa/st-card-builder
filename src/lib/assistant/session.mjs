@@ -63,10 +63,10 @@ export function createAssistantSessionStore(storage, keyOrResolver) {
     return keyOrResolver || ASSISTANT_SESSION_KEY;
   }
 
-  function readSession() {
+  function readSessionForKey(key) {
     if (!storage) return { messages: [], ragInjectedIds: [], updatedAt: 0 };
     try {
-      var raw = storage.getItem(resolveKey());
+      var raw = storage.getItem(String(key));
       if (!raw) return { messages: [], ragInjectedIds: [], updatedAt: 0 };
       var parsed = JSON.parse(raw);
       if (!parsed || !Array.isArray(parsed.messages)) return { messages: [], ragInjectedIds: [], updatedAt: 0 };
@@ -80,20 +80,28 @@ export function createAssistantSessionStore(storage, keyOrResolver) {
     }
   }
 
-  function writeSession(session) {
-    if (!storage) return;
+  function readSession() {
+    return readSessionForKey(resolveKey());
+  }
+
+  function writeSessionForKey(key, session) {
+    if (!storage || !key) return;
     try {
-      var prev = readSession();
+      var prev = readSessionForKey(key);
       var msgs = (session.messages != null ? session.messages : prev.messages || []).slice(-MAX_SESSION_MESSAGES);
       var ragInjectedIds = session.ragInjectedIds != null
         ? session.ragInjectedIds
         : (prev.ragInjectedIds || []);
-      storage.setItem(resolveKey(), JSON.stringify({
+      storage.setItem(String(key), JSON.stringify({
         messages: msgs,
         ragInjectedIds: ragInjectedIds,
         updatedAt: Date.now(),
       }));
     } catch (e) { /* quota */ }
+  }
+
+  function writeSession(session) {
+    writeSessionForKey(resolveKey(), session);
   }
 
   function appendMessage(msg) {
@@ -107,8 +115,8 @@ export function createAssistantSessionStore(storage, keyOrResolver) {
     writeSession({ messages: [], ragInjectedIds: [], updatedAt: Date.now() });
   }
 
-  function setMessages(messages) {
-    writeSession({ messages: messages || [], updatedAt: Date.now() });
+  function setMessages(messages, key) {
+    writeSessionForKey(key || resolveKey(), { messages: messages || [], updatedAt: Date.now() });
   }
 
   function setRagInjectedIds(ids) {

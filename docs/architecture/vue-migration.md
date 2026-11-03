@@ -191,11 +191,14 @@ export function setCardKey(key, value) {
 ### AI 助手落地记录（方案 B）
 
 - 视图：`src/components/assistant/*.vue`（`AssistantHeader` 标题栏 + `AssistantStage` / `AssistantMessage` / `AssistantToolCard` / `AssistantCompaction` / `AssistantPending` / `AssistantComposer` / `AssistantModals`）。
-- 视图快照：`assistantStore.mjs`（`atom` + `patchAssistantView`，`useStore` 直接订阅）+ `assistantViewModel.mjs`（`uiMessages` → 可渲染快照、上下文弹窗快照，纯函数）。
-- 桥：`assistantBridge.mjs`（`assistantApi` 门面 + `installAssistantBridge`）；Vue 只调 `assistantApi.*`。
+- 状态：`assistantMessageStore.mjs` 用 `order/byId` 保存权威消息；`panelBoot` 只通过 append / replace / remove / insert actions 写入；`assistantStore` 只存非消息 UI，`assistantStageStore` 存 pending / pendingHint / autoApply。
+- 视图：`assistantViewModel.mjs` 把消息记录映射为可渲染快照，并用 `createAssistantMessageCache()` 按消息对象复用；`AssistantStage` 订阅 `assistantMessageViewsStore`，稳定 `message.id` 作为 key。
+- 性能：输入、状态、pendingHint 不再触发消息重建；`renderMessages` 只处理消息变化，token 统计从 render 解耦并防抖，`countTokens` 增加 LRU 缓存。
+- 会话：消息变化防抖写 localStorage，`pagehide` 时 flush；旧会话加载时补稳定 id，保持旧格式兼容。
+- 桥：`assistantBridge.mjs`（`assistantApi` 门面 + `installAssistantBridge`）；Vue 只调 `assistantApi.*`，`ragPreviewForMessage` 同时接受 index 与 id。
 - `panelBoot.mjs` 只保留引擎 / 会话 / shell（模式、移动端）；RAG 与上下文只产出快照，弹窗 DOM 由 `AssistantModals`（Teleport to body）渲染。
 - 未迁：`ChatPlayground`（试聊 stage，Astro 岛无法内嵌）、FAB 与移动端 sheet。
-- 测试：`readAssistantPanelSources` 已纳入 `src/components/assistant/**` + viewModel + bridge；`tests/assistantCore.test.mjs` 的 DOM 命令式断言已改为 Vue/action 等价断言。
+- 测试：`readAssistantPanelSources` 纳入 `src/components/assistant/**` + viewModel + bridge + store；新增 `tests/assistantMessageStore.test.mjs`、`tests/assistantViewModel.test.mjs` 缓存断言；`tests/assistantCore.test.mjs` 的 DOM 命令式断言已改为 Vue/action 等价断言。
 
 ### 角色设定落地记录
 
