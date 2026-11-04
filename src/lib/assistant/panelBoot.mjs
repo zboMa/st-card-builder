@@ -271,6 +271,7 @@ export function initAssistantPanelMain() {
     var messageViewCache = createAssistantMessageCache();
     var sessionPersistTimer = null;
     var sessionPersistPending = null;
+    var messagesReady = false;
     var sessionRagInjected = new Set();
     var busy = false;
     var abortFlag = false;
@@ -583,7 +584,7 @@ export function initAssistantPanelMain() {
     function renderMessages() {
       setAssistantMessageViews(buildAssistantMessages(getMessages(), messageViewCache));
       scheduleTokenCountUpdate();
-      scheduleSessionPersist();
+      if (messagesReady) scheduleSessionPersist();
     }
 
     assistantMessagesStore.subscribe(function() {
@@ -2357,6 +2358,7 @@ export function initAssistantPanelMain() {
         m.modelDetail = '返回: 错误 — 执行未完成';
         settled = true;
       });
+      messagesReady = true;
       replaceAllMessages(loadedMessages);
       if (settled) sessionStore.setMessages(getMessages());
       showPending(null);

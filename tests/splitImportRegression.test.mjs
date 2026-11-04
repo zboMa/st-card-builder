@@ -37,6 +37,26 @@ describe('split import regression', function() {
     assert.match(src, /OUTLINE_TYPE_LABELS/);
   });
 
+  it('AIPanel 提供清空酒馆预设入口', function() {
+    var src = readFileSync(join(root, 'src/components/AIPanel.astro'), 'utf8');
+    assert.match(src, /id="btnClearPresets"/);
+    assert.match(src, /btn btn-ghost btn-inline/);
+  });
+
+  it('aiEngine clearPresets 清空列表并持久化', function() {
+    var src = readFileSync(join(root, 'src/lib/card-builder/panels/aiEnginePanel.mjs'), 'utf8');
+    assert.match(src, /clearPresets:\s*async function/);
+    assert.match(src, /s\.parsedPresetList = \[\]/);
+    assert.match(src, /ctx\.panels\.aiEngine\.renderPresetList\(\)/);
+    assert.match(src, /s\.persistAiConfig\(\)/);
+  });
+
+  it('aiEngineBind 绑定清空酒馆预设按钮', function() {
+    var src = readFileSync(join(root, 'src/lib/card-builder/panels/aiEngineBind.mjs'), 'utf8');
+    assert.match(src, /btnClearPresets/);
+    assert.match(src, /ctx\.panels\.aiEngine\.clearPresets\(\)/);
+  });
+
   it('characters 丰满按钮走 analyze 面板 API', function() {
     var scan = readFileSync(join(root, 'src/lib/novel/panels/charactersScanBind.mjs'), 'utf8');
     var render = readFileSync(join(root, 'src/lib/novel/panels/charactersRender.mjs'), 'utf8');

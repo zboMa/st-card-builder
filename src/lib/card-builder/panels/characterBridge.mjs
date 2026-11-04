@@ -5,6 +5,7 @@ import { buildCharacterView, buildCharacterTokens, buildAvatarGenView } from './
 import { characterUiStore, patchAvatarGen } from '../../store/characterStore.mjs';
 import { generateImages } from '../../imageGen/client.mjs';
 import { providerById } from '../../aiConfig/imageConfig.mjs';
+import { buildTagGenContext, DEFAULT_TAG_CONTEXT_CHARS } from '../../charTags.mjs';
 
 function readChatConfig() {
   var read = function (id) {
@@ -25,6 +26,31 @@ function chatCharacterPayload(ctx) {
     scenario: '',
     firstMes: ctx.state.firstMes || '',
   };
+}
+
+function avatarWorldbookEntries(ctx) {
+  if (typeof window !== 'undefined' && typeof window.__getWorldbookEntries__ === 'function') {
+    try {
+      var list = window.__getWorldbookEntries__();
+      if (Array.isArray(list)) return list;
+    } catch (e) { /* fall through */ }
+  }
+  return Array.isArray(ctx.state.worldbookEntries) ? ctx.state.worldbookEntries : [];
+}
+
+function buildAvatarPromptContext(ctx, payload) {
+  var cardParts = [];
+  if (payload.description) cardParts.push('角色设定：\n' + String(payload.description));
+  if (payload.personality) cardParts.push('性格：\n' + String(payload.personality));
+  if (payload.scenario) cardParts.push('场景：\n' + String(payload.scenario));
+  if (payload.systemPrompt) cardParts.push('系统提示：\n' + String(payload.systemPrompt));
+  if (payload.mesExample) cardParts.push('示例对话：\n' + String(payload.mesExample));
+  if (payload.creatorNotes) cardParts.push('作者注释：\n' + String(payload.creatorNotes));
+  if (payload.firstMes) cardParts.push('开场白：\n' + String(payload.firstMes));
+  var worldbookContext = buildTagGenContext({
+    worldbookEntries: avatarWorldbookEntries(ctx),
+  }, DEFAULT_TAG_CONTEXT_CHARS);
+  return [cardParts.join('\n\n'), worldbookContext].filter(Boolean).join('\n\n');
 }
 
 function feedback(ctx, message, level) {
@@ -132,25 +158,21 @@ export function installCharacterBridge(ctx, panel) {
       return false;
     }
     var payload = chatCharacterPayload(ctx);
-    var lines = [
-      '角色名称：' + (payload.name || '未命名'),
-      '角色描述：' + (payload.description || ''),
-      '性格：' + (payload.personality || ''),
-      '场景：' + (payload.scenario || ''),
-      '开场白：' + (payload.firstMes || ''),
-    ].filter(function (line) {
-      return String(line.split('：').slice(1).join('：') || '').trim();
-    });
-    if (!lines.length) {
-      patchAvatarGen({ status: '请先填写角色名称或角色设定', statusKind: 'err' });
+    var context = buildAvatarPromptContext(ctx, payload);
+    if (!String(context || '').trim()) {
+      patchAvatarGen({ status: '请先填写角色设定或世界书内容', statusKind: 'err' });
       return false;
     }
+    var lines = [
+      '角色名称：' + (payload.name || '未命名'),
+      context,
+    ];
     patchAvatarGen({ busyPrompt: true, status: '正在根据角色描述生成提示词。', statusKind: '' });
     try {
       var headers = { 'Content-Type': 'application/json' };
       if (ai.key) headers.Authorization = 'Bearer ' + ai.key;
       var messages = [
-        { role: 'system', content: '你是一个角色头像生图提示词助手。根据用户提供的角色信息，写出适合生图模型的英文提示词：自动用逗号分隔的关键词（tags），包含外貌、服饰、姿态、场景、光线与氛围；不要输出解释，不要加分析，不要加引号。' },
+        { role: 'system', content: '你是角色头像提示词专家。根据角色卡和世界书资料，提取外观、身份、种族、年龄、体型、脸型、发型发色、眼睛、服装、配饰、气质、姿态、场景与光线，写出适合文生图模型的英文提示词，用逗号分隔 tags。优先采用世界书中明确的外观/身份/服饰设定，资料不足才合理补全；忽略数值、剧情流水和系统规则。不要编造与资料冲突的内容，不要加画风、负面词或解释。' },
         { role: 'user', content: lines.join('\n') },
       ];
       var content = '';

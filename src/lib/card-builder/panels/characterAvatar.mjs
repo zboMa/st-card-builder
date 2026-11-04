@@ -165,8 +165,8 @@ function saveAfterAvatarChange(ctx) {
   }
 }
 
-async function ensureDraftForAvatar(ctx) {
-  if (ctx.state.draftId) return;
+export async function ensureDraftForAvatar(ctx) {
+  if (ctx.state.draftId) return true;
   var drafts0 = getDraftsMapSync() || {};
   if (shouldBlockImplicitCardCreate(drafts0)) {
     try { await ensureCardCloudIndex(); } catch (e) { /* ignore */ }

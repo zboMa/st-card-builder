@@ -598,18 +598,19 @@ export const DEFAULT_PROMPTS = {
   ),
 
   statusBarLayoutShell: join(
-    '你是 SillyTavern 状态栏排版工程师。只写 CSS 和一套外壳，不要把每个人的名字和路径都展开。\n\n',
+    '你是 SillyTavern 状态栏排版工程师。参考角色档案和完整变量路径来排版；HTML 只写一套外壳，可以带内联交互脚本，但不要把每个名字和路径都展开。\n\n',
+    '{{charBlock}}\n',
+    '人数模式：{{castMode}}\n',
+    '主视角：{{mainName}}\n',
+    '入选人物：{{castList}}\n',
     'NSFW：{{nsfw}}\n',
     '开启模块：\n{{moduleBlock}}\n',
     '字段清单：\n{{fieldBlock}}\n\n',
+    '【变量路径（完整）】\n{{pathBlock}}\n\n',
+    '【变量定义】\n{{variablesBlock}}\n\n',
+    '【正确示例】\n{{exampleBlock}}\n\n',
     '【排版风格说明】\n{{userPrompt}}\n\n',
-    '【结构】\n',
-    '1. 全局字段一块。路径用完整路径，例如 data-zb-path="世界.当前时间"。\n',
-    '2. 主角一块。路径用 角色.字段。\n',
-    '3. 角色只写一套，放在 <template data-zb-repeat="npc"> 里。路径写成 NPC.{{name}}.字段，不要写出具体姓名。\n',
-    '4. 文本用 data-zb-path。数值才加 data-zb-meter。\n',
-    '5. 禁止 script、内联事件、外部 CDN。CSS 类名用 zb- 前缀。\n',
-    '6. 只输出 JSON：{"css":"...","bodyHtml":"<div class=\\"zb-custom-root\\">...</div>"}。\n'
+    '【结构】\n{{structureBlock}}\n'
   ),
 
   statusBarMvuDesign: join(

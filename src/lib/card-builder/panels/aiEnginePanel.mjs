@@ -49,9 +49,11 @@ export function attachAiEnginePanel(ctx, s, panel) {
     renderPresetList: function() {
       var container = ctx.$('presetListContainer');
       var statusEl = ctx.$('presetStatus');
+      var clearBtn = ctx.$('btnClearPresets');
+      if (clearBtn) clearBtn.disabled = !s.parsedPresetList.length;
       if (!s.parsedPresetList.length) {
         if (container) container.style.display = 'none';
-        if (statusEl) statusEl.textContent = '未找到可用规则';
+        if (statusEl) statusEl.textContent = '尚未导入酒馆预设';
         return;
       }
       if (container) container.style.display = 'block';
@@ -99,6 +101,28 @@ export function attachAiEnginePanel(ctx, s, panel) {
 
     getParsedPresetList: function() {
       return s.parsedPresetList;
+    },
+
+    clearPresets: async function() {
+      if (!s.parsedPresetList.length) return false;
+      var ok = await showConfirmDialog({
+        icon: '??',
+        title: '清空酒馆预设？',
+        message: '将清除已导入的全部预设规则。',
+        detail: '不会影响 API、模型、NSFW、RAG 和卡数据；清空后需重新导入预设。',
+        okText: '清空预设',
+        danger: true,
+      });
+      if (!ok) return false;
+      s.parsedPresetList = [];
+      var input = ctx.$('presetInput');
+      if (input) input.value = '';
+      ctx.panels.aiEngine.renderPresetList();
+      s.persistAiConfig();
+      if (typeof ctx.appFeedback === 'function') {
+        ctx.appFeedback({ message: '已清空酒馆预设', level: 'success', channel: 'toast' });
+      }
+      return true;
     },
 
     // ===== 搜索 =====

@@ -95,7 +95,7 @@ export function defaultImageConfig() {
     size: '1024x1024',
     sizeCustom: '',
     count: 1,
-    quality: 'medium',
+    quality: '',
     // Stability 独立
     stabApiKey: '',
     stabModel: 'stable-image-core',
@@ -280,7 +280,7 @@ export function initImageConfig() {
       cfg.size    = el.size ? el.size.value : '1024x1024';
       cfg.sizeCustom = el.sizeCustom ? el.sizeCustom.value.trim() : '';
       cfg.count   = parseInt(el.count && el.count.value, 10) || 1;
-      cfg.quality = el.quality ? el.quality.value : 'medium';
+      cfg.quality = el.quality ? el.quality.value : '';
     } else if (p.type === 'stability') {
       cfg.stabApiKey  = el.stabApiKey ? el.stabApiKey.value.trim() : '';
       cfg.stabModel   = el.stabModel ? el.stabModel.value.trim() : '';
@@ -319,7 +319,7 @@ export function initImageConfig() {
       el.sizeCustomWrap.style.display = (cfg.size === 'custom') ? '' : 'none';
     }
     if (el.count) el.count.value = String(cfg.count || 1);
-    if (el.quality) el.quality.value = cfg.quality || 'medium';
+    if (el.quality) el.quality.value = cfg.quality || '';
     if (el.stabApiKey) el.stabApiKey.value = cfg.stabApiKey || '';
     if (el.stabModel) el.stabModel.value = cfg.stabModel || '';
     if (el.stabSize) el.stabSize.value = cfg.stabSize || '1024x1024';

@@ -172,6 +172,7 @@ import AiEngineModal from './AiEngineModal.astro';
       <div id="presetStatus" style="font-size: 0.75rem; margin-top: 8px; color: var(--color-text-muted);">
         导入预设后，可勾选要注入的文风和规则
       </div>
+      <button type="button" id="btnClearPresets" class="btn btn-ghost btn-inline" style="margin-top: 8px;" disabled>清空已导入预设</button>
     </div>
   </div>
 
@@ -251,8 +252,9 @@ import AiEngineModal from './AiEngineModal.astro';
           <div class="form-group" style="margin-bottom:0;">
             <label for="imgQuality">质量</label>
             <select id="imgQuality" style="width:100%;">
+              <option value="" selected>默认（不传）</option>
               <option value="low">低</option>
-              <option value="medium" selected>中</option>
+              <option value="medium">中</option>
               <option value="high">高</option>
             </select>
           </div>

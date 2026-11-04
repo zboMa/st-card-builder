@@ -32,8 +32,10 @@ import {
   planStatusBarBatches,
   fillStatusBarVariables,
   buildBatchProfileBlock,
+  buildCastProfileBlock,
   describeLayoutFields,
   expandStatusBarTemplate,
+  validateStatusBarLayoutMarkup,
   layoutReviseSource,
   buildLocalSampleFloors,
 } from '../statusBar.mjs';
@@ -185,7 +187,7 @@ export function initStatusBarPanel(ctx) {
       scriptName: rx.scriptName,
       findRegex: rx.findRegex,
       placement: rx.placement,
-      replaceString: String(rx.replaceString || '').slice(0, 2400),
+      replaceString: String(rx.replaceString || ''),
     }, null, 2);
   }
 
@@ -402,6 +404,110 @@ export function initStatusBarPanel(ctx) {
       + '不要输出 path、type、description、check。不认识的字段不要写。每个值不超过一句。';
   }
 
+  function layoutPathBlock(paths) {
+    var lines = (paths || []).map(function(p) {
+      var parts = ['- ' + p.path];
+      if (p.label) parts.push('| ' + p.label);
+      if (p.type) parts.push('| type: ' + p.type);
+      if (p.sample != null && p.sample !== '') parts.push('| sample: ' + String(p.sample).slice(0, 80));
+      if (p.meter) parts.push('| meter');
+      return parts.join(' ');
+    });
+    return lines.join('\n') || '（无）';
+  }
+
+  function layoutVariablesBlock() {
+    var design = currentMvuDesign();
+    var vars = design && Array.isArray(design.variables) ? design.variables : [];
+    var lines = vars.map(function(v) {
+      var path = String((v && (v.path || v.name)) || '').trim();
+      if (!path) return '';
+      var parts = ['- ' + path];
+      if (v && v.type) parts.push('| type: ' + v.type);
+      if (v && v.default != null && String(v.default) !== '') parts.push('| default: ' + String(v.default).slice(0, 80));
+      if (v && v.description) parts.push('| ' + String(v.description).slice(0, 80));
+      return parts.join(' ');
+    }).filter(Boolean);
+    return lines.join('\n') || '（无，按字段清单）';
+  }
+
+  function layoutStructureBlock(hasProtagonist, hasNpc) {
+    var lines = [
+      '- 全局字段一块。路径用完整路径，例如 data-zb-path="世界.当前时间"。',
+      '- 硬性规则：违反任一规则整次作废。',
+      '- NPC 不展开、不写 <template>、不写死姓名；HTML 只放 tab/panel 容器。',
+      '- 每个静态字段必须绑定 data-zb-path；数值条必须绑定 data-zb-meter 并带初始 style="width:0%"。',
+    ];
+    if (hasProtagonist) lines.push('- 主角一块。路径用 角色.字段。');
+    if (hasNpc) {
+      lines.push('- 用 window.__zbStatus.npcs() 获取当前角色名列表，遍历生成 tab 和内容。');
+      lines.push('- 用 window.__zbStatus.read("NPC."+name+".字段") 读取值；用 window.__zbStatus.subscribe(render) 订阅更新。');
+      lines.push('- subscribe 会立即执行一次；不要写死角色列表，也不要在脚本里写 {{name}}。');
+    } else {
+      lines.push('- 当前未勾选 NPC，不要生成 NPC 容器或脚本。');
+    }
+    lines.push('- 未勾选主角时不要生成主角块。');
+    lines.push('- 交互可自行选择：纯 CSS（radio/details）或内联 <script> 实现 tab/折叠均可。');
+    lines.push('- 内联 script 必须包在 IIFE 内，只操作 #zb-status-root 内部 DOM；禁止外部 CDN、外部请求、parent/top、localStorage、eval。');
+    lines.push('- 不要生成 <script src=...>；CSS 类名用 zb- 前缀。');
+    lines.push('- 只输出 JSON：{"css":"...","bodyHtml":"<div class=\\"zb-custom-root\\">...</div>"}。');
+    return lines.join('\n');
+  }
+
+  function layoutExampleBlock(hasNpc) {
+    if (!hasNpc) return '当前未勾选 NPC，不要生成 NPC 容器或脚本。';
+    return [
+      '<div id="zb-npc-tabs"></div>',
+      '<div id="zb-npc-panels"></div>',
+      '<script>',
+      '(function(){',
+      '  var tabs=document.getElementById("zb-npc-tabs");',
+      '  var panels=document.getElementById("zb-npc-panels");',
+      '  function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;","\\"":"&quot;"}[c];}); }',
+      '  function render(){',
+      '    var names=window.__zbStatus.npcs();',
+      '    tabs.innerHTML=""; panels.innerHTML="";',
+      '    names.forEach(function(name,idx){',
+      '      var tab=document.createElement("button");',
+      '      tab.type="button"; tab.className="zb-tab"+(idx===0?" zb-active":""); tab.textContent=name;',
+      '      var panel=document.createElement("section");',
+      '      panel.className="zb-tab-panel"+(idx===0?" zb-active":"");',
+      '      var mood=window.__zbStatus.read("NPC."+name+".情绪");',
+      '      var favor=Number(window.__zbStatus.read("NPC."+name+".好感度"))||0;',
+      '      panel.innerHTML="<div>情绪："+esc(mood==null?"—":mood)+"</div>"',
+      '        +"<div>好感度："+esc(favor)+"</div>"',
+      '        +"<div class=\\"zb-meter\\"><span style=\\"width:"+Math.max(0,Math.min(100,favor))+"%\\"></span></div>";',
+      '      tab.onclick=function(){',
+      '        tabs.querySelectorAll(".zb-tab").forEach(function(x){x.classList.remove("zb-active");});',
+      '        panels.querySelectorAll(".zb-tab-panel").forEach(function(x){x.classList.remove("zb-active");});',
+      '        tab.classList.add("zb-active"); panel.classList.add("zb-active");',
+      '      };',
+      '      tabs.appendChild(tab); panels.appendChild(panel);',
+      '    });',
+      '  }',
+      '  window.__zbStatus.subscribe(render);',
+      '})();',
+      '</script>',
+    ].join('\n');
+  }
+
+  function buildLayoutUser(revise) {
+    var hasNpc = selectedFemales().length > 0;
+    var npcRule = hasNpc
+      ? 'NPC 不要展开、不要写死姓名；用 window.__zbStatus.npcs() 动态生成角色列表和内容。'
+      : '当前未勾选 NPC，不要输出 NPC 容器或脚本。';
+    if (!revise) {
+      return '请按排版风格说明输出 JSON。' + npcRule;
+    }
+    var source = layoutReviseSource(state.customBodyHtml, selectedFemaleNames());
+    return '在现有排版上修改，不要另起一套。保留没要求改的结构。补上字段清单里还没有的字段，去掉已关闭的字段。\n'
+      + npcRule + '\n'
+      + '姓名：' + (source.names.join('、') || '（无）') + '\n\n'
+      + '【当前 CSS】\n' + String(state.customCss || '')
+      + '\n\n【当前 HTML】\n' + source.html
+      + '\n\n请输出 JSON。静态字段只用 data-zb-path 与 data-zb-meter；动态 NPC 由 __zbStatus 渲染。';
+  }
+
   function promptBundle() {
     readFormIntoState();
     var ps = window.__promptStore__;
@@ -411,6 +517,9 @@ export function initStatusBarPanel(ctx) {
     var batches = planStatusBarBatches(paths);
     var card = fillCardSnapshot();
     var entries = worldbookEntries();
+    var chars = selectedFemales();
+    var hasProtagonist = !!state.includeProtagonist;
+    var npcNames = chars.map(function(c) { return String(c.name || '').trim(); }).filter(Boolean);
     var moduleBlock = describeEnabledModules(state.moduleFlags);
     var mvuVars = {
       moduleBlock: moduleBlock,
@@ -419,9 +528,28 @@ export function initStatusBarPanel(ctx) {
       extra: state.extra || '无',
     };
     var layoutVars = {
+      charBlock: buildCastProfileBlock({
+        includeProtagonist: hasProtagonist,
+        includeFemales: npcNames.length > 0,
+        selected: chars,
+        card: card,
+        worldbookEntries: entries,
+      }),
+      castMode: hasProtagonist
+        ? (npcNames.length ? '主角 + ' + npcNames.length + ' 名角色' : '仅主角')
+        : (npcNames.length ? '仅 ' + npcNames.length + ' 名角色' : '未选择'),
+      mainName: currentCharName() || '（未填角色名）',
+      castList: (hasProtagonist ? ['主角：' + (currentCharName() || '（未填角色名）')] : [])
+        .concat(npcNames.map(function(name) { return 'NPC：' + name; }))
+        .join('、') || '（无）',
       nsfw: state.nsfw ? '是' : '否',
       moduleBlock: moduleBlock,
       fieldBlock: describeLayoutFields(paths),
+      pathBlock: layoutPathBlock(paths),
+      variablesBlock: layoutVariablesBlock(),
+      structureBlock: layoutStructureBlock(hasProtagonist, npcNames.length > 0),
+      exampleBlock: layoutExampleBlock(npcNames.length > 0),
+      name: '{{name}}',
       userPrompt: state.layoutPrompt || '',
     };
     var sampleBatch = batches[0];
@@ -431,7 +559,7 @@ export function initStatusBarPanel(ctx) {
         ? fillUserForBatch(sampleBatch, card, entries)
         : '没有可填的字段。',
       layoutSys: applyTemplate(layoutTpl, layoutVars),
-      layoutUser: '请按排版风格说明输出 JSON。角色只写一套 <template data-zb-repeat="npc">，路径用 NPC.{{name}}.字段。',
+      layoutUser: buildLayoutUser(false),
       mvuTpl: mvuTpl,
       layoutTpl: layoutTpl,
       mvuVars: mvuVars,
@@ -443,10 +571,10 @@ export function initStatusBarPanel(ctx) {
     };
   }
 
-  function stripUnsafe(html) {
+  function sanitizeLayoutHtml(html) {
     return String(html || '')
-      .replace(/<script[\s\S]*?<\/script>/gi, '')
-      .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+      .replace(/<script\b[^>]*\bsrc\s*=[^>]*>[\s\S]*?<\/script>/gi, '')
+      .replace(/<script\b[^>]*\bsrc\s*=[^>]*\/?>/gi, '');
   }
 
   function reportError(err) {
@@ -595,21 +723,18 @@ export function initStatusBarPanel(ctx) {
       setBusy('layout', true);
     }
     var bundle = promptBundle();
-    var user = bundle.layoutUser;
-    if (revise) {
-      var source = layoutReviseSource(state.customBodyHtml, selectedFemaleNames());
-      user = '在现有排版上修改，不要另起一套。保留没要求改的结构。补上字段清单里还没有的字段，去掉已关闭的字段。\n'
-        + '角色只保留一套 <template data-zb-repeat="npc">，路径用 NPC.{{name}}.字段，不要把每个人展开。\n'
-        + '姓名：' + (source.names.join('、') || '（无）') + '\n\n'
-        + '【当前 CSS】\n' + String(state.customCss || '')
-        + '\n\n【当前 HTML】\n' + source.html
-        + '\n\n请输出 JSON。只用 data-zb-path 与 data-zb-meter。';
-    }
+    var user = buildLayoutUser(!!revise);
     async function run(signal) {
       var layout = await fetchJson(bundle.layoutSys, user, signal);
-      var css = stripUnsafe(String(layout.css || '').trim());
-      var bodyHtml = stripUnsafe(String(layout.bodyHtml || layout.html || '').trim());
+      var css = sanitizeLayoutHtml(String(layout.css || '').trim());
+      var bodyHtml = sanitizeLayoutHtml(String(layout.bodyHtml || layout.html || '').trim());
       if (!css || !bodyHtml) throw new Error('排版未生成');
+      var checked = validateStatusBarLayoutMarkup(bodyHtml, {
+        hasNpc: selectedFemales().length > 0,
+        hasProtagonist: !!state.includeProtagonist,
+        paths: bundle.paths,
+      });
+      if (!checked.ok) throw new Error('排版结构不合格：' + checked.issues.slice(0, 4).join('；'));
       state.customCss = css;
       state.customBodyHtml = bodyHtml;
       writeBoundSnippet();
@@ -787,12 +912,26 @@ export function initStatusBarPanel(ctx) {
         presetsStr: presetsStr,
         applyTemplate: applyTemplate,
       });
+      var sections = [
+        { title: '变量填值', body: mvu.text },
+        { title: '排版（重新生成）', body: layout.text },
+      ];
+      if (String(state.customBodyHtml || '').trim()) {
+        var layoutRevise = composeStatusBarPromptPreview({
+          dialogTitle: '状态栏 · 排版修改提示词',
+          promptId: 'statusBarLayoutShell',
+          taskType: 'statusbar_custom_layout',
+          systemTpl: bundle.layoutTpl,
+          vars: bundle.layoutVars,
+          userMessage: buildLayoutUser(true),
+          presetsStr: presetsStr,
+          applyTemplate: applyTemplate,
+        });
+        sections.push({ title: '排版（修改）', body: layoutRevise.text });
+      }
       openTextPreview({
         title: '状态栏 · 查看提示词',
-        text: formatStatusBarPromptSections([
-          { title: '变量填值', body: mvu.text },
-          { title: '排版', body: layout.text },
-        ]),
+        text: formatStatusBarPromptSections(sections),
       });
     } catch (err) {
       toast((err && err.message) || String(err), 'error');

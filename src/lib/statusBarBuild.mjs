@@ -348,9 +348,10 @@ export function buildPreviewHtml(opts) {
   var body = custom
     ? fillStatusMarkup(custom, map)
     : buildPlainStatusBody(paths, map, false);
+  var runtime = buildStatusBarPreviewRuntimeScript(paths, map);
   return '<!DOCTYPE html><html><head><meta charset="utf-8"><style>'
     + plainStatusCss() + css
-    + '</style></head><body><div class="zb-root" id="zb-status-root">' + body + '</div></body></html>';
+    + '</style></head><body>' + runtime + '<div class="zb-root" id="zb-status-root">' + body + '</div></body></html>';
 }
 
 /**
@@ -386,10 +387,11 @@ export function buildStatusBarSnippet(opts) {
     + body + '</div>';
 }
 
-function buildStatusBarMvuRefreshScript() {
+function buildStatusBarRuntimeScript() {
   return [
     '<script>',
     '(function(){',
+    '  var listeners = [];',
     '  function dig(root, path){',
     '    if(root==null) return undefined;',
     '    var cur=root;',
@@ -401,7 +403,13 @@ function buildStatusBarMvuRefreshScript() {
     '    if(Array.isArray(cur)) return cur.length?cur[0]:undefined;',
     '    return cur;',
     '  }',
-    '  function readStat(data, path){',
+    '  function mvuData(){',
+    '    if(typeof getCurrentMessageId!=="function") return null;',
+    '    var id=getCurrentMessageId();',
+    '    if(id==null||typeof Mvu==="undefined"||!Mvu.getMvuData) return null;',
+    '    try{ return Mvu.getMvuData({type:"message", message_id:id}); }catch(e){ return null; }',
+    '  }',
+    '  function readValue(data, path){',
     '    if(!data) return undefined;',
     '    var disp=data.display_data!=null?data.display_data:data.displayData;',
     '    var stat=data.stat_data!=null?data.stat_data:data.statData;',
@@ -409,32 +417,96 @@ function buildStatusBarMvuRefreshScript() {
     '    if(v==null||v==="") v=dig(stat, path);',
     '    return v;',
     '  }',
+    '  function read(path){ return readValue(mvuData(), path); }',
+    '  function collectNames(data){',
+    '    if(!data) return [];',
+    '    var bags=[data.display_data, data.displayData, data.stat_data, data.statData];',
+    '    var seen=Object.create(null); var names=[];',
+    '    bags.forEach(function(bag){',
+    '      var npc=bag&&bag.NPC;',
+    '      if(!npc||typeof npc!=="object"||Array.isArray(npc)) return;',
+    '      Object.keys(npc).forEach(function(name){',
+    '        if(name&&!seen[name]){ seen[name]=true; names.push(name); }',
+    '      });',
+    '    });',
+    '    return names;',
+    '  }',
+    '  function npcs(){ return collectNames(mvuData()); }',
+    '  function notify(){',
+    '    listeners.slice().forEach(function(fn){ try{ fn(); }catch(e){} });',
+    '  }',
+    '  function subscribe(fn){',
+    '    if(typeof fn!=="function") return function(){};',
+    '    listeners.push(fn);',
+    '    try{ fn(); }catch(e){}',
+    '    return function(){',
+    '      var i=listeners.indexOf(fn);',
+    '      if(i>=0) listeners.splice(i,1);',
+    '    };',
+    '  }',
     '  function refresh(root){',
-    '    if(!root) return;',
-    '    if(typeof getCurrentMessageId!=="function") return;',
-    '    var id=getCurrentMessageId();',
-    '    if(id==null||typeof Mvu==="undefined"||!Mvu.getMvuData) return;',
-    '    var data;',
-    '    try{ data=Mvu.getMvuData({type:"message", message_id:id}); }catch(e){ return; }',
-    '    root.querySelectorAll("[data-zb-path]").forEach(function(el){',
-    '      var v=readStat(data, el.getAttribute("data-zb-path"));',
-    '      el.textContent=(v==null||v==="")?"—":String(v);',
-    '    });',
-    '    root.querySelectorAll("[data-zb-meter]").forEach(function(el){',
-    '      var v=readStat(data, el.getAttribute("data-zb-meter"));',
-    '      var n=parseFloat(v);',
-    '      var w=isFinite(n)?Math.max(0,Math.min(100,n)):0;',
-    '      el.style.width=w+"%";',
-    '    });',
-    '  }',
-    '  function boot(){',
-    '    var root=document.getElementById("zb-status-root")||document.querySelector(".zb-root")||document.body;',
-    '    refresh(root);',
-    '    if(typeof eventOn==="function"&&typeof Mvu!=="undefined"&&Mvu.events&&Mvu.events.VARIABLE_UPDATE_ENDED){',
-    '      eventOn(Mvu.events.VARIABLE_UPDATE_ENDED,function(){refresh(root);});',
+    '    var data=mvuData();',
+    '    if(root){',
+    '      root.querySelectorAll("[data-zb-path]").forEach(function(el){',
+    '        var v=readValue(data, el.getAttribute("data-zb-path"));',
+    '        el.textContent=(v==null||v==="")?"—":String(v);',
+    '      });',
+    '      root.querySelectorAll("[data-zb-meter]").forEach(function(el){',
+    '        var v=readValue(data, el.getAttribute("data-zb-meter"));',
+    '        var n=parseFloat(v);',
+    '        var w=isFinite(n)?Math.max(0,Math.min(100,n)):0;',
+    '        el.style.width=w+"%";',
+    '      });',
     '    }',
+    '    notify();',
     '  }',
+    '  window.__zbStatus={read:read,npcs:npcs,subscribe:subscribe,refresh:refresh};',
+    '})();',
+    '</script>',
+  ].join('');
+}
+
+function buildStatusBarRefreshScript() {
+  return [
+    '<script>',
+    '(function(){',
+    '  var root=document.getElementById("zb-status-root")||document.querySelector(".zb-root")||document.body;',
+    '  function boot(){ if(window.__zbStatus&&window.__zbStatus.refresh) window.__zbStatus.refresh(root); }',
     '  if(typeof errorCatched==="function") errorCatched(boot)(); else boot();',
+    '  if(typeof eventOn==="function"&&typeof Mvu!=="undefined"&&Mvu.events&&Mvu.events.VARIABLE_UPDATE_ENDED){',
+    '    eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, boot);',
+    '  }',
+    '})();',
+    '</script>',
+  ].join('');
+}
+
+function buildStatusBarPreviewRuntimeScript(paths, values) {
+  var payload = JSON.stringify({ paths: paths || [], values: values || {} }).replace(/</g, '\\u003c');
+  return [
+    '<script>',
+    '(function(){',
+    '  var payload=' + payload + ';',
+    '  var listeners=[];',
+    '  function read(path){ return payload.values[path]; }',
+    '  function npcs(){',
+    '    var seen=Object.create(null); var out=[];',
+    '    (payload.paths||[]).forEach(function(p){',
+    '      if(!p||p.set!=="npc") return;',
+    '      var name=String(p.role||"");',
+    '      if(!name){ var parts=String(p.path||"").split("."); name=parts[1]||""; }',
+    '      if(name&&!seen[name]){ seen[name]=true; out.push(name); }',
+    '    });',
+    '    return out;',
+    '  }',
+    '  function notify(){ listeners.slice().forEach(function(fn){ try{ fn(); }catch(e){} }); }',
+    '  function subscribe(fn){',
+    '    if(typeof fn!=="function") return function(){};',
+    '    listeners.push(fn);',
+    '    try{ fn(); }catch(e){}',
+    '    return function(){ var i=listeners.indexOf(fn); if(i>=0) listeners.splice(i,1); };',
+    '  }',
+    '  window.__zbStatus={read:read,npcs:npcs,subscribe:subscribe,refresh:notify};',
     '})();',
     '</script>',
   ].join('');
@@ -447,7 +519,7 @@ function buildStatusBarMvuRefreshScript() {
 export function buildStatusBarRegexHtmlDocument(snippetHtml) {
   var snippet = String(snippetHtml || '').trim();
   return '<!doctype html>\n<html lang="zh-CN">\n<head>\n<meta charset="utf-8">\n</head>\n<body>\n'
-    + snippet + '\n' + buildStatusBarMvuRefreshScript() + '\n</body>\n</html>';
+    + buildStatusBarRuntimeScript() + '\n' + snippet + '\n' + buildStatusBarRefreshScript() + '\n</body>\n</html>';
 }
 
 export function formatStatusBarRegexReplace(doc) {
@@ -1237,6 +1309,85 @@ function escapeTemplateName(name) {
 }
 
 /**
+ * 生成结果结构校验：模板、NPC 路径、字段路径。
+ * @param {string} html
+ * @param {{ hasNpc?: boolean, hasProtagonist?: boolean, paths?: any[] }} [opts]
+ */
+export function validateStatusBarLayoutMarkup(html, opts) {
+  var o = opts || {};
+  var raw = String(html || '');
+  var src = raw.replace(/<script\b[\s\S]*?<\/script>/gi, '');
+  var issues = [];
+  var hasNpc = !!o.hasNpc;
+  var hasProtagonist = !!o.hasProtagonist;
+  var hasDynamicRender = /__zbStatus\s*\.\s*npcs\s*\(/.test(raw);
+  var allowed = Object.create(null);
+  var npcLeaves = Object.create(null);
+  (o.paths || []).forEach(function(p) {
+    if (!p || !p.path) return;
+    var path = String(p.path);
+    allowed[path] = true;
+    if (path.indexOf('NPC.') === 0) {
+      var leaf = path.split('.').pop();
+      if (leaf) npcLeaves[leaf] = true;
+    }
+  });
+
+  if (/<(?!template\b)[a-zA-Z][\w:-]*\b[^>]*\bdata-zb-repeat\s*=\s*["']npc["'][^>]*>/i.test(src)) {
+    issues.push('data-zb-repeat 只能写在 <template> 上');
+  }
+
+  var templates = [];
+  var templateRe = /<template\b([^>]*)>([\s\S]*?)<\/template>/gi;
+  var tm;
+  while ((tm = templateRe.exec(src))) {
+    if (/data-zb-repeat\s*=\s*["']npc["']/i.test(tm[1] || '')) templates.push(tm[2] || '');
+  }
+  if (hasNpc) {
+    if (!templates.length && !hasDynamicRender) {
+      issues.push('勾选 NPC 时必须使用 <template data-zb-repeat="npc">，或用 window.__zbStatus.npcs() 动态渲染');
+    }
+    if (templates.length > 1) issues.push('NPC 模板只能有一个');
+    if (templates.length === 1
+      && !/data-zb-(?:path|meter)\s*=\s*["']NPC\.\{\{\s*name\s*\}\}\.[^"']+/i.test(templates[0])) {
+      issues.push('NPC 模板内必须有 NPC.{{name}}.字段 的 data-zb-path 或 data-zb-meter');
+    }
+  } else if (templates.length) {
+    issues.push('未勾选 NPC 时不要生成 NPC 模板');
+  }
+
+  var outside = src.replace(/<template\b[^>]*>[\s\S]*?<\/template>/gi, '');
+  if (/\{\{\s*name\s*\}\}/.test(outside)) issues.push('{{name}} 只能出现在 NPC 模板内');
+
+  var attrRe = /data-zb-(?:path|meter)\s*=\s*(?:"([^"]*)"|'([^']*)')/gi;
+  var seen = Object.create(null);
+  var am;
+  while ((am = attrRe.exec(src))) {
+    var path = String(am[1] != null ? am[1] : am[2] || '').trim();
+    if (!path || seen[path]) continue;
+    seen[path] = true;
+    if (allowed[path]) continue;
+    var tplMatch = path.match(/^NPC\.\{\{\s*name\s*\}\}\.(.+)$/);
+    if (tplMatch) {
+      if (!hasNpc) issues.push('未勾选 NPC 却使用了 NPC 模板路径：' + path);
+      else if (!npcLeaves[tplMatch[1]]) issues.push('NPC 模板路径不在字段清单：' + path);
+      continue;
+    }
+    if (path.indexOf('NPC.') === 0) {
+      issues.push('NPC 路径不在当前勾选或字段清单：' + path);
+      continue;
+    }
+    if (path.indexOf('角色.') === 0 && !hasProtagonist) {
+      issues.push('未勾选主角却使用了主角路径：' + path);
+      continue;
+    }
+    issues.push('路径不在字段清单：' + path);
+  }
+
+  return { ok: issues.length === 0, issues: issues };
+}
+
+/**
  * 预览和正则按当前勾选的姓名展开。存下来的仍是模板。
  * @param {string} html
  * @param {string[]} names
@@ -1449,18 +1600,19 @@ export const STATUS_BAR_CUSTOM_LAYOUT_PROMPT =
 
 /** 排版只写一套外壳。女角色放在 template 里，本地再按姓名展开。 */
 export const STATUS_BAR_LAYOUT_SHELL_PROMPT =
-  '你是 SillyTavern 状态栏排版工程师。只写 CSS 和一套外壳，不要把每个人的名字和路径都展开。\n\n'
+  '你是 SillyTavern 状态栏排版工程师。参考角色档案和完整变量路径来排版；HTML 只写一套外壳，可以带内联交互脚本，但不要把每个名字和路径都展开。\n\n'
+  + '{{charBlock}}\n'
+  + '人数模式：{{castMode}}\n'
+  + '主视角：{{mainName}}\n'
+  + '入选人物：{{castList}}\n'
   + 'NSFW：{{nsfw}}\n'
   + '开启模块：\n{{moduleBlock}}\n'
   + '字段清单：\n{{fieldBlock}}\n\n'
+  + '【变量路径（完整）】\n{{pathBlock}}\n\n'
+  + '【变量定义】\n{{variablesBlock}}\n\n'
+  + '【正确示例】\n{{exampleBlock}}\n\n'
   + '【排版风格说明】\n{{userPrompt}}\n\n'
-  + '【结构】\n'
-  + '1. 全局字段一块。路径用完整路径，例如 data-zb-path="世界.当前时间"。\n'
-  + '2. 主角一块。路径用 角色.字段。\n'
-  + '3. 角色只写一套，放在 <template data-zb-repeat="npc"> 里。路径写成 NPC.{{name}}.字段，不要写出具体姓名。\n'
-  + '4. 文本用 data-zb-path。数值才加 data-zb-meter。\n'
-  + '5. 禁止 script、内联事件、外部 CDN。CSS 类名用 zb- 前缀。\n'
-  + '6. 只输出 JSON：{"css":"...","bodyHtml":"<div class=\\"zb-custom-root\\">...</div>"}。\n';
+  + '【结构】\n{{structureBlock}}\n';
 
 /** 三楼样例提示词。已停用：样例改由 buildLocalSampleFloors 在本地生成。 */
 export const STATUS_BAR_SAMPLE_FLOORS_PROMPT =

@@ -152,7 +152,7 @@ onMounted(() => {
         </div>
         <div v-show="ui.view === 'preview'" class="sb-view-pane" data-sb-view-pane="preview">
           <p class="ui-hint" id="sbPreviewHint">{{ ui.hintText }}</p>
-          <iframe id="sbPreviewFrame" class="sb-preview-frame" title="状态栏预览" sandbox="allow-same-origin" :srcdoc="ui.previewHtml"></iframe>
+          <iframe id="sbPreviewFrame" class="sb-preview-frame" title="状态栏预览" sandbox="allow-scripts" :srcdoc="ui.previewHtml"></iframe>
           <div class="sb-floor-nav">
             <button type="button" class="btn btn-inline" id="sbFloorPrev" @click="api()?.shiftFloor(-1)">上一楼</button>
             <span id="sbFloorLabel">{{ ui.floorLabel }}</span>

@@ -41,6 +41,11 @@ describe('imageGen client pure', function() {
     var b4 = buildOpenaiStyleBody({ model: '', size: '512x512', count: 0, quality: 'medium' }, prov, 'x', {});
     assert.equal(b4.model, prov.models[0]);
     assert.equal(b4.n, 1);
+
+    var b5 = buildOpenaiStyleBody({ model: 'gpt-4o-image', quality: '' }, prov, 'x', {});
+    assert.equal(Object.prototype.hasOwnProperty.call(b5, 'quality'), false);
+    var b6 = buildOpenaiStyleBody({ model: 'gpt-4o-image', quality: 'medium' }, prov, 'x', {});
+    assert.equal(b6.quality, 'medium');
   });
 
   it('stabilityEngine / stabilityAspectRatio', function() {

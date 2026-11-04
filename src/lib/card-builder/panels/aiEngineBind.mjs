@@ -59,6 +59,13 @@ export function attachAiEngineBind(ctx, s, panel) {
         });
       }
 
+      var btnClearPresets = ctx.$('btnClearPresets');
+      if (btnClearPresets) {
+        btnClearPresets.addEventListener('click', function() {
+          ctx.panels.aiEngine.clearPresets();
+        });
+      }
+
       var btnFetchModels = ctx.$('btnFetchModels');
       if (btnFetchModels) {
         btnFetchModels.addEventListener('click', function() {

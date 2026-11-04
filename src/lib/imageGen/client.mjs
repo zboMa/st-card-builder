@@ -46,15 +46,17 @@ export function buildOpenaiStyleBody(cfg, provider, prompt, opts) {
   var size = cfg.size === 'custom'
     ? (String(cfg.sizeCustom || '').trim() || '1024x1024')
     : (cfg.size || '1024x1024');
-  var q = cfg.quality || 'medium';
+  var q = String(cfg.quality || '').trim();
   var body = {
     model: model,
     prompt: String(prompt || ''),
     n: Math.max(1, Math.min(4, Number(cfg.count) || 1)),
     size: size,
   };
-  var isGptImage = /gpt-image/i.test(model);
-  body.quality = isGptImage ? q : (q === 'high' ? 'hd' : 'standard');
+  if (q) {
+    var isDallE = /dall-e/i.test(model);
+    body.quality = isDallE ? (q === 'high' ? 'hd' : 'standard') : q;
+  }
   return body;
 }
 
@@ -82,7 +84,7 @@ async function generateOpenaiStyle(cfg, provider, prompt, opts) {
     if (it.b64_json) {
       images.push({ dataUrl: b64ToDataUrl(it.b64_json, 'image/png') });
     } else if (it.url) {
-      images.push({ dataUrl: await fetchAsDataUrl(it.url, headers) });
+      images.push({ dataUrl: await fetchAsDataUrl(it.url), url: it.url, mimeType: it.mime_type || '' });
     }
   }
   if (!images.length) throw new Error('接口未返回图片（data 为空）');

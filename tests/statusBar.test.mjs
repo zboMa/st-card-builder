@@ -71,6 +71,7 @@ import {
   applyBatchFill,
   fillStatusBarVariables,
   expandStatusBarTemplate,
+  validateStatusBarLayoutMarkup,
   layoutReviseSource,
   buildLocalSampleFloors,
   buildGroupedUpdateRules,
@@ -810,6 +811,66 @@ describe('statusBar wiring', function() {
     assert.match(tc, /statusbar_custom_layout/);
   });
 
+  it('排版提示词恢复完整角色与变量上下文', function() {
+    const boot = readFileSync(join(root, 'src/lib/statusBar/panelBoot.mjs'), 'utf8');
+    assert.match(boot, /buildCastProfileBlock/);
+    assert.match(boot, /charBlock:/);
+    assert.match(boot, /castMode:/);
+    assert.match(boot, /mainName:/);
+    assert.match(boot, /castList:/);
+    assert.match(boot, /pathBlock:/);
+    assert.match(boot, /variablesBlock:/);
+    assert.match(boot, /structureBlock:/);
+    assert.match(boot, /exampleBlock:/);
+    assert.match(boot, /name:\s*'\{\{name\}\}'/);
+    assert.match(boot, /window\.__zbStatus\.npcs\(\)/);
+    assert.match(boot, /window\.__zbStatus\.read/);
+    assert.match(boot, /window\.__zbStatus\.subscribe/);
+    const canon = readFileSync(join(root, 'src/lib/promptCanon.mjs'), 'utf8');
+    assert.match(canon, /\{\{charBlock\}\}/);
+    assert.match(canon, /\{\{castMode\}\}/);
+    assert.match(canon, /\{\{mainName\}\}/);
+    assert.match(canon, /\{\{castList\}\}/);
+    assert.match(canon, /\{\{pathBlock\}\}/);
+    assert.match(canon, /\{\{variablesBlock\}\}/);
+    assert.match(canon, /\{\{exampleBlock\}\}/);
+    assert.match(canon, /\{\{structureBlock\}\}/);
+    const fallback = readFileSync(join(root, 'src/lib/statusBarBuild.mjs'), 'utf8');
+    assert.match(fallback, /\{\{charBlock\}\}/);
+    assert.match(fallback, /\{\{pathBlock\}\}/);
+    assert.match(fallback, /\{\{variablesBlock\}\}/);
+    assert.match(fallback, /\{\{exampleBlock\}\}/);
+    assert.match(fallback, /\{\{structureBlock\}\}/);
+  });
+
+  it('注入片段保留 AI 生成的内联脚本', function() {
+    var snippet = buildStatusBarSnippet({
+      customCss: '.zb-custom-root{display:block}',
+      customBodyHtml: '<div class="zb-custom-root"><script>window.__zbAi = 1;</script></div>',
+      paths: [],
+    });
+    assert.match(snippet, /<script>window\.__zbAi = 1;<\/script>/);
+  });
+
+  it('注入时先提供 __zbStatus 再执行 AI 脚本', function() {
+    var snip = buildStatusBarSnippet({
+      customCss: '',
+      customBodyHtml: '<div id="zb-status-root"><script>window.__zbStatus.npcs();</script></div>',
+      paths: [],
+    });
+    var rx = buildStatusBarRegex({ snippetHtml: snip, mode: 'mvu' });
+    var bridge = rx.replaceString.indexOf('window.__zbStatus=');
+    var ai = rx.replaceString.indexOf('window.__zbStatus.npcs()');
+    assert.ok(bridge >= 0);
+    assert.ok(ai > bridge);
+  });
+
+  it('预览 iframe 允许内联脚本且不同源', function() {
+    const panel = readFileSync(join(root, 'src/components/statusBar/StatusBarPanel.vue'), 'utf8');
+    assert.match(panel, /sandbox="allow-scripts"/);
+    assert.doesNotMatch(panel, /allow-same-origin/);
+  });
+
   it('本轮 10 族：全开模块 label 全覆盖；多人任务/事件可见；softmon 回归', function() {
     var CORE_SINGLE = [
       'scrapbook', 'neon_monitor', 'mahogany_dossier', 'xianxia_scroll', 'sheet_attr',
@@ -1076,7 +1137,8 @@ describe('statusBar two path sets', function() {
     assert.doesNotMatch(blob, /基准主题|statusBarThemes|designCss/);
     assert.match(STATUS_BAR_MVU_FILL_PROMPT, /defaults/);
     assert.match(STATUS_BAR_MVU_FILL_PROMPT, /未结识/);
-    assert.match(STATUS_BAR_LAYOUT_SHELL_PROMPT, /data-zb-repeat="npc"/);
+    assert.match(STATUS_BAR_LAYOUT_SHELL_PROMPT, /\{\{structureBlock\}\}/);
+    assert.match(readFileSync(join(root, 'src/lib/statusBar/panelBoot.mjs'), 'utf8'), /__zbStatus\.npcs/);
     assert.match(STATUS_BAR_MVU_DESIGN_PROMPT, /已停用/);
     assert.match(STATUS_BAR_CUSTOM_LAYOUT_PROMPT, /已停用/);
   });
@@ -1151,6 +1213,70 @@ describe('statusBar two path sets', function() {
     assert.match(source.html, /NPC\.\{\{name\}\}\.情绪/);
     assert.doesNotMatch(source.html, /黄蓉/);
     assert.deepEqual(source.names, ['小龙女', '黄蓉']);
+  });
+
+  it('排版结构校验拦截错误模板与路径', function() {
+    var paths = [
+      { path: '世界.当前时间', set: 'global' },
+      { path: 'NPC.张三.情绪', set: 'npc', role: '张三' },
+      { path: 'NPC.张三.好感度', set: 'npc', role: '张三' },
+    ];
+    var good = '<div data-zb-path="世界.当前时间"></div>'
+      + '<template data-zb-repeat="npc"><span data-zb-path="NPC.{{name}}.情绪"></span>'
+      + '<span data-zb-meter="NPC.{{name}}.好感度" style="width:0%"></span></template>';
+    assert.equal(validateStatusBarLayoutMarkup(good, {
+      hasNpc: true,
+      hasProtagonist: false,
+      paths: paths,
+    }).ok, true);
+    assert.equal(validateStatusBarLayoutMarkup(good + '<script>const x = "{{name}}";</script>', {
+      hasNpc: true,
+      hasProtagonist: false,
+      paths: paths,
+    }).ok, true);
+
+    var dynamic = '<div id="zb-status-root"></div>'
+      + '<script>window.__zbStatus.npcs().forEach(function(n){});</script>';
+    assert.equal(validateStatusBarLayoutMarkup(dynamic, {
+      hasNpc: true,
+      hasProtagonist: false,
+      paths: paths,
+    }).ok, true);
+
+    var wrongRepeat = '<div data-zb-repeat="npc"><span data-zb-path="NPC.{{name}}.情绪"></span></div>';
+    assert.equal(validateStatusBarLayoutMarkup(wrongRepeat, {
+      hasNpc: true,
+      hasProtagonist: false,
+      paths: paths,
+    }).ok, false);
+
+    var noTemplate = '<span data-zb-path="世界.当前时间"></span>';
+    assert.equal(validateStatusBarLayoutMarkup(noTemplate, {
+      hasNpc: true,
+      hasProtagonist: false,
+      paths: paths,
+    }).ok, false);
+
+    var unknownPath = '<template data-zb-repeat="npc"><span data-zb-path="NPC.{{name}}.不存在"></span></template>';
+    assert.equal(validateStatusBarLayoutMarkup(unknownPath, {
+      hasNpc: true,
+      hasProtagonist: false,
+      paths: paths,
+    }).ok, false);
+
+    var noPath = '<template data-zb-repeat="npc"><span>情绪</span></template>';
+    assert.equal(validateStatusBarLayoutMarkup(noPath, {
+      hasNpc: true,
+      hasProtagonist: false,
+      paths: paths,
+    }).ok, false);
+
+    var phantomProtagonist = '<span data-zb-path="角色.情绪"></span>';
+    assert.equal(validateStatusBarLayoutMarkup(phantomProtagonist, {
+      hasNpc: false,
+      hasProtagonist: false,
+      paths: paths,
+    }).ok, false);
   });
 
   it('样例楼本地生成三楼，更新规则按字段合并', function() {
